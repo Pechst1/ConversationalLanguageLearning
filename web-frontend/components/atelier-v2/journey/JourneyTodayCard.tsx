@@ -35,10 +35,13 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { frenchSpacing } from '@/lib/french-typography';
 import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
 
-import { journeyCopy, journeyStatusCopy } from './journey-copy';
+import { journeyChromeLanguage } from '@/lib/language-rule';
+
+import { journeyCopy } from './journey-copy';
 import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -46,29 +49,31 @@ export type JourneyTodayCardProps = {
   controller: DailyJourneyController;
   /** Open the connected session shell. */
   onOpen: () => void;
-  /** Open the legacy Atelier session at its own href. */
+  /**
+   * Kept for callers; unused since WP-81 removed the legacy-session card from
+   * Home.
+   */
   onOpenLegacy?: (href: string) => void;
 };
 
 export function JourneyTodayCard({
   controller,
   onOpen,
-  onOpenLegacy,
 }: JourneyTodayCardProps) {
+  // WP-82: the card is one chrome language — the learner's up to A2, French
+  // from B1. French on it is the scene's own title and names.
+  const chromeLanguage = journeyChromeLanguage(controller);
   const copy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyCopy(controller.controlLanguage),
+    ...atelierCopy(chromeLanguage),
+    ...journeyCopy(chromeLanguage),
   };
-  const statusCopy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyStatusCopy(controller.controlLanguage),
-  };
-  const { phase, busy, actions, legacyResume } = controller;
+  const statusCopy = copy;
+  const { phase, busy, actions } = controller;
 
   if (phase.kind === 'disabled' || phase.kind === 'loading') return null;
 
   return (
-    <AtelierV2Root language={controller.controlLanguage} className="journey-today">
+    <AtelierV2Root language={chromeLanguage} className="journey-today">
       <div className="av2-stack">
         <JourneyTodayBody
           phase={phase}
@@ -84,7 +89,7 @@ export function JourneyTodayCard({
           }}
           onRefresh={() => void actions.refresh()}
           onRetryGeneration={() => void actions.retryGeneration()}
-          controlLanguage={controller.controlLanguage}
+          controlLanguage={chromeLanguage}
         />
 
         {/* WP-43 — the nouvelles-pages artboard: the card carries the scene
@@ -95,7 +100,7 @@ export function JourneyTodayCard({
           phase={phase}
           copy={copy}
           busy={busy}
-          controlLanguage={controller.controlLanguage}
+          controlLanguage={chromeLanguage}
           onOpen={onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
@@ -105,28 +110,9 @@ export function JourneyTodayCard({
           }}
         />
 
-        {/* The legacy session keeps its own outlined surface and its own
-            second-tier action, so it can never be mistaken for today's scene. */}
-        {legacyResume && (
-          <Surface
-            as="section"
-            tone="outline"
-            className="journey-legacy"
-            aria-label={copy.legacy_resume_title}
-          >
-            <p className="av2-label">{copy.legacy_resume_title}</p>
-            <p className="av2-body">{copy.legacy_resume_body}</p>
-            <div className="av2-recap__actions">
-              <Action
-                tone="secondary"
-                inline
-                onClick={() => onOpenLegacy?.(legacyResume.href)}
-              >
-                {copy.legacy_resume_action}
-              </Action>
-            </div>
-          </Surface>
-        )}
+        {/* WP-81: no «unfinished older practice» card on Home. The legacy
+            session is still resumable from the drill loop («Plus de pratique»
+            in Cahier and the recap); Home does one thing — the day. */}
       </div>
     </AtelierV2Root>
   );
@@ -225,15 +211,21 @@ function JourneyTodayBody({
           </Card>
         );
       }
-      // WP-43: the estimate is chrome («5 min»), French on every screen.
+      // WP-82: the estimate is status («5 min»), in the card's chrome language.
       // WP-80: after an absence the day is short, so the standard estimate is
       // not printed beside «Reprise en douceur».
-      const gentle = gentleReturnLabel({ missedDays: phase.envelope.missed_days, dayShape: null, estimatedSeconds: null });
-      const estimate = gentle ? null : formatDuration(scenario.estimated_seconds, 'fr');
+      const gentle = gentleReturnLabel({
+        missedDays: phase.envelope.missed_days,
+        dayShape: null,
+        estimatedSeconds: null,
+        language: controlLanguage,
+      });
+      const estimate = gentle ? null : formatDuration(scenario.estimated_seconds, controlLanguage);
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
+          // WP-81: Home's date says «today»; the card's label is the place.
+          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -248,7 +240,8 @@ function JourneyTodayBody({
             ) : null
           }
         >
-          <p className="av2-body av2-body--lg">{scenario.objective_native}</p>
+          {/* WP-81/82: the hero is art, title and one press; the objective is
+              printed once, on the reply step that asks for it. */}
           {/* An estimate is not a countdown. It is the plan's own number, and
               it is absent rather than guessed when the plan has none. */}
           {estimate && !scenario.character_name && (
@@ -265,11 +258,12 @@ function JourneyTodayBody({
         missedDays: phase.journey.missed_days,
         dayShape: phase.journey.day_shape ?? 'standard',
         estimatedSeconds: phase.journey.estimated_active_seconds,
+        language: controlLanguage,
       });
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
+          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -277,9 +271,7 @@ function JourneyTodayBody({
           byline={
             scenario.character_name ? <Byline name={scenario.character_name} /> : null
           }
-        >
-          <p className="av2-body av2-body--lg">{scenario.objective_native}</p>
-        </Card>
+        />
       );
     }
 
@@ -335,15 +327,25 @@ function JourneyTodayBody({
         </Card>
       );
 
-    case 'finished':
+    case 'finished': {
       // Re-entry is a READ. It must not restart the day or touch a streak.
+      // WP-81: the completed state — the ink «done» square and «Done for
+      // today» over the scene's own French title, and one quiet «Revoir».
+      const titleFr = phase.journey?.scenario?.title_fr?.trim();
       return (
-        <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.done_today} done>
+        <Card
+          copy={copy}
+          eyebrow={copy.done_today}
+          title={titleFr || copy.done_today}
+          lang={titleFr ? 'fr' : undefined}
+          done
+        >
           <Action tone="secondary" inline onClick={onOpen}>
             {copy.done_review}
           </Action>
         </Card>
       );
+    }
 
     case 'load_failed':
       return (
@@ -381,7 +383,7 @@ function Card({
   done?: boolean;
   /** WP-76: the scene is being prepared — the place breathes, no spinner. */
   preparing?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <Surface
@@ -403,7 +405,7 @@ function Card({
           {done && <ShapeToken kind="done" size="sm" />} {eyebrow}
         </p>
         <h2 className="av2-headline av2-headline--title" lang={lang}>
-          {title}
+          {lang === 'fr' ? frenchSpacing(title) : title}
         </h2>
         {byline}
         {children}

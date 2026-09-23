@@ -7,6 +7,8 @@
 
 import { useMemo } from 'react';
 
+import { frenchSpacing } from '@/lib/french-typography';
+
 import { tokenizeFrench } from './french-text';
 
 export function TappableFrench({
@@ -20,7 +22,9 @@ export function TappableFrench({
   onWord: (word: { surface: string; term: string }) => void;
   disabled?: boolean;
 }) {
-  const tokens = useMemo(() => tokenizeFrench(text, idPrefix), [idPrefix, text]);
+  // WP-82: « ? ! » stay on their word's line (U+202F). The narrow space is a
+  // non-word run, so the tappable words — and their lookup terms — are unchanged.
+  const tokens = useMemo(() => tokenizeFrench(frenchSpacing(text), idPrefix), [idPrefix, text]);
   if (!tokens.length) return null;
   return (
     <>

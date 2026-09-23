@@ -10,8 +10,11 @@
 
 import React from 'react';
 
-import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
+import { Action, ArrowRightIcon, useControlLanguage } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { frenchQuote } from '@/lib/french-typography';
+
+import { journeyCopy } from './journey-copy';
 import type { CastIntroEntry, JourneySnapshot } from '@/types/daily-journey';
 
 export type { CastIntroEntry };
@@ -67,7 +70,7 @@ function CastMember({ entry, language }: { entry: CastIntroEntry; language: stri
           aria-expanded={translatable ? open : undefined}
           onClick={() => translatable && setOpen((value) => !value)}
         >
-          « {entry.line_fr} »
+          {frenchQuote(entry.line_fr)}
         </button>
         {translatable && open && (
           <p className="av2-label cast-intro__native" lang={language} aria-live="polite">
@@ -89,10 +92,13 @@ export function CastIntro({
   language: string;
   onContinue: () => void;
 }) {
+  // WP-82: the heading and the button are the screen's chrome, in the
+  // chrome language the shell resolved (the root's), never fixed French.
+  const copy = journeyCopy(useControlLanguage());
   return (
     <section className="cast-intro" aria-labelledby="cast-intro-title">
       <h2 id="cast-intro-title" className="av2-headline av2-headline--title">
-        Les personnages
+        {copy.cast_title}
       </h2>
       <ul className="cast-intro__list">
         {cast.map((entry) => (
@@ -100,7 +106,7 @@ export function CastIntro({
         ))}
       </ul>
       <Action tone="primary" onClick={onContinue} iconAfter={<ArrowRightIcon size={18} />}>
-        Continuer
+        {copy.continue}
       </Action>
       <style jsx>{`
         .cast-intro {

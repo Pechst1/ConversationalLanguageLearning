@@ -102,7 +102,9 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 }
-const htmlHas = (html, text) => html.includes(escapeHtml(text));
+// WP-82: French content is rendered with a narrow no-break space (U+202F)
+// before « ; : ! ? »; the fixtures are written with ordinary spaces.
+const htmlHas = (html, text) => html.replace(/ /g, ' ').includes(escapeHtml(text));
 
 const state = require('./journey-state.ts');
 const episodeModel = require('./story-episode-model.ts');
@@ -608,12 +610,9 @@ const noSleep = () => Promise.resolve();
     React.createElement(steps.RespondStepView, { step: withVoice, ...baseStepProps }),
   );
   assert.ok(htmlHas(respondHtml, EN.speak), 'speaking is the primary output');
-  assert.ok(htmlHas(respondHtml, EN.voice_hint), 'and it says what happens to the recording');
-  assert.ok(
-    !/prononciation|pronunciation/i.test(respondHtml) ||
-      htmlHas(respondHtml, EN.voice_hint),
-    'the only mention of pronunciation is the promise not to judge it',
-  );
+  // WP-82 (appendix A): the «say it out loud…» line is gone — the mic says it.
+  assert.ok(!htmlHas(respondHtml, EN.voice_hint), 'no explaining line under the mic');
+  assert.ok(!/prononciation|pronunciation/i.test(respondHtml), 'and no talk of pronunciation');
   assert.ok(htmlHas(respondHtml, EN.use_text), 'writing is one tap away');
   assert.ok(!respondHtml.includes('<textarea'), 'the field waits for a transcript');
   assert.ok(htmlHas(respondHtml, withVoice.prompt.character_line_fr));
@@ -748,12 +747,13 @@ const noSleep = () => Promise.resolve();
   );
   assert.ok(wrongHtml.includes('data-state="wrong"') && htmlHas(wrongHtml, EN.wrong));
 
-  // An authored reply is labelled as authored; an unknown source claims nothing.
+  // WP-82 (text diet): the verdict prints no provenance line — an authored
+  // reply is never *presented* as live, and it is not annotated either.
   const authoredHtml = renderFeedback(
     state.feedbackFromAttempt({ ...clean, reply_source: 'authored' }),
   );
-  assert.ok(htmlHas(authoredHtml, EN.reply_authored_note), 'an authored reply says so');
-  assert.ok(!htmlHas(correctHtml, EN.reply_authored_note), 'and a live one does not');
+  assert.ok(!htmlHas(authoredHtml, EN.reply_authored_note), 'no «written reply from the script» line');
+  assert.ok(!htmlHas(correctHtml, EN.reply_authored_note), 'and none on a live one');
   const unknownSourceHtml = renderFeedback(state.feedbackFromAttempt(noProvenance));
   assert.ok(
     !htmlHas(unknownSourceHtml, EN.reply_authored_note),
@@ -915,8 +915,10 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(legacyHtml, EN.start), 'the journey still offers its own start');
-  assert.ok(htmlHas(legacyHtml, EN.legacy_resume_title), 'and the old session is labelled separately');
-  assert.ok(htmlHas(legacyHtml, EN.legacy_resume_action));
+  // WP-81: Home does one thing — the old session's card is gone from Home.
+  assert.ok(!htmlHas(legacyHtml, EN.legacy_resume_title), 'no «unfinished older practice» card');
+  assert.ok(!htmlHas(legacyHtml, EN.legacy_resume_action));
+  assert.ok(!legacyHtml.includes('journey-legacy'));
 
   // Preparing shows the retry hint instead of a second start action.
   const preparingHtml = renderToStaticMarkup(
@@ -931,7 +933,7 @@ const noSleep = () => Promise.resolve();
   // WP-69: a status card is one language — the learner's — button included.
   const STATUS_EN = journeyStatusCopy('en');
   assert.ok(htmlHas(preparingHtml, STATUS_EN.preparing_title) && htmlHas(preparingHtml, STATUS_EN.preparing_retry));
-  assert.ok(!htmlHas(preparingHtml, EN.preparing_retry), 'no French button under an English status');
+  assert.ok(!htmlHas(preparingHtml, journeyCopy('fr').preparing_retry), 'no French button under an English status');
   assert.equal(state.phaseFromJourney(fixture('preparing').response).retryAllowed, Boolean(fixture('preparing').response.retry?.allowed));
   assert.ok(!htmlHas(preparingHtml, EN.start), 'never a second start while one is preparing');
 
@@ -946,6 +948,10 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(doneHtml, EN.done_today));
+  assert.ok(htmlHas(doneHtml, EN.done_review), 'one quiet «Revoir»');
+  // WP-81: the completed state names the day's scene (French content) under
+  // the learner-language status.
+  assert.ok(htmlHas(doneHtml, fixture('completed').response.scenario.title_fr));
   assert.ok(!htmlHas(doneHtml, EN.start), 'a finished day is never restartable from here');
 
   // The capability being off renders nothing at all.
@@ -1874,35 +1880,53 @@ const noSleep = () => Promise.resolve();
 });
 
 // ===========================================================================
-// WP-43 — one chrome language per screen (WP-39 D-3)
+// WP-82 — one language rule (supersedes WP-43 / WP-39 D-3)
 // ===========================================================================
-// The app's chrome is French on every screen; the learner's language is for
-// what is said *to* them about the scene. So the card's eyebrow, its start
-// and resume actions, the step names and the stage names read French for a
-// German or English control language, while the instruction and the hint
-// keep the learner's language.
+// Up to A2 the app's own words — instructions, status, verdicts and the
+// buttons beside them — are the learner's language, so no card mixes two
+// chrome languages. French is the content (`*_fr`) and the navigation. From
+// B1 the chrome is French: `journeyChromeLanguage` resolves 'fr'.
 {
-  const { CHROME_KEYS } = require('./journey-copy.ts');
   const FRT = journeyCopy('fr');
   for (const language of ['en', 'de']) {
     const table = journeyCopy(language);
-    for (const key of CHROME_KEYS) {
-      assert.equal(table[key], FRT[key], `${language}.${key} is French chrome`);
+    for (const key of ['start', 'resume', 'continue', 'send', 'check', 'help', 'retry', 'today_eyebrow', 'finish_early']) {
+      assert.notEqual(table[key], FRT[key], `${language}.${key} is the learner's language`);
     }
-    // …and the learner-language sentences are still the learner's.
-    assert.notEqual(table.voice_hint, FRT.voice_hint, `${language}.voice_hint stays native`);
     assert.notEqual(table.preparing_body, FRT.preparing_body, `${language}.preparing_body stays native`);
-    assert.notEqual(table.radio_predire_body, FRT.radio_predire_body, `${language}.radio_predire_body stays native`);
   }
-  assert.equal(journeyCopy('de').start, 'Commencer');
-  assert.equal(journeyCopy('de').today_eyebrow, 'Aujourd’hui');
-  assert.equal(journeyCopy('en').finish_early, FRT.finish_early);
+  assert.equal(journeyCopy('de').start, 'Heute starten');
+  assert.equal(journeyCopy('de').today_eyebrow, 'Heute');
+  assert.equal(journeyCopy('fr').start, 'Commencer');
+
+  const { journeyChromeLanguage, chromeLanguage, levelBand } = require('../../../lib/language-rule.ts');
+  assert.equal(levelBand('A1.1'), 'A1');
+  assert.equal(levelBand(' b2 '), 'B2');
+  assert.equal(levelBand('Nouveau'), null);
+  assert.equal(chromeLanguage('de', 'A2'), 'de', 'A2: the learner’s language');
+  assert.equal(chromeLanguage('de', 'B1'), 'fr', 'B1: French chrome');
+  assert.equal(chromeLanguage('en-GB', null), 'en', 'no level: a beginner');
+  const withBand = (band) => ({
+    controlLanguage: 'en',
+    journey: { scenario: { level_band: band } },
+    envelope: null,
+  });
+  assert.equal(journeyChromeLanguage(withBand('A1')), 'en');
+  assert.equal(journeyChromeLanguage(withBand('B2')), 'fr');
+  assert.equal(
+    journeyChromeLanguage({ controlLanguage: 'de', journey: null, envelope: { available: { level_band: 'B1' } } }),
+    'fr',
+    'before a journey exists, the offered scenario’s band',
+  );
+
   // The card no longer carries its own primary: the action sits under it.
   const card = fs.readFileSync(path.join(__dirname, 'JourneyTodayCard.tsx'), 'utf8');
   assert.ok(card.includes('function JourneyPrimary('), 'the primary action is its own block under the card');
   assert.ok(card.includes('collapseWhenAbsent'), 'no empty art plate on the Home card');
+  assert.ok(card.includes('journeyChromeLanguage(controller)'), 'the card resolves its one chrome language');
   const session = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
-  assert.ok(session.includes("atelierCopy('fr')"), 'the step caption is French chrome');
+  assert.ok(!session.includes("atelierCopy('fr')"), 'the step caption follows the chrome language');
+  assert.ok(session.includes('journeyChromeLanguage(controller)'));
 }
 
 // ===========================================================================
@@ -2059,7 +2083,7 @@ const noSleep = () => Promise.resolve();
   };
   const transformHtml = render(steps.RecallStepView, transformStep);
   assert.ok(htmlHas(transformHtml, 'tu prends un café'), 'the source sentence is printed');
-  assert.ok(htmlHas(transformHtml, FR66.transform_source_label), 'and labelled as the source');
+  assert.ok(htmlHas(transformHtml, EN66.transform_source_label), 'and labelled as the source');
   assert.ok(transformHtml.includes('<textarea'), 'a transform is written out');
   assert.ok(
     !htmlHas(transformHtml, 'vous prenez un café'),
@@ -2070,7 +2094,7 @@ const noSleep = () => Promise.resolve();
   const choiceHtml = render(steps.RecallStepView, recallFixture);
   assert.ok(choiceHtml.includes('role="radiogroup"'), 'choice still renders as it did');
   assert.ok(!htmlHas(choiceHtml, EN66.word_bank_spare_chips));
-  assert.ok(!htmlHas(choiceHtml, FR66.transform_source_label));
+  assert.ok(!htmlHas(choiceHtml, EN66.transform_source_label));
 
   // --- «jour d'écoute» -----------------------------------------------------
   assert.equal(state.sceneOpensOnAudio(sceneFixture.prompt), false);
@@ -2118,21 +2142,21 @@ const noSleep = () => Promise.resolve();
   };
   const repriseHtml = render(steps.ResolutionStepView, reprise);
   assert.ok(htmlHas(repriseHtml, 'Le chapitre s’achève : Romy a récupéré ses clés.'));
-  assert.ok(htmlHas(repriseHtml, FR66.chapter_recap_label));
+  assert.ok(htmlHas(repriseHtml, EN66.chapter_recap_label));
   assert.ok(htmlHas(repriseHtml, '« vous » tenu avec Margaux.'), 'the register line is French');
   assert.ok(htmlHas(repriseHtml, 'Kept vous with Margaux.'), 'the reason is the learner’s');
-  assert.ok(htmlHas(repriseHtml, FR66.register_label));
+  assert.ok(htmlHas(repriseHtml, EN66.register_label));
   // The ending is still the ending: the additions sit under it.
   assert.ok(htmlHas(repriseHtml, resolutionFixture.prompt.character_line_fr));
   assert.ok(
-    repriseHtml.indexOf(escapeHtml(resolutionFixture.prompt.character_line_fr)) <
-      repriseHtml.indexOf(escapeHtml('« vous » tenu avec Margaux.')),
+    repriseHtml.replace(/\u202f/g, " ").indexOf(escapeHtml(resolutionFixture.prompt.character_line_fr)) <
+      repriseHtml.replace(/\u202f/g, " ").indexOf(escapeHtml('« vous » tenu avec Margaux.')),
   );
 
   // A resolution from a server that predates WP-66 renders exactly as before.
   const plainResolutionHtml = render(steps.ResolutionStepView, resolutionFixture);
-  assert.ok(!htmlHas(plainResolutionHtml, FR66.register_label));
-  assert.ok(!htmlHas(plainResolutionHtml, FR66.chapter_recap_label));
+  assert.ok(!htmlHas(plainResolutionHtml, EN66.register_label));
+  assert.ok(!htmlHas(plainResolutionHtml, EN66.chapter_recap_label));
 
   // --- «jour de lettre» (WP-64 seam, off until a provider exists) ----------
   assert.equal(respondFixture.prompt.letter ?? null, null, 'no letter on an ordinary day');

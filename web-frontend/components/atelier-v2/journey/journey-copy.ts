@@ -166,7 +166,9 @@ export type JourneyCopyKey =
   | 'chapter_recap_label'
   | 'register_label'
   | 'letter_from'
-  | 'letter_reply_label';
+  | 'letter_reply_label'
+  // WP-82: the cast intro's heading, in the chrome language.
+  | 'cast_title';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -264,7 +266,7 @@ const EN: CopyTable = {
   more_practice: 'More practice',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
-  done_today: 'Today’s scene is done.',
+  done_today: 'Done for today',
   done_review: 'Look again',
   nothing_offered: 'No scene is available right now.',
   listen_first_label: 'Listen first',
@@ -312,6 +314,7 @@ const EN: CopyTable = {
   register_label: 'How you addressed them',
   letter_from: 'Letter from {name}',
   letter_reply_label: 'Your reply',
+  cast_title: 'The characters',
 };
 
 const DE: CopyTable = {
@@ -408,7 +411,7 @@ const DE: CopyTable = {
   more_practice: 'Mehr üben',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
-  done_today: 'Die heutige Szene ist erledigt.',
+  done_today: 'Für heute erledigt',
   done_review: 'Noch einmal ansehen',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
   listen_first_label: 'Zuerst hören',
@@ -456,6 +459,7 @@ const DE: CopyTable = {
   register_label: 'Wie du sie angesprochen hast',
   letter_from: 'Brief von {name}',
   letter_reply_label: 'Deine Antwort',
+  cast_title: 'Die Figuren',
 };
 
 const FR: CopyTable = {
@@ -552,7 +556,7 @@ const FR: CopyTable = {
   more_practice: 'Plus d’exercices',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
-  done_today: 'La scène du jour est terminée.',
+  done_today: 'Journée bouclée',
   done_review: 'Revoir',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
   listen_first_label: 'Écouter d’abord',
@@ -597,104 +601,32 @@ const FR: CopyTable = {
   classify_label: 'Choisissez',
   listen_first_day: 'On écoute d’abord — le texte vient après.',
   chapter_recap_label: 'Où en est le chapitre',
-  register_label: 'Comment vous vous êtes adressé à elle ou lui',
+  register_label: 'Tu ou vous',
   letter_from: 'Lettre de {name}',
   letter_reply_label: 'Votre réponse',
+  cast_title: 'Les personnages',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };
 
 /**
- * WP-43 — one chrome language per screen (WP-39 D-3).
+ * WP-82 — one language rule (supersedes WP-43's «chrome is French everywhere»).
  *
- * The app's chrome is French on every screen; the learner's language is for
- * what is *said to* them about the scene — instructions, hints, explanations,
- * verdicts. These keys are chrome: labels, buttons and stage names that sit
- * beside French rows on the same screen. They read French for every control
- * language; everything else in the table keeps the learner's language.
+ * Up to A2 every key in this table is the learner's own language: the
+ * instructions, the status, the verdicts and the buttons beside them, so no
+ * card ever mixes two chrome languages («German bodies with French buttons»,
+ * L7). French on these screens is the *content* — `*_fr` from the server.
+ * From B1 the chrome is French: callers resolve the language with
+ * `chromeLanguage(control, level)` (`lib/language-rule.ts`) and pass `'fr'`.
  */
-export const CHROME_KEYS: readonly JourneyCopyKey[] = [
-  'today_eyebrow',
-  'start',
-  'resume',
-  'continue',
-  'scene_continue',
-  'done_review',
-  // The four help chips are buttons beside a French answer box; the help they
-  // open still speaks the learner's language.
-  'help_hint',
-  'help_translation',
-  'help_solution',
-  'help_suggested_response',
-  'send',
-  'sending',
-  'check',
-  'help',
-  'retry',
-  'finish_early',
-  'pause',
-  'time_left',
-  'progress_label',
-  'awaiting_finish_action',
-  'more_practice',
-  'practice_this',
-  'speak',
-  'use_text',
-  'use_voice',
-  'record',
-  'stop_recording',
-  'answer_label',
-  'objective',
-  'preparing_retry',
-  'unavailable_retry',
-  'try_grading_again',
-  'legacy_resume_action',
-  'listen_first_label',
-  'listen_first_on',
-  'listen_first_off',
-  'radio_stage_predire',
-  'radio_stage_ecouter',
-  'radio_stage_verifier',
-  'radio_stage_retenir',
-  'radio_guess_label',
-  'radio_listen_action',
-  'radio_play',
-  'radio_replay',
-  'radio_stop',
-  'radio_verify_action',
-  'radio_reveal',
-  'radio_reveal_all',
-  'radio_read_instead',
-  // WP-66. These are stage labels and captions beside French rows, so they
-  // read French on every control language — the *content* they label (the
-  // instruction, the recap, the register reason) keeps the learner's language.
-  'transform_source_label',
-  'classify_label',
-  'chapter_recap_label',
-  'register_label',
-  'letter_reply_label',
-];
-
-const CHROME_FR: Partial<CopyTable> = Object.fromEntries(
-  CHROME_KEYS.map((key) => [key, FR[key]]),
-) as Partial<CopyTable>;
-
-/**
- * WP-69 (L6/L7) — status cards speak one language.
- *
- * «Heute wird vorbereitet» above a «Vérifier à nouveau» button was two
- * languages in one card. Preparing / unavailable / load-failed cards carry no
- * French content, so the whole card — eyebrow, title, body and its button —
- * reads in the learner's language (WP-82: status in the learner's language up
- * to A2). Scene cards keep the French chrome of {@link journeyCopy}.
- */
-export function journeyStatusCopy(language: ControlLanguage | null | undefined): CopyTable {
+export function journeyCopy(language: ControlLanguage | null | undefined): CopyTable {
   return TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
 }
 
-export function journeyCopy(language: ControlLanguage | null | undefined): CopyTable {
-  const table = TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
-  return { ...table, ...CHROME_FR };
-}
+/**
+ * WP-69 (L6/L7) — status cards speak one language. Kept as a name for the
+ * callers that already used it; under WP-82 it is the same table.
+ */
+export const journeyStatusCopy = journeyCopy;
 
 export type JourneyCopy = CopyTable;

@@ -134,7 +134,7 @@ const graded = (verdict) => ({
 test('the character line sits in the bubble beside their face, which swaps with the verdict', () => {
   const idle = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep())));
   assert.match(idle, /class="av2-speech" data-mood="neutral"/);
-  assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, vous prenez quoi \?<\/h2>/);
+  assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, vous prenez quoi\u202f\?<\/h2>/);
   assert.ok(idle.includes('marin_leveque/portrait-neutral.webp'));
   assert.ok(idle.includes('data-size="md"'), 'the speaker is the md portrait');
   assert.equal(idle.split('.webp').length - 1, 1, 'one face for the speaker, not a byline disc too');

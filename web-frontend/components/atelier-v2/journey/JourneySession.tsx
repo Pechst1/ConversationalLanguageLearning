@@ -47,6 +47,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
+import { journeyChromeLanguage } from '@/lib/language-rule';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -119,9 +120,11 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   // WP-27: the respond step owns the microphone itself (`useVoiceAnswer`), so
   // the controller's own voice fields are no longer read here.
   const { phase, feedback, step, busy, help, actions } = controller;
+  // WP-82: one chrome language, the learner's up to A2 and French from B1.
+  const chromeLanguage = journeyChromeLanguage(controller);
   const copy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyCopy(controller.controlLanguage),
+    ...atelierCopy(chromeLanguage),
+    ...journeyCopy(chromeLanguage),
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
@@ -129,10 +132,9 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
 
-  // WP-43: the step caption is chrome, so it is French on every screen
-  // («Étape 1 sur 3»); the learner's language stays for what is said about the
-  // scene. WP-76: steps only — no clock that a server wait can move.
-  const chrome = atelierCopy('fr');
+  // WP-82: the step caption is status, in the screen's one chrome language.
+  // WP-76: steps only — no clock that a server wait can move.
+  const chrome = copy;
 
   // Draft persistence (WP-10). The accessors are stable callbacks, so the field
   // is not remounted and typing is not interrupted.
@@ -163,7 +165,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
       : null;
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
-  const dayMark = journey ? dayMarkState(journey) : null;
+  const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
   const caption = journeyHeaderCaption(journey, (position, total) =>
     stepOfLabel(chrome, position, total),
   );
@@ -192,7 +194,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     firstSceneStepId(journey) === step.id;
 
   return (
-    <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
+    <AtelierV2Root as="main" language={chromeLanguage} className="journey-shell">
       <div className="av2-screen">
         {/* The design's session header: close, then the progress rule. The
             streak slot the design puts on the right holds the mark as the
@@ -529,7 +531,7 @@ export function JourneyRecapView({
     <JourneyRecap
       journey={phase.journey}
       recap={phase.recap}
-      language={controller.controlLanguage}
+      language={journeyChromeLanguage(controller)}
       onExit={onExit}
       morePractice={morePractice}
       onPractice={onPractice}
@@ -537,7 +539,7 @@ export function JourneyRecapView({
         // WP-80: the push pre-prompt, once, after a finished day. Renders
         // nothing unless this device has something to ask.
         <PushOptIn
-          language={controller.controlLanguage}
+          language={journeyChromeLanguage(controller)}
           dayFinished
           characterId={phase.recap?.teaser?.character_id || speaker?.id || undefined}
           characterName={phase.recap?.teaser?.character_name || speaker?.name || undefined}

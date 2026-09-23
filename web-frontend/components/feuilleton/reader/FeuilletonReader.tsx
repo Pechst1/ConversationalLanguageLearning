@@ -28,6 +28,7 @@ import {
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { frenchSpacing } from '@/lib/french-typography';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';
@@ -315,8 +316,8 @@ export function FeuilletonReader({
           {[episodeLabel, location].filter(Boolean).join(' · ')}
         </p>
         {/* the one Garamond italic headline on this screen */}
-        <h1 className="fr-title">{title}</h1>
-        {previously && safeIndex === 0 && <p className="fr-previously">Précédemment — {previously}</p>}
+        <h1 className="fr-title">{frenchSpacing(title)}</h1>
+        {previously && safeIndex === 0 && <p className="fr-previously">Précédemment — {frenchSpacing(previously)}</p>}
       </div>
 
       {banner}

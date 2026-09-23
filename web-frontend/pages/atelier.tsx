@@ -35,7 +35,7 @@ import {
 } from '@/lib/pilot-resilience';
 import { type LuAskKind } from '@/components/laune/LaUne';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
-import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeEntry, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
+import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeChip, type HomeEntry, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
 import {
   LEpreuveStyles,
   EpShell,
@@ -91,7 +91,7 @@ import {
 } from '@/components/atelier-v2/journey';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
 import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
-import type { JourneySnapshot } from '@/types/daily-journey';
+import type { ControlLanguage, JourneySnapshot } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -113,6 +113,8 @@ import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { atelierCopy } from '@/lib/atelier-v2-copy';
+import { journeyChromeLanguage } from '@/lib/language-rule';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 
@@ -1743,6 +1745,8 @@ export default function AtelierPage() {
               dayJourney={journey.journey}
               // WP-D4: the journey's own edition, so Home and the recap agree.
               journeyEditionNo={journey.envelope?.journey?.edition_no ?? null}
+              // WP-82: Home's own words follow the one language rule.
+              chromeLanguage={journeyChromeLanguage(journey)}
             />
           </>
         ) : (
@@ -2052,6 +2056,7 @@ function TodayView({
   dayJourney = null,
   journeyCard = null,
   journeyEditionNo = null,
+  chromeLanguage = 'fr',
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2085,6 +2090,11 @@ function TodayView({
   journeyCard?: React.ReactNode;
   /** WP-D4: `journey.edition_no` from the day's journey, when there is one. */
   journeyEditionNo?: number | null;
+  /**
+   * WP-82: the chrome language of Home's own words while the journey owns the
+   * day (the learner's up to A2, French from B1). The flag-off Home is French.
+   */
+  chromeLanguage?: ControlLanguage;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2371,42 +2381,49 @@ function TodayView({
    * tiles led to stays one tap away as quiet rows, and only when there is
    * something there: words due, errata due, and «Plus de pratique» (D-0).
    */
-  const homeDay = errorOnlyPage || !practiceEntry ? null : dayMarkState(dayJourney);
-  const dayPlanEntries: HomeEntry[] = homeDay && practiceEntry
+  const homeDay = errorOnlyPage || !practiceEntry ? null : dayMarkState(dayJourney, chromeLanguage);
+  /**
+   * WP-81 — Home does one thing. While the journey owns the day, Home is the
+   * masthead, the day's card, the plan row and at most one quiet row of two
+   * chips: a letter someone is waiting on, and words due. Everything else
+   * lives on its tab: «Plus de pratique» in Cahier (a concept's own practice)
+   * and the recap, errata in Cahier → Relevé, the dossier, the rehearsal and
+   * «Vos documents» in Réglages and the Courrier. The chips are one language
+   * each (WP-82), in Home's chrome language.
+   */
+  const homeCopy = atelierCopy(chromeLanguage);
+  const homeChips: HomeChip[] = homeDay
     ? [
-        ...(lexiqueDone
-          ? []
-          : [{
-              id: 'lexique',
-              label: 'Lexique',
-              hint: lexiqueParts.slice(0, 2).join(' · '),
-              href: '/vocabulary/review',
-            }]),
-        ...(repairDue > 0
+        ...(courrierEntry
           ? [{
-              id: 'errata',
-              label: 'Errata',
-              hint: `${repairDue} à reprendre`,
-              href: '/notebook?mode=releve',
-              onSelect: onOpenReview,
+              id: 'courrier',
+              label: homeCopy.home_letter,
+              ariaLabel: homeCopy.home_letter_aria,
+              href: courrierEntry.href,
+              shape: 'story' as const,
             }]
           : []),
-        {
-          id: 'practice',
-          label: practiceEntry.label,
-          hint: `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · exercices`,
-          href: practiceEntry.href,
-          ariaLabel: `${practiceEntry.label} — la séance d’exercices`,
-        },
+        ...(vocabularyReviewDue > 0
+          ? [{
+              id: 'lexique',
+              label: vocabularyReviewDue === 1
+                ? homeCopy.home_words_one
+                : homeCopy.home_words_many.replace('{n}', String(vocabularyReviewDue)),
+              ariaLabel: vocabularyReviewDue === 1
+                ? homeCopy.home_review_one
+                : homeCopy.home_review_many.replace('{n}', String(vocabularyReviewDue)),
+              href: '/vocabulary/review',
+              shape: 'reward' as const,
+            }]
+          : []),
       ]
     : [];
-  const homeEntries: HomeEntry[] = errorOnlyPage
+  const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [
         // WP-65: first among the quiet rows — somebody is waiting on an answer,
         // which the dossier and the rehearsal are not.
         ...(courrierEntry ? [courrierEntry] : []),
-        ...dayPlanEntries,
         ...(rehearsalEntry !== 'none'
           ? [{
               id: 'rehearsal-debrief',
@@ -2525,6 +2542,8 @@ function TodayView({
       entries={homeEntries}
       tiles={homeTiles}
       day={homeDay}
+      chips={homeChips}
+      language={homeDay ? chromeLanguage : 'fr'}
       colophon={errorOnlyPage ? null : {
         lead: 'Demain — ',
         focus: upcomingFocus.topic,
