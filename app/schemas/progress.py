@@ -162,6 +162,9 @@ class VocabularyRecommendationItem(BaseModel):
     is_new: bool = False
     deck_name: str | None = None
     part_of_speech: str | None = None
+    # Stored noun gender ("m" / "f"), or None when the catalogue does not know
+    # it. The Lexique draws it as a shape (WP-D6); nothing is guessed here.
+    gender: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
     # The server already resolves which gloss this learner should read
     # (app/services/glosses.py). The response model used to drop those two

@@ -2,7 +2,7 @@ import React from 'react';
 import type { VocabularyBiography, VocabularyBiographyEvent, VocabularyBiographyExample } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { learnerGloss } from '@/lib/glosses';
-import { AtelierV2Root, BottomSheet, Row, StateBlock, Surface } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, BottomSheet, Row, StateBlock, Surface, WordToken } from '@/components/atelier-v2/ui';
 import { FragilityBadge } from './FragilityBadge';
 
 /* The word biography, on the Claude design system (Atelier V2).
@@ -104,7 +104,19 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
         <BottomSheet open={open} title={title} eyebrow="L’histoire du mot" onClose={onClose}>
           <div ref={ref} className="word-biography lx-bio" {...props}>
             <div className="lx-bio__lead">
-              <p className="av2-body av2-body--lg">{description}</p>
+              <span className="lx-bio__word">
+                {/* WP-D6: the gender as the shape, the article inside. */}
+                {biography && (
+                  <WordToken
+                    word={biography.word.word}
+                    gender={biography.word.gender}
+                    partOfSpeech={biography.word.part_of_speech}
+                    state={biography.progress.fragility_level}
+                    size="lg"
+                  />
+                )}
+                <p className="av2-body av2-body--lg">{description}</p>
+              </span>
               {biography ? action || <FragilityBadge progress={biography.progress} compact /> : action}
             </div>
 
@@ -152,6 +164,7 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
         <style jsx global>{`
           .av2 .lx-bio { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
           .av2 .lx-bio__lead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+          .av2 .lx-bio__word { display: flex; align-items: center; gap: 12px; min-width: 0; }
           .av2 .lx-bio__lead a { color: var(--av2-ink); font-weight: 700; text-underline-offset: 3px; }
           .av2 .lx-bio__ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
           .av2 .lx-bio__ledger strong { display: block; margin-top: 4px; font-size: var(--av2-t-body-lg); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }

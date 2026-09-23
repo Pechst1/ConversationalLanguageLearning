@@ -15,6 +15,7 @@ import {
   Skeleton,
   StateBlock,
   Surface,
+  WordToken,
   type ShapeKind,
 } from '@/components/atelier-v2/ui';
 import { FragilityBadge, WordBiographySheet } from '@/components/mobile';
@@ -43,7 +44,8 @@ import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
  * search well, a row of pill filters (the active one on ink), then paper rows
  * (radius 16, padding 14/16) each with a 36px shape glyph, a 15px title, a 12px
  * muted meta line and three 5px progress bars on the right. Word rows reuse
- * that row exactly: the glyph is the Bauhaus shape of the word's state, the
+ * that row exactly: the glyph is the WordToken (WP-D6 — gender as shape, the
+ * article inside, colour = state; a word with no stored gender is plain), the
  * meta line prints rank · nature · state, the three bars are the mastery
  * ladder (never colour alone — the state is also printed in the meta line).
  *
@@ -738,27 +740,31 @@ function LxSectionHead({ title, note, tone }: { title: string; note?: string; to
   );
 }
 
-/* One design row: shape glyph, title, meta, three bars. */
+/* One design row: word token, title, meta, three bars. The token is the
+   word's gender as a shape (WP-D6) in the colour of its state; the bars keep
+   the mastery ladder. */
 function LxWordRow({
   word,
   meta,
   state,
   stateLabel,
+  gender,
+  partOfSpeech,
   onSelect,
 }: {
   word: string;
   meta: string;
   state: MasteryState;
   stateLabel: string;
+  gender?: string | null;
+  partOfSpeech?: string | null;
   onSelect: () => void;
 }) {
   const bars = stateBars(state);
   const shape = stateShape(state);
   return (
     <button type="button" className="lx-row" onClick={onSelect} role="listitem">
-      <span className="lx-row__glyph" data-shape={shape} aria-hidden="true">
-        <span className="av2-fr">{word.trim().charAt(0).toUpperCase() || '·'}</span>
-      </span>
+      <WordToken word={word} gender={gender} partOfSpeech={partOfSpeech} state={state} />
       <span className="lx-row__main">
         <span className="lx-row__title">{word}</span>
         <span className="lx-row__meta">{meta}</span>
@@ -1318,6 +1324,10 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                 meta={[queueTranslation(item), label].filter(Boolean).join(' · ')}
                 state={state}
                 stateLabel={label}
+                // A reverse card prints the gloss, not the French word: its
+                // gender would describe a word that is not on the row.
+                gender={item.direction === 'de_to_fr' ? null : item.gender}
+                partOfSpeech={item.direction === 'de_to_fr' ? null : item.part_of_speech}
                 onSelect={() => openDetail({ kind: 'queue', item })}
               />
             );
@@ -1366,6 +1376,8 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                 meta={meta}
                 state={st.state}
                 stateLabel={st.label}
+                gender={item.gender}
+                partOfSpeech={item.part_of_speech}
                 onSelect={() => openDetail({ kind: 'deck', item })}
               />
             );
@@ -1819,22 +1831,6 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           transition: transform var(--av2-press-dur);
         }
         .av2 .lx-row:active { transform: scale(0.985); }
-        .av2 .lx-row__glyph {
-          display: grid;
-          place-items: center;
-          flex: none;
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          background: var(--av2-line-2);
-          color: var(--av2-on-dark);
-          font-size: var(--av2-t-body-lg);
-          font-weight: 600;
-        }
-        .av2 .lx-row__glyph[data-shape='done'] { background: var(--av2-ink); color: var(--av2-on-ink); }
-        .av2 .lx-row__glyph[data-shape='story'] { background: var(--av2-blue); color: var(--av2-on-blue); border-radius: var(--av2-r-pill); }
-        .av2 .lx-row__glyph[data-shape='reward'] { background: var(--av2-yellow); color: var(--av2-on-yellow); }
-        .av2 .lx-row__glyph[data-shape='action'] { background: var(--av2-red); color: var(--av2-on-red); }
         .av2 .lx-row__main { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
         .av2 .lx-row__title { font-size: var(--av2-t-body); font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
         .av2 .lx-row__meta { font-size: var(--av2-t-meta); color: var(--av2-muted); line-height: 1.3; overflow-wrap: anywhere; }

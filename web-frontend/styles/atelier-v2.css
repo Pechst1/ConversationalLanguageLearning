@@ -517,6 +517,46 @@
 
 .av2 .av2-mark { display: block; flex: none; }
 
+/* WP-D6 (begin): the gender is the shape. Circle = feminine noun, square
+   (8 px) = masculine noun, triangle = any other part of speech; the article
+   in Garamond italic inside. Colour is the learner state only — yellow new,
+   blue learning, ink known — never the gender. Never outlined. A word with no
+   stored gender is plain: its initial in ink, no fill, nothing guessed. */
+.av2 .av2-word-token {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--av2-blue);
+  color: var(--av2-on-blue);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: var(--av2-t-body-lg);
+  line-height: 1;
+}
+.av2 .av2-word-token[data-tone='new'] { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+.av2 .av2-word-token[data-tone='known'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .av2-word-token[data-shape='feminine'] { border-radius: var(--av2-r-pill); }
+.av2 .av2-word-token[data-shape='masculine'] { border-radius: 8px; }
+.av2 .av2-word-token[data-shape='other'] {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.av2 .av2-word-token[data-shape='plain'] {
+  background: transparent;
+  color: var(--av2-ink);
+  font-size: var(--av2-t-rule);
+}
+.av2 .av2-word-token--sm { width: 26px; height: 26px; font-size: var(--av2-t-label); }
+.av2 .av2-word-token--sm[data-shape='plain'] { font-size: var(--av2-t-body); }
+.av2 .av2-word-token--lg { width: 44px; height: 44px; font-size: var(--av2-t-rule); }
+.av2 .av2-word-token--lg[data-shape='plain'] { font-size: var(--av2-t-title); }
+.av2 .av2-word-token__article { transform: translateY(-1px); }
+/* WP-D6 (end) */
+
 /* ===========================================================================
    Chips / pills
    =========================================================================== */

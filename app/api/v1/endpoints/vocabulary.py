@@ -672,7 +672,43 @@ def get_words_of_the_day(
     service = DailyWordSlateService(db)
     payload = service.get_or_create(user=current_user)
     db.commit()
-    return DailyWordSlateResponse(**payload)
+    return DailyWordSlateResponse(**_with_word_grammar(db, payload))
+
+
+def _with_word_grammar(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Attach each slate word's stored gender and part of speech (WP-D6).
+
+    The slate is persisted once per day, so these are read from the catalogue
+    on every request instead of being frozen into it: a gender backfill shows
+    up the same day. A word the catalogue has no gender for keeps ``None``.
+    """
+
+    entries = [entry for entry in payload.get("words") or [] if isinstance(entry, dict)]
+    ids: set[int] = set()
+    for entry in entries:
+        try:
+            ids.add(int(entry.get("word_id") or 0))
+        except (TypeError, ValueError):
+            continue
+    ids.discard(0)
+    if not ids:
+        return payload
+    rows = (
+        db.query(VocabularyWord.id, VocabularyWord.part_of_speech, VocabularyWord.gender)
+        .filter(VocabularyWord.id.in_(ids))
+        .all()
+    )
+    grammar = {int(row.id): (row.part_of_speech, row.gender) for row in rows}
+    words = []
+    for entry in payload.get("words") or []:
+        if isinstance(entry, dict):
+            try:
+                pos, gender = grammar.get(int(entry.get("word_id") or 0), (None, None))
+            except (TypeError, ValueError):
+                pos, gender = None, None
+            entry = {**entry, "part_of_speech": pos, "gender": gender}
+        words.append(entry)
+    return {**payload, "words": words}
 
 
 @router.get("/coverage")
