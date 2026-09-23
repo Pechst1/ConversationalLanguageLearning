@@ -90,6 +90,8 @@ import {
   useDailyJourney,
 } from '@/components/atelier-v2/journey';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
+import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
+import type { JourneySnapshot } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -1735,6 +1737,8 @@ export default function AtelierPage() {
               practiceEntry={practiceEntry}
               // WP-24: the erratum today's scene reprises, when there is one.
               becauseLine={becauseLine}
+              // WP-D1: today's journey, drawn by the mark as the day's plan.
+              dayJourney={journey.journey}
             />
           </>
         ) : (
@@ -2037,6 +2041,7 @@ function TodayView({
   onRetry,
   practiceEntry,
   becauseLine,
+  dayJourney = null,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2060,6 +2065,12 @@ function TodayView({
    * overwhelmingly common case — prints no line at all.
    */
   becauseLine?: HomeBecause | null;
+  /**
+   * WP-D1. Today's journey snapshot (`null` before it is started). Read only
+   * while the journey owns the day (`practiceEntry` non-null): the mark then
+   * carries the day's plan and the plan row replaces the tiles.
+   */
+  dayJourney?: JourneySnapshot | null;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2339,12 +2350,48 @@ function TodayView({
    * page, so a Home entry would open a screen with no intake on it. The wiring
    * is written out in `docs/implementation/atelier-v2/WP-37-HOOKS.md`.
    */
+  /**
+   * WP-D1 — while the journey owns the day, the mark is the day's plan and
+   * one row of four shape + word labels replaces the three tiles. What the
+   * tiles led to stays one tap away as quiet rows, and only when there is
+   * something there: words due, errata due, and «Plus de pratique» (D-0).
+   */
+  const homeDay = errorOnlyPage || !practiceEntry ? null : dayMarkState(dayJourney);
+  const dayPlanEntries: HomeEntry[] = homeDay && practiceEntry
+    ? [
+        ...(lexiqueDone
+          ? []
+          : [{
+              id: 'lexique',
+              label: 'Lexique',
+              hint: lexiqueParts.slice(0, 2).join(' · '),
+              href: '/vocabulary/review',
+            }]),
+        ...(repairDue > 0
+          ? [{
+              id: 'errata',
+              label: 'Errata',
+              hint: `${repairDue} à reprendre`,
+              href: '/notebook?mode=releve',
+              onSelect: onOpenReview,
+            }]
+          : []),
+        {
+          id: 'practice',
+          label: practiceEntry.label,
+          hint: `${ruleCount} règle${ruleCount === 1 ? '' : 's'} · exercices`,
+          href: practiceEntry.href,
+          ariaLabel: `${practiceEntry.label} — la séance d’exercices`,
+        },
+      ]
+    : [];
   const homeEntries: HomeEntry[] = errorOnlyPage
     ? []
     : [
         // WP-65: first among the quiet rows — somebody is waiting on an answer,
         // which the dossier and the rehearsal are not.
         ...(courrierEntry ? [courrierEntry] : []),
+        ...dayPlanEntries,
         ...(rehearsalEntry !== 'none'
           ? [{
               id: 'rehearsal-debrief',
@@ -2373,7 +2420,7 @@ function TodayView({
           href: '/dossier',
         },
       ];
-  const homeTiles: HomeTile[] = errorOnlyPage
+  const homeTiles: HomeTile[] = errorOnlyPage || homeDay
     ? []
     : [
         {
@@ -2459,6 +2506,7 @@ function TodayView({
       }
       entries={homeEntries}
       tiles={homeTiles}
+      day={homeDay}
       colophon={errorOnlyPage ? null : {
         lead: 'Demain — ',
         focus: upcomingFocus.topic,

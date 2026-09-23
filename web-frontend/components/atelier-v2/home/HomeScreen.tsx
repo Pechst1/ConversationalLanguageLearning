@@ -32,6 +32,12 @@ import {
   Skeleton,
   Surface,
 } from '@/components/atelier-v2/ui';
+import {
+  DAY_MARK_GROUPS,
+  DAY_MARK_WORD,
+  STEP_SHAPE,
+  type DayMarkState,
+} from '@/components/atelier-v2/journey/day-mark';
 
 export type HomeTileMark = 'story' | 'reward' | 'done' | 'action';
 export type HomeTileBar = HomeTileMark | null;
@@ -107,6 +113,8 @@ export type HomeEntry = {
   /** One clause saying what is there. Omitted, the row is the label alone. */
   hint?: string;
   href: string;
+  /** When set, the row is a button that runs this instead of following `href`. */
+  onSelect?: () => void;
   ariaLabel?: string;
 };
 
@@ -161,6 +169,13 @@ export type HomeScreenProps = {
    */
   entries?: HomeEntry[] | null;
   tiles: HomeTile[];
+  /**
+   * WP-D1: today's journey as the mark's plan. When set, the mark grows to
+   * 44px and carries the day's progress, and one row of four shape + word
+   * labels (Scène · Mots · Réponse · Bouclé) replaces the tile grid. Omitted
+   * (journey off), Home is exactly what it was.
+   */
+  day?: DayMarkState | null;
   colophon: { lead: string; focus: string; focusHref: string; tail?: string } | null;
   /** The tab bar, rendered last so it sits under the page in the same scroll. */
   children?: React.ReactNode;
@@ -184,6 +199,7 @@ export function HomeScreen({
   library,
   entries,
   tiles,
+  day,
   colophon,
   children,
 }: HomeScreenProps) {
@@ -191,7 +207,12 @@ export function HomeScreen({
     <AtelierV2Root as="main" className="av2-home" aria-label="Atelier · La Une">
       <header className="av2-home__mast">
         <div className="av2-home__mast-main">
-          <AtelierMark size={26} />
+          {day ? (
+            // WP-D1: the mark is the day's only gauge — no goal ring.
+            <AtelierMark size={44} progress={day.groups} title={day.label} />
+          ) : (
+            <AtelierMark size={26} />
+          )}
           <p className="av2-home__kicker">{editionLabel}</p>
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
         </div>
@@ -273,7 +294,13 @@ export function HomeScreen({
         </div>
       ) : null}
 
-      {tiles.length > 0 && (
+      {day && (
+        <div className="av2-home__section">
+          <DayPlanRow day={day} />
+        </div>
+      )}
+
+      {!day && tiles.length > 0 && (
         <div className="av2-home__tiles">
           {tiles.map((tile) => (
             <DayTile key={tile.id} tile={dayDone ? settledTile(tile) : tile} />
@@ -283,24 +310,41 @@ export function HomeScreen({
 
       {entries && entries.length > 0 && (
         <div className="av2-home__section" style={{ display: 'grid', gap: 8 }}>
-          {entries.map((entry) => (
-            <Link
-              key={entry.id}
-              className="av2-row"
-              href={entry.href}
-              aria-label={entry.ariaLabel || entry.label}
-            >
-              <span className="av2-row__main">
-                <span className="av2-label">{entry.label}</span>
-                {entry.hint && (
-                  <span className="av2-label" style={{ display: 'block', fontWeight: 400 }}>
-                    {entry.hint}
-                  </span>
-                )}
-              </span>
-              <ArrowRightIcon size={18} />
-            </Link>
-          ))}
+          {entries.map((entry) => {
+            const inner = (
+              <>
+                <span className="av2-row__main">
+                  <span className="av2-label">{entry.label}</span>
+                  {entry.hint && (
+                    <span className="av2-label" style={{ display: 'block', fontWeight: 400 }}>
+                      {entry.hint}
+                    </span>
+                  )}
+                </span>
+                <ArrowRightIcon size={18} />
+              </>
+            );
+            return entry.onSelect ? (
+              <button
+                key={entry.id}
+                type="button"
+                className="av2-row"
+                onClick={entry.onSelect}
+                aria-label={entry.ariaLabel || entry.label}
+              >
+                {inner}
+              </button>
+            ) : (
+              <Link
+                key={entry.id}
+                className="av2-row"
+                href={entry.href}
+                aria-label={entry.ariaLabel || entry.label}
+              >
+                {inner}
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -465,6 +509,33 @@ function settledTile(tile: HomeTile): HomeTile {
     done: true,
     ariaLabel: tile.ariaLabel || 'Séance — journée bouclée',
   };
+}
+
+const PART_STATE_WORD = { done: 'fait', active: 'en cours', todo: 'à venir' } as const;
+
+/**
+ * WP-D1: the day's four parts as shape + word, under the primary. A part
+ * that is not done is a ghost of its own shape; the done ones carry a check
+ * and the one in progress is bold, so colour is never the only signal. A
+ * part today's shape does not deal («jour court»: no recall) is left out.
+ */
+function DayPlanRow({ day }: { day: DayMarkState }) {
+  const parts = DAY_MARK_GROUPS.filter((group) => day.groups[group] !== 'absent');
+  return (
+    <ol className="av2-day-plan" aria-label="Le plan du jour">
+      {parts.map((group) => {
+        const state = day.groups[group] as keyof typeof PART_STATE_WORD;
+        return (
+          <li key={group} className="av2-day-plan__part" data-part={group} data-state={state}>
+            <ShapeToken kind={STEP_SHAPE[group]} />
+            {DAY_MARK_WORD[group]}
+            {state === 'done' && <CheckIcon size={12} />}
+            <span className="av2-sr"> — {PART_STATE_WORD[state]}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 function DayTile({ tile }: { tile: HomeTile }) {

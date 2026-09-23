@@ -2664,3 +2664,92 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* ===========================================================================
+   WP-D1 — the mark is the day's plan; WP-D3 — progress tokens with faces.
+   Append-only; tokens only, both themes. A shape that is not done is the same
+   solid shape in `--av2-line` — a ghost, never an outline, never a stroke.
+   =========================================================================== */
+
+.av2 .av2-mark [data-state] { transition: fill 0.3s; }
+.av2 .av2-mark .av2-mark__pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: av2-pop 0.3s ease-out;
+}
+
+/* Home: one row of four shape + word labels under the primary. */
+.av2 .av2-day-plan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--av2-t-label);
+  color: var(--av2-muted);
+}
+.av2 .av2-day-plan__part { display: inline-flex; align-items: center; gap: 6px; }
+.av2 .av2-day-plan__part[data-state='todo'] .av2-shape,
+.av2 .av2-day-plan__part[data-state='active'] .av2-shape { color: var(--av2-line); }
+.av2 .av2-day-plan__part[data-state='active'] { color: var(--av2-ink); font-weight: 700; }
+.av2 .av2-day-plan__part[data-state='done'] { color: var(--av2-ink); }
+
+/* Session head: the mark sits in the right-hand slot. */
+.av2 .av2-session__head > .av2-mark { margin-left: auto; }
+
+/* The token rail: one shape per step, never wrapping — 8 steps fit at 320px. */
+.av2 .av2-progress__tokens {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.av2 .av2-token {
+  display: block;
+  flex: 0 1 18px;
+  min-width: 10px;
+  width: 18px;
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+.av2 .av2-token__body { fill: var(--av2-line); transition: fill 0.3s; }
+.av2 .av2-token[data-state='skipped'] .av2-token__body { fill: var(--av2-line-2); }
+.av2 .av2-token[data-state='done'] .av2-token__body { fill: var(--av2-ink); }
+.av2 .av2-token[data-state='active'][data-kind='story'] .av2-token__body { fill: var(--av2-blue); }
+.av2 .av2-token[data-state='active'][data-kind='reward'] .av2-token__body { fill: var(--av2-yellow); }
+.av2 .av2-token[data-state='active'][data-kind='action'] .av2-token__body { fill: var(--av2-red); }
+.av2 .av2-token[data-state='active'][data-kind='done'] .av2-token__body { fill: var(--av2-ink); }
+.av2 .av2-token[data-state='active'] { animation: av2-pop 0.3s ease-out; }
+
+/* Eyes and mouth only — ReactForm's face, without its ink stroke. */
+.av2 .av2-token[data-kind='story'] .av2-token__face { fill: var(--av2-on-blue); stroke: var(--av2-on-blue); }
+.av2 .av2-token[data-kind='reward'] .av2-token__face { fill: var(--av2-on-yellow); stroke: var(--av2-on-yellow); }
+.av2 .av2-token[data-kind='action'] .av2-token__face { fill: var(--av2-on-red); stroke: var(--av2-on-red); }
+.av2 .av2-token[data-kind='done'] .av2-token__face { fill: var(--av2-on-ink); stroke: var(--av2-on-ink); }
+.av2 .av2-token__face circle { stroke: none; }
+.av2 .av2-token__mouth {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: av2-token-face 0.6s ease-out;
+}
+
+/* The grin or frown shows, then settles back to the two eyes. */
+@keyframes av2-token-face {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .av2 .av2-mark .av2-mark__pop,
+  .av2 .av2-token[data-state='active'] { animation: none; }
+  .av2 .av2-token__mouth { display: none; animation: none; }
+}
+/* end WP-D1 / WP-D3 */
