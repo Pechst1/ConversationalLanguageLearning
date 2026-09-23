@@ -208,12 +208,18 @@ test('Home with the journey off: the plain 26px mark and the tiles, as before', 
 });
 
 test('Home: an entry with onSelect is a button, never a second primary', () => {
+  // Rows are the flag-off Home's; with the journey on (WP-81) they are not
+  // drawn at all, and a chip with onSelect is the button (home.test.js).
   const html = home({
-    day: dayMarkState(null),
     entries: [{ id: 'errata', label: 'Errata', hint: '2 à reprendre', href: '/n', onSelect: () => {} }],
   });
   assert.match(html, /<button type="button" class="av2-row" aria-label="Errata">/);
   assert.doesNotMatch(html, /av2-btn--primary/);
+  const day = home({
+    day: dayMarkState(null),
+    entries: [{ id: 'errata', label: 'Errata', hint: '2 à reprendre', href: '/n', onSelect: () => {} }],
+  });
+  assert.doesNotMatch(day, /av2-row/, 'Home does one thing: no rows beside the day');
 });
 
 // --- 4. StepProgress tokens -------------------------------------------------

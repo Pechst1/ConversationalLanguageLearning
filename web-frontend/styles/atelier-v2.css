@@ -1635,6 +1635,9 @@
 
 .av2 .av2-home__section { padding: 14px var(--av2-gutter) 0; min-width: 0; }
 .av2 .av2-home__section--first { padding-top: 20px; }
+/* WP-81: the one quiet row under the day's plan — at most two chips. */
+.av2 .av2-home__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.av2 .av2-home__chips .av2-chip { text-decoration: none; }
 
 /* The episode card is one tap target. */
 .av2 .av2-home__episode {

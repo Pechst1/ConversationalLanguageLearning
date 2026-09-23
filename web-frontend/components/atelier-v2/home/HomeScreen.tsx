@@ -8,6 +8,13 @@
  * tiles (Séance · Lexique · Errata) each with a shape mark and three progress
  * bars; one italic colophon line — "Demain — l’imparfait, épisode 4."
  *
+ * WP-81 — «Home does one thing». With the daily journey on (`day` set) the
+ * page is only: the masthead (the mark as the day's progress, the date, the
+ * streak), the day's card in the hero slot, the plan row, and at most one
+ * quiet row of two chips (one after the day is done). ≤ 5 elements and
+ * ≤ 25 words (`home.test.js` counts them). Everything else in this file is
+ * the flag-off Home, unchanged. WP-82: Home's own words follow `language`.
+ *
  * Presentation only. Every string and number is passed in from
  * `pages/atelier.tsx`, which maps them from the real `/atelier/today` payload,
  * so nothing here can print a value the server did not send. The streak is
@@ -34,10 +41,13 @@ import {
 } from '@/components/atelier-v2/ui';
 import {
   DAY_MARK_GROUPS,
-  DAY_MARK_WORD,
   STEP_SHAPE,
+  dayMarkWords,
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
+import { atelierCopy } from '@/lib/atelier-v2-copy';
+import { frenchQuote } from '@/lib/french-typography';
+import type { ControlLanguage } from '@/types/daily-journey';
 
 export type HomeTileMark = 'story' | 'reward' | 'done' | 'action';
 export type HomeTileBar = HomeTileMark | null;
@@ -118,6 +128,21 @@ export type HomeEntry = {
   ariaLabel?: string;
 };
 
+/**
+ * WP-81 — one quiet way to what is waiting besides the day: a letter, words
+ * due. Never a press bar. At most two sit in one row under the plan, and one
+ * once the day is done. The label is the whole chip, in one language.
+ */
+export type HomeChip = {
+  id: string;
+  label: string;
+  href: string;
+  /** The shape beside the word — reward (words), story (a letter). */
+  shape?: 'reward' | 'story' | 'action';
+  onSelect?: () => void;
+  ariaLabel?: string;
+};
+
 export type HomeEpisode = {
   kicker: string;
   headline: string;
@@ -184,6 +209,19 @@ export type HomeScreenProps = {
    * logo, date and streak first, then the one thing the day asks for.
    */
   hero?: React.ReactNode;
+  /**
+   * WP-81: while the journey owns the day (`day` set), Home does one thing.
+   * It draws the masthead, the hero, the plan row and at most one row of
+   * these chips — nothing else. The episode, the action, the phrase, the
+   * library, the rows and the colophon are ignored in that mode.
+   */
+  chips?: HomeChip[] | null;
+  /**
+   * WP-82: the chrome language of Home's own words (the streak, the plan
+   * row, the chips' labels are passed in already written). Defaults to
+   * French, which is what the flag-off Home has always printed.
+   */
+  language?: ControlLanguage;
   /** The tab bar, rendered last so it sits under the page in the same scroll. */
   children?: React.ReactNode;
 };
@@ -210,10 +248,17 @@ export function HomeScreen({
   day,
   colophon,
   hero,
+  chips,
+  language = 'fr',
   children,
 }: HomeScreenProps) {
+  const copy = atelierCopy(language);
+  // WP-81: with the journey on, Home does one thing — the day.
+  const oneThing = Boolean(day);
+  const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
+  const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
   return (
-    <AtelierV2Root as="main" className="av2-home" aria-label="Atelier · La Une">
+    <AtelierV2Root as="main" language={language} className="av2-home" aria-label={copy.home_label}>
       <header className="av2-home__mast">
         <div className="av2-home__mast-main">
           {day ? (
@@ -222,7 +267,9 @@ export function HomeScreen({
           ) : (
             <AtelierMark size={26} />
           )}
-          <p className="av2-home__kicker">{editionLabel}</p>
+          {/* WP-81: with the day on, the mark and the date are the header; the
+              edition kicker is cut (≤ 25 words on Home). */}
+          {!oneThing && <p className="av2-home__kicker">{editionLabel}</p>}
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
         </div>
         {streak > 0 ? (
@@ -232,16 +279,16 @@ export function HomeScreen({
             className="av2-home__streak"
             href={streakHref}
             data-state={dayDone ? 'done' : undefined}
-            aria-label={`${streak} ${streak === 1 ? 'jour' : 'jours de suite'}${dayDone ? ' · journée bouclée' : ''} · vos sceaux`}
+            aria-label={`${streak === 1 ? streakWord : `${streak} ${streakWord}`}${dayDone ? ` · ${copy.home_streak_done}` : ''} · ${copy.home_streak_seals}`}
           >
             <span className="av2-home__streak-n">{streak}</span>
             <span className="av2-home__streak-l">
               {dayDone && <ShapeToken kind="done" size="sm" />}
-              {streak === 1 ? '1ᵉʳ jour' : 'jours de suite'}
+              {streakWord}
             </span>
           </Link>
         ) : (
-          <Link className="av2-icon-btn" href={settingsHref} aria-label="Réglages">
+          <Link className="av2-icon-btn" href={settingsHref} aria-label={copy.settings}>
             <GearIcon size={18} />
           </Link>
         )}
@@ -258,20 +305,20 @@ export function HomeScreen({
             </p>
             {notice.onRetry && (
               <Action tone="secondary" inline onClick={notice.onRetry}>
-                Réessayer
+                {copy.action_retry}
               </Action>
             )}
           </Notice>
         </div>
       )}
 
-      {episode && (
+      {!oneThing && episode && (
         <div className={`av2-home__section${notice || hero ? '' : ' av2-home__section--first'}`}>
           <EpisodeCard episode={episode} />
         </div>
       )}
 
-      {action ? (
+      {oneThing ? null : action ? (
         <div className="av2-home__section">
           <Action
             tone="primary"
@@ -307,7 +354,43 @@ export function HomeScreen({
 
       {day && (
         <div className="av2-home__section">
-          <DayPlanRow day={day} />
+          <DayPlanRow day={day} language={language} />
+        </div>
+      )}
+
+      {/* WP-81: at most one quiet row — a letter waiting, words due. */}
+      {oneThing && shownChips.length > 0 && (
+        <div className="av2-home__section av2-home__chips">
+          {shownChips.map((chip) => {
+            const inner = (
+              <>
+                <ShapeToken kind={chip.shape ?? 'reward'} size="sm" />
+                <span>{chip.label}</span>
+              </>
+            );
+            return chip.onSelect ? (
+              <button
+                key={chip.id}
+                type="button"
+                className="av2-chip"
+                data-chip={chip.id}
+                onClick={chip.onSelect}
+                aria-label={chip.ariaLabel || chip.label}
+              >
+                {inner}
+              </button>
+            ) : (
+              <Link
+                key={chip.id}
+                className="av2-chip"
+                data-chip={chip.id}
+                href={chip.href}
+                aria-label={chip.ariaLabel || chip.label}
+              >
+                {inner}
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -319,7 +402,7 @@ export function HomeScreen({
         </div>
       )}
 
-      {entries && entries.length > 0 && (
+      {!oneThing && entries && entries.length > 0 && (
         <div className="av2-home__section" style={{ display: 'grid', gap: 8 }}>
           {entries.map((entry) => {
             const inner = (
@@ -363,19 +446,19 @@ export function HomeScreen({
           «Nouveau» learner. Renders nothing until the server says so. */}
       <PlacementOfferChip className="av2-home__section" />
 
-      {phrase && (
+      {!oneThing && phrase && (
         <div className="av2-home__section">
           <Surface as="section" aria-label="La phrase d’hier">
             <p className="av2-label">La phrase d’hier</p>
             <blockquote className="av2-fr av2-headline av2-headline--rule av2-home__quote" lang="fr">
-              « {phrase.text} »
+              {frenchQuote(phrase.text)}
             </blockquote>
             <p className="av2-label">par {phrase.byline}</p>
           </Surface>
         </div>
       )}
 
-      {library && (
+      {!oneThing && library && (
         <div className="av2-home__section">
           <Link
             className="av2-row"
@@ -396,7 +479,7 @@ export function HomeScreen({
         </div>
       )}
 
-      {colophon && (
+      {!oneThing && colophon && (
         <p className="av2-home__foot">
           {colophon.lead}
           <Link href={colophon.focusHref}>{colophon.focus}</Link>
@@ -522,28 +605,30 @@ function settledTile(tile: HomeTile): HomeTile {
   };
 }
 
-const PART_STATE_WORD = { done: 'fait', active: 'en cours', todo: 'à venir' } as const;
-
 /**
  * WP-D1: the day's four parts as shape + word, under the primary. A part
  * that is not done is a ghost of its own shape; the done ones carry a check
  * and the one in progress is bold, so colour is never the only signal. A
  * part today's shape does not deal («jour court»: no recall) is left out.
+ * WP-82: the words are status, in Home's chrome language.
  */
-function DayPlanRow({ day }: { day: DayMarkState }) {
+function DayPlanRow({ day, language }: { day: DayMarkState; language: ControlLanguage }) {
+  const copy = atelierCopy(language);
+  const words = dayMarkWords(language);
+  const stateWord = { done: copy.home_part_done, active: copy.home_part_active, todo: copy.home_part_todo };
   const parts = DAY_MARK_GROUPS.filter((group) => day.groups[group] !== 'absent');
   return (
-    <ol className="av2-day-plan" aria-label="Le plan du jour">
+    <ol className="av2-day-plan" aria-label={copy.home_plan}>
       {parts.map((group) => {
-        const state = day.groups[group] as keyof typeof PART_STATE_WORD;
+        const state = day.groups[group] as keyof typeof stateWord;
         return (
           <li key={group} className="av2-day-plan__part" data-part={group} data-state={state}>
             <ShapeToken kind={STEP_SHAPE[group]} />
             <span className="av2-day-plan__word">
-              {DAY_MARK_WORD[group]}
+              {words[group]}
               {state === 'done' && <CheckIcon size={12} />}
             </span>
-            <span className="av2-sr"> — {PART_STATE_WORD[state]}</span>
+            <span className="av2-sr"> — {stateWord[state]}</span>
           </li>
         );
       })}

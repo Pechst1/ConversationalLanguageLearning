@@ -165,7 +165,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
       : null;
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
-  const dayMark = journey ? dayMarkState(journey) : null;
+  const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
   const caption = journeyHeaderCaption(journey, (position, total) =>
     stepOfLabel(chrome, position, total),
   );

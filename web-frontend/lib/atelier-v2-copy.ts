@@ -105,7 +105,23 @@ export type AtelierCopyKey =
   | 'empty_body'
   | 'error_title'
   | 'artwork_unavailable'
-  | 'artwork_decorative';
+  | 'artwork_decorative'
+  // WP-81 / WP-82 — Home's own status words (the day, the streak, one chip)
+  | 'home_label'
+  | 'home_plan'
+  | 'home_part_done'
+  | 'home_part_active'
+  | 'home_part_todo'
+  | 'home_streak_first'
+  | 'home_streak_days'
+  | 'home_streak_done'
+  | 'home_streak_seals'
+  | 'home_letter'
+  | 'home_words_one'
+  | 'home_words_many'
+  | 'home_letter_aria'
+  | 'home_review_one'
+  | 'home_review_many';
 
 type Table = Record<AtelierCopyKey, string>;
 
@@ -171,6 +187,21 @@ const EN: Table = {
   error_title: 'Something went wrong',
   artwork_unavailable: 'Illustration unavailable',
   artwork_decorative: '',
+  home_label: 'Atelier · today',
+  home_plan: 'Today’s plan',
+  home_part_done: 'done',
+  home_part_active: 'in progress',
+  home_part_todo: 'to come',
+  home_streak_first: 'day one',
+  home_streak_days: 'days',
+  home_streak_done: 'day done',
+  home_streak_seals: 'your seals',
+  home_letter: 'New letter',
+  home_letter_aria: 'A letter is waiting',
+  home_words_one: '1 word',
+  home_words_many: '{n} words',
+  home_review_one: 'Review 1 word',
+  home_review_many: 'Review {n} words',
 };
 
 const DE: Table = {
@@ -235,6 +266,21 @@ const DE: Table = {
   error_title: 'Etwas ist schiefgelaufen',
   artwork_unavailable: 'Illustration nicht verfügbar',
   artwork_decorative: '',
+  home_label: 'Atelier · heute',
+  home_plan: 'Der Plan für heute',
+  home_part_done: 'erledigt',
+  home_part_active: 'läuft',
+  home_part_todo: 'kommt noch',
+  home_streak_first: 'erster Tag',
+  home_streak_days: 'Tage',
+  home_streak_done: 'Tag geschafft',
+  home_streak_seals: 'Ihre Siegel',
+  home_letter: 'Neuer Brief',
+  home_letter_aria: 'Ein Brief wartet auf Sie',
+  home_words_one: '1 Wort',
+  home_words_many: '{n} Wörter',
+  home_review_one: '1 Wort wiederholen',
+  home_review_many: '{n} Wörter wiederholen',
 };
 
 const FR: Table = {
@@ -299,6 +345,21 @@ const FR: Table = {
   error_title: 'Un problème est survenu',
   artwork_unavailable: 'Illustration indisponible',
   artwork_decorative: '',
+  home_label: 'Atelier · La Une',
+  home_plan: 'Le plan du jour',
+  home_part_done: 'fait',
+  home_part_active: 'en cours',
+  home_part_todo: 'à venir',
+  home_streak_first: '1ᵉʳ jour',
+  home_streak_days: 'jours de suite',
+  home_streak_done: 'journée bouclée',
+  home_streak_seals: 'vos sceaux',
+  home_letter: 'Nouvelle lettre',
+  home_letter_aria: 'Une lettre vous attend',
+  home_words_one: '1 mot',
+  home_words_many: '{n} mots',
+  home_review_one: 'Réviser 1 mot',
+  home_review_many: 'Réviser {n} mots',
 };
 
 const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };

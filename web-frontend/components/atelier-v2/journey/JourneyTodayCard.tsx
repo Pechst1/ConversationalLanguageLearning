@@ -224,7 +224,8 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
+          // WP-81: Home's date says «today»; the card's label is the place.
+          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -239,7 +240,8 @@ function JourneyTodayBody({
             ) : null
           }
         >
-          <p className="av2-body av2-body--lg">{scenario.objective_native}</p>
+          {/* WP-81/82: the hero is art, title and one press; the objective is
+              printed once, on the reply step that asks for it. */}
           {/* An estimate is not a countdown. It is the plan's own number, and
               it is absent rather than guessed when the plan has none. */}
           {estimate && !scenario.character_name && (
@@ -261,7 +263,7 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(gentle ?? copy.today_eyebrow, scenario.location_name)}
+          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -269,9 +271,7 @@ function JourneyTodayBody({
           byline={
             scenario.character_name ? <Byline name={scenario.character_name} /> : null
           }
-        >
-          <p className="av2-body av2-body--lg">{scenario.objective_native}</p>
-        </Card>
+        />
       );
     }
 
@@ -383,7 +383,7 @@ function Card({
   done?: boolean;
   /** WP-76: the scene is being prepared — the place breathes, no spinner. */
   preparing?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <Surface
