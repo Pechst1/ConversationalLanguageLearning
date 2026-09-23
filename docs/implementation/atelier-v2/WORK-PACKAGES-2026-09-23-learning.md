@@ -371,6 +371,36 @@ and the next scene gives the learner a chance to repair it.
 - **Done when:**
   - unit tests cover promotion, the checkpoint and migration of current estimates;
   - no learner's shown level drops on release day.
+- **Status (2026-09-24): landed (backend + web); the épreuve episode itself is Codex's.**
+  - **Coverage** — `app/services/level_coverage.py`. Units of a band: v2 by `sub_band` tag; v1 by
+    CEFR level, halved by teaching order (`difficulty_order`, id). Words: the lexicon's lemmas of the
+    sub-band minus closed-class words (articles, pronouns, prepositions… taught by the units):
+    A1.1 316, A1.2 302, A2.1 398, A2.2 396, B1.1 543, B1.2 541; B2 has no word list, so units only.
+    Known = retrievability ≥ 0.85 on a card seen ≥ 2 times and not relearning. Held =
+    `held_unit_ids(db, user)` — **a temporary fallback** (stability ≥ 21 d, last review not a
+    lapse) that WP-L4's Tenue rule replaces in that one function. A unit once held stays counted in
+    its band (kept on the band's checkpoint row), so a lapse brings it back without uncovering the
+    band. The percent («A1.1 · 60 %») = 45 % units + 45 % words (each capped at its threshold) +
+    10 % épreuve: coverage without the épreuve reads 90 %.
+  - **Checkpoint** — `app/services/level_checkpoint.py`, table `user_level_checkpoints`
+    (migration `f2a4c6e8b0d1`). `locked → ready` when coverage is met; `ready → passed` (band
+    closed, level + 1) or `failed` (`retry_after` = + 7 days, then ready again); `credited` closes a
+    band without an épreuve. Readiness is never taken back. API: `GET /progress/cefr/checkpoint`
+    (fresh, read-only; `checkpoint_ready`, the band's can-dos), `POST /progress/cefr/checkpoint`
+    `{band, passed, episode_id?, evidence?}` (409 on wrong band / not ready / retry too early /
+    closed); in-process `current_checkpoint(db, user)` and `record_checkpoint_result(...)`.
+  - **Promotion** — `CEFRProgressService`: the level is one above the highest closed band.
+    `CEFR_THRESHOLDS` is gone; its performance half is `PERFORMANCE_GATES`, used only after 40
+    attempts to decide how much of a placement / declaration the evidence confirms (confirmed →
+    the band below is credited `prior_confirmed`). Prior floor below 40 attempts and the down-step
+    smoothing unchanged. Release day: a level the old walk *measured* (payload v1 `measured`, or no
+    payload and above the prior) is kept as `release_floor` and credited `release_grandfather`.
+    Payload `cefr-progress-v2` adds `level_label`, `coverage`, `checkpoint`, `forecast`,
+    `rhythm_priors`; `breakdown.vocabulary/grammar` now count words known / units held against
+    the band. The journey finish refreshes the payload and the checkpoint row every day.
+  - **Web** — Home's masthead: «A1.1 · 60 %» as one label line (journey on). Dossier: the band
+    headline, units held x / y, words known x / y, the épreuve's state, the rule, the forecast.
+  - **Tests** — `tests/test_wp_l7_level_coverage.py`.
 
 #### WP-L8 · An honest forecast
 - Before 7 active days: the §2.3 prior for the learner's rhythm, as a range.
@@ -381,6 +411,30 @@ and the next scene gives the learner a chance to repair it.
 - The unbacked «20 min/day for 50 days → A1.2» goes. By the prior, A1.2 at 20 min/day is about
   1.5 months of intake plus the checkpoint.
 - **Done when:** the forecast matches WP-L9's simulation within ±20 %.
+- **Status (2026-09-24): landed.** `app/services/level_forecast.py`.
+  - **Formula** — to the end of the band in force (coverage + the épreuve):
+    `words_days = words_needed / (words_per_day × retention)`; units: the band is covered when
+    the *needed-th* unit in flight is first held, each unit's lag drawn from the memory model at
+    the learner's accuracy (`hold_lag_samples`, 41 days on a clean run; units already introduced
+    keep the lag they have spent), median of 200 seeded trials; `base = max(words, units,
+    checkpoint floor) + 1 day`; shown as `[0.8·base, 1.3·base]`, capped at 730 days.
+  - **Prior** (before 7 active days; journeys count as active days): §2.2's intake per rhythm,
+    retention 0.9. **Measured**: words and units introduced over the last 14 days, retention =
+    share of items introduced 7–60 days ago that stuck (units shrunk toward words while the sample
+    is small). A failed épreuve's week is the floor.
+  - **Rhythm priors (catalogue v1 → A1)**: Léger 7–12 months, Régulier 4–6, Soutenu 3–5,
+    Intensif 3–5 (v2: 7–12 / 4–7 / 3–6 / 3–5). A1.1 alone at Régulier: 78–126 days (v2 91–148).
+  - **Simulation** (`simulate_band_coverage` in `app/core/srs/simulation.py`): Régulier at 85 %
+    on A1.1 (18 v2 units, 316 words): median coverage day ≈ 128, the day-14 measured forecast's
+    median ≈ 124 (within 5 %); across rhythms and 70/85/95 % the medians agree within ~±20 % (the
+    6-unit v1 half is noisier: all six must be held).
+  - **Shown** — Réglages: each rhythm card «Estimation : A1 en 4 à 6 mois à ce rythme.»
+    (en/de/fr). Dossier: «Estimation avant mesure …» / «Estimation sur vos quatorze derniers
+    jours …». Relevé: «Estimation : 60 à 95 jours à ce rythme.» (was one number).
+  - The «20 min/day for 50 days → A1.2» claim never reached product copy (grep of `app/`,
+    `web-frontend/`, `mobile/`); the payload's `daily_minutes` fallback of 20 is now the rhythm's
+    10. **Not yet**: the weekly forecast line at the Seal.
+  - **Tests** — `tests/test_wp_l8_forecast.py`.
 
 #### WP-L9 · Measure it
 - Each step records when it started. Today only `completed_at` exists; alternatively derive the
