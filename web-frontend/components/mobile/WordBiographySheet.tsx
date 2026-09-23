@@ -63,7 +63,7 @@ const SOURCE_LABELS: Record<string, string> = {
   fsrs: 'Révision',
   graphic_novel: 'Le Feuilleton',
   lexicon: 'Le Lexique',
-  mission: 'Missions',
+  mission: 'Le Courrier',
   pilot_capture: 'Capture pilote',
   srs: 'Révision',
 };

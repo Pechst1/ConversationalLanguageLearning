@@ -413,7 +413,6 @@ function GrammarFiche({
 }) {
   const blueprint = concept.atelier_blueprint || {};
   const pedagogy = (blueprint.pedagogy || {}) as Record<string, any>;
-  const quality = (concept.blueprint_quality || {}) as Record<string, any>;
   const rule = concept.core_rule || pedagogy.core_rule || '';
   const examples = (concept.anchor_examples?.length ? concept.anchor_examples : arrayFrom(pedagogy.micro_examples || pedagogy.anchor_examples)).slice(0, 3);
   const traps = concept.main_traps?.length ? concept.main_traps : arrayFrom(pedagogy.main_traps);
@@ -422,7 +421,6 @@ function GrammarFiche({
   const recentErrata = concept.recent_errata || [];
   const mastery = Math.round(concept.mastery || 0);
   const nextReview = formatDate(concept.next_review);
-  const qualityScore = Number(quality.score ?? quality.quality_score);
   const due = (concept.due_errata_count || 0) > 0;
   const state = grammarState(concept.state, concept.mastery || 0);
   const tone = conceptTone(state, due);
@@ -478,7 +476,7 @@ function GrammarFiche({
 
       {pattern && (
         <Surface as="section" className="nb-sec" aria-label="Motif">
-          <NbSectionHead t="Motif" n={Number.isFinite(qualityScore) && qualityScore > 0 ? `gabarit vérifié · qualité ${qualityScore}/5` : null} />
+          <NbSectionHead t="Motif" n={null} />
           <p className="nb-motif">{pattern}</p>
         </Surface>
       )}

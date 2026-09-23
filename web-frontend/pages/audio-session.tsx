@@ -14,7 +14,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, HelpCircle, Volume2, VolumeX } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 import {
   Action,
@@ -33,7 +32,8 @@ import {
 } from '@/components/atelier-v2/ui';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
-import { useLearnerLanguage } from '@/lib/learner-language';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { fillStudio, studioCopy, type StudioCopy } from '@/lib/studio-copy';
 import { useAppSession } from '@/lib/app-auth';
 import apiService from '@/services/api';
 
@@ -95,33 +95,14 @@ const SPEAKING_TIMEOUT_MS = 60000;
 // Below this a recording holds container headers and no speech.
 const EMPTY_RECORDING_BYTES = 1200;
 
-const KICKER_BY_STATUS: Record<Status, string> = {
-  idle: 'Appel ouvert',
-  selecting: 'Appel ouvert',
-  starting: 'Ligne en préparation',
-  listening: 'Appel en cours',
-  processing: 'Appel en cours',
-  speaking: 'Appel en cours',
-  ended: 'Appel classé',
-};
+const plural = (count: number, one: string, many: string) => fillStudio(count === 1 ? one : many, { n: count });
 
-// Screen readers get the same French stage line the page prints, never the
-// internal status key.
-const METER_LABEL_BY_STATUS: Partial<Record<Status, string>> = {
-  listening: 'À vous de parler',
-  processing: 'La réponse se compose',
-  speaking: 'Votre interlocuteur parle',
-};
-
-const plural = (count: number, singular: string, many: string) => (
-  `${count} ${count > 1 ? many : singular}`
-);
-
+// The titles are French content; the note under each is chrome (studio-copy).
 const SCENES = [
-  { id: 'bakery', title: 'À la boulangerie', note: 'Commander sans préparer son texte.' },
-  { id: 'directions', title: 'Perdu dans la ville', note: 'Demander et reformuler un chemin.' },
-  { id: 'restaurant_order', title: 'Au bistrot', note: 'Commander et préciser une contrainte.' },
-];
+  { id: 'bakery', title: 'À la boulangerie' },
+  { id: 'directions', title: 'Perdu dans la ville' },
+  { id: 'restaurant_order', title: 'Au bistrot' },
+] as const;
 
 export default function AudioSessionPage() {
   const router = useRouter();
@@ -132,10 +113,11 @@ export default function AudioSessionPage() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
-  // Le Studio's fiction is French; the microphone failures explain a fault and
-  // follow the learner's own language (WP-21).
-  const learnerLanguage = useLearnerLanguage();
+  // WP-82: Le Studio's fiction is French; its chrome — and the microphone
+  // failures, so a card never mixes — follows the one language rule.
+  const learnerLanguage = useChromeLanguage();
   const chrome = atelierChrome(learnerLanguage);
+  const t = studioCopy(learnerLanguage);
   const pendingTurnRef = useRef<Promise<void> | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -229,7 +211,7 @@ export default function AudioSessionPage() {
     } catch (error) {
       console.error(error);
       setState(INITIAL_STATE);
-      toast.error("L’appel n’a pas pu commencer.");
+      setMicError(t.start_failed);
     }
   };
 
@@ -290,7 +272,7 @@ export default function AudioSessionPage() {
     } catch (error) {
       console.error(error);
       if (endedRef.current) return;
-      toast.error("La réponse n’a pas été transmise. Vous pouvez reprendre.");
+      setMicError(t.send_failed);
       setState((current) => ({ ...current, status: 'listening' }));
     }
   };
@@ -315,7 +297,7 @@ export default function AudioSessionPage() {
           // Nothing was captured (tapped twice, muted hardware): say so plainly
           // instead of sending an empty file and reporting a failed reply.
           setState((current) => ({ ...current, status: 'listening' }));
-          toast(chrome.nothing_heard);
+          setMicError(chrome.nothing_heard);
           return;
         }
         // Remember the turn so that classing the call waits for it instead of
@@ -336,7 +318,6 @@ export default function AudioSessionPage() {
         ? chrome.mic_denied
         : chrome.mic_unavailable;
       setMicError(message);
-      toast.error(message);
     }
   };
 
@@ -423,7 +404,7 @@ export default function AudioSessionPage() {
           as="main"
           language={learnerLanguage}
           className="studio studio-loading"
-          aria-label="Chargement du Studio"
+          aria-label={t.loading}
           aria-busy="true"
         >
           <span className="studio-spinner" />
@@ -440,36 +421,41 @@ export default function AudioSessionPage() {
       <Head><title>Le Studio · L’Atelier</title></Head>
       <AtelierV2Root as="main" language={learnerLanguage} className="av2-screen studio">
         <header className="av2-session__head studio-head">
-          <Link href="/atelier" aria-label="Retour à La Une" className="av2-icon-btn studio-back">
+          <Link href="/atelier" aria-label={t.back_home} className="av2-icon-btn studio-back">
             <ArrowLeftIcon size={18} />
           </Link>
           <div className="studio-head__main">
             {/* No call number exists in this flow — "N°" only ever appears before an actual number.
                 The kicker states the call's real stage: a classed call is not "en cours". */}
-            <p className="av2-label">Le Studio · {KICKER_BY_STATUS[state.status]}</p>
+            <p className="av2-label">{t.stage[state.status]}</p>
             <h1 className="av2-headline av2-headline--display">Le Studio</h1>
           </div>
           <Chip className="studio-time">{formatTime(state.elapsedSeconds)}</Chip>
         </header>
 
         <div className="av2-screen__body studio-body">
+          {/* WP-83: failures are an inline notice on av2 tokens, not a toast. */}
+          {micError && (
+            <div className="studio-mic-error">
+              <Notice tone="alert" live="status" shape="action">
+                <p>{micError}</p>
+              </Notice>
+            </div>
+          )}
           {state.status === 'idle' && (
             <section className="studio-panel studio-intro">
-              <p className="av2-label">Conversation · 5 minutes</p>
-              <h2 className="av2-headline av2-headline--screen">Une voix, une vraie réponse.</h2>
-              <p className="av2-body av2-body--lg studio-lede">
-                La conversation reprend votre histoire et vos mots du jour. Les corrections
-                restent discrètes : vous gardez le fil.
-              </p>
+              {/* WP-82: one Garamond headline per screen — «Le Studio» above. */}
+              <p className="av2-label">{t.intro_kicker}</p>
+              <p className="av2-body av2-body--lg studio-lede">{t.intro_lede}</p>
               <div className="studio-actions">
                 <Action tone="primary" icon={<MicIcon size={18} />} onClick={() => void startSession()}>
-                  Commencer à parler
+                  {t.start}
                 </Action>
                 <Action
                   tone="secondary"
                   onClick={() => setState((current) => ({ ...current, status: 'selecting' }))}
                 >
-                  Choisir une scène
+                  {t.choose_scene}
                 </Action>
               </div>
             </section>
@@ -477,8 +463,7 @@ export default function AudioSessionPage() {
 
           {state.status === 'selecting' && (
             <section className="studio-panel studio-scenes">
-              <p className="av2-label">Scènes de rechange</p>
-              <h2 className="av2-headline av2-headline--screen">Un décor précis</h2>
+              <p className="av2-label">{t.scenes_kicker}</p>
               <div className="studio-scene-list">
                 {SCENES.map((scene) => (
                   <button
@@ -488,17 +473,17 @@ export default function AudioSessionPage() {
                     onClick={() => void startSession(scene.id)}
                   >
                     <span className="av2-row__main">
-                      <strong className="av2-headline av2-headline--rule studio-scene__title">
+                      <strong className="av2-headline av2-headline--rule studio-scene__title" lang="fr">
                         {scene.title}
                       </strong>
-                      <span className="av2-body studio-scene__note">{scene.note}</span>
+                      <span className="av2-body studio-scene__note">{t.scene_notes[scene.id]}</span>
                     </span>
                     <ArrowRightIcon size={16} />
                   </button>
                 ))}
               </div>
               <div className="studio-actions">
-                <Action tone="quiet" onClick={() => setState(INITIAL_STATE)}>Retour</Action>
+                <Action tone="quiet" onClick={() => setState(INITIAL_STATE)}>{t.back}</Action>
               </div>
             </section>
           )}
@@ -506,18 +491,18 @@ export default function AudioSessionPage() {
           {state.status === 'starting' && (
             <section className="studio-wait" role="status" aria-live="polite" aria-busy="true">
               <SpinnerToken />
-              <strong className="av2-headline av2-headline--rule">La ligne se prépare…</strong>
+              <strong className="av2-body av2-body--lg">{t.preparing}</strong>
             </section>
           )}
 
           {inCall && (
             <section className="studio-panel studio-call">
-              <CastHeader cast={state.castMember} />
+              <CastHeader cast={state.castMember} t={t} />
               <div
                 className="studio-meter"
                 data-status={state.status}
                 role="img"
-                aria-label={METER_LABEL_BY_STATUS[state.status] || 'Appel en cours'}
+                aria-label={state.status === 'listening' ? t.your_turn : state.status === 'processing' ? t.composing : state.status === 'speaking' ? fillStudio(t.speaks, { name: state.castMember?.name || t.someone }) : t.stage[state.status]}
               >
                 {Array.from({ length: 11 }, (_, index) => <i key={index} />)}
                 <span className="studio-seal" aria-hidden="true">
@@ -525,9 +510,9 @@ export default function AudioSessionPage() {
                 </span>
               </div>
               <p className="studio-status" aria-live="polite">
-                {state.status === 'speaking' && `${state.castMember?.name || 'Votre interlocuteur'} parle`}
-                {state.status === 'listening' && 'À vous de parler'}
-                {state.status === 'processing' && 'La réponse se compose'}
+                {state.status === 'speaking' && fillStudio(t.speaks, { name: state.castMember?.name || t.someone })}
+                {state.status === 'listening' && t.your_turn}
+                {state.status === 'processing' && t.composing}
               </p>
               {(state.showText || isMuted) && state.aiResponse && (
                 <blockquote className="av2-surface studio-quote" lang="fr">
@@ -538,14 +523,14 @@ export default function AudioSessionPage() {
                 {/* Muting must not silence the character outright: the reply stays
                     readable for as long as the sound is off. */}
                 <IconAction
-                  label={isMuted ? 'Rétablir le son' : 'Couper le son'}
+                  label={isMuted ? t.unmute : t.mute}
                   pressable
                   onClick={() => setIsMuted((value) => !value)}
                 >
                   {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </IconAction>
                 <IconAction
-                  label={isRecording ? 'Arrêter l’enregistrement' : 'Commencer à parler'}
+                  label={isRecording ? t.stop_recording : t.start}
                   tone={isRecording || state.status === 'processing' ? 'recording' : 'action'}
                   pressable
                   className="studio-mic"
@@ -555,77 +540,66 @@ export default function AudioSessionPage() {
                   {state.status === 'processing' || isRecording ? <StopIcon size={26} /> : <MicIcon size={26} />}
                 </IconAction>
                 <IconAction
-                  label={state.showText ? 'Masquer le texte' : 'Afficher le texte'}
+                  label={state.showText ? t.hide_text : t.show_text}
                   pressable
                   onClick={() => setState((current) => ({ ...current, showText: !current.showText }))}
                 >
                   {state.showText ? <EyeOff size={18} /> : <Eye size={18} />}
                 </IconAction>
               </div>
-              {micError && (
-                <div className="studio-mic-error">
-                  <Notice tone="alert" live="status" shape="action">
-                    <p>{micError}</p>
-                  </Notice>
-                </div>
-              )}
               <div className="studio-actions studio-actions--end">
-                <Action tone="quiet" onClick={() => setShowEndConfirm(true)}>Terminer l’appel</Action>
+                <Action tone="quiet" onClick={() => setShowEndConfirm(true)}>{t.end_call}</Action>
               </div>
             </section>
           )}
 
           {state.status === 'ended' && (
             <section className="studio-panel studio-summary">
-              <Chip tone="story" className="studio-filed">BON À TIRER</Chip>
-              <h2 className="av2-headline av2-headline--screen">Conversation transmise.</h2>
-              {/* Counts are what really happened, so they have to read as French:
-                  one tour, one mot, and "malgré 0 fautes" is not a sentence. */}
+              <Chip tone="story" className="studio-filed">{t.filed}</Chip>
+              <h2 className="av2-body av2-body--lg studio-sent">{t.sent}</h2>
+              {/* Counts are what really happened: one turn, one word, and
+                  "despite 0 mistakes" is not a sentence. */}
               <p className="av2-body av2-body--lg studio-honest">
                 {state.turns === 0 ? (
-                  'Aucun tour parlé : l’appel s’est arrêté avant votre première phrase.'
+                  t.no_turns
                 ) : (
                   <>
-                    {plural(state.turns, 'tour parlé', 'tours parlés')} · réponse la plus longue{' '}
-                    {plural(state.longestAnswerWords, 'mot', 'mots')} ·{' '}
-                    {plural(
-                      state.dueWordsReused.length,
-                      'mot du jour réemployé',
-                      'mots du jour réemployés',
-                    )}
+                    {plural(state.turns, t.turns_one, t.turns_many)} · {t.longest}{' '}
+                    {plural(state.longestAnswerWords, t.words_one, t.words_many)} ·{' '}
+                    {plural(state.dueWordsReused.length, t.reused_one, t.reused_many)}
                     {state.errors.length > 0
-                      ? ` · communiqué malgré ${plural(state.errors.length, 'faute de forme', 'fautes de forme')}.`
-                      : ' · communiqué sans faute de forme relevée.'}
+                      ? ` · ${fillStudio(t.with_errors, { n: state.errors.length })}.`
+                      : ` · ${t.no_errors}.`}
                   </>
                 )}
               </p>
               <dl className="studio-stats">
                 <Surface shape="tile" className="studio-stat">
-                  <dt className="av2-label">Durée</dt>
+                  <dt className="av2-label">{t.stat_duration}</dt>
                   <dd className="av2-headline av2-headline--rule">{formatTime(state.elapsedSeconds)}</dd>
                 </Surface>
                 <Surface shape="tile" className="studio-stat">
-                  <dt className="av2-label">Tours</dt>
+                  <dt className="av2-label">{t.stat_turns}</dt>
                   <dd className="av2-headline av2-headline--rule">{state.turns}</dd>
                 </Surface>
                 <Surface shape="tile" className="studio-stat">
-                  <dt className="av2-label">Mots produits</dt>
+                  <dt className="av2-label">{t.stat_produced}</dt>
                   <dd className="av2-headline av2-headline--rule">{state.producedWords}</dd>
                 </Surface>
                 <Surface shape="tile" className="studio-stat">
-                  <dt className="av2-label">Mots repris</dt>
+                  <dt className="av2-label">{t.stat_reused}</dt>
                   <dd className="av2-headline av2-headline--rule">{state.dueWordsReused.join(' · ') || '—'}</dd>
                 </Surface>
               </dl>
               {state.longestAnswer && (
                 <Surface as="section" shape="tile" className="studio-aside">
-                  <p className="av2-label">Votre plus longue réponse</p>
+                  <p className="av2-label">{t.longest_label}</p>
                   <p className="av2-fr studio-aside__body">« {state.longestAnswer} »</p>
                 </Surface>
               )}
               {state.errors.length > 0 && (
                 <section className="studio-corrections">
-                  <p className="av2-label">Corrections discrètes</p>
+                  <p className="av2-label">{t.corrections_label}</p>
                   {state.errors.map((error, index) => (
                     <div className="studio-correction" key={`${error.original}-${index}`}>
                       <s className="av2-correction__span">{error.original}</s>
@@ -636,12 +610,12 @@ export default function AudioSessionPage() {
                 </section>
               )}
               <Surface as="section" shape="tile" className="studio-aside studio-tomorrow">
-                <p className="av2-label">Pour demain</p>
+                <p className="av2-label">{t.tomorrow_label}</p>
                 <p className="av2-fr studio-aside__body">{state.tomorrowFocus}</p>
               </Surface>
               <div className="studio-actions">
-                <Action tone="primary" onClick={() => setState(INITIAL_STATE)}>Nouvel appel</Action>
-                <Link className="av2-btn av2-btn--secondary" href="/atelier">Retour à La Une</Link>
+                <Action tone="primary" onClick={() => setState(INITIAL_STATE)}>{t.new_call}</Action>
+                <Link className="av2-btn av2-btn--secondary" href="/atelier">{t.back_home}</Link>
               </div>
             </section>
           )}
@@ -649,31 +623,31 @@ export default function AudioSessionPage() {
 
         <BottomSheet
           open={showHelp}
-          eyebrow="Mode d’emploi"
-          title="Le geste"
+          eyebrow={t.help_kicker}
+          title={t.help_title}
           onClose={() => setShowHelp(false)}
         >
           <p className="av2-body av2-body--lg">
-            Touchez le micro, parlez, puis touchez le carré. L’œil révèle la dernière phrase si nécessaire.
+            {t.help_body}
           </p>
         </BottomSheet>
 
         <Dialog
           open={showEndConfirm}
-          title="Classer cet appel ?"
-          body="Votre conversation sera ajoutée au dossier du jour."
+          title={t.end_title}
+          body={t.end_body}
           onClose={() => setShowEndConfirm(false)}
           actions={(
             <>
-              <Action tone="secondary" onClick={() => setShowEndConfirm(false)}>Continuer</Action>
-              <Action tone="done" onClick={() => void endSession()}>Classer</Action>
+              <Action tone="secondary" onClick={() => setShowEndConfirm(false)}>{t.keep_going}</Action>
+              <Action tone="done" onClick={() => void endSession()}>{t.end_confirm}</Action>
             </>
           )}
         />
 
         {inCall && (
           <IconAction
-            label="Aide"
+            label={t.help}
             pressable
             className="studio-help"
             onClick={() => setShowHelp(true)}
@@ -687,7 +661,7 @@ export default function AudioSessionPage() {
   );
 }
 
-function CastHeader({ cast }: { cast: CastMember | null }) {
+function CastHeader({ cast, t }: { cast: CastMember | null; t: StudioCopy }) {
   const [imageFailed, setImageFailed] = useState(false);
   const initials = (cast?.name || 'Le Studio').split(/\s+/).map((part) => part[0]).join('').slice(0, 2);
   return (
@@ -698,8 +672,8 @@ function CastHeader({ cast }: { cast: CastMember | null }) {
           : <span aria-hidden="true">{initials}</span>}
       </div>
       <div className="studio-cast__id">
-        <span className="av2-label">En ligne</span>
-        <strong className="av2-headline av2-headline--rule">{cast?.name || 'Conversation libre'}</strong>
+        <span className="av2-label">{t.online}</span>
+        <strong className="av2-headline av2-headline--rule">{cast?.name || t.free_talk}</strong>
         <em className="av2-body studio-cast__role">{cast?.role || 'Le Studio'}</em>
       </div>
     </div>

@@ -398,6 +398,7 @@ function Card({
           alt={imageAlt ?? ''}
           fallbackLabel={copy.artwork_unavailable}
           collapseWhenAbsent
+          eager
         />
       )}
       <div className="journey-today-card__body av2-stack">

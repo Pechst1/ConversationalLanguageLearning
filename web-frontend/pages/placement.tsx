@@ -215,10 +215,7 @@ export default function PlacementPage() {
         >
           <span className="av2-label">L’Atelier · Bilan de niveau</span>
           <h1 className="av2-headline av2-headline--screen">Trouvons votre niveau</h1>
-          <p className="pl-lead">
-            Quatre à six questions, en français, cinq minutes. Vos réponses fixent le niveau
-            de vos premières séances — pour que la première semaine soit à votre mesure.
-          </p>
+          <p className="pl-lead">4 à 6 questions.</p>
           <Surface tone="outline">
             <p className="pl-fine">
               Sans bilan, votre niveau continue de suivre vos scènes.

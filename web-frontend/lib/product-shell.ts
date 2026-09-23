@@ -34,7 +34,8 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
   },
   {
     id: 'missions',
-    label: 'Missions',
+    // WP-83: one name per place — the tab is the Courrier, as every screen calls it.
+    label: 'Courrier',
     href: '/missions',
     icon: 'mission',
     activeRoutes: [

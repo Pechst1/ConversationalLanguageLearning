@@ -34,7 +34,9 @@ def test_mission_quick_replies_focus_the_composer_and_show_character_typing() ->
     assert "onQuick={useQuickReply}" in source
     assert "ref={replyRef}" in source
     assert 'className="cr-typing"' in source
-    assert "{messenger.contact_name} rédige sa réponse" in source
+    assert "crFill(t.typing, { name: messenger.contact_name })" in source
+    copy = read_page(ROOT / "web-frontend" / "components" / "courrier" / "courrier-copy.ts")
+    assert "typing: '{name} rédige sa réponse'" in copy
 
 
 def test_missions_preserves_query_context_before_url_replacement() -> None:

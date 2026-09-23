@@ -59,9 +59,13 @@ def test_partial_finish_confirms_once_and_says_so():
     topbar = _source("components/epreuve/Epreuve.tsx")
     assert "partial = false" in topbar
     assert "if (partial && !confirming)" in topbar
-    assert "Clore ici ?" in topbar
+    # WP-82: the confirm and the early-close line follow the chrome language.
+    assert "{confirming ? t.finish_confirm : t.finish}" in topbar
+    copy = _source("components/epreuve/epreuve-copy.ts")
+    assert "finish_confirm: 'Arrêter ici ?'" in copy and "finish_confirm: 'Stop here?'" in copy
     recap = _source("pages/atelier.tsx")
-    assert "Édition close en avance" in recap
+    assert "? t.recap_early" in recap
+    assert "recap_early: 'Terminée en avance : tout compte.'" in copy
 
 
 def test_prescription_quotes_the_estimate_not_the_budget():
@@ -85,7 +89,10 @@ def test_planned_drills_come_from_the_server_plan():
 def test_lock_copy_reports_the_drills_it_actually_retired():
     epreuve = _source("components/epreuve/Epreuve.tsx")
     assert "retired = 0" in epreuve
-    assert "retiré" in epreuve
+    assert "fill(count === 1 ? t.lock_retired_one : t.lock_retired_many, { n: count })" in epreuve
+    copy = _source("components/epreuve/epreuve-copy.ts")
+    assert "lock_retired_many: '{n} exercices en moins aujourd’hui.'" in copy
+    assert "le concept se ferme en avance" not in copy
     # It must not claim a closed concept when only one rung was retired.
     assert "le concept se ferme en avance" not in epreuve
     page = _source("pages/atelier.tsx")
@@ -101,7 +108,8 @@ def test_studio_is_reachable_from_the_day_plan():
     assert "if (!progress.studioDone && progress.studioSuggested)" in plan
     assert "void router.push('/audio-session');" in page
     # It also has to be offered where the learner just finished speaking practice.
-    assert "Ouvrir le studio" in page
+    assert "if (action.kind === 'studio') return { action: t.next_studio };" in page
+    assert "next_studio: 'Ouvrir le studio'" in _source("components/epreuve/epreuve-copy.ts")
     # The day's one action names speaking when the studio is prescribed.
     assert "studioIsPrescribed ? 'Parler'" in page
 

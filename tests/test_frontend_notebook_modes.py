@@ -114,8 +114,14 @@ def test_cahier_word_detail_sheet_speaks_french() -> None:
 
     Every string below was English on a publication surface: the flashcard
     faces, the section heads, the placeholders and the three handoff buttons.
+    WP-82 then moved the sheet's chrome into the Lexique copy table, read in
+    the chrome language (the learner's own up to A2, French from B1): the page
+    hard-codes no chrome in any language, and the French column keeps the
+    French voice this test was written to protect.
     """
     page = read_web_code("pages/vocabulary.tsx")
+    copy = read_web("components/lexique/lexique-copy.ts")
+    french = copy[copy.index("const FR: LexiqueCopy"):]
 
     for gone in (
         "Progress / SRS",
@@ -131,8 +137,18 @@ def test_cahier_word_detail_sheet_speaks_french() -> None:
     ):
         assert gone not in page, gone
 
-    for present in ("Touche pour retourner", "Sens · touche pour revenir", "Le suivi", "Traces récentes", "La biographie du mot"):
-        assert present in page, present
+    for gone in ("translation pending", "traduction à venir", "Recent context will appear after use."):
+        assert gone not in copy, gone
+
+    for key, present in (
+        ("flip_front", "Touche pour retourner"),
+        ("flip_back", "Sens · touche pour revenir"),
+        ("tracking_title", "Le suivi"),
+        ("traces_title", "Traces récentes"),
+        ("action_biography", "La biographie du mot"),
+    ):
+        assert f"t.{key}" in page, key
+        assert f"{key}: '{present}'" in french, present
 
 
 def test_cahier_word_rows_use_the_resolved_gloss_not_a_language_guess() -> None:
@@ -162,7 +178,11 @@ def test_cahier_hides_scheduler_internals_and_guessed_parts_of_speech() -> None:
         assert internal not in page, internal
     assert "word?.part_of_speech || 'French'" not in page
     assert "partOfSpeechLabel" in page
-    assert "PART_OF_SPEECH_LABELS" in page
+    # WP-82: the whitelist moved to the Lexique copy module, which labels a
+    # recognised key in the chrome language and prints nothing for junk.
+    copy = read_web("components/lexique/lexique-copy.ts")
+    assert "export const PART_OF_SPEECH_LABELS" in copy
+    assert "return key ? copy[key] : '';" in copy
 
 
 def test_grammar_fiche_handoff_seats_the_rule_in_the_atelier() -> None:
@@ -187,5 +207,9 @@ def test_conjugation_drill_is_french_and_reachable() -> None:
 
     for gone in ("Irregular forms", "Coverage map", "Reveal table", "Type the form", "Retry"):
         assert gone not in drill, gone
-    assert "Les formes irrégulières" in drill
+    # WP-82: the drill's chrome follows the chrome language; its French name
+    # lives in the Lexique copy table.
+    copy = read_web("components/lexique/lexique-copy.ts")
+    assert "{t.conj_title}" in drill
+    assert "conj_title: 'Les formes irrégulières'" in copy
     assert 'href="/vocabulary/conjugation"' in registre

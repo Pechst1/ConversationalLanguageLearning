@@ -18,6 +18,7 @@ import { oncePerLoad } from '@/lib/once-per-load';
 import apiService, { RealWorldMission } from '@/services/api';
 
 import { CrLetterRow, crLetterHint } from './Correspondance';
+import { courrierCopy, crFill } from './courrier-copy';
 
 /** The one key both surfaces share, so two rows are one request. */
 export const COURRIER_TODAY_KEY = 'missions/today';
@@ -61,8 +62,15 @@ export type CourrierHomeEntry = {
   ariaLabel: string;
 };
 
-export function courrierHomeEntry(letter: RealWorldMission | null, now?: Date): CourrierHomeEntry | null {
+/** WP-82: `language` is the chrome language of the Home that shows the row;
+ *  French by default (the flag-off Home passes nothing). */
+export function courrierHomeEntry(
+  letter: RealWorldMission | null,
+  now?: Date,
+  language: unknown = 'fr',
+): CourrierHomeEntry | null {
   if (!letter) return null;
+  const t = courrierCopy(language);
   const courrier = letter.courrier || null;
   const correspondent = letter.correspondent || courrier?.correspondent || null;
   const name = String(correspondent?.name || '').trim();
@@ -72,8 +80,9 @@ export function courrierHomeEntry(letter: RealWorldMission | null, now?: Date): 
     origin: courrier?.origin || null,
     expiresAt: letter.expires_at || courrier?.expires_at || null,
     now,
+    language,
   });
-  const label = letter.status === 'in_progress' ? 'Votre réponse est commencée' : 'Une lettre vous attend';
+  const label = letter.status === 'in_progress' ? t.reply_started : t.letter_waiting;
   return {
     id: 'courrier',
     label,
@@ -84,9 +93,9 @@ export function courrierHomeEntry(letter: RealWorldMission | null, now?: Date): 
 }
 
 /** La Une's Courrier row, as a `HomeEntry`-shaped value or `null`. */
-export function useCourrierHomeEntry(): CourrierHomeEntry | null {
+export function useCourrierHomeEntry(language: unknown = 'fr'): CourrierHomeEntry | null {
   const letter = useCourrierLetter();
-  return courrierHomeEntry(letter);
+  return courrierHomeEntry(letter, undefined, language);
 }
 
 /* ---------- the Feuilleton ----------
@@ -103,16 +112,20 @@ export function courrierStoryBornLetter(letter: RealWorldMission | null): RealWo
   return String(letter.courrier?.origin || '') === 'story_born' ? letter : null;
 }
 
-export function CrStoryLetterRow() {
+/** WP-82: `language` is the Feuilleton reader's chrome language; French by
+ *  default, so a reader that passes nothing keeps the row it had. */
+export function CrStoryLetterRow({ language = 'fr' }: { language?: unknown } = {}) {
   const letter = courrierStoryBornLetter(useCourrierLetter());
   if (!letter) return null;
+  const t = courrierCopy(language);
   const correspondent = letter.correspondent || letter.courrier?.correspondent || null;
   const name = String(correspondent?.name || '').trim();
   return (
     <CrLetterRow
       name={name}
       href={`/missions?mission=${letter.id}`}
-      hint={name ? `${name} vous écrit après l’épisode.` : 'Quelqu’un vous écrit après l’épisode.'}
+      hint={`${name ? crFill(t.hint_story_named, { name }) : t.hint_story_anon}.`}
+      language={language}
     />
   );
 }

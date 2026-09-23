@@ -194,30 +194,11 @@ export default StoryEpisodeReader;
  * only exit is a working speaker.
  */
 /**
- * The cycle's own chrome, in French (WP-44, Radio.dc.html).
- *
- * The artboards settle a question WP-32 left open: one chrome language per
- * screen, and on a screen whose entire content is French the chrome is French
- * too. The learner's own language does not disappear — it keeps the one line
- * that says what is about to happen (`radio_*_native`), as a line of body copy
- * rather than as furniture. Everything else the learner reads here is the
- * scene's own words.
- *
- * They are constants and not copy keys on purpose: a key implies a translation
- * that this screen must not have.
+ * The cycle's own chrome (WP-44, Radio.dc.html) follows WP-82's one language
+ * rule like every other journey screen: the stage names, the ask and the two
+ * buttons come from `copy` (the learner's language up to A2, French from B1).
+ * The scene's own words stay French.
  */
-const RADIO_FR: Record<RadioStage, string> = {
-  predire: 'Prédire',
-  ecouter: 'Écouter',
-  verifier: 'Vérifier',
-  retenir: 'Retenir',
-};
-
-const RADIO_FR_PREDIRE_BODY =
-  'Avant d’écouter : comment ça finit ? Se tromper ne coûte rien — c’est la prédiction qui fait travailler l’oreille.';
-const RADIO_FR_LISTEN = 'Écouter';
-const RADIO_FR_READ_INSTEAD = 'Lire la scène';
-
 export function EpisodeRadio({
   episode,
   copy,
@@ -281,7 +262,12 @@ export function EpisodeRadio({
           : ('pending' as const),
   }));
 
-  const stageLabel = RADIO_FR;
+  const stageLabel: Record<RadioStage, string> = {
+    predire: copy.radio_stage_predire,
+    ecouter: copy.radio_stage_ecouter,
+    verifier: copy.radio_stage_verifier,
+    retenir: copy.radio_stage_retenir,
+  };
 
   const unavailableCopy: Record<string, string> = {
     disabled: copy.radio_audio_disabled,
@@ -293,12 +279,14 @@ export function EpisodeRadio({
 
   return (
     <section className="av2-stack av2-step wp44-radio" data-radio-stage={state.stage}>
-      <p className="av2-label av2-label--story" lang="fr">
-        {[storyEpisodeLabel(episode), stageLabel[state.stage]].filter(Boolean).join(' · ')}
+      <p className="av2-label av2-label--story">
+        <span lang="fr">{storyEpisodeLabel(episode)}</span>
+        {' · '}
+        {stageLabel[state.stage]}
       </p>
       <StepProgress
         steps={stageSteps}
-        label={RADIO_FR.predire}
+        label={stageLabel.predire}
         caption={stageLabel[state.stage]}
       />
       <h2 className="av2-headline" lang="fr">
@@ -307,8 +295,8 @@ export function EpisodeRadio({
 
       {state.stage === 'predire' && (
         <>
-          <p className="av2-body av2-body--lg" lang="fr">
-            {RADIO_FR_PREDIRE_BODY}
+          <p className="av2-body av2-body--lg">
+            {copy.radio_predire_body}
           </p>
           <ChoiceList
             options={guesses.map((guess) => ({ id: guess.id, textFr: guess.fr }))}
@@ -334,10 +322,10 @@ export function EpisodeRadio({
               disabled={!state.guess}
               onClick={() => dispatch({ type: 'listen' })}
             >
-              {RADIO_FR_LISTEN}
+              {copy.radio_listen_action}
             </Action>
             <Action tone="quiet" onClick={onReadInstead}>
-              {RADIO_FR_READ_INSTEAD}
+              {copy.radio_read_instead}
             </Action>
           </div>
         </>
@@ -363,7 +351,7 @@ export function EpisodeRadio({
                     <li key={line.key}>
                       <Surface tone={active ? 'blue' : 'paper'}>
                         <p className="av2-label">
-                          {line.who || RADIO_FR.ecouter}
+                          {line.who || stageLabel.ecouter}
                           {' · '}
                           <span className="av2-body">{copy.radio_words_hidden}</span>
                         </p>
@@ -404,7 +392,7 @@ export function EpisodeRadio({
             {copy.radio_verify_action}
           </Action>
           <Action tone="quiet" onClick={onReadInstead}>
-            {RADIO_FR_READ_INSTEAD}
+            {copy.radio_read_instead}
           </Action>
         </>
       )}
@@ -456,7 +444,7 @@ export function EpisodeRadio({
             </Action>
           )}
           <Action tone="primary" onClick={() => dispatch({ type: 'retain' })}>
-            {RADIO_FR.retenir}
+            {stageLabel.retenir}
           </Action>
         </>
       )}

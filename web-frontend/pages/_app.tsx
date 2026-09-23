@@ -175,7 +175,6 @@ export default function App({
       <QueryClientProvider client={queryClient}>
         <Head>
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-          <meta name="theme-color" content="#f1ece1" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-title" content="Atelier" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />

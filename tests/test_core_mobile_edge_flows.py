@@ -27,14 +27,17 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
     assert "const seanceDisabled = loading || (!hasActiveSession && !canStart)" in atelier
-    assert "toast('Cet exercice est déjà classé.')" in atelier
+    # WP-82/83: said inline in the session, in the chrome language.
+    assert "say(pageCopy.say_already_done)" in atelier
     # Finish gate lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
     # It only blocks filing an *empty* edition: a session with classed drills can
     # always be closed early, behind one confirm, because that work is already
     # banked server-side (see tests/test_atelier_honest_edition.py).
     assert "finishDisabled={submitting || completedDrills < 1}" in atelier
     assert "partial={completedDrills < total}" in atelier
-    assert "La séance n’a pas pu être terminée." in atelier
+    assert "say(pageCopy.say_finish_failed, 'alert')" in atelier
+    copy = read(WEB / "components" / "epreuve" / "epreuve-copy.ts")
+    assert "say_finish_failed: 'La séance n’a pas pu être terminée.'" in copy
 
 
 def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish() -> None:
@@ -42,14 +45,18 @@ def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish
 
     assert "const text = reply.trim()" in missions
     assert "if (!mission || !text || submitting || completed) return" in missions
-    # Le Courrier is a French publication surface: the send-failure toast speaks it too.
-    assert "Le message n’est pas parti." in missions
+    # WP-82: the send-failure toast is chrome — the copy table carries it, in
+    # French for a B1+ learner and in the learner's language below that.
+    assert "toast.error(t.toast_send_failed)" in missions
+    copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "toast_send_failed: 'Le message n’est pas parti.'" in copy
     assert "const canSend = reply.trim().length > 0 && !submitting && !completed" in missions
     # "Le Courrier" composer: submit gated by canSend, Terminer gated by interaction.
     assert "canSubmit={canSend}" in missions
     assert "canFinish={interactionReady}" in missions
     assert "finishing={completing}" in missions
-    assert "finishLabel=\"Terminer\"" in missions
+    # The finish label defaults to the chrome table's «Terminer» / «Finish».
+    assert "finish: 'Terminer'" in copy
     # The situation frame + the character opening both carry a translate assist.
     assert "translate={translateFrame}" in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions

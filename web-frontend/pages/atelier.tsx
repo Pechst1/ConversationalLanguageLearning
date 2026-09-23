@@ -77,8 +77,10 @@ import {
   EpPhrase,
   EpHandoff,
   EpNotice,
+  useEpCopy,
   type MotifPrim,
 } from '@/components/epreuve/Epreuve';
+import { AtelierV2Root, Notice } from '@/components/atelier-v2/ui';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 // Atelier V2 daily journey (WP-07 functional milestone). The V2 branch below is
@@ -103,18 +105,21 @@ import {
   journeyBecause,
   resolvePracticeEntry,
   PRACTICE_LABEL,
+  practiceLabel,
   serialActionFromToday,
   type DayProgress,
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
-import { useLearnerLanguage } from '@/lib/learner-language';
+import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
+import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
+import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
-import { journeyChromeLanguage } from '@/lib/language-rule';
+import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 
@@ -194,20 +199,6 @@ const roundLabels: Array<{ id: RoundName; label: string; roman: string }> = [
   { id: 'speak', label: 'À l’oral', roman: 'V' },
   { id: 'conversation', label: 'Conversation', roman: 'VI' },
 ];
-
-// The eyebrow half of this table was never rendered (EpPrompt dropped its label
-// prop); the round is already named by the sheet's eyebrow above the prompt.
-const OUTPUT_LADDER_META: Record<'sentence' | 'speak' | 'conversation', { instruction: string }> = {
-  sentence: {
-    instruction: 'Réagissez à la situation ci-dessous avec une phrase française complète.',
-  },
-  speak: {
-    instruction: 'Enregistrez votre réponse : nous la transcrivons et relisons la grammaire.',
-  },
-  conversation: {
-    instruction: 'Répondez naturellement au message avec la grammaire que vous venez de travailler.',
-  },
-};
 
 function answerKey(round: RoundName, mode: string, conceptId?: number | null, itemId?: string | null) {
   const base = `${round}:${mode}:${conceptId || 'session'}`;
@@ -530,17 +521,6 @@ function wordCount(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function wordRangeLabel(count: number, minWords?: unknown, maxWords?: unknown) {
-  const min = Number(minWords);
-  const max = Number(maxWords);
-  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) {
-    const remaining = Math.max(0, Math.round(min) - count);
-    const suffix = remaining > 0 ? ` · ${remaining} de plus` : '';
-    return `${count} / ${Math.round(min)}-${Math.round(max)} mots${suffix}`;
-  }
-  return `${count} mots`;
-}
-
 function normalizeClient(value: any) {
   return String(value || '')
     .normalize('NFD')
@@ -589,35 +569,22 @@ function firstMintedCollectible(collectibles: AtelierCollectible[] | undefined, 
   return (collectibles || []).find((item) => item.kind === kind);
 }
 
-type AtelierErrorNotice = { label: string; message: string };
+const ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = { kind: 'confirm_needed' };
 
-const ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = {
-  label: 'À REPRENDRE',
-  message: 'L’Atelier n’a pas pu confirmer la séance en cours. Réessayez avant d’en commencer une autre afin de conserver votre travail.',
-};
-
+// WP-82: the kind is recorded here; the words are chosen at render time, in
+// the chrome language of the screen showing them (`atelierErrorText`).
 function describeAtelierError(error: unknown, context: 'load' | 'session'): AtelierErrorNotice {
   const isAxiosError = axios.isAxiosError(error);
   const status = isAxiosError ? error.response?.status : undefined;
   const timedOut = isAxiosError && (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || ''));
   const noResponse = isAxiosError && !error.response;
 
-  if (noResponse && !timedOut) {
-    return { label: 'HORS LIGNE', message: 'Vous semblez hors ligne. Vérifiez la connexion puis réessayez.' };
-  }
-  if (timedOut) {
-    return context === 'session'
-      ? { label: 'TOUJOURS SOUS PRESSE', message: 'La séance du jour demande plus de temps que prévu. Réessayez : elle est peut-être déjà prête.' }
-      : { label: 'CHARGEMENT EN COURS', message: 'L’Atelier répond plus lentement que d’habitude. Réessayez dans un instant.' };
-  }
+  if (noResponse && !timedOut) return { kind: 'offline' };
+  if (timedOut) return { kind: context === 'session' ? 'slow_session' : 'slow_load' };
   if (typeof status === 'number' && status >= 500) {
-    return context === 'session'
-      ? { label: 'PAS ENCORE PRÊTE', message: 'La séance du jour n’a pas pu être préparée. Réessayez dans un instant.' }
-      : { label: 'PAS ENCORE PRÊTE', message: 'L’Atelier n’a pas pu charger l’édition du jour. Réessayez dans un instant.' };
+    return { kind: context === 'session' ? 'down_session' : 'down_load' };
   }
-  return context === 'session'
-    ? { label: 'À REPRENDRE', message: 'La séance du jour n’a pas démarré. Réessayez depuis cet écran.' }
-    : { label: 'À REPRENDRE', message: 'L’Atelier est indisponible pour le moment. Réessayez ou revenez dans un instant.' };
+  return { kind: context === 'session' ? 'failed_session' : 'failed_load' };
 }
 
 export default function AtelierPage() {
@@ -873,6 +840,23 @@ export default function AtelierPage() {
   // flag is off, when the request fails, and before the first read returns.
   const journeyEnabled =
     journey.envelope?.enabled === true && journey.phase.kind !== 'disabled';
+  // WP-82: the chrome language outside the journey shell — «Plus de pratique»
+  // (L'Épreuve), its recap and the page's load errors. The day's band when the
+  // journey has one, otherwise the learner's CEFR estimate.
+  const pageChromeLanguage = useChromeLanguage(journeyLevel(journey));
+  const pageCopy = epreuveCopy(pageChromeLanguage);
+  // WP-83: what the session has to say (a report sent, a check that failed)
+  // is an inline notice on av2 tokens under the session's header, not a toast
+  // under the Dynamic Island. It clears itself after five seconds.
+  const [sessionNotice, setSessionNotice] = useState<{ text: string; tone: 'quiet' | 'alert' } | null>(null);
+  const say = useCallback((text: string, tone: 'quiet' | 'alert' = 'quiet') => {
+    setSessionNotice({ text, tone });
+  }, []);
+  useEffect(() => {
+    if (!sessionNotice) return undefined;
+    const timer = window.setTimeout(() => setSessionNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [sessionNotice]);
 
   // The frozen precedence: the journey branch sits in front of the legacy chain.
   const recommendation = useMemo(
@@ -980,10 +964,10 @@ export default function AtelierPage() {
     try {
       const result = await apiService.requestAtelierAttemptAiReview(attemptId);
       applyAttemptResult(scopedKey, result, true);
-      toast('Relecture automatique lancée.');
+      say(pageCopy.say_review_started);
     } catch (error) {
       console.error(error);
-      toast.error('La relecture automatique est indisponible.');
+      say(pageCopy.say_review_unavailable, 'alert');
     } finally {
       setAiReviewSubmitting((prev) => ({ ...prev, [scopedKey]: false }));
     }
@@ -1007,10 +991,10 @@ export default function AtelierPage() {
         item_id: activeItemId,
         reason: 'Exercice signalé depuis la feuille de correction.',
       });
-      toast.success('Exercice signalé.');
+      say(pageCopy.say_reported);
     } catch (error) {
       console.error(error);
-      toast.error('L’exercice n’a pas pu être signalé.');
+      say(pageCopy.say_report_failed, 'alert');
     }
   };
 
@@ -1060,11 +1044,11 @@ export default function AtelierPage() {
   const submitAttempt = async () => {
     if (!session) return;
     if (submitted[scopedKey]) {
-      toast('Cet exercice est déjà classé.');
+      say(pageCopy.say_already_done);
       return;
     }
     if (!currentAttemptReady) {
-      toast('Ajoutez une réponse avant de vérifier.');
+      say(pageCopy.say_answer_first);
       return;
     }
     setSubmitting(true);
@@ -1164,13 +1148,13 @@ export default function AtelierPage() {
       if (mintedLogoToken) {
         setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
         pulseAtelierHaptic('token');
-        toast.success('Jeton du logo gagné.');
+        say(pageCopy.say_token_won);
       } else {
         pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
       }
     } catch (error) {
       console.error(error);
-      toast.error('La correction n’a pas pu être transmise.');
+      say(pageCopy.say_send_failed, 'alert');
     } finally {
       setSubmitting(false);
     }
@@ -1209,7 +1193,7 @@ export default function AtelierPage() {
       pulseAtelierHaptic(correction?.micro_repairs?.[String(erratumIndex)]?.status === 'ok' ? 'correct' : 'repair');
     } catch (error) {
       console.error(error);
-      toast.error('La correction n’a pas pu être vérifiée.');
+      say(pageCopy.say_check_failed, 'alert');
     } finally {
       setRepairSubmitting((prev) => ({ ...prev, [draftKey]: false }));
     }
@@ -1250,7 +1234,7 @@ export default function AtelierPage() {
       // offered once, with a face, after the first finished day (PushOptIn).
     } catch (error) {
       console.error(error);
-      toast.error('La séance n’a pas pu être terminée.');
+      say(pageCopy.say_finish_failed, 'alert');
     } finally {
       setSubmitting(false);
     }
@@ -1282,7 +1266,7 @@ export default function AtelierPage() {
       setReviewResult(null);
     } catch (error) {
       console.error(error);
-      toast.error('Cette correction n’a pas pu être ouverte.');
+      toast.error(pageCopy.say_open_failed);
     } finally {
       setReviewSubmitting(false);
     }
@@ -1297,13 +1281,13 @@ export default function AtelierPage() {
       setReviewTask(result.task);
       removeErratumFromToday(reviewTask.error_id);
       if (result.is_correct) {
-        toast.success('Erratum repris');
+        toast.success(pageCopy.say_erratum_done);
       } else {
-        toast('Relue. Elle reviendra bientôt pour une nouvelle reprise.');
+        toast(pageCopy.say_erratum_later);
       }
     } catch (error) {
       console.error(error);
-      toast.error('La correction n’a pas pu être envoyée.');
+      toast.error(pageCopy.say_send_failed);
     } finally {
       setReviewSubmitting(false);
     }
@@ -1323,7 +1307,7 @@ export default function AtelierPage() {
       void router.push('/vocabulary/review');
       return;
     }
-    toast('La file de révision est vide.');
+    toast(pageCopy.say_queue_empty);
   };
 
   // --- WP-20 (WP-19 defect D-1): land inside the journey, not on Home -------
@@ -1747,6 +1731,7 @@ export default function AtelierPage() {
               journeyEditionNo={journey.envelope?.journey?.edition_no ?? null}
               // WP-82: Home's own words follow the one language rule.
               chromeLanguage={journeyChromeLanguage(journey)}
+              noticeLanguage={pageChromeLanguage}
             />
           </>
         ) : (
@@ -1757,7 +1742,7 @@ export default function AtelierPage() {
                 so no SessionView internal changes. */}
             {practiceMode && (
               <div className="atelier-practice-strip av2" role="status">
-                <p className="av2-label">{PRACTICE_LABEL}</p>
+                <p className="av2-label">{practiceLabel(pageChromeLanguage)}</p>
                 {practiceConceptTitle && (
                   <p className="av2-headline av2-headline--rule" lang="fr">
                     {practiceConceptTitle}
@@ -1805,6 +1790,8 @@ export default function AtelierPage() {
             isRetest={Boolean(activeRetest)}
             onBack={() => setView('today')}
             produceAnswer={produceAnswer}
+            language={pageChromeLanguage}
+            notice={sessionNotice}
           />
           </>
         )}
@@ -1813,6 +1800,7 @@ export default function AtelierPage() {
             recap={recap}
             concepts={session?.concepts || []}
             filedEarly={completedDrills < plannedDrills}
+            language={pageChromeLanguage}
             recommendation={legacyRecommendation}
             onRecommendedAction={() => {
               setRecap(null);
@@ -2057,6 +2045,7 @@ function TodayView({
   journeyCard = null,
   journeyEditionNo = null,
   chromeLanguage = 'fr',
+  noticeLanguage,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2095,6 +2084,8 @@ function TodayView({
    * day (the learner's up to A2, French from B1). The flag-off Home is French.
    */
   chromeLanguage?: ControlLanguage;
+  /** WP-82: the load error's language when there is no day to take it from. */
+  noticeLanguage?: ControlLanguage;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2518,7 +2509,7 @@ function TodayView({
   return (
     <HomeScreen
       hero={journeyCard}
-      dateLabel={formatAtelierEditionDate()}
+      dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       level={homeLevel}
       streak={streak}
@@ -2527,7 +2518,7 @@ function TodayView({
       settingsHref="/settings"
       // WP-D5: the streak opens «Vos sceaux» in Cahier → Relevé.
       streakHref="/notebook?mode=releve#sceaux"
-      notice={loadError ? { label: loadError.label, message: loadError.message, onRetry: onRetry } : null}
+      notice={loadError ? { ...atelierErrorText(loadError, homeDay ? chromeLanguage : noticeLanguage ?? chromeLanguage), onRetry: onRetry } : null}
       episode={homeEpisode}
       action={homeAction}
       filedLabel={isRest && !errorOnlyPage && !journeyOwnsPrimary ? 'Édition bouclée — à demain.' : null}
@@ -2772,8 +2763,11 @@ function parcoursTopicShort(value: string) {
   return normalized.length > 26 ? `${normalized.slice(0, 23).trim()}…` : normalized;
 }
 
-function formatAtelierEditionDate(date = new Date()) {
-  const formatted = new Intl.DateTimeFormat('fr-FR', {
+// WP-82: the date line is chrome — it reads in Home's chrome language.
+const DATE_LOCALES: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
+
+function formatAtelierEditionDate(date = new Date(), language: ControlLanguage = 'fr') {
+  const formatted = new Intl.DateTimeFormat(DATE_LOCALES[language] || 'fr-FR', {
     weekday: 'long',
     day: 'numeric',
     // «Mercredi 23 sept.» — the short month keeps the headline on one line.
@@ -3009,6 +3003,8 @@ function SessionView({
   isRetest,
   onBack,
   produceAnswer,
+  language,
+  notice,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3042,15 +3038,20 @@ function SessionView({
   isRetest: boolean;
   onBack: () => void;
   produceAnswer: string;
+  /** WP-82: the chrome language (`chromeLanguage`): the learner's up to A2, French from B1. */
+  language: ControlLanguage;
+  /** WP-83: the page's short notice, shown inline under the header. */
+  notice?: { text: string; tone: 'quiet' | 'alert' } | null;
 }) {
+  const t = epreuveCopy(language);
   const currentMode = roundMode(round, mode);
   const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
   const currentCorrection = correctionsByKey[currentKey] || null;
   const currentSubmitted = !!submitted[currentKey];
   const total = totalDrillsForSession;
-  const activeRoundLabel = roundLabels.find((item) => item.id === round)?.label || 'Pratique';
-  const activeRecognizeLabel = recognizeModes.find((item) => item.id === mode)?.label || 'Reconnaître';
-  const activeConceptTitle = activeConcept ? displayConceptTitle(activeConcept) : 'Séance du jour';
+  const activeRoundLabel = roundLabels.some((item) => item.id === round) ? t[`round_${round}`] : t.practice_fallback;
+  const activeRecognizeLabel = recognizeModes.some((item) => item.id === mode) ? t[`mode_${mode}`] : t.round_recognize;
+  const activeConceptTitle = activeConcept ? displayConceptTitle(activeConcept) : t.session_fallback;
   const focusedItemLabel = activeItemCount > 1 ? `${activeItemIndex + 1}/${activeItemCount}` : '';
   const [ruleOpenByConcept, setRuleOpenByConcept] = useState<Record<string, boolean>>({});
   const conceptRuleKey = `${session.session_id}:${activeConcept?.id || 'session'}`;
@@ -3064,12 +3065,12 @@ function SessionView({
   const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
   const isFinalConversation = !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
   const currentFeedback = currentSubmitted
-    ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection)
+    ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection, t)
     : null;
   // The design's primary cycles Vérifier → Continuer → Terminer.
-  const feedbackNextLabel = isFinalConversation ? 'Terminer' : 'Continuer';
+  const feedbackNextLabel = isFinalConversation ? t.finish : t.continue;
   const feedbackRule = currentFeedback && !currentFeedback.correct
-    ? feedbackRuleLine(activeSet, activeConcept)
+    ? feedbackRuleLine(activeSet, activeConcept, t)
     : undefined;
   const feedbackNext = isFinalConversation ? completeSession : goNext;
   const nextDisabled = !drillAnswerIsReady(activeSet, round, mode, activeItemIndex, currentAnswers, produceAnswer);
@@ -3111,12 +3112,12 @@ function SessionView({
   })();
 
   return (
-    <EpShell className="atelier-do-mode">
+    <EpShell className="atelier-do-mode" language={language}>
       <LEpreuveStyles />
       {/* The séance names itself for the document outline. The design draws no
           screen title here — the concept is the visible headline — so the name
           is announced rather than printed (WP-20 D-11). */}
-      <h1 className="av2-sr">L’épreuve</h1>
+      <h1 className="av2-sr">{t.screen_name}</h1>
       <EpTopbar
         groups={epGroups}
         cap={epCap}
@@ -3130,6 +3131,13 @@ function SessionView({
         run={correctRun}
       />
       <div className="ep-body av2-screen__body">
+      {notice && (
+        <div className="ep-say">
+          <Notice tone={notice.tone} live={notice.tone === 'alert' ? 'alert' : 'status'} shape={notice.tone === 'alert' ? 'action' : 'done'}>
+            <p>{notice.text}</p>
+          </Notice>
+        </div>
+      )}
       {activeSet && activeConcept && (
         <section className="ep-sheet">
           <EpEyebrow
@@ -3159,7 +3167,7 @@ function SessionView({
           ) : ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
-              examples={firstConceptDrill ? ['Essayez maintenant avec l’élément le plus simple.'] : []}
+              examples={firstConceptDrill ? [t.rule_try_first] : []}
               onClose={toggleRule}
             />
           )}
@@ -3280,10 +3288,7 @@ function SessionView({
         // topbar over an empty page: no copy, no way forward. The press notice
         // is the designed state for it.
         <section className="ep-sheet">
-          <EpNotice
-            msg="La feuille de cette règle n’a pas pu être composée. Ce qui est déjà classé est enregistré ; revenez à La Une, la rédaction recompose l’édition."
-            onRetry={onBack}
-          />
+          <EpNotice msg={t.set_failed} onRetry={onBack} />
         </section>
       )}
       </div>
@@ -3306,6 +3311,7 @@ function ActionRow({
   confidence?: 'sure' | 'unsure';
   onPickConfidence: (confidence: 'sure' | 'unsure') => void;
 }) {
+  const t = useEpCopy();
   if (submitted) return null;
   return (
     <>
@@ -3314,7 +3320,7 @@ function ActionRow({
           answer is chosen, spent (spinner + word) while the line is checked. */}
       <EpFoot tone="neutral">
         <EpBar tone="go" icon="check" disabled={submitting || nextDisabled} pending={submitting} onClick={submitAttempt}>
-          {submitting ? 'Vérification…' : 'Vérifier'}
+          {submitting ? t.checking : t.check}
         </EpBar>
       </EpFoot>
     </>
@@ -3356,14 +3362,15 @@ function ExerciseFeedbackMoment({
   onRetryAiReview?: () => void;
   aiReviewSubmitting?: boolean;
 }) {
+  const t = useEpCopy();
   if (!submitted || !feedback) return null;
   if (feedback.unscored) {
     return (
       <div className="ep-feedback" data-verdict="unscored" role="status">
-        <p className="av2-body">Votre réponse est enregistrée, mais elle n’a pas encore pu être vérifiée. Aucun résultat ni progrès de maîtrise n’est attribué.</p>
+        <p className="av2-body">{t.unscored}</p>
         <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
         <EpFoot tone="neutral">
-          <EpBar tone="ghost" onClick={onNext}>Passer sans évaluation</EpBar>
+          <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
       </div>
     );
@@ -3371,7 +3378,7 @@ function ExerciseFeedbackMoment({
   const issues = feedback.issues?.length
     ? feedback.issues
     : feedback.target
-      ? [{ display_label: 'Ligne corrigée', learner_text: feedback.learner, corrected_target: feedback.target, why_wrong: feedback.why } as AtelierErratum]
+      ? [{ display_label: t.corrected_line, learner_text: feedback.learner, corrected_target: feedback.target, why_wrong: feedback.why } as AtelierErratum]
       : [];
   const repairs = correction?.micro_repairs || {};
   // The typed retype only gates Next for corrections that are real lines;
@@ -3386,7 +3393,7 @@ function ExerciseFeedbackMoment({
   const relecture = aiStatus === 'pending' || aiStatus === 'reviewing' || aiStatus === 'queued'
     ? <EpRelecture status="pending" />
     : aiStatus === 'complete'
-      ? <EpRelecture status="done">Relecture terminée</EpRelecture>
+      ? <EpRelecture status="done">{t.relecture_done}</EpRelecture>
       // A failed second look used to render nothing at all, so the note simply
       // never resolved and the retry endpoint was unreachable from the sheet.
       : (aiStatus === 'error' || aiStatus === 'failed')
@@ -3403,10 +3410,10 @@ function ExerciseFeedbackMoment({
   if (feedback.correct) {
     return (
       <div className="ep-feedback" data-verdict="correct">
-        <EpCorrect said={feedback.target || feedback.learner || 'Ligne réglée.'} struck />
+        <EpCorrect said={feedback.target || feedback.learner || t.line_set} struck />
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={rule}>Bien joué !</EpVerdict>
+          <EpVerdict tone="go" sub={rule}>{t.verdict_correct}</EpVerdict>
           <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
         </EpFoot>
       </div>
@@ -3422,7 +3429,7 @@ function ExerciseFeedbackMoment({
         const repair = repairs[String(index)] || null;
         if (issue.task_error_type === 'task_compliance' || !target) {
           return <div className="av2-surface" key={`task-${index}`} role="status">
-            <p className="av2-label">La consigne</p>
+            <p className="av2-label">{t.task}</p>
             <p className="av2-body">{issue.why_wrong || feedback.why}</p>
             {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
           </div>;
@@ -3430,17 +3437,17 @@ function ExerciseFeedbackMoment({
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
-              anchor={issue.display_label || `Correction ${index + 1}`}
+              anchor={issue.display_label || fill(t.correction_n, { n: index + 1 })}
               why={printableWhy(issue.why_wrong || feedback.why)}
               repair={printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')) || undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
               {isLabelCompare && learner
-                ? <EpLabelFix old={learner} fix={target || 'corrigé'} />
+                ? <EpLabelFix old={learner} fix={target || t.corrected} />
                 : isRepairableLine(target) || isRepairableLine(learner)
-                  ? <EpLineFix old={learner} fix={target || 'corrigé'} />
-                  : learner ? <EpFix old={learner} fix={target || 'corrigé'} /> : <EpIns fix={target || 'corrigé'} />}
+                  ? <EpLineFix old={learner} fix={target || t.corrected} />
+                  : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
             {!isLabelCompare && target && isRepairableLine(target) && (
               <EpRepair
@@ -3457,7 +3464,7 @@ function ExerciseFeedbackMoment({
       })}
       {vocabularyGaps.length > 0 && (
         <div className="ep-notebook-add">
-          <span className="nh">Ajouté au carnet</span>
+          <span className="nh">{t.notebook_added}</span>
           <ul>
             {vocabularyGaps.map((gap, index) => (
               <li key={`${gap.french}-${index}`}>
@@ -3472,17 +3479,17 @@ function ExerciseFeedbackMoment({
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
       <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule}>À reprendre</EpVerdict>
+        <EpVerdict tone="no" sub={rule}>{t.verdict_wrong}</EpVerdict>
         {repairsComplete
           ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
-          : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>Réessayer la ligne</EpBar>}
+          : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
         <div className="ep-fb-links">
           {repairsComplete && onTryAgain && (
-            <button type="button" onClick={onTryAgain}>Réessayer</button>
+            <button type="button" onClick={onTryAgain}>{t.retry}</button>
           )}
-          {needsNewAnswer && <button type="button" onClick={onNext}>Passer cet exercice</button>}
+          {needsNewAnswer && <button type="button" onClick={onNext}>{t.skip}</button>}
           {onReport && (
-            <button type="button" onClick={onReport}>Signaler cet exercice</button>
+            <button type="button" onClick={onReport}>{t.report}</button>
           )}
         </div>
       </EpFoot>
@@ -3492,21 +3499,22 @@ function ExerciseFeedbackMoment({
 
 function ConceptRulePanel({ payload, concept }: { payload: Record<string, any>; concept: AtelierConcept }) {
   const rule = payload.rule_panel || {};
+  const t = useEpCopy();
   return (
     <aside className="grammar-block rule-panel">
       <div className="between">
-        {/* Furniture (kickers + link label) is publication French; the rule text below
-            stays in the learner's own language. */}
-        <div className="t-mono blue">La règle</div>
+        {/* WP-82: the furniture follows the chrome language; «Cahier» is a
+            place and stays French. */}
+        <div className="t-mono blue">{t.rule}</div>
         <Link className="notebook-link" href={`/grammar?concept=${concept.id}`}>Cahier ↗</Link>
       </div>
       {/* The concept title is already set as the sheet's h1 two rows above; a
           second copy here only repeated it (and, before the server localized
           rule_panel.title, repeated it in English). */}
       <p>{rule.rule}</p>
-      {rule.when && <p><strong>Quand :</strong> {rule.when}</p>}
-      {rule.pattern && <p><strong>Le schéma :</strong> {rule.pattern}</p>}
-      {rule.check && <p><strong>Le contrôle :</strong> {rule.check}</p>}
+      {rule.when && <p><strong>{t.rule_when}</strong> {rule.when}</p>}
+      {rule.pattern && <p><strong>{t.rule_pattern}</strong> {rule.pattern}</p>}
+      {rule.check && <p><strong>{t.rule_check}</strong> {rule.check}</p>}
       <div className="examples">
         {(rule.examples || []).slice(0, 3).map((example: string) => <p key={example}>{example}</p>)}
       </div>
@@ -3552,6 +3560,7 @@ function RecognizePanel({
   const feedback = itemFeedback(item, answers[item.id], correction);
   const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
   const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
+  const t = useEpCopy();
   return (
     <div className="ep-exercise ep-recognize">
       {mode === 'fill' && (
@@ -3587,7 +3596,7 @@ function RecognizePanel({
               ))}
             </EpSetLine>
           </EpPrompt>
-          <div className="ep-typecase" aria-label="Caractères disponibles">
+          <div className="ep-typecase" aria-label={t.typecase_label}>
             {sourceTokens.map((token: string, tokenIndex: number) => {
               const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
               return (
@@ -3615,7 +3624,8 @@ function RecognizePanel({
                 wrong={submitted && answers[item.id] === label && !feedback?.correct}
                 disabled={submitted}
                 onClick={() => updateAnswer(item.id, label)}
-              >Placer ici</EpOpt>,
+                contentLang=""
+              >{t.place_here}</EpOpt>,
             ],
           }))} />
         </>
@@ -3642,6 +3652,7 @@ function TransformPanel({
   const items = payload.transform?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
+  const t = useEpCopy();
   return (
     <div className="ep-exercise ep-transform">
       <EpPrompt cue={item.instruction}>
@@ -3651,7 +3662,7 @@ function TransformPanel({
         className="ep-composed-input"
         value={answers[item.id] || ''}
         onChange={(event) => updateAnswer(item.id, event.target.value)}
-        placeholder="Composez la nouvelle ligne…"
+        placeholder={t.transform_placeholder}
         readOnly={submitted}
       />
       {submitted && (() => {
@@ -3733,7 +3744,7 @@ function correctionTargetText(value: unknown): string {
   return String(value);
 }
 
-function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = ''): InlineFeedbackModel {
+function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
   if (!correction) return null;
   const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
   // Task compliance is part of the assessment and must remain visible.
@@ -3752,10 +3763,10 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
   const issues: AtelierErratum[] = correct ? [] : [{
-    display_label: errata.length > 1 ? `${errata.length} corrections` : (errata[0]?.display_label || 'Ligne corrigée'),
+    display_label: errata.length > 1 ? fill(t.corrections_n, { n: errata.length }) : (errata[0]?.display_label || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
-    why_wrong: whyLines.join(' ') || 'La réponse ne remplit pas encore la consigne. Relisez la situation et réessayez avec la règle indiquée.',
+    why_wrong: whyLines.join(' ') || t.task_default_why,
     task_error_type: taskOnly ? 'task_compliance' : undefined,
   } as AtelierErratum];
   if (!correct && !taskOnly) {
@@ -3779,6 +3790,7 @@ function feedbackForExercise(
   activeItemIndex: number,
   currentAnswers: Record<string, any>,
   correction: Record<string, any> | null,
+  t: EpreuveCopy = epreuveCopy('fr'),
 ): InlineFeedbackModel {
   if (!activeSet || !correction) return null;
   if (round === 'recognize') {
@@ -3793,12 +3805,12 @@ function feedbackForExercise(
   }
   if (round === 'sentence' || round === 'speak' || round === 'conversation') {
     const item = activeSet.output_ladder?.[round]?.items?.[0] || {};
-    return feedbackFromFreeformCorrection(correction, item.example_answer || '', String(currentAnswers.text || ''));
+    return feedbackFromFreeformCorrection(correction, item.example_answer || '', String(currentAnswers.text || ''), t);
   }
-  return feedbackFromFreeformCorrection(correction, '', String(currentAnswers.text || ''));
+  return feedbackFromFreeformCorrection(correction, '', String(currentAnswers.text || ''), t);
 }
 
-function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: AtelierConcept | null) {
+function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: AtelierConcept | null, t: EpreuveCopy = epreuveCopy('fr')) {
   // Publication furniture is French, and the title is the French one: the server
   // now localizes rule_panel.title, and title_fr is the concept-level fallback.
   // This used to print "Rule: Si type 1: present condition, future result".
@@ -3809,7 +3821,7 @@ function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: 
     || activeConcept?.name
     || '',
   ).trim();
-  return title ? `La règle · ${title}` : undefined;
+  return title ? fill(t.rule_line, { title }) : undefined;
 }
 
 // "Recopie la correction" is a line-level exercise: retyping a one-word fill
@@ -3882,15 +3894,15 @@ function EpreuveWiringStyles() {
       .ep .ep-notebook-add li b { font-weight: 700; }
       .ep .ep-notebook-add li em { font-style: italic; color: var(--app-ink-3); }
       .ep .ep-fb-links { display: flex; justify-content: center; gap: 20px; margin-top: 11px; }
-      .ep .ep-fb-links button { border: 0; background: none; padding: 4px 2px; color: var(--app-ink-3); font: 700 9px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+      .ep .ep-fb-links button { border: 0; background: none; min-height: 44px; padding: 0.5rem 0.75rem; color: var(--app-ink-3); font: 600 0.8125rem/1.2 var(--app-grotesk); cursor: pointer; }
       .ep .ep-fb-links button:hover { color: var(--app-ink); }
       .ep .ep-lock { margin: 15px 0 0; border: 1px solid var(--app-ink); background: var(--app-sheet); }
-      .ep-recap { position: relative; width: min(100%, 510px); max-height: min(90dvh, 780px); overflow: auto; border: 1px solid var(--app-ink); border-radius: 0; box-shadow: 0 16px 38px color-mix(in srgb, var(--app-ink) 20%, transparent); }
-      .ep-recap-close { position: absolute; z-index: 2; right: 10px; top: 10px; width: 30px; height: 30px; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); font-size: 20px; line-height: 1; }
+      .ep-recap { position: relative; width: min(100%, 510px); max-height: min(90dvh, 780px); overflow: auto; overscroll-behavior: contain; border: 0; border-radius: 24px; box-shadow: 0 16px 38px color-mix(in srgb, var(--app-ink) 20%, transparent); }
+      .ep-recap-close { position: absolute; z-index: 2; right: 8px; top: 8px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--app-paper); color: var(--app-ink); font-size: 22px; line-height: 1; }
       .ep-recap .ep-bat-stage { padding-top: 26px; }
       .ep-recap-rewards { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 15px 0; border-top: 1px solid var(--app-paper-3); border-bottom: 1px solid var(--app-paper-3); }
       .ep-recap-rewards .ep-mint { flex: 1; }
-      @media (max-width: 480px) { .ep-recap { width: calc(100vw - 28px); } .ep .ep-composed-input { min-height: 110px; } }
+      @media (max-width: 480px) { .ep-recap { width: calc(100vw - 32px); } .ep .ep-composed-input { min-height: 110px; } }
     `}</style>
   );
 }
@@ -3912,25 +3924,30 @@ function OutputLadderPanel({
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  // WP-83: a failed recording is said inline, under the control, on av2
+  // tokens — not in a toast under the Dynamic Island.
+  const [recordNotice, setRecordNotice] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
   const promptText = outputLadderPrompt(payload, item, round);
   const character = item.character || {};
   const worldReply = correction?.world_reply || {};
+  const t = useEpCopy();
 
   const transcribeAudio = async (blob: Blob) => {
     setIsTranscribing(true);
+    setRecordNotice(null);
     try {
       const transcript = await apiService.transcribeAudio(blob);
       if (transcript.trim()) {
         updateAnswer(transcript.trim());
       } else {
-        toast('Aucune parole détectée.');
+        setRecordNotice(t.nothing_heard);
       }
     } catch (error) {
       console.error(error);
-      toast.error('L’enregistrement n’a pas pu être transcrit.');
+      setRecordNotice(t.transcription_failed);
     } finally {
       setIsTranscribing(false);
     }
@@ -3953,10 +3970,11 @@ function OutputLadderPanel({
         void transcribeAudio(audioBlob);
       };
       recorder.start();
+      setRecordNotice(null);
       setIsRecording(true);
     } catch (error) {
       console.error(error);
-      toast.error('L’accès au micro a échoué.');
+      setRecordNotice(t.mic_failed);
     }
   };
 
@@ -3975,16 +3993,16 @@ function OutputLadderPanel({
     }
   };
 
-  const meta = OUTPUT_LADDER_META[round];
+  const instruction = t[`${round}_instruction` as const];
   return (
     <div className={`ep-exercise ep-output ep-output-${round}`}>
       {round === 'conversation' && character.name && (
-        <div className="ep-character-byline" aria-label={`Conversation avec ${character.name}`}>
+        <div className="ep-character-byline" aria-label={fill(t.conversation_with, { name: character.name })}>
           <span>{character.name}</span>
-          <em>{String(character.register || 'vous').toUpperCase()}</em>
+          <em lang="fr">{String(character.register || 'vous')}</em>
         </div>
       )}
-      <EpPrompt cue={item.instruction || meta.instruction}>
+      <EpPrompt cue={item.instruction || instruction}>
         {promptText}
       </EpPrompt>
       {round === 'speak' && (
@@ -3994,21 +4012,20 @@ function OutputLadderPanel({
           onToggle={toggleRecording}
         />
       )}
+      {recordNotice && (
+        <Notice tone="alert" live="alert" shape="action">
+          <p>{recordNotice}</p>
+        </Notice>
+      )}
       <textarea
         value={answer}
         onChange={(event) => updateAnswer(event.target.value)}
         readOnly={submitted}
         className="ep-composed-input"
-        placeholder={
-          round === 'speak'
-            ? 'Vos mots apparaissent ici, ou composez-les.'
-            : round === 'conversation'
-              ? 'Composez votre réponse…'
-              : 'Composez votre ligne…'
-        }
+        placeholder={t[`${round}_placeholder` as const]}
       />
       <div className="word-count">
-        {wordRangeLabel(wordCount(answer), item.min_words, item.max_words)}
+        {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && (() => {
         const modelText = String(seanceAssessment(correction) === 'correct' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
@@ -4050,16 +4067,17 @@ function ProducePanel({
   }));
   const sourceFragment = String(produce.source_fragment || '').trim();
   const promptText = String(produce.prompt || '').trim();
+  const t = useEpCopy();
   return (
     <div className="ep-exercise ep-produce-panel">
       <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined}>
-        {promptText || 'La consigne de composition est indisponible.'}
+        {promptText || t.produce_missing}
       </EpPrompt>
       <div className="target-chips">
         {requirements.map((req: { label: string; count: number }) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
       {Boolean(targetVocabulary?.length) && (
-        <div className="target-word-strip" aria-label="Lexique visé pour ce paragraphe">
+        <div className="target-word-strip" aria-label={t.produce_words_label}>
           {(targetVocabulary || []).slice(0, 5).map((item) => (
             <span key={`${item.word_id}-${item.word}`}>
               {item.word}
@@ -4068,8 +4086,8 @@ function ProducePanel({
           ))}
         </div>
       )}
-      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder="Composez votre paragraphe ici…" readOnly={submitted} />
-      <div className="word-count">{wordRangeLabel(wordCount(answer), produce.min_words, produce.max_words)}</div>
+      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted} />
+      <div className="word-count">{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
     </div>
   );
 }
@@ -4081,6 +4099,7 @@ function RecapModal({
   recommendation,
   onRecommendedAction,
   onClose,
+  language,
 }: {
   recap: Record<string, any>;
   concepts: AtelierConcept[];
@@ -4089,9 +4108,12 @@ function RecapModal({
   recommendation: RecommendedAction;
   onRecommendedAction: () => void;
   onClose: () => void;
+  /** WP-82: the recap's chrome language (`chromeLanguage`). */
+  language: ControlLanguage;
 }) {
+  const t = epreuveCopy(language);
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
-  const nextLabel = recapActionLabel(recommendation, reviewTotal);
+  const nextLabel = recapActionLabel(recommendation, reviewTotal, t);
   const practiced = concepts.slice(0, 3).map((concept) => displayConceptTitle(concept));
   const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles as AtelierCollectible[] : [];
   const logoTokens = minted.filter((item) => item.kind === 'logo_token');
@@ -4102,114 +4124,68 @@ function RecapModal({
   const phrase = recap.phrase_of_day || null;
   const recapErrata = Array.isArray(recap.errata) ? recap.errata : [];
   const proofLines: Array<{ fr: React.ReactNode; tag: string; re: boolean }> = recapErrata.slice(0, 4).map((item: Record<string, any>, index: number) => ({
-    fr: <><del>{item.learner_text || '—'}</del> <ins>{item.corrected_target || 'corrigé'}</ins></>,
-    tag: item.display_label || `Correction ${index + 1}`,
+    fr: <><del>{item.learner_text || '—'}</del> <ins>{item.corrected_target || t.corrected}</ins></>,
+    tag: item.display_label || fill(t.correction_n, { n: index + 1 }),
     re: true,
   }));
   if (!proofLines.length) {
-    proofLines.push(...(practiced.length ? practiced : ['La séance']).map((item) => ({ fr: item, tag: 'ligne réglée', re: false })));
+    proofLines.push(...(practiced.length ? practiced : [t.session_fallback]).map((item) => ({ fr: item, tag: t.proof_line_set, re: false })));
   }
   return (
     <div className="recap-overlay">
-      <section className="ep ep-recap av2" aria-label="L’épreuve de la séance">
+      <AtelierV2Root as="section" language={language} className="ep ep-recap" aria-label={t.recap_dialog}>
         <LEpreuveStyles />
         <EpreuveWiringStyles />
-        <button type="button" className="ep-recap-close" onClick={onClose} aria-label="Fermer l’épreuve">×</button>
+        <button type="button" className="ep-recap-close" onClick={onClose} aria-label={t.recap_close}>×</button>
         <EpBatStage
           sub={giltSeal
-            ? 'Séance sans faute, frappée en doré.'
+            ? t.recap_gilt
             : filedEarly
-              ? 'Édition close en avance — tout ce qui est classé ci-dessous compte.'
-              : 'Les lignes sont prêtes pour l’édition de demain.'}
+              ? t.recap_early
+              : t.recap_done}
         />
         <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
         <div className="ep-recap-body">
           <EpTally items={[
-            { n: attempts, l: 'lignes réglées' },
-            { n: strengthened, l: 'concepts affermis' },
-            { n: errataLogged, l: 'errata classés' },
+            { n: attempts, l: t.tally_lines },
+            { n: strengthened, l: t.tally_concepts },
+            { n: errataLogged, l: t.tally_errata },
           ]} />
           <EpProof lines={proofLines} />
-          {phrase?.text && <EpPhrase quote={phrase.text} by={phrase.byline || 'L’élève de l’Atelier'} />}
+          {phrase?.text && <EpPhrase quote={phrase.text} by={phrase.byline || t.phrase_by} />}
           <div className="ep-recap-rewards">
             <EpSeal gilt={Boolean(giltSeal)} stamp />
             {(logoTokens.length > 0 || giltSeal) && (
               <EpMint
                 tokens={Math.max(1, logoTokens.length)}
-                note={giltSeal ? 'Sceau doré frappé pour une séance sans faute.' : `${logoTokens.length} jeton${logoTokens.length > 1 ? 's' : ''} ajouté${logoTokens.length > 1 ? 's' : ''} à l’atelier.`}
+                note={giltSeal ? t.mint_gilt : fill(logoTokens.length === 1 ? t.mint_one : t.mint_many, { n: logoTokens.length })}
               />
             )}
           </div>
           <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
           <EpHandoff
             // recapActionLabel returns a verb phrase ("Réviser maintenant",
-            // "Ouvrir la mission"), so it IS the button; the old prop prefixed
-            // it with "Lire" and printed "Lire Réviser maintenant".
+            // "Ouvrir la lettre"), so it IS the button.
             label={nextLabel?.action}
             onRead={nextLabel ? onRecommendedAction : onClose}
             onHome={onClose}
           />
         </div>
-      </section>
+      </AtelierV2Root>
     </div>
   );
 }
 
-function recapActionLabel(action: RecommendedAction, reviewTotal: number) {
-  if (action.kind === 'review') {
-    return {
-      title: `${reviewTotal} élément${reviewTotal === 1 ? '' : 's'} à réviser`,
-      copy: 'Videz la file des reprises avant les branches facultatives pour garder la grammaire du jour fraîche.',
-      action: 'Réviser maintenant',
-    };
-  }
-  if (action.kind === 'mission') {
-    return {
-      title: 'L’utiliser dans une mission',
-      copy: 'Le passage vers le réel est ici : réemployez la séance terminée dans une situation concrète.',
-      action: 'Ouvrir la mission',
-    };
-  }
-  if (action.kind === 'studio') {
-    return {
-      title: 'Le dire à voix haute',
-      copy: 'La règle que vous venez de poser tient-elle dans une vraie conversation ? Cinq minutes au studio.',
-      action: 'Ouvrir le studio',
-    };
-  }
-  if (action.kind === 'library') {
-    if (!STORY_FEATURE_VISIBLE) return null;
-    return {
-      title: action.bookTitle ? `Continuer ${action.bookTitle}` : 'Continuer le livre de la bibliothèque',
-      copy: action.title
-        ? `Épisode ${action.episodeIndex + 1} : ${action.title}`
-        : 'Lire le passage suivant et répondre aux questions qui en découlent.',
-      action: 'Continuer le livre',
-    };
-  }
-  if (action.kind === 'serial') {
-    return {
-      title: action.episodeKind === 'mission' ? 'Le monde attend votre réponse' : 'Continuer le feuilleton',
-      copy: action.episodeKind === 'mission'
-        ? 'Votre prochain message en français fait avancer le fil commun.'
-        : 'Voyez la conséquence de votre texte, puis attrapez le prochain suspense.',
-      action: action.episodeKind === 'mission' ? 'Répondre' : 'Ouvrir le feuilleton',
-    };
-  }
-  if (action.kind === 'feuilleton') {
-    return {
-      title: 'Lire la branche du Feuilleton',
-      copy: 'Portez la même grammaire dans la scène du Feuilleton pendant qu’elle est encore fraîche.',
-      action: 'Ouvrir le Feuilleton',
-    };
-  }
-  if (action.kind === 'rest') {
-    return {
-      title: 'Édition terminée',
-      copy: 'Tout le parcours est terminé. Revenez à la carte du jour et laissez reposer.',
-      action: 'Retour au jour',
-    };
-  }
+// WP-82: only the button's words are ever printed; the titles and blurbs this
+// used to compose were never rendered and are gone. A resting day has no next
+// step, so the recap offers the one way home instead of a second «Retour».
+function recapActionLabel(action: RecommendedAction, _reviewTotal: number, t: EpreuveCopy = epreuveCopy('fr')): { action: string } | null {
+  if (action.kind === 'review') return { action: t.next_review };
+  if (action.kind === 'mission') return { action: t.next_mission };
+  if (action.kind === 'studio') return { action: t.next_studio };
+  if (action.kind === 'library') return STORY_FEATURE_VISIBLE ? { action: t.next_library } : null;
+  if (action.kind === 'serial') return { action: action.episodeKind === 'mission' ? t.next_reply : t.next_serial };
+  if (action.kind === 'feuilleton') return { action: t.next_feuilleton };
   return null;
 }
 

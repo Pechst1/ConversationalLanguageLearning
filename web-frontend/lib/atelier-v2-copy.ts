@@ -128,7 +128,7 @@ type Table = Record<AtelierCopyKey, string>;
 
 const EN: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missions',
+  nav_missions: 'Courrier',
   nav_serial: 'Serial',
   nav_notebook: 'Notebook',
   nav_label: 'Sections',
@@ -208,7 +208,7 @@ const EN: Table = {
 
 const DE: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missionen',
+  nav_missions: 'Courrier',
   nav_serial: 'Feuilleton',
   nav_notebook: 'Heft',
   nav_label: 'Bereiche',
@@ -288,7 +288,7 @@ const DE: Table = {
 
 const FR: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missions',
+  nav_missions: 'Courrier',
   nav_serial: 'Feuilleton',
   nav_notebook: 'Cahier',
   nav_label: 'Sections',

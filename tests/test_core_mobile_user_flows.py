@@ -127,11 +127,17 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     # (A `printed-hook` pin lived here: by WP-85 it matched only a CSS rule
     # whose class no markup rendered, and the rule went with the dead styles.)
 
-    # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
-    # review" / "Queue claire" were the last English strings on the surface.
-    assert 'aria-label="Progression de la révision"' in vocabulary_review
+    # The deck's aria labels and end-of-deck copy were the last hard-coded
+    # English strings on the surface ("Vocabulary review" / "Queue claire").
+    # WP-82: they now come from the Lexique copy table in the chrome language
+    # (the learner's up to A2, French from B1), with the French voice kept.
+    lexique_copy = read(WEB / "components" / "lexique" / "lexique-copy.ts")
+    assert "aria-label={t.progress_aria}" in vocabulary_review
+    assert "progress_aria: 'Progression de la révision'" in lexique_copy
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "Paquet vidé" in vocabulary_review
+    assert "{t.done_title}" in vocabulary_review
+    assert "done_title: 'Paquet vidé'" in lexique_copy
+    assert "Vocabulary review" not in vocabulary_review + lexique_copy
     assert "onReturn" in vocabulary_review
     assert "onRefresh" in vocabulary_review
     assert "href={`/vocabulary?word=${wordId}`}" in vocabulary_review
@@ -147,8 +153,11 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "apiService.completeMission(mission.id)" in missions
     assert "setCompletedNextSerial(result.next_serial || null)" in missions
     # Completion stays on the recap; the learner explicitly chooses Atelier or the next act.
-    assert "Lire l’acte suivant" in missions
-    assert "Retour à l’Atelier" in missions
+    copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "next_act: 'Lire l’acte suivant'" in copy
+    assert "{t.next_act}</CrGhost>" in missions
+    assert "back_atelier: 'Retour à l’Atelier'" in copy
+    assert "{t.back_atelier}</CrGhost>" in missions
     assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions
     # "Le Courrier" correspondence-desk surface: shell, desk header, slip thread,
@@ -158,8 +167,10 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "className=\"cr-thread\"" in missions
     assert "<CrComposer" in missions
     assert "className=\"cr-resolve\"" in missions
-    assert "Compte rendu de mission" in missions
-    assert "Jeton frappé" in missions
+    # Appendix A: the answered letter is one seal; the minted token rides on it.
+    assert "<CrSeal" in missions
+    assert "token={mintedToken ? <LogoToken pop /> : undefined}" in missions
+    assert "token_minted: 'Jeton frappé'" in copy
     # Format-aware composer + voice + archive.
     assert "function missionFormat(" in missions
     assert "missionFormatPayload(mission)" in missions

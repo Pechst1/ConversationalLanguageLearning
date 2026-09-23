@@ -36,17 +36,25 @@ def test_vocabulary_review_done_state_offers_context_handoffs() -> None:
     assert "onReturn" in source
     assert "onRefresh" in source
     assert "href={`/vocabulary?word=${wordId}`}" in source
-    assert "Actualiser" in source
+    # WP-82: the refresh label lives in the Lexique copy table (chrome language).
+    assert "{t.refresh}" in source
+    lexique_copy = read(ROOT / "web-frontend" / "components" / "lexique" / "lexique-copy.ts")
+    assert "refresh: 'Actualiser'" in lexique_copy
 
 
 def test_mission_completion_routes_to_new_moment_and_home() -> None:
     source = read(MISSIONS_PAGE)
 
     # The resolved dossier ("Le Courrier") offers: next act (serial) / a fresh
-    # correspondence / back to La Une — per the design brief §6.
-    assert "resolutionCredit(mission" in source
-    assert "Nouveau courrier" in source
-    assert "Retour à la Une" in source
+    # correspondence / back to La Une — per the design brief §6. WP-82: the
+    # labels are chrome and live in the copy table; Appendix A folded the
+    # credit rows into the one seal.
+    copy = read(ROOT / "web-frontend" / "components" / "courrier" / "courrier-copy.ts")
+    assert "<CrSeal" in source
+    assert "new_courrier: 'Nouveau courrier'" in copy
+    assert "{t.new_courrier}</CrGhost>" in source
+    assert "back_home: 'Retour à la Une'" in copy
+    assert "{t.back_home}</CrGhost>" in source
     assert "routeForMissionSerialBeat(completedNextSerial)" in source
     assert "createSeededMission({" in source
     assert "minted_collectibles" in source
@@ -83,7 +91,7 @@ def test_atelier_recap_continues_session_into_context() -> None:
     assert "<EpSeal" in source
     assert "<EpHandoff" in source
     assert "session_id: result.session_id" in source
-    assert "aria-label=\"Fermer l’épreuve\"" in source
+    assert "aria-label={t.recap_close}" in source
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:
@@ -96,8 +104,11 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
     assert "const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId)" in missions
     # A serial act flips the desk furniture to the blue "Le Feuilleton · Acte N"
     # kicker and stamps "Acte bouclé" on resolution.
-    assert "Le Feuilleton · Acte" in missions
-    assert "Acte bouclé" in missions
+    copy = read(ROOT / "web-frontend" / "components" / "courrier" / "courrier-copy.ts")
+    assert "feuilleton_act: 'Le Feuilleton · Acte {n}'" in copy
+    assert "crFill(t.feuilleton_act, { n: actNumber })" in missions
+    assert "seal_act_done: 'Acte bouclé'" in copy
+    assert "isSerialAct ? t.seal_act_done : t.seal_resolved" in missions
     # Claude design: the cliffhanger is the paged reader's resolution stage.
     reader = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx")
     assert 'className="fr-eyebrow">À suivre' in reader

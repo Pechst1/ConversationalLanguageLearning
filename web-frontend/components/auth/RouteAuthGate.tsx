@@ -1,7 +1,10 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
+import { AtelierV2Root } from '@/components/atelier-v2/ui';
 import { sanitizeAuthCallbackUrl, useAppSession } from '@/lib/app-auth';
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { readLearnerLanguage } from '@/lib/learner-language';
 
 const PUBLIC_PATHNAMES = new Set([
   '/',
@@ -25,11 +28,21 @@ const GUEST_ONLY_PATHNAMES = new Set([
   '/auth/signup',
 ]);
 
+/* WP-83 — one loader. While the session resolves the screen shows the same
+   av2 skeleton the pages themselves use, labelled for screen readers, instead
+   of an unlabelled spinner that a page skeleton then replaced. */
 function LoadingFrame() {
+  const [language, setLanguage] = React.useState<string>('en');
+  React.useEffect(() => setLanguage(readLearnerLanguage()), []);
+  const label = atelierChrome(language).loading;
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--app-ink)] border-t-transparent" />
-    </div>
+    <AtelierV2Root language={language} className="app-loading-frame" role="status" aria-busy="true" aria-label={label}>
+      <span className="av2-sr">{label}</span>
+      <div className="av2-skeleton" style={{ width: '40%', height: '1rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ width: '70%', height: '2rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ height: '12rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ height: '3.5rem' }} aria-hidden="true" />
+    </AtelierV2Root>
   );
 }
 
