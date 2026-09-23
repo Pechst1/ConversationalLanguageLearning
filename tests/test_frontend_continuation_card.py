@@ -36,7 +36,10 @@ def test_vocabulary_review_done_state_offers_context_handoffs() -> None:
     assert "onReturn" in source
     assert "onRefresh" in source
     assert "href={`/vocabulary?word=${wordId}`}" in source
-    assert "Actualiser" in source
+    # WP-82: the refresh label lives in the Lexique copy table (chrome language).
+    assert "{t.refresh}" in source
+    lexique_copy = read(ROOT / "web-frontend" / "components" / "lexique" / "lexique-copy.ts")
+    assert "refresh: 'Actualiser'" in lexique_copy
 
 
 def test_mission_completion_routes_to_new_moment_and_home() -> None:
