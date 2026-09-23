@@ -38,7 +38,7 @@ def _service(db: Session) -> DailyJourneyService:
 # ---------------------------------------------------------------------------
 
 
-def test_a_finished_day_carries_every_reward_fact(db_session: Session, enabled: None) -> None:
+def test_a_finished_day_carries_every_reward_fact(db_session: Session, enabled: None) -> None:  # noqa: F811 - pytest fixture
     user = make_user(db_session, "wp79-day@example.com")
     service = _service(db_session)
     created, _ = service.create_journey(user, create_request())
@@ -66,7 +66,7 @@ def test_a_finished_day_carries_every_reward_fact(db_session: Session, enabled: 
     JourneyRecap.model_validate(final.recap.model_dump(mode="json"))
 
 
-def test_an_early_stop_mints_no_keepsake(db_session: Session, enabled: None) -> None:
+def test_an_early_stop_mints_no_keepsake(db_session: Session, enabled: None) -> None:  # noqa: F811 - pytest fixture
     user = make_user(db_session, "wp79-early@example.com")
     service = _service(db_session)
     created, _ = service.create_journey(user, create_request())
@@ -96,7 +96,7 @@ def test_a_recap_written_before_wp79_still_reads() -> None:
 
 
 def test_the_level_move_appears_once(
-    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch  # noqa: F811 - pytest fixture
 ) -> None:
     user = make_user(db_session, "wp79-level@example.com")
     service = _service(db_session)
@@ -173,7 +173,7 @@ def test_the_mood_shift_is_claimed_only_for_todays_exchange() -> None:
 
 
 def test_the_mood_is_read_from_the_story_state_on_finish(
-    db_session: Session, enabled: None
+    db_session: Session, enabled: None  # noqa: F811 - pytest fixture
 ) -> None:
     user = make_user(db_session, "wp79-mood@example.com")
     service = _service(db_session)

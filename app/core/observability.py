@@ -29,7 +29,7 @@ import sys
 import time
 import uuid
 from collections.abc import Callable, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -132,7 +132,7 @@ def format_json_record(record: Mapping[str, Any]) -> str:
 
     extra = {k: _json_safe(v) for k, v in (record.get("extra") or {}).items()}
     payload: dict[str, Any] = {
-        "time": record["time"].astimezone(timezone.utc).isoformat(),
+        "time": record["time"].astimezone(UTC).isoformat(),
         "level": record["level"].name,
         "message": record["message"],
         "logger": record.get("name"),
@@ -308,17 +308,17 @@ def init_sentry(component: str, *, transport: Any = None, dsn: str | None = None
         traces = float(_env("SENTRY_TRACES_SAMPLE_RATE", "0") or 0)
     except ValueError:
         traces = 0.0
-    kwargs: dict[str, Any] = dict(
-        dsn=dsn,
-        environment=_env("SENTRY_ENVIRONMENT") or app_env(),
-        release=_env("SENTRY_RELEASE") or _env("RENDER_GIT_COMMIT") or None,
-        send_default_pii=False,
-        max_request_body_size="never",
-        include_local_variables=False,
-        traces_sample_rate=traces,
-        before_send=scrub_event,
-        integrations=integrations,
-    )
+    kwargs: dict[str, Any] = {
+        "dsn": dsn,
+        "environment": _env("SENTRY_ENVIRONMENT") or app_env(),
+        "release": _env("SENTRY_RELEASE") or _env("RENDER_GIT_COMMIT") or None,
+        "send_default_pii": False,
+        "max_request_body_size": "never",
+        "include_local_variables": False,
+        "traces_sample_rate": traces,
+        "before_send": scrub_event,
+        "integrations": integrations,
+    }
     if transport is not None:
         kwargs["transport"] = transport
     sentry_sdk.init(**kwargs)
@@ -375,7 +375,7 @@ def worker_health(client: Any = None, *, now: float | None = None) -> dict[str, 
     return {
         "status": "ok" if age <= stale_after else "stale",
         "age_seconds": round(age, 1),
-        "last_heartbeat": datetime.fromtimestamp(last, tz=timezone.utc).isoformat(),
+        "last_heartbeat": datetime.fromtimestamp(last, tz=UTC).isoformat(),
         "stale_after_seconds": stale_after,
     }
 

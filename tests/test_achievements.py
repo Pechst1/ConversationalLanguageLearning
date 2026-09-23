@@ -12,7 +12,12 @@ from app.db.models.achievement import Achievement
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.achievement import CATALOGUE, CATALOGUE_KEYS, AchievementDefinition, AchievementService
+from app.services.achievement import (
+    CATALOGUE,
+    CATALOGUE_KEYS,
+    AchievementDefinition,
+    AchievementService,
+)
 from app.services.streak import record_practice_day
 
 TEST_PASSWORD = "securepass123"

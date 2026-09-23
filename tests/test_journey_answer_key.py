@@ -19,8 +19,8 @@ from app.services.journey_answer_key import (
     answer_digest,
     answer_key_for,
     answer_key_salt,
-    answer_material,
     answer_matches_key,
+    answer_material,
     normalize_key_part,
 )
 from tests.test_daily_journey_api import (  # noqa: F401 — pytest fixtures

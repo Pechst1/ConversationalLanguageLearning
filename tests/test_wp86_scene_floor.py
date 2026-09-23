@@ -24,8 +24,8 @@ from app.services.journey_contracts import (
     DayShape,
     InputMode,
     StepKind,
-    TaskOutcome,
     TargetKind,
+    TaskOutcome,
 )
 from app.services.kept_words import (
     SCENE_LEXICON_INTERACTION_TYPE,

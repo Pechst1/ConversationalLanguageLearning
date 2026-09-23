@@ -70,7 +70,7 @@ def _hex(color: str) -> tuple[int, int, int, int]:
 def load_shapes(svg_path: Path = SOURCE_SVG) -> tuple[float, list[dict]]:
     """Return (viewBox size, shapes) from the source SVG."""
 
-    root = ET.parse(svg_path).getroot()
+    root = ET.parse(svg_path).getroot()  # noqa: S314 - the repository's own mark, not untrusted input
     view = [float(v) for v in root.attrib["viewBox"].split()]
     if view[0] != 0 or view[1] != 0 or view[2] != view[3]:
         raise ValueError("The mark's viewBox must be square and start at 0 0.")

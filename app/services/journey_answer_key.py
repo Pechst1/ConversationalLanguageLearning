@@ -31,7 +31,8 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from app.services.journey_contracts import normalize_answer_text
 
@@ -58,7 +59,7 @@ def _secret() -> bytes:
 def answer_key_salt(step_id: str, *, secret: bytes | None = None) -> str:
     """The per-step salt: public, but unpredictable without the server secret."""
 
-    message = f"atelier-answer-key:v{ANSWER_KEY_VERSION}:{step_id}".encode("utf-8")
+    message = f"atelier-answer-key:v{ANSWER_KEY_VERSION}:{step_id}".encode()
     return hmac.new(secret if secret is not None else _secret(), message, hashlib.sha256).hexdigest()[:32]
 
 
@@ -99,7 +100,7 @@ def _pairs(order: Any) -> list[list[str]]:
 
 
 def answer_digest(salt: str, material: str) -> str:
-    return hashlib.sha256(f"{salt}:{material}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{salt}:{material}".encode()).hexdigest()
 
 
 def answer_key_for(

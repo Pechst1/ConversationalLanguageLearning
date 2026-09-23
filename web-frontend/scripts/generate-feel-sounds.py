@@ -72,5 +72,6 @@ SOUNDS = {
 if __name__ == "__main__":
     for name, samples in SOUNDS.items():
         size = write(name, samples)
-        assert size < 20_000, (name, size)
+        if size >= 20_000:
+            raise SystemExit(f"{name}.wav is {size} bytes; the budget is 20 000")
         print(f"{name}.wav {size} bytes")
