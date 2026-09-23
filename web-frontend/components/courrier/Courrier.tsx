@@ -21,6 +21,7 @@ import {
   Action,
   ArrowLeftIcon,
   ArrowRightIcon,
+  CastPortrait,
   Chip,
   IconAction,
   Portrait,
@@ -885,6 +886,78 @@ export function CrArtefactUnread({
         )}
       </div>
     </section>
+  );
+}
+
+/* ---------- WP-D7 · the sealed letter ----------
+   A letter still waiting for its reader, drawn from the shapes and nothing
+   else: a card-coloured rectangle, the triangle as its flap, the sender's face
+   as the wax seal in their own `--char-*` ring, and a small red triangle for
+   the stamp. Pure SVG + tokens — no image asset, no stroke, no new colour — so
+   it follows the theme into dark mode. It sits on the Feuilleton hero's blue
+   surface in place of an illustration a letter does not have. */
+
+/** «Lire et répondre · 8 min» — the minutes only when the server gave them. */
+export function crReadAndReplyLabel(minutes?: number | null): string {
+  const n = typeof minutes === 'number' && Number.isFinite(minutes) ? Math.round(minutes) : 0;
+  return n > 0 ? `Lire et répondre · ${n} min` : 'Lire et répondre';
+}
+
+export function CrEnvelope({
+  senderId,
+  senderName,
+}: {
+  /** The sender's cast id (or anything `castIdFor` resolves). */
+  senderId?: string | null;
+  senderName?: string | null;
+}) {
+  const id = String(senderId || '').trim();
+  const name = String(senderName || '').trim();
+  const sealed = Boolean(id || name);
+  return (
+    <div
+      className="cr-env"
+      role="img"
+      aria-label={name ? `Une lettre scellée, de ${name}` : 'Une lettre scellée'}
+    >
+      <CrEnvelopeStyles />
+      <svg className="cr-env-art" viewBox="0 0 160 100" aria-hidden="true" focusable="false">
+        <rect className="cr-env-body" x="24" y="16" width="112" height="70" rx="8" />
+        <polygon className="cr-env-flap" points="24,20 136,20 80,58" />
+        <polygon className="cr-env-stamp" points="114,26 128,26 121,38" />
+      </svg>
+      {sealed && (
+        <span className="cr-env-seal">
+          <CastPortrait characterId={id || name} name={name || undefined} size="sm" ring />
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function CrEnvelopeStyles() {
+  return (
+    <style jsx global>{`
+      .av2 .cr-env {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+      }
+      .av2 .cr-env-art { width: min(78%, 20rem); height: auto; display: block; overflow: visible; }
+      .av2 .cr-env-body { fill: var(--av2-card); }
+      .av2 .cr-env-flap { fill: var(--av2-line-2); }
+      .av2 .cr-env-stamp { fill: var(--av2-red); }
+      /* The seal sits on the flap's point: 58 of the drawing's 100 units down. */
+      .av2 .cr-env-seal {
+        position: absolute;
+        left: 50%;
+        top: 58%;
+        transform: translate(-50%, -50%);
+        display: inline-flex;
+      }
+    `}</style>
   );
 }
 

@@ -19,7 +19,6 @@ import {
   TASTE_NAV,
   gradeChoice,
   gradeTiles,
-  moodForVerdict,
   rememberTasteDone,
   type TasteChoiceItem,
   type TasteCopy,
@@ -28,7 +27,8 @@ import {
   type TasteVerdict,
 } from '@/lib/onboarding-taste';
 
-import { CastPortrait } from './Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { moodForVerdict } from '@/lib/cast-faces';
 
 /** One French line with tap-to-translate. */
 export function SpokenLine({

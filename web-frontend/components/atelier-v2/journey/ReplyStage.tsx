@@ -10,7 +10,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { useControlLanguage } from '@/components/atelier-v2/ui';
 import {
   prefersReducedMotion,
@@ -94,6 +94,35 @@ export function TypedReply({
         </p>
       </div>
     </div>
+  );
+}
+
+const SMILES: Record<'fr' | 'en' | 'de', string> = {
+  fr: '{name} vous sourit',
+  en: '{name} smiles at you',
+  de: '{name} lächelt Sie an',
+};
+
+/** WP-D2: the line under a correct verdict, in the learner's chrome language. */
+export function smileLine(name: string | null | undefined, language: string | null | undefined): string | null {
+  const who = String(name || '').trim();
+  if (!who) return null;
+  return SMILES[language === 'fr' || language === 'de' ? language : 'en'].replace('{name}', who);
+}
+
+/**
+ * WP-D2: «Marin vous sourit ↑» under the verdict band on a correct answer. The
+ * arrow is decoration; the sentence carries the meaning. The face is already in
+ * the band and in the bubble, so this line has none.
+ */
+export function CharacterSmiles({ speaker }: { speaker: ReplySpeaker }) {
+  const language = useControlLanguage();
+  const line = smileLine(speaker?.name, language);
+  if (!line) return null;
+  return (
+    <p className="av2-label av2-smiles" data-mood="happy">
+      {line} <span aria-hidden="true">↑</span>
+    </p>
   );
 }
 

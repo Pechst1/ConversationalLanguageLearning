@@ -140,12 +140,8 @@ export function gradeTiles(item: TasteTilesItem, placed: readonly string[]): Tas
   return item.answer.every((id, index) => placed[index] === id) ? 'correct' : 'wrong';
 }
 
-/** The portrait follows the verdict: pleased when right, cross when wrong. */
-export function moodForVerdict(verdict: TasteVerdict): TasteMood {
-  if (verdict === 'correct') return 'happy';
-  if (verdict === 'wrong') return 'cross';
-  return 'neutral';
-}
+/** The portrait follows the verdict (WP-D2: the map lives in `lib/cast-faces`). */
+export { moodForVerdict } from './cast-faces';
 
 /** The assembled French sentence for a set of placed tiles. */
 export function tilesSentence(item: TasteTilesItem, placed: readonly string[]): string {

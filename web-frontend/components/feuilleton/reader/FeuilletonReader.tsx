@@ -27,7 +27,7 @@ import {
   CrossIcon,
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';

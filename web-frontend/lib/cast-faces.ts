@@ -1,5 +1,5 @@
 /**
- * WP-77 — who is speaking, and which of their three faces they are making.
+ * WP-77 — who is speaking, and which of their faces they are making.
  *
  * Two pure maps, shared by every surface that shows a character line:
  *
@@ -58,6 +58,8 @@ export function castIdFor(...seeds: unknown[]): CastId | null {
 
 const HAPPY_WORDS = new Set(['happy', 'warmer', 'warm', 'glowing', 'delighted', 'pleased', 'positive']);
 const CROSS_WORDS = new Set(['cross', 'colder', 'cold', 'hurt', 'annoyed', 'angry', 'upset', 'negative']);
+/** WP-D8/D2: the fourth face — touched, not merely pleased. Only when the story says so. */
+const MOVED_WORDS = new Set(['moved', 'touched', 'tender', 'emu', 'emue', 'touche', 'touchee']);
 
 /**
  * A mood → one of the three drawn expressions. Numbers are the living story's
@@ -76,6 +78,7 @@ export function expressionForMood(mood: unknown): PortraitMood {
   if (word && Number.isFinite(numeric)) return expressionForMood(numeric);
   if (HAPPY_WORDS.has(word)) return 'happy';
   if (CROSS_WORDS.has(word)) return 'cross';
+  if (MOVED_WORDS.has(word)) return 'moved';
   return 'neutral';
 }
 
@@ -84,6 +87,14 @@ export function expressionForVerdict(verdict: string | null | undefined): Portra
   if (verdict === 'correct' || verdict === 'supported') return 'happy';
   if (verdict === 'wrong') return 'cross';
   return 'neutral';
+}
+
+/**
+ * WP-D2: the onboarding taste's name for the same reaction, kept so the
+ * onboarding and the journey read one map. A pending answer is a neutral face.
+ */
+export function moodForVerdict(verdict: string | null | undefined): PortraitMood {
+  return expressionForVerdict(verdict);
 }
 
 /** The face for a speaker, or `null` when they have none drawn. */

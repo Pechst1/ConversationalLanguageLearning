@@ -19,9 +19,9 @@
 
 import React from 'react';
 
-import { Action, AtelierMark, Artwork, Surface } from '@/components/atelier-v2/ui';
+import { Action, AtelierMark, Artwork, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
 import { PRACTICE_LABEL } from '@/lib/atelier-next';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnapshot } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
@@ -128,18 +128,25 @@ export function JourneyRecap({
             name={view.face.name}
             mood={view.face.expression}
             size="md"
+            ring
           />
           <div className="av2-reward__face-body">
-            <p className="av2-label">
-              {view.face.moodLine ? (
-                <span data-mood={view.face.moodDirection ?? undefined}>
+            {/* WP-D2: how the day left them is a chip — a blue circle when
+                they warmed, the red triangle when they cooled. */}
+            {view.face.moodLine ? (
+              <p className="av2-reward__mood" data-mood={view.face.moodDirection ?? undefined}>
+                <Chip
+                  icon={
+                    <ShapeToken kind={view.face.moodDirection === 'down' ? 'action' : 'story'} size="sm" />
+                  }
+                >
                   {view.face.moodLine}{' '}
                   <span aria-hidden="true">{view.face.moodDirection === 'down' ? '↓' : '↑'}</span>
-                </span>
-              ) : (
-                view.face.name
-              )}
-            </p>
+                </Chip>
+              </p>
+            ) : (
+              <p className="av2-label">{view.face.name}</p>
+            )}
             {view.face.lineFr && (
               <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
                 {view.face.lineFr}

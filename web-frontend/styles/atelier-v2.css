@@ -2664,3 +2664,41 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* ===========================================================================
+   WP-D2 — the cast reacts; WP-D7 — the tile's mould.
+   Append-only block, scoped under `.av2`, `--av2-*` tokens only.
+   =========================================================================== */
+
+/* The respond step: the character's line in the design's bubble, their face
+   beside it. The face is keyed on its mood, so the verdict's face pops in. */
+.av2 .av2-speech { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
+.av2 .av2-speech__face { flex: none; display: inline-flex; }
+.av2 .av2-speech:not([data-mood='neutral']) .av2-speech__face { animation: av2-pop 0.3s ease-out; }
+.av2 .av2-speech__bubble {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--av2-card);
+}
+.av2 .av2-speech__bubble > .av2-headline { margin: 0; }
+
+/* «Marin vous sourit ↑» under a correct verdict. */
+.av2 .av2-smiles { margin: 0; color: var(--av2-green); }
+
+/* The recap's mood chip: paper on the card it sits in. */
+.av2 .av2-reward__mood { margin: 0; }
+.av2 .av2-reward__mood .av2-chip { background: var(--av2-paper); color: inherit; }
+
+/* Word tiles: a placed word leaves a dashed mould of its own width; the
+   placed tiles wear the selected style (the existing `[data-state='placed']`). */
+.av2 .av2-tile--mould {
+  border: 2px dashed var(--av2-line-2);
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+.av2 .av2-tile__ghost { visibility: hidden; }
+.av2 .av2-tiles__line .av2-tile { cursor: default; }
+/* end WP-D2 / WP-D7 */

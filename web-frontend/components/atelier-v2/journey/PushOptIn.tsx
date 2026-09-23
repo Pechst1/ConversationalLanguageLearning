@@ -11,7 +11,7 @@
 import React from 'react';
 
 import { Action, Surface } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { enablePush, pushAvailability, type PushAvailability } from '@/lib/push';
 import {
   pushOptInCopy,

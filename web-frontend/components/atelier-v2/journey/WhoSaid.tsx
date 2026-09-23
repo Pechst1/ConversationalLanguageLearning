@@ -12,7 +12,7 @@
 import React from 'react';
 
 import type { ChoiceOption } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type { RecallOption } from '@/types/daily-journey';
 
