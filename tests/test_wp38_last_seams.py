@@ -467,7 +467,8 @@ def test_the_self_repair_suite_runs_in_package_json_and_in_ci() -> None:
     assert package["test:self-repair"] == (
         "node components/atelier-v2/journey/journey-self-repair.test.js"
     )
-    assert "npm run test:self-repair" in workflow
+    # CI runs every node suite through `npm test` (WP-85; see test_wp85_ci.py).
+    assert "npm test" in workflow
     assert (
         WEB / "components" / "atelier-v2" / "journey" / "journey-self-repair.test.js"
     ).exists()

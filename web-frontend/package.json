@@ -19,6 +19,7 @@
     "legal:sync": "node scripts/sync-legal-content.mjs",
     "verify:native-bundle": "node scripts/verify-native-bundle.mjs",
     "type-check": "tsc --noEmit",
+    "test": "node --test \"lib/**/*.test.js\" \"components/**/*.test.js\" \"scripts/**/*.test.mjs\"",
     "test:journey": "node components/atelier-v2/journey/journey.test.js",
     "test:self-repair": "node components/atelier-v2/journey/journey-self-repair.test.js",
     "test:journey-latency": "node components/atelier-v2/journey/journey-latency.test.js",

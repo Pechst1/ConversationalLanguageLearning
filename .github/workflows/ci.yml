@@ -5,16 +5,26 @@ on:
   push:
     branches: [main]
 
+# A newer push to the same branch makes the older run moot.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
+  backend:
+    name: Backend · ruff + pytest
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
+      # The suite itself runs on an in-memory SQLite engine (tests/conftest.py);
+      # these stay so that nothing that reaches for the configured URLs finds a
+      # closed port instead of a server.
       postgres:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: language_learning
+          POSTGRES_DB: atelier_ci
         ports:
           - 5432:5432
         options: >-
@@ -27,7 +37,7 @@ jobs:
           --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     env:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/language_learning
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/atelier_ci
       REDIS_URL: redis://localhost:6379/0
       CELERY_BROKER_URL: redis://localhost:6379/1
       CELERY_RESULT_BACKEND: redis://localhost:6379/1
@@ -37,27 +47,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          # 22, not 20: `scripts/capture-mobile-states.mjs` drives Chrome over
-          # the DevTools Protocol with the global `WebSocket`, which Node 20
-          # does not define (the mobile smoke died on `ReferenceError:
-          # WebSocket is not defined`). It is also the version the project is
-          # developed against.
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web-frontend/package-lock.json
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y build-essential
 
       - name: Install dependencies
         run: |
@@ -68,12 +61,90 @@ jobs:
       - name: Check Python with Ruff
         run: ruff check .
 
-      - name: Run unit tests
-        run: pytest --cov=app --cov-report=term-missing
+      - name: Run backend tests
+        # `-n auto --dist loadfile`: every xdist worker is its own process with its
+        # own in-memory SQLite database, and a test file never leaves its worker,
+        # so module fixtures (the 126-day harness) are built once. `-q` (a single
+        # one — pyproject no longer adds another) keeps the final
+        # "N passed, M failed" line; pytest exits non-zero on any failure.
+        run: >-
+          pytest -q -n auto --dist loadfile
+          --cov=app --cov-report=term
+          --durations=15
+          --junitxml=pytest-report.xml
+
+      - name: Test count
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          if not os.path.exists("pytest-report.xml"):
+              raise SystemExit("no pytest report (the run did not start)")
+          suite = ET.parse("pytest-report.xml").getroot()
+          suite = suite if suite.tag == "testsuite" else suite.find("testsuite")
+          tests, failures, errors, skipped = (int(suite.get(k, 0)) for k in ("tests", "failures", "errors", "skipped"))
+          passed = tests - failures - errors - skipped
+          line = f"pytest: {passed} passed, {failures} failed, {errors} errors, {skipped} skipped (of {tests})"
+          print(line)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write(f"### Backend\n\n{line}\n")
+          PY
+
+  postgres:
+    name: PostgreSQL · migrations + row locks
+    # SQLite serialises every writer, so the row-lock paths (the story writer's
+    # FOR UPDATE, the journey finish race, the drain) only mean something here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # Not `language_learning`: the drivers below refuse that name, which
+          # is the owner's live database on a developer machine.
+          POSTGRES_DB: atelier_ci_pg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/atelier_ci_pg
+      PG_URL: postgresql://postgres:postgres@localhost:5432/atelier_ci_pg
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRET_KEY: ci-secret-key
+      # The drivers exercise the story-engine day. WP-75's authored first day
+      # (the production default) has no engine scene, so day 1 would prove
+      # nothing about the writer's locks.
+      ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+          python -m spacy download fr_core_news_sm
 
       - name: Verify Alembic migrations
-        # Also the step that gives the CI database its schema: the word-bank
-        # audit below queries real tables, so it has to run after this one.
+        # Also the step that gives the database its schema for everything below.
         run: |
           alembic upgrade head
           alembic downgrade base
@@ -81,6 +152,55 @@ jobs:
 
       - name: Audit Atelier word banks
         run: python scripts/audit_atelier_word_banks.py --output /tmp/atelier-word-bank-audit.json
+
+      - name: PostgreSQL-only tests
+        # Opt-in tests that skip on SQLite: WP-69's savepoint on a real aborted
+        # transaction, and WP-18's health queries against the real schema.
+        env:
+          WP69_PG_URL: ${{ env.DATABASE_URL }}
+          WP18_HEALTH_DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: >-
+          pytest -q -p no:cacheprovider
+          tests/test_wp69_never_lose_a_day.py::test_best_effort_on_real_postgres
+          tests/test_rollout_scripts.py::test_every_query_executes_against_a_real_database
+
+      - name: Story-engine row locks under concurrent requests
+        run: |
+          python scripts/dev_story_engine_server.py --port 8021 > /tmp/story-engine-server.log 2>&1 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          for attempt in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8021/health >/dev/null && break
+            sleep 1
+          done
+          python scripts/verify_story_engine_pg.py --base-url http://127.0.0.1:8021 --database-url "$PG_URL"
+
+      - name: Journey drain (flag off never strands a learner)
+        run: python scripts/verify_journey_drain.py --database-url "$PG_URL" --port 8022 --log /tmp/journey-drain.log
+
+      - name: Server logs
+        if: failure()
+        run: tail -n 200 /tmp/story-engine-server.log /tmp/journey-drain.log || true
+
+  frontend:
+    name: Frontend · types, lint, node tests, builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # 22, not 20: `scripts/capture-mobile-states.mjs` drives Chrome over
+          # the DevTools Protocol with the global `WebSocket`, which Node 20
+          # does not define (the mobile smoke died on `ReferenceError:
+          # WebSocket is not defined`). `npm test` also relies on 22's glob
+          # support in `node --test`. It is the version the project is
+          # developed against.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web-frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: web-frontend
@@ -94,29 +214,11 @@ jobs:
           # (correctly) reject the placeholder and turn this step permanently red.
           ALLOW_PLACEHOLDER_NATIVE_API: "true"
         run: |
-          npm run type-check
+          npx tsc --noEmit -p .
           npm run lint
-          npm run test:atelier-next
-          npm run test:journey
-          npm run test:self-repair
-          npm run test:journey-latency
-          npm run test:recovery
-          npm run test:resume-target
-          npm run test:reader
-          npm run test:atelier-ui
-          npm run test:api-host
-          npm run test:story-model
-          npm run test:episode-audio
-          npm run test:seance
-          npm run test:graphic-novel-images
-          npm run test:native-env
-          npm run test:courrier-intake
-          npm run test:rehearsal
-          npm run test:dossier
-          npm run test:once-per-load
-          npm run test:settings-copy
-          npm run test:rhythm
-          npm run test:media-url
+          # Every *.test.js / *.test.mjs under lib, components and scripts —
+          # a new suite is picked up without editing this file.
+          npm test
           npm run build
           npm run build:native
 
@@ -142,5 +244,11 @@ jobs:
           curl -fsS http://127.0.0.1:3000/mobile-visual-qa >/dev/null
           npm run capture:mobile
 
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build . -t conversational-language-learning:ci
