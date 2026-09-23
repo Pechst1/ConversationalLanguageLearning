@@ -222,6 +222,11 @@ and the next scene gives the learner a chance to repair it.
     - Decide whether errata (`user_errors.concept_id`) on v1 concepts should be remapped to v2.
       Today they drop out of the due list once v1 is archived.
 
+- **Owner decisions (2026-09-23):**
+  - **Errata are remapped** when v2 is active. Each open erratum moves to the v2 unit whose detector matches its correction, falling back to the first mapped unit. The v1 id is kept in `error_metadata.v1_concept_id`, and switching back to v1 restores it. Retired errata are untouched.
+  - **The B2 normative calls are accepted:** laisser + infinitive has no agreement (1990 reform), après que + subjonctif is marked wrong, and au cas où + indicative is marked wrong.
+  - **Compound numbers are in the lexicon:** 98 lemmas covering 17–99 in traditional and 1990 hyphenation, plus hundreds and thousands in 1990 spelling. They are A1.1 below 70 and A1.2 from 70 up.
+
 #### WP-L3 · One memory model for everything
 - Grammar and errata move to the FSRS-style scheduler that vocabulary already uses
   (`app/services/srs.py`): per-item stability and difficulty. The migration adds the columns to

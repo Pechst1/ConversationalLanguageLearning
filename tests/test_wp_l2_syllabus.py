@@ -298,6 +298,42 @@ def test_switching_to_v2_carries_every_learner_score_over(db_session) -> None:
     assert _progress_on(db_session, learner, "FR_A1_VERB_001").score == 6.5
 
 
+def test_open_errata_follow_their_concept_to_v2_and_back(db_session) -> None:
+    """Owner, 2026-09-23: remap the errata — an open mistake must not vanish when v1 is archived."""
+
+    from app.db.models.error import UserError
+
+    FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
+    learner = _user(db_session)
+    y_en = _by_external(db_session, "FR_A2_PRON_002")
+    open_en = UserError(user_id=learner.id, concept_id=y_en.id, error_category="grammar",
+                        original_text="Des pommes ? J'achète deux.", correction="Des pommes ? J'en achète deux.",
+                        state="open", error_metadata={})
+    open_other = UserError(user_id=learner.id, concept_id=y_en.id, error_category="grammar",
+                           original_text="…", correction="…", state="open", error_metadata={})
+    retired = UserError(user_id=learner.id, concept_id=y_en.id, error_category="grammar",
+                        original_text="x", correction="y", state="mastered", error_metadata={})
+    db_session.add_all([open_en, open_other, retired])
+    db_session.commit()
+
+    FrenchCoreGrammarCatalog(db_session, "v2").ensure_catalog()
+    for row in (open_en, open_other, retired):
+        db_session.refresh(row)
+    # The detector picks the unit the correction actually uses; no match falls back to the first.
+    assert open_en.concept_id == _by_external(db_session, "FR2_A21_EN_QUANTITY").id
+    assert open_other.concept_id == _by_external(db_session, "FR2_A21_Y_PLACE").id
+    assert open_en.error_metadata["v1_concept_id"] == y_en.id
+    assert retired.concept_id == y_en.id  # retired errata stay where they are
+    # Idempotent.
+    assert FrenchCoreGrammarCatalog(db_session, "v2").remap_errata_to_v2() == 0
+
+    # Switching back to v1 restores them.
+    FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
+    db_session.refresh(open_en)
+    assert open_en.concept_id == y_en.id
+    assert "v1_concept_id" not in (open_en.error_metadata or {})
+
+
 def test_v2_seed_stores_prerequisites_and_localized_rules(db_session) -> None:
     FrenchCoreGrammarCatalog(db_session, "v2").ensure_catalog()
     rows = {row["external_id"]: row for row in _v2_rows()}
