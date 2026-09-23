@@ -146,8 +146,11 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "apiService.completeMission(mission.id)" in missions
     assert "setCompletedNextSerial(result.next_serial || null)" in missions
     # Completion stays on the recap; the learner explicitly chooses Atelier or the next act.
-    assert "Lire l’acte suivant" in missions
-    assert "Retour à l’Atelier" in missions
+    copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "next_act: 'Lire l’acte suivant'" in copy
+    assert "{t.next_act}</CrGhost>" in missions
+    assert "back_atelier: 'Retour à l’Atelier'" in copy
+    assert "{t.back_atelier}</CrGhost>" in missions
     assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions
     # "Le Courrier" correspondence-desk surface: shell, desk header, slip thread,
@@ -157,8 +160,10 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "className=\"cr-thread\"" in missions
     assert "<CrComposer" in missions
     assert "className=\"cr-resolve\"" in missions
-    assert "Compte rendu de mission" in missions
-    assert "Jeton frappé" in missions
+    # Appendix A: the answered letter is one seal; the minted token rides on it.
+    assert "<CrSeal" in missions
+    assert "token={mintedToken ? <LogoToken pop /> : undefined}" in missions
+    assert "token_minted: 'Jeton frappé'" in copy
     # Format-aware composer + voice + archive.
     assert "function missionFormat(" in missions
     assert "missionFormatPayload(mission)" in missions

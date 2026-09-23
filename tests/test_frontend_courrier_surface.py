@@ -79,14 +79,17 @@ def test_the_readiness_tile_is_gone_and_the_honest_debrief_replaced_it() -> None
     assert "mission.recap.readiness" not in code
     assert "cr-readiness" not in code
     assert "Prêt pour la vraie vie" not in code
-    assert "<CrDebrief" in missions
-    assert "measured={measured}" in missions
-    assert "storySummary={storySummary}" in missions
+    # Appendix A (WP-82): the honest debrief is now ONE seal — verdict, one
+    # sentence, ≤ 3 numbers — still read from the counted `recap.measured`.
+    assert "<CrSeal" in missions
+    assert "crSealNumbers(measured" in missions
+    assert "<CrDebrief" not in code
 
     correspondance = read_web("components/courrier/Correspondance.tsx")
     assert "recap.measured" in correspondance
     # Nothing on this surface may print a percentage of anything.
     assert "%" not in code_only(correspondance)
+    assert "%" not in code_only(read_web("components/courrier/courrier-copy.ts"))
 
 
 def test_a_lapsed_letter_is_never_a_failure_screen() -> None:
@@ -102,10 +105,14 @@ def test_a_lapsed_letter_is_never_a_failure_screen() -> None:
 
 
 def test_the_soft_deadline_is_a_sentence_not_a_countdown() -> None:
+    # WP-82: the sentence is chrome, so it lives in the copy table; the French
+    # column keeps the soft «si vous pouvez», the helper fills in the weekday.
     correspondance = read_web("components/courrier/Correspondance.tsx")
-    assert "si vous pouvez" in correspondance
-    assert "Répondez avant ${weekday}" in correspondance
-    assert "Répondez d’ici demain" in correspondance
+    copy = read_web("components/courrier/courrier-copy.ts")
+    assert "si vous pouvez" in copy
+    assert "expiry_weekday: 'Répondez avant {day}, si vous pouvez.'" in copy
+    assert "Répondez d’ici demain" in copy
+    assert "crFill(t.expiry_weekday, { day: weekday })" in correspondance
 
 
 def test_home_shows_the_waiting_letter_as_a_quiet_row() -> None:
@@ -118,7 +125,9 @@ def test_home_shows_the_waiting_letter_as_a_quiet_row() -> None:
     # The same entry list as «Votre dossier» — the HomeScreen renders those as
     # `.av2-row` links, so no second primary can appear on La Une.
     assert "const homeEntries: HomeEntry[]" in atelier
-    assert "Une lettre vous attend" in waiting
+    copy = read_web("components/courrier/courrier-copy.ts")
+    assert "letter_waiting: 'Une lettre vous attend'" in copy
+    assert "t.letter_waiting" in waiting
     assert "av2-btn--primary" not in waiting
 
 

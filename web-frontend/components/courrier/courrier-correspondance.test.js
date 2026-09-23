@@ -72,11 +72,21 @@ const {
   crOutcomeLabel,
 } = require('./Correspondance.tsx');
 
+const { AtelierV2Root } = require('@/components/atelier-v2/ui/AtelierV2Root.tsx');
+
 const SOURCE = fs.readFileSync(path.join(HERE, 'Correspondance.tsx'), 'utf8');
 const WAITING = fs.readFileSync(path.join(HERE, 'courrier-waiting.tsx'), 'utf8');
 const MISSIONS = fs.readFileSync(path.join(WEB_ROOT, 'pages/missions.tsx'), 'utf8');
-const render = (element) => renderToStaticMarkup(element);
 const h = React.createElement;
+// WP-82: the Courrier's chrome follows the root's chrome language. These tests
+// hold down the French (B1+) reading, so every component renders inside a
+// French root; the root's own wrapper is peeled off so an empty component
+// still renders as ''. The English/German reading is
+// `courrier-language.test.js`.
+const render = (element) =>
+  renderToStaticMarkup(h(AtelierV2Root, { language: 'fr' }, element))
+    .replace(/^<div[^>]*>/, '')
+    .replace(/<\/div>$/, '');
 
 const TODAY = new Date('2026-09-21T10:00:00Z');
 const SAMIRA = { id: 'samira', name: 'Samira', role: 'boulangère', mood_line: 'Un peu distant(e) en ce moment.' };
@@ -254,6 +264,16 @@ test('the answered letter leaves the mood to the debrief, which dates it', () =>
   assert.ok(markup.includes('Samira'));
   assert.ok(!markup.includes('Un peu distant'));
   assert.ok(MISSIONS.includes('showMood={!completed}'));
+});
+
+test('an answered letter is one seal, not a debrief stacked under a recap (Appendix A)', () => {
+  // The seal owns the verdict, one sentence and ≤ 3 numbers; the debrief
+  // card, the credit rows, the objectives and the repeated last message are
+  // gone from the page.
+  assert.ok(MISSIONS.includes('<CrSeal'));
+  for (const gone of ['<CrDebrief', 'cr-credit', 'cr-objectives', 'cr-recap-grid', 'cr-next"', 'resolutionCredit']) {
+    assert.ok(!MISSIONS.includes(gone), `${gone} must not come back to the answered letter`);
+  }
 });
 
 /* ------------------------------------------------- the waiting letter row */
