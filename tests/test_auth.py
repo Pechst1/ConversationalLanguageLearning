@@ -93,13 +93,15 @@ def test_registration_derives_the_german_pair_for_german_natives(client: TestCli
 
 
 def test_local_demo_user_has_no_shared_password(db_session) -> None:
-    db_session.add(
-        User(
-            email=LOCAL_DEMO_USER_EMAIL,
-            hashed_password="atelier-demo",
-            target_language="fr",
-        )
-    )
+    # The suite shares one database, and any earlier test that exercised the
+    # local-demo fallback has already created this (unique-email) user. Put the
+    # legacy plaintext placeholder on whichever row exists instead of inserting
+    # a second one, so the precondition holds in every test order.
+    demo_user = db_session.query(User).filter(User.email == LOCAL_DEMO_USER_EMAIL).first()
+    if demo_user is None:
+        demo_user = User(email=LOCAL_DEMO_USER_EMAIL, target_language="fr")
+        db_session.add(demo_user)
+    demo_user.hashed_password = "atelier-demo"
     db_session.commit()
 
     user = get_or_create_local_demo_user(db_session)

@@ -1478,6 +1478,14 @@ def test_report_exercise_records_generation_event(client: TestClient, db_session
 
 def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session):
     user = _user(db_session)
+    # The words below are fr_to_de cards, so the learner is German-speaking. Left
+    # at the model default (English), the learner's own pair is fr_to_en, and the
+    # selector rightly prefers *any* word in the learner's pair over a starter in
+    # another pair: a frequent non-starter fr_to_en/unscoped word that an earlier
+    # test left in the shared database then outranked «venir», and this test
+    # failed only in some orders.
+    user.native_language = "de"
+    db_session.commit()
     db_session.add_all(
         [
             VocabularyWord(
