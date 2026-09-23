@@ -3027,7 +3027,14 @@ def test_atelier_scheduler_uses_daily_budget_after_first_session(client: TestCli
 
     today_after = client.get("/api/v1/atelier/today", headers=headers)
     assert today_after.status_code == 200
-    assert len(today_after.json()["concepts"]) == 2
+    # WP-L6: a new learner is on Régulier (10 min), one six-minute concept.
+    assert len(today_after.json()["concepts"]) == 1
+
+    # The rhythm is the budget the drill reads: Soutenu (20 min) holds three.
+    patched = client.patch("/api/v1/users/me/settings", headers=headers, json={"rhythm": "soutenu"})
+    assert patched.status_code == 200, patched.text
+    today_soutenu = client.get("/api/v1/atelier/today", headers=headers)
+    assert len(today_soutenu.json()["concepts"]) == 3
 
 
 def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestClient, db_session):

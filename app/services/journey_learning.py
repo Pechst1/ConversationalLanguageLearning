@@ -493,6 +493,29 @@ def _exposure_sort_key(item: DueLearningItem) -> str:
     return ""
 
 
+#: WP-L6. A word is *held* once its memory stability reaches three weeks;
+#: below that, a word the learner has reviewed is "drilled but not held" and a
+#: scene or a recall prefers it (§5.1). A planning prior until WP-L3's
+#: held rule lands.
+HELD_STABILITY_DAYS = 21.0
+
+
+def drilled_not_held(candidate: LearningCandidate) -> bool:
+    """A vocabulary target the learner has reviewed but does not hold yet."""
+
+    if candidate.target.kind is not TargetKind.VOCABULARY or candidate.is_new:
+        return False
+    metadata = candidate.metadata or {}
+    if metadata.get("fragile"):
+        return True
+    try:
+        stability = float(metadata.get("stability") or 0.0)
+    except (TypeError, ValueError):
+        return False
+    state = str(metadata.get("state") or "").lower()
+    return state not in {"", "new"} and stability < HELD_STABILITY_DAYS
+
+
 def select_learning_candidates(
     db: Session,
     *,
@@ -500,6 +523,7 @@ def select_learning_candidates(
     scenario: ScenarioBrief,
     limit: int = 3,
     now: datetime | None = None,
+    new_word_quota: int | None = None,
 ) -> list[LearningCandidate]:
     """Existing due/fragile identities the learner already owns, ranked for this scene.
 
@@ -507,6 +531,14 @@ def select_learning_candidates(
     reviewed: an omitted candidate stays exactly as due as it was. When the
     queue is genuinely empty the result is ``[]`` — no item is invented and
     nothing is claimed to be due.
+
+    WP-L6: ``new_word_quota`` is what the learner's vocabulary pace leaves for
+    today (:func:`app.services.vocabulary_pace.journey_new_word_room`): no more
+    than that many ``is_new`` candidates are offered, so the day and the word
+    drill never introduce more than the day's quota together. ``None`` keeps
+    the pre-WP-L6 behaviour. Among equally relevant words, one the learner is
+    drilling but does not hold yet comes first (§5.1): the story doubles as
+    its review, and the reply gives it strong evidence.
     """
 
     if limit <= 0:
@@ -549,6 +581,7 @@ def select_learning_candidates(
                         "review_mode",
                         "state",
                         "lapses",
+                        "stability",
                         # An erratum is posed as a repair of the learner's own
                         # wording; the planner needs it next to the target.
                         "original_text",
@@ -561,6 +594,7 @@ def select_learning_candidates(
         scored.append(
             (
                 -relevance,
+                0 if drilled_not_held(candidate) else 1,
                 -float(item.priority_score or 0.0),
                 -int(item.due_since_days or 0),
                 _exposure_sort_key(item),
@@ -573,20 +607,20 @@ def select_learning_candidates(
     if kept:
         scored = [
             (
-                (-1.0, *row[1:4], _mark_kept(row[4], kept))
-                if _kept_id(row[4]) in kept
+                (-1.0, *row[1:5], _mark_kept(row[5], kept))
+                if _kept_id(row[5]) in kept
                 else row
             )
             for row in scored
         ]
-    scored.sort(key=lambda row: row[:4])
+    scored.sort(key=lambda row: row[:5])
     if practice:
         new_room = MAX_PRACTICE_NEW_CANDIDATES
         due_cap = max(MAX_DUE_CANDIDATES, limit - new_room)
     else:
         new_room = MAX_NEW_CANDIDATES
         due_cap = min(MAX_DUE_CANDIDATES, limit)
-    selected = [row[4] for row in scored[:due_cap]]
+    selected = [row[5] for row in scored[:due_cap]]
 
     if practice and kept:
         # A kept word that is not due yet still comes back tomorrow: keeping it
@@ -607,6 +641,19 @@ def select_learning_candidates(
         history=history,
     )
     lexicon = lexicon if practice else []
+    if new_word_quota is not None:
+        # WP-L6: the scene's new words past the day's quota stay in the scene,
+        # read and glossed, but are not introduced today.
+        admitted = 0
+        within: list[LearningCandidate] = []
+        for candidate in lexicon:
+            if candidate.is_new:
+                if admitted >= new_word_quota:
+                    continue
+                admitted += 1
+            within.append(candidate)
+        lexicon = within
+        new_room = min(new_room, max(0, new_word_quota - admitted))
     selected.extend(lexicon)
     # WP-86: the scene's own words are today's new anchors; a scene that named
     # none still gets the classic one looked up from its text.
@@ -625,7 +672,10 @@ def select_learning_candidates(
         selected.append(anchor)
     if practice:
         targets = sum(1 for c in selected if not (c.metadata or {}).get("partner_only"))
-        if targets < PRACTICE_TARGET_POOL:
+        # WP-L6: a longer rhythm asks for a larger pool, and the fragile shelf
+        # (drilled, not held) fills it.
+        pool_target = max(PRACTICE_TARGET_POOL, limit - MAX_PRACTICE_NEW_CANDIDATES - 1)
+        if targets < pool_target:
             selected.extend(
                 _fragile_words(
                     db,
@@ -634,7 +684,7 @@ def select_learning_candidates(
                     exclude={
                         c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY
                     },
-                    room=PRACTICE_TARGET_POOL - targets,
+                    room=pool_target - targets,
                     history=history,
                 )
             )

@@ -67,7 +67,8 @@ class UserBase(BaseModel):
     )
     learning_motivation: str = Field(default="", max_length=80)
     speaking_comfort: str = Field(default="warming_up", max_length=20)
-    daily_goal_minutes: int = Field(default=15, ge=0)
+    # WP-L6: the rhythm as minutes; new learners start on Régulier (10).
+    daily_goal_minutes: int = Field(default=10, ge=0)
     daily_goal_xp: int = Field(default=50, ge=0)
     # Stored now, read by no scheduler yet: WP-L6 wires it as the vocabulary
     # pace (new words introduced per day). No upper bound here, since UserRead
@@ -311,6 +312,9 @@ class UserSettingsRead(BaseModel):
     speaking_comfort: str
 
     daily_goal_minutes: int
+    #: WP-L6: the rhythm the minutes map onto (Léger 5 / Régulier 10 /
+    #: Soutenu 20 / Intensif 30). Derived, never stored twice.
+    rhythm: Literal["leger", "regulier", "soutenu", "intensif"] = "regulier"
     daily_goal_xp: int
     new_words_per_day: int
     default_vocab_direction: str
@@ -369,8 +373,11 @@ class UserSettingsUpdate(BaseModel):
     speaking_comfort: Literal["warming_up", "ready", "confident"] | None = None
 
     daily_goal_minutes: int | None = Field(default=None, ge=0, le=240)
+    #: WP-L6: the rhythm; written as its minutes (5 / 10 / 20 / 30).
+    rhythm: Literal["leger", "regulier", "soutenu", "intensif"] | None = None
     daily_goal_xp: int | None = Field(default=None, ge=0, le=2000)
-    # WP-L6 turns this into the vocabulary pace; until then it is stored only.
+    #: WP-L6: the vocabulary pace — new words introduced per day, by the day
+    #: and the word drill together (one intake pool).
     new_words_per_day: int | None = Field(default=None, ge=1, le=50)
     default_vocab_direction: VocabDirection | None = None
     preferred_session_time: time | None = None

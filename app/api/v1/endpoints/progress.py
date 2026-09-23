@@ -228,6 +228,10 @@ def get_vocabulary_recommendations(
 
     if direction and direction not in {"fr_to_de", "de_to_fr"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    # WP-L6: new words come out of the learner's one daily intake pool.
+    from app.services.vocabulary_pace import vocabulary_pace_limit
+
+    new_limit, reserved_new = vocabulary_pace_limit(db, current_user, new_limit)
     service = ProgressService(db)
     recommendations = service.get_vocabulary_recommendations(
         user=current_user,
@@ -235,6 +239,7 @@ def get_vocabulary_recommendations(
         due_limit=due_limit,
         fragile_limit=fragile_limit,
         new_limit=new_limit,
+        exclude_new_word_ids=reserved_new,
         direction=direction,
         deck_name=deck_name,
         include_upcoming_days=include_upcoming_days,

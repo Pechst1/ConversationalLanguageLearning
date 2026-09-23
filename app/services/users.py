@@ -43,6 +43,11 @@ class UserService:
                 seen.add(normalized)
                 parts.append(normalized)
             update_data["interests"] = ",".join(parts[:20])
+        # WP-L6: the rhythm is written as its minutes (`User.rhythm`), after any
+        # raw minutes in the same payload so the named choice wins.
+        rhythm = update_data.pop("rhythm", None)
+        if rhythm is not None:
+            update_data["rhythm"] = rhythm
         for field, value in update_data.items():
             setattr(user, field, value)
 

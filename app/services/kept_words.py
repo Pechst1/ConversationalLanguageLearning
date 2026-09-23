@@ -310,6 +310,11 @@ SCENE_LEXICON_TAG = "scene_lexicon"
 #: How many words of recent scenes the director is reminded of.
 DIRECTOR_HISTORY_LIMIT = 15
 DIRECTOR_KEPT_LIMIT = 8
+#: WP-L6 (§5.1): words the learner drills but does not hold yet, offered to
+#: the director so a scene can double as their review.
+DIRECTOR_DRILLED_LIMIT = 8
+#: Held = memory stability of three weeks (a prior until WP-L3's rule).
+DRILLED_HELD_STABILITY_DAYS = 21.0
 _GLOSS_COLUMN = {"de": "german_translation", "en": "english_translation", "fr": "french_translation"}
 _BAND_DIFFICULTY = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 5}
 
@@ -370,7 +375,40 @@ def director_vocabulary(db: Session, *, user_id: UUID) -> dict[str, list[dict[st
             history.append(str(lemma))
         if len(history) >= DIRECTOR_HISTORY_LIMIT:
             break
-    return {"kept_words": kept, "lexicon_history": history}
+    return {
+        "kept_words": kept,
+        "lexicon_history": history,
+        "drilled_words": drilled_not_held_words(db, user_id=user_id),
+    }
+
+
+def drilled_not_held_words(
+    db: Session, *, user_id: UUID, limit: int = DIRECTOR_DRILLED_LIMIT
+) -> list[str]:
+    """WP-L6: the words this learner has reviewed but does not hold yet,
+    most recently reviewed first. Read-only and bounded."""
+
+    rows = db.execute(
+        select(VocabularyWord.word)
+        .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+        .where(
+            UserVocabularyProgress.user_id == user_id,
+            UserVocabularyProgress.reps > 0,
+            UserVocabularyProgress.stability < DRILLED_HELD_STABILITY_DAYS,
+        )
+        .order_by(
+            UserVocabularyProgress.last_review_date.desc().nullslast(),
+            VocabularyWord.id.asc(),
+        )
+        .limit(limit * 2)
+    ).all()
+    words: list[str] = []
+    for (word,) in rows:
+        if word and word not in words:
+            words.append(str(word))
+        if len(words) >= limit:
+            break
+    return words
 
 
 @dataclass(frozen=True, slots=True)

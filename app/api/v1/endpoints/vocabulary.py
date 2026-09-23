@@ -37,6 +37,7 @@ from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
+from app.services.vocabulary_pace import vocabulary_pace_limit
 from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
@@ -626,6 +627,11 @@ def get_vocabulary_due_context(
                     "source": "feuilleton",
                 }
 
+    # WP-L6: the word drill introduces only what the learner's vocabulary
+    # pace leaves after today's journey (one intake pool), and never a word
+    # the journey has reserved.
+    new_limit, reserved_new = vocabulary_pace_limit(db, current_user, new_limit)
+
     service = ProgressService(db)
     payload = service.get_vocabulary_due_context(
         user=current_user,
@@ -633,6 +639,7 @@ def get_vocabulary_due_context(
         due_limit=due_limit,
         fragile_limit=fragile_limit,
         new_limit=new_limit,
+        exclude_new_word_ids=reserved_new,
         topic_limit=topic_limit,
         linked_limit=linked_limit,
         direction=direction,

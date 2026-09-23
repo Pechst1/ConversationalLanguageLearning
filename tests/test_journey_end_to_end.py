@@ -439,7 +439,7 @@ class Driver:
         """Walk the plan the way a learner does. Returns the attempt results."""
 
         results: list[dict[str, Any]] = []
-        for _ in range(24):
+        for _ in range(120):
             step = self.current()
             if step is None:
                 break
@@ -517,8 +517,9 @@ def test_golden_path_writes_real_learning_evidence_and_agrees_with_itself(
 
     journey = driver.create(expect=(201,))
     assert journey["status"] == "active"
-    assert journey["budget_seconds"] == 300
-    assert journey["estimated_active_seconds"] <= 300, "fixture plan must fit the envelope"
+    # WP-L6: a new learner is on Régulier, and the server sizes the day.
+    assert journey["budget_seconds"] == 600
+    assert journey["estimated_active_seconds"] <= 600, "fixture plan must fit the envelope"
     kinds = [s["kind"] for s in journey["steps"]]
     assert kinds[0] == "scene" and kinds[-1] == "resolution"
     assert "recall" in kinds, "a learner with a real queue must get contextual recall"
@@ -829,7 +830,7 @@ def test_a_copied_suggested_response_is_supported_never_independent(
     driver.create(expect=(201,))
     driver.advance()  # past the scene
 
-    for _ in range(24):
+    for _ in range(120):
         step = driver.current()
         if step is None or step["kind"] == "resolution":
             break
@@ -1338,6 +1339,8 @@ def test_a_hundred_overdue_words_still_fit_the_five_minute_envelope(
     headers = register(assembled_client, email)
     words = tuple((f"mot{i:03d}", f"word {i}") for i in range(100))
     seed_due_vocabulary(db_session, learner_id(db_session, email), words, overdue_days=40)
+    # WP-L6: the five-minute envelope is the Léger rhythm's.
+    assembled_client.patch("/api/v1/users/me/settings", headers=headers, json={"rhythm": "leger"})
 
     driver = Driver(assembled_client, headers, db=db_session)
     journey = driver.create(expect=(201,))
