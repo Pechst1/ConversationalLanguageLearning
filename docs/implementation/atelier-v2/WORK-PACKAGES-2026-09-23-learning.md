@@ -306,6 +306,50 @@ and the next scene gives the learner a chance to repair it.
   - an end-to-end test follows one concept for 21 simulated days: introduced, practised, used,
     lapsed, repaired, held;
   - an introduction day stays inside the Régulier budget.
+- **Status (2026-09-24): landed** (v1 default and v2 flag; `tests/test_wp_l4_concept_life.py`).
+  - **Intake** — `concept_life.introduction_for_today`: the rhythm's weekly quota (Léger 1,
+    Régulier 2, Soutenu 3, Intensif 4; `intake_throttle_factor` applied), spread out
+    (`7 // quota` days apart), picked by `AtelierScheduler.next_new_concepts` — the Atelier's
+    cold-start picker, now shared (band walk, teaching order, prerequisites). Practice days only.
+  - **Stages** — migration `f2a4c6e8b0d1` (after `e1f3a5b7c9d2`) adds `introduced_at`,
+    `free_use_first_at`, `free_use_last_at`, `spaced_success_at`, `held_at` to
+    `user_grammar_progress`. `apply_grammar_evidence` calls `note_concept_evidence` for every
+    observation. Advancing the Règle step introduces the unit. WP-L7 reads `concept_stage`
+    (`new · introduced · practising · held`), `held_concept_ids` and `introduced_concept_ids`.
+  - **Tenue** — correct, unassisted free use in a reply on two days ≥ 7 apart, plus one correct
+    spaced item (recognise / guided / transform / rated) ≥ 14 days after `introduced_at`.
+    `held_at` is written once and never cleared (demotion stays invisible).
+  - **Introduction day** (practice day) — scene → `StepKind.RULE` (the WP-L10 card; authored
+    for v1 ids, else built from v2 `rule_short` per locale, x-ray sentence with marks, anchors
+    as rows, first ✗/✓ trap; headline swapped for a scene line the detector recognises) →
+    3–4 guided items from `grammar_items` (recognise: which sentence uses the rule · choose:
+    the ✗/✓ pair · build: word bank with the ✗ word as spare chip · transform: correct the ✗
+    sentence, second pair when there is one) → the day's other builds → the reply, whose
+    first grammar target is the unit. The card and items are reserved first; items drop from
+    the strongest end before the introduction is given up. At Régulier with a 16-item queue:
+    ≈ 550 s of 600 (rule 33 s, guided items ≈ 63 s); Léger fits 300 s.
+  - **Evidence** — recall observations carry `task_format`: choice → recognise, tiles /
+    word bank → guided, transform → transform; the reply → free production. One success a day
+    moves the schedule (later ones that day fold, but still feed the life); failures always
+    land (a wrong guided item is a Hard, not a lapse).
+  - **Emploi** — `concept_evidence.with_concept_evidence` runs after any grader (authored,
+    conversation, story engine), no extra model call: the unit's regex detectors (v1 borrows
+    its v2 replacements') → `correct` (free production) · `error` (a correction touches the
+    form: one NOT_YET observation, and the correction's erratum is handed the same unit, so
+    the lapse is booked once) · `avoided` (neutral, recorded in `concept_evidence`).
+    `llm:` detectors are not run: those 7 v2 units (and the two v1 concepts with no regex
+    replacement) get reply evidence from corrections only (`undetected`).
+  - **Rappel** — due grammar joins the pool from `plan_review_items` (1/2/3/4 units by
+    rhythm), each with its brief; one warm-up per unit, format by stability (< 3 d: choose /
+    recognise; < 10 d: transform / build; ≥ 10 d: no item, the unit becomes a reply target —
+    Réemploi, ≤ 2 grammar targets a reply).
+  - **21-day run** (both catalogues): introduced day 0 (4 guided items + free use), Rappel
+    choice on days 2, lapse in the reply day 3, repair + Rappel day 4, choices days 5–9,
+    second free use day 10, transform day 17 → held on day 17.
+  - **Deferred** — the x-ray highlight of the form inside the scene reader (Rencontre);
+    WP-L5's `grammar_plan` (the director writing the form 2–3× and a question that needs
+    it); the `concept_evidence` field in the reply grader's own schema for `llm:` units;
+    the auto-throttle itself; Home/Dossier surfaces for the stages (WP-L7).
 
 #### WP-L5 · The story knows the grammar (engine, with Codex)
 - The director gets a `grammar_plan`:
