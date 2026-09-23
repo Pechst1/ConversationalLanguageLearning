@@ -31,7 +31,7 @@ import type {
 import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
 
 import { formatDuration } from './journey-state';
-import { RECAP_CHROME, fill, recapStatusCopy } from './recap-copy';
+import { fill, recapChrome, recapStatusCopy } from './recap-copy';
 
 export type RecapFact = { id: 'streak' | 'words' | 'scene'; label: string; value: string };
 
@@ -91,18 +91,20 @@ export function recapWords(recap: JourneyRecap | null | undefined): RecapWord[] 
   return out;
 }
 
-function sceneValue(recap: JourneyRecap, journey: JourneySnapshot): string | null {
-  const minutes = formatDuration(recap.active_seconds, 'fr');
+function sceneValue(recap: JourneyRecap, journey: JourneySnapshot, language: ControlLanguage): string | null {
+  const chrome = recapChrome(language);
+  const minutes = formatDuration(recap.active_seconds, language);
   if (minutes) return minutes;
   const done =
     typeof recap.steps_done === 'number'
       ? recap.steps_done
       : (journey.steps || []).filter((step) => step.status === 'completed').length;
   if (done <= 0) return null;
-  return done === 1 ? RECAP_CHROME.step_value : fill(RECAP_CHROME.steps_value, { n: done });
+  return done === 1 ? chrome.step_value : fill(chrome.steps_value, { n: done });
 }
 
-function faceOf(recap: JourneyRecap, journey: JourneySnapshot): RecapFace | null {
+function faceOf(recap: JourneyRecap, journey: JourneySnapshot, language: ControlLanguage): RecapFace | null {
+  const chrome = recapChrome(language);
   const mood = recap.mood ?? null;
   const characterId = mood?.character_id || journey.scenario?.character_id || '';
   const name = mood?.character_name || journey.scenario?.character_name || '';
@@ -120,9 +122,9 @@ function faceOf(recap: JourneyRecap, journey: JourneySnapshot): RecapFace | null
             : 'neutral';
   const moodLine =
     shift === 'warmer'
-      ? fill(RECAP_CHROME.mood_warmer, { name })
+      ? fill(chrome.mood_warmer, { name })
       : shift === 'colder'
-        ? fill(RECAP_CHROME.mood_colder, { name })
+        ? fill(chrome.mood_colder, { name })
         : null;
   return {
     characterId,
@@ -153,19 +155,20 @@ export function rewardView(
   const partial = recap.completion_kind === 'early' || journey.status === 'ended_early';
   // WP-D4: Scène · Mots · Série, in the order the day was lived.
   const facts: RecapFact[] = [];
-  const scene = sceneValue(recap, journey);
-  if (scene) facts.push({ id: 'scene', label: RECAP_CHROME.scene_label, value: scene });
+  const chrome = recapChrome(language);
+  const scene = sceneValue(recap, journey, language);
+  if (scene) facts.push({ id: 'scene', label: chrome.scene_label, value: scene });
   const words = recapWords(recap);
   if (words.length > 0) {
-    facts.push({ id: 'words', label: RECAP_CHROME.words_label, value: `+${words.length}` });
+    facts.push({ id: 'words', label: chrome.words_label, value: `+${words.length}` });
   }
   const streakDays = Number(journey.streak?.days ?? 0);
   if (Number.isFinite(streakDays) && streakDays > 0) {
     const n = Math.round(streakDays);
     facts.push({
       id: 'streak',
-      label: RECAP_CHROME.streak_label,
-      value: n === 1 ? RECAP_CHROME.streak_value_one : fill(RECAP_CHROME.streak_value, { n }),
+      label: chrome.streak_label,
+      value: n === 1 ? chrome.streak_value_one : fill(chrome.streak_value, { n }),
     });
   }
 
@@ -189,7 +192,7 @@ export function rewardView(
     facts,
     freezeNote: freezeUsed ? recapStatusCopy(language).freeze_used : null,
     words,
-    face: faceOf(recap, journey),
+    face: faceOf(recap, journey, language),
     // A keepsake is a completed day's; an early stop never shows one.
     keepsake: partial ? null : recap.keepsake ?? null,
     teaser: partial ? null : teaser,

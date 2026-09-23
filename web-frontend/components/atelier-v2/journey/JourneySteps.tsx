@@ -54,6 +54,7 @@ import {
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
+import { frenchSpacing } from '@/lib/french-typography';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
@@ -80,7 +81,6 @@ import {
   voiceOffered,
   wordBankHasSpareChips,
   type JourneyFeedback,
-  type ReplyProvenance,
 } from './journey-state';
 import {
   FAILURE_COPY_KEY,
@@ -199,9 +199,11 @@ function StepFrame({
   speakerMood?: PortraitMood;
   children: React.ReactNode;
 }) {
+  // WP-82: a French headline (or bubble) keeps « ? ! » on its word's line.
+  const shown = headlineLang === 'fr' && typeof headline === 'string' ? frenchSpacing(headline) : headline;
   const title = (
     <h2 className="av2-headline" lang={headlineLang}>
-      {headline}
+      {shown}
     </h2>
   );
   return (
@@ -287,7 +289,7 @@ export function HelpRow({
           <p className="av2-label">{copy[HELP_LABEL[help.help_kind]]}</p>
           {help.content_fr && (
             <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-              {help.content_fr}
+              {frenchSpacing(help.content_fr)}
             </p>
           )}
           {help.content_native && <p className="av2-body av2-body--lg">{help.content_native}</p>}
@@ -366,15 +368,14 @@ export function SceneStepView({
         <Surface>
           <SpokenLine speaker={speaker}>
             <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-              {step.prompt.character_line_fr}
+              {frenchSpacing(step.prompt.character_line_fr)}
             </p>
           </SpokenLine>
         </Surface>
       )}
 
-      <p className="av2-label">
-        {copy.objective}: {step.prompt.objective_native}
-      </p>
+      {/* WP-82 (appendix A): the objective is printed once, on the reply
+          step where it is asked for — not here as «What you need to do: …». */}
 
       <Action
         tone="primary"
@@ -810,7 +811,7 @@ export function RespondStepView({
             {wide.letter_from.replace('{name}', letter.correspondent_name)}
           </p>
           <p className="av2-fr av2-body av2-body--lg" lang="fr">
-            {letter.body_fr}
+            {frenchSpacing(letter.body_fr)}
           </p>
         </Surface>
       )}
@@ -858,7 +859,7 @@ export function RespondStepView({
             </>
           ) : (
             <>
-              <p className="av2-body">{copy.voice_hint}</p>
+              {/* WP-82 (appendix A): no «say it out loud…» line — the mic says it. */}
               <div className="av2-respond__actions">
                 <Action
                   tone="primary"
@@ -995,7 +996,7 @@ export function ResolutionStepView({
         <Surface shape="episode">
           <p className="av2-label">{wide.chapter_recap_label}</p>
           <p className="av2-fr av2-body" lang="fr">
-            {chapterRecap}
+            {frenchSpacing(chapterRecap)}
           </p>
         </Surface>
       )}
@@ -1010,7 +1011,7 @@ export function ResolutionStepView({
             {wide.register_label}
           </p>
           <p className="av2-fr av2-body" lang="fr">
-            {register.lineFr}
+            {frenchSpacing(register.lineFr)}
           </p>
           {register.reasonNative && (
             <p className="av2-body">{register.reasonNative}</p>
@@ -1028,12 +1029,6 @@ export function ResolutionStepView({
 // ---------------------------------------------------------------------------
 // Feedback
 // ---------------------------------------------------------------------------
-
-function replyNote(source: ReplyProvenance, copy: JourneyCopy): string | undefined {
-  // Only an explicitly authored line is labelled. `unknown` says nothing rather
-  // than claiming the reply was generated live.
-  return source === 'authored' ? copy.reply_authored_note : undefined;
-}
 
 /**
  * Every non-idle feedback state, each visually distinct.
@@ -1145,10 +1140,12 @@ export function JourneyFeedbackView({
       );
 
     case 'graded': {
-      const { result, verdict, replySource } = feedback;
+      // WP-82 (text diet): the reply's provenance is no longer printed under
+      // the verdict — «Written reply from the script» told the learner nothing
+      // they could act on. The payload still carries `reply_source`.
+      const { result, verdict } = feedback;
       const title =
         verdict === 'correct' ? copy.correct : verdict === 'supported' ? copy.supported : copy.wrong;
-      const note = replyNote(replySource, copy);
       // WP-77: the character reacts to *your* answer — pleased or cross, small.
       const face =
         speaker && castIdFor(speaker.id, speaker.name) ? (
@@ -1169,7 +1166,6 @@ export function JourneyFeedbackView({
             // it in, WP-76); the verdict card no longer repeats it.
             face={face}
           >
-            {note && <p className="av2-label">{note}</p>}
             {result.correction && (
               <Correction
                 label={copy.correction}

@@ -307,9 +307,12 @@ const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };
 export type AtelierCopy = JourneyCopy & Table;
 
 /**
- * WP-51 — the same rule as `journey-copy`'s CHROME_KEYS: buttons, controls and
- * navigation read French on every screen; failures, verdicts and states keep
- * the learner's language because they explain something to them.
+ * WP-82 — the one language rule (`lib/language-rule.ts`). Only the navigation
+ * labels — the names of places — are French on every control language. Every
+ * other key follows the language the caller resolved: the learner's own up to
+ * A2, French from B1 (`chromeLanguage(control, level)`). This supersedes
+ * WP-51's list, which also kept buttons French and so put French buttons
+ * under German or English status lines.
  */
 export const V2_CHROME_KEYS: readonly AtelierCopyKey[] = [
   'nav_atelier',
@@ -317,28 +320,6 @@ export const V2_CHROME_KEYS: readonly AtelierCopyKey[] = [
   'nav_serial',
   'nav_notebook',
   'nav_label',
-  'settings',
-  'close',
-  'back',
-  'dismiss',
-  'more',
-  'open',
-  'rule_card',
-  'today_edition',
-  'action_check',
-  'action_continue',
-  'action_finish',
-  'action_start',
-  'action_send',
-  'action_retry',
-  'choose_one',
-  'build_sentence',
-  'remove_last',
-  'answer_mode_text',
-  'answer_mode_voice',
-  'record_start',
-  'record_stop',
-  'step_of',
 ];
 
 const V2_CHROME_FR: Partial<Table> = Object.fromEntries(

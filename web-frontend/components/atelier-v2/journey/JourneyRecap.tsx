@@ -22,13 +22,13 @@ import React from 'react';
 
 import { Action, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
 import { Seal } from '@/components/ui/Seal';
-import { PRACTICE_LABEL } from '@/lib/atelier-next';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { frenchQuote, frenchSpacing } from '@/lib/french-typography';
 import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnapshot } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
 import { keepsakeDate, rewardView } from './journey-recap-model';
-import { RECAP_CHROME } from './recap-copy';
+import { recapChrome } from './recap-copy';
 
 export type JourneyRecapProps = {
   journey: JourneySnapshot;
@@ -57,6 +57,8 @@ export function JourneyRecap({
   const keepsake = view?.keepsake ?? null;
   const date = keepsakeDate(keepsake?.local_date);
   const seal = partial ? null : view?.seal ?? null;
+  const chrome = recapChrome(language);
+  const keepsakeTitle = seal && keepsake?.title_fr?.trim() ? keepsake.title_fr.trim() : null;
 
   // «Plus de pratique» opens the drill loop on what today practised when the
   // server named a place for it; otherwise the general entry.
@@ -86,9 +88,6 @@ export function JourneyRecap({
             <Seal stamp size="lg" variant={seal.variant} no={seal.no} date={seal.date ?? ''} />
             {keepsake && (
               <figcaption className="av2-reward__caption">
-                <span className="av2-fr av2-reward__title" lang="fr">
-                  {keepsake.title_fr}
-                </span>
                 <span className="av2-label">
                   {[keepsake.location_name, date].filter(Boolean).join(' · ')}
                 </span>
@@ -96,7 +95,16 @@ export function JourneyRecap({
             )}
           </figure>
         )}
-        <h2 className="av2-headline">{partial ? copy.finished_partial_title : copy.finished_title}</h2>
+        {/* WP-82: one Garamond headline. With a keepsake it is the keepsake's
+            French title (the day's own name); without one, «Scene finished».
+            The section's accessible name still says the day is finished. */}
+        {keepsakeTitle ? (
+          <h2 className="av2-headline" lang="fr" data-keepsake-title>
+            {frenchSpacing(keepsakeTitle)}
+          </h2>
+        ) : (
+          <h2 className="av2-headline">{partial ? copy.finished_partial_title : copy.finished_title}</h2>
+        )}
         {partial && <p className="av2-body av2-body--lg">{copy.finished_partial_body}</p>}
       </Surface>
 
@@ -113,7 +121,7 @@ export function JourneyRecap({
       {view?.freezeNote && <p className="av2-label">{view.freezeNote}</p>}
 
       {view && view.words.length > 0 && (
-        <ul className="av2-reward__words" aria-label={RECAP_CHROME.words_label}>
+        <ul className="av2-reward__words" aria-label={chrome.words_label}>
           {view.words.map((word) => (
             <li key={word.id} className="av2-reward__word">
               <span className="av2-fr" lang="fr">
@@ -152,8 +160,9 @@ export function JourneyRecap({
               <p className="av2-label">{view.face.name}</p>
             )}
             {view.face.lineFr && (
-              <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-                {view.face.lineFr}
+              // The character's line is content, not a second headline.
+              <p className="av2-fr av2-body av2-body--lg" lang="fr">
+                {frenchSpacing(view.face.lineFr)}
               </p>
             )}
           </div>
@@ -162,8 +171,8 @@ export function JourneyRecap({
 
       {view?.levelUp && (
         <Surface tone="blue" className="av2-reward__level">
-          <p className="av2-label">{RECAP_CHROME.level_label}</p>
-          <p className="av2-headline av2-headline--rule">
+          <p className="av2-label">{chrome.level_label}</p>
+          <p className="av2-reward__value">
             {view.levelUp.from_level} → {view.levelUp.to_level}
           </p>
           {view.levelUp.evidence && <p className="av2-body">{view.levelUp.evidence}</p>}
@@ -172,9 +181,9 @@ export function JourneyRecap({
 
       {view?.teaser && (
         <div className="av2-reward__teaser" data-source={view.teaser.source}>
-          <p className="av2-label">{RECAP_CHROME.teaser_label}</p>
+          <p className="av2-label">{chrome.teaser_label}</p>
           <p className="av2-fr av2-reward__teaser-line" lang="fr">
-            « {view.teaser.text_fr} »
+            {frenchQuote(view.teaser.text_fr)}
             {view.teaser.character_name && (
               <span className="av2-reward__teaser-by"> — {view.teaser.character_name}</span>
             )}
@@ -187,12 +196,12 @@ export function JourneyRecap({
       <div className="av2-recap__actions">
         {onExit && (
           <Action tone="primary" onClick={onExit}>
-            {seal ? RECAP_CHROME.keep_seal : copy.continue}
+            {seal ? chrome.keep_seal : copy.continue}
           </Action>
         )}
         {practice && (
           <Action tone="quiet" onClick={practice.onSelect} aria-label={practice.ariaLabel}>
-            {morePractice?.label || PRACTICE_LABEL}
+            {copy.more_practice}
           </Action>
         )}
       </div>

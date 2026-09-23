@@ -583,21 +583,18 @@ const h = React.createElement;
     }
   }
 
-  // Action names are chrome: French on every screen, whatever the learner's
-  // language (WP-39 D-3, WP-51) — never English under a translated heading.
+  // WP-82 — one language rule: up to A2 an action name is in the learner's
+  // language, like the status line beside it (never a French button under a
+  // German sentence); only the navigation labels are French everywhere.
   const actionKeys = keys.filter((key) => key.startsWith('action_') || key.startsWith('record_'));
   assert.ok(actionKeys.length >= 6, 'there are action names to check');
   for (const key of actionKeys) {
-    assert.equal(
-      atelierChrome('de')[key],
-      atelierChrome('fr')[key],
-      `de.${key} must read the French chrome label`,
-    );
-    assert.equal(
-      atelierChrome('en')[key],
-      atelierChrome('fr')[key],
-      `en.${key} must read the French chrome label`,
-    );
+    assert.notEqual(atelierChrome('de')[key], atelierChrome('fr')[key], `de.${key} is German`);
+    assert.notEqual(atelierChrome('en')[key], atelierChrome('fr')[key], `en.${key} is English`);
+  }
+  for (const key of ['nav_atelier', 'nav_missions', 'nav_serial', 'nav_notebook']) {
+    assert.equal(atelierChrome('en')[key], atelierChrome('fr')[key], `en.${key} is the French place name`);
+    assert.equal(atelierChrome('de')[key], atelierChrome('fr')[key], `de.${key} is the French place name`);
   }
   // …while what explains a failure to the learner stays in their language.
   assert.notEqual(atelierChrome('de').mic_denied, atelierChrome('fr').mic_denied);
@@ -622,10 +619,10 @@ const h = React.createElement;
   assert.equal(merged.action_check, 'Vérifier');
   assert.equal(atelierCopy('pt').action_check, atelierCopy('en').action_check);
 
-  // The progress caption is chrome: «Étape n sur N» on every screen (WP-51),
+  // The progress caption is status (WP-82): the learner's language up to A2,
   // with the numbers interpolated.
-  assert.equal(stepOfLabel(atelierCopy('en'), 2, 5), 'Étape 2 sur 5');
-  assert.equal(stepOfLabel(atelierCopy('de'), 2, 5), 'Étape 2 sur 5');
+  assert.equal(stepOfLabel(atelierCopy('en'), 2, 5), 'Step 2 of 5');
+  assert.equal(stepOfLabel(atelierCopy('de'), 2, 5), 'Schritt 2 von 5');
   assert.equal(stepOfLabel(atelierCopy('fr'), 2, 5), 'Étape 2 sur 5');
 }
 

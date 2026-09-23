@@ -381,7 +381,7 @@ test('«Qui a dit ça ?» renders the line and one face per card', () => {
     answer_key: keyOf('who_a'),
   });
   const html = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(step)));
-  assert.match(html, /Vous avez une idée \?/);
+  assert.match(html, /Vous avez une idée\u202f\?/);
   assert.match(html, /Who said this\?/);
   assert.equal((html.match(/class="av2-who-said__card"/g) || []).length, 3);
   for (const name of ['Romy', 'Lila', 'Marin']) assert.match(html, new RegExp(name));

@@ -128,13 +128,13 @@ test('a finished day is one screen: seal, facts, words, face, teaser, actions', 
   const text = textOf(html);
   assert.equal((html.match(/class="journey-recap /g) || []).length, 1, 'exactly one recap');
   // WP-D4: Scène · Mots · Série, in that order, the streak in days.
-  assert.match(text, /Scène 4 étapes Mots \+2 Série 4 jours/);
+  assert.match(text, /Scene 4 steps Words \+2 Streak 4 days/);
   assert.match(text, /un café/);
   assert.match(text, /la terrasse/);
   // The face, in the mood the ledger left, and the line that says so.
   assert.match(html, /portrait-happy\.webp/);
   assert.match(html, /margaux_barman/);
-  assert.match(text, /Margaux vous sourit ↑/);
+  assert.match(text, /Margaux smiles at you ↑/);
   // WP-D4: the Seal presses as the hero, captioned with the keepsake.
   assert.equal((html.match(/class="av2-seal"/g) || []).length, 1, 'exactly one seal');
   assert.match(html, /class="av2-seal"[^>]*data-stamp="true"/);
@@ -146,13 +146,39 @@ test('a finished day is one screen: seal, facts, words, face, teaser, actions', 
   assert.match(text, /Un café au Mistral/);
   assert.match(text, /Le Mistral · 22 sept\./);
   // «La suite demain».
-  assert.match(text, /La suite demain « Je vous garde une place au Mistral\. Vous venez \? » — Marin/);
+  assert.match(text, /Tomorrow « Je vous garde une place au Mistral\. Vous venez \? » — Marin/);
   // Actions: «Ranger le sceau» the one primary, «Plus de pratique» quiet.
   assert.equal((html.match(/av2-btn--primary/g) || []).length, 1);
-  assert.match(text, /Ranger le sceau/);
-  assert.doesNotMatch(text, /Continuer/);
+  assert.match(text, /Keep the seal/);
+  assert.doesNotMatch(text, /Continue\b/);
   assert.match(html, /av2-btn--quiet/);
-  assert.match(text, /Plus de pratique/);
+  assert.match(text, /More practice/);
+});
+
+test('WP-82: one Garamond headline — the keepsake title, not also «Scene finished»', () => {
+  const html = render(day());
+  assert.equal((html.match(/class="av2-headline[ "]/g) || []).length, 1, 'exactly one headline');
+  assert.match(html, /<h2 class="av2-headline" lang="fr"[^>]*>Un café au Mistral<\/h2>/);
+  assert.doesNotMatch(textOf(html), /Scene finished/);
+  assert.match(html, /aria-label="Scene finished"/, 'the section still says the day is finished');
+  // No keepsake: the headline is «Scene finished», once.
+  const bare = render(day({ keepsake: null }));
+  assert.equal((bare.match(/class="av2-headline[ "]/g) || []).length, 1);
+  assert.match(textOf(bare), /Scene finished/);
+});
+
+test('WP-82: one chrome language on the recap — English, German or French, never mixed', () => {
+  const en = textOf(render(day()));
+  assert.doesNotMatch(en, /Ranger|Série|La suite demain|vous sourit|Plus de pratique/);
+  const de = textOf(render(day(), { language: 'de' }));
+  assert.match(de, /Szene 4 Schritte Wörter \+2 Serie 4 Tage/);
+  assert.match(de, /Siegel behalten/);
+  assert.match(de, /Margaux lächelt Sie an/);
+  assert.doesNotMatch(de, /Keep the seal|Ranger|Série/);
+  const fr = textOf(render(day(), { language: 'fr' }));
+  assert.match(fr, /Scène 4 étapes Mots \+2 Série 4 jours/);
+  assert.match(fr, /Ranger le sceau/);
+  assert.match(fr, /La suite demain/);
 });
 
 test('the deleted lines stay deleted and no number is invented', () => {
@@ -161,33 +187,33 @@ test('the deleted lines stay deleted and no number is invented', () => {
   assert.doesNotMatch(text, /pas encore mesur|not measured|nicht gemessen/i);
   assert.doesNotMatch(text, /does not reopen|ne rouvre pas|nicht neu ge/i);
   // Unmeasured minutes read as the steps the learner did.
-  assert.match(text, /Scène 4 étapes/);
+  assert.match(text, /Scene 4 steps/);
   assert.doesNotMatch(text, /\b\d+\s?min\b/);
   // No goal ring, no flame (owner 2026-09-22), no mascot.
   assert.doesNotMatch(html, /ring|flame|🔥|confetti/i);
 
   const measured = textOf(render(day({ active_seconds: 268 })));
-  assert.match(measured, /Scène 4 min/);
+  assert.match(measured, /Scene 4 min/);
 
   // Zero streak and zero words: the facts are absent, not «0».
   const bare = textOf(render(day({ words: [] }, { streak: { days: 0, today_done: false, freeze_available: false, freeze_used_on: null } })));
-  assert.doesNotMatch(bare, /Série|0 jours|Mots/);
-  assert.match(textOf(render(day({}, { streak: { days: 1, today_done: true, freeze_available: false, freeze_used_on: null } }))), /Série 1 jour\b/);
+  assert.doesNotMatch(bare, /Streak|0 days|Words/);
+  assert.match(textOf(render(day({}, { streak: { days: 1, today_done: true, freeze_available: false, freeze_used_on: null } }))), /Streak 1 day\b/);
 });
 
 test('a mood line only when the ledger moved today; the face still reacts', () => {
   const steady = render(day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: 0, shift: null } }));
-  assert.doesNotMatch(textOf(steady), /vous sourit|vous en veut/);
+  assert.doesNotMatch(textOf(steady), /smiles at you|is a little cross/);
   assert.match(steady, /portrait-neutral\.webp/);
 
   const colder = render(day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: -1, shift: 'colder' } }));
-  assert.match(textOf(colder), /Margaux vous en veut un peu ↓/);
+  assert.match(textOf(colder), /Margaux is a little cross ↓/);
   assert.match(colder, /portrait-cross\.webp/);
 
   // No ledger at all: the face reacts to the day's outcome, with no claim.
   const noLedger = render(day({ mood: null }));
   assert.match(noLedger, /portrait-happy\.webp/);
-  assert.doesNotMatch(textOf(noLedger), /vous sourit/);
+  assert.doesNotMatch(textOf(noLedger), /smiles at you/);
 });
 
 test('a «jour de relâche» is said in the learner language', () => {
@@ -198,11 +224,11 @@ test('a «jour de relâche» is said in the learner language', () => {
 test('the level move: once, honest, with its evidence', () => {
   const up = day({ level: 'A1.2', level_up: { from_level: 'A1.1', to_level: 'A1.2', mastered_vocabulary: 312, mastered_grammar: 21 } });
   const text = textOf(render(up));
-  assert.match(text, /Niveau A1\.1 → A1\.2/);
+  assert.match(text, /Level A1\.1 → A1\.2/);
   assert.match(text, /312 words and 21 rules mastered\./);
   const fr = textOf(render(up, { language: 'fr' }));
   assert.match(fr, /312 mots et 21 règles maîtrisés\./);
-  assert.doesNotMatch(textOf(render(day())), /Niveau/);
+  assert.doesNotMatch(textOf(render(day())), /Level/);
 });
 
 test('a partial day: no seal, no keepsake, no teaser', () => {
@@ -211,11 +237,11 @@ test('a partial day: no seal, no keepsake, no teaser', () => {
   assert.match(html, /data-state="partial"/);
   // WP-D4: an early stop never presses a seal.
   assert.doesNotMatch(html, /av2-seal/);
-  assert.doesNotMatch(textOf(html), /Ranger le sceau/);
-  assert.match(textOf(html), /Continuer/);
+  assert.doesNotMatch(textOf(html), /Keep the seal/);
+  assert.match(textOf(html), /Continue\b/);
   assert.equal(model.rewardView(journey, recap, 'en').seal, null);
   assert.doesNotMatch(html, /data-keepsake/);
-  assert.doesNotMatch(textOf(html), /La suite demain/);
+  assert.doesNotMatch(textOf(html), /Tomorrow/);
 });
 
 test('the same edition always presses the same seal; no edition, the logo', () => {
@@ -232,7 +258,7 @@ test('a recap written before WP-79 still shows its words and steps', () => {
   const legacy = { ...FIXTURE.recap, active_seconds: null };
   const view = model.rewardView(FIXTURE, legacy, 'en');
   assert.deepEqual(view.words.map((w) => w.label_fr), ['un café'], 'vocabulary only, from practiced_targets');
-  assert.equal(view.facts.find((f) => f.id === 'scene').value, '4 étapes');
+  assert.equal(view.facts.find((f) => f.id === 'scene').value, '4 steps');
   assert.equal(view.keepsake, null);
   assert.equal(view.teaser, null);
 });
