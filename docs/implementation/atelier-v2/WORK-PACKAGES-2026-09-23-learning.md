@@ -167,6 +167,60 @@ and the next scene gives the learner a chance to repair it.
   - counts per sub-band are published in this doc;
   - a sample of 20 generated sets passes all three gates;
   - existing learners' progress maps without loss.
+- **Status (2026-09-23): delivered behind a flag, content is an LLM draft awaiting review.**
+  - `ATELIER_GRAMMAR_CATALOG_VERSION` (default `v1`) selects the catalogue. Nothing changes
+    until the owner sets it to `v2`.
+  - Grammar catalogue `fr-core-v2`, `templates/french_core_grammar_v2.tsv`: 153 units, all
+    `review_status=draft`.
+
+    | Sub-band | A1.1 | A1.2 | A2.1 | A2.2 | B1.1 | B1.2 | B2.1 | B2.2 | Total |
+    | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+    | Units | 18 | 16 | 18 | 16 | 20 | 20 | 22 | 23 | **153** |
+    | Band | A1 34 | | A2 34 | | B1 40 | | B2 45 | | |
+
+    - Every unit has: a sub-band; prerequisites and contrast partners (acyclic, always earlier
+      in the teaching order); a detector (146 regex, 7 `llm:`); a name and a rule of at most
+      20 words in en/de/fr (jargon-free at A1–A2); and a ✗→✓ trap as the first trap.
+    - `is_foundation` now means "another unit depends on it" (99 units).
+    - A1 follows the communicative order in due diligence §2.4, and the §2.3 misplacements
+      are fixed.
+    - C1 is out of scope for v2. The six v1 C1 concepts map to their nearest B2 unit.
+  - **Loader**:
+    - `FrenchCoreGrammarCatalog(db, version)` stores v2 prerequisites as concept ids and the
+      syllabus fields in `source_refs.syllabus`, with helpers `concept_sub_band` and
+      `detector_matches`.
+    - It writes real en/de/fr rows to `grammar_concept_localizations`.
+  - **Migration rule** (`templates/french_core_grammar_v1_to_v2.tsv`, which covers all 54 v1
+    ids):
+    - The first listed v2 unit, the foundation child, inherits the learner's v1 row
+      (score, reps, state, reviews). The other children start fresh.
+    - On merges, the strongest row wins (score, then reps, then latest review).
+    - Existing v2 progress is never overwritten.
+    - v1 rows are copied, not moved. Switching back to v1 restores v1 unchanged.
+    - v1 concepts are archived with `replacement_external_id`.
+  - **Prerequisites** in `select_today`:
+    - A unit is introduced only once its prerequisites have progress rows.
+    - A prerequisite in a CEFR level below the learner's own counts as known.
+    - v1 has no prerequisites, so its picks are unchanged.
+  - **Lexicon** `fr-core-lexicon-v2`:
+
+    | Sub-band | A1.1 | A1.2 | A2.1 | A2.2 | B1.1 | B1.2 | Total |
+    | --- | --- | --- | --- | --- | --- | --- | --- |
+    | Lemmas | 384 | 322 | 398 | 396 | 543 | 541 | **2,584** |
+
+    - Irregular forms: 3,599.
+    - The content is an LLM draft; no dataset was copied.
+  - **Can-dos** (`app/data/syllabus/fr_core_can_dos_v2.json`): 58 tasks, 7–8 per sub-band.
+    Each lists its unit ids and lemma ids.
+  - **Tests**: `tests/test_wp_l2_syllabus.py`.
+  - **Before flipping to v2** (open):
+    - Human review of the TSV, lexicon and can-dos.
+    - Authored séance challenges for v2 units. `seance_curriculum` and
+      `app/data/seance_challenges.txt` are v1-only, so v2 units use the generic fallback
+      prompts.
+    - The "20 generated sets pass all three gates" sample.
+    - Decide whether errata (`user_errors.concept_id`) on v1 concepts should be remapped to v2.
+      Today they drop out of the due list once v1 is archived.
 
 #### WP-L3 · One memory model for everything
 - Grammar and errata move to the FSRS-style scheduler that vocabulary already uses
