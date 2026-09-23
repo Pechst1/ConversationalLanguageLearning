@@ -399,7 +399,10 @@ def test_the_prediction_is_stored_beside_the_scene_and_is_never_a_score(
 
     rows = list(
         db_session.scalars(
-            select(PilotEvent).where(PilotEvent.event_type == PREDICTION_EVENT_TYPE)
+            select(PilotEvent).where(
+                PilotEvent.event_type == PREDICTION_EVENT_TYPE,
+                PilotEvent.user_id == learner.id,
+            )
         )
     )
     assert len(rows) == 1
