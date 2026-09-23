@@ -17,6 +17,7 @@ from loguru import logger
 from sqlalchemy import and_, desc, not_, or_
 from sqlalchemy.orm import Session
 
+from app.core.srs.memory import Evidence, EvidenceFormat
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
@@ -24,6 +25,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
 from app.services.conjugation import DISPLAY_TENSES, ConjugationService
 from app.services.enhanced_srs import EnhancedSRSService
+from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import normalize_language, word_gloss
 from app.services.grammar import GrammarService
 from app.services.progress import (
@@ -119,6 +121,152 @@ ERROR_SOURCE_LABELS = {
 # conjugation drill has no `TargetKind`, so it stays out of the journey pool
 # and keeps its own schedule untouched.
 JOURNEY_CANDIDATE_ITEM_TYPES = (ItemType.VOCAB, ItemType.GRAMMAR, ItemType.ERROR)
+
+# ---------------------------------------------------------------------------
+# WP-L3: the Rappel — one queue, interleaved
+# ---------------------------------------------------------------------------
+
+#: Seconds one interleaved Rappel item takes. A Rappel item is a single card or
+#: prompt, not the 3-minute grammar drill `TIME_ESTIMATES` sizes for «Plus de
+#: pratique»; the day planner budgets in these.
+RAPPEL_ITEM_SECONDS: dict[ItemType, int] = {
+    ItemType.VOCAB: 10,
+    ItemType.GRAMMAR: 40,
+    ItemType.ERROR: 25,
+    ItemType.CONJUGATION: 20,
+}
+
+#: A Rappel block: this many consecutive items, drawn from at least
+#: `RAPPEL_MIN_SOURCES` different sources whenever that many have items left.
+RAPPEL_BLOCK_SIZE = 6
+RAPPEL_MIN_SOURCES = 3
+
+#: A concept's contrast partner comes back at least this often once both are
+#: introduced (WP-L3). Partners are data (WP-L2); without them this is a no-op.
+CONTRAST_WINDOW_DAYS = 7
+
+
+def review_concept_key(item: DueLearningItem) -> str:
+    """What "the same concept" means for the back-to-back rule.
+
+    An erratum linked to a grammar concept *is* that concept (repairing «au le»
+    right after the articles card is the same item twice); otherwise its linked
+    word, otherwise itself.
+    """
+
+    metadata = item.metadata or {}
+    if item.item_type == ItemType.GRAMMAR:
+        return f"grammar:{metadata.get('concept_id') or item.original_id}"
+    if item.item_type == ItemType.ERROR:
+        if metadata.get("concept_id"):
+            return f"grammar:{metadata['concept_id']}"
+        if metadata.get("linked_word_id"):
+            return f"word:{metadata['linked_word_id']}"
+        return f"error:{item.original_id}"
+    if item.item_type == ItemType.VOCAB:
+        return f"word:{metadata.get('word_id') or item.original_id}"
+    if item.item_type == ItemType.CONJUGATION:
+        return f"conjugation:{metadata.get('normalized_lemma') or item.original_id}"
+    return f"{item.item_type}:{item.id}"
+
+
+def interleave_review_items(
+    items: list[DueLearningItem],
+    *,
+    budget_seconds: int | None = None,
+    block_size: int = RAPPEL_BLOCK_SIZE,
+    min_sources: int = RAPPEL_MIN_SOURCES,
+) -> list[DueLearningItem]:
+    """Order review items into interleaved blocks, within a time budget.
+
+    Greedy and deterministic. Inside each source the order is priority
+    (highest first, stable). Each pick:
+
+    1. while the current block has fewer than ``min_sources`` sources and a
+       source not yet in it still has an item that fits, pick from those;
+    2. never the same concept as the previous item (`review_concept_key`),
+       unless nothing else fits;
+    3. among the allowed items, the highest priority.
+
+    ``budget_seconds`` stops the list when no remaining item fits; ``None`` is
+    unlimited. An item that does not fit is skipped, a smaller one may follow.
+    """
+
+    pools: dict[ItemType, list[DueLearningItem]] = {}
+    for item in sorted(items, key=lambda entry: entry.priority_score, reverse=True):
+        pools.setdefault(item.item_type, []).append(item)
+    remaining = None if budget_seconds is None else max(0, int(budget_seconds))
+
+    def fits(item: DueLearningItem) -> bool:
+        return remaining is None or int(item.estimated_seconds or 0) <= remaining
+
+    def best(
+        candidate_sources: list[ItemType], *, avoid_key: str | None
+    ) -> DueLearningItem | None:
+        chosen: DueLearningItem | None = None
+        for source in candidate_sources:
+            for item in pools[source]:
+                if not fits(item):
+                    continue
+                if avoid_key is not None and review_concept_key(item) == avoid_key:
+                    continue
+                if chosen is None or item.priority_score > chosen.priority_score:
+                    chosen = item
+                break  # pools are priority-sorted: the first allowed is the best
+        return chosen
+
+    result: list[DueLearningItem] = []
+    block_sources: set[ItemType] = set()
+    block_len = 0
+    last_key: str | None = None
+    while True:
+        available = [source for source, pool in pools.items() if any(fits(item) for item in pool)]
+        if not available:
+            break
+        if block_len >= block_size:
+            block_sources, block_len = set(), 0
+        unused = [source for source in available if source not in block_sources]
+        sources = unused if (len(block_sources) < min_sources and unused) else available
+
+        pick = (
+            best(sources, avoid_key=last_key)
+            or best(available, avoid_key=last_key)
+            or best(sources, avoid_key=None)
+            or best(available, avoid_key=None)
+        )
+        if pick is None:  # pragma: no cover - `available` guarantees a fit
+            break
+        pools[pick.item_type].remove(pick)
+        result.append(pick)
+        block_sources.add(pick.item_type)
+        block_len += 1
+        last_key = review_concept_key(pick)
+        if remaining is not None:
+            remaining -= int(pick.estimated_seconds or 0)
+    return result
+
+
+def contrast_partner_refs(concept: GrammarConcept) -> list[int | str]:
+    """A concept's contrast partners, as ids or external ids. ``[]`` when unknown.
+
+    Read from a ``contrast_partners`` attribute when the catalogue has one
+    (WP-L2), else from ``source_refs["contrast_partners"]``.
+    """
+
+    raw = getattr(concept, "contrast_partners", None)
+    if raw is None:
+        refs = getattr(concept, "source_refs", None)
+        raw = refs.get("contrast_partners") if isinstance(refs, dict) else None
+    if not isinstance(raw, list | tuple):
+        return []
+    partners: list[int | str] = []
+    for value in raw:
+        if isinstance(value, int) and not isinstance(value, bool):
+            partners.append(value)
+        elif isinstance(value, str) and value.strip():
+            partners.append(value.strip())
+    return partners
+
 
 
 class UnifiedSRSService:
@@ -268,6 +416,111 @@ class UnifiedSRSService:
             item.priority_score = self._calculate_priority(item)
         items.sort(key=lambda entry: entry.priority_score, reverse=True)
         return items[: max(1, limit)]
+
+    def plan_review_items(
+        self,
+        user_id: UUID,
+        *,
+        budget_seconds: int,
+        now: datetime | None = None,
+    ) -> list[DueLearningItem]:
+        """The day's Rappel: an ordered, interleaved list of review items.
+
+        WP-L3's single source of review candidates for the day planner, «Encore
+        5 minutes» and «Plus de pratique». Every due item of every source
+        (vocabulary, grammar, errata, conjugation), ranked by the shared
+        priority, plus the contrast partner of a due concept when both are
+        introduced and the partner has not been seen for
+        `CONTRAST_WINDOW_DAYS`; then `interleave_review_items` within
+        ``budget_seconds`` (sized in `RAPPEL_ITEM_SECONDS`). Read-only.
+        """
+
+        now = now or datetime.now(UTC)
+        today = now.date()
+        target_language = self._target_language(user_id)
+        items: list[DueLearningItem] = []
+        items.extend(self._fetch_due_vocab(user_id, today, now, target_language))
+        items.extend(self._fetch_due_grammar(user_id, now, target_language))
+        items.extend(self._fetch_due_errors(user_id, now))
+        items.extend(self._fetch_due_conjugations(user_id, now))
+        for item in items:
+            item.priority_score = self._calculate_priority(item)
+        items.extend(self._contrast_partner_items(user_id, items, now, target_language))
+        for item in items:
+            item.estimated_seconds = RAPPEL_ITEM_SECONDS.get(item.item_type, item.estimated_seconds)
+        return interleave_review_items(items, budget_seconds=budget_seconds)
+
+    def _contrast_partner_items(
+        self,
+        user_id: UUID,
+        items: list[DueLearningItem],
+        now: datetime,
+        target_language: str,
+    ) -> list[DueLearningItem]:
+        """Contrast partners owed a review this week. ``[]`` without partner data."""
+
+        anchors = {
+            int(item.metadata["concept_id"]): item
+            for item in items
+            if item.item_type == ItemType.GRAMMAR and item.metadata.get("concept_id")
+        }
+        if not anchors:
+            return []
+        partner_refs: dict[int, list[int | str]] = {}
+        for concept in self.db.query(GrammarConcept).filter(GrammarConcept.id.in_(list(anchors))).all():
+            refs = contrast_partner_refs(concept)
+            if refs:
+                partner_refs[concept.id] = refs
+        if not partner_refs:
+            return []
+        ids = {ref for refs in partner_refs.values() for ref in refs if isinstance(ref, int)}
+        external_ids = {ref for refs in partner_refs.values() for ref in refs if isinstance(ref, str)}
+        filters = []
+        if ids:
+            filters.append(GrammarConcept.id.in_(ids))
+        if external_ids:
+            filters.append(GrammarConcept.external_id.in_(external_ids))
+        rows = (
+            self.db.query(UserGrammarProgress, GrammarConcept)
+            .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
+            .filter(
+                UserGrammarProgress.user_id == user_id,
+                GrammarConcept.active.is_(True),
+                GrammarConcept.language == target_language,
+                UserGrammarProgress.reps > 0,  # introduced
+                or_(*filters),
+            )
+            .all()
+        )
+        by_ref: dict[int | str, tuple[UserGrammarProgress, GrammarConcept]] = {}
+        for progress, concept in rows:
+            by_ref[concept.id] = (progress, concept)
+            if concept.external_id:
+                by_ref[concept.external_id] = (progress, concept)
+        window_start = now - timedelta(days=CONTRAST_WINDOW_DAYS)
+        native_language = self._native_language(user_id)
+        present = set(anchors)
+        extra: list[DueLearningItem] = []
+        for anchor_id, refs in partner_refs.items():
+            for ref in refs:
+                found = by_ref.get(ref)
+                if found is None:
+                    continue
+                progress, concept = found
+                if concept.id in present:
+                    continue
+                last = progress.last_review
+                if last is not None and last.tzinfo is None:
+                    last = last.replace(tzinfo=UTC)
+                if last is not None and last >= window_start:
+                    continue  # seen this week
+                titles = self._concept_titles([concept.id], locales={"fr", native_language})
+                item = self._grammar_item(progress, concept, titles, native_language, now)
+                item.metadata["contrast_for"] = anchor_id
+                item.priority_score = max(0.0, anchors[anchor_id].priority_score - 0.5)
+                extra.append(item)
+                present.add(concept.id)
+        return extra
 
     def complete_item(
         self,
@@ -448,6 +701,8 @@ class UnifiedSRSService:
             concept_id=concept_id_int,
             score=score_map[fsrs_rating],
             notes="daily_practice",
+            # WP-L3: a self-rated Rappel card carries the learner's own rating.
+            evidence=Evidence.rated(fsrs_rating),
         )
 
         next_review = progress.next_review
@@ -482,40 +737,21 @@ class UnifiedSRSService:
         if not error:
             raise ValueError(f"Error item {error_id} not found")
 
-        current_interval = error.scheduled_days or 1
-        difficulty = error.difficulty or 5.0
-        stability = error.stability or 0.0
-
-        if fsrs_rating == 0:  # Again
-            next_interval = 1
-            error.state = "learning"
-            error.lapses = (error.lapses or 0) + 1
-            difficulty = min(10.0, difficulty + 0.8)
-            stability = max(0.0, stability * 0.8)
-        elif fsrs_rating == 1:  # Hard
-            next_interval = max(1, current_interval)
-            error.state = "learning"
-            difficulty = min(10.0, difficulty + 0.2)
-            stability = max(0.0, stability + 0.3)
-        elif fsrs_rating == 2:  # Good
-            next_interval = max(2, int(current_interval * 2.0))
-            error.state = "review"
-            difficulty = max(1.0, difficulty - 0.2)
-            stability = stability + 1.0
-        else:  # Easy
-            next_interval = max(4, int(current_interval * 3.0))
-            error.state = "review"
-            difficulty = max(1.0, difficulty - 0.4)
-            stability = stability + 1.5
-
-        error.stability = stability
-        error.difficulty = difficulty
-        error.elapsed_days = current_interval
-        error.scheduled_days = next_interval
-        error.reps = (error.reps or 0) + 1
-        error.last_review_date = now
-        error.next_review_date = now + timedelta(days=next_interval)
-        error.updated_at = now
+        # WP-L3: errata are scheduled by the one memory model and keep the
+        # retirement rule (three correct repairs on separate days); the ad-hoc
+        # interval table that used to live here bypassed both.
+        user = self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+        ErrorMemoryService(self.db).review_error(
+            user=user,
+            error_id=error.id,
+            rating=fsrs_rating + 1,
+            repaired=fsrs_rating >= 2,
+            now=now,
+            evidence=Evidence.rated(fsrs_rating),
+        )
+        next_interval = int(error.scheduled_days or 1)
 
         if error.concept_id:
             self._credit_linked_grammar_from_error(
@@ -608,37 +844,50 @@ class UnifiedSRSService:
         )
 
         for progress, concept in progress_items:
-            due_since = self._due_since_days(progress.next_review, now)
-            concept_titles = titles.get(concept.id, {})
-            
-            items.append(DueLearningItem(
-                id=f"grammar_{concept.id}",
-                item_type=ItemType.GRAMMAR,
-                priority_score=0,
-                display_title=concept.name,
-                display_subtitle=concept.category or "Grammar",
-                level=concept.level or "—",
-                due_since_days=due_since,
-                estimated_seconds=TIME_ESTIMATES[ItemType.GRAMMAR],
-                original_id=concept.id,
-                metadata={
-                    "concept_id": concept.id,
-                    "external_id": concept.external_id,
-                    "category": concept.category,
-                    "subskill": concept.subskill,
-                    "score": progress.score,
-                    "state": progress.state,
-                    "reps": progress.reps,
-                    "title_fr": concept_titles.get("fr") or concept.name,
-                    "title_native": concept_titles.get(native_language) or concept.name,
-                    "review_mode": "grammar",
-                    "next_review": self._iso(progress.next_review),
-                    "route": f"/grammar?concept={concept.id}",
-                }
-            ))
-        
+            items.append(self._grammar_item(progress, concept, titles, native_language, now))
+
         return items
-    
+
+    def _grammar_item(
+        self,
+        progress: UserGrammarProgress,
+        concept: GrammarConcept,
+        titles: dict[int, dict[str, str]],
+        native_language: str,
+        now: datetime,
+    ) -> DueLearningItem:
+        due_since = self._due_since_days(progress.next_review, now)
+        concept_titles = titles.get(concept.id, {})
+        return DueLearningItem(
+            id=f"grammar_{concept.id}",
+            item_type=ItemType.GRAMMAR,
+            priority_score=0,
+            display_title=concept.name,
+            display_subtitle=concept.category or "Grammar",
+            level=concept.level or "—",
+            due_since_days=due_since,
+            estimated_seconds=TIME_ESTIMATES[ItemType.GRAMMAR],
+            original_id=concept.id,
+            metadata={
+                "concept_id": concept.id,
+                "external_id": concept.external_id,
+                "category": concept.category,
+                "subskill": concept.subskill,
+                "score": progress.score,
+                "state": progress.state,
+                "reps": progress.reps,
+                # WP-L3: the concept's memory, as vocabulary and errata carry it.
+                "stability": float(progress.stability or 0.0),
+                "difficulty": float(progress.difficulty or 5.0),
+                "lapses": int(progress.lapses or 0),
+                "title_fr": concept_titles.get("fr") or concept.name,
+                "title_native": concept_titles.get(native_language) or concept.name,
+                "review_mode": "grammar",
+                "next_review": self._iso(progress.next_review),
+                "route": f"/grammar?concept={concept.id}",
+            },
+        )
+
     def _fetch_due_errors(
         self, user_id: UUID, now: datetime
     ) -> list[DueLearningItem]:
@@ -791,30 +1040,13 @@ class UnifiedSRSService:
         return min(priority, 100)  # Cap at 100
     
     def _interleave_random(self, items: list[DueLearningItem]) -> list[DueLearningItem]:
+        """Interleave with the Rappel rules (WP-L3), without a budget.
+
+        Research shows interleaving improves long-term retention by creating
+        "desirable difficulty" and forcing discrimination between concepts.
         """
-        Interleave items from different types while respecting priority.
-        
-        Research shows interleaving improves long-term retention by:
-        - Creating "desirable difficulty"
-        - Forcing discrimination between concepts
-        - Preventing blocked repetition fatigue
-        """
-        # Group by type
-        by_type: dict[ItemType, list[DueLearningItem]] = {t: [] for t in ItemType}
-        for item in items:
-            by_type[item.item_type].append(item)
-        
-        # Build interleaved queue
-        result = []
-        type_cycle = [ItemType.ERROR, ItemType.GRAMMAR, ItemType.CONJUGATION, ItemType.VOCAB]
-        
-        while any(by_type.values()):
-            for item_type in type_cycle:
-                if by_type[item_type]:
-                    result.append(by_type[item_type].pop(0))
-        
-        return result
-    
+        return interleave_review_items(items)
+
     def _apply_time_budget(
         self, items: list[DueLearningItem], budget_seconds: int
     ) -> list[DueLearningItem]:
@@ -982,6 +1214,13 @@ class UnifiedSRSService:
             score=score_map[fsrs_rating],
             notes=error.display_label or error.task_error_type or "errata review",
             source="unified_srs",
+            # An erratum repair is a transform of the learner's own line; «Bien»
+            # is a repair with effort, «Facile» without.
+            evidence=Evidence(
+                EvidenceFormat.TRANSFORM,
+                correct=fsrs_rating >= 2,
+                assisted=fsrs_rating == 2,
+            ),
         )
 
     def _credit_linked_vocabulary_from_error(
@@ -1011,4 +1250,8 @@ __all__ = [
     "DailyPracticeSession",
     "ItemType",
     "InterleavingMode",
+    "RAPPEL_ITEM_SECONDS",
+    "contrast_partner_refs",
+    "interleave_review_items",
+    "review_concept_key",
 ]

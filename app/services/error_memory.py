@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.error_concepts import get_concept_for_category, get_concept_for_pattern
-from app.core.srs.schedule import ScheduleState, schedule_next
+from app.core.srs import memory
+from app.core.srs.memory import Evidence, EvidenceFormat, MemoryState
 from app.db.models.atelier import AtelierAttempt
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.grammar import GrammarConcept
@@ -75,6 +76,39 @@ _LEGACY_STATES = {
 #: Spaced correct repairs required before an erratum is retired. Spaced means
 #: on distinct days: three repairs in one sitting prove recall, not retention.
 MASTERY_REQUIRED_REPAIRS = 3
+
+
+def erratum_repair_evidence(*, rating: int, repaired: bool) -> Evidence:
+    """A typed repair card: rewrite your own wrong line into the right one.
+
+    ``rating`` is the 0–4 grade the card (or a legacy caller) gives. A correct
+    repair is transform-level evidence; a 3 is a repair with help, a 4 without.
+    """
+
+    rating = max(0, min(4, int(rating)))
+    if repaired and rating >= 3:
+        return Evidence(EvidenceFormat.TRANSFORM, correct=True, assisted=rating < 4)
+    if rating >= 3:
+        # Right, but not a repair of the learner's line: recognition.
+        return Evidence(EvidenceFormat.RECOGNISE, correct=True)
+    # A failed repair is the learner writing the mistake again: an error in
+    # production, which is a lapse (back tomorrow, as WP-24 already had it).
+    return Evidence(EvidenceFormat.PRODUCE, correct=False)
+
+
+def erratum_memory_state(error: UserError) -> MemoryState:
+    """The erratum's memory; rows from the SM-2 era read their last interval."""
+
+    stability = float(error.stability or 0.0)
+    reps = int(error.reps or 0)
+    if reps > 0 and stability <= 0.0:
+        stability = float(max(1, int(error.scheduled_days or 1)))
+    return MemoryState(
+        stability=stability,
+        difficulty=float(error.difficulty or memory.DEFAULT_DIFFICULTY),
+        reps=reps,
+        lapses=int(error.lapses or 0),
+    )
 
 
 def normalize_error_state(value: Any) -> str:
@@ -388,8 +422,11 @@ class ErrorMemoryService:
             existing.state = ERROR_STATE_REPAIRING
             existing.mastery_streak = 0
             existing.mastered_at = None
-            existing.ease_factor = max(1.3, float(existing.ease_factor or 2.5) - 0.2)
-            existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.4)
+            # WP-L3: a recurrence is a lapse in the one memory model. The
+            # lapse itself was counted just above.
+            collapsed = memory.collapse(erratum_memory_state(existing))
+            existing.stability = collapsed.stability
+            existing.difficulty = collapsed.difficulty
             existing.updated_at = now
             self._update_error_concept(user=user, task_type=task_type, category=category)
             return self._serialize_update(existing, action="repeated")
@@ -465,14 +502,18 @@ class ErrorMemoryService:
         *,
         user: User,
         error_id: UUID,
-        rating: int,
-        repaired: bool,
+        rating: int = 0,
+        repaired: bool = False,
         now: datetime | None = None,
+        evidence: Evidence | None = None,
     ) -> UserError | None:
         """Grade one repair, schedule the next one, and retire the erratum if it is done.
 
-        Replaces the old two-branch day table (7 or 14 days on success, 1 on
-        failure, forever) with the shared SM-2 scheduler and the mastery exit:
+        WP-L3: scheduled by the one memory model (`app.core.srs.memory`), the
+        FSRS-style stability/difficulty the vocabulary and grammar use.
+        ``evidence`` says what the repair proved; without it ``rating`` (0–4)
+        and ``repaired`` are read as a typed repair card (a transform). The
+        mastery exit is unchanged:
 
         * a correct repair on a **new day** advances ``mastery_streak``;
         * a second correct repair on the **same day** re-schedules but does not
@@ -486,22 +527,18 @@ class ErrorMemoryService:
         if not error:
             return None
         now = now or datetime.now(UTC)
-        succeeded = bool(repaired) and int(rating) >= 3
-        decision = schedule_next(
-            now=now,
-            quality=max(0, min(4, int(rating))),
-            state=ScheduleState(
-                reps=int(error.reps or 0),
-                lapses=int(error.lapses or 0),
-                interval_days=int(error.scheduled_days or 0),
-                ease_factor=float(error.ease_factor or 2.5),
-                phase="review" if normalize_error_state(error.state) != ERROR_STATE_OPEN else "new",
-            ),
-            min_interval_days=1,
-        )
-        error.ease_factor = decision.ease_factor
-        error.scheduled_days = decision.interval_days
+        if evidence is None:
+            evidence = erratum_repair_evidence(rating=rating, repaired=repaired)
+        decision = memory.review(erratum_memory_state(error), evidence, now=now)
+        if decision is None:
+            return error
+        succeeded = bool(repaired) and decision.grade.is_success
         error.elapsed_days = self._elapsed_days(error, now)
+        error.stability = decision.stability
+        error.difficulty = decision.difficulty
+        error.scheduled_days = decision.interval_days
+        error.reps = decision.reps
+        error.lapses = decision.lapses
 
         if succeeded:
             spaced = self._is_new_day(error.last_correct_date, now)
@@ -519,7 +556,8 @@ class ErrorMemoryService:
             error.mastery_streak = 0
             error.mastered_at = None
 
-        error.mark_review(now, decision.due_at, rating)
+        error.last_review_date = now
+        error.next_review_date = decision.due_at
         error.updated_at = now
         self.db.add(error)
         return error
@@ -964,6 +1002,7 @@ def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[st
         "mastered_at": error.mastered_at.isoformat() if error.mastered_at else None,
         "interval_days": int(error.scheduled_days or 0),
         "ease_factor": round(float(error.ease_factor or 2.5), 3),
+        "stability": round(float(error.stability or 0.0), 3),
         "metadata": error.error_metadata or {},
     }
 
@@ -975,6 +1014,8 @@ __all__ = [
     "ERROR_STATE_REPAIRING",
     "MASTERY_REQUIRED_REPAIRS",
     "ErrorMemoryService",
+    "erratum_memory_state",
+    "erratum_repair_evidence",
     "normalize_error_state",
     "serialize_error_memory",
 ]
