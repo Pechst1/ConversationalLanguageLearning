@@ -1139,7 +1139,6 @@ function SerialEpisodeLead({
           {creating ? 'Recherche du fil' : pressing ? 'Voir où en est l’épisode' : 'Ouvrir l’épisode du jour'}
           {creating ? null : <ArrowRightIcon size={18} />}
         </button>
-        <p className="gn-hero-small">C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre.</p>
       </div>
     </section>
   );
@@ -1175,17 +1174,12 @@ function SerialEpisodeInJourney({
       <div className="body">
         <div className="k">Épisode {number} · dans la séance</div>
         <h2>L’épisode du jour se lit dans la séance.</h2>
-        <p className="gn-hero-p">
-          Votre histoire se joue avant de se lire : l’épisode s’ouvre au début de la séance du jour,
-          pas ici. Cette page garde les archives.
-        </p>
         <CastChips names={names} label="Personnages de cet épisode" />
         <button className="cta gn-hero-cta" type="button" disabled={creating} onClick={onOpenSerial}>
           {creating ? <SpinnerToken /> : null}
           {creating ? 'Recherche du fil' : 'Ouvrir la séance du jour'}
           {creating ? null : <ArrowRightIcon size={18} />}
         </button>
-        <p className="gn-hero-small">C’est l’épisode annoncé à La Une. Il continue votre saison ; il n’en ouvre pas une autre.</p>
       </div>
     </section>
   );
