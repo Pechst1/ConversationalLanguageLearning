@@ -43,7 +43,7 @@ import {
   textAnswerField,
   type ChoiceOption,
 } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import {
   checkAnswerLocally,
   correctOptionLocally,
@@ -96,7 +96,7 @@ import { useVoiceAnswer } from './useVoiceAnswer';
 import { MatchPairs } from './MatchPairs';
 import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
-import { CharacterTyping, StoryWriting, TypedReply, respondSpeaker } from './ReplyStage';
+import { CharacterSmiles, CharacterTyping, StoryWriting, TypedReply, respondSpeaker } from './ReplyStage';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -180,19 +180,43 @@ function StepFrame({
   label,
   headline,
   headlineLang,
+  speaker = null,
+  speakerMood = 'neutral',
   children,
 }: {
   label: React.ReactNode;
   headline: React.ReactNode;
   headlineLang?: string;
+  /** WP-D2: the headline is this character's line, said in a bubble beside their face. */
+  speaker?: JourneySpeaker | null;
+  speakerMood?: PortraitMood;
   children: React.ReactNode;
 }) {
+  const title = (
+    <h2 className="av2-headline" lang={headlineLang}>
+      {headline}
+    </h2>
+  );
   return (
     <section className="av2-stack av2-step">
       <p className="av2-label av2-label--story">{label}</p>
-      <h2 className="av2-headline" lang={headlineLang}>
-        {headline}
-      </h2>
+      {speaker ? (
+        <div className="av2-speech" data-mood={speakerMood}>
+          {/* Keyed on the mood, so the verdict's face pops in (at-pop). */}
+          <span key={speakerMood} className="av2-speech__face">
+            <CastPortrait
+              characterId={speaker.id || ''}
+              name={speaker.name}
+              mood={speakerMood}
+              size="md"
+              ring
+            />
+          </span>
+          <div className="av2-speech__bubble">{title}</div>
+        </div>
+      ) : (
+        title
+      )}
       {children}
     </section>
   );
@@ -749,12 +773,21 @@ export function RespondStepView({
   // letter block can never replace the character's line with a blank one.
   const letter = letterOf(step.prompt);
   const wide = widenCopy(copy);
+  // WP-D2: the character's line is said beside their face, which reacts to
+  // the verdict. A letter day keeps its subject headline and byline.
+  const saying = !letter && replier ? replier : null;
+  const sayingMood: PortraitMood =
+    feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
 
   return (
     <StepFrame
-      label={<Byline name={letter?.correspondent_name || step.prompt.character_name} />}
+      label={
+        saying ? saying.name : <Byline name={letter?.correspondent_name || step.prompt.character_name} />
+      }
       headline={letter ? letter.subject_fr : step.prompt.character_line_fr}
       headlineLang="fr"
+      speaker={saying}
+      speakerMood={sayingMood}
     >
       {letter && (
         <Surface shape="episode">
@@ -1131,6 +1164,8 @@ export function JourneyFeedbackView({
               />
             )}
           </FeedbackBand>
+          {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
+          {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}

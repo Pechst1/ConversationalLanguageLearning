@@ -20,6 +20,7 @@ import apiService, { SerialArchiveEpisode, SerialToday } from '@/services/api';
 import { getStoryEpisodes } from '@/services/daily-journey';
 import type { StoryEpisode } from '@/types/daily-journey';
 import { resolveMediaUrl } from '@/lib/media-url';
+import { CrEnvelope, crReadAndReplyLabel } from '@/components/courrier/Courrier';
 
 type CurrentEpisode = (SerialToday & Record<string, any>) | null;
 
@@ -129,10 +130,17 @@ export default function SerialSeasonPage() {
     'La suite de votre histoire vous attend.',
   );
   const heroIsJourney = String(heroEpisode?.status || '') === 'journey_required';
+  // WP-D7: a letter waiting in the Courrier is drawn as the sealed envelope,
+  // with its sender's face as the seal — a letter has no illustration.
+  const heroIsLetter = !heroIsJourney && heroEpisode?.kind === 'mission';
+  const heroBrief = (heroEpisode?.brief_payload || {}) as Record<string, any>;
+  const heroSender = firstText(...(Array.isArray(heroBrief.required_cast) ? heroBrief.required_cast : []));
+  const heroSenderName = firstText(heroBrief.correspondent_name, heroBrief.character_name);
   const heroCta = heroIsJourney
     ? 'Continuer la journée'
-    : heroEpisode?.kind === 'mission'
-      ? 'Répondre dans Le Courrier'
+    : heroIsLetter
+      ? // The serial payload carries no reading time; no minutes are invented.
+        crReadAndReplyLabel(null)
       : 'Lire et répondre';
 
   return (
@@ -177,7 +185,9 @@ export default function SerialSeasonPage() {
             {heroEpisode && heroHref && (
               <section className="fr-hero" aria-label="Épisode en cours">
                 <div className="art">
-                  {heroArt ? (
+                  {heroIsLetter ? (
+                    <CrEnvelope senderId={heroSender} senderName={heroSenderName} />
+                  ) : heroArt ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={heroArt} alt="" />
                   ) : (

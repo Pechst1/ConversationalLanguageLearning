@@ -58,6 +58,9 @@ export type {
   WordTilesProps,
 } from './Choice';
 
+export { CastPortrait } from './CastPortrait';
+export type { CastPortraitProps } from './CastPortrait';
+
 export {
   Artwork,
   Byline,

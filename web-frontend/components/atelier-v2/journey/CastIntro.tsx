@@ -11,7 +11,7 @@
 import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/onboarding/Portrait';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import type { CastIntroEntry, JourneySnapshot } from '@/types/daily-journey';
 
 export type { CastIntroEntry };

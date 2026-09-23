@@ -130,7 +130,7 @@ export function WordTiles({
   verdictLabel,
 }: WordTilesProps) {
   const byId = new Map(options.map((option) => [option.id, option]));
-  const remaining = options.filter((option) => !placed.includes(option.id));
+  const sentence = placed.map((id) => byId.get(id)?.textFr ?? '').join(' ');
 
   return (
     <div className="av2-tiles">
@@ -144,9 +144,20 @@ export function WordTiles({
         aria-live="polite"
         aria-label={label}
       >
-        {placed.length === 0
-          ? emptyHint
-          : placed.map((id) => byId.get(id)?.textFr ?? '').join(' ')}
+        {placed.length === 0 ? (
+          emptyHint
+        ) : (
+          <>
+            {/* WP-D7: placed words are tiles in the selected style. The
+                sentence is read once, whole, from the hidden line. */}
+            <span className="av2-sr">{sentence}</span>
+            {placed.map((id) => (
+              <span key={id} className="av2-tile" data-state="placed" aria-hidden="true">
+                {byId.get(id)?.textFr ?? ''}
+              </span>
+            ))}
+          </>
+        )}
         {verdict && (
           <span className="av2-tiles__mark" aria-hidden="true">
             {verdict === 'correct' ? <CheckIcon size={13} /> : <RepairIcon size={13} />}
@@ -155,19 +166,29 @@ export function WordTiles({
         {verdict && verdictLabel && <span className="av2-sr">{verdictLabel}</span>}
       </p>
 
+      {/* WP-D7: a placed word leaves its mould — a dashed slot of the same
+          width, in the same place — so the bank never reflows. */}
       <div className="av2-tiles__bank">
-        {remaining.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className="av2-tile"
-            lang="fr"
-            disabled={disabled}
-            onClick={() => onPlace(option.id)}
-          >
-            {option.textFr}
-          </button>
-        ))}
+        {options.map((option) =>
+          placed.includes(option.id) ? (
+            <span key={option.id} className="av2-tile av2-tile--mould" data-state="mould" aria-hidden="true">
+              <span className="av2-tile__ghost" lang="fr">
+                {option.textFr}
+              </span>
+            </span>
+          ) : (
+            <button
+              key={option.id}
+              type="button"
+              className="av2-tile"
+              lang="fr"
+              disabled={disabled}
+              onClick={() => onPlace(option.id)}
+            >
+              {option.textFr}
+            </button>
+          ),
+        )}
       </div>
 
       {placed.length > 0 && !disabled && (
