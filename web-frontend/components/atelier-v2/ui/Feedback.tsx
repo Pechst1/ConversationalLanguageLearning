@@ -122,6 +122,8 @@ export function Notice({ tone = 'plain', live = 'status', shape, children }: Not
 // ---------------------------------------------------------------------------
 
 export type ArtworkProps = {
+  /** WP-83: the screen's hero (Home's day card) loads eagerly, at high priority. */
+  eager?: boolean;
   url: string | null | undefined;
   /** Empty string marks the image decorative; otherwise a real description. */
   alt: string;
@@ -143,7 +145,7 @@ export type ArtworkProps = {
  * to a browser's broken-image glyph, and it reserves 16:9 either way so the
  * step does not reflow when the image resolves.
  */
-export function Artwork({ url, alt, fallbackLabel, collapseWhenAbsent = false }: ArtworkProps) {
+export function Artwork({ url, alt, fallbackLabel, collapseWhenAbsent = false, eager = false }: ArtworkProps) {
   const [failed, setFailed] = useState(false);
   const resolved = url ? resolveMediaUrl(url) || url : null;
 
@@ -163,7 +165,9 @@ export function Artwork({ url, alt, fallbackLabel, collapseWhenAbsent = false }:
       src={resolved}
       alt={alt}
       onError={() => setFailed(true)}
-      loading="lazy"
+      loading={eager ? 'eager' : 'lazy'}
+      // React 18 warns on the camelCase prop; the lowercase attribute is what browsers read.
+      {...(eager ? { fetchpriority: 'high' } : {})}
       decoding="async"
     />
   );

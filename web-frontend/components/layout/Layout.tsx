@@ -11,6 +11,13 @@ import {
   type AppTheme,
 } from '@/lib/app-preferences';
 import { resolveBrowserApiBaseUrl } from '@/services/api';
+import { chromeLanguage } from '@/lib/language-rule';
+import {
+  readLearnerLanguage,
+  readLearnerLevel,
+  rememberLearnerLanguage,
+  rememberLearnerLevel,
+} from '@/lib/learner-language';
 import { cn } from '@/lib/utils';
 import { useAppSession } from '@/lib/app-auth';
 import { isNativePlatform } from '@/lib/native-platform';
@@ -37,7 +44,13 @@ export default function Layout({ children, showSidebar = true, className }: Layo
   useEffect(() => {
     const stored = readStoredVisualSettings();
     applyVisualSettings(stored.theme, stored.fontSize);
-  }, []);
+    // WP-83: the cached chrome language until the profile answers. Signed
+    // out, the document stays French (_document), like the pages it serves.
+    if (status === 'loading') return;
+    document.documentElement.lang = status === 'authenticated'
+      ? chromeLanguage(readLearnerLanguage(), readLearnerLevel())
+      : 'fr';
+  }, [status]);
 
   useEffect(() => installViewportMetrics(), []);
 
@@ -67,6 +80,10 @@ export default function Layout({ children, showSidebar = true, className }: Layo
         });
         if (!response.ok) return;
         const settings = await response.json();
+        // WP-83: <html lang> follows the chrome language (WP-82's rule).
+        const language = rememberLearnerLanguage(settings.native_language);
+        const level = rememberLearnerLevel(settings.cefr_estimate);
+        document.documentElement.lang = chromeLanguage(language, level);
         persistVisualSettings(
           (settings.theme || 'system') as AppTheme,
           (settings.font_size || 'medium') as AppFontSize
@@ -82,23 +99,21 @@ export default function Layout({ children, showSidebar = true, className }: Layo
 
   return (
     <div className="app-root min-h-screen bg-[var(--app-paper)] text-[var(--app-ink)]">
+      {/* WP-83: the few notices still raised as toasts sit on the app's own
+          tokens (both themes), centred and clear of the Dynamic Island. */}
       <Toaster
-        position="top-right"
+        position="top-center"
+        containerStyle={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 16, right: 16 }}
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            style: {
-              background: '#10b981',
-            },
-          },
-          error: {
-            style: {
-              background: '#ef4444',
-            },
+            background: 'var(--app-sheet)',
+            color: 'var(--app-ink)',
+            borderRadius: 16,
+            boxShadow: '0 8px 24px rgb(0 0 0 / 0.18)',
+            fontFamily: 'var(--app-grotesk)',
+            fontSize: '0.9375rem',
+            maxWidth: 480,
           },
         }}
       />

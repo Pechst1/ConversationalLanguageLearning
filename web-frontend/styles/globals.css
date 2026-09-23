@@ -213,16 +213,26 @@
    inert. 14.5/16/19px moves the rem-based --t-* scale by -9%/+19% — a real
    change at both ends, still short of a reflow (--t-display stays under 53px
    and the phone shell is width-, not type-, bound). */
+/* WP-83 — Dynamic Type. No fixed px root: the three steps are percentages of
+   the reader's own default size (14.5/16/19 at a 16 px default), so a browser
+   or OS text-size setting moves the whole rem scale with it. In the iOS shell
+   the medium step is the system's Dynamic Type body size itself. */
 :root[data-font-size="small"] {
-  font-size: 14.5px;
+  font-size: 90.625%;
 }
 
 :root[data-font-size="medium"] {
-  font-size: 16px;
+  font-size: 100%;
 }
 
 :root[data-font-size="large"] {
-  font-size: 19px;
+  font-size: 118.75%;
+}
+
+@supports (font: -apple-system-body) {
+  html.is-native:not([data-font-size="small"]):not([data-font-size="large"]) {
+    font: -apple-system-body;
+  }
 }
 
 html,
@@ -245,6 +255,20 @@ body {
   font-feature-settings: "kern" 1;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+/* WP-83 — the one loader (RouteAuthGate): the av2 skeleton, clear of the
+   Dynamic Island and the side gutters. */
+.app-loading-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 720px;
+  min-height: 60vh;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 1.5rem) 1rem 1.5rem;
+  box-sizing: border-box;
 }
 
 .read-surface {

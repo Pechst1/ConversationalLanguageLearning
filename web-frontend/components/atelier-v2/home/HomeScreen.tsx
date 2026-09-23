@@ -567,7 +567,8 @@ function EpisodeArt({ episode }: { episode: HomeEpisode }) {
         className="av2-art"
         src={episode.artUrl}
         alt=""
-        loading="lazy"
+        // WP-83: the episode plate is Home's hero — it loads first.
+        loading="eager"
         decoding="async"
         onError={() => setFailed(true)}
       />
