@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.srs.schedule import interval_for_score
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 # WP-24: this used to be a five-branch day table copied from the Excel tracker
 # (30/14/7/3/1 days by score). A concept reviewed for the twentieth time was
@@ -412,7 +412,7 @@ class GrammarService:
         FrenchCoreGrammarCatalog(self.db).ensure_catalog(archive_legacy=True)
         catalog_filters = (
             GrammarConcept.active.is_(True),
-            GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+            GrammarConcept.catalog_version == active_catalog_version(),
         )
         total_concepts = (
             self.db.query(func.count(GrammarConcept.id))

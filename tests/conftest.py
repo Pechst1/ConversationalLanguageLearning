@@ -23,6 +23,10 @@ os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
 # rotation / story engine makes, so they keep that premise; tests/test_wp75_*
 # switch the first day on explicitly.
 os.environ.setdefault("ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", "false")
+# WP-L2: the suite describes the live v1 grammar catalogue; tests/test_wp_l2_*
+# switch the v2 syllabus on explicitly. Pinned so an owner's .env that flips
+# the catalogue does not silently change what the suite tests.
+os.environ.setdefault("ATELIER_GRAMMAR_CATALOG_VERSION", "v1")
 # The unauthenticated local-demo fallback (`app/api/deps.get_current_user_or_demo`)
 # is a developer convenience that the owner's `.env` switches on. Left to the
 # environment, the suite inherited it: three tests passed on that machine and
