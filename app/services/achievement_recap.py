@@ -338,8 +338,11 @@ def _measure_up(db: Session, user: User) -> None:
 
     The engine's own rule (``CEFRProgressService.recompute``), without its
     commit: the finish transaction owns that. Only an upward, measured move is
-    written here — a downward move keeps its own smoothing at the engine's
-    other recompute points, and a day that moved nothing writes nothing.
+    written as a new level — a downward move keeps its own smoothing at the
+    engine's other recompute points. WP-L7: a day that leaves the level where it
+    was still refreshes the stored payload (coverage, the épreuve's state, the
+    forecast) and the band's checkpoint row, so «A1.1 · 60 %» and
+    ``checkpoint_ready`` follow the day that moved them.
     """
 
     from app.db.models.cefr import UserCEFRProgressHistory
@@ -347,9 +350,18 @@ def _measure_up(db: Session, user: User) -> None:
 
     previous = str(getattr(user, "cefr_estimate", None) or "A1.1")
     with db.begin_nested():
-        payload = CEFRProgressService(db).recompute(user, source="daily_journey", persist=False)
+        payload = CEFRProgressService(db).recompute(user, source="daily_journey", persist=False, track=True)
         estimate = str(payload.get("estimate") or previous)
-        if payload.get("estimate_source") != "measured" or level_index(estimate) <= level_index(previous):
+        if level_index(estimate) < level_index(previous):
+            return
+        if payload.get("estimate_source") != "measured" or level_index(estimate) == level_index(previous):
+            stored = user.cefr_estimate_payload if isinstance(user.cefr_estimate_payload, dict) else {}
+            # Refresh only a payload already on the coverage rule: an older one
+            # is migrated by the engine's own persisted recompute (with its
+            # history row), never silently here.
+            if estimate == previous and stored.get("version") == payload.get("version"):
+                user.cefr_estimate_payload = payload
+                db.flush()
             return
         user.cefr_estimate = estimate
         user.cefr_estimate_payload = payload

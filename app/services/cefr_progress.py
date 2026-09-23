@@ -1,6 +1,24 @@
-"""Deterministic CEFR estimate and forecast service."""
+"""Deterministic CEFR estimate and forecast service.
+
+WP-L7 (2026-09-24): the level is **syllabus coverage plus a checkpoint**. The
+level shown is the sub-band the learner is working through; it rises when the
+band's épreuve is passed (:mod:`app.services.level_checkpoint`), which the
+story engine stages once the band's coverage is met
+(:mod:`app.services.level_coverage`: ≥ 85 % of its units held, ≥ 80 % of its
+core words known). The absolute counts that used to promote (``CEFR_THRESHOLDS``)
+could not be reached past A2.1 with the catalogue; their performance half
+survives as :data:`PERFORMANCE_GATES`, which only decides whether a placement or
+declaration still stands once in-app evidence exists.
+
+Kept from before: the placement / declaration prior is the floor until
+:data:`DECLARED_LEVEL_EVIDENCE_ATTEMPTS`; the down-step smoothing; and nobody's
+shown level drops on release day (the level shown before this rule is credited
+once, as ``release_floor``). WP-L8's forecast is
+:mod:`app.services.level_forecast`.
+"""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -10,25 +28,35 @@ from sqlalchemy.orm import Session
 
 from app.db.models.atelier import AtelierAttempt
 from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.daily_journey import DailyJourney
 from app.db.models.error import UserError
 from app.db.models.grammar import UserGrammarProgress
 from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.mission import RealWorldMissionAttempt
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
+from app.services.journey_rhythm import rhythm_of
 
-CEFR_PROGRESS_VERSION = "cefr-progress-v1"
+logger = logging.getLogger(__name__)
+
+CEFR_PROGRESS_VERSION = "cefr-progress-v2"
+#: The payload version written before the coverage rule (release-day compat).
+LEGACY_PROGRESS_VERSIONS = frozenset({"cefr-progress-v1"})
 CEFR_LEVELS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2")
 
-CEFR_THRESHOLDS: dict[str, dict[str, float]] = {
-    "A1.1": {"vocabulary": 0, "grammar": 0, "avg_score": 0.0, "max_error_rate": 1.0},
-    "A1.2": {"vocabulary": 300, "grammar": 20, "avg_score": 2.6, "max_error_rate": 0.42},
-    "A2.1": {"vocabulary": 700, "grammar": 45, "avg_score": 2.8, "max_error_rate": 0.38},
-    "A2.2": {"vocabulary": 1200, "grammar": 75, "avg_score": 3.0, "max_error_rate": 0.34},
-    "B1.1": {"vocabulary": 2000, "grammar": 110, "avg_score": 3.1, "max_error_rate": 0.3},
-    "B1.2": {"vocabulary": 2800, "grammar": 150, "avg_score": 3.2, "max_error_rate": 0.26},
-    "B2.1": {"vocabulary": 3800, "grammar": 210, "avg_score": 3.3, "max_error_rate": 0.22},
-    "B2.2": {"vocabulary": 5000, "grammar": 280, "avg_score": 3.4, "max_error_rate": 0.18},
+#: WP-L7: the performance half of the old thresholds. It no longer promotes
+#: anyone; once there is enough in-app evidence it decides how much of a
+#: placement or declaration still stands (the highest band at or below the prior
+#: whose gate the recent work meets).
+PERFORMANCE_GATES: dict[str, dict[str, float]] = {
+    "A1.1": {"avg_score": 0.0, "max_error_rate": 1.0},
+    "A1.2": {"avg_score": 2.6, "max_error_rate": 0.42},
+    "A2.1": {"avg_score": 2.8, "max_error_rate": 0.38},
+    "A2.2": {"avg_score": 3.0, "max_error_rate": 0.34},
+    "B1.1": {"avg_score": 3.1, "max_error_rate": 0.3},
+    "B1.2": {"avg_score": 3.2, "max_error_rate": 0.26},
+    "B2.1": {"avg_score": 3.3, "max_error_rate": 0.22},
+    "B2.2": {"avg_score": 3.4, "max_error_rate": 0.18},
 }
 
 
@@ -129,12 +157,32 @@ class CEFRProgressService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def recompute(self, user: User, *, source: str = "recompute", persist: bool = True) -> dict[str, Any]:
+    def recompute(
+        self,
+        user: User,
+        *,
+        source: str = "recompute",
+        persist: bool = True,
+        track: bool | None = None,
+    ) -> dict[str, Any]:
+        """Compute the estimate. ``persist`` stores it and commits; ``track``
+        (default: ``persist``) writes the checkpoint rows — the held units of the
+        band in force, ``ready``, the release-day and confirmed-prior credits —
+        with a flush only, for callers that own their transaction."""
+
+        from app.services import level_checkpoint as checkpoints
+
+        track = persist if track is None else track
         now = datetime.now(UTC)
         signals = self._signals(user=user, now=now)
-        computed_level = self._computed_level(signals)
-        measured_level = self._smooth_level(user=user, computed_level=computed_level)
         placement = placement_prior(self.db, user)
+        rows = checkpoints.rows_by_band(self.db, user.id)
+        release_floor = self._release_floor(user=user, placement=placement)
+        confirmed_prior = self._confirmed_prior(user=user, signals=signals, placement=placement)
+        computed_level = self._computed_level(
+            rows=rows, release_floor=release_floor, confirmed_prior=confirmed_prior
+        )
+        measured_level = self._smooth_level(user=user, computed_level=computed_level)
         estimate_level, estimate_source = self._estimate_with_declaration(
             user=user,
             signals=signals,
@@ -142,6 +190,24 @@ class CEFRProgressService:
             placement=placement,
         )
         target_level = self._target_level(user=user, estimate_level=estimate_level)
+        if track:
+            # Durable credits: the release-day level and a confirmed prior close
+            # the band below them for good, whatever later happens to the payload.
+            for level, credit_source in (
+                (release_floor, checkpoints.SOURCE_RELEASE),
+                (confirmed_prior, checkpoints.SOURCE_PRIOR_CONFIRMED),
+            ):
+                below = _band_below(level)
+                if below and (below not in rows or rows[below].status not in checkpoints.CLOSED_STATES):
+                    rows[below] = checkpoints.credit_band(self.db, user.id, below, source=credit_source, now=now)
+        level_state = self._level_state(
+            user=user,
+            band=estimate_level,
+            rows=rows,
+            signals=signals,
+            now=now,
+            persist=track,
+        )
         payload = self._payload(
             user=user,
             signals=signals,
@@ -150,6 +216,8 @@ class CEFRProgressService:
             estimate_source=estimate_source,
             target_level=target_level,
             placement=placement,
+            level_state=level_state,
+            release_floor=release_floor,
             now=now,
         )
         if persist:
@@ -199,10 +267,17 @@ class CEFRProgressService:
             "target": target,
             "next_level": next_cefr_level(estimate),
             "signals": {},
-            "thresholds": CEFR_THRESHOLDS,
+            "thresholds": PERFORMANCE_GATES,
             "forecast": None,
+            "coverage": None,
+            "checkpoint": None,
+            "level_label": estimate,
             "today_delta": {"words_active": 0, "concepts_active": 0, "attempts": 0},
         }
+
+    # ------------------------------------------------------------------
+    # Signals
+    # ------------------------------------------------------------------
 
     def _signals(self, *, user: User, now: datetime) -> CEFRSignals:
         start_14 = now - timedelta(days=14)
@@ -306,20 +381,169 @@ class CEFRProgressService:
                 created = row[0]
                 if created:
                     days.add(created.date().isoformat())
+        # WP-L8: a finished daily journey is an active day too — it is where
+        # most of the learning now happens.
+        journeys = (
+            self.db.query(DailyJourney.local_date)
+            .filter(
+                DailyJourney.user_id == user.id,
+                DailyJourney.completed_at.isnot(None),
+                DailyJourney.completed_at >= start,
+            )
+            .all()
+        )
+        days.update(row[0].isoformat() for row in journeys if row[0])
         return sorted(days)
 
-    def _computed_level(self, signals: CEFRSignals) -> str:
-        estimate = "A1.1"
-        for level in CEFR_LEVELS:
-            threshold = CEFR_THRESHOLDS[level]
+    # ------------------------------------------------------------------
+    # The level
+    # ------------------------------------------------------------------
+
+    def _release_floor(self, *, user: User, placement: dict[str, Any] | None) -> str | None:
+        """The level this learner was shown before the coverage rule, if it must hold.
+
+        WP-L7's release rule: **no learner's shown level drops on release day**.
+        A level the old threshold walk *measured* is credited once. A level that
+        only stands on a placement or declaration is not: it keeps its existing
+        rule (a floor until 40 attempts, then the evidence decides). Carried
+        forward in every payload (``release_floor``) and written as a
+        ``credited`` checkpoint row on the first persisted recompute.
+        """
+
+        payload = user.cefr_estimate_payload if isinstance(getattr(user, "cefr_estimate_payload", None), dict) else {}
+        if payload.get("version") == CEFR_PROGRESS_VERSION:
+            carried = payload.get("release_floor")
+            return str(carried) if carried in CEFR_LEVELS else None
+        shown = str(getattr(user, "cefr_estimate", None) or "A1.1")
+        if shown not in CEFR_LEVELS or level_index(shown) <= 0:
+            return None
+        if payload:
+            # A payload from before the coverage rule (v1, or older and unversioned).
+            return shown if payload.get("estimate_source") == "measured" else None
+        # No payload at all: the shown level stands on the column. Above the
+        # prior, nothing but a measurement can have put it there.
+        prior = (placement or {}).get("level") or declared_level_floor(user)
+        if prior is None or level_index(shown) > level_index(str(prior)):
+            return shown
+        return None
+
+    def _confirmed_prior(
+        self,
+        *,
+        user: User,
+        signals: CEFRSignals,
+        placement: dict[str, Any] | None,
+    ) -> str | None:
+        """How much of a placement / declaration the in-app evidence confirms.
+
+        Only once :data:`DECLARED_LEVEL_EVIDENCE_ATTEMPTS` exist: the highest band
+        at or below the prior whose :data:`PERFORMANCE_GATES` the recent work
+        meets (walking up from A1.1, stopping at the first gate missed). A B1 who
+        writes like a B1 is not sent back to prove A1.1's épreuve; one who does
+        not falls back, as the old walk made them fall.
+        """
+
+        if signals.recent_attempt_count < DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
+            return None
+        prior = str(placement["level"]) if placement and placement.get("level") else declared_level_floor(user)
+        if not prior or prior not in CEFR_LEVELS:
+            return None
+        confirmed = None
+        for level in CEFR_LEVELS[: level_index(prior) + 1]:
+            gate = PERFORMANCE_GATES[level]
             if (
-                signals.mastered_vocabulary >= threshold["vocabulary"]
-                and signals.mastered_grammar >= threshold["grammar"]
-                and signals.recent_average_score >= threshold["avg_score"]
-                and signals.recent_error_rate <= threshold["max_error_rate"]
+                signals.recent_average_score >= gate["avg_score"]
+                and signals.recent_error_rate <= gate["max_error_rate"]
             ):
-                estimate = level
-        return estimate
+                confirmed = level
+            else:
+                break
+        return confirmed if confirmed and level_index(confirmed) > 0 else None
+
+    @staticmethod
+    def _computed_level(
+        *,
+        rows: dict[str, Any],
+        release_floor: str | None,
+        confirmed_prior: str | None,
+    ) -> str:
+        """The band the evidence puts the learner in: one above the highest closed band."""
+
+        from app.services.level_checkpoint import highest_closed_band
+
+        level = "A1.1"
+        closed = highest_closed_band(rows)
+        if closed:
+            level = next_cefr_level(closed) or closed
+        for floor in (release_floor, confirmed_prior):
+            if floor and level_index(floor) > level_index(level):
+                level = floor
+        return level
+
+    def _level_state(
+        self,
+        *,
+        user: User,
+        band: str,
+        rows: dict[str, Any],
+        signals: CEFRSignals,
+        now: datetime,
+        persist: bool,
+    ) -> dict[str, Any]:
+        """Coverage of the band in force, its checkpoint and the forecast. Never raises."""
+
+        from app.services import level_checkpoint as checkpoints
+        from app.services.level_coverage import band_coverage, held_unit_ids
+        from app.services.level_forecast import build_forecast, rhythm_priors
+
+        state: dict[str, Any] = {"coverage": None, "checkpoint": None, "forecast": None, "rhythm_priors": None}
+        try:
+            row = rows.get(band)
+            held_now = held_unit_ids(self.db, user, now=now)
+            # WP-L7: a unit once held stays counted in its band's coverage — a
+            # lapse makes it fragile and it comes back in the reviews; it does
+            # not uncover the band.
+            held_before = checkpoints.held_ever(row)
+            closed = row is not None and row.status in checkpoints.CLOSED_STATES
+            coverage = band_coverage(
+                self.db,
+                user,
+                band,
+                now=now,
+                held=held_now | held_before,
+                checkpoint_passed=closed,
+            )
+            if persist and not closed:
+                band_held = held_before | (held_now & set(coverage.unit_ids))
+                if band_held != held_before or (coverage.coverage_met and (row is None or row.status == checkpoints.STATE_OPEN)):
+                    row = checkpoints.track_band(
+                        self.db,
+                        user.id,
+                        band,
+                        held_unit_ids=band_held,
+                        coverage_met=coverage.coverage_met,
+                        now=now,
+                    )
+                    rows[band] = row
+            view = checkpoints.checkpoint_view(band, row, coverage_met=coverage.coverage_met, now=now)
+            state["coverage"] = coverage
+            state["checkpoint"] = view
+            state["forecast"] = build_forecast(
+                self.db,
+                user,
+                coverage=coverage,
+                checkpoint=view,
+                active_days=signals.active_days_14,
+                target=next_cefr_level(band),
+                now=now,
+            )
+        except Exception:  # pragma: no cover - a level must never 500 an endpoint
+            logger.exception("cefr_progress: coverage could not be computed")
+        try:
+            state["rhythm_priors"] = rhythm_priors(now=now)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("cefr_progress: rhythm priors could not be computed")
+        return state
 
     def _estimate_with_declaration(
         self,
@@ -332,15 +556,16 @@ class CEFRProgressService:
         """Reconcile what the learner said, what a placement measured, and what
         the app has actually seen.
 
-        A self-declared B1 who has just signed up has mastered nothing *in this
-        app*, so the threshold walk puts them at A1.1 and the front page tells
-        them they are a beginner with 0 of 300 words. That is not an estimate,
-        it is an artefact of an empty database.
+        A self-declared B1 who has just signed up has covered nothing *in this
+        app*, so the evidence alone puts them at A1.1 and the front page would
+        tell them they are a beginner. That is not an estimate, it is an
+        artefact of an empty database.
 
         Until there is enough in-app work to argue with (DECLARED_LEVEL_EVIDENCE_
         ATTEMPTS), a **prior** is the floor. After that the measurement wins
         outright, including downwards -- a prior is a starting point, not a
-        permanent claim.
+        permanent claim (WP-L7: :meth:`_confirmed_prior` is how much of it the
+        evidence keeps).
 
         WP-25 gives that prior a better source than the learner's own guess. The
         order is placement, then declaration, then nothing: a placement is five
@@ -407,9 +632,12 @@ class CEFRProgressService:
         estimate_source: str,
         target_level: str,
         now: datetime,
+        level_state: dict[str, Any],
+        release_floor: str | None = None,
         placement: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        forecast = self._forecast(signals=signals, estimate_level=estimate_level, target_level=target_level, now=now)
+        coverage = level_state.get("coverage")
+        coverage_dict = coverage.as_dict() if coverage is not None else None
         return {
             "version": CEFR_PROGRESS_VERSION,
             "estimate": estimate_level,
@@ -425,15 +653,25 @@ class CEFRProgressService:
             "computed_estimate": computed_level,
             "target": target_level,
             "next_level": next_cefr_level(estimate_level),
-            "daily_minutes": int(getattr(user, "daily_goal_minutes", None) or 20),
+            # WP-L6: the rhythm's minutes (10 = Régulier when nothing is stored).
+            "daily_minutes": int(getattr(user, "daily_goal_minutes", None) or 10),
+            "rhythm": rhythm_of(user),
             "signals": signals.as_dict(),
-            "thresholds": CEFR_THRESHOLDS,
+            "thresholds": PERFORMANCE_GATES,
+            # WP-L7: «A1.1 · 60 %», the coverage behind it, and the épreuve.
+            "level_label": coverage_dict["label"] if coverage_dict else estimate_level,
+            "coverage": coverage_dict,
+            "checkpoint": level_state.get("checkpoint"),
+            "release_floor": release_floor,
             "breakdown": self._breakdown(
                 signals=signals,
-                target_level=target_level,
+                coverage=coverage_dict,
                 estimate_source=estimate_source,
             ),
-            "forecast": forecast,
+            # WP-L8: an estimate — the rhythm's prior before 7 active days,
+            # measured after. Never a promise.
+            "forecast": level_state.get("forecast"),
+            "rhythm_priors": level_state.get("rhythm_priors"),
             "today_delta": {
                 "words_active": signals.today_words_active,
                 "concepts_active": signals.today_concepts_active,
@@ -443,8 +681,15 @@ class CEFRProgressService:
         }
 
     @staticmethod
-    def _breakdown(*, signals: CEFRSignals, target_level: str, estimate_source: str = "measured") -> dict[str, Any]:
-        threshold = CEFR_THRESHOLDS.get(target_level, CEFR_THRESHOLDS["A1.2"])
+    def _breakdown(
+        *,
+        signals: CEFRSignals,
+        coverage: dict[str, Any] | None,
+        estimate_source: str = "measured",
+    ) -> dict[str, Any]:
+        coverage = coverage or {}
+        units = coverage.get("units") or {}
+        words = coverage.get("words") or {}
         return {
             # These counters only ever count what this app has verified. Against a
             # self-declared level they are not a measure of the learner's French,
@@ -453,72 +698,38 @@ class CEFRProgressService:
             # count in-app work, of which a freshly-placed learner has none --
             # so a placement estimate leaves them unverified too, and says why.
             "status": "unverified" if estimate_source in {"declared", "placement"} else "measured",
+            "band": coverage.get("band"),
+            "percent": coverage.get("percent"),
+            # WP-L7: words known / the band's words needed; units held / needed.
             "vocabulary": {
-                "current": signals.mastered_vocabulary,
-                "target": int(threshold["vocabulary"]),
+                "current": int(words.get("known") or 0),
+                "target": int(words.get("required") or 0),
+                "total": int(words.get("total") or 0),
             },
             "grammar": {
-                "current": signals.mastered_grammar,
-                "target": int(threshold["grammar"]),
+                "current": int(units.get("held") or 0),
+                "target": int(units.get("required") or 0),
+                "total": int(units.get("total") or 0),
             },
-            "score": {
-                "current": signals.recent_average_score,
-                "target": threshold["avg_score"],
-            },
-            "error_rate": {
-                "current": signals.recent_error_rate,
-                "target": threshold["max_error_rate"],
-            },
+            "score": {"current": signals.recent_average_score},
+            "error_rate": {"current": signals.recent_error_rate},
         }
 
-    @staticmethod
-    def _forecast(*, signals: CEFRSignals, estimate_level: str, target_level: str, now: datetime) -> dict[str, Any] | None:
-        if not target_level or target_level == estimate_level:
-            return None
-        if signals.active_days_14 < 7:
-            return {
-                "status": "insufficient_data",
-                "message": "Come back after 7 active days for a forecast.",
-                "active_days_14": signals.active_days_14,
-            }
-        threshold = CEFR_THRESHOLDS[target_level]
-        words_gap = max(0.0, threshold["vocabulary"] - signals.mastered_vocabulary)
-        grammar_gap = max(0.0, threshold["grammar"] - signals.mastered_grammar)
-        words_per_day = signals.words_mastered_14 / 14.0
-        concepts_per_day = signals.concepts_mastered_14 / 14.0
-        if (words_gap and words_per_day <= 0) or (grammar_gap and concepts_per_day <= 0):
-            return {
-                "status": "too_slow",
-                "message": "A forecast needs a steadier recent pace.",
-                "active_days_14": signals.active_days_14,
-            }
-        days = 0.0
-        if words_gap:
-            days = max(days, words_gap / max(words_per_day, 0.01))
-        if grammar_gap:
-            days = max(days, grammar_gap / max(concepts_per_day, 0.01))
-        days = min(365.0, max(1.0, days))
-        low_days = int(max(1, round(days * 0.85)))
-        high_days = int(max(low_days, round(days * 1.25)))
-        projected = now + timedelta(days=round(days))
-        return {
-            "status": "available",
-            "target": target_level,
-            "projected_date": projected.date().isoformat(),
-            "range_days": [low_days, high_days],
-            "pace": {
-                "words_per_day": round(words_per_day, 2),
-                "concepts_per_day": round(concepts_per_day, 2),
-            },
-        }
+
+def _band_below(level: str | None) -> str | None:
+    if not level or level not in CEFR_LEVELS:
+        return None
+    index = level_index(level)
+    return CEFR_LEVELS[index - 1] if index > 0 else None
 
 
 __all__ = [
     "CEFR_LEVELS",
     "CEFR_PROGRESS_VERSION",
-    "CEFR_THRESHOLDS",
     "DECLARED_LEVEL_EVIDENCE_ATTEMPTS",
     "DECLARED_LEVEL_FLOOR",
+    "LEGACY_PROGRESS_VERSIONS",
+    "PERFORMANCE_GATES",
     "CEFRProgressService",
     "declared_level_floor",
     "placement_prior",
