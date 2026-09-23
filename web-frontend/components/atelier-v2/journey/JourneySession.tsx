@@ -63,6 +63,7 @@ import {
   RecallStepView,
   RespondStepView,
   ResolutionStepView,
+  RuleStepView,
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { journeySpeaker } from './journey-faces';
@@ -261,6 +262,16 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   onContinue={actions.continueJourney}
                   onExit={onExit}
                   speaker={speaker}
+                />
+              )}
+              {step.kind === 'rule' && (
+                // WP-L4 «Règle»: the new unit's rule card, then its guided items.
+                <RuleStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  language={chromeLanguage}
+                  onContinue={actions.continueJourney}
                 />
               )}
               {step.kind === 'recall' && (

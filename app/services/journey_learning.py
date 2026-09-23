@@ -49,7 +49,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.srs.memory import Evidence, EvidenceFormat
+from app.core.srs.memory import Evidence, EvidenceFormat, format_for_name
 from app.db.models.grammar import GrammarConcept
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
@@ -180,6 +180,33 @@ JOURNEY_EVIDENCE: dict[EvidenceKind, Evidence] = {
     EvidenceKind.PRODUCED_INDEPENDENT: Evidence(EvidenceFormat.PRODUCE, correct=True),
     EvidenceKind.NOT_YET: Evidence(EvidenceFormat.PRODUCE, correct=False),
 }
+
+
+def grammar_journey_evidence(
+    evidence_kind: EvidenceKind,
+    *,
+    task_format: str | None = None,
+    assistance: AssistanceLevel = AssistanceLevel.NONE,
+) -> Evidence:
+    """WP-L4: what one journey observation proves about a grammar unit.
+
+    A reply (no format) is free production (:data:`JOURNEY_EVIDENCE`). A
+    recall item proves what its format proves: a pick is recognition, tiles and
+    a word bank are guided, a transform is a transform — so an intro day's
+    guided items write weak and medium evidence, and only the reply writes
+    strong evidence. A wrong answer in an easier format is a Hard, not a lapse.
+    """
+
+    fmt = format_for_name(task_format) if task_format else None
+    if fmt is None or fmt is EvidenceFormat.PRODUCE:
+        return JOURNEY_EVIDENCE[evidence_kind]
+    return Evidence(
+        fmt,
+        correct=evidence_kind is not EvidenceKind.NOT_YET,
+        assisted=strongest_assistance([assistance]) is not AssistanceLevel.NONE
+        or evidence_kind is EvidenceKind.PRODUCED_SUPPORTED,
+    )
+
 
 #: Vocabulary credit events (``app.services.vocabulary_credit``).
 VOCABULARY_EVIDENCE_EVENT: dict[EvidenceKind, str] = {
@@ -534,8 +561,14 @@ def select_learning_candidates(
     limit: int = 3,
     now: datetime | None = None,
     new_word_quota: int | None = None,
+    budget_seconds: int | None = None,
 ) -> list[LearningCandidate]:
     """Existing due/fragile identities the learner already owns, ranked for this scene.
+
+    WP-L4: on a practice day the due grammar units come from the one Rappel
+    queue (``UnifiedSRSService.plan_review_items``), at most
+    :func:`grammar_rappel_room` of them, and every grammar candidate carries
+    its unit brief (``metadata["grammar_brief"]``) so the planner can pose it.
 
     Read-only. No due date is moved to fit a scene and nothing is marked
     reviewed: an omitted candidate stays exactly as due as it was. When the
@@ -705,7 +738,117 @@ def select_learning_candidates(
                 exclude={c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY},
             )
         )
-    return selected
+        selected = _with_grammar_rappel(
+            db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
+        )
+    return _with_grammar_briefs(db, user=user, candidates=selected)
+
+
+#: WP-L4 — due grammar units a day's Rappel poses, by rhythm budget. One
+#: interleaved item per unit (§2.4), and never more than the Réemploi's two a
+#: day on the shortest rhythm's scale.
+GRAMMAR_RAPPEL_ROOM: dict[int, int] = {300: 1, 600: 2, 1200: 3, 1800: 4}
+
+
+def grammar_rappel_room(budget_seconds: int | None) -> int:
+    from app.services.journey_contracts import rhythm_caps
+
+    return GRAMMAR_RAPPEL_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 1)
+
+
+def _with_grammar_rappel(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """Due grammar from the one Rappel queue, in its interleaved order."""
+
+    room = grammar_rappel_room(budget_seconds)
+    present = {c.target.id for c in selected if c.target.kind is TargetKind.GRAMMAR}
+    room -= len(present)
+    if room <= 0:
+        return selected
+    try:
+        queue = UnifiedSRSService(db).plan_review_items(
+            user.id, budget_seconds=int(budget_seconds or 300), now=now
+        )
+    except Exception:  # pragma: no cover - a queue that cannot be read costs the items
+        logger.exception("journey_grammar_rappel_unavailable")
+        return selected
+    extra: list[LearningCandidate] = []
+    for item in queue:
+        if item.item_type is not ItemType.GRAMMAR or room <= 0:
+            continue
+        target = _target_ref_for_item(item)
+        if target is None or target.id in present:
+            continue
+        present.add(target.id)
+        room -= 1
+        extra.append(
+            LearningCandidate(
+                target=target,
+                priority_score=float(item.priority_score or 0.0),
+                due_since_days=int(item.due_since_days or 0),
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(item.item_type),
+                metadata={
+                    "queue_item_id": item.id,
+                    "original_id": str(item.original_id),
+                    "rappel": True,
+                    **{
+                        key: item.metadata.get(key)
+                        for key in ("concept_id", "state", "lapses", "stability", "review_mode")
+                        if key in (item.metadata or {})
+                    },
+                },
+            )
+        )
+    return [*selected, *extra]
+
+
+def _with_grammar_briefs(
+    db: Session, *, user: User, candidates: list[LearningCandidate]
+) -> list[LearningCandidate]:
+    """Attach each grammar candidate's unit brief (what the planner poses it from)."""
+
+    if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
+        return candidates
+    from app.services.concept_life import concept_brief
+    from app.services.journey_contracts import normalize_control_language
+
+    language = normalize_control_language(getattr(user, "native_language", None))
+    out: list[LearningCandidate] = []
+    for candidate in candidates:
+        if candidate.target.kind is not TargetKind.GRAMMAR:
+            out.append(candidate)
+            continue
+        try:
+            concept = db.get(GrammarConcept, int(candidate.target.id))
+            brief = (
+                concept_brief(
+                    db,
+                    concept,
+                    control_language=language,
+                    stability=(candidate.metadata or {}).get("stability"),
+                )
+                if concept is not None
+                else None
+            )
+        except Exception:  # pragma: no cover - a brief is never worth the day
+            logger.exception("journey_grammar_brief_unavailable")
+            brief = None
+        if brief is None:
+            out.append(candidate)
+            continue
+        out.append(
+            replace(candidate, metadata={**dict(candidate.metadata or {}), "grammar_brief": brief})
+        )
+    return out
 
 
 def _lexicon_label(word: Any) -> str:
@@ -1331,6 +1474,9 @@ def evaluate_recall(
         # WP-86. Knowing who said a line is reading the story, not knowing the
         # word the line holds: the item is graded, and nothing is scheduled.
         observation = None
+    if observation is not None:
+        # WP-L4: a grammar unit is credited with the weight of the format.
+        observation = replace(observation, task_format=task.task_type)
     correction = None
     if not is_correct:
         correction = build_correction(
@@ -1680,6 +1826,8 @@ def _apply_grammar_credit(
     target: TargetRef,
     evidence_kind: EvidenceKind,
     now: datetime,
+    task_format: str | None = None,
+    assistance: AssistanceLevel = AssistanceLevel.NONE,
 ) -> _CreditOutcome:
     """Grammar credit written through the caller's transaction.
 
@@ -1702,7 +1850,10 @@ def _apply_grammar_credit(
     progress = GrammarService(db).get_or_create_progress(user_id=user.id, concept_id=concept_id)
     # WP-L3: the one door (`apply_grammar_evidence`), with the weight of what
     # the journey observed; the concept's own memory carries the history.
-    apply_grammar_evidence(progress, JOURNEY_EVIDENCE[evidence_kind], now=now, score=score)
+    evidence = grammar_journey_evidence(
+        evidence_kind, task_format=task_format, assistance=assistance
+    )
+    apply_grammar_evidence(progress, evidence, now=now, score=score)
     note = f"[{JOURNEY_SOURCE_TYPE}] {evidence_kind}"
     if not is_machine_note(note) or not personal_note(progress.notes):
         progress.notes = note
@@ -1717,8 +1868,73 @@ def _apply_grammar_credit(
             "state": progress.state,
             "next_review": progress.next_review.isoformat(),
             "stability": progress.stability,
+            "evidence_format": str(evidence.format),
         },
     )
+
+
+def _grammar_success_credited_today(
+    db: Session, *, user: User, concept_id: str, observed_on: date
+) -> bool:
+    """WP-L4: a journey success already moved this unit's schedule today.
+
+    One day, one success on the schedule (D-0's «one séance, one credit»
+    inside the journey): an introduction day's guided items and its reply
+    all see the unit, and only the first success schedules it. A failure
+    always lands, and the life (``note_concept_evidence``) sees every use.
+    """
+
+    stmt = select(SessionLearningMoment).where(
+        SessionLearningMoment.user_id == user.id,
+        SessionLearningMoment.source_type == JOURNEY_SOURCE_TYPE,
+        SessionLearningMoment.kind == JOURNEY_MOMENT_KIND_BY_TARGET[TargetKind.GRAMMAR],
+        SessionLearningMoment.srs_credit_applied.is_(True),
+    )
+    for moment in db.execute(stmt).scalars():
+        payload = dict(moment.prompt_payload or {})
+        if str(payload.get("observed_on") or "") != observed_on.isoformat():
+            continue
+        if str((payload.get("target") or {}).get("id") or "") != str(concept_id):
+            continue
+        result = dict(moment.result_payload or {})
+        if str(result.get("evidence_kind") or "") != str(EvidenceKind.NOT_YET):
+            return True
+    return False
+
+
+def _note_folded_grammar_use(
+    db: Session,
+    *,
+    user: User,
+    observation: TargetObservation,
+    evidence_kind: EvidenceKind,
+    now: datetime,
+) -> None:
+    """A folded success still counts for the unit's life (free use, spaced item)."""
+
+    try:
+        concept_id = int(observation.target.id)
+    except (TypeError, ValueError):
+        return
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.concept_life import note_concept_evidence
+
+    progress = (
+        db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept_id)
+        .first()
+    )
+    if progress is None:
+        return
+    note_concept_evidence(
+        progress,
+        grammar_journey_evidence(
+            evidence_kind, task_format=observation.task_format, assistance=observation.assistance
+        ),
+        now=now,
+    )
+    db.add(progress)
+    db.flush([progress])
 
 
 def _apply_error_credit(
@@ -1822,7 +2038,8 @@ def _credit_for(
         )
     if target.kind is TargetKind.GRAMMAR:
         return _apply_grammar_credit(
-            db, user=user, target=target, evidence_kind=evidence_kind, now=now
+            db, user=user, target=target, evidence_kind=evidence_kind, now=now,
+            task_format=observation.task_format, assistance=observation.assistance,
         )
     if target.kind is TargetKind.ERROR:
         return _apply_error_credit(
@@ -1840,11 +2057,15 @@ def _record_correction_erratum(
     modality: InputMode,
     source_key: str,
     foreground: bool,
+    concept_id_hint: int | None = None,
 ) -> dict[str, Any] | None:
     service = ErrorMemoryService(db)
     # WP-L1: the erratum names its concept, as `record_detected_error` does, so
     # the mistake can make that concept due and a later repair can credit it.
-    concept_id = service.infer_concept_id_for_correction(
+    # WP-L4: when the step itself observed one grammar unit going wrong (a
+    # guided item, or a reply the unit's detector saw), the erratum is that
+    # unit's — so its lapse is booked once, and its repair credits it.
+    concept_id = concept_id_hint or service.infer_concept_id_for_correction(
         learner_text=correction.span_fr,
         corrected_text=correction.corrected_fr,
         note=correction.note_native,
@@ -2130,8 +2351,22 @@ def apply_learning_evidence(
                 source_type="atelier",
             )
         )
+        folded_reason = "credited_in_drill_today"
+        if (
+            not folded
+            and evidence_kind is not EvidenceKind.NOT_YET
+            and observation.target.kind is TargetKind.GRAMMAR
+            and _grammar_success_credited_today(
+                db, user=user, concept_id=str(observation.target.id), observed_on=observed_on
+            )
+        ):
+            folded, folded_reason = True, "credited_in_journey_today"
+        if folded and observation.target.kind is TargetKind.GRAMMAR:
+            _note_folded_grammar_use(
+                db, user=user, observation=observation, evidence_kind=evidence_kind, now=now
+            )
         credit = (
-            _CreditOutcome(False, {"skipped": "credited_in_drill_today"})
+            _CreditOutcome(False, {"skipped": folded_reason})
             if folded else _credit_for(
                 db, user=user, observation=observation, evidence_kind=evidence_kind,
                 session=session, source_key=source_key, now=now,
@@ -2154,6 +2389,7 @@ def apply_learning_evidence(
             in {EvidenceKind.PRODUCED_SUPPORTED, EvidenceKind.PRODUCED_INDEPENDENT},
             "learner_text": observation.learner_text,
             "corrected_text": observation.corrected_text,
+            "task_format": observation.task_format,
             "credit": credit.detail,
         }
         flag_modified(moment, "result_payload")
@@ -2249,6 +2485,7 @@ def apply_learning_evidence(
                     modality=modality,
                     source_key=correction_key,
                     foreground=True,
+                    concept_id_hint=_single_lapsed_concept(lapsed_concepts),
                 )
                 punishment_recorded = bool(erratum)
             concept_credit = None
@@ -2291,6 +2528,13 @@ def apply_learning_evidence(
         learning_session_id=session.id,
         learning_moment_id=first_moment_id,
     )
+
+
+def _single_lapsed_concept(lapsed: set[str]) -> int | None:
+    if len(lapsed) != 1:
+        return None
+    value = next(iter(lapsed))
+    return int(value) if value.isdigit() else None
 
 
 def _score_for(evidence_kind: EvidenceKind) -> float | None:

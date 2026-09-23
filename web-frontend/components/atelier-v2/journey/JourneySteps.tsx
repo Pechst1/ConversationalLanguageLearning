@@ -44,6 +44,7 @@ import {
   type ChoiceOption,
 } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import {
   checkAnswerLocally,
   correctOptionLocally,
@@ -55,14 +56,17 @@ import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
+import { usableCard } from '@/lib/rule-card';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
+  ControlLanguage,
   HelpKind,
   HelpResult,
   RecallStep,
   RespondStep,
   ResolutionStep,
+  RuleStep,
   SceneStep,
 } from '@/types/daily-journey';
 
@@ -951,6 +955,61 @@ export function RespondStepView({
 // ---------------------------------------------------------------------------
 // Resolution
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Rule — WP-L4 «Règle»
+// ---------------------------------------------------------------------------
+
+/**
+ * The day's new grammar unit, as its WP-L10 rule card in the `intro` variant:
+ * the French example is the screen's one Garamond line, the rule is one
+ * sentence in the learner's language, and «Essayer» is the one primary — it
+ * advances to the unit's guided items. The step is read, never answered.
+ *
+ * `language` is the chrome language (the learner's up to A2, French from B1),
+ * which is also the language the card's rule is picked in.
+ */
+export function RuleStepView({
+  step,
+  copy,
+  busy,
+  language,
+  onContinue,
+}: { step: RuleStep; language: ControlLanguage } & Pick<
+  StepViewCommonProps,
+  'copy' | 'busy' | 'onContinue'
+>) {
+  const card = step.prompt.rule_card;
+  const proceed = () => {
+    if (!busy) onContinue();
+  };
+  if (!usableCard(card)) {
+    // A card the client cannot draw still lets the learner through.
+    return (
+      <StepFrame
+        label={copy.today_eyebrow}
+        headline={step.prompt.title_fr || step.prompt.title_native}
+        headlineLang={step.prompt.title_fr ? 'fr' : undefined}
+      >
+        <p className="av2-body av2-body--lg">{step.prompt.title_native}</p>
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.scene_continue}
+        </Action>
+      </StepFrame>
+    );
+  }
+  return (
+    <section className="av2-stack av2-step" data-step="rule">
+      <RuleCard
+        card={card}
+        language={language}
+        variant="intro"
+        conceptId={step.prompt.concept_id}
+        onDone={proceed}
+      />
+    </section>
+  );
+}
 
 export function ResolutionStepView({
   step,
