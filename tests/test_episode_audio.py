@@ -117,15 +117,26 @@ def audio_on(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(module.settings, "ATELIER_EPISODE_AUDIO_ENABLED", True)
 
 
-def cost_rows(db_session: Session) -> list[PilotEvent]:
+def cost_rows(db_session: Session, user: User) -> list[PilotEvent]:
     # The service writes through the caller's transaction and never commits;
-    # the rows are visible to a query only once they are flushed.
+    # the rows are visible to a query only once they are flushed. Scoped to this
+    # test's learner: the suite shares one database, and a later-alphabet test
+    # that commits its own audio rows ran first in a reversed-order run.
     db_session.flush()
     return list(
         db_session.scalars(
-            select(PilotEvent).where(PilotEvent.event_type == EPISODE_AUDIO_EVENT_TYPE)
+            select(PilotEvent).where(
+                PilotEvent.event_type == EPISODE_AUDIO_EVENT_TYPE,
+                PilotEvent.user_id == user.id,
+            )
         )
     )
+
+
+def clip_rows(db_session: Session, user: User) -> list[EpisodeAudioClip]:
+    """This learner's stored clips (see `cost_rows` for why it is scoped)."""
+
+    return list(db_session.scalars(select(EpisodeAudioClip).where(EpisodeAudioClip.user_id == user.id)))
 
 
 # ---------------------------------------------------------------------------
@@ -205,8 +216,8 @@ def test_with_the_flag_off_nothing_is_synthesized_read_or_billed(db_session, lea
     assert result.reason == "flag_off"
     assert result.clips == []
     assert fake.calls == []
-    assert cost_rows(db_session) == []
-    assert db_session.scalars(select(EpisodeAudioClip)).all() == []
+    assert cost_rows(db_session, learner) == []
+    assert clip_rows(db_session, learner) == []
     assert episode_audio_manifest(db_session, scene=scene).status == "disabled"
 
 
@@ -233,7 +244,7 @@ def test_a_first_run_speaks_every_line_and_writes_one_priced_row(
         "the provider is pinned to the one this path was tested on"
     )
 
-    rows = cost_rows(db_session)
+    rows = cost_rows(db_session, learner)
     assert len(rows) == 1
     payload = rows[0].payload
     assert payload["estimated"] is True, "the speech endpoint reports no usage"
@@ -257,7 +268,7 @@ def test_a_second_run_of_the_same_scene_calls_nobody_and_bills_nobody(
     assert result.status == "ready"
     assert len(result.clips) == 3
     assert second.calls == [], "a replayed episode is free"
-    assert len(cost_rows(db_session)) == 1, "no zero-cost row that would read as a free call"
+    assert len(cost_rows(db_session, learner)) == 1, "no zero-cost row that would read as a free call"
     assert result.synthesized_lines == 0
 
 
@@ -283,7 +294,7 @@ def test_a_rewritten_line_invalidates_the_audio_rather_than_playing_the_old_one(
     # Only the changed line is new; the two unchanged ones keep the old
     # revision's rows but need their own under the new one.
     assert len(fresh.calls) == 3
-    assert len(cost_rows(db_session)) == 2
+    assert len(cost_rows(db_session, learner)) == 2
 
 
 def test_the_manifest_read_never_starts_a_paid_call(db_session, learner, audio_on):
@@ -306,7 +317,7 @@ def test_a_scene_with_nothing_to_say_is_empty_not_failed(db_session, learner, au
 
     assert result.status == "empty"
     assert fake.calls == []
-    assert cost_rows(db_session) == []
+    assert cost_rows(db_session, learner) == []
 
 
 # ---------------------------------------------------------------------------
@@ -328,9 +339,9 @@ def test_one_failed_line_fails_the_episode_and_keeps_what_was_paid_for(
 
     # The narration was synthesized before the failure and is still cached, so
     # the retry is cheaper than the first attempt rather than more expensive.
-    stored = db_session.scalars(select(EpisodeAudioClip)).all()
+    stored = clip_rows(db_session, learner)
     assert len(stored) == 1
-    rows = cost_rows(db_session)
+    rows = cost_rows(db_session, learner)
     assert len(rows) == 1
     assert rows[0].payload["status"] == "failed"
     assert rows[0].payload["lines"] == 1
@@ -351,7 +362,7 @@ def test_a_provider_that_returns_no_audio_is_a_failure_not_a_silent_clip(
 
     assert result.status == "failed"
     assert result.reason == "tts_empty"
-    assert db_session.scalars(select(EpisodeAudioClip)).all() == []
+    assert clip_rows(db_session, learner) == []
 
 
 def test_an_unavailable_provider_is_reported_rather_than_raised(
@@ -364,7 +375,7 @@ def test_an_unavailable_provider_is_reported_rather_than_raised(
 
     assert result.status == "failed"
     assert result.reason == "tts_unavailable"
-    assert cost_rows(db_session) == []
+    assert cost_rows(db_session, learner) == []
 
 
 # ---------------------------------------------------------------------------

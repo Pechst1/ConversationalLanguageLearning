@@ -328,18 +328,21 @@ def test_keep_writes_a_learner_scoped_entry_and_never_the_shared_row(
     email = f"wp78-keep-{uuid.uuid4().hex[:8]}@example.com"
     headers = register(assembled_client, email)
     other = register(assembled_client, f"wp78-other-{uuid.uuid4().hex[:8]}@example.com")
-    word = _word(db_session, "parapluie", "umbrella")
+    # A word no other test creates: the suite shares one database, and with a
+    # second «parapluie» row left by another suite (reversed file order) the
+    # keep endpoint matched that row and this test found no progress on its own.
+    word = _word(db_session, "ombrelle", "parasol")
     before = (word.example_sentence, word.english_translation, word.definition)
 
-    sentence = "Romy secoue son parapluie sur le seuil."
+    sentence = "Romy secoue son ombrelle sur le seuil."
     response = assembled_client.post(
         "/api/v1/vocabulary/keep",
         headers=headers,
-        json={"term": "parapluie", "sentence": sentence, "surface": "parapluie"},
+        json={"term": "ombrelle", "sentence": sentence, "surface": "ombrelle"},
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["gloss"] == "umbrella" and body["example_fr"] == sentence
+    assert body["gloss"] == "parasol" and body["example_fr"] == sentence
     assert body["already_kept"] is False
 
     user_id = learner_id(db_session, email)
@@ -358,7 +361,7 @@ def test_keep_writes_a_learner_scoped_entry_and_never_the_shared_row(
     # Idempotent, and nobody else's Lexique.
     again = assembled_client.post(
         "/api/v1/vocabulary/keep", headers=headers,
-        json={"term": "parapluie", "sentence": sentence},
+        json={"term": "ombrelle", "sentence": sentence},
     )
     assert again.json()["already_kept"] is True
     other_id = db_session.query(User).filter(User.id != user_id).first().id

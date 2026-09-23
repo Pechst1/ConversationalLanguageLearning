@@ -216,11 +216,14 @@ def test_scene_words_reach_the_catalogue_learner_safely(
         column: getattr(shared, column)
         for column in ("english_translation", "german_translation", "example_sentence", "topic_tags")
     }
+    # «lucarne» must be new to the catalogue for `created` to be true; the suite
+    # shares one database and «vitre» (the earlier choice) is left behind by
+    # other suites, so this failed whenever they ran first.
     entries = [
         {"surface_fr": "cave", "lemma": "cave", "gloss_native": "Keller", "part_of_speech": "noun", "gender": "f"},
-        {"surface_fr": "vitre", "lemma": "vitre", "gloss_native": "Fensterscheibe", "part_of_speech": "noun", "gender": "f"},
+        {"surface_fr": "lucarne", "lemma": "lucarne", "gloss_native": "Dachfenster", "part_of_speech": "noun", "gender": "f"},
     ]
-    sentences = {"cave": "La pluie a inondé la cave de l'immeuble.", "vitre": "La pluie glisse sur la vitre."}
+    sentences = {"cave": "La pluie a inondé la cave de l'immeuble.", "lucarne": "La pluie glisse sur la lucarne."}
     words = record_scene_lexicon(db_session, user=user, entries=entries, sentences=sentences, level="A1")
     again = record_scene_lexicon(db_session, user=user, entries=entries, sentences=sentences, level="A1")
     db_session.commit()
@@ -231,15 +234,15 @@ def test_scene_words_reach_the_catalogue_learner_safely(
     assert {column: getattr(shared, column) for column in before} == before, "the shared row is read, never written"
 
     created = db_session.get(VocabularyWord, words[1].word_id)
-    assert words[1].created and created.german_translation == "Fensterscheibe"
+    assert words[1].created and created.german_translation == "Dachfenster"
     assert created.english_translation is None, "no placeholder in another language"
     assert created.gender == "f" and "scene_lexicon" in (created.topic_tags or [])
 
     rows = db_session.query(WordInteraction).filter_by(
         user_id=user.id, interaction_type=SCENE_LEXICON_INTERACTION_TYPE
     ).all()
-    assert len(rows) == 2 and {row.correction for row in rows} == {"Keller", "Fensterscheibe"}
+    assert len(rows) == 2 and {row.correction for row in rows} == {"Keller", "Dachfenster"}
     assert db_session.query(UserVocabularyProgress).filter_by(user_id=user.id).count() == 0, (
         "a word enters the Lexique once practised, not when a scene names it"
     )
-    assert set(director_vocabulary(db_session, user_id=user.id)["lexicon_history"]) == {"cave", "vitre"}
+    assert set(director_vocabulary(db_session, user_id=user.id)["lexicon_history"]) == {"cave", "lucarne"}
