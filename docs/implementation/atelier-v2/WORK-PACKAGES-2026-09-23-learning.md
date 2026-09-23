@@ -288,11 +288,25 @@ and the next scene gives the learner a chance to repair it.
 The simulator walk at the end of each step covers both themes, three learner languages and all
 four rhythms.
 
-## 5. Owner decisions
+## 5. Owner decisions (2026-09-23)
 
-1. Rhythm names and minutes: Léger 5 / **Régulier 10 (default)** / Soutenu 20 / Intensif 30.
-2. One episode per day on every rhythm (recommended), rather than more story for Intensif.
-3. The season finale as the level checkpoint.
-4. Syllabus authoring: LLM drafts plus human review. Who reviews the French, and the licence for
-   the frequency list.
-5. Showing the forecast honestly, even when it is sobering: A1 at Léger is about 10 months.
+1. **Rhythms approved:** Léger 5 / Régulier 10 (default) / Soutenu 20 / Intensif 30.
+   **Plus a separate vocabulary pace** («Nouveaux mots par jour», up to 20+), independent of the
+   rhythm, and reconciled with the séance (added to WP-L6):
+   - **one intake pool**: a word is introduced once, whether by the word drill or a scene, and the
+     day's quota counts both;
+   - **scene words prefer words drilled but not yet held**, so the story doubles as review and
+     the reply gives them strong evidence;
+   - **word reviews live mostly in the word drill**; the séance's Rappel takes only the words
+     that fit today's scene, so the 10-minute séance never overflows;
+   - **honest cost**: the setting shows the steady-state review load (≈ 150–200 reviews / 15–20
+     min a day at 20 new words), and the throttle slows intake when reviews pile up.
+2. **One episode per day** on every rhythm: approved.
+3. **The level check is a special, finale-like episode.** A season is **not** one grammar topic:
+   it maps to a sub-band (≈ 15 units, ≈ 300 words, the band's can-dos), about 2.5–3 months at
+   Régulier, close to a season's length (≤ ~88 days). Because Soutenu/Intensif learners finish a
+   band before the season does, the checkpoint is **decoupled from the calendar**: the engine
+   stages a finale-style «épreuve» episode as soon as the band's coverage is met. At Régulier it
+   usually coincides with the season finale; otherwise it is its own event (WP-L7).
+4. **Syllabus authoring:** LLM drafts plus human review; open frequency list OK (check licence).
+5. **Honest forecast:** approved, even when it is slow.
