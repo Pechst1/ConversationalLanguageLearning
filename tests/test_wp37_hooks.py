@@ -460,7 +460,8 @@ def test_home_can_carry_quiet_entries_and_they_are_rows_not_press_bars() -> None
     assert "export type HomeEntry" in source
     assert "entries?: HomeEntry[] | null;" in source
     # The block runs to the next Home section (WP-D1 rows may also run an action, so they hold nested `)}`).
-    block = source.split("{entries && entries.length > 0 && (", 1)[1].split("<PlacementOfferChip", 1)[0]
+    # WP-81: the rows only render when Home is not in its one-thing (journey) mode.
+    block = source.split("{!oneThing && entries && entries.length > 0 && (", 1)[1].split("<PlacementOfferChip", 1)[0]
     assert 'className="av2-row"' in block
     assert "Action" not in block, "design principle 1: one primary action per screen"
     assert "tone=" not in block

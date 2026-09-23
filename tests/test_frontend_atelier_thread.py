@@ -24,7 +24,8 @@ def test_atelier_renders_today_practice_thread() -> None:
     assert "id: 'lexique'" in source
     assert "id: 'errata'" in source
     home = (ROOT / "web-frontend" / "components" / "atelier-v2" / "home" / "HomeScreen.tsx").read_text(encoding="utf-8")
-    assert 'aria-label="Atelier · La Une"' in home
+    # WP-82: the landmark name is chrome, so it is copy in the learner's language.
+    assert 'aria-label={copy.home_label}' in home
     assert "STORY_FEATURE_VISIBLE" in source
 
 
