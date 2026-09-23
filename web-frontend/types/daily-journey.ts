@@ -8,6 +8,8 @@
  * narrows the prompt.
  */
 
+import type { RuleCardData } from '@/lib/rule-card';
+
 export const DAILY_JOURNEY_CONTRACT_VERSION = 1;
 /** WP-L6: the five-minute rhythm. The server sizes each day from the learner's rhythm. */
 export const DAILY_JOURNEY_BUDGET_SECONDS = 300;
@@ -17,7 +19,8 @@ export type BudgetSeconds = 300 | 600 | 1200 | 1800;
 export type ControlLanguage = 'en' | 'de' | 'fr';
 export type JourneyStatus =
   | 'preparing' | 'active' | 'paused' | 'completed' | 'ended_early' | 'unavailable';
-export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution';
+/** WP-L4: `rule` is the Règle — the day's new grammar unit as its rule card. */
+export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule';
 export type StepStatus = 'pending' | 'active' | 'completed' | 'skipped';
 export type InputMode = 'text' | 'voice';
 export type HelpKind = 'hint' | 'translation' | 'solution' | 'suggested_response';
@@ -234,7 +237,20 @@ export type ResolutionStep = PublicStepBase & {
   prompt: ResolutionPrompt;
 };
 
-export type PublicStep = SceneStep | RecallStep | RespondStep | ResolutionStep;
+/**
+ * WP-L4 «Règle»: the day's new grammar unit, as its WP-L10 rule card (every
+ * authored language at once; `RuleCard` picks the learner's). Advanced, never
+ * answered — advancing it introduces the unit.
+ */
+export type RulePrompt = {
+  concept_id: number;
+  title_native: string;
+  title_fr: string;
+  rule_card: RuleCardData & { from_scene?: boolean };
+};
+export type RuleStep = PublicStepBase & { kind: 'rule'; prompt: RulePrompt };
+
+export type PublicStep = SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep;
 
 export type PracticedTarget = {
   target: TargetRef;

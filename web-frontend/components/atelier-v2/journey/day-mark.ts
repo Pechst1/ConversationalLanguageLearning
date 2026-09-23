@@ -10,6 +10,9 @@
  *   respond     red triangle    («Réponse»)
  *   resolution  ink square      («Bouclé» — ink is done, the day's close)
  *
+ * WP-L4: the Règle (`rule`) belongs to the Scène movement — a blue circle, and
+ * counted with the scene — so the mark keeps four shapes on an introduction day.
+ *
  * Pure: no React, no styling, no transport. It sits beside `journey-state.ts`
  * rather than inside it so the renderers and the node tests share it without
  * touching the controller's state machine.
@@ -19,7 +22,7 @@ import type { ControlLanguage, JourneySnapshot, PublicStep, StepKind } from '@/t
 
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
-export type DayMarkGroup = StepKind;
+export type DayMarkGroup = Exclude<StepKind, 'rule'>;
 
 /**
  * `done` — every step of the group is resolved; `active` — the learner is in
@@ -42,12 +45,18 @@ export type DayMarkState = {
 export const DAY_MARK_GROUPS: readonly DayMarkGroup[] = ['scene', 'recall', 'respond', 'resolution'];
 
 /** The step → shape mapping (WP-D1, reused by WP-D3's tokens). */
-export const STEP_SHAPE: Record<DayMarkGroup, ShapeKind> = {
+export const STEP_SHAPE: Record<StepKind, ShapeKind> = {
   scene: 'story',
   recall: 'reward',
   respond: 'action',
   resolution: 'done',
+  rule: 'story',
 };
+
+/** The mark's group a step counts in: the Règle is part of the Scène. */
+export function dayMarkGroupOf(kind: StepKind): DayMarkGroup {
+  return kind === 'rule' ? 'scene' : kind;
+}
 
 /** The word paired with each shape in Home's label row (French, for B1+). */
 export const DAY_MARK_WORD: Record<DayMarkGroup, string> = {
@@ -159,7 +168,7 @@ export function dayMarkState(
     const endedEarly = journey.status === 'ended_early';
     for (const group of DAY_MARK_GROUPS) {
       groups[group] = groupState(
-        journey.steps.filter((step) => step.kind === group),
+        journey.steps.filter((step) => dayMarkGroupOf(step.kind) === group),
         journey.current_step_id,
         endedEarly,
       );
