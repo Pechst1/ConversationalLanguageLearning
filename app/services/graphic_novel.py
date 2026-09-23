@@ -101,11 +101,16 @@ GENERIC_PANEL_BEAT_PHRASES = (
     "worksheet",
     "learner",
 )
+# WP-D8 (owner, 2026-09-23): one art direction for the cast, the places and the episode panels —
+# the flat screen print of `scripts/art/atelier_art.py`, in the brand inks.
 IMAGE_STYLE_MOODBOARD = (
-    "Visual moodboard: Penguin Crime and Penguin Modern Classics cover design, Len Deighton-era spy paperback covers, "
-    "photomechanical halftone printing, sparse editorial collage, high-contrast ink, restrained cream/black/red with occasional muted blue or green, "
-    "strong negative space, one decisive prop, diagonal typographic energy without readable typography, and slightly dry noir atmosphere. "
-    "Avoid decorative modernist shape clutter, repeated props, busy café clutter, cute app illustration, and crowded adventure-comic scenes."
+    "Visual moodboard: vintage French travel posters and three-colour risograph prints. Large flat colour shapes, faces "
+    "modelled with three or four flat planes of tone, no outlines or linework, slight print misregistration and paper grain. "
+    "Strictly the brand inks: warm paper #F1ECE1, near-black ink #14110D, cobalt blue #1D3A8A, vermilion red #D8321A, "
+    "sunflower yellow #F3C318, deep green #2C6A5D and ochre #C2890F, with natural skin tones. Characters are beautiful and "
+    "individual, never caricatured; strong negative space and one decisive prop. "
+    "Avoid photographic lighting, gradients, hair strands, glossy highlights, decorative shape clutter, repeated props, "
+    "busy café clutter, cute app illustration, and crowded adventure-comic scenes."
 )
 _PROMPT_ASSET_CACHE: dict[str, tuple[int, str]] = {}
 
@@ -5853,10 +5858,10 @@ class GraphicNovelStoryGenerator:
         else:
             public_figure_policy = "Exclude real public figures entirely; use fictional people only."
         return (
-            "Draw one square editorial visual-gag comic panel in the spirit of Penguin Crime, Penguin Modern Classics, Len Deighton spy paperback covers, Sempé, and New Yorker single-panel restraint. "
-            "Use photomechanical halftone texture, high-contrast black ink, cream paper, sharp red accents, and at most one muted blue or green accent. "
+            "Draw one square editorial visual-gag comic panel as a flat screen-printed illustration in the spirit of vintage French travel posters, Sempé, and New Yorker single-panel restraint. "
+            "Use large flat colour shapes on cream paper in near-black ink, cobalt blue, vermilion red, sunflower yellow, deep green and ochre, with slight print misregistration and no outlines. "
             f"{IMAGE_STYLE_MOODBOARD} "
-            "The aesthetic should feel spare, printed, noir-adjacent, and book-cover intelligent, not a generic app illustration or a busy adventure panel. "
+            "The aesthetic should feel spare, printed and warm, like a good poster, not a generic app illustration or a busy adventure panel. "
             f"Scene visual preamble: satirize this mechanic without naming the real source in the image: {headline_mechanic}. "
             f"Visual domain: {domain}. Anchor object: {anchor}. "
             f"Human continuity: {character_line or 'fictional French people with simple readable silhouettes'}. "
@@ -5887,8 +5892,8 @@ class GraphicNovelStoryGenerator:
         )
         return (
             "Draw one complete comic page containing exactly "
-            f"{script.get('panel_count') or len(panels)} panels in a clean grid. Penguin Crime and Penguin Modern Classics paperback-cover mood, "
-            "Len Deighton spy-cover restraint, photomechanical halftone texture, cream paper, high-contrast black ink, sharp red accents, and at most one muted blue or green accent. "
+            f"{script.get('panel_count') or len(panels)} panels in a clean grid, as flat screen-printed illustration in the spirit of vintage French travel posters: "
+            "large flat colour shapes on cream paper in near-black ink, cobalt blue, vermilion red, sunflower yellow, deep green and ochre, slight print misregistration, no outlines. "
             f"{IMAGE_STYLE_MOODBOARD} "
             f"Story premise: {(script.get('story_bible') or {}).get('premise')}. "
             f"News-to-fiction mechanic: {(script.get('story_bible') or {}).get('news_mechanic')}. "

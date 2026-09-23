@@ -1051,7 +1051,12 @@ class SerialThreadService:
                     "name": member.get("name"),
                     "role": member.get("role"),
                     "dynamic_with_user": member.get("dynamic_with_user"),
-                    "model_sheet_url": f"/assets/serial/characters/{character_id}/model-sheet.webp",
+                    # WP-D8: the drawn cast shows its approved portrait; only the learner keeps a model sheet.
+                    "model_sheet_url": (
+                        f"/assets/serial/characters/{character_id}/model-sheet.webp"
+                        if character_id == "user"
+                        else f"/assets/serial/characters/{character_id}/portrait-neutral.webp"
+                    ),
                     "accent_colour": visual.get("accent_colour"),
                     "relationship": {
                         "closeness": int((relationship or {}).get("closeness") or 0),

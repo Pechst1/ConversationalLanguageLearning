@@ -510,10 +510,10 @@
     "asset_readiness": "DB-1 character model sheets are locked for user, Marin, Lila, Augustin, Romy, Margaux, and M. Marchand. DB-2 location plates are locked for Le Mistral, the user's apartment, Marin & Lila's flat, the newsroom, Marin's NGO office, the Canal market, Buttes-Chaumont, the métro platform, Gus's loft, the brocante, and the admin office under web-frontend/public/assets/serial.",
     "art_direction_doc": "docs/serial-world-design-package.md",
     "art_direction": {
-      "style": "Warm, ligne-claire-inflected European comic style with clean ink contours, restrained newsprint texture, and recurring editorial masthead details.",
-      "palette": "Muted Parisian paper/ink base; one character accent colour may appear as a small spot ink on bubbles, chips, panel rules, and reply cards.",
+      "style": "Flat screen-printed illustration in the spirit of vintage French travel posters and three-colour risograph prints: large flat colour shapes, faces modelled with three or four flat planes of tone, no outlines or linework, slight print misregistration and paper grain. Characters are beautiful and individual, never caricatured.",
+      "palette": "The brand inks only: warm paper #F1ECE1, near-black ink #14110D, cobalt blue #1D3A8A, vermilion red #D8321A, sunflower yellow #F3C318, deep green #2C6A5D, ochre #C2890F, with natural skin tones; one character accent colour may appear as a small spot ink on bubbles, chips, panel rules, and reply cards.",
       "panel_language": "Phone-first vertical feuilleton panels; captions read as editorial story text, not pedagogy; speech appears in bordered notes with character-coloured binding rules.",
-      "consistency_rule": "Use canonical_descriptor for every recurring character and location prompt. Add reference_images/style_ref as soon as DB-1/DB-2 assets are delivered."
+      "consistency_rule": "Use canonical_descriptor for every recurring character and location prompt. The approved cast references live in docs/design-reference/cast/ and the app portraits in assets/serial/characters/{id}/portrait-{mood}.webp (WP-D8, 2026-09-23); never the old model sheets."
     },
     "ui_tokens": {
       "--char-marin": "#2c6a5d",
@@ -538,11 +538,11 @@
         }
       },
       "marin_leveque": {
-        "canonical_descriptor": "Very tall Breton man, broad and slightly rumpled, dark curls, short beard, gentle eyes, knit sweater, weathered coat, NGO tote bag; sea-green accent.",
+        "canonical_descriptor": "Big broad-shouldered Breton man in his mid-thirties, head in natural proportion; broad round face, full cheeks, small warm brown eyes with deep laugh lines, wide flat nose, big ears, thick dark tightly curled hair, short full dark beard, warm olive-brown skin; hand-knitted deep-green sweater, a lucky charm on a cord, NGO tote bag; sea-green accent.",
         "accent_colour": "#2c6a5d",
         "ui_token": "--char-marin",
-        "reference_images": ["assets/serial/characters/marin_leveque/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/marin_leveque/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/marin_leveque/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/marin_leveque/portrait-neutral.webp",
         "expressions": {
           "warm": "soft smile, protective posture",
           "confused": "brow pinched, still kind",
@@ -550,11 +550,11 @@
         }
       },
       "lila_bonnet": {
-        "canonical_descriptor": "Small fast-moving Marseillaise woman, dark pinned-up hair often flecked with paint, bright thrifted layers, ink-stained hands, sharp amused eyes; marigold accent.",
+        "canonical_descriptor": "Small fast-moving Marseillaise woman in her late twenties; heart-shaped face, large wide-set dark eyes, small upturned nose, wide mouth with a small gap between her front teeth, warm light-brown freckled skin, black curly hair piled in a high bun tied with an ochre scarf, gold hoops, ochre shirt; paint on her only when she is painting; marigold accent.",
         "accent_colour": "#c2890f",
         "ui_token": "--char-lila",
-        "reference_images": ["assets/serial/characters/lila_bonnet/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/lila_bonnet/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/lila_bonnet/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/lila_bonnet/portrait-neutral.webp",
         "expressions": {
           "teasing": "one eyebrow up, already plotting",
           "delighted": "wide grin, hands mid-gesture",
@@ -562,11 +562,11 @@
         }
       },
       "augustin_de_roncourt": {
-        "canonical_descriptor": "Trim composed Frenchman in an immaculate three-piece suit, slicked hair, pocket square, theatrical posture, too-polished smile hiding nerves; burgundy accent.",
+        "canonical_descriptor": "Tall, lean Frenchman in his early thirties; long narrow face, sharp high cheekbones, strong aquiline nose, hooded grey-green eyes, clean-shaven, slicked-back black hair with one loose curl, pale skin with rosy cheeks; immaculate navy three-piece suit, red pocket square, theatrical posture, too-polished smile hiding nerves; burgundy accent.",
         "accent_colour": "#8a2f2a",
         "ui_token": "--char-gus",
-        "reference_images": ["assets/serial/characters/augustin_de_roncourt/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/augustin_de_roncourt/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/augustin_de_roncourt/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/augustin_de_roncourt/portrait-neutral.webp",
         "expressions": {
           "deadpan": "perfectly still face, performative calm",
           "delighted": "showman grin, one hand presenting the room",
@@ -574,11 +574,11 @@
         }
       },
       "romy_tremblay": {
-        "canonical_descriptor": "Québécoise woman in her early 30s, athletic easy posture, shoulder-length brown hair, leather jacket off-air or crisp blazer on-air, recorder or microphone close by; cold-blue accent.",
+        "canonical_descriptor": "Québécoise TV journalist in her early 30s, athletic easy posture; soft oval face, high cheekbones, gently pointed chin, long straight brown hair with a centre parting and caramel strands, light blue-grey eyes, strong straight dark brows, full lips, faint freckles; black leather jacket over a deep-blue top off-air or crisp blazer on-air, clip-on microphone close by; cold-blue accent.",
         "accent_colour": "#1d3a8a",
         "ui_token": "--char-romy",
-        "reference_images": ["assets/serial/characters/romy_tremblay/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/romy_tremblay/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/romy_tremblay/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/romy_tremblay/portrait-neutral.webp",
         "expressions": {
           "cool": "dry half-smile, reporter's measuring gaze",
           "guarded": "chin tipped down, eyes steady",
@@ -586,11 +586,11 @@
         }
       },
       "margaux_barman": {
-        "canonical_descriptor": "Sturdy unhurried older bartender, cropped grey hair, rolled sleeves, apron, towel in hand, dry all-knowing calm behind the zinc counter; warm amber accent.",
+        "canonical_descriptor": "Owner-bartender in her late fifties, sturdy and unhurried; square jaw, strong Roman nose, deep-set dark eyes with crow's feet, short cropped silver hair, deeply tanned lined skin, one small gold hoop; dark apron over a deep-green shirt, sleeves rolled, towel and glass in hand, dry all-knowing calm behind the zinc counter; warm amber accent.",
         "accent_colour": "#a85d24",
         "ui_token": "--char-margaux",
-        "reference_images": ["assets/serial/characters/margaux_barman/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/margaux_barman/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/margaux_barman/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/margaux_barman/portrait-neutral.webp",
         "expressions": {
           "deadpan": "flat look over a drying glass",
           "warm": "barely visible smile at the corner of the mouth",
@@ -598,11 +598,11 @@
         }
       },
       "landlord_marchand": {
-        "canonical_descriptor": "Older Parisian landlord, compact posture, neat grey coat, precise scarf, wire-frame glasses, controlled expression, phone full of formal messages; ink-grey accent.",
+        "canonical_descriptor": "Parisian landlord in his early seventies, compact posture; long lined face, long nose, pale blue eyes behind small round wire glasses, big bushy white eyebrows, thinning white hair with soft tufts above the ears, fair skin; grey cardigan, green wool scarf, a ring of old keys, phone full of formal messages; dignified and a little grumpy; ink-grey accent.",
         "accent_colour": "#5b5346",
         "ui_token": "--char-marchand",
-        "reference_images": ["assets/serial/characters/landlord_marchand/model-sheet.webp"],
-        "style_ref": "assets/serial/characters/landlord_marchand/model-sheet.webp",
+        "reference_images": ["assets/serial/characters/landlord_marchand/portrait-neutral.webp"],
+        "style_ref": "assets/serial/characters/landlord_marchand/portrait-neutral.webp",
         "expressions": {
           "cool": "mouth tight, bureaucratic patience",
           "confused": "glasses lowered, suspicious squint",

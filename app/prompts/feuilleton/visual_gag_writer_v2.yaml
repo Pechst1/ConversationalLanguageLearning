@@ -51,7 +51,7 @@ image_prompt_rules:
   - "The prompt receives the scene preamble, human continuity, recurring props, panel action, action change, and decisive foreground instruction."
   - "Do not include source names, story bible, grammar instructions, task wording, captions, or speech-bubble text in image prompts."
   - "Forbid readable text and UI every time."
-  - "Prefer sparse editorial composition, halftone texture, negative space, and one decisive prop."
+  - "Prefer sparse editorial composition, flat screen-print colour shapes, negative space, and one decisive prop."
 
 quality_checks:
   - "Reject empty twist/payoff."

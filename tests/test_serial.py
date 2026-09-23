@@ -115,8 +115,10 @@ def test_world_bible_world_reference_assets_exist():
     assert expected_characters.issubset(characters)
     for character_id in expected_characters:
         design = characters[character_id]
-        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/model-sheet.webp"]
-        assert design["style_ref"] == f"assets/serial/characters/{character_id}/model-sheet.webp"
+        # WP-D8: the drawn cast is referenced by its approved portrait; the learner keeps a model sheet.
+        reference = "model-sheet" if character_id == "user" else "portrait-neutral"
+        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/{reference}.webp"]
+        assert design["style_ref"] == f"assets/serial/characters/{character_id}/{reference}.webp"
         assert (public_root / design["style_ref"]).is_file()
     for location_id, references in expected_locations.items():
         assert locations[location_id]["reference_images"] == references
@@ -290,7 +292,7 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
     }
     assert existing.world_bible["visual_design"]["status"] == "assets-locked-v2"
     assert existing.world_bible["visual_design"]["characters"]["romy_tremblay"]["reference_images"] == [
-        "assets/serial/characters/romy_tremblay/model-sheet.webp"
+        "assets/serial/characters/romy_tremblay/portrait-neutral.webp"
     ]
     assert existing.world_bible["visual_design"]["characters"]["user"]["reference_images"] == [
         "assets/serial/characters/user/model-sheet.webp"
@@ -1425,7 +1427,7 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     assert cast.status_code == 200
     cast_rows = {row["id"]: row for row in cast.json()["cast"]}
     assert "marin_leveque" in cast_rows
-    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/model-sheet.webp")
+    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/portrait-neutral.webp")
     assert cast_rows["marin_leveque"]["relationship"]["register"] == "tu"
     assert cast_rows["marin_leveque"]["relationship"]["callbacks"] == ["la clé sous la pluie"]
     assert cast_rows["marin_leveque"]["episodes"][0]["href"] == "/serial/episode/0"
