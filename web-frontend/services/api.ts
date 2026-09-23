@@ -1,5 +1,6 @@
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
+import type { RuleCardData } from '@/lib/rule-card';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -132,6 +133,8 @@ export interface AtelierConcept {
   anchor_examples: string[];
   exercise_tags: string[];
   is_foundation: boolean;
+  /** WP-L10: the authored rule card (every learner language), or null. */
+  rule_card?: RuleCardData | null;
   role?: string | null;
   mastery: number;
   next_review?: string | null;

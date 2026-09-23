@@ -2824,6 +2824,64 @@
 /* A long line in the bubble steps down a size, so a reply never fills the screen. */
 .av2 .av2-speech__bubble[data-long] > .av2-headline { font-size: calc(var(--av2-t-head) * 0.72); line-height: 1.22; }
 
+/* WP-L10 — the rule card v2. One Garamond line (the French example, intro only);
+   the rule in the learner's language; the pattern drawn with the WP-D6 shapes;
+   red = the part that carries the rule, grey = written but silent. */
+.av2 .rc { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.av2 .rc[data-variant='inline'] { gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--av2-card); }
+.av2 .rc-eyebrow { margin: 0; }
+.av2 .rc-source { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.av2 .rc-source__name { flex: 1; min-width: 0; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); }
+.av2 .rc-listen {
+  flex: none; margin-left: auto; width: 44px; height: 44px; border: 0; border-radius: 999px;
+  display: grid; place-items: center; background: var(--av2-card); color: var(--av2-blue); cursor: pointer;
+}
+.av2 .rc[data-variant='inline'] .rc-listen { background: var(--av2-paper); }
+.av2 .rc-listen[aria-busy='true'] { opacity: 0.55; }
+.av2 .rc-example { margin: 0; font-size: var(--av2-t-screen); line-height: 1.12; }
+.av2 .rc-example--inline { font-size: var(--av2-t-option); font-weight: 600; line-height: 1.3; color: var(--av2-ink); }
+.av2 .rc-mark { color: var(--av2-red); }
+.av2 .rc-silent { color: var(--av2-muted); opacity: 0.8; }
+.av2 .rc-translate { display: flex; flex-direction: column; gap: 4px; }
+.av2 .rc-link {
+  align-self: flex-start; min-height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-ink-2);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.av2 .rc-translation { margin: 0; font-size: var(--av2-t-body); color: var(--av2-ink-2); }
+.av2 .rc-rule { margin: 0; font-size: 1.125rem; line-height: 1.35; font-weight: 500; color: var(--av2-ink); }
+.av2 .rc-pattern { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 16px; background: var(--av2-card); }
+.av2 .rc[data-variant='inline'] .rc-pattern { background: var(--av2-paper); }
+.av2 .rc-row { display: grid; grid-template-columns: 30px minmax(3.2rem, auto) minmax(0, 1fr); align-items: center; column-gap: 10px; }
+.av2 .rc-row__label { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .rc-row__fr { font-size: var(--av2-t-body-lg); color: var(--av2-ink); min-width: 0; overflow-wrap: anywhere; }
+.av2 .rc-row__fr .rc-mark { font-weight: 700; }
+.av2 .rc-glyph { flex: none; display: block; width: 30px; height: 22px; fill: var(--av2-blue); }
+.av2 .rc-glyph[data-shape='square'] { fill: var(--av2-ink-2); }
+.av2 .rc-glyph[data-shape='triangle'] { fill: var(--av2-red); }
+.av2 .rc-glyph__back { fill-opacity: 0.55; }
+.av2 .rc-table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(3, auto); column-gap: 14px; }
+.av2 .rc-table__cell { min-height: 40px; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-body-lg); color: var(--av2-ink); }
+.av2 .rc-table__p { flex: none; min-width: 2.5rem; color: var(--av2-muted); }
+.av2 .rc-table__form .rc-mark { font-weight: 700; }
+.av2 .rc-note { margin: 0; padding-top: 10px; border-top: 1px solid var(--av2-line); font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.av2 .rc-contrast { display: flex; flex-direction: column; gap: 8px; }
+.av2 .rc-contrast__line { margin: 0; display: flex; align-items: center; gap: 10px; font-size: var(--av2-t-body-lg); }
+.av2 .rc-contrast__line[data-tone='wrong'] { color: var(--av2-muted); }
+.av2 .rc-contrast__line[data-tone='right'] { font-weight: 600; color: var(--av2-ink); }
+.av2 .rc-contrast__badge { flex: none; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; }
+.av2 .rc-contrast__line[data-tone='wrong'] .rc-contrast__badge { background: var(--av2-line); color: var(--av2-red); }
+.av2 .rc-contrast__line[data-tone='right'] .rc-contrast__badge { background: var(--av2-green); color: var(--av2-card); }
+.av2 .rc-why { display: flex; flex-direction: column; gap: 6px; }
+.av2 .rc-why__toggle {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+  border: 0; border-radius: 999px; background: var(--av2-line); color: var(--av2-ink); cursor: pointer;
+  font: inherit; font-size: var(--av2-t-label); font-weight: 700;
+}
+.av2 .rc-more { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .rc-cahier { font-weight: 700; color: var(--av2-blue); }
+.av2 .rc-done { width: 100%; margin-top: 6px; }
+
 /* «Marin vous sourit ↑» under a correct verdict. */
 .av2 .av2-smiles { margin: 0; color: var(--av2-green); }
 

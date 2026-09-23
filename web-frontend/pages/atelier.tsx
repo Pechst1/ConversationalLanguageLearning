@@ -108,6 +108,9 @@ import {
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
+import { useLearnerLanguage } from '@/lib/learner-language';
+import { usableCard } from '@/lib/rule-card';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { cn } from '@/lib/utils';
@@ -3048,6 +3051,12 @@ function SessionView({
   const toggleRule = () => {
     setRuleOpenByConcept((prev) => ({ ...prev, [conceptRuleKey]: !ruleExpanded }));
   };
+  // WP-L10: an authored rule card replaces the English-only panel. Before a
+  // rule's first exercise it is its own screen («Essayer» opens the drill);
+  // afterwards the «La règle» pill opens it above the exercise.
+  const learnerLanguage = useLearnerLanguage();
+  const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
+  const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
 
   // ---- L'Épreuve frame mapping (composing stick + assembling motif). ----
   const sessionComplete = String(session.status) === 'completed' || (total > 0 && completedDrills >= total);
@@ -3112,13 +3121,24 @@ function SessionView({
             askOn={ruleExpanded}
             onAsk={toggleRule}
           />
-          {ruleExpanded && (
+          {ruleIntro && ruleCard ? (
+            <RuleCard
+              card={ruleCard}
+              language={learnerLanguage}
+              variant="intro"
+              conceptId={activeConcept.id}
+              onDone={toggleRule}
+            />
+          ) : ruleExpanded && ruleCard ? (
+            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} />
+          ) : ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
               examples={firstConceptDrill ? ['Essayez maintenant avec l’élément le plus simple.'] : []}
               onClose={toggleRule}
             />
           )}
+          {!ruleIntro && (<>
               {round === 'recognize' && (
                 <div className="ep-frame">
                     <RecognizePanel
@@ -3227,6 +3247,7 @@ function SessionView({
                 onRetryAiReview={requestAiReview}
                 aiReviewSubmitting={aiReviewSubmitting}
               />
+          </>)}
         </section>
       )}
       {(!activeSet || !activeConcept) && (

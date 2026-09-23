@@ -21,6 +21,7 @@ class AtelierConceptRead(BaseModel):
     anchor_examples: list[str] = Field(default_factory=list)
     exercise_tags: list[str] = Field(default_factory=list)
     is_foundation: bool = False
+    rule_card: dict[str, Any] | None = None
     role: str | None = None
     mastery: float = 0
     next_review: str | None = None

@@ -62,6 +62,7 @@ from app.services.grammar_feedback import count_concept_hits, infer_grammar_prof
 from app.services.learner_copy import learner_text as _copy
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
+from app.services.rule_cards import rule_card_for
 from app.services.seance_curriculum import lesson_for, lesson_panel
 from app.services.streak import read_streak, record_practice_day
 from app.services.vocabulary_credit import VocabularyCreditService
@@ -6507,6 +6508,8 @@ def serialize_concept(
         "anchor_examples": _split_list(concept.anchor_examples),
         "exercise_tags": concept.exercise_tags or [],
         "is_foundation": concept.is_foundation,
+        # WP-L10: the authored rule card (all learner languages), or None.
+        "rule_card": rule_card_for(concept.external_id),
     }
 
 

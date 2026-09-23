@@ -1,0 +1,1124 @@
+{
+ "version": "rule-cards-v1",
+ "markup": "[x] = the part that carries the rule (red); {x} = written but silent (grey)",
+ "cards": {
+  "FR_A1_NOUN_001": {
+   "speaker": "margaux_barman",
+   "example": {
+    "fr": "Une petit[e] table blanch[e], près de la fenêtre.",
+    "tr": {
+     "en": "A small white table, by the window.",
+     "de": "Ein kleiner weißer Tisch, am Fenster."
+    }
+   },
+   "rule": {
+    "en": "The noun decides. The little words around it take its gender and number.",
+    "de": "Das Nomen entscheidet. Die kleinen Wörter drumherum übernehmen sein Geschlecht und seine Zahl."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "le",
+      "fr": "un petit café noir"
+     },
+     {
+      "shape": "circle",
+      "label": "la",
+      "fr": "une petit[e] tasse noir[e]"
+     },
+     {
+      "shape": "circles",
+      "label": "les",
+      "fr": "des petite[s] tasse[s] noire[s]"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "une petit table",
+    "right": "une petit[e] table"
+   },
+   "more": {
+    "en": "Most describing words come after the noun: une table blanche. A few short, common ones come first: petit, grand, bon, beau, nouveau.",
+    "de": "Die meisten Adjektive stehen nach dem Nomen: une table blanche. Ein paar kurze, häufige stehen davor: petit, grand, bon, beau, nouveau."
+   }
+  },
+  "FR_A1_ART_001": {
+   "speaker": "margaux_barman",
+   "example": {
+    "fr": "[Le] café est prêt, [la] table est libre.",
+    "tr": {
+     "en": "The coffee is ready, the table is free.",
+     "de": "Der Kaffee ist fertig, der Tisch ist frei."
+    }
+   },
+   "rule": {
+    "en": "le before a masculine noun, la before a feminine one, l' before a vowel, les for more than one.",
+    "de": "le vor männlichen, la vor weiblichen Nomen, l' vor einem Vokal, les für mehrere."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "le",
+      "fr": "[le] café"
+     },
+     {
+      "shape": "circle",
+      "label": "la",
+      "fr": "[la] table"
+     },
+     {
+      "shape": "none",
+      "label": "l'",
+      "fr": "[l']eau, [l']hôtel"
+     },
+     {
+      "shape": "circles",
+      "label": "les",
+      "fr": "[les] cafés, [les] tables"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "le eau",
+    "right": "[l']eau"
+   },
+   "more": {
+    "en": "French also uses le, la, les for things in general: J'aime le café means I like coffee.",
+    "de": "Französisch nimmt le, la, les auch für Dinge allgemein: J'aime le café heißt Ich mag Kaffee."
+   }
+  },
+  "FR_A1_ART_002": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "J'ai [une] question et [un] problème.",
+    "tr": {
+     "en": "I have a question and a problem.",
+     "de": "Ich habe eine Frage und ein Problem."
+    }
+   },
+   "rule": {
+    "en": "un before a masculine noun, une before a feminine one, des for several.",
+    "de": "un vor männlichen, une vor weiblichen Nomen, des für mehrere."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "un",
+      "fr": "[un] croissant"
+     },
+     {
+      "shape": "circle",
+      "label": "une",
+      "fr": "[une] baguette"
+     },
+     {
+      "shape": "circles",
+      "label": "des",
+      "fr": "[des] croissants"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "J'ai question.",
+    "right": "J'ai [une] question."
+   },
+   "more": {
+    "en": "English can drop the word in the plural (I have questions); French keeps it: j'ai des questions.",
+    "de": "Im Deutschen fällt es im Plural weg (Ich habe Fragen); im Französischen bleibt es: j'ai des questions."
+   }
+  },
+  "FR_A1_ART_003": {
+   "speaker": "margaux_barman",
+   "example": {
+    "fr": "Je voudrais [du] pain et [de l']eau.",
+    "tr": {
+     "en": "I'd like some bread and some water.",
+     "de": "Ich hätte gern Brot und Wasser."
+    }
+   },
+   "rule": {
+    "en": "For an amount you don't count: du, de la or de l', like 'some'.",
+    "de": "Für eine Menge, die man nicht zählt: du, de la oder de l', wie „etwas“."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "du",
+      "fr": "[du] pain"
+     },
+     {
+      "shape": "circle",
+      "label": "de la",
+      "fr": "[de la] soupe"
+     },
+     {
+      "shape": "none",
+      "label": "de l'",
+      "fr": "[de l']eau"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Je voudrais de le pain.",
+    "right": "Je voudrais [du] pain."
+   },
+   "more": {
+    "en": "de + le always becomes du. After a negative, all three become de: je ne veux pas de pain.",
+    "de": "de + le wird immer zu du. Nach einer Verneinung werden alle drei zu de: je ne veux pas de pain."
+   }
+  },
+  "FR_A1_DET_001": {
+   "speaker": "lila_bonnet",
+   "example": {
+    "fr": "[Mon] frère et [ma] sœur arrivent avec [mes] clés.",
+    "tr": {
+     "en": "My brother and my sister are coming with my keys.",
+     "de": "Mein Bruder und meine Schwester kommen mit meinen Schlüsseln."
+    }
+   },
+   "rule": {
+    "en": "'My' matches the thing you own, not you: mon, ma, mes.",
+    "de": "„Mein“ richtet sich nach der Sache, nicht nach dir: mon, ma, mes."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "mon",
+      "fr": "[mon] frère"
+     },
+     {
+      "shape": "circle",
+      "label": "ma",
+      "fr": "[ma] sœur"
+     },
+     {
+      "shape": "circles",
+      "label": "mes",
+      "fr": "[mes] clés"
+     },
+     {
+      "shape": "none",
+      "label": "ton · son",
+      "fr": "[ton] café, [sa] table, [ses] clés"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "ma amie",
+    "right": "[mon] amie"
+   },
+   "more": {
+    "en": "Before a vowel, ma becomes mon so it's easy to say: mon amie, mon école.",
+    "de": "Vor einem Vokal wird ma zu mon, damit es sich leicht sprechen lässt: mon amie, mon école."
+   }
+  },
+  "FR_A1_DET_002": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "[Cet] hôtel est près de [cette] gare.",
+    "tr": {
+     "en": "This hotel is near this station.",
+     "de": "Dieses Hotel ist in der Nähe dieses Bahnhofs."
+    }
+   },
+   "rule": {
+    "en": "'This' matches the noun: ce, cet before a vowel, cette, ces.",
+    "de": "„Dieser“ passt sich dem Nomen an: ce, cet vor Vokal, cette, ces."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "ce",
+      "fr": "[ce] café"
+     },
+     {
+      "shape": "square",
+      "label": "cet",
+      "fr": "[cet] hôtel"
+     },
+     {
+      "shape": "circle",
+      "label": "cette",
+      "fr": "[cette] gare"
+     },
+     {
+      "shape": "circles",
+      "label": "ces",
+      "fr": "[ces] gares"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "ce hôtel",
+    "right": "[cet] hôtel"
+   },
+   "more": {
+    "en": "Add -ci or -là to point: ce café-ci (this one here), ce café-là (that one there).",
+    "de": "Mit -ci oder -là zeigst du: ce café-ci (dieses hier), ce café-là (das dort)."
+   }
+  },
+  "FR_A1_PRON_001": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "[On] va au Mistral ? [Nous] avons le temps.",
+    "tr": {
+     "en": "Shall we go to Le Mistral? We have time.",
+     "de": "Gehen wir ins Mistral? Wir haben Zeit."
+    }
+   },
+   "rule": {
+    "en": "je, tu, il, elle, on, nous, vous, ils, elles. In speech, on often means 'we'.",
+    "de": "je, tu, il, elle, on, nous, vous, ils, elles. Gesprochen heißt on oft „wir“."
+   },
+   "pattern": {
+    "kind": "table",
+    "verb": "être",
+    "rows": [
+     {
+      "p": "je",
+      "fr": "[suis]"
+     },
+     {
+      "p": "tu",
+      "fr": "[es]"
+     },
+     {
+      "p": "il, elle, on",
+      "fr": "[est]"
+     },
+     {
+      "p": "nous",
+      "fr": "[sommes]"
+     },
+     {
+      "p": "vous",
+      "fr": "[êtes]"
+     },
+     {
+      "p": "ils, elles",
+      "fr": "[sont]"
+     }
+    ],
+    "note": {
+     "en": "on takes the same form as il: on est, on va.",
+     "de": "on hat dieselbe Form wie il: on est, on va."
+    }
+   },
+   "contrast": {
+    "wrong": "Nous va au café.",
+    "right": "[On] va au café."
+   },
+   "more": {
+    "en": "tu is for one person you know well; vous is polite, or for several people.",
+    "de": "tu für eine vertraute Person; vous ist höflich oder für mehrere Personen."
+   }
+  },
+  "FR_A1_VERB_001": {
+   "speaker": "marin_leveque",
+   "example": {
+    "fr": "Vous habit[ez] près du canal ?",
+    "tr": {
+     "en": "Do you live near the canal?",
+     "de": "Wohnen Sie in der Nähe des Kanals?"
+    }
+   },
+   "rule": {
+    "en": "Drop -er, add the ending. You only hear -ons and -ez.",
+    "de": "Streiche -er, häng die Endung an. Hören kannst du nur -ons und -ez."
+   },
+   "pattern": {
+    "kind": "table",
+    "verb": "habiter",
+    "rows": [
+     {
+      "p": "j'",
+      "fr": "habit{e}"
+     },
+     {
+      "p": "tu",
+      "fr": "habit{es}"
+     },
+     {
+      "p": "il, elle",
+      "fr": "habit{e}"
+     },
+     {
+      "p": "nous",
+      "fr": "habit[ons]"
+     },
+     {
+      "p": "vous",
+      "fr": "habit[ez]"
+     },
+     {
+      "p": "ils",
+      "fr": "habit{ent}"
+     }
+    ],
+    "note": {
+     "en": "Grey = silent. Four forms sound the same: [abit].",
+     "de": "Grau = stumm. Vier Formen klingen gleich: [abit]."
+    }
+   },
+   "contrast": {
+    "wrong": "vous habiter près du canal",
+    "right": "vous habit[ez] près du canal"
+   },
+   "more": {
+    "en": "Almost every -er verb works like this: parler, aimer, travailler. être, avoir, aller and faire are irregular: learn them as forms.",
+    "de": "Fast alle Verben auf -er gehen so: parler, aimer, travailler. être, avoir, aller und faire sind unregelmäßig: lern sie als Formen."
+   }
+  },
+  "FR_A1_NEG_001": {
+   "speaker": "margaux_barman",
+   "example": {
+    "fr": "Je [ne] bois [pas] de café le soir.",
+    "tr": {
+     "en": "I don't drink coffee in the evening.",
+     "de": "Abends trinke ich keinen Kaffee."
+    }
+   },
+   "rule": {
+    "en": "Wrap the verb: ne before it, pas after it. Before a vowel, ne becomes n'.",
+    "de": "Umklammere das Verb: ne davor, pas danach. Vor einem Vokal wird ne zu n'."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "triangle",
+      "label": "verbe",
+      "fr": "je [ne] parle [pas]"
+     },
+     {
+      "shape": "triangle",
+      "label": "voyelle",
+      "fr": "elle [n']aime [pas] le thé"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Je ne pas parle.",
+    "right": "Je [ne] parle [pas]."
+   },
+   "more": {
+    "en": "In everyday speech people often drop ne: je sais pas. Write it anyway.",
+    "de": "Im Alltag lässt man ne oft weg: je sais pas. Schreib es trotzdem."
+   }
+  },
+  "FR_A1_SYN_001": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "[Est-ce que] tu viens demain ?",
+    "tr": {
+     "en": "Are you coming tomorrow?",
+     "de": "Kommst du morgen?"
+    }
+   },
+   "rule": {
+    "en": "Three ways to ask: raise your voice, put est-ce que in front, or swap verb and subject.",
+    "de": "Drei Wege zu fragen: Stimme heben, est-ce que davorsetzen oder Verb und Subjekt tauschen."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "voix",
+      "fr": "Tu viens demain ?"
+     },
+     {
+      "shape": "none",
+      "label": "est-ce que",
+      "fr": "[Est-ce que] tu viens ?"
+     },
+     {
+      "shape": "none",
+      "label": "inversion",
+      "fr": "[Viens-tu] demain ?"
+     },
+     {
+      "shape": "none",
+      "label": "où, quand",
+      "fr": "[Où] est-ce que tu habites ?"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Est-ce qui tu viens ?",
+    "right": "[Est-ce que] tu viens ?"
+   },
+   "more": {
+    "en": "In conversation the voice alone is most common; swapping sounds formal. Question words go first: où, quand, comment, combien, pourquoi.",
+    "de": "Im Gespräch fragt man meist nur mit der Stimme; die Umstellung klingt förmlich. Fragewörter stehen vorn: où, quand, comment, combien, pourquoi."
+   }
+  },
+  "FR_A1_ADJ_001": {
+   "speaker": "lila_bonnet",
+   "example": {
+    "fr": "De petite[s] maison[s] blanche[s] bordent la rue.",
+    "tr": {
+     "en": "Small white houses line the street.",
+     "de": "Kleine weiße Häuser säumen die Straße."
+    }
+   },
+   "rule": {
+    "en": "Adjectives copy the noun: -e for feminine, -s for plural. Most come after it.",
+    "de": "Adjektive übernehmen die Form des Nomens: -e für weiblich, -s für Plural. Meist stehen sie danach."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "le",
+      "fr": "un café noir"
+     },
+     {
+      "shape": "circle",
+      "label": "la",
+      "fr": "une tasse noir[e]"
+     },
+     {
+      "shape": "circles",
+      "label": "les",
+      "fr": "des tasses noire[s]"
+     },
+     {
+      "shape": "none",
+      "label": "avant",
+      "fr": "un [petit] café, une [belle] vue"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "une maison blanc",
+    "right": "une maison blanch[e]"
+   },
+   "more": {
+    "en": "Some change more: blanc → blanche, beau → belle, nouveau → nouvelle. Short common ones go first: petit, grand, bon, beau, jeune.",
+    "de": "Manche ändern sich stärker: blanc → blanche, beau → belle, nouveau → nouvelle. Kurze häufige stehen davor: petit, grand, bon, beau, jeune."
+   }
+  },
+  "FR_A1_VERB_002": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "Nous [allons visiter] Paris demain.",
+    "tr": {
+     "en": "We're going to visit Paris tomorrow.",
+     "de": "Morgen besichtigen wir Paris."
+    }
+   },
+   "rule": {
+    "en": "aller in the present plus a verb in its dictionary form: what's going to happen.",
+    "de": "aller im Präsens plus ein Verb in der Grundform: was gleich passiert."
+   },
+   "pattern": {
+    "kind": "table",
+    "verb": "aller + partir",
+    "rows": [
+     {
+      "p": "je",
+      "fr": "[vais] partir"
+     },
+     {
+      "p": "tu",
+      "fr": "[vas] partir"
+     },
+     {
+      "p": "il, elle",
+      "fr": "[va] partir"
+     },
+     {
+      "p": "nous",
+      "fr": "[allons] partir"
+     },
+     {
+      "p": "vous",
+      "fr": "[allez] partir"
+     },
+     {
+      "p": "ils",
+      "fr": "[vont] partir"
+     }
+    ],
+    "note": {
+     "en": "Only aller changes; the second verb stays as it is.",
+     "de": "Nur aller ändert sich; das zweite Verb bleibt, wie es ist."
+    }
+   },
+   "contrast": {
+    "wrong": "Je vais partis.",
+    "right": "Je [vais partir]."
+   },
+   "more": {
+    "en": "It's the everyday future for plans: je vais appeler Marin ce soir. To negate, wrap aller: je ne vais pas partir.",
+    "de": "Die Alltags-Zukunft für Pläne: je vais appeler Marin ce soir. Verneint wird aller: je ne vais pas partir."
+   }
+  },
+  "FR_A2_PRON_001": {
+   "speaker": "marin_leveque",
+   "example": {
+    "fr": "Paul ? Je [lui] parle tous les jours, je [le] vois demain.",
+    "tr": {
+     "en": "Paul? I talk to him every day, I'm seeing him tomorrow.",
+     "de": "Paul? Ich spreche jeden Tag mit ihm, ich sehe ihn morgen."
+    }
+   },
+   "rule": {
+    "en": "The pronoun goes before the verb. le, la, les replace the thing; lui, leur replace 'to someone'.",
+    "de": "Das Pronomen steht vor dem Verb. le, la, les ersetzen die Sache; lui, leur ersetzen „jemandem“."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "le, la, les",
+      "fr": "Je [le] vois. Je [la] prends."
+     },
+     {
+      "shape": "none",
+      "label": "lui, leur",
+      "fr": "Je [lui] parle. Je [leur] écris."
+     },
+     {
+      "shape": "none",
+      "label": "me, te",
+      "fr": "Tu [me] donnes ça ?"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Je parle lui.",
+    "right": "Je [lui] parle."
+   },
+   "more": {
+    "en": "With two verbs it goes before the infinitive: je vais le voir. In the passé composé, before avoir: je l'ai vu.",
+    "de": "Bei zwei Verben steht es vor dem Infinitiv: je vais le voir. Im Passé composé vor avoir: je l'ai vu."
+   }
+  },
+  "FR_A2_PRON_002": {
+   "speaker": "lila_bonnet",
+   "example": {
+    "fr": "Des pommes ? J'[en] achète deux. Le marché ? J'[y] vais.",
+    "tr": {
+     "en": "Apples? I'm buying two. The market? I'm going there.",
+     "de": "Äpfel? Ich kaufe zwei. Der Markt? Ich gehe hin."
+    }
+   },
+   "rule": {
+    "en": "y replaces a place (à …); en replaces de … or an amount, and the number stays.",
+    "de": "y ersetzt einen Ort (à …); en ersetzt de … oder eine Menge, und die Zahl bleibt."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "y",
+      "fr": "Tu vas à Lyon ? J'[y] vais."
+     },
+     {
+      "shape": "none",
+      "label": "en",
+      "fr": "Du café ? J'[en] veux."
+     },
+     {
+      "shape": "none",
+      "label": "en + nombre",
+      "fr": "Des pommes ? J'[en] prends deux."
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Des pommes ? J'achète deux.",
+    "right": "Des pommes ? J'[en] achète deux."
+   },
+   "more": {
+    "en": "en keeps the quantity at the end: j'en ai trois, j'en voudrais un peu.",
+    "de": "Bei en bleibt die Menge am Ende: j'en ai trois, j'en voudrais un peu."
+   }
+  },
+  "FR_A2_NEG_001": {
+   "speaker": "margaux_barman",
+   "example": {
+    "fr": "Je ne bois pas [de] café.",
+    "tr": {
+     "en": "I don't drink coffee.",
+     "de": "Ich trinke keinen Kaffee."
+    }
+   },
+   "rule": {
+    "en": "After a negative, un, une, des, du and de la become de (d' before a vowel).",
+    "de": "Nach einer Verneinung werden un, une, des, du und de la zu de (d' vor Vokal)."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "du",
+      "fr": "du café → pas [de] café"
+     },
+     {
+      "shape": "none",
+      "label": "une",
+      "fr": "une voiture → pas [de] voiture"
+     },
+     {
+      "shape": "none",
+      "label": "voyelle",
+      "fr": "de l'eau → pas [d']eau"
+     },
+     {
+      "shape": "none",
+      "label": "le, la",
+      "fr": "j'aime le café → je n'aime pas [le] café"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Je n'ai pas une voiture.",
+    "right": "Je n'ai pas [de] voiture."
+   },
+   "more": {
+    "en": "le, la, les don't change: je n'aime pas le thé. Nor does anything after être: ce n'est pas un problème.",
+    "de": "le, la, les bleiben: je n'aime pas le thé. Nach être ändert sich auch nichts: ce n'est pas un problème."
+   }
+  },
+  "FR_A2_TENSE_001": {
+   "speaker": "augustin_de_roncourt",
+   "example": {
+    "fr": "Hier, nous [avons fini] le projet.",
+    "tr": {
+     "en": "Yesterday we finished the project.",
+     "de": "Gestern haben wir das Projekt beendet."
+    }
+   },
+   "rule": {
+    "en": "avoir in the present plus the verb's past form (the participle): a finished action.",
+    "de": "avoir im Präsens plus die Vergangenheitsform des Verbs (das Partizip): eine abgeschlossene Handlung."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "-er → -é",
+      "fr": "j'ai parl[é]"
+     },
+     {
+      "shape": "none",
+      "label": "-ir → -i",
+      "fr": "tu as fin[i]"
+     },
+     {
+      "shape": "none",
+      "label": "-re → -u",
+      "fr": "il a vend[u]"
+     },
+     {
+      "shape": "none",
+      "label": "irrégulier",
+      "fr": "j'ai [fait], j'ai [pris], j'ai [eu]"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Hier, j'ai manger.",
+    "right": "Hier, j'ai mang[é]."
+   },
+   "more": {
+    "en": "To negate, wrap avoir: je n'ai pas fini. Common irregular forms: fait, pris, dit, vu, eu, été, bu, lu.",
+    "de": "Verneint wird avoir: je n'ai pas fini. Häufige unregelmäßige Formen: fait, pris, dit, vu, eu, été, bu, lu."
+   }
+  },
+  "FR_A2_TENSE_002": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "Les étudiantes sont arrivé[es] tôt.",
+    "tr": {
+     "en": "The students (all women) arrived early.",
+     "de": "Die Studentinnen sind früh angekommen."
+    }
+   },
+   "rule": {
+    "en": "Verbs of coming and going use être, and the participle agrees like an adjective.",
+    "de": "Verben des Kommens und Gehens nehmen être, und das Partizip passt sich an wie ein Adjektiv."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "square",
+      "label": "il",
+      "fr": "il [est] allé"
+     },
+     {
+      "shape": "circle",
+      "label": "elle",
+      "fr": "elle [est] allé[e]"
+     },
+     {
+      "shape": "circles",
+      "label": "elles",
+      "fr": "elles [sont] allé[es]"
+     },
+     {
+      "shape": "none",
+      "label": "se",
+      "fr": "je [me suis] levé(e)"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Elle a arrivé.",
+    "right": "Elle [est] arrivé[e]."
+   },
+   "more": {
+    "en": "The être verbs: aller, venir, arriver, partir, entrer, sortir, monter, descendre, naître, mourir, rester, tomber, retourner, plus every verb with se.",
+    "de": "Die être-Verben: aller, venir, arriver, partir, entrer, sortir, monter, descendre, naître, mourir, rester, tomber, retourner, dazu alle Verben mit se."
+   }
+  },
+  "FR_A2_VERB_001": {
+   "speaker": "marin_leveque",
+   "example": {
+    "fr": "Nous [nous] levons à sept heures.",
+    "tr": {
+     "en": "We get up at seven.",
+     "de": "Wir stehen um sieben auf."
+    }
+   },
+   "rule": {
+    "en": "The verb takes a small pronoun that matches the subject: je me, tu te, il se …",
+    "de": "Das Verb bekommt ein kleines Pronomen passend zum Subjekt: je me, tu te, il se …"
+   },
+   "pattern": {
+    "kind": "table",
+    "verb": "se lever",
+    "rows": [
+     {
+      "p": "je",
+      "fr": "[me] lève"
+     },
+     {
+      "p": "tu",
+      "fr": "[te] lèves"
+     },
+     {
+      "p": "il, elle",
+      "fr": "[se] lève"
+     },
+     {
+      "p": "nous",
+      "fr": "[nous] levons"
+     },
+     {
+      "p": "vous",
+      "fr": "[vous] levez"
+     },
+     {
+      "p": "ils",
+      "fr": "[se] lèvent"
+     }
+    ],
+    "note": {
+     "en": "Before a vowel me, te, se become m', t', s': je m'appelle.",
+     "de": "Vor einem Vokal werden me, te, se zu m', t', s': je m'appelle."
+    }
+   },
+   "contrast": {
+    "wrong": "Je lève à sept heures.",
+    "right": "Je [me] lève à sept heures."
+   },
+   "more": {
+    "en": "In the passé composé they all use être: je me suis levé(e).",
+    "de": "Im Passé composé nehmen sie alle être: je me suis levé(e)."
+   }
+  },
+  "FR_A2_TENSE_003": {
+   "speaker": "augustin_de_roncourt",
+   "example": {
+    "fr": "Quand j'étais enfant, je jou[ais] dehors tous les jours.",
+    "tr": {
+     "en": "When I was a child, I played outside every day.",
+     "de": "Als Kind habe ich jeden Tag draußen gespielt."
+    }
+   },
+   "rule": {
+    "en": "For how things were and what used to happen: the nous stem plus -ais, -ait, -ions, -iez, -aient.",
+    "de": "Für Zustände und Gewohnheiten von früher: der nous-Stamm plus -ais, -ait, -ions, -iez, -aient."
+   },
+   "pattern": {
+    "kind": "table",
+    "verb": "jouer",
+    "rows": [
+     {
+      "p": "je",
+      "fr": "jou[ais]"
+     },
+     {
+      "p": "tu",
+      "fr": "jou[ais]"
+     },
+     {
+      "p": "il, elle",
+      "fr": "jou[ait]"
+     },
+     {
+      "p": "nous",
+      "fr": "jou[ions]"
+     },
+     {
+      "p": "vous",
+      "fr": "jou[iez]"
+     },
+     {
+      "p": "ils",
+      "fr": "jou[aient]"
+     }
+    ],
+    "note": {
+     "en": "Stem = the nous form minus -ons (nous jouons → jou-). Only être is odd: j'étais.",
+     "de": "Stamm = die nous-Form ohne -ons (nous jouons → jou-). Nur être fällt raus: j'étais."
+    }
+   },
+   "contrast": {
+    "wrong": "Quand j'étais enfant, j'ai joué dehors tous les jours.",
+    "right": "Quand j'étais enfant, je jou[ais] dehors tous les jours."
+   },
+   "more": {
+    "en": "Signal words: tous les jours, souvent, d'habitude, quand j'étais petit.",
+    "de": "Signalwörter: tous les jours, souvent, d'habitude, quand j'étais petit."
+   }
+  },
+  "FR_A2_TENSE_004": {
+   "speaker": "lila_bonnet",
+   "example": {
+    "fr": "Je lis[ais] quand le téléphone [a sonné].",
+    "tr": {
+     "en": "I was reading when the phone rang.",
+     "de": "Ich las gerade, als das Telefon klingelte."
+    }
+   },
+   "rule": {
+    "en": "The imparfait paints the background; the passé composé is the event that happens in it.",
+    "de": "Das Imparfait malt den Hintergrund; das Passé composé ist das Ereignis darin."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "décor",
+      "fr": "Il [pleuvait], j'[attendais] le bus …"
+     },
+     {
+      "shape": "none",
+      "label": "événement",
+      "fr": "… quand Marin [est arrivé]."
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Je lisais quand le téléphone sonnait.",
+    "right": "Je lisais quand le téléphone [a sonné]."
+   },
+   "more": {
+    "en": "Ask yourself: was it going on (imparfait), or did it happen once and finish (passé composé)?",
+    "de": "Frag dich: lief es gerade (Imparfait) oder passierte es einmal und war vorbei (Passé composé)?"
+   }
+  },
+  "FR_A2_ADJ_001": {
+   "speaker": "augustin_de_roncourt",
+   "example": {
+    "fr": "Cette solution est [plus] simple [que] l'autre.",
+    "tr": {
+     "en": "This solution is simpler than the other one.",
+     "de": "Diese Lösung ist einfacher als die andere."
+    }
+   },
+   "rule": {
+    "en": "plus, moins or aussi + adjective + que. The most: le plus, la plus.",
+    "de": "plus, moins oder aussi + Adjektiv + que. Am meisten: le plus, la plus."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "+",
+      "fr": "[plus] cher [que]"
+     },
+     {
+      "shape": "none",
+      "label": "−",
+      "fr": "[moins] cher [que]"
+     },
+     {
+      "shape": "none",
+      "label": "=",
+      "fr": "[aussi] cher [que]"
+     },
+     {
+      "shape": "none",
+      "label": "le plus",
+      "fr": "[le plus] cher, [la plus] belle"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "plus bon",
+    "right": "[meilleur]"
+   },
+   "more": {
+    "en": "Two irregulars: bon → meilleur (better), bien → mieux. With nouns: plus de temps que.",
+    "de": "Zwei Ausnahmen: bon → meilleur (besser), bien → mieux. Mit Nomen: plus de temps que."
+   }
+  },
+  "FR_A2_REL_001": {
+   "speaker": "marin_leveque",
+   "example": {
+    "fr": "La ville [où] j'habite est calme.",
+    "tr": {
+     "en": "The town where I live is quiet.",
+     "de": "Die Stadt, in der ich wohne, ist ruhig."
+    }
+   },
+   "rule": {
+    "en": "qui is the subject of the next verb, que is its object, où is a place or a time.",
+    "de": "qui ist Subjekt des nächsten Verbs, que ist sein Objekt, où steht für Ort oder Zeit."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "qui",
+      "fr": "l'ami [qui] arrive"
+     },
+     {
+      "shape": "none",
+      "label": "que",
+      "fr": "l'ami [que] j'attends"
+     },
+     {
+      "shape": "none",
+      "label": "où",
+      "fr": "le café [où] on se retrouve"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "L'ami qui j'attends.",
+    "right": "L'ami [que] j'attends."
+   },
+   "more": {
+    "en": "Quick test: if a subject follows (je, tu, Marin …), use que. que becomes qu' before a vowel; qui never does.",
+    "de": "Schnelltest: Folgt ein Subjekt (je, tu, Marin …), nimm que. que wird vor Vokal zu qu'; qui nie."
+   }
+  },
+  "FR_A2_PREP_001": {
+   "speaker": "romy_tremblay",
+   "example": {
+    "fr": "J'étudie le français [depuis] deux ans.",
+    "tr": {
+     "en": "I've been studying French for two years.",
+     "de": "Ich lerne seit zwei Jahren Französisch."
+    }
+   },
+   "rule": {
+    "en": "depuis: still going on. pendant: a finished stretch. pour: a planned stretch. il y a: ago.",
+    "de": "depuis: dauert noch an. pendant: abgeschlossene Dauer. pour: geplante Dauer. il y a: vor."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "depuis",
+      "fr": "J'habite ici [depuis] 2020."
+     },
+     {
+      "shape": "none",
+      "label": "pendant",
+      "fr": "J'ai dormi [pendant] huit heures."
+     },
+     {
+      "shape": "none",
+      "label": "pour",
+      "fr": "Je pars [pour] une semaine."
+     },
+     {
+      "shape": "none",
+      "label": "il y a",
+      "fr": "Je suis arrivé [il y a] deux jours."
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "J'étudie le français pour deux ans.",
+    "right": "J'étudie le français [depuis] deux ans."
+   },
+   "more": {
+    "en": "depuis goes with the present: j'habite ici depuis un an means I've lived here for a year.",
+    "de": "depuis steht mit dem Präsens: j'habite ici depuis un an heißt Ich wohne seit einem Jahr hier."
+   }
+  },
+  "FR_A2_VERB_002": {
+   "speaker": "lila_bonnet",
+   "example": {
+    "fr": "Ton livre ? [Donne-le-moi] demain.",
+    "tr": {
+     "en": "Your book? Give it to me tomorrow.",
+     "de": "Dein Buch? Gib es mir morgen."
+    }
+   },
+   "rule": {
+    "en": "In a positive command the pronouns come after the verb, with hyphens, and me becomes moi.",
+    "de": "Im bejahten Imperativ stehen die Pronomen nach dem Verb, mit Bindestrich, und me wird zu moi."
+   },
+   "pattern": {
+    "kind": "rows",
+    "rows": [
+     {
+      "shape": "none",
+      "label": "+",
+      "fr": "[Donne-le-moi.]"
+     },
+     {
+      "shape": "none",
+      "label": "−",
+      "fr": "[Ne me le donne pas.]"
+     },
+     {
+      "shape": "none",
+      "label": "y, en",
+      "fr": "[Vas-y !] [Prends-en.]"
+     }
+    ]
+   },
+   "contrast": {
+    "wrong": "Donne-moi-le.",
+    "right": "[Donne-le-moi.]"
+   },
+   "more": {
+    "en": "In a negative command everything goes back in front: ne le fais pas. -er verbs drop the -s with tu (parle !), except before y and en: vas-y.",
+    "de": "Im verneinten Imperativ steht alles wieder vorn: ne le fais pas. Verben auf -er verlieren bei tu das -s (parle !), außer vor y und en: vas-y."
+   }
+  }
+ }
+}
