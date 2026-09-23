@@ -13,7 +13,6 @@ this package:
 """
 from __future__ import annotations
 
-import ast
 import pathlib
 import re
 from datetime import UTC, datetime, timedelta
@@ -315,20 +314,12 @@ def test_the_scheduler_never_files_an_item_for_this_instant() -> None:
 
 
 def test_grammar_review_no_longer_uses_a_five_branch_day_table() -> None:
+    """WP-L3: grammar is scheduled by the one memory model, not a day table."""
+
     source = (REPO_ROOT / "app/services/grammar.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    function = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and node.name == "calculate_next_review"
-    )
-    literals = {
-        node.value
-        for node in ast.walk(function)
-        if isinstance(node, ast.Constant) and isinstance(node.value, int)
-    }
-    assert {30, 14, 7, 3}.isdisjoint(literals), literals
-    assert "interval_for_score" in source
+    assert "calculate_next_review" not in source
+    assert "interval_for_score" not in source
+    assert "memory.review(" in source
 
 
 # ---------------------------------------------------------------------------

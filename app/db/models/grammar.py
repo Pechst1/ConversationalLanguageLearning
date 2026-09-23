@@ -104,6 +104,12 @@ class UserGrammarProgress(Base):
     last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     next_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # WP-L3: the FSRS-style memory the vocabulary scheduler already keeps
+    # (`app.core.srs.memory`). `score`/`state` stay for display and CEFR counts.
+    stability: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    difficulty: Mapped[float] = mapped_column(Float, default=5.0, server_default="5", nullable=False)
+    lapses: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

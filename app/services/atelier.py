@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import settings
+from app.core.srs.memory import FORMAT_STEP, Evidence, EvidenceFormat, format_for_name
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierExerciseSet,
@@ -195,6 +196,51 @@ def atelier_calibration_adjustment(raw_score_0_4: float, confidence: str | None)
     if confidence == "unsure" and score < 4.0:
         return min(4.0, score + 0.25), 0.82
     return score, 1.0
+
+
+def atelier_attempt_format(round_name: str | None, mode: str | None) -> EvidenceFormat:
+    """The evidence format of one Atelier attempt.
+
+    In the recognise round the *mode* is the format (fill / classify offer
+    options, the word bank assembles); every other round names its format.
+    """
+
+    if str(round_name or "") == "recognize":
+        return format_for_name(mode, round_name) or EvidenceFormat.RECOGNISE
+    return format_for_name(round_name, mode) or EvidenceFormat.RECOGNISE
+
+
+def atelier_session_evidence(
+    observations: list[tuple[str, str, float]], *, passed: bool
+) -> Evidence:
+    """What one Atelier session proved about a concept (WP-L3).
+
+    ``observations`` are ``(round, mode, adjusted 0–4 score)`` per attempt; a
+    score of 3 or more is a correct attempt. A passed session is credited at the
+    strongest format the learner got right (a correct «produce» outweighs the
+    recognise items around it); when the pass was earned on partial credit only,
+    at the strongest format attempted, *with help*. A failed session is graded
+    at the strongest format they got wrong, so an error in production is a lapse
+    and a slip on a recognise item only a Hard.
+    """
+
+    def step(item: tuple[str, str, float]) -> int:
+        return FORMAT_STEP.get(atelier_attempt_format(item[0], item[1]), 1)
+
+    if not observations:
+        return Evidence(EvidenceFormat.RECOGNISE, correct=passed)
+    if passed:
+        correct = [item for item in observations if item[2] >= 3.0]
+        if correct:
+            strongest = max(correct, key=step)
+            return Evidence(atelier_attempt_format(strongest[0], strongest[1]), correct=True)
+        strongest = max(observations, key=step)
+        return Evidence(
+            atelier_attempt_format(strongest[0], strongest[1]), correct=True, assisted=True
+        )
+    wrong = [item for item in observations if item[2] < 3.0] or observations
+    strongest = max(wrong, key=step)
+    return Evidence(atelier_attempt_format(strongest[0], strongest[1]), correct=False)
 
 
 ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
@@ -6366,6 +6412,7 @@ class AtelierSRSService:
         )
         scores_by_concept: dict[int, list[float]] = defaultdict(list)
         interval_multipliers_by_concept: dict[int, list[float]] = defaultdict(list)
+        observations_by_concept: dict[int, list[tuple[str, str, float]]] = defaultdict(list)
         errata_count = 0
         errata_rows: list[dict[str, Any]] = []
         error_memory = ErrorMemoryService(self.db)
@@ -6391,6 +6438,9 @@ class AtelierSRSService:
                         confidence_summary["hesitant_misses"] += 1
                 scores_by_concept[attempt.concept_id].append(adjusted_score)
                 interval_multipliers_by_concept[attempt.concept_id].append(interval_multiplier)
+                observations_by_concept[attempt.concept_id].append(
+                    (attempt.round, attempt.mode, adjusted_score)
+                )
             if attempt.round in {"sentence", "speak", "conversation", "produce"} and attempt.verdict in {"correct", "accepted"}:
                 # The phrase du jour is published — on the recap and on tomorrow's
                 # La Une — so it has to be the *corrected* line. An accepted answer
@@ -6430,6 +6480,9 @@ class AtelierSRSService:
                 notes=f"Atelier session {session.id}",
                 source_type="atelier",
                 interval_multiplier=interval_multiplier,
+                evidence=atelier_session_evidence(
+                    observations_by_concept.get(concept_id) or [], passed=quality >= 5.0
+                ),
             )
             progress_rows.append(
                 {
