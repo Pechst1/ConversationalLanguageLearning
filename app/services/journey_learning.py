@@ -62,6 +62,7 @@ from app.services.grammar import (
     determine_state,
     is_machine_note,
     personal_note,
+    previous_interval_days,
 )
 from app.services.journey_contracts import (
     AppliedEvidence,
@@ -342,11 +343,14 @@ def _target_ref_for_item(item: DueLearningItem) -> TargetRef | None:
         concept_id = metadata.get("concept_id")
         if concept_id is None:
             return None
+        # WP-L1: `display_title` is the English catalogue name. The chip is
+        # French and its gloss is in the learner's own language.
         return TargetRef(
             kind=TargetKind.GRAMMAR,
             id=str(concept_id),
-            label_fr=item.display_title,
-            label_native=metadata.get("category") or None,
+            label_fr=metadata.get("title_fr") or item.display_title,
+            label_native=metadata.get("title_native") or item.display_title or None,
+            concept_title=True,
         )
     if item.item_type is ItemType.ERROR:
         return TargetRef(
@@ -1636,10 +1640,18 @@ def _apply_grammar_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
 
     progress = GrammarService(db).get_or_create_progress(user_id=user.id, concept_id=concept_id)
+    # WP-L1: the interval grows from the concept's own history, exactly as
+    # `GrammarService.record_review` computes it; without it every journey
+    # credit got the first-review seed interval, however often it was seen.
+    interval = calculate_next_review(
+        score,
+        previous_interval_days=previous_interval_days(progress),
+        reps=int(progress.reps or 0),
+    )
     progress.score = score
     progress.reps = (progress.reps or 0) + 1
     progress.last_review = now
-    progress.next_review = now + calculate_next_review(score)
+    progress.next_review = now + interval
     progress.state = determine_state(score, progress.reps)
     note = f"[{JOURNEY_SOURCE_TYPE}] {evidence_kind}"
     if not is_machine_note(note) or not personal_note(progress.notes):
@@ -1664,6 +1676,7 @@ def _apply_error_credit(
     user: User,
     target: TargetRef,
     evidence_kind: EvidenceKind,
+    now: datetime,
 ) -> _CreditOutcome:
     try:
         error_id = UUID(str(target.id))
@@ -1674,22 +1687,58 @@ def _apply_error_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
     rating, repaired = review
     reviewed = ErrorMemoryService(db).review_error(
-        user=user, error_id=error_id, rating=rating, repaired=repaired
+        user=user, error_id=error_id, rating=rating, repaired=repaired, now=now
     )
     if reviewed is None:
         return _CreditOutcome(False, {"skipped": "error_missing"})
     db.flush([reviewed])
-    return _CreditOutcome(
-        True,
-        {
-            "error_id": str(reviewed.id),
-            "rating": rating,
-            "repaired": repaired,
-            "state": reviewed.state,
-            "next_review_date": (
-                reviewed.next_review_date.isoformat() if reviewed.next_review_date else None
-            ),
-        },
+    detail: dict[str, Any] = {
+        "error_id": str(reviewed.id),
+        "rating": rating,
+        "repaired": repaired,
+        "state": reviewed.state,
+        "next_review_date": (
+            reviewed.next_review_date.isoformat() if reviewed.next_review_date else None
+        ),
+    }
+    if reviewed.concept_id:
+        # WP-L1: a repair is evidence on the concept the erratum belongs to, as
+        # the unified queue's repair already treats it (`UnifiedSRSService.
+        # _credit_linked_grammar_from_error`). Written through this transaction.
+        detail["concept_credit"] = _apply_linked_concept_credit(
+            db, user=user, concept_id=reviewed.concept_id, evidence_kind=evidence_kind, now=now
+        ).detail
+    return _CreditOutcome(True, detail)
+
+
+def _apply_linked_concept_credit(
+    db: Session,
+    *,
+    user: User,
+    concept_id: int,
+    evidence_kind: EvidenceKind,
+    now: datetime,
+) -> _CreditOutcome:
+    """Grammar evidence reached through an erratum rather than a concept target.
+
+    A success folds into a credit the concept already earned today, on either
+    surface (WP-16 / D-0: one séance, one credit); a lapse always lands.
+    """
+
+    if evidence_kind is not EvidenceKind.NOT_YET and any(
+        journey_credited_today(
+            db, user=user, target_kind=str(TargetKind.GRAMMAR), target_id=str(concept_id),
+            on_date=now.date(), source_type=source_type,
+        )
+        for source_type in (JOURNEY_SOURCE_TYPE, "atelier")
+    ):
+        return _CreditOutcome(False, {"concept_id": concept_id, "skipped": "credited_today"})
+    return _apply_grammar_credit(
+        db,
+        user=user,
+        target=TargetRef(kind=TargetKind.GRAMMAR, id=str(concept_id), label_fr=""),
+        evidence_kind=evidence_kind,
+        now=now,
     )
 
 
@@ -1724,7 +1773,9 @@ def _credit_for(
             db, user=user, target=target, evidence_kind=evidence_kind, now=now
         )
     if target.kind is TargetKind.ERROR:
-        return _apply_error_credit(db, user=user, target=target, evidence_kind=evidence_kind)
+        return _apply_error_credit(
+            db, user=user, target=target, evidence_kind=evidence_kind, now=now
+        )
     return _CreditOutcome(False, {"skipped": "unknown_target_kind"})
 
 
@@ -1738,7 +1789,15 @@ def _record_correction_erratum(
     source_key: str,
     foreground: bool,
 ) -> dict[str, Any] | None:
-    return ErrorMemoryService(db).record_erratum(
+    service = ErrorMemoryService(db)
+    # WP-L1: the erratum names its concept, as `record_detected_error` does, so
+    # the mistake can make that concept due and a later repair can credit it.
+    concept_id = service.infer_concept_id_for_correction(
+        learner_text=correction.span_fr,
+        corrected_text=correction.corrected_fr,
+        note=correction.note_native,
+    )
+    return service.record_erratum(
         user=user,
         erratum={
             "display_label": f"Reprise : {correction.span_fr}"[:120],
@@ -1752,6 +1811,7 @@ def _record_correction_erratum(
             "external_id": None,
         },
         source_type=JOURNEY_SOURCE_TYPE,
+        concept_id=concept_id,
         learning_session_id=session.id,
         source_payload={
             "source_key": source_key,
@@ -1930,6 +1990,9 @@ def apply_learning_evidence(
     # learner's text and the target form, so the foreground correction is shown
     # but not booked a second time.
     punishment_recorded = False
+    # Concepts this step already booked a lapse on, so a correction about the
+    # same concept does not book a second one.
+    lapsed_concepts: set[str] = set()
 
     if evaluation.pending or evaluation.outcome is TaskOutcome.UNSCORED:
         # Infrastructure failure. No attempt, no lapse, no credit, no row.
@@ -2024,6 +2087,12 @@ def apply_learning_evidence(
         )
         moment.srs_credit_applied = credit.applied
         punishment_recorded = punishment_recorded or bool(credit.detail.get("erratum_id"))
+        if (
+            credit.applied
+            and evidence_kind is EvidenceKind.NOT_YET
+            and observation.target.kind is TargetKind.GRAMMAR
+        ):
+            lapsed_concepts.add(str(observation.target.id))
         moment.score_0_10 = _score_for(evidence_kind)
         moment.result_payload = {
             "evidence_kind": str(evidence_kind),
@@ -2130,12 +2199,22 @@ def apply_learning_evidence(
                     foreground=True,
                 )
                 punishment_recorded = bool(erratum)
+            concept_credit = None
+            concept_id = (erratum or {}).get("concept_id")
+            if concept_id and str(concept_id) not in lapsed_concepts:
+                # WP-L1: the mistake makes its concept due again (the lapse
+                # interval), through the same history-aware journey credit.
+                concept_credit = _apply_linked_concept_credit(
+                    db, user=user, concept_id=int(concept_id),
+                    evidence_kind=EvidenceKind.NOT_YET, now=now,
+                ).detail
             moment.srs_credit_applied = bool(erratum)
             moment.result_payload = {
                 "span_fr": correction.span_fr,
                 "corrected_fr": correction.corrected_fr,
                 "note_native": correction.note_native,
                 "erratum": erratum,
+                "concept_credit": concept_credit,
                 "suppressed_reason": None if erratum else "one_punishment_event_per_turn",
             }
             flag_modified(moment, "result_payload")

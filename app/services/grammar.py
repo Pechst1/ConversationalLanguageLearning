@@ -272,10 +272,9 @@ class GrammarService:
                 | (UserGrammarProgress.next_review <= now)  # Due
                 | (UserGrammarProgress.next_review.is_(None))  # Never reviewed
             )
-            .filter(
-                (UserGrammarProgress.id.is_(None))
-                | (UserGrammarProgress.state != "gemeistert")
-            )
+            # WP-L1: mastered concepts are not excluded. Their interval is long,
+            # but when it runs out they come back like any other review —
+            # excluding them meant a mastered concept was never seen again.
         )
 
         if level:
@@ -448,7 +447,6 @@ class GrammarService:
                 UserGrammarProgress.user_id == user.id,
                 *catalog_filters,
                 UserGrammarProgress.next_review <= now,
-                UserGrammarProgress.state != "gemeistert",
             )
             .scalar()
             or 0
@@ -807,7 +805,12 @@ class GrammarService:
                 new_score = min(10.0, progress.score + 0.5)
                 progress.score = new_score
                 progress.state = determine_state(new_score, progress.reps)
-                progress.last_review = now
+                # WP-L1: the schedule is left alone. SM-2 reads the previous
+                # interval back as next_review - last_review; moving
+                # last_review to now without moving next_review shrank it
+                # (to zero or less once due), so the next real review restarted
+                # the concept at the graduating interval. A mention in the story
+                # is not a review, so it only nudges the score.
 
             progress.updated_at = now
 

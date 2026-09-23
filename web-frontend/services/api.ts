@@ -690,31 +690,6 @@ export interface UserAchievementProgress {
   unlocked_at?: string | null;
 }
 
-export interface UnifiedSRSItem {
-  id: string;
-  item_type: 'vocab' | 'grammar' | 'error' | string;
-  priority_score: number;
-  display_title: string;
-  display_subtitle: string;
-  level: string;
-  due_since_days: number;
-  estimated_seconds: number;
-  original_id?: string | number | null;
-  metadata: Record<string, any>;
-}
-
-export interface UnifiedSRSQueue {
-  summary: {
-    total_due: number;
-    total_new: number;
-    estimated_minutes: number;
-    by_type: Record<string, { due: number; new: number; minutes: number }>;
-  };
-  queue: UnifiedSRSItem[];
-  interleaving_mode: string;
-  time_budget_minutes?: number | null;
-}
-
 export interface VocabularyRecommendationSummary {
   due: number;
   fragile: number;
@@ -2241,14 +2216,6 @@ class ApiService {
   // Progress endpoints
   async getProgressQueue(params?: { direction?: string; limit?: number }) {
     return this.get('/progress/queue', { params });
-  }
-
-  async getUnifiedSRSQueue(params?: {
-    limit?: number;
-    time_budget_minutes?: number;
-    interleaving_mode?: 'random' | 'blocks' | 'priority';
-  }): Promise<UnifiedSRSQueue> {
-    return this.get('/progress/unified-queue', { params });
   }
 
   async getVocabularyRecommendations(params?: VocabularyRecommendationParams): Promise<VocabularyRecommendations> {

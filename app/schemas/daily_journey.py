@@ -78,6 +78,8 @@ class TargetRef(JourneyModel):
     id: str
     label_fr: str
     label_native: str | None = None
+    #: WP-L1: ``label_fr`` is a grammar concept's title, not a phrase to say.
+    concept_title: bool = False
 
 
 class ScenarioDescriptor(JourneyModel):

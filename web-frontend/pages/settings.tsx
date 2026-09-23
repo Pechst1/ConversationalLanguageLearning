@@ -64,7 +64,6 @@ interface UserSettings {
 
     // Learning Goals
     dailyGoalMinutes: number;
-    dailyGoalXP: number;
     newWordsPerDay: number;
     defaultVocabDirection: string;
 
@@ -105,7 +104,6 @@ const defaultSettings: UserSettings = {
     cefrTargetLevel: 'A1.2',
     interests: [],
     dailyGoalMinutes: 15,
-    dailyGoalXP: 50,
     newWordsPerDay: 10,
     defaultVocabDirection: 'fr_to_de',
     practiceReminders: true,
@@ -212,7 +210,6 @@ const interestTopicPresets = INTEREST_TOPICS;
 // The design draws 5 / 8 / 15 min. The app's presets predate it and the free
 // field accepts 5–120, so the existing values are rendered as the same control.
 const minutePresets = [5, 10, 15, 30, 60];
-const xpPresets = [20, 50, 100, 150, 200];
 
 interface SettingsPageProps {
     userEmail?: string;
@@ -521,7 +518,6 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         .filter(Boolean),
 
                     dailyGoalMinutes: user.daily_goal_minutes || prev.dailyGoalMinutes,
-                    dailyGoalXP: user.daily_goal_xp || prev.dailyGoalXP,
                     newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
                         user.default_vocab_direction || prev.defaultVocabDirection,
@@ -599,7 +595,6 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 interests: settings.interests.join(','),
 
                 daily_goal_minutes: settings.dailyGoalMinutes,
-                daily_goal_xp: settings.dailyGoalXP,
                 new_words_per_day: settings.newWordsPerDay,
                 default_vocab_direction: settings.defaultVocabDirection,
 
@@ -1268,25 +1263,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     ))}
                                 </select>
                             </Row>
-                            <Row label={copy.row_xp} value={`${settings.dailyGoalXP} XP`} stacked>
-                                <Segmented
-                                    label={copy.row_xp}
-                                    options={xpPresets.map((xp) => ({ value: xp, label: String(xp) }))}
-                                    value={settings.dailyGoalXP}
-                                    onChange={(xp) => updateSetting('dailyGoalXP', xp)}
-                                />
-                                <Field label={copy.field_other_xp}>
-                                    <input
-                                        type="number"
-                                        className="av2-field__control st-number"
-                                        min="10"
-                                        max="500"
-                                        step="10"
-                                        value={settings.dailyGoalXP}
-                                        onChange={(e) => updateSetting('dailyGoalXP', parseInt(e.target.value) || 50)}
-                                    />
-                                </Field>
-                            </Row>
+                            {/* WP-L1: the daily XP marker was removed — nothing read it.
+                                New words per day is stored and becomes the vocabulary
+                                pace in WP-L6. */}
                             <Row label={copy.row_new_words} id="st-words-label">
                                 <input
                                     type="number"

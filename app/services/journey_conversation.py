@@ -88,6 +88,7 @@ from app.services.journey_contracts import (
     ScenarioBrief,
     StoryOutcomeProposal,
     StoryOutcomeRef,
+    TargetKind,
     TaskOutcome,
     effect_source_key,
     normalize_answer_text,
@@ -2017,7 +2018,13 @@ def _observations_for(
 ) -> list[Any]:
     observations = []
     for target in task.targets:
-        used = answer_matches(text, [target.label_fr])
+        # WP-L1: a grammar target's label is the concept's title, not a form
+        # the learner could say, so matching it proves nothing. Until detectors
+        # exist (WP-L4), a reply's grammar evidence comes only from a
+        # correction, whose erratum carries the concept (journey_learning).
+        used = target.kind is not TargetKind.GRAMMAR and answer_matches(
+            text, [target.label_fr]
+        )
         if used:
             observations.append(
                 classify_observation(

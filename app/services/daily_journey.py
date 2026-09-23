@@ -317,6 +317,7 @@ def _target_from_json(payload: dict[str, Any]) -> TargetRef:
         id=payload["id"],
         label_fr=payload.get("label_fr", ""),
         label_native=payload.get("label_native"),
+        concept_title=bool(payload.get("concept_title")),
     )
 
 

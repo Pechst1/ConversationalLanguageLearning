@@ -128,6 +128,7 @@ class AuthService:
             speaking_comfort=payload.speaking_comfort,
             daily_goal_minutes=payload.daily_goal_minutes,
             daily_goal_xp=payload.daily_goal_xp,
+            # Stored for WP-L6, which makes it the vocabulary pace.
             new_words_per_day=payload.new_words_per_day,
             default_vocab_direction=payload.default_vocab_direction
             or _default_vocab_direction_for(payload.native_language),

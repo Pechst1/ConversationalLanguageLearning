@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -36,6 +36,17 @@ def _slug(value: Any) -> str:
 
 def _normalize_review_answer(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", _normalize(value)).strip()
+
+
+#: Words whose swap, insertion or removal is a determiner choice (WP-L1): a
+#: correction that changes only these is about articles and determiners.
+_DETERMINER_TOKENS = frozenset(
+    {
+        "le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "au", "aux",
+        "ce", "cet", "cette", "ces", "mon", "ma", "mes", "ton", "ta", "tes",
+        "son", "sa", "ses", "notre", "nos", "votre", "vos", "leur", "leurs",
+    }
+)
 
 
 #: WP-24 lifecycle. Three states, and every legacy label folds onto one of them.
@@ -322,6 +333,25 @@ class ErrorMemoryService:
             .filter(UserError.user_id == user.id, UserError.memory_key == memory_key)
             .first()
         )
+        if existing is None and concept_id:
+            # WP-L1: journey errata used to be keyed without a concept. The same
+            # mistake, now recognised as a concept's, reopens that row (and
+            # adopts the concept, keeping its key) instead of starting a second
+            # one beside it.
+            legacy_key = self._memory_key(
+                category=category,
+                task_type=task_type,
+                display_label=display_label,
+                concept_id=None,
+                linked_word_id=linked_word.id if linked_word else None,
+            )
+            existing = (
+                self.db.query(UserError)
+                .filter(UserError.user_id == user.id, UserError.memory_key == legacy_key)
+                .first()
+            )
+            if existing is not None:
+                memory_key = legacy_key
         now = datetime.now(UTC)
         next_review = self._next_review(now=now, severity=severity, repeated=bool(existing), source_type=source_type)
         metadata = {
@@ -789,27 +819,53 @@ class ErrorMemoryService:
             )
             self.db.add(user_concept)
 
+    def infer_concept_id_for_correction(
+        self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None
+    ) -> int | None:
+        """The grammar concept a free-text correction is about, or ``None``.
+
+        WP-L1: journey corrections carry no error code, only the learner's span,
+        the corrected span and a short note. They go through the same inference
+        as ``record_detected_error``; the note supplies the family words, and a
+        change that only touches determiners names that family itself (the
+        note may be in German, or say nothing about grammar at all).
+        """
+
+        marker = str(note or "")
+        before = _normalize_review_answer(learner_text).split()
+        after = _normalize_review_answer(corrected_text).split()
+        changed = set(before) ^ set(after)
+        if changed and changed <= _DETERMINER_TOKENS:
+            marker = f"determiner {marker}"
+        return self._infer_grammar_concept_id(code=marker, category="grammar")
+
     def _infer_grammar_concept_id(self, *, code: str, category: str) -> int | None:
         marker = _normalize(f"{code} {category}")
         profile = infer_grammar_profile(task_text=marker)
         terms = profile_search_terms(profile.key)
         if terms:
             filters = []
+            identity_filters = []
             for term in terms:
                 like = f"%{term}%"
-                filters.extend(
-                    [
-                        GrammarConcept.external_id.ilike(like),
-                        GrammarConcept.category.ilike(like),
-                        GrammarConcept.subskill.ilike(like),
-                        GrammarConcept.name.ilike(like),
-                        GrammarConcept.core_rule.ilike(like),
-                    ]
-                )
+                identity = [
+                    GrammarConcept.external_id.ilike(like),
+                    GrammarConcept.category.ilike(like),
+                    GrammarConcept.subskill.ilike(like),
+                    GrammarConcept.name.ilike(like),
+                ]
+                identity_filters.extend(identity)
+                filters.extend([*identity, GrammarConcept.core_rule.ilike(like)])
             concept = (
                 self.db.query(GrammarConcept)
                 .filter(GrammarConcept.active.is_(True), or_(*filters))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                # A concept that *is* the family outranks one whose rule text
+                # merely mentions it («Gender and number» cites articles).
+                .order_by(
+                    case((or_(*identity_filters), 0), else_=1),
+                    GrammarConcept.difficulty_order.asc(),
+                    GrammarConcept.id.asc(),
+                )
                 .first()
             )
             return concept.id if concept else None

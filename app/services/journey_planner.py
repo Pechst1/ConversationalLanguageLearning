@@ -655,6 +655,11 @@ def build_recall_task(
     """
 
     language = scenario.control_language
+    if target.concept_title:
+        # WP-L1: a concept's label is its *title* («Les articles définis : le, la,
+        # l', les»), not a phrase to recall; asking what it means, or cutting it
+        # into tiles, is a fake question. Grammar gets its own items in WP-L4.
+        return None
     label_fr = (target.label_fr or "").strip()
     if not label_fr:
         return None
@@ -796,6 +801,9 @@ def build_word_bank_task(
     does not belong, they have to know the phrase.
     """
 
+    if target.concept_title:
+        # WP-L1: a concept title is not a sentence to rebuild.
+        return None
     label_fr = (target.label_fr or "").strip()
     tokens = label_fr.split()
     if len(tokens) < 2:

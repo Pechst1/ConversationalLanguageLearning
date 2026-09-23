@@ -18,7 +18,7 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks
 from loguru import logger
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -1732,6 +1732,12 @@ class AtelierScheduler:
         # learner's own band and only falls to a lower one when that band has
         # nothing left — a learner who has never been measured still starts at
         # A1, because A1 is then their band.
+        # WP-L1: "new" means never attempted. A concept with any progress row
+        # is either due (and already picked above as fragile) or scheduled for
+        # later, so it is not today's — it used to be re-served here as "new".
+        # A band the learner has fully studied simply yields fewer picks; the
+        # walk only ever goes down, never up into unplaced material.
+        studied_ids = select(UserGrammarProgress.concept_id).where(UserGrammarProgress.user_id == user.id)
         band = placement_band(self.db, user)
         if len(selected) < 2:
             eligible_levels = _cefr_levels_at_or_below(user, placement=band)
@@ -1743,6 +1749,7 @@ class AtelierScheduler:
                 cold_start_concepts.extend(
                     active_query.filter(
                         GrammarConcept.id.notin_(used_ids),
+                        GrammarConcept.id.notin_(studied_ids),
                         GrammarConcept.level == level,
                     )
                     .order_by(
@@ -2409,9 +2416,28 @@ class AtelierExerciseGenerator:
                     validation_feedback = validation_errors
                     continue
 
-                critique = self._downgrade_nonblocking_critique(
-                    self.critique_exercise_payload(concept, payload, user=user, session_id=session_id)
-                )
+                raw_critique = self._run_exercise_critique(concept, payload, user=user, session_id=session_id)
+                if raw_critique is None:
+                    # WP-L1: the critic is disabled or unreachable. Demanding a
+                    # verdict per item then rejected every set and served the
+                    # fallback, so the set now stands on the prompt and the
+                    # structural no-spoil guard alone, logged as such.
+                    self._record_generation_event(
+                        concept=concept,
+                        user=user,
+                        session_id=session_id,
+                        event_type="validator_only",
+                        source="llm",
+                        model=None,
+                        passed=True,
+                        payload={"attempt": attempt_index + 1, "critique": "unavailable"},
+                    )
+                    return (
+                        payload,
+                        bundle.model,
+                        bundle.validation_notes + " AI critique unavailable; validator-only pass.",
+                    )
+                critique = self._downgrade_nonblocking_critique(raw_critique)
                 expected = {(item["id"], item["round"], item["mode"]) for item in self._critique_items(payload)}
                 reviewed = {(item.item_id, item.round, item.mode) for item in critique}
                 if not expected.issubset(reviewed):
@@ -2486,11 +2512,23 @@ class AtelierExerciseGenerator:
         user: User | None = None,
         session_id: UUID | str | None = None,
     ) -> list[ItemVerdict]:
+        return self._run_exercise_critique(concept, payload, user=user, session_id=session_id) or []
+
+    def _run_exercise_critique(
+        self,
+        concept: GrammarConcept,
+        payload: dict[str, Any],
+        *,
+        user: User | None = None,
+        session_id: UUID | str | None = None,
+    ) -> list[ItemVerdict] | None:
+        """The critic's verdicts, or None when the critic did not run at all
+        (disabled, no LLM, provider failure). An empty list means it ran."""
         if not settings.ATELIER_EXERCISE_CRITIQUE_ENABLED:
-            return []
+            return None
         llm = self._get_llm_service()
         if not llm:
-            return []
+            return None
         items = self._critique_items(payload)
         if not items:
             return []
@@ -2576,7 +2614,7 @@ class AtelierExerciseGenerator:
                 passed=True,
                 payload={"unavailable": True, "error": str(exc)},
             )
-            return []
+            return None
 
     @staticmethod
     def _downgrade_nonblocking_critique(verdicts: list[ItemVerdict]) -> list[ItemVerdict]:

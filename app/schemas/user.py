@@ -69,6 +69,9 @@ class UserBase(BaseModel):
     speaking_comfort: str = Field(default="warming_up", max_length=20)
     daily_goal_minutes: int = Field(default=15, ge=0)
     daily_goal_xp: int = Field(default=50, ge=0)
+    # Stored now, read by no scheduler yet: WP-L6 wires it as the vocabulary
+    # pace (new words introduced per day). No upper bound here, since UserRead
+    # inherits it and older rows were accepted up to 100; the inputs cap at 50.
     new_words_per_day: int = Field(default=10, ge=1)
     # None = derive from native_language at registration (fr_to_de only for German natives).
     default_vocab_direction: str | None = Field(default=None, max_length=20)
@@ -122,6 +125,8 @@ class UserCreate(UserBase):
 
     password: str = Field(min_length=8, max_length=128)
     starting_point: StartingPoint | None = None
+    # Same bounds as the Réglages field; WP-L6 wires it as the vocabulary pace.
+    new_words_per_day: int = Field(default=10, ge=1, le=50)
 
     _normalize_email = field_validator("email", mode="before")(normalize_email_input)
     _password_bytes = field_validator("password")(check_new_password_bytes)
@@ -255,7 +260,7 @@ class UserUpdate(BaseModel):
     speaking_comfort: str | None = Field(default=None, max_length=20)
     daily_goal_minutes: int | None = Field(default=None, ge=0)
     daily_goal_xp: int | None = Field(default=None, ge=0)
-    new_words_per_day: int | None = Field(default=None, ge=1)
+    new_words_per_day: int | None = Field(default=None, ge=1, le=50)  # WP-L6 wires it
     default_vocab_direction: str | None = Field(default=None, max_length=20)
     
     notifications_enabled: bool | None = None
@@ -365,7 +370,8 @@ class UserSettingsUpdate(BaseModel):
 
     daily_goal_minutes: int | None = Field(default=None, ge=0, le=240)
     daily_goal_xp: int | None = Field(default=None, ge=0, le=2000)
-    new_words_per_day: int | None = Field(default=None, ge=1, le=100)
+    # WP-L6 turns this into the vocabulary pace; until then it is stored only.
+    new_words_per_day: int | None = Field(default=None, ge=1, le=50)
     default_vocab_direction: VocabDirection | None = None
     preferred_session_time: time | None = None
 

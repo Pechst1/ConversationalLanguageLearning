@@ -336,14 +336,20 @@ class TargetRef:
     id: str
     label_fr: str
     label_native: str | None = None
+    #: WP-L1: ``label_fr`` is a grammar concept's *title*, not a phrase the
+    #: learner could recall or say. Authored grammar targets are phrases.
+    concept_title: bool = False
 
     def as_public(self) -> dict[str, Any]:
-        return {
+        public = {
             "kind": str(self.kind),
             "id": self.id,
             "label_fr": self.label_fr,
             "label_native": self.label_native,
         }
+        if self.concept_title:
+            public["concept_title"] = True
+        return public
 
 
 _QUOTE_FOLD = {

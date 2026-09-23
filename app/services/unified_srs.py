@@ -18,7 +18,7 @@ from sqlalchemy import and_, desc, not_, or_
 from sqlalchemy.orm import Session
 
 from app.db.models.error import UserError
-from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
@@ -184,9 +184,6 @@ class UnifiedSRSService:
         self,
         user_id: UUID,
         time_budget_minutes: int | None = None,  # None = unlimited
-        new_vocab_limit: int = 10,
-        new_grammar_limit: int = 5,
-        new_errors_limit: int = 0,  # Errors come from conversations
         interleaving_mode: InterleavingMode = InterleavingMode.RANDOM,
     ) -> DailyPracticeSession:
         """
@@ -194,8 +191,11 @@ class UnifiedSRSService:
         
         Priority algorithm:
         1. Overdue items (sorted by days overdue × fragility)
-        2. Due today 
-        3. New items (up to daily limits)
+        2. Due today
+
+        Only due reviews: new material is introduced by the daily journey and
+        the Atelier, never by this queue (the old `new_*_limit` parameters were
+        accepted and ignored, so they were removed in WP-L1).
         
         Returns queue that optionally fits within time budget.
         """
@@ -598,9 +598,18 @@ class UnifiedSRSService:
             .limit(50)
             .all()
         )
-        
+        # WP-L1: the catalogue `name` is English. The journey shows a grammar
+        # target as a French chip with the learner's own-language title beside
+        # it, so both localized titles travel in the metadata.
+        native_language = self._native_language(user_id)
+        titles = self._concept_titles(
+            [concept.id for _progress, concept in progress_items],
+            locales={"fr", native_language},
+        )
+
         for progress, concept in progress_items:
             due_since = self._due_since_days(progress.next_review, now)
+            concept_titles = titles.get(concept.id, {})
             
             items.append(DueLearningItem(
                 id=f"grammar_{concept.id}",
@@ -620,6 +629,8 @@ class UnifiedSRSService:
                     "score": progress.score,
                     "state": progress.state,
                     "reps": progress.reps,
+                    "title_fr": concept_titles.get("fr") or concept.name,
+                    "title_native": concept_titles.get(native_language) or concept.name,
                     "review_mode": "grammar",
                     "next_review": self._iso(progress.next_review),
                     "route": f"/grammar?concept={concept.id}",
@@ -821,6 +832,27 @@ class UnifiedSRSService:
         logger.info(f"Applied time budget: {len(result)}/{len(items)} items fit in {budget_seconds}s")
         return result
 
+    def _concept_titles(
+        self, concept_ids: list[int], *, locales: set[str]
+    ) -> dict[int, dict[str, str]]:
+        """Localized concept titles, ``{concept_id: {locale: title}}``."""
+
+        if not concept_ids:
+            return {}
+        rows = (
+            self.db.query(GrammarConceptLocalization)
+            .filter(
+                GrammarConceptLocalization.concept_id.in_(concept_ids),
+                GrammarConceptLocalization.locale.in_(sorted(locales)),
+            )
+            .all()
+        )
+        titles: dict[int, dict[str, str]] = {}
+        for row in rows:
+            if row.title:
+                titles.setdefault(row.concept_id, {})[row.locale] = row.title
+        return titles
+
     def _native_language(self, user_id: UUID) -> str:
         """The language this learner reads glosses in."""
         user = self.db.get(User, user_id)
@@ -857,13 +889,17 @@ class UnifiedSRSService:
                 UserGrammarProgress.user_id == user_id,
                 GrammarConcept.active.is_(True),
                 GrammarConcept.language == target_language,
-                or_(
-                    UserGrammarProgress.state.is_(None),
-                    not_(UserGrammarProgress.state.in_(MASTERED_STATES)),
-                ),
+                # WP-L1: a mastered concept stays reviewable at its (long)
+                # interval; only an unscheduled one is never pulled back in.
                 or_(
                     UserGrammarProgress.next_review <= now,
-                    UserGrammarProgress.next_review.is_(None),
+                    and_(
+                        UserGrammarProgress.next_review.is_(None),
+                        or_(
+                            UserGrammarProgress.state.is_(None),
+                            not_(UserGrammarProgress.state.in_(MASTERED_STATES)),
+                        ),
+                    ),
                 ),
             )
         )
