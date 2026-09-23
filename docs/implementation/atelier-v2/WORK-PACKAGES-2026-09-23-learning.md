@@ -233,6 +233,20 @@ and the next scene gives the learner a chance to repair it.
   - the planned Régulier day is 8–10 min at the prior pace;
   - Léger still fits 5 min;
   - no rhythm plans a second episode.
+- **Status (2026-09-23, first half landed):** the rhythm is `users.daily_goal_minutes`
+  (5 / 10 / 20 / 30; older values map ≤7 Léger, ≤14 Régulier, ≤25 Soutenu, else Intensif;
+  new learners start on Régulier) and the server sizes the day from it — the client no
+  longer sends a budget. `rhythm_caps()` in `journey_contracts.py` scales the practice day
+  (warm-ups, guided items, retrieval after the reply, candidate pool); the five-minute row is
+  the WP-78 envelope unchanged. Measured pace feeds the planner after 3 measured days
+  (`journey_events.measured_pace`). «Nouveaux mots par jour» is one intake pool
+  (`vocabulary_pace.py`). «Encore 5 minutes» is the word drill in reviews-only mode
+  (`/vocabulary/review?encore=1`). Still open: the auto-throttle
+  (`vocabulary_pace.intake_throttle_factor` is the hook, returns 1.0 until WP-L3), folding the
+  Atelier drills into Soutenu/Intensif's Scène, a third reply turn and Intensif's letter or
+  listening block, the WP-L8 forecast on the cards, and the rhythm question in onboarding
+  (no natural step after the first win yet: the taste leads to sign-up, then straight into
+  day one).
 
 #### WP-L7 · The level: syllabus coverage plus a checkpoint
 - Replace the absolute thresholds (`CEFR_THRESHOLDS`) with coverage of the current sub-band:
@@ -275,6 +289,10 @@ and the next scene gives the learner a chance to repair it.
   - the harness report shows all four rhythms;
   - in the pilot, Régulier's real p50 over the first 2 weeks is 8–10 min;
   - Léger's p50 is at most 6 min.
+- **Status (2026-09-23, timing half landed):** `daily_journey_steps.started_at` (migration
+  `e1f3a5b7c9d2`) is set when a step becomes current; the daily rollup's `active_duration`
+  gains `by_rhythm` (p50 / p90 of measured active seconds, rhythm read from the journey's
+  budget). The 126-day harness per rhythm is still open.
 
 #### WP-L10 · The rule card v2: readable and beautiful
 - Spec and findings: `GRAMMAR-DUE-DILIGENCE-2026-09-23.md` §3.
