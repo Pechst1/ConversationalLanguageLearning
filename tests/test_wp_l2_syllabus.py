@@ -262,7 +262,8 @@ def test_switching_to_v2_carries_every_learner_score_over(db_session) -> None:
     _progress(db_session, learner, _by_external(db_session, "FR_A2_TENSE_004"), score=4.0, reps=2)
     _progress(db_session, learner, _by_external(db_session, "FR_B1_TENSE_001"), score=8.0, reps=3)
     _progress(db_session, other, _by_external(db_session, "FR_A2_PRON_002"), score=9.0, reps=7, state="gefestigt")
-    v1_rows_before = db_session.query(UserGrammarProgress).count()
+    ours = UserGrammarProgress.user_id.in_([learner.id, other.id])
+    v1_rows_before = db_session.query(UserGrammarProgress).filter(ours).count()
 
     FrenchCoreGrammarCatalog(db_session, "v2").ensure_catalog()
 
@@ -277,7 +278,7 @@ def test_switching_to_v2_carries_every_learner_score_over(db_session) -> None:
     assert _progress_on(db_session, learner, "FR2_A22_IMP_VS_PC").score == 8.0
     assert _progress_on(db_session, other, "FR2_A21_Y_PLACE").score == 9.0
     # v1 rows are copied, not moved; the v1 concepts are archived with their replacement.
-    assert db_session.query(UserGrammarProgress).count() == v1_rows_before + 3
+    assert db_session.query(UserGrammarProgress).filter(ours).count() == v1_rows_before + 3
     v1 = _by_external(db_session, "FR_A1_VERB_001")
     assert v1.active is False
     archive = db_session.query(GrammarConceptArchive).filter(GrammarConceptArchive.concept_id == v1.id).one()
@@ -328,8 +329,15 @@ def test_v2_seed_stores_prerequisites_and_localized_rules(db_session) -> None:
 
 
 @pytest.fixture()
-def v2_active(monkeypatch):
+def v2_active(monkeypatch, db_session):
     monkeypatch.setattr(settings, "ATELIER_GRAMMAR_CATALOG_VERSION", "v2")
+    AtelierScheduler(db_session).ensure_catalog()
+    # Other suites leave active ad-hoc concepts (other languages, test fixtures)
+    # behind; the ladder under test is the v2 catalogue alone.
+    db_session.query(GrammarConcept).filter(
+        GrammarConcept.catalog_version.is_(None) | (GrammarConcept.catalog_version != FRENCH_CORE_CATALOG_V2_VERSION)
+    ).update({GrammarConcept.active: False}, synchronize_session=False)
+    db_session.commit()
     yield
 
 
