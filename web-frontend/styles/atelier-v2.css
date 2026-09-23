@@ -1587,12 +1587,18 @@
    =========================================================================== */
 
 .av2.av2-home {
-  display: block;
+  /* A column as tall as the screen: WP-81 made Home short, and the embedded tab
+     bar must still sit at the bottom rather than float under the plan row. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
   padding: 0 0 calc(16px + var(--phone-bottom-nav-space, 0px));
 }
+.av2.av2-home > .av2-tabbar.embedded { margin-top: auto; position: sticky; bottom: 0; }
+.av2.av2-home:has(> .av2-tabbar.embedded) { padding-bottom: 0; }
 
 .av2 .av2-home__mast {
   display: flex;
