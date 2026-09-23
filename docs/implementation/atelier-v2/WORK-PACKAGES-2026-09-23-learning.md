@@ -276,9 +276,24 @@ and the next scene gives the learner a chance to repair it.
   - in the pilot, Régulier's real p50 over the first 2 weeks is 8–10 min;
   - Léger's p50 is at most 6 min.
 
+#### WP-L10 · The rule card v2: readable and beautiful
+- Spec and findings: `GRAMMAR-DUE-DILIGENCE-2026-09-23.md` §3.
+- Today's card is an English rule set as the Garamond headline, with French labels, a typed
+  ASCII formula, and no forms, glosses, audio or contrast pair.
+- v2:
+  - a French example is the one headline, marked with the x-ray marks and gender shapes;
+  - a rule of at most 20 words in the learner's language, with no jargon at A1–A2;
+  - the pattern drawn from tokens, or a mini conjugation table;
+  - one ✗/✓ contrast pair;
+  - «Pourquoi ?» for more.
+- Content columns per unit and locale (en / de / fr): `rule_short`, `rule_more`, `glossary`,
+  `contrast_pair`, `forms`, `pattern_tokens`. Authored with WP-L2, drafted by an LLM and
+  reviewed by a person.
+- It can start before WP-L2 on the current 54 concepts, so the card improves now.
+
 ## 4. Order
 
-1. **WP-L1** now. Small and independent; everything later assumes the loop is honest.
+1. **WP-L1** now; **WP-L10** can start in parallel on the current catalogue. Small and independent; everything later assumes the loop is honest.
 2. **WP-L2 and WP-L3 in parallel**: the syllabus content and the memory model.
 3. **WP-L6** (composer and rhythm) once WP-L3's queue exists. **WP-L9**'s timing half goes with
    it, so the 8–10 minutes is measured, not asserted.
