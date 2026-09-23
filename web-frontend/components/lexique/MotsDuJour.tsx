@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 
-import { AtelierV2Root, Chip, ShapeToken } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, Chip, ShapeToken, WordToken } from '@/components/atelier-v2/ui';
 import type { DailyWordEntry, DailyWordSlate } from '@/services/api';
 
 /* "Les Mots du jour" — the day's coordinated vocabulary slate.
@@ -14,7 +14,9 @@ import type { DailyWordEntry, DailyWordSlate } from '@/services/api';
    of rows — the word in Garamond italic, its gloss beside it, and the three
    stamps as small pills. An earned stamp is an ink pill (ink = done); a triple
    is the yellow reward chip. Colour never carries the state alone: every pill
-   prints its word, and the stamp row exposes its "n sur 3" count. */
+   prints its word, and the stamp row exposes its "n sur 3" count.
+   WP-D6: each word opens with its WordToken — the gender as a shape, the
+   article inside, the colour its bucket (yellow new, blue in review). */
 
 const STAMP_ORDER: Array<{ key: 'lu' | 'retrouve' | 'place'; label: string }> = [
   { key: 'lu', label: 'Lu' },
@@ -56,6 +58,13 @@ export default function MotsDuJour({
             return (
               <li key={entry.word_id} className="mdj-row" data-triple={entry.triple ? 'true' : undefined}>
                 <span className="mdj-word">
+                  <WordToken
+                    word={entry.word}
+                    gender={entry.gender}
+                    partOfSpeech={entry.part_of_speech}
+                    state={entry.bucket}
+                    size="sm"
+                  />
                   <b className="av2-fr">{entry.word}</b>
                   {entry.translation ? <i>{entry.translation}</i> : null}
                 </span>

@@ -125,6 +125,10 @@ class DailyWordEntry(BaseModel):
     example_sentence: str | None = None
     example_translation: str | None = None
     anchor: str | None = None
+    # Read live from the catalogue row on every request (not frozen into the
+    # day's persisted slate), so a gender backfill shows the same day. WP-D6.
+    part_of_speech: str | None = None
+    gender: str | None = None
     stamps: dict[str, str | None] = Field(default_factory=dict)
     triple: bool = False
 

@@ -27,6 +27,9 @@ export {
 } from './Shapes';
 export type { ShapeKind, ShapeTokenProps } from './Shapes';
 
+export { WordToken } from './WordToken';
+export type { WordTokenProps } from './WordToken';
+
 export { Action, Chip, IconAction } from './Action';
 export type { ActionProps, ActionTone, ChipProps, IconActionProps } from './Action';
 

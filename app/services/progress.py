@@ -425,6 +425,7 @@ class ProgressService:
             "is_new": progress is None,
             "deck_name": word.deck_name,
             "part_of_speech": word.part_of_speech,
+            "gender": word.gender,
             "topic_tags": word.topic_tags or [],
             **gloss_payload(word, native_language),
             "example_sentence": word.example_sentence,

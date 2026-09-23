@@ -753,6 +753,8 @@ export interface VocabularyRecommendationItem {
   is_new: boolean;
   deck_name?: string | null;
   part_of_speech?: string | null;
+  /** Stored noun gender ("m" / "f"); null when the catalogue does not know it. */
+  gender?: string | null;
   topic_tags?: string[];
   translations: {
     de?: string | null;
@@ -802,6 +804,8 @@ export interface DailyWordEntry {
   example_sentence?: string | null;
   example_translation?: string | null;
   anchor?: string | null;
+  part_of_speech?: string | null;
+  gender?: string | null;
   stamps?: Partial<Record<'lu' | 'retrouve' | 'place', string | null>>;
   triple?: boolean;
 }
