@@ -5,7 +5,7 @@
  * and the streak on the snapshot). Nothing is estimated here: a missing field
  * is a missing row, never a placeholder number.
  *
- *   Série  — `journey.streak.days`, «Jour N»; absent at 0 (nothing to reward).
+ *   Série  — `journey.streak.days`, «N jours»; absent at 0 (nothing to reward).
  *   Mots   — `recap.words` (or, on a pre-WP-79 recap, the vocabulary targets
  *            the steps observed, minus "not yet"); absent at 0.
  *   Scène  — measured minutes when the server measured them, else the number
@@ -28,6 +28,8 @@ import type {
   RecapWord,
 } from '@/types/daily-journey';
 
+import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
+
 import { formatDuration } from './journey-state';
 import { RECAP_CHROME, fill, recapStatusCopy } from './recap-copy';
 
@@ -44,8 +46,18 @@ export type RecapFace = {
   lineFr: string | null;
 };
 
+export type RecapSeal = {
+  /** The edition (`journey.edition_no`); `null` on a server that does not send it. */
+  no: number | null;
+  variant: SealVariant;
+  /** «22 sept.», the journey's own local day. */
+  date: string | null;
+};
+
 export type RewardView = {
   partial: boolean;
+  /** WP-D4: only a *completed* day presses a seal; an early stop never does. */
+  seal: RecapSeal | null;
   facts: RecapFact[];
   /** «Un jour de relâche a gardé la série» — the learner's language. */
   freezeNote: string | null;
@@ -139,28 +151,41 @@ export function rewardView(
 ): RewardView | null {
   if (!recap) return null;
   const partial = recap.completion_kind === 'early' || journey.status === 'ended_early';
+  // WP-D4: Scène · Mots · Série, in the order the day was lived.
   const facts: RecapFact[] = [];
-  const streakDays = Number(journey.streak?.days ?? 0);
-  if (Number.isFinite(streakDays) && streakDays > 0) {
-    facts.push({
-      id: 'streak',
-      label: RECAP_CHROME.streak_label,
-      value: fill(RECAP_CHROME.streak_value, { n: Math.round(streakDays) }),
-    });
-  }
+  const scene = sceneValue(recap, journey);
+  if (scene) facts.push({ id: 'scene', label: RECAP_CHROME.scene_label, value: scene });
   const words = recapWords(recap);
   if (words.length > 0) {
     facts.push({ id: 'words', label: RECAP_CHROME.words_label, value: `+${words.length}` });
   }
-  const scene = sceneValue(recap, journey);
-  if (scene) facts.push({ id: 'scene', label: RECAP_CHROME.scene_label, value: scene });
+  const streakDays = Number(journey.streak?.days ?? 0);
+  if (Number.isFinite(streakDays) && streakDays > 0) {
+    const n = Math.round(streakDays);
+    facts.push({
+      id: 'streak',
+      label: RECAP_CHROME.streak_label,
+      value: n === 1 ? RECAP_CHROME.streak_value_one : fill(RECAP_CHROME.streak_value, { n }),
+    });
+  }
 
   const freezeUsed = Boolean(journey.streak?.freeze_used_on) && streakDays > 0;
   const firstPractice = (recap.practiced_targets || []).find((item) => item.practice_href);
   const teaser = recap.teaser && recap.teaser.text_fr?.trim() ? recap.teaser : null;
 
+  const completed = !partial && journey.status === 'completed';
+  const editionNo =
+    typeof journey.edition_no === 'number' && Number.isFinite(journey.edition_no) ? journey.edition_no : null;
+
   return {
     partial,
+    seal: completed
+      ? {
+          no: editionNo,
+          variant: editionNo != null ? sealForEdition(editionNo).variant : 'quad',
+          date: keepsakeDate(recap.keepsake?.local_date ?? journey.local_date),
+        }
+      : null,
     facts,
     freezeNote: freezeUsed ? recapStatusCopy(language).freeze_used : null,
     words,

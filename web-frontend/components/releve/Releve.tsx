@@ -7,6 +7,7 @@
  * achievements grid. Nothing here reads a global table: every number below is
  * scoped to the signed-in learner and maps to a named API field.
  *
+ *   Vos sceaux     GET /analytics/streak     (WP-D5: the streak's own days, as seals)
  *   Le Cours       GET /progress/cefr            (the same payload La Une's LuCours reads)
  *   Le Registre    GET /analytics/summary        (UserVocabularyProgress rows for THIS user)
  *                  GET /grammar/summary          (UserGrammarProgress rows for THIS user)
@@ -31,6 +32,7 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
+import SealCollection from '@/components/releve/SealCollection';
 import api, {
   type AtelierAlmanac,
   type CEFRProgress,
@@ -286,6 +288,9 @@ export default function Releve() {
 
   return (
     <div className="nb-rv">
+      {/* ---- Vos sceaux (WP-D5): the streak, reached from the Home streak ---- */}
+      <SealCollection />
+
       {/* ---- Le Cours ---- */}
       <section className="nb-rv__sec" aria-label="Le cours">
         {/* The level is the headline below; repeating it in the head would be

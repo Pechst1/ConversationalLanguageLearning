@@ -486,6 +486,10 @@ class JourneySnapshot(JourneyModel):
     #: WP-80. Whole local days with no practice before this day. From 2, the
     #: day is labelled «Reprise en douceur».
     missed_days: int = 0
+    #: WP-D4. The edition this day played (the serial episode's
+    #: ``episode_index + 1``; the learner's own day count when there is no
+    #: episode). Its seal composition is fixed by this number.
+    edition_no: int | None = None
 
 
 class LegacyResume(JourneyModel):

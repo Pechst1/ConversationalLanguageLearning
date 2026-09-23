@@ -1,61 +1,82 @@
-import { useId, useMemo, type CSSProperties } from 'react';
+import React, { useId, useMemo, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
 export type SealVariant = 'row' | 'stack' | 'nested' | 'quad' | 'orbit' | 'frieze';
 
-/* ---------- the forms locked into an emblem (varies per day) ---------- */
-const CORE_SHAPES: Record<SealVariant, JSX.Element> = {
-  row: (
-    <>
-      <circle className="shp c-circle" cx="40" cy="62" r="18" />
-      <rect className="shp c-square" x="48" y="44" width="34" height="34" />
-      <polygon className="shp c-tri" points="80,44 100,78 60,78" />
-    </>
-  ),
-  stack: (
-    <>
-      <polygon className="shp c-tri" points="58,14 78,50 38,50" />
-      <rect className="shp c-square" x="40" y="46" width="36" height="36" />
-      <circle className="shp c-circle" cx="58" cy="88" r="17" />
-    </>
-  ),
-  nested: (
-    <>
-      <circle className="shp c-circle" cx="58" cy="58" r="36" />
-      <polygon className="shp c-tri" points="58,32 82,80 34,80" />
-      <rect className="shp c-square" x="49" y="52" width="18" height="18" />
-    </>
-  ),
-  quad: (
-    <>
-      <rect className="shp c-block" x="30" y="30" width="24" height="24" />
-      <circle className="shp c-circle" cx="74" cy="42" r="13" />
-      <rect className="shp c-square" x="30" y="62" width="24" height="24" />
-      <polygon className="shp c-tri" points="74,62 88,86 60,86" />
-    </>
-  ),
-  // creative additions — more daily variety, same house inks.
-  orbit: (
-    <>
-      <circle className="shp c-circle" cx="58" cy="58" r="20" />
-      <rect className="shp c-square" x="22" y="22" width="18" height="18" />
-      <polygon className="shp c-tri" points="84,30 100,58 68,58" />
-      <rect className="shp c-block" x="52" y="84" width="16" height="16" />
-    </>
-  ),
-  frieze: (
-    <>
-      <circle className="shp c-circle" cx="26" cy="58" r="13" />
-      <rect className="shp c-square" x="45" y="45" width="26" height="26" />
-      <polygon className="shp c-tri" points="80,45 100,71 60,71" />
-    </>
-  ),
+/* ---------- the logo's four shapes, arranged per edition ----------
+   WP-D4 (owner, 2026-09-22): every seal holds the logo's four shapes — blue
+   circle, yellow square, red triangle, ink square — filled, with no stroke,
+   each sitting on its own `*-deep` press so the forms read as the 3D buttons
+   do. `quad` is the logo itself; the others are the same four, rearranged.
+   Coordinates are in the well's 116-unit box. */
+type Tone = 'circle' | 'square' | 'tri' | 'block';
+type Form =
+  | { tone: 'circle'; cx: number; cy: number; r: number }
+  | { tone: 'square' | 'block'; x: number; y: number; s: number }
+  | { tone: 'tri'; points: [number, number][] };
+
+const FORMS: Record<SealVariant, Form[]> = {
+  quad: [
+    { tone: 'block', x: 26, y: 24, s: 26 },
+    { tone: 'circle', cx: 77, cy: 37, r: 13 },
+    { tone: 'square', x: 26, y: 60, s: 26 },
+    { tone: 'tri', points: [[77, 60], [92, 86], [62, 86]] },
+  ],
+  row: [
+    { tone: 'circle', cx: 20, cy: 56, r: 10 },
+    { tone: 'square', x: 34, y: 46, s: 20 },
+    { tone: 'tri', points: [[68, 46], [79, 66], [57, 66]] },
+    { tone: 'block', x: 84, y: 46, s: 20 },
+  ],
+  stack: [
+    { tone: 'tri', points: [[58, 14], [74, 40], [42, 40]] },
+    { tone: 'square', x: 30, y: 46, s: 24 },
+    { tone: 'circle', cx: 75, cy: 58, r: 12 },
+    { tone: 'block', x: 48, y: 78, s: 20 },
+  ],
+  nested: [
+    { tone: 'circle', cx: 58, cy: 56, r: 36 },
+    { tone: 'tri', points: [[58, 30], [82, 76], [34, 76]] },
+    { tone: 'square', x: 47, y: 52, s: 22 },
+    { tone: 'block', x: 53, y: 58, s: 10 },
+  ],
+  orbit: [
+    { tone: 'circle', cx: 58, cy: 56, r: 18 },
+    { tone: 'square', x: 18, y: 22, s: 18 },
+    { tone: 'tri', points: [[90, 20], [101, 40], [79, 40]] },
+    { tone: 'block', x: 50, y: 84, s: 16 },
+  ],
+  frieze: [
+    { tone: 'circle', cx: 27, cy: 33, r: 11 },
+    { tone: 'square', x: 38, y: 42, s: 20 },
+    { tone: 'tri', points: [[72, 54], [84, 76], [60, 76]] },
+    { tone: 'block', x: 80, y: 80, s: 16 },
+  ],
 };
 
+/** The press sits this many units under each shape (the 3D button's depth). */
+const PRESS = 3;
+
+function FormShape({ form, press }: { form: Form; press: boolean }) {
+  const cls = cn('av2-seal__form', `av2-seal__form--${form.tone}`, press && 'is-press');
+  const dy = press ? PRESS : 0;
+  if (form.tone === 'circle') return <circle className={cls} cx={form.cx} cy={form.cy + dy} r={form.r} />;
+  if (form.tone === 'tri') {
+    return <polygon className={cls} points={form.points.map(([x, y]) => `${x},${y + dy}`).join(' ')} />;
+  }
+  return <rect className={cls} x={form.x} y={form.y + dy} width={form.s} height={form.s} rx={2} />;
+}
+
 export function CoreForms({ variant = 'row' }: { variant?: SealVariant }) {
+  const forms = FORMS[variant] || FORMS.quad;
   return (
-    <svg viewBox="0 0 116 116" aria-hidden="true">
-      {CORE_SHAPES[variant] || CORE_SHAPES.row}
+    <svg viewBox="0 0 116 116" aria-hidden="true" focusable="false">
+      {forms.map((form, index) => (
+        <g key={`${form.tone}-${index}`}>
+          <FormShape form={form} press />
+          <FormShape form={form} press={false} />
+        </g>
+      ))}
     </svg>
   );
 }
@@ -70,7 +91,13 @@ export const SEAL_NAMES: Record<SealVariant, string> = {
   frieze: 'La frise',
 };
 
+/* Kept in step with `app/services/seals.py::SEAL_CYCLE` (a backend test reads
+   this line), so the server's calendar and this component press the same seal. */
 const SEAL_CYCLE: SealVariant[] = ['row', 'stack', 'nested', 'quad', 'orbit', 'frieze'];
+
+export function isSealVariant(value: unknown): value is SealVariant {
+  return typeof value === 'string' && (SEAL_CYCLE as string[]).includes(value);
+}
 
 /** Deterministic seal variant for an edition number, so a given day's seal is stable. */
 export function sealForEdition(no: number): { variant: SealVariant; name: string } {
@@ -78,9 +105,19 @@ export function sealForEdition(no: number): { variant: SealVariant; name: string
   return { variant, name: SEAL_NAMES[variant] };
 }
 
+/** «Nº 47 · 22 sept.» — the seal's lower line. */
+export function sealCaption(no?: number | null, date?: string | null): string {
+  return [no != null ? `Nº ${no}` : '', date || ''].filter(Boolean).join(' · ');
+}
+
 /* ============================================================
-   THE SEAL — the printer's-colophon pressmark. The one place the
-   ink-block shadow belongs. Variable + collectible by day.
+   THE SEAL — WP-D4, rebuilt in the av2 language (owner, 2026-09-22).
+   A card-face disc on the large press (0 8px 0 --av2-line-2), no ink
+   border and no offset shadow; the text around it is sentence case,
+   Instrument Sans 600 in --av2-muted; the centre is a paper well
+   holding the logo's four shapes. Styles: `styles/atelier-v2.css`
+   (`.av2-seal`), so it must render inside an `.av2` root.
+   `stamp` presses it once; Reduce Motion removes the press.
    ============================================================ */
 export function Seal({
   variant = 'row',
@@ -89,36 +126,49 @@ export function Seal({
   stamp = false,
   size = 'md',
   tone = 'ink',
+  label,
 }: {
   variant?: SealVariant;
-  no?: number;
+  no?: number | null;
   date?: string;
   stamp?: boolean;
   size?: 'md' | 'lg';
   tone?: 'ink' | 'gilt';
+  /** Accessible name; defaults to «Sceau Nº 47 · 22 sept.». */
+  label?: string;
 }) {
   const uid = useId().replace(/:/g, '');
-  const ringLabel =
-    no != null ? `Nº ${no}${date ? `  ·  ${date.toUpperCase()}` : ''}` : date ? date.toUpperCase() : '';
+  const caption = sealCaption(no, date);
   return (
-    <div className={cn('seal', size, tone === 'gilt' && 'gilt', stamp && 'stamp')}>
-      <div className="seal-medallion">
-        <svg className="ring" viewBox="0 0 200 200" aria-hidden="true">
+    <div
+      className="av2-seal"
+      data-size={size}
+      data-tone={tone}
+      data-stamp={stamp ? 'true' : undefined}
+      data-variant={variant}
+      role="img"
+      aria-label={label || ['Sceau', caption].filter(Boolean).join(' ')}
+    >
+      <div className="av2-seal__disc">
+        <svg className="av2-seal__words" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
           <defs>
-            <path id={`rt${uid}`} d="M 20,100 A 80,80 0 0 1 180,100" />
-            <path id={`rb${uid}`} d="M 23,100 A 77,77 0 0 0 177,100" />
+            <path id={`st${uid}`} d="M 22,100 A 78,78 0 0 1 178,100" />
+            <path id={`sb${uid}`} d="M 12,100 A 88,88 0 0 0 188,100" />
           </defs>
-          <circle cx="100" cy="100" r="66" fill="none" stroke="var(--ink)" strokeWidth="1.5" />
-          <circle cx="13.5" cy="100" r="2.6" fill="var(--ink)" />
-          <circle cx="186.5" cy="100" r="2.6" fill="var(--ink)" />
-          <text fontSize="11.5" textAnchor="middle">
-            <textPath href={`#rt${uid}`} startOffset="50%">ATELIER — LE FEUILLETON</textPath>
+          <text className="av2-seal__line" textAnchor="middle">
+            <textPath href={`#st${uid}`} startOffset="50%">
+              Atelier · le feuilleton
+            </textPath>
           </text>
-          <text className="fine" textAnchor="middle">
-            <textPath href={`#rb${uid}`} startOffset="50%">{ringLabel}</textPath>
-          </text>
+          {caption && (
+            <text className="av2-seal__line" textAnchor="middle">
+              <textPath href={`#sb${uid}`} startOffset="50%">
+                {caption}
+              </textPath>
+            </text>
+          )}
         </svg>
-        <div className="core">
+        <div className="av2-seal__well">
           <CoreForms variant={variant} />
         </div>
       </div>
@@ -126,28 +176,64 @@ export function Seal({
   );
 }
 
-/* compact archive seal — forms in a ring, Nº beneath */
+export type SealMiniState = 'earned' | 'done' | 'relache' | 'today' | 'future' | 'missed' | 'empty';
+
+/* compact collection seal — WP-D5's «Vos sceaux» grid.
+   earned  a card disc on the small press (0 3px 0 --av2-line-2), the seal's four shapes
+   done    a practised day with no seal (an early stop): the ink «done» square
+   relache the yellow reward square in a dashed disc
+   today   a dashed red disc
+   future  a dotted disc
+   missed  a flat disc in --av2-line (legacy `empty` reads the same) */
 export function SealMini({
   no,
   variant = 'row',
   state = 'earned',
-  tone = 'ink',
+  label,
+  caption,
 }: {
-  no?: number;
+  no?: number | null;
   variant?: SealVariant;
-  state?: 'earned' | 'future' | 'empty';
+  state?: SealMiniState;
+  /** Accessible name for the day. */
+  label?: string;
+  /** The line under the disc; defaults to «Nº 47» on an earned seal. */
+  caption?: string | null;
+  /** Legacy prop, ignored: the av2 seal has one tone. */
   tone?: 'ink' | 'gilt';
 }) {
+  const shown = state === 'empty' ? 'missed' : state;
+  const line = caption !== undefined ? caption : shown === 'earned' && no != null ? `Nº ${no}` : '';
   return (
-    <div className={cn('seal-mini', state, tone === 'gilt' && 'gilt')}>
-      <div className="disc">
-        {state === 'earned' && (
-          <div className="core">
+    <div className="av2-seal-mini" data-state={shown} role={label ? 'img' : undefined} aria-label={label}>
+      <div className="av2-seal-mini__disc">
+        {shown === 'earned' && (
+          <div className="av2-seal-mini__well">
             <CoreForms variant={variant} />
           </div>
         )}
+        {(shown === 'done' || shown === 'relache') && (
+          <svg className="av2-seal-mini__token" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+            <rect
+              className={cn('av2-seal__form', 'is-press', shown === 'done' ? 'av2-seal__form--block' : 'av2-seal__form--square')}
+              x="12"
+              y="14"
+              width="16"
+              height="16"
+              rx="2"
+            />
+            <rect
+              className={cn('av2-seal__form', shown === 'done' ? 'av2-seal__form--block' : 'av2-seal__form--square')}
+              x="12"
+              y="12"
+              width="16"
+              height="16"
+              rx="2"
+            />
+          </svg>
+        )}
       </div>
-      <div className="no">{state === 'earned' ? `Nº ${no}` : state === 'future' ? '—' : ''}</div>
+      {line ? <div className="av2-seal-mini__no">{line}</div> : null}
     </div>
   );
 }

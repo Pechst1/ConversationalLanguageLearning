@@ -14,7 +14,10 @@ import type { ControlLanguage } from '@/types/daily-journey';
 
 export const RECAP_CHROME = {
   streak_label: 'Série',
-  streak_value: 'Jour {n}',
+  streak_value: '{n} jours',
+  streak_value_one: '1 jour',
+  /** WP-D4: the one primary action on a completed day. */
+  keep_seal: 'Ranger le sceau',
   words_label: 'Mots',
   scene_label: 'Scène',
   steps_value: '{n} étapes',

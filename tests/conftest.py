@@ -100,6 +100,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.streak_day import StreakDay
 from app.db.models.vocabulary import UserDailyWordSlate
 from app.main import create_app
 from app.utils.cache import cache_backend
@@ -172,6 +173,7 @@ def db_engine():
             DailyJourney.__table__,
             DailyJourneyStep.__table__,
             DailyJourneyMutation.__table__,
+            StreakDay.__table__,
         ],
     )
     try:
@@ -180,6 +182,7 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                StreakDay.__table__,
                 DailyJourneyMutation.__table__,
                 DailyJourneyStep.__table__,
                 DailyJourney.__table__,

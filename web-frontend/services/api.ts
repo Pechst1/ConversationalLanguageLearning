@@ -1597,6 +1597,31 @@ export interface AtelierWorkshopProgress {
   shortfall: number;
 }
 
+/** WP-D5 · «Vos sceaux»: one learner-local day of the streak calendar. */
+export type StreakDayState = 'completed' | 'relache' | 'missed' | 'today' | 'future';
+
+export interface StreakCalendarDay {
+  date: string;
+  state: StreakDayState;
+  completed: number;
+  is_today: boolean;
+  /** The day's journey was completed (an early stop presses no seal). */
+  sealed: boolean;
+  edition_no: number | null;
+  seal_variant: string | null;
+}
+
+/** `GET /analytics/streak`: the number and the grid, read from the same rows. */
+export interface StreakCalendar {
+  current_streak: number;
+  longest_streak: number;
+  today_done: boolean;
+  freeze_available: boolean;
+  today: string | null;
+  timezone: string | null;
+  calendar: StreakCalendarDay[];
+}
+
 export interface AtelierAlmanac {
   collectibles: Record<string, AtelierCollectible[]>;
   progress: Record<string, AtelierWorkshopProgress>;
@@ -2288,8 +2313,8 @@ class ApiService {
     return this.get('/analytics/statistics', { params });
   }
 
-  async getStreakData() {
-    return this.get('/analytics/streak');
+  async getStreakData(windowDays = 28): Promise<StreakCalendar> {
+    return this.get('/analytics/streak', { params: { window_days: windowDays } });
   }
 
   async getVocabularyProgress() {

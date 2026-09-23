@@ -137,6 +137,8 @@ export type HomeScreenProps = {
    */
   dayDone?: boolean;
   settingsHref?: string;
+  /** WP-D5: where the streak leads — «Vos sceaux» in Cahier → Relevé. */
+  streakHref?: string;
   notice?: { label: string; message: string; onRetry?: () => void } | null;
   episode: HomeEpisode | null;
   /** The one 3D-press action. `null` on a filed edition. */
@@ -172,6 +174,7 @@ export function HomeScreen({
   streak,
   dayDone = false,
   settingsHref = '/settings',
+  streakHref = '/notebook?mode=releve#sceaux',
   notice,
   episode,
   action,
@@ -200,9 +203,9 @@ export function HomeScreen({
           // not a reward, and no placeholder number is ever drawn).
           <Link
             className="av2-home__streak"
-            href={settingsHref}
+            href={streakHref}
             data-state={dayDone ? 'done' : undefined}
-            aria-label={`${streak} ${streak === 1 ? 'jour' : 'jours de suite'}${dayDone ? ' · journée bouclée' : ''} · réglages`}
+            aria-label={`${streak} ${streak === 1 ? 'jour' : 'jours de suite'}${dayDone ? ' · journée bouclée' : ''} · vos sceaux`}
           >
             <span className="av2-home__streak-n">{streak}</span>
             <span className="av2-home__streak-l">
