@@ -162,7 +162,10 @@ def test_the_courrier_offers_a_row_into_the_intake_never_a_second_press() -> Non
     block = source.split("export function CrIntakeLink(", 1)[1].split("export function CrIntakeEntry", 1)[0]
     assert 'className="av2-row"' in block, "the quiet row shape Home already uses"
     assert "Action" not in block and "tone=" not in block
-    assert "Apportez votre français" in block
+    # WP-82: the row's words are chrome, read from the copy table.
+    assert "t.intake_link" in block
+    copy = _read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "intake_link: 'Apportez votre français'" in copy
     # …and the Courrier actually renders it.
     assert "<CrIntakeLink />" in _read(MISSIONS_PAGE)
 

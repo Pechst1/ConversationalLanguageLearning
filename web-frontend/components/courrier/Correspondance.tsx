@@ -31,6 +31,8 @@ import Link from 'next/link';
 
 import { ArrowRightIcon, Chip, Portrait, ShapeToken } from '@/components/atelier-v2/ui';
 
+import { courrierCopy, crFill, crPlural, useCrCopy, type CourrierCopy } from './courrier-copy';
+
 /* ---------- the shapes WP-64 serialises (`_courrier_fields`) ----------
    Structural, not imported: a component that only reads `name` should not make
    the whole mission type a dependency of the design system. */
@@ -76,41 +78,46 @@ export type CrMeasured = {
   assessed?: boolean;
 };
 
-/* ---------- the French for an outcome ----------
+/* ---------- the word for an outcome ----------
    Four words for four states. `kept` is the only one that celebrates; the other
    three describe, because a letter half answered is a thing that happened, not
-   a grade. `ignored` is what a lapse leaves behind and is never «échec». */
+   a grade. `ignored` is what a lapse leaves behind and is never «échec».
+   WP-82: a verdict is chrome — the learner's language up to A2, French from
+   B1. Every helper below takes the chrome language and defaults to French. */
 
-const OUTCOME_COPY: Record<string, { label: string; mark: 'done' | 'action' | 'story' }> = {
-  kept: { label: 'Parole tenue', mark: 'done' },
-  partial: { label: 'En partie', mark: 'story' },
-  missed: { label: 'Manqué cette fois', mark: 'action' },
-  ignored: { label: 'Restée sans réponse', mark: 'story' },
+const OUTCOME_MARK: Record<string, { key: keyof CourrierCopy; mark: 'done' | 'action' | 'story' }> = {
+  kept: { key: 'outcome_kept', mark: 'done' },
+  partial: { key: 'outcome_partial', mark: 'story' },
+  missed: { key: 'outcome_missed', mark: 'action' },
+  ignored: { key: 'outcome_ignored', mark: 'story' },
 };
 
-export function crOutcomeLabel(outcome?: CrLetterOutcome | null): string | null {
-  const copy = OUTCOME_COPY[String(outcome || '')];
-  return copy ? copy.label : null;
+export function crOutcomeLabel(outcome?: CrLetterOutcome | null, language: unknown = 'fr'): string | null {
+  const entry = OUTCOME_MARK[String(outcome || '')];
+  return entry ? courrierCopy(language)[entry.key] : null;
 }
 
 export function crOutcomeMark(outcome?: CrLetterOutcome | null): 'done' | 'action' | 'story' {
-  return (OUTCOME_COPY[String(outcome || '')] || OUTCOME_COPY.partial).mark;
+  return (OUTCOME_MARK[String(outcome || '')] || OUTCOME_MARK.partial).mark;
 }
 
 /** One sentence under the seal, saying what the word above it means. */
-export function crOutcomeSentence(outcome: CrLetterOutcome | null | undefined, name?: string | null): string | null {
+export function crOutcomeSentence(
+  outcome: CrLetterOutcome | null | undefined,
+  name?: string | null,
+  language: unknown = 'fr',
+): string | null {
+  const t = courrierCopy(language);
   const who = String(name || '').trim();
   switch (String(outcome || '')) {
     case 'kept':
-      return who
-        ? `Vous avez fait ce que ${who} demandait.`
-        : 'Vous avez fait ce que la lettre demandait.';
+      return who ? crFill(t.sentence_kept_named, { name: who }) : t.sentence_kept;
     case 'partial':
-      return 'Une partie de ce qu’on vous demandait est passée ; le reste attend.';
+      return t.sentence_partial;
     case 'missed':
-      return 'Ce qu’on vous demandait n’est pas passé cette fois.';
+      return t.sentence_missed;
     case 'ignored':
-      return 'La lettre est restée sans réponse.';
+      return t.sentence_ignored;
     default:
       return null;
   }
@@ -118,17 +125,18 @@ export function crOutcomeSentence(outcome: CrLetterOutcome | null | undefined, n
 
 /* ---------- «2ᵉ lettre sur 3» ----------
    French ordinals, written out rather than computed with a library: `1ʳᵉ`
-   because «lettre» is feminine, `2ᵉ` for everything after. A chain of one is
-   not a chain and prints nothing. */
+   because «lettre» is feminine, `2ᵉ` for everything after. English and German
+   say «Letter 2 of 3» / «Brief 2 von 3». A chain of one is not a chain and
+   prints nothing. */
 
 const ORDINALS = ['', '1ʳᵉ', '2ᵉ', '3ᵉ', '4ᵉ', '5ᵉ', '6ᵉ'];
 
-export function crChainLabel(chain?: CrChainView | null): string | null {
+export function crChainLabel(chain?: CrChainView | null, language: unknown = 'fr'): string | null {
   const total = Number(chain?.total || 0);
   const index = Number(chain?.index || 0);
   if (!chain || total <= 1 || index < 1) return null;
   const ordinal = ORDINALS[index] || `${index}ᵉ`;
-  return `${ordinal} lettre sur ${total}`;
+  return crFill(courrierCopy(language).chain_label, { ord: ordinal, n: index, total });
 }
 
 /* ---------- the soft deadline ----------
@@ -140,28 +148,33 @@ function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
-export function crExpiryLine(expiresAt?: string | null, now: Date = new Date()): string | null {
+export function crExpiryLine(
+  expiresAt?: string | null,
+  now: Date = new Date(),
+  language: unknown = 'fr',
+): string | null {
   if (!expiresAt) return null;
   const due = new Date(expiresAt);
   if (Number.isNaN(due.getTime())) return null;
   const days = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
   if (days < 0) return null;
-  if (days === 0) return 'Répondez aujourd’hui, si vous pouvez.';
-  if (days === 1) return 'Répondez d’ici demain, si vous pouvez.';
+  const t = courrierCopy(language);
+  if (days === 0) return t.expiry_today;
+  if (days === 1) return t.expiry_tomorrow;
   if (days <= 6) {
-    const weekday = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(due);
-    return `Répondez avant ${weekday}, si vous pouvez.`;
+    const weekday = new Intl.DateTimeFormat(t.locale, { weekday: 'long' }).format(due);
+    return crFill(t.expiry_weekday, { day: weekday });
   }
-  const date = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(due);
-  return `Répondez avant le ${date}, si vous pouvez.`;
+  const date = new Intl.DateTimeFormat(t.locale, { day: 'numeric', month: 'long' }).format(due);
+  return crFill(t.expiry_date, { date });
 }
 
 /** «12 sept.» — the date a past letter was filed, or nothing at all. */
-export function crShortDate(value?: string | null): string | null {
+export function crShortDate(value?: string | null, language: unknown = 'fr'): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(date);
+  return new Intl.DateTimeFormat(courrierCopy(language).locale, { day: 'numeric', month: 'short' }).format(date);
 }
 
 /* ---------- the measured rows ----------
@@ -169,29 +182,33 @@ export function crShortDate(value?: string | null): string | null {
    prints when it is an objective count — «0 objectif sur 2 tenu» is a fact the
    learner is owed — while an empty repair or word count simply has no row. */
 
-export function crMeasuredRows(measured?: CrMeasured | null): { label: string; value: string }[] {
+export function crMeasuredRows(
+  measured?: CrMeasured | null,
+  language: unknown = 'fr',
+): { label: string; value: string }[] {
   if (!measured) return [];
+  const t = courrierCopy(language);
   const rows: { label: string; value: string }[] = [];
   const total = Number(measured.objectives_total || 0);
   if (total > 0) {
     const met = Number(measured.objectives_met || 0);
     rows.push({
-      label: 'Objectifs tenus',
+      label: t.measured_objectives,
       // WP-74: no grader ran — «0 sur 2» would be a verdict nobody gave.
-      value: measured.assessed === false ? 'pas encore corrigés' : `${met} sur ${total}`,
+      value: measured.assessed === false ? t.measured_unassessed : crFill(t.measured_objectives_value, { met, total }),
     });
   }
   const repairs = Number(measured.repairs || 0);
   if (repairs > 0) {
-    rows.push({ label: 'Réparations', value: `${repairs} enregistrée${repairs === 1 ? '' : 's'}` });
+    rows.push({ label: t.measured_repairs, value: crPlural(t, 'measured_repairs', repairs) });
   }
   const saved = Number(measured.phrases_saved || 0);
   if (saved > 0) {
-    rows.push({ label: 'Phrases mises de côté', value: `${saved}` });
+    rows.push({ label: t.measured_saved, value: `${saved}` });
   }
   const words = Number(measured.words_written || 0);
   if (words > 0) {
-    rows.push({ label: 'Mots écrits', value: `${words}` });
+    rows.push({ label: t.measured_words, value: `${words}` });
   }
   return rows;
 }
@@ -221,15 +238,16 @@ export function CrCorrespondent({
   /** Test seam only; the screen always means "today". */
   now?: Date;
 }) {
+  const t = useCrCopy();
   const name = String(correspondent?.name || '').trim();
   if (!name) return null;
   const role = String(correspondent?.role || '').trim();
   const mood = showMood ? String(correspondent?.mood_line || '').trim() : '';
-  const chainLabel = crChainLabel(chain);
-  const expiry = lapsed ? null : crExpiryLine(expiresAt, now);
+  const chainLabel = crChainLabel(chain, t.lang);
+  const expiry = lapsed ? null : crExpiryLine(expiresAt, now, t.lang);
   const past = (history || []).filter((letter) => String(letter?.summary_fr || letter?.title || '').trim());
   return (
-    <section className="cr-corr" aria-label={`Votre correspondance avec ${name}`}>
+    <section className="cr-corr" aria-label={crFill(t.corr_aria, { name })}>
       <CourrierCorrespondanceStyles />
       <p className="cr-corr-head">
         <Portrait name={name} size="sm" />
@@ -239,7 +257,7 @@ export function CrCorrespondent({
         </span>
         {chainLabel && (
           <Chip tone="quiet" className="cr-corr-chain">
-            <span lang="fr">{chainLabel}</span>
+            <span>{chainLabel}</span>
           </Chip>
         )}
       </p>
@@ -250,19 +268,19 @@ export function CrCorrespondent({
         </p>
       )}
       {expiry && (
-        <p className="cr-corr-when" lang="fr">
+        <p className="cr-corr-when">
           {expiry}
         </p>
       )}
       {past.length > 0 && (
         <div className="cr-corr-thread">
           <p className="cr-corr-k">
-            {past.length === 1 ? 'Votre lettre précédente' : `Vos ${past.length} lettres précédentes`}
+            {past.length === 1 ? t.corr_prev_one : crFill(t.corr_prev_many, { n: past.length })}
           </p>
           <ol>
             {past.map((letter, index) => {
-              const outcome = crOutcomeLabel(letter.outcome);
-              const date = crShortDate(letter.at);
+              const outcome = crOutcomeLabel(letter.outcome, t.lang);
+              const date = crShortDate(letter.at, t.lang);
               return (
                 <li key={String(letter.mission_id || index)}>
                   <span className="cr-corr-past" lang="fr">
@@ -294,18 +312,17 @@ export function CrCorrespondent({
    says what happened, who noticed, and that they will write again. */
 
 export function CrLapsedNotice({ name }: { name?: string | null }) {
+  const t = useCrCopy();
   const who = String(name || '').trim();
   return (
-    <section className="cr-lapsed" role="status" aria-label="Lettre sans réponse">
+    <section className="cr-lapsed" role="status" aria-label={t.lapsed_aria}>
       <CourrierCorrespondanceStyles />
       <p className="cr-lapsed-k">
         <ShapeToken kind="story" size="sm" />
-        <span>Restée sans réponse</span>
+        <span>{t.outcome_ignored}</span>
       </p>
-      <p className="cr-lapsed-body" lang="fr">
-        {who
-          ? `Le délai est passé et ${who} n’a rien reçu. Ce n’est pas grave : ${who} en dira un mot dans sa prochaine lettre.`
-          : 'Le délai est passé. Ce n’est pas grave : votre correspondant en dira un mot dans sa prochaine lettre.'}
+      <p className="cr-lapsed-body">
+        {who ? crFill(t.lapsed_named, { name: who }) : t.lapsed_anon}
       </p>
     </section>
   );
@@ -338,24 +355,25 @@ export function CrDebrief({
   /** `recap.correspondent_mood_after` — the mood once the letter has landed. */
   moodAfter?: string | null;
 }) {
-  const label = crOutcomeLabel(outcome);
-  const rows = crMeasuredRows(measured);
+  const t = useCrCopy();
+  const label = crOutcomeLabel(outcome, t.lang);
+  const rows = crMeasuredRows(measured, t.lang);
   const name = String(correspondent?.name || '').trim();
   const after = String(moodAfter || '').trim();
   const mood = after || String(correspondent?.mood_line || '').trim();
   const story = String(storySummary || '').trim();
   if (!label && rows.length === 0 && !story && !mood) return null;
-  const sentence = crOutcomeSentence(outcome, name);
+  const sentence = crOutcomeSentence(outcome, name, t.lang);
   return (
-    <section className="cr-debrief" aria-label="Ce que cette lettre a donné">
+    <section className="cr-debrief" aria-label={t.debrief_aria}>
       <CourrierCorrespondanceStyles />
       {label && (
         <p className="cr-debrief-verdict">
           <ShapeToken kind={crOutcomeMark(outcome)} size="sm" />
-          <b lang="fr">{label}</b>
+          <b>{label}</b>
         </p>
       )}
-      {sentence && <p className="cr-debrief-sub" lang="fr">{sentence}</p>}
+      {sentence && <p className="cr-debrief-sub">{sentence}</p>}
       {rows.length > 0 && (
         <dl className="cr-debrief-rows">
           {rows.map((row) => (
@@ -371,14 +389,14 @@ export function CrDebrief({
           {story && (
             <>
               <p className="cr-debrief-k">
-                {name ? `Ce que ${name} retient` : 'Ce que votre correspondant retient'}
+                {name ? crFill(t.debrief_keeps_named, { name }) : t.debrief_keeps_anon}
               </p>
               <p className="cr-debrief-line" lang="fr">{story}</p>
             </>
           )}
           {mood && (
             <p className="cr-debrief-mood" lang="fr">
-              <span className="cr-debrief-when">{after ? 'Depuis votre lettre — ' : 'À la réception de votre lettre — '}</span>
+              <span className="cr-debrief-when" lang={t.lang}>{after ? t.debrief_since : t.debrief_on_receipt}</span>
               {mood}
             </p>
           )}
@@ -399,22 +417,28 @@ export function CrLetterRow({
   name,
   hint,
   href = '/missions',
-  label = 'Une lettre vous attend',
+  label,
+  language = 'fr',
 }: {
   name?: string | null;
   hint?: string | null;
   href?: string;
   label?: string;
+  /** WP-82: the chrome language of the screen the row sits on. French by
+   *  default — the flag-off Home and the gallery pass nothing. */
+  language?: unknown;
 }) {
+  const t = courrierCopy(language);
   const who = String(name || '').trim();
-  const line = String(hint || '').trim() || (who ? `${who} attend votre réponse.` : 'Le Courrier vous attend.');
+  const title = label || t.letter_waiting;
+  const line = String(hint || '').trim() || (who ? `${crFill(t.hint_waiting_named, { name: who })}.` : t.hint_default);
   return (
-    <Link className="av2-row cr-letter-row" href={href} aria-label={`${label} — ${line}`}>
+    <Link className="av2-row cr-letter-row" href={href} aria-label={`${title} — ${line}`} lang={t.lang}>
       <CourrierCorrespondanceStyles />
       {who && <Portrait name={who} size="sm" />}
       <span className="av2-row__main">
-        <span className="av2-label">{label}</span>
-        <span className="av2-label cr-letter-hint" lang="fr">{line}</span>
+        <span className="av2-label">{title}</span>
+        <span className="av2-label cr-letter-hint">{line}</span>
       </span>
       <ArrowRightIcon size={18} />
     </Link>
@@ -430,23 +454,28 @@ export function crLetterHint({
   origin,
   expiresAt,
   now,
+  language = 'fr',
 }: {
   name?: string | null;
   chain?: CrChainView | null;
   origin?: CrLetterOrigin | null;
   expiresAt?: string | null;
   now?: Date;
+  /** WP-82: the chrome language; French by default. */
+  language?: unknown;
 }): string {
+  const t = courrierCopy(language);
   const who = String(name || '').trim();
   const clauses: string[] = [];
-  const chainLabel = crChainLabel(chain);
-  if (chainLabel) clauses.push(who ? `${chainLabel}, de ${who}` : chainLabel);
+  const chainLabel = crChainLabel(chain, language);
+  if (chainLabel) clauses.push(who ? crFill(t.chain_from, { chain: chainLabel, name: who }) : chainLabel);
   else if (String(origin || '') === 'story_born') {
-    clauses.push(who ? `${who} vous écrit après l’épisode` : 'Quelqu’un vous écrit après l’épisode');
-  } else if (who) clauses.push(`${who} attend votre réponse`);
-  const expiry = crExpiryLine(expiresAt, now);
-  if (expiry) clauses.push(expiry.replace(/^Répondez/, 'répondez').replace(/\.$/, ''));
-  if (!clauses.length) return 'Le Courrier vous attend.';
+    clauses.push(who ? crFill(t.hint_story_named, { name: who }) : t.hint_story_anon);
+  } else if (who) clauses.push(crFill(t.hint_waiting_named, { name: who }));
+  const expiry = crExpiryLine(expiresAt, now, language);
+  // Mid-sentence, the deadline loses its capital and its full stop.
+  if (expiry) clauses.push(expiry.charAt(0).toLowerCase() + expiry.slice(1).replace(/\.$/, ''));
+  if (!clauses.length) return t.hint_default;
   return `${clauses.join(' · ')}.`;
 }
 

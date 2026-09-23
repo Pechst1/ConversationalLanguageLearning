@@ -52,9 +52,19 @@ const {
   crIntakeCapLine,
 } = courrier;
 
+const { AtelierV2Root } = require('@/components/atelier-v2/ui/AtelierV2Root.tsx');
+
 const SOURCE = fs.readFileSync(path.join(HERE, 'Courrier.tsx'), 'utf8');
-const render = (element) => renderToStaticMarkup(element);
 const h = React.createElement;
+// WP-82: the intake's chrome follows the root's chrome language. These checks
+// hold down the French (B1+) reading inside a French root, whose wrapper is
+// peeled off so an empty component still renders as ''. English and German
+// are covered by `courrier-language.test.js`.
+const render = (element) =>
+  renderToStaticMarkup(h(AtelierV2Root, { language: 'fr' }, element))
+    .replace(/^<div[^>]*>/, '')
+    .replace(/<\/div>$/, '');
+const text = (html) => html.replace(/<[^>]+>/g, '');
 
 const CAP = { limit: 5, used: 1, remaining: 4, enabled: true };
 
@@ -166,7 +176,9 @@ check('the privacy line is on the same line as the allowance', () => {
 
 check('the artefact label names the type, the counterpart and the date', () => {
   const html = render(h(CrArtefactCard, { artefact: { ...MENU_ARTEFACT, created_at: '2026-09-12T09:00:00Z' } }));
-  assert.match(html, /Un menu · le serveur · reçue le 12 sept/);
+  // The type and the counterpart keep their own `lang="fr"`; the line reads as one.
+  assert.match(text(html), /Un menu · le serveur · reçue le 12 sept/);
+  assert.match(html, /<span lang="fr">Un menu<\/span>/);
   // A document with no date simply drops the clause rather than guessing one.
   const undated = render(h(CrArtefactCard, { artefact: MENU_ARTEFACT }));
   assert.ok(!/reçue le/.test(undated));
