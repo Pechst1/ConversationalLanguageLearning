@@ -32,7 +32,10 @@ def test_audio_primary_action_smart_starts_and_summary_is_honest():
     page = _source("pages/audio-session.tsx")
 
     assert "onClick={() => void startSession()}" in page
-    assert "Choisir une scène" in page
+    # WP-82: the studio's chrome follows the one language rule (lib/studio-copy.ts).
+    studio = (FRONTEND / "lib" / "studio-copy.ts").read_text(encoding="utf-8")
+    assert "{t.choose_scene}" in page
+    assert "choose_scene: 'Choisir une scène'" in studio and "choose_scene: 'Choose a scene'" in studio
     assert "dueWordsReused" in page
     assert "producedWords" in page
     assert "turns" in page
@@ -41,31 +44,34 @@ def test_audio_primary_action_smart_starts_and_summary_is_honest():
     # ... malgré N fautes de forme" line (which printed "1 tours" and
     # "malgré 0 fautes") is superseded by the plural helper and the
     # no-mistake wording.
-    assert "plural(state.turns, 'tour parlé', 'tours parlés')" in page
-    assert "communiqué sans faute de forme relevée." in page
-    assert "'faute de forme', 'fautes de forme'" in page
+    assert "plural(state.turns, t.turns_one, t.turns_many)" in page
+    assert "turns_one: '{n} tour parlé'" in studio and "turns_many: '{n} tours parlés'" in studio
+    assert "turns_one: '{n} turn spoken'" in studio
+    assert "no_errors: 'sans faute de forme'" in studio
+    assert "fillStudio(t.with_errors, { n: state.errors.length })" in page
 
 
 def test_audio_call_states_never_lie_or_dead_end():
     page = _source("pages/audio-session.tsx")
 
-    # The kicker states the real stage: a classed call is not "en cours".
-    assert "KICKER_BY_STATUS" in page
-    # WP-20 D-14: the kicker is sentence case like the rest of the system; the
-    # state it names is what matters, not the tracked caps it used to shout.
-    assert "ended: 'Appel classé'" in page
+    # The kicker states the real stage: an ended call is not "en cours".
+    # WP-82: the stage words live in lib/studio-copy.ts, in the chrome language.
+    studio = (FRONTEND / "lib" / "studio-copy.ts").read_text(encoding="utf-8")
+    assert "{t.stage[state.status]}" in page
+    # WP-20 D-14: the kicker is sentence case like the rest of the system.
+    assert "ended: 'Appel terminé'" in studio and "ended: 'Call ended'" in studio
     assert "APPEL CLASSÉ" not in page
-    # Screen readers get French, not the internal status key.
+    # Screen readers get words, not the internal status key.
     assert "aria-label={state.status}" not in page
-    assert "METER_LABEL_BY_STATUS[state.status]" in page
+    assert "state.status === 'listening' ? t.your_turn" in page
     # A voice that never reports its end must not strand the mic in `speaking`.
     assert "SPEAKING_TIMEOUT_MS" in page
     assert "utterance.onerror = handBack" in page
     # A refused microphone is explained on the page, not only in a toast.
     assert "micError" in page
     # WP-21 moved the mic-denied explanation into the learner-language copy
-    # table; the page must resolve it rather than hardcode one language.
-    assert "useLearnerLanguage" in page
+    # table; WP-82 resolves it in the page's chrome language.
+    assert "useChromeLanguage" in page
     assert "mic_denied" in page
     copy = (FRONTEND / "lib" / "atelier-v2-copy.ts").read_text(encoding="utf-8")
     assert "Micro refusé" in copy
