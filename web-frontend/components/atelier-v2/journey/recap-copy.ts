@@ -26,7 +26,16 @@ export const RECAP_CHROME = {
   level_label: 'Niveau',
   mood_warmer: '{name} vous sourit',
   mood_colder: '{name} vous en veut un peu',
+  /** WP-L6: the quiet, optional reviews-only block after the Seal. */
+  encore: 'Encore 5 minutes',
 } as const;
+
+/**
+ * WP-L6 «Encore 5 minutes»: the word drill, reviews only — no new words, a
+ * five-minute deck. It never touches the story, and the streak is marked at
+ * most once per local day (`record_practice_day`), so it cannot count twice.
+ */
+export const ENCORE_HREF = '/vocabulary/review?encore=1';
 
 type StatusKey = 'freeze_used' | 'level_evidence' | 'level_evidence_words' | 'level_evidence_rules';
 

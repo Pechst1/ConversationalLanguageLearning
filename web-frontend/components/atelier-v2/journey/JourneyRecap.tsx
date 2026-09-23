@@ -28,7 +28,7 @@ import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnaps
 
 import { journeyCopy } from './journey-copy';
 import { keepsakeDate, rewardView } from './journey-recap-model';
-import { RECAP_CHROME } from './recap-copy';
+import { ENCORE_HREF, RECAP_CHROME } from './recap-copy';
 
 export type JourneyRecapProps = {
   journey: JourneySnapshot;
@@ -193,6 +193,13 @@ export function JourneyRecap({
         {practice && (
           <Action tone="quiet" onClick={practice.onSelect} aria-label={practice.ariaLabel}>
             {morePractice?.label || PRACTICE_LABEL}
+          </Action>
+        )}
+        {/* WP-L6: after the Seal only — an optional reviews-only block that
+            never advances the story and never counts twice for the streak. */}
+        {seal && onPractice && (
+          <Action tone="quiet" onClick={() => onPractice(ENCORE_HREF)}>
+            {RECAP_CHROME.encore}
           </Action>
         )}
       </div>

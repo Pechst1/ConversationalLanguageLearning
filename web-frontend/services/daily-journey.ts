@@ -170,7 +170,7 @@ export const dailyJourneyService = {
     const body: CreateJourneyBody = {
       mutation_id: options.mutationId ?? mutationId(),
       timezone: options.timezone ?? resolveTimezone(),
-      budget_seconds: DAILY_JOURNEY_BUDGET_SECONDS,
+      // WP-L6: no budget — the server sizes the day from the learner's rhythm.
       preferred_input_mode: options.preferredInputMode ?? 'text',
     };
     return apiService.createDailyJourney(body);

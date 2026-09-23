@@ -518,7 +518,7 @@ const noSleep = () => Promise.resolve();
   assert.deepEqual(apiCalls.find((e) => e.method === 'createDailyJourney').args[0], {
     mutation_id: 'mid-create',
     timezone: 'Europe/Paris',
-    budget_seconds: 300,
+    // WP-L6: no budget on the wire — the server sizes the day from the rhythm.
     preferred_input_mode: 'text',
   });
 

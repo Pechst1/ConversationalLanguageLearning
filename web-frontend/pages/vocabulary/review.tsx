@@ -89,6 +89,24 @@ const reviewQueueParams = {
   linked_limit: 8,
 } as const;
 
+// WP-L6 «Encore 5 minutes» (after the day's Seal): reviews only — no new
+// words — and a deck of about five minutes at the deck's own pace. It never
+// touches the story; the streak is marked at most once a day on the server.
+const ENCORE_CARDS = Math.round((5 * 60) / SECONDS_PER_CARD);
+const encoreQueueParams = {
+  limit: ENCORE_CARDS,
+  due_limit: ENCORE_CARDS,
+  fragile_limit: ENCORE_CARDS,
+  new_limit: 0,
+  topic_limit: 0,
+  linked_limit: 0,
+} as const;
+
+function isEncore(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('encore') === '1';
+}
+
 function reviewMessage(response: ReviewResponse | AnkiReviewResponse) {
   const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
   const date = next ? new Date(next) : null;
@@ -470,7 +488,7 @@ export default function VocabularyReviewPage() {
     setLoadError(null);
     try {
       const [next, slate] = await Promise.all([
-        apiService.getVocabularyDueContext(reviewQueueParams),
+        apiService.getVocabularyDueContext(isEncore() ? encoreQueueParams : reviewQueueParams),
         apiService.getWordsOfTheDay().catch(() => null),
       ]);
       setWordSlate(slate);

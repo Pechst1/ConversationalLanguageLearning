@@ -44,6 +44,17 @@ import {
     type AppTheme,
 } from '@/lib/app-preferences';
 import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
+import {
+    DEFAULT_RHYTHM,
+    NEW_WORDS_MAX,
+    NEW_WORDS_MIN,
+    RHYTHMS,
+    clampNewWords,
+    formatReviewLoad,
+    isRhythm,
+    rhythmForMinutes,
+    type Rhythm,
+} from '@/lib/rhythm';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
@@ -62,8 +73,9 @@ interface UserSettings {
     cefrTargetLevel: string;
     interests: string[];
 
-    // Learning Goals
-    dailyGoalMinutes: number;
+    // Learning Goals — WP-L6: the rhythm sizes the day; the server stores it
+    // as its minutes and plans from it.
+    rhythm: Rhythm;
     newWordsPerDay: number;
     defaultVocabDirection: string;
 
@@ -103,7 +115,7 @@ const defaultSettings: UserSettings = {
     proficiencyLevel: 'A1',
     cefrTargetLevel: 'A1.2',
     interests: [],
-    dailyGoalMinutes: 15,
+    rhythm: DEFAULT_RHYTHM,
     newWordsPerDay: 10,
     defaultVocabDirection: 'fr_to_de',
     practiceReminders: true,
@@ -207,9 +219,15 @@ function normalizeVocabDirection(direction: string, nativeLanguage: string) {
 
 const interestTopicPresets = INTEREST_TOPICS;
 
-// The design draws 5 / 8 / 15 min. The app's presets predate it and the free
-// field accepts 5–120, so the existing values are rendered as the same control.
-const minutePresets = [5, 10, 15, 30, 60];
+// WP-L6: the rhythm's four cards, in the order the owner approved.
+function rhythmLine(copy: SettingsCopy, rhythm: Rhythm): string {
+    switch (rhythm) {
+        case 'leger': return copy.rhythm_line_leger;
+        case 'soutenu': return copy.rhythm_line_soutenu;
+        case 'intensif': return copy.rhythm_line_intensif;
+        default: return copy.rhythm_line_regulier;
+    }
+}
 
 interface SettingsPageProps {
     userEmail?: string;
@@ -517,7 +535,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         .map((value: string) => value.trim())
                         .filter(Boolean),
 
-                    dailyGoalMinutes: user.daily_goal_minutes || prev.dailyGoalMinutes,
+                    rhythm: isRhythm(user.rhythm)
+                        ? user.rhythm
+                        : rhythmForMinutes(user.daily_goal_minutes),
                     newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
                         user.default_vocab_direction || prev.defaultVocabDirection,
@@ -594,8 +614,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 cefr_target_level: settings.cefrTargetLevel,
                 interests: settings.interests.join(','),
 
-                daily_goal_minutes: settings.dailyGoalMinutes,
-                new_words_per_day: settings.newWordsPerDay,
+                rhythm: settings.rhythm,
+                new_words_per_day: clampNewWords(settings.newWordsPerDay),
                 default_vocab_direction: settings.defaultVocabDirection,
 
                 notifications_enabled: true, // Master switch implicitly true if specific ones are used
@@ -1226,28 +1246,35 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     {/* ---------------- Rythme ---------------- */}
                     <section id="settings-practice" className="st-section" aria-labelledby="st-practice-label">
                         <p className="av2-label st-section__label" id="st-practice-label">{copy.section_practice}</p>
-                        {/* The artboard's "Temps par édition" card, verbatim. */}
-                        <div className="st-card st-card--padded">
-                            <div className="st-card__title">
-                                <span>{copy.card_time_title}</span>
-                                <span className="st-row__value">{settings.dailyGoalMinutes} {copy.minutes_short}</span>
-                            </div>
-                            <Segmented
-                                label={copy.card_time_title}
-                                options={minutePresets.map((mins) => ({ value: mins, label: `${mins} ${copy.minutes_short}` }))}
-                                value={settings.dailyGoalMinutes}
-                                onChange={(mins) => updateSetting('dailyGoalMinutes', mins)}
-                            />
-                            <Field label={copy.field_other_duration}>
-                                <input
-                                    type="number"
-                                    className="av2-field__control st-number"
-                                    min="5"
-                                    max="120"
-                                    value={settings.dailyGoalMinutes}
-                                    onChange={(e) => updateSetting('dailyGoalMinutes', parseInt(e.target.value) || 15)}
-                                />
-                            </Field>
+                        {/* WP-L6 «Votre rythme»: four cards replace the old
+                            minutes presets — minutes, what is in the day, one
+                            line each. The same option rows as the level card. */}
+                        <div className="st-card" role="radiogroup" aria-label={copy.rhythm_title}>
+                            <Row label={copy.rhythm_title} hint={copy.rhythm_hint} />
+                            {RHYTHMS.map((rhythm) => {
+                                const active = settings.rhythm === rhythm.id;
+                                return (
+                                    <button
+                                        key={rhythm.id}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={active}
+                                        className="st-row st-row--option"
+                                        onClick={() => updateSetting('rhythm', rhythm.id)}
+                                    >
+                                        <span className="st-row__text">
+                                            <span className="st-row__label">
+                                                {rhythm.name} · {rhythm.minutes} {copy.minutes_short}
+                                                {rhythm.id === DEFAULT_RHYTHM ? ` · ${copy.rhythm_recommended}` : ''}
+                                            </span>
+                                            <span className="st-row__hint">{rhythmLine(copy, rhythm.id)}</span>
+                                        </span>
+                                        <span className="st-row__value st-option__state">
+                                            {active ? <><ShapeToken kind="story" size="sm" /> {copy.level_current}</> : null}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="st-card">
@@ -1263,16 +1290,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     ))}
                                 </select>
                             </Row>
-                            {/* WP-L1: the daily XP marker was removed — nothing read it.
-                                New words per day is stored and becomes the vocabulary
-                                pace in WP-L6. */}
-                            <Row label={copy.row_new_words} id="st-words-label">
+                            {/* WP-L6: the vocabulary pace — one intake pool for the
+                                story and the word drill — with its honest review
+                                load, labelled as an estimate. */}
+                            <Row
+                                label={copy.row_new_words}
+                                id="st-words-label"
+                                hint={formatReviewLoad(copy.row_new_words_hint, settings.newWordsPerDay)}
+                            >
                                 <input
                                     type="number"
                                     className="av2-field__control st-number"
                                     aria-labelledby="st-words-label"
-                                    min="1"
-                                    max="50"
+                                    min={NEW_WORDS_MIN}
+                                    max={NEW_WORDS_MAX}
                                     value={settings.newWordsPerDay}
                                     onChange={(e) => updateSetting('newWordsPerDay', parseInt(e.target.value) || 10)}
                                 />
