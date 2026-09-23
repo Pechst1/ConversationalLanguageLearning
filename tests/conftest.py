@@ -13,6 +13,10 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 # Story-engine tests enable the new engine with an injected fake model.
 os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "false")
 os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
+# WP-87: the suite's scripted story providers answer the single-actor schemas
+# (SemanticTurn + Review). They keep testing that path — the rollback path — and
+# tests/test_wp87_* switch the three-lane turn on (the production default).
+os.environ.setdefault("ATELIER_STORY_TURN_LANES_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
 # WP-75: a learner's first day is authored (the café, the cast, two quick
 # recall items). The suite's existing journey tests are about the day the

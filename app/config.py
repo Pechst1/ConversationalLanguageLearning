@@ -364,6 +364,14 @@ class Settings(BaseSettings):
         True, description="Generate new daily situations and semantic responses from shared serial state."
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    ATELIER_STORY_TURN_LANES_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-87: grade and answer a story turn in two small parallel lanes (tutor, "
+            "voice) and write the ending, bookkeeping and critic in a third lane after "
+            "the response. Off restores the single ACTOR + CRITIC turn."
+        ),
+    )
     # ---- WP-78: a real day's worth of practice -------------------------------
     ATELIER_JOURNEY_PRACTICE_DAY_ENABLED: bool = Field(
         True,

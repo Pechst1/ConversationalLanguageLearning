@@ -199,6 +199,11 @@ export type ResolutionPrompt = {
    */
   register_note_fr?: string | null;
   register_reason_native?: string | null;
+  /**
+   * WP-87: the story lane is still writing this ending; the line and summary are
+   * empty until it turns false. Poll `GET /daily-journeys/{id}` meanwhile.
+   */
+  story_pending?: boolean;
 };
 
 type PublicStepBase = {

@@ -693,6 +693,10 @@ class DailyJourneyService:
     def get_journey(self, user: User, journey_id: uuid.UUID) -> JourneySnapshot:
         journey = self._journey_or_404(user, journey_id)
         self._heal_interrupted(journey)
+        # WP-87: a story lane whose worker died gets today's authored ending (free).
+        from app.services.story_lanes import heal_stale_lane
+
+        heal_stale_lane(self.db, user, journey)
         return self.snapshot(journey)
 
     def _heal_interrupted(self, journey: DailyJourney) -> bool:
@@ -978,10 +982,22 @@ class DailyJourneyService:
     ) -> AttemptResult:
         """WP-26: the reply turn, measured. It still pays a provider call."""
 
-        with measure_phase(
-            self.db, user=user, phase=PHASE_RESPOND, journey_id=journey_id
-        ):
-            return self._submit_attempt(user, journey_id, step_id, payload)
+        try:
+            with measure_phase(
+                self.db, user=user, phase=PHASE_RESPOND, journey_id=journey_id
+            ):
+                result = self._submit_attempt(user, journey_id, step_id, payload)
+        except BaseException:
+            from app.services.story_lanes import discard_pending
+
+            discard_pending(self.db)
+            raise
+        # WP-87: the story lane starts only once the reply's transaction is durable,
+        # and outside the measured respond time — the learner is not waiting on it.
+        from app.services.story_lanes import dispatch_pending
+
+        dispatch_pending(self.db)
+        return result
 
     def _submit_attempt(
         self,

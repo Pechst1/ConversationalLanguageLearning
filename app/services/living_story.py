@@ -683,36 +683,86 @@ def _client():
         raise StoryUnavailable("story_provider_unavailable") from exc
 
 
+# WP-87 — prompt-cache-friendly payloads. OpenAI caches identical prompt prefixes of
+# ≥ 1,024 tokens, so every engine call is laid out static → dynamic: the system prompt,
+# then the output schema (serialised once per schema, byte-stable), then the data with
+# the slow-moving keys (world bible, cast, story, scene) first and the per-turn keys
+# (learner text, history, rejections, proposal) last.
+_STABLE_FIRST = ("world", "level", "control_language", "story", "scene", "character")
+_VOLATILE_LAST = (
+    "history",
+    "learner_text",
+    "turns_left",
+    "assistance",
+    "turn_plan",
+    "released",
+    "proposal",
+    "previous_rejections",
+)
+_SCHEMA_JSON: dict[type, str] = {}
+
+
+def _schema_json(schema: type[BaseModel]) -> str:
+    cached = _SCHEMA_JSON.get(schema)
+    if cached is None:
+        cached = _SCHEMA_JSON[schema] = json.dumps(schema.model_json_schema(), ensure_ascii=False)
+    return cached
+
+
+def _cache_ordered(payload: dict) -> dict:
+    first = [key for key in _STABLE_FIRST if key in payload]
+    last = [key for key in _VOLATILE_LAST if key in payload]
+    middle = [key for key in payload if key not in first and key not in last]
+    ordered = {}
+    for key in (*first, *middle, *last):
+        value = payload[key]
+        if key in ("story", "source") and isinstance(value, dict):
+            value = _cache_ordered(value)
+        ordered[key] = value
+    return ordered
+
+
+def _cache_friendly_content(payload: dict, schema: type[BaseModel]) -> str:
+    """``{"output_schema": …, "data": …}`` — the same JSON object as before, with the
+    static schema ahead of the data so the prefix survives from call to call."""
+
+    data = json.dumps(_cache_ordered(payload), ensure_ascii=False)
+    return '{"output_schema": ' + _schema_json(schema) + ', "data": ' + data + "}"
+
+
 def _json_call(
-    system: str, payload: dict, schema: type[BaseModel], on_usage=None, *, deadline: float
+    system: str,
+    payload: dict,
+    schema: type[BaseModel],
+    on_usage=None,
+    *,
+    deadline: float,
+    max_tokens: int | None = None,
+    reasoning_effort: str = "low",
+    window: float | None = None,
 ) -> tuple[BaseModel, dict]:
     try:
         remaining = deadline - time.monotonic()
         if remaining < 1:
             raise StoryUnavailable("story_generation_deadline")
+        started = time.monotonic()
         result = _client().generate_chat_completion(
-            [
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {"data": payload, "output_schema": schema.model_json_schema()},
-                        ensure_ascii=False,
-                    ),
-                }
-            ],
+            [{"role": "user", "content": _cache_friendly_content(payload, schema)}],
             system_prompt=system,
             temperature=0.55 if schema is SceneDraft else 0.2,
-            max_tokens=2500 if schema is SceneDraft else 1600,
+            max_tokens=max_tokens or (2500 if schema is SceneDraft else 1600),
             response_format={"type": "json_object"},
             # Live measurement 2026-09-06 (gpt-5-mini, SceneDraft): default reasoning
             # effort spends the whole completion budget on reasoning and returns no
             # content after ~25 s; "low" returns a valid draft in ~15 s. Keep the
             # network window under the 75 s operation budget for two attempts of
             # draft + review.
-            reasoning_effort="low",
-            request_timeout=min(REQUEST_TIMEOUT_SECONDS, remaining),
+            reasoning_effort=reasoning_effort,
+            request_timeout=min(window or REQUEST_TIMEOUT_SECONDS, remaining),
             disable_retries=True,
             max_provider_attempts=1,
+            # WP-87: requests sharing a static prefix are routed to the same cache.
+            prompt_cache_key=f"atelier-{schema.__name__}",
         )
         usage = {
             "stage": schema.__name__,
@@ -720,6 +770,7 @@ def _json_call(
             "provider": result.provider,
             "tokens": result.total_tokens,
             "cost_usd": result.cost,
+            "seconds": round(time.monotonic() - started, 3),
         }
         if on_usage:
             on_usage(usage)
@@ -4391,6 +4442,21 @@ def evaluate_turn(
     history=None,
     self_repair=None,
 ) -> ResponseEvaluation:
+    if settings.ATELIER_STORY_TURN_LANES_ENABLED:
+        # WP-87: tutor + voice now, the ending in the story lane after the response.
+        from app.services.story_lanes import evaluate_turn_lanes
+
+        return evaluate_turn_lanes(
+            db,
+            user=user,
+            scenario=scenario,
+            task=task,
+            answer=answer,
+            turn_index=turn_index,
+            assistance=assistance,
+            history=history,
+            self_repair=self_repair,
+        )
     try:
         if answer.is_blank:
             raise StoryUnavailable("empty_answer")
@@ -4574,6 +4640,24 @@ def settle_resolution(
     proposal: StoryOutcomeProposal | None,
 ):
     """Commit one validated exchange; browsing panels never calls this writer."""
+    if proposal is not None and (proposal.details or {}).get("story_lane") == "pending":
+        # WP-87: the reply lanes answered; the ending is owed by the story lane.
+        from app.services.story_lanes import defer_resolution
+
+        return defer_resolution(
+            db, user=user, journey=journey, brief=brief, resolution=resolution, proposal=proposal
+        )
+    if proposal is None and ((resolution.private_task or {}).get("story_lane") or {}).get(
+        "status"
+    ) in ("pending", "running"):
+        # The day is finishing before its story lane did: today's authored ending,
+        # never an abandoned scene after a reply the learner already read.
+        from app.services.story_lanes import settle_with_fallback
+
+        return settle_with_fallback(
+            db, user=user, journey=journey, brief=brief, resolution=resolution,
+            reason="story_lane_unfinished_at_finish",
+        )
     private = dict(resolution.private_task or {})
     scene = db.get(GraphicNovelScene, UUID(brief.story_context["scene_id"]))
     if scene is None or scene.user_id != user.id:
@@ -4595,7 +4679,7 @@ def settle_resolution(
         resolution.private_task = private
         return
     turn = SemanticTurn.model_validate(
-        {key: value for key, value in proposal.details.items() if key not in {"usage", "revision"}}
+        {key: value for key, value in proposal.details.items() if key not in {"usage", "revision", "cost_stage"}}
     )
     thread = _lock_context(db, user, proposal.details["revision"])
     state = dict(thread.state or {})
@@ -4823,7 +4907,12 @@ def settle_resolution(
         turn_usage,
         entity_type="living_story_scene",
         entity_id=scene.id,
-        payload={"journey_id": str(journey.id), "stage": "turn", "outcome": turn.outcome},
+        payload={
+            "journey_id": str(journey.id),
+            # WP-87: the story lane books its own row; the reply lanes booked theirs.
+            "stage": proposal.details.get("cost_stage", "turn"),
+            "outcome": turn.outcome,
+        },
     )
     scene.status = "completed"
     scene.completed_at = datetime.now(UTC)

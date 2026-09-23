@@ -251,6 +251,10 @@ class ResolutionPrompt(JourneyModel):
     #: together whenever register was *not evaluated* — nothing observable
     #: happened, which is never dressed up as a pass or as a failure.
     register_reason_native: str | None = None
+    #: WP-87: the story lane is still writing this ending. The client shows a short
+    #: waiting state and polls ``GET /daily-journeys/{id}``; the line and summary are
+    #: empty until it turns false (the lane's ending, or today's authored one).
+    story_pending: bool = False
 
 
 class _PublicStepBase(JourneyModel):

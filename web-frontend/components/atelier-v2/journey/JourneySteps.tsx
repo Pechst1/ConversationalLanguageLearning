@@ -74,6 +74,7 @@ import {
   recallAttempt,
   recallIsPicked,
   registerNoteOf,
+  resolutionAwaitsStory,
   sceneOpensOnAudio,
   textOffered,
   voiceOffered,
@@ -94,7 +95,7 @@ import {
 import { useVoiceAnswer } from './useVoiceAnswer';
 import { MatchPairs } from './MatchPairs';
 import { listenTapHasAudio, optionLang } from './practice-formats';
-import { CharacterTyping, TypedReply, respondSpeaker } from './ReplyStage';
+import { CharacterTyping, StoryWriting, TypedReply, respondSpeaker } from './ReplyStage';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -893,6 +894,17 @@ export function ResolutionStepView({
   const wide = widenCopy(copy);
   const register = registerNoteOf(step.prompt);
   const chapterRecap = chapterRecapOf(step.prompt);
+  if (resolutionAwaitsStory(step)) {
+    // WP-87: the story lane is still writing the ending; the hook polls meanwhile.
+    return (
+      <StepFrame label={copy.today_eyebrow} headline={null}>
+        <StoryWriting speaker={null} />
+        <Action tone="primary" disabled onClick={onContinue}>
+          {copy.continue}
+        </Action>
+      </StepFrame>
+    );
+  }
   return (
     <StepFrame
       label={copy.today_eyebrow}

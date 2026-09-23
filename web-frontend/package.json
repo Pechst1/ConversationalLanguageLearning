@@ -43,7 +43,8 @@
     "test:push": "node --test lib/push-opt-in.test.js",
     "test:feel-faces": "node --test components/atelier-v2/journey/feel-faces.test.js",
     "test:practice-day": "node --test components/atelier-v2/journey/practice-day.test.js",
-    "test:recap": "node --test components/atelier-v2/journey/journey-recap.test.js"
+    "test:recap": "node --test components/atelier-v2/journey/journey-recap.test.js",
+    "test:story-lane": "node --test components/atelier-v2/journey/journey-story-lane.test.js"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",
