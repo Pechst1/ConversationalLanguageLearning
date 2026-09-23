@@ -174,6 +174,13 @@ The owner chose a new art direction for everything drawn: flat screen-print illu
   (`make_plates.py`, `make_cast_s.py`, `moods_s.py`) become one `scripts/art/` tool with the prompts in version
   control.
 - **Consent.** Characters are not modelled on real, identifiable people unless that person has agreed in writing.
+- **Status (2026-09-23):** done: the four 256 px portraits per character (`6ddf47b`), the
+  approved references and mood busts in `docs/design-reference/cast/{id}/`, all 12 location
+  plates redrawn with no people and palette-locked, and the tool `scripts/art/atelier_art.py`
+  (`plate`, `reference`, `moods`, `crop`, `lock`). Open: the story engine's episode panels
+  still follow the old art direction (`world_bible_paris_v2.json` → `visual_design`,
+  "ligne-claire … clean ink contours") and send the old `model-sheet.webp` as references
+  (`serial.py:1054`); switch both to this style and the new references.
 - **Done when:** all six characters have four approved moods and avatars in the repo; every learner-facing
   surface uses them (WP-D2); the location plates are regenerated through the palette lock; no screen still
   shows a sepia plate or an old portrait.
