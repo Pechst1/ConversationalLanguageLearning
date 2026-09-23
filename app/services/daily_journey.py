@@ -121,6 +121,7 @@ from app.services.journey_day_shapes import (
     letter_offer_for,
 )
 from app.services.journey_errata import errata_targets_for_user
+from app.services.journey_events import MIN_MEASURED_PACE_DAYS, measured_pace
 from app.services.journey_latency import (
     PHASE_DRAFT,
     PHASE_RECAP,
@@ -131,7 +132,9 @@ from app.services.journey_latency import (
     take_prefetched_scene,
 )
 from app.services.journey_learning import record_daily_practice_streak
+from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.seals import edition_no_for
+from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +177,29 @@ CANDIDATE_LIMIT = 3
 #: reply, and the rest become quick items (``journey_learning`` reads a limit
 #: above three as room for the practice pool).
 PRACTICE_CANDIDATE_LIMIT = 8
+
+
+def _new_word_ids(plan: Any, candidates: list[Any]) -> list[int]:
+    """WP-L6: the vocabulary ids this plan introduces — kept targets that
+    were offered as new. The day's reservation in the learner's intake pool."""
+
+    kept = set(getattr(plan, "selected_target_ids", None) or [])
+    ids: list[int] = []
+    for candidate in candidates:
+        target = getattr(candidate, "target", None)
+        if target is None or not getattr(candidate, "is_new", False):
+            continue
+        if str(target.kind) != str(TargetKind.VOCABULARY) or f"{target.kind}:{target.id}" not in kept:
+            continue
+        try:
+            value = int(target.id)
+        except (TypeError, ValueError):
+            continue
+        if value not in ids:
+            ids.append(value)
+    return ids
+
+
 #: WP-69. The ``unavailable_reason`` a journey gets when a read finds it in
 #: ``preparing`` with a dead (or no) generation claim: the worker that owned it
 #: is gone, and the learner is offered a retry instead of an endless spinner.
@@ -828,7 +854,8 @@ class DailyJourneyService:
             digest=_digest(
                 {
                     "timezone": timezone_name,
-                    "budget_seconds": payload.budget_seconds,
+                    # WP-L6: the server's budget, not the client's.
+                    "budget_seconds": budget_seconds_for(user),
                     "preferred_input_mode": str(payload.preferred_input_mode),
                 }
             ),
@@ -1533,6 +1560,8 @@ class DailyJourneyService:
                 continue
             if StepStatus(candidate.status) is StepStatus.PENDING:
                 candidate.status = str(StepStatus.ACTIVE)
+                # WP-L9: each step records when it started.
+                candidate.started_at = _utcnow()
                 journey.current_step_id = candidate.id
                 return
         journey.current_step_id = None
@@ -1936,7 +1965,9 @@ class DailyJourneyService:
                 level_band=descriptor.level_band,
                 status=str(JourneyStatus.PREPARING),
                 revision=1,
-                budget_seconds=payload.budget_seconds,
+                # WP-L6: the learner's rhythm sizes the day, whatever an
+                # older client sends.
+                budget_seconds=budget_seconds_for(user),
                 estimated_active_seconds=0,
                 scenario_snapshot=descriptor.model_dump(mode="json"),
                 serial_thread_id=descriptor.serial_thread_id,
@@ -2311,21 +2342,15 @@ class DailyJourneyService:
                     self.db, user=user, brief=result
                 )
             else:
-                candidates = self.adapters.learning.select_learning_candidates(
-                    self.db,
-                    user=user,
-                    scenario=result,
-                    limit=(
-                        PRACTICE_CANDIDATE_LIMIT
-                        if settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED
-                        else CANDIDATE_LIMIT
-                    ),
-                )
+                candidates = self._select_candidates(user, fresh, result)
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
                 budget_seconds=fresh.budget_seconds,
-                pace=None,
+                # WP-L6: the learner's measured pace, once three days are
+                # measured; the priors before that (the planner ignores an
+                # untrusted profile).
+                pace=self._pace_profile(user, fresh),
                 # WP-04 coordination addition, ratified 2026-09-05: the frozen
                 # ScenarioBrief carries no modality, so RespondPrompt.input_modes
                 # can only know about voice if the create request says so.
@@ -2396,6 +2421,9 @@ class DailyJourneyService:
         fresh.plan_selection = {
             **dict(fresh.plan_selection or {}),
             "dealt_shape": str(decision.shape),
+            # WP-L6: the new words this day introduces — the journey's share
+            # of the learner's one intake pool, reserved against the drill.
+            JOURNEY_NEW_WORDS_KEY: _new_word_ids(plan, list(candidates)),
         }
         if first_day:
             fresh.plan_selection = {
@@ -2678,6 +2706,11 @@ class DailyJourneyService:
         journey.generation_claimed_at = None
         if journey.started_at is None:
             journey.started_at = _utcnow()
+            # WP-L9: a day planned ahead starts its first step now, not at
+            # planning time.
+            for step in journey.steps:
+                if step.id == journey.current_step_id:
+                    step.started_at = journey.started_at
         if journey.current_step_id is None:
             self._activate_next_step(journey, after_ordinal=-1)
         journey.revision += 1
@@ -2837,6 +2870,63 @@ class DailyJourneyService:
             DailyJourney.user_id == user.id, DailyJourney.local_date < day
         )
         return self.db.execute(stmt.limit(1)).first() is not None
+
+    def _select_candidates(self, user: User, journey: DailyJourney, scenario: ScenarioBrief) -> Any:
+        """The day's candidates, at the rhythm's pool size and inside the
+        learner's vocabulary pace (WP-L6).
+
+        The new-word quota is offered only to a learning adapter that accepts
+        it, so a stub built before WP-L6 still plans a day.
+        """
+
+        select = self.adapters.learning.select_learning_candidates
+        kwargs: dict[str, Any] = {
+            "user": user,
+            "scenario": scenario,
+            "limit": (
+                # WP-L6: a longer rhythm sees more of the queue.
+                max(PRACTICE_CANDIDATE_LIMIT, candidate_limit_for(journey.budget_seconds))
+                if settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED
+                else CANDIDATE_LIMIT
+            ),
+        }
+        try:
+            accepted = set(inspect.signature(select).parameters)
+        except (TypeError, ValueError):  # pragma: no cover - exotic callables
+            accepted = set()
+        if "new_word_quota" in accepted:
+            kwargs["new_word_quota"] = run_best_effort(
+                self.db,
+                "daily_journey: vocabulary pace",
+                lambda: journey_new_word_room(self.db, user, now=_utcnow()),
+                default=None,
+                log=logger,
+            )
+        return select(self.db, **kwargs)
+
+    def _pace_profile(self, user: User, journey: DailyJourney) -> Any:
+        """WP-L6: the planner's pace profile from the learner's measured days.
+
+        ``None`` (the priors) until :data:`MIN_MEASURED_PACE_DAYS` days are
+        measured, or when the planner adapter has no profile type.
+        """
+
+        profile_type = getattr(self.adapters.planner, "PacingProfile", None)
+        if not isinstance(profile_type, type):
+            return None
+        measured = run_best_effort(
+            self.db,
+            "daily_journey: pace profile",
+            lambda: measured_pace(self.db, user_id=user.id, exclude_journey_id=journey.id),
+            default=None,
+            log=logger,
+        )
+        if measured is None or measured.days < MIN_MEASURED_PACE_DAYS:
+            return None
+        return profile_type(
+            step_multiplier=measured.step_multiplier,
+            observations=measured.days,
+        )
 
     def _plan_with_shape(
         self,
@@ -3011,6 +3101,7 @@ class DailyJourneyService:
             journey.steps.append(step)
             if first_step_id is None and StepStatus(step.status) is StepStatus.PENDING:
                 step.status = str(StepStatus.ACTIVE)
+                step.started_at = _utcnow()
                 first_step_id = step.id
 
         journey.current_step_id = first_step_id

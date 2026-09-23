@@ -44,10 +44,8 @@ from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
     MAX_PLANNED_STEPS,
-    MAX_PRACTICE_RECALL_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
-    MAX_WARMUP_RECALL_STEPS,
     ControlLanguage,
     DayShape,
     HelpKind,
@@ -58,6 +56,7 @@ from app.services.journey_contracts import (
     RecallFormat,
     RecallTask,
     ResponseTask,
+    RhythmCaps,
     ScenarioBrief,
     StepKind,
     StepStatus,
@@ -66,14 +65,15 @@ from app.services.journey_contracts import (
     day_shape_rule,
     normalize_answer_text,
     practice_day_shape_rule,
+    rhythm_caps,
 )
-from app.services.scene_items import scene_lines
 from app.services.journey_day_shapes import (
     DayShapeInputs,
     LetterOffer,
     rotate_recall_formats,
     shape_allows_format,
 )
+from app.services.scene_items import scene_lines
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -123,9 +123,11 @@ SECONDS_PER_TOKEN_BOUNDS = (0.30, 0.70)
 #: A measured per-step multiplier is clamped here too. Beyond 1.35 the honest
 #: answer is a shorter plan, not a longer estimate.
 STEP_MULTIPLIER_BOUNDS = (0.80, 1.35)
-#: How many measured journeys a pace profile needs before it is trusted at all.
-#: Under this threshold the bounded defaults are used verbatim.
-MIN_PACE_OBSERVATIONS = 5
+#: How many measured days a pace profile needs before it is trusted at all.
+#: Under this threshold the bounded defaults are used verbatim. WP-L6: three
+#: measured days (was five journeys), the point at which the planner is fed
+#: the learner's own pace instead of the priors.
+MIN_PACE_OBSERVATIONS = 3
 
 #: Orientation, looking at the art, deciding to begin.
 SCENE_BASE_SECONDS = 12
@@ -182,6 +184,8 @@ QUICK_FEEDBACK_SECONDS = 2
 PRACTICE_TARGET_ITEMS = 5
 #: How often one target may come back in one day, always in a different format.
 PRACTICE_MAX_USES_PER_TARGET = 2
+#: The five-minute rhythm, whose practice day is exactly WP-78's.
+RHYTHM_FIVE_MINUTES = 300
 #: The cards a matching item shows per side.
 MATCH_PAIR_COUNT = 4
 
@@ -1716,7 +1720,14 @@ def plan_journey(
         notes.append("respond opening line replaced: it spoke the expected reply")
 
     # --- fit the non-removable core (scene, response, resolution) -----------
-    turns = max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS))
+    turns = max(
+        1,
+        min(
+            int(task.max_turns or MAX_RESPOND_TURNS),
+            MAX_RESPOND_TURNS,
+            rhythm_caps(budget_seconds).max_turns,
+        ),
+    )
     if first_day:
         # WP-75: the first reply is one turn (a repair is still allowed), so
         # the two quick recall wins fit in front of it inside five minutes.
@@ -1746,7 +1757,7 @@ def plan_journey(
         # five-minute journey, and saying so beats shipping a false promise.
         raise PlanUnavailable("scene_exceeds_budget")
 
-    if practice and not first_day and practice_day_shape_rule(shape).max_recall > 0:
+    if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
         return _plan_practice_day(
             scenario=scenario,
             task=task,
@@ -2087,6 +2098,48 @@ LISTENING_FILL_ORDER: tuple[tuple[str, int], ...] = (
 )
 
 
+def practice_fill_order(
+    caps: RhythmCaps | None = None, *, listening: bool = False
+) -> tuple[tuple[str, int], ...]:
+    """WP-L6 — the order a day's positions are filled in, at its rhythm.
+
+    The five-minute rhythm is exactly :data:`PRACTICE_FILL_ORDER` (or
+    :data:`LISTENING_FILL_ORDER`). A longer rhythm continues past it, always
+    taking the slot with the most room left in proportion — so a tight budget
+    still gets a warm-up, a build and a word from today before any second
+    helping, and a generous one grows the Rappel and the Scène together.
+    """
+
+    caps = caps or rhythm_caps(None)
+    base = LISTENING_FILL_ORDER if listening else PRACTICE_FILL_ORDER
+    if caps.budget_seconds <= RHYTHM_FIVE_MINUTES:
+        return base
+    limits = {
+        # A listening day hears the scene first: nothing before it.
+        "warmup": 0 if listening else caps.max_warmups,
+        "mid": caps.max_mid,
+        "post": caps.max_post,
+    }
+    placed = dict.fromkeys(limits, 0)
+    order: list[tuple[str, int]] = []
+    for slot, _position in base:
+        if placed[slot] < limits[slot]:
+            order.append((slot, placed[slot]))
+            placed[slot] += 1
+    while True:
+        room = {
+            slot: (limits[slot] - placed[slot]) / limits[slot]
+            for slot in limits
+            if limits[slot] and placed[slot] < limits[slot]
+        }
+        if not room:
+            break
+        slot = max(room, key=lambda name: (room[name], -("warmup", "mid", "post").index(name)))
+        order.append((slot, placed[slot]))
+        placed[slot] += 1
+    return tuple(order)
+
+
 @dataclass(frozen=True, slots=True)
 class PracticeItem:
     """One quick item placed on a practice day."""
@@ -2229,8 +2282,9 @@ def fill_practice_items(
     headroom: int,
     spt: float,
     multiplier: float,
-    max_items: int = MAX_PRACTICE_RECALL_STEPS,
+    max_items: int | None = None,
     partners: list[TargetRef] | tuple[TargetRef, ...] = (),
+    caps: RhythmCaps | None = None,
 ) -> list[PracticeItem]:
     """Place the day's quick items inside ``headroom`` seconds.
 
@@ -2242,9 +2296,11 @@ def fill_practice_items(
 
     pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
     pool.extend(target for target in partners if _glossed(target) is not None)
-    order = LISTENING_FILL_ORDER if shape is DayShape.LISTENING else PRACTICE_FILL_ORDER
-    rule = practice_day_shape_rule(shape)
-    cap = min(max_items, rule.max_recall, MAX_PRACTICE_RECALL_STEPS)
+    caps = caps or rhythm_caps(None)
+    order = practice_fill_order(caps, listening=shape is DayShape.LISTENING)
+    rule = practice_day_shape_rule(shape, caps.budget_seconds)
+    cap = min(caps.max_recall if max_items is None else max_items, rule.max_recall, caps.max_recall)
+    max_uses = caps.uses_per_target
     items: list[PracticeItem] = []
     uses: dict[str, int] = {}
     formats_by_target: dict[str, set[str]] = {}
@@ -2264,12 +2320,12 @@ def fill_practice_items(
     for slot, position in order:
         if len(items) >= cap:
             break
-        if slot == "warmup" and position >= MAX_WARMUP_RECALL_STEPS:
+        if slot == "warmup" and position >= caps.max_warmups:
             continue
         ranked = [
             entry
             for entry in entries
-            if uses.get(target_identity(entry.target), 0) < PRACTICE_MAX_USES_PER_TARGET
+            if uses.get(target_identity(entry.target), 0) < max_uses
         ]
         if slot == "post":
             ranked.sort(key=lambda entry: (today_rank(entry), entries.index(entry)))
@@ -2334,7 +2390,8 @@ def top_up_from_scene(
     headroom: int,
     spt: float,
     multiplier: float,
-    target_items: int = PRACTICE_TARGET_ITEMS,
+    target_items: int | None = None,
+    caps: RhythmCaps | None = None,
 ) -> list[PracticeItem]:
     """WP-86 — the floor: when today's words leave the day thin, the scene
     itself poses the rest («Qui a dit ça ?», a cloze, a rebuilt line).
@@ -2348,7 +2405,10 @@ def top_up_from_scene(
 
     from app.services.scene_items import floor_tasks
 
-    cap = min(practice_day_shape_rule(shape).max_recall, MAX_PRACTICE_RECALL_STEPS)
+    caps = caps or rhythm_caps(None)
+    if target_items is None:
+        target_items = caps.target_items
+    cap = min(practice_day_shape_rule(shape, caps.budget_seconds).max_recall, caps.max_recall)
     if len(items) >= min(target_items, cap):
         return items
     by_identity = {target_identity(entry.target): entry for entry in entries}
@@ -2372,7 +2432,7 @@ def top_up_from_scene(
         kind = (identity, task.task_type, str(task.instruction_native))
         if kind in taken:
             continue
-        if task.task_type != "who_said" and uses.get(identity, 0) > PRACTICE_MAX_USES_PER_TARGET:
+        if task.task_type != "who_said" and uses.get(identity, 0) > caps.uses_per_target:
             # One use beyond the fill's limit: the floor exists because the
             # pool is thin, and a rebuilt line is a different act from a pick.
             continue
@@ -2443,8 +2503,13 @@ def _plan_practice_day(
     notes: list[str],
     partners: list[TargetRef] | None = None,
 ) -> PlannedJourney:
-    """WP-78 — warm-ups → scene → build → reply → a word from today → ending."""
+    """WP-78 — warm-ups → scene → build → reply → a word from today → ending.
 
+    WP-L6: the same day at every rhythm, with the movements sized by
+    :func:`~app.services.journey_contracts.rhythm_caps` of the budget.
+    """
+
+    caps = rhythm_caps(budget_seconds)
     entries = practice_entries(scenario, selection, affordances)
     # WP-86: the floor may lean on any word of today the scene prints — a word
     # already produced is not drilled, but its line can still be rebuilt or
@@ -2488,6 +2553,7 @@ def _plan_practice_day(
             spt=spt,
             multiplier=multiplier,
             partners=partners or [],
+            caps=caps,
         )
         # WP-86: a thin day is topped up from the scene's own lines.
         return cost, top_up_from_scene(
@@ -2499,10 +2565,11 @@ def _plan_practice_day(
             headroom=max(0, headroom - sum(item.cost for item in filled)),
             spt=spt,
             multiplier=multiplier,
+            caps=caps,
         )
 
     respond_cost, items = attempt(turns)
-    if len(items) < PRACTICE_TARGET_ITEMS and turns > 1:
+    if len(items) < caps.target_items and turns > 1:
         # The reply keeps its repair; it gives up its second turn so the day
         # can hold its quick items — the same trade WP-75 made for day one.
         shorter_cost, shorter = attempt(turns - 1)
@@ -2510,7 +2577,7 @@ def _plan_practice_day(
             turns, respond_cost, items = turns - 1, shorter_cost, shorter
             notes.append("reply reduced to one turn so the practice items fit the budget")
 
-    rule = practice_day_shape_rule(shape)
+    rule = practice_day_shape_rule(shape, budget_seconds)
     if len(items) < rule.min_recall:
         notes.append(
             f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
@@ -2765,6 +2832,7 @@ __all__ = [
     "LISTENING_FILL_ORDER",
     "MATCH_PAIR_COUNT",
     "PRACTICE_FILL_ORDER",
+    "practice_fill_order",
     "PRACTICE_MAX_USES_PER_TARGET",
     "PRACTICE_SLOT_FORMATS",
     "PRACTICE_TARGET_ITEMS",

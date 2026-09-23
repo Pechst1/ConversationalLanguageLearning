@@ -949,6 +949,77 @@ def measure_journey_active_seconds(
 
 
 # --------------------------------------------------------------------------
+# WP-L6 — the learner's measured pace, for the planner
+# --------------------------------------------------------------------------
+
+#: The planner is fed the measured pace once this many days are measured
+#: (WORK-PACKAGES-2026-09-23-learning WP-L6); before that it plans on priors.
+MIN_MEASURED_PACE_DAYS = 3
+#: How far back the pace looks: the learner's last two weeks of finished days.
+PACE_LOOKBACK_JOURNEYS = 14
+
+
+@dataclass(frozen=True, slots=True)
+class MeasuredPace:
+    """How the learner's measured days compare with what was planned.
+
+    ``step_multiplier`` is the median of *measured active seconds / planned
+    seconds* over completed days — 1.2 means this learner takes a fifth longer
+    than the priors. The planner clamps it (``STEP_MULTIPLIER_BOUNDS``) and
+    applies it to what the learner *does*; reading keeps the prior pace until a
+    per-token measurement exists.
+    """
+
+    days: int
+    step_multiplier: float
+    samples: int
+
+
+def measured_pace(
+    db: Session,
+    *,
+    user_id: UUID | str,
+    exclude_journey_id: UUID | str | None = None,
+    lookback: int = PACE_LOOKBACK_JOURNEYS,
+) -> MeasuredPace:
+    """The learner's measured pace over their last completed days.
+
+    A day ended early is left out: it measures a part of the plan against the
+    whole plan's estimate. An unmeasurable day is left out too — never
+    replaced by its estimate.
+    """
+
+    from app.db.models.daily_journey import DailyJourney
+
+    query = db.query(DailyJourney).filter(
+        DailyJourney.user_id == UUID(str(user_id)),
+        DailyJourney.status == str(JourneyStatus.COMPLETED),
+        DailyJourney.estimated_active_seconds > 0,
+    )
+    if exclude_journey_id is not None:
+        query = query.filter(DailyJourney.id != UUID(str(exclude_journey_id)))
+    rows = query.order_by(DailyJourney.local_date.desc()).limit(max(1, lookback)).all()
+    ratios: list[float] = []
+    days: set[date] = set()
+    for journey in rows:
+        active = measure_journey_duration(db, journey_id=journey.id).active_seconds
+        if not active:
+            continue
+        ratios.append(active / float(journey.estimated_active_seconds))
+        days.add(journey.local_date)
+    if not ratios:
+        return MeasuredPace(days=0, step_multiplier=1.0, samples=0)
+    ordered = sorted(ratios)
+    middle = len(ordered) // 2
+    median = (
+        ordered[middle]
+        if len(ordered) % 2
+        else (ordered[middle - 1] + ordered[middle]) / 2.0
+    )
+    return MeasuredPace(days=len(days), step_multiplier=round(median, 4), samples=len(ratios))
+
+
+# --------------------------------------------------------------------------
 # Daily digest
 # --------------------------------------------------------------------------
 
@@ -979,6 +1050,35 @@ def _event_local_date(event: PilotEvent) -> tuple[date | None, bool]:
         except (ZoneInfoNotFoundError, ValueError, KeyError):
             pass
     return moment.astimezone(ZoneInfo(FALLBACK_TIMEZONE)).date(), False
+
+
+def _rhythm_order(name: str) -> tuple[int, str]:
+    from app.services.journey_rhythm import RHYTHMS
+
+    return (RHYTHMS.index(name) if name in RHYTHMS else len(RHYTHMS), name)  # type: ignore[arg-type]
+
+
+def _rhythms_for(db: Session, journey_ids: list[str]) -> dict[str, str]:
+    """WP-L9: each journey's rhythm, read from the budget it was planned for."""
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.services.journey_rhythm import rhythm_for_budget
+
+    identifiers: list[UUID] = []
+    for value in journey_ids:
+        try:
+            identifiers.append(UUID(str(value)))
+        except (TypeError, ValueError):
+            continue
+    if not identifiers:
+        return {}
+    with db.no_autoflush:
+        rows = (
+            db.query(DailyJourney.id, DailyJourney.budget_seconds)
+            .filter(DailyJourney.id.in_(identifiers))
+            .all()
+        )
+    return {str(journey_id): rhythm_for_budget(budget) for journey_id, budget in rows}
 
 
 def _capability_rollup(db: Session, learner_ids: set[str]) -> dict[str, Any]:
@@ -1158,15 +1258,22 @@ def journey_daily_rollup(
     away_total = 0
     idle_total = 0
     preparation_total = 0.0
-    for journey_id in sorted(
+    finished_ids = sorted(
         journeys_by_name[str(JourneyEventName.COMPLETED)]
         | journeys_by_name[str(JourneyEventName.ENDED_EARLY)]
-    ):
+    )
+    rhythm_by_journey = _rhythms_for(db, finished_ids)
+    durations_by_rhythm: dict[str, list[int]] = defaultdict(list)
+    unmeasurable_by_rhythm: Counter[str] = Counter()
+    for journey_id in finished_ids:
         measurement = measure_journey_duration(db, journey_id=journey_id)
+        rhythm = rhythm_by_journey.get(journey_id, "unknown")
         if measurement.active_seconds is None:
             unmeasurable += 1
+            unmeasurable_by_rhythm[rhythm] += 1
         else:
             durations.append(measurement.active_seconds)
+            durations_by_rhythm[rhythm].append(measurement.active_seconds)
         idle_total += measurement.idle_excluded_seconds
         away_total += measurement.away_excluded_seconds
         preparation_total += measurement.preparation_wait_seconds
@@ -1237,6 +1344,20 @@ def journey_daily_rollup(
             },
             "idle_excluded_seconds": idle_total,
             "away_excluded_seconds": away_total,
+            # WP-L9: the real session length per rhythm, so «Régulier is 8–10
+            # minutes» is measured rather than asserted.
+            "by_rhythm": {
+                rhythm: {
+                    "measured": len(durations_by_rhythm.get(rhythm, [])),
+                    "unmeasurable": unmeasurable_by_rhythm.get(rhythm, 0),
+                    "p50_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.5),
+                    "p90_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.9),
+                }
+                for rhythm in sorted(
+                    set(durations_by_rhythm) | set(unmeasurable_by_rhythm),
+                    key=_rhythm_order,
+                )
+            },
             "note": "server-measured; client timings are diagnostic and excluded",
         },
         "provider_wait": {
@@ -1346,6 +1467,15 @@ def format_journey_digest(section: dict[str, Any]) -> list[str]:
             f"p90 {seconds['p90']} · max {seconds['max']} "
             f"[idle excluded {duration['idle_excluded_seconds']}s, away {duration['away_excluded_seconds']}s]"
         )
+        by_rhythm = duration.get("by_rhythm") or {}
+        if by_rhythm:
+            lines.append(
+                "    By rhythm: "
+                + " · ".join(
+                    f"{name} n={row['measured']} p50 {row['p50_seconds']} p90 {row['p90_seconds']}"
+                    for name, row in by_rhythm.items()
+                )
+            )
     else:
         lines.append(
             f"  Active seconds: none measurable "
@@ -1386,6 +1516,8 @@ __all__ = [
     "JOURNEY_EVENT_SCHEMA_VERSION",
     "MIN_DIGEST_SAMPLE",
     "JourneyDuration",
+    "MIN_MEASURED_PACE_DAYS",
+    "MeasuredPace",
     "ProviderWait",
     "dedup_key",
     "format_journey_digest",
@@ -1394,6 +1526,7 @@ __all__ = [
     "journey_events_for",
     "measure_journey_active_seconds",
     "measure_journey_duration",
+    "measured_pace",
     "provider_timer",
     "record_generation_fallback",
     "record_journey_event",

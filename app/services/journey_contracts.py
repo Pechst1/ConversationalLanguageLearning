@@ -48,6 +48,73 @@ MAX_PRACTICE_STEPS = 10
 MAX_PRACTICE_RECALL_STEPS = 6
 #: Warm-ups are the only steps that may come before the scene.
 MAX_WARMUP_RECALL_STEPS = 3
+
+
+# --------------------------------------------------------------------------
+# WP-L6 — the rhythm sizes the day
+# --------------------------------------------------------------------------
+
+#: The four rhythms' budgets (WORK-PACKAGES-2026-09-23-learning §2.2): Léger
+#: 5 min, Régulier 10 (the default), Soutenu 20, Intensif 30. A longer rhythm
+#: makes the movements longer, never more numerous — one scene, one reply, one
+#: ending on every rhythm (no rhythm plans a second episode).
+RHYTHM_BUDGETS: tuple[int, ...] = (300, 600, 1200, 1800)
+
+
+@dataclass(frozen=True, slots=True)
+class RhythmCaps:
+    """How big a practice day may get at one budget.
+
+    The 300-second row is exactly the WP-78 envelope (the constants above), so
+    every plan persisted before WP-L6 validates as it did. The larger rows grow
+    the Rappel (warm-ups before the scene, ≈ 35 % of the budget), the Scène's
+    guided items (between the scene and the reply, ≈ 30 % with the scene
+    itself) and the Bouclé retrieval after the reply (≈ 10 % with the ending);
+    the Réponse keeps its two turns (≈ 25 %). The counts are ceilings — the
+    planner still fills only what the budget's seconds and today's pool allow.
+    """
+
+    budget_seconds: int
+    max_steps: int
+    max_recall: int
+    max_warmups: int
+    max_mid: int
+    max_post: int
+    #: The item count the WP-86 floor tops a thin day up to.
+    target_items: int
+    #: How many candidates the day asks the learning layer for.
+    candidate_limit: int
+    #: How often one target may come back in one day (never in the same format).
+    uses_per_target: int
+    #: The reply's turns. Two on every rhythm for now: a third turn for
+    #: Soutenu/Intensif needs the conversation engine (WP-L5), not the planner.
+    max_turns: int
+    #: How many of the learner's daily new words the word drill leaves for the
+    #: day until the day is planned (§5: one intake pool, the journey first).
+    journey_new_words: int
+
+
+RHYTHM_CAPS: dict[int, RhythmCaps] = {
+    300: RhythmCaps(300, MAX_PRACTICE_STEPS, MAX_PRACTICE_RECALL_STEPS,
+                    MAX_WARMUP_RECALL_STEPS, 2, 1, 5, 8, 2, 2, 2),
+    600: RhythmCaps(600, 30, 26, 14, 10, 2, 20, 16, 2, 2, 4),
+    1200: RhythmCaps(1200, 62, 58, 28, 26, 4, 44, 32, 3, 2, 8),
+    1800: RhythmCaps(1800, 92, 88, 42, 40, 6, 70, 48, 3, 2, 12),
+}
+
+
+def rhythm_caps(budget_seconds: int | None) -> RhythmCaps:
+    """The caps of the largest rhythm that fits ``budget_seconds``.
+
+    Anything under five minutes (or unknown) reads the five-minute row, which
+    is the pre-WP-L6 envelope.
+    """
+
+    budget = int(budget_seconds or DEFAULT_BUDGET_SECONDS)
+    fitting = [value for value in RHYTHM_BUDGETS if value <= budget]
+    return RHYTHM_CAPS[max(fitting) if fitting else RHYTHM_BUDGETS[0]]
+
+
 #: WP-75. Marks the learner's authored first day in
 #: ``plan_selection["first_day"]["kind"]``. Additive: no wire shape changes
 #: except the optional ``JourneySnapshot.cast_intro`` it feeds.
@@ -579,22 +646,27 @@ DAY_SHAPE_RULES: dict[DayShape, DayShapeRule] = {
 }
 
 
-def practice_day_shape_rule(shape: DayShape | str | None) -> DayShapeRule:
+def practice_day_shape_rule(
+    shape: DayShape | str | None, budget_seconds: int | None = None
+) -> DayShapeRule:
     """WP-78 — a shape's rule on a practice day.
 
     The same shape, with room for the quick items: a «jour court» stays three
     steps (coming back after a missed day still costs a scene and a reply),
     and a «jour d'écoute» still poses only what can be taken down by ear.
+    WP-L6: the room grows with the rhythm (:func:`rhythm_caps`); without a
+    budget it is the five-minute room.
     """
 
     rule = day_shape_rule(shape)
     if rule.max_steps == MIN_PLANNED_STEPS and rule.max_recall == 0:
         return rule
+    caps = rhythm_caps(budget_seconds)
     return DayShapeRule(
         min_steps=rule.min_steps,
-        max_steps=MAX_PRACTICE_STEPS,
+        max_steps=caps.max_steps,
         min_recall=rule.min_recall,
-        max_recall=MAX_PRACTICE_RECALL_STEPS,
+        max_recall=caps.max_recall,
         allowed_formats=rule.allowed_formats,
     )
 
@@ -703,11 +775,12 @@ class PlannedJourney:
         because the learner is told the whole day's minutes.
         """
 
-        rule = practice_day_shape_rule(self.day_shape)
+        rule = practice_day_shape_rule(self.day_shape, self.budget_seconds)
+        caps = rhythm_caps(self.budget_seconds)
         shape = str(self.day_shape)
         kinds = [step.kind for step in self.steps]
-        if len(self.steps) > MAX_PRACTICE_STEPS:
-            raise ValueError(f"plan has {len(self.steps)} steps, max {MAX_PRACTICE_STEPS}")
+        if len(self.steps) > caps.max_steps:
+            raise ValueError(f"plan has {len(self.steps)} steps, max {caps.max_steps}")
         if kinds.count(StepKind.SCENE) != 1:
             raise ValueError("a plan needs exactly one scene step")
         if kinds.count(StepKind.RESPOND) != 1:
@@ -717,8 +790,8 @@ class PlannedJourney:
         scene_at = kinds.index(StepKind.SCENE)
         if any(kind is not StepKind.RECALL for kind in kinds[:scene_at]):
             raise ValueError("only warm-up recall steps may come before the scene")
-        if scene_at > MAX_WARMUP_RECALL_STEPS:
-            raise ValueError(f"at most {MAX_WARMUP_RECALL_STEPS} warm-ups before the scene")
+        if scene_at > caps.max_warmups:
+            raise ValueError(f"at most {caps.max_warmups} warm-ups before the scene")
         if kinds.index(StepKind.RESPOND) < scene_at:
             raise ValueError("the reply comes after the scene")
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):

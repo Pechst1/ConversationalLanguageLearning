@@ -848,7 +848,8 @@ def test_a_letter_day_played_over_the_real_api_finishes_the_letter(
         assert journey["day_shape"] == "letter"
 
         # Walk to the respond step, answering nothing on the way.
-        for _ in range(12):
+        # WP-L6: a Régulier day holds more warm-ups than a five-minute one.
+        for _ in range(60):
             step_id = journey.get("current_step_id")
             assert step_id, "the day ran out of steps before the letter"
             step = next(item for item in journey["steps"] if item["id"] == step_id)

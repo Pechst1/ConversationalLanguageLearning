@@ -55,7 +55,10 @@ class User(Base):
     timezone = Column(String(64), default="Europe/Paris", server_default="Europe/Paris")
 
     # Settings - Practice
-    daily_goal_minutes = Column(Integer, default=15)
+    # WP-L6: the learner's rhythm, as minutes (5 Léger / 10 Régulier / 20
+    # Soutenu / 30 Intensif). Read through `User.rhythm`; older values (15, 60,
+    # anything typed) map onto a rhythm and are never rewritten.
+    daily_goal_minutes = Column(Integer, default=10)
     daily_goal_xp = Column(Integer, default=50)
     new_words_per_day = Column(Integer, default=10)
     default_vocab_direction = Column(String(20), default="fr_to_de")
@@ -144,6 +147,20 @@ class User(Base):
         """Update the user's preferred session time."""
 
         self.preferred_session_time = session_time
+
+    @property
+    def rhythm(self) -> str:
+        """WP-L6: «leger» / «regulier» / «soutenu» / «intensif», from the minutes."""
+
+        from app.services.journey_rhythm import rhythm_for_minutes
+
+        return rhythm_for_minutes(self.daily_goal_minutes)
+
+    @rhythm.setter
+    def rhythm(self, value: str) -> None:
+        from app.services.journey_rhythm import RHYTHM_MINUTES
+
+        self.daily_goal_minutes = RHYTHM_MINUTES[value]  # type: ignore[index]
 
 
 class RefreshToken(Base):

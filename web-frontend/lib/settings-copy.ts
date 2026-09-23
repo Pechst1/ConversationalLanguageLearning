@@ -146,14 +146,20 @@ export type SettingsCopyKey =
   | 'address_masculine_hint'
   | 'address_neutral_hint'
   // Rythme
-  | 'card_time_title'
+  | 'rhythm_title'
+  | 'rhythm_hint'
+  | 'rhythm_line_leger'
+  | 'rhythm_line_regulier'
+  | 'rhythm_line_soutenu'
+  | 'rhythm_line_intensif'
+  | 'rhythm_recommended'
   | 'minutes_short'
-  | 'field_other_duration'
   | 'row_cefr'
   | 'row_cefr_hint'
   | 'row_xp'
   | 'field_other_xp'
   | 'row_new_words'
+  | 'row_new_words_hint'
   | 'row_direction'
   | 'row_direction_hint'
   | 'direction_mixed'
@@ -345,14 +351,21 @@ const EN: SettingsCopy = {
   address_masculine_hint: 'Characters will address you in the masculine.',
   address_neutral_hint: 'Characters will avoid gendered forms and pet names.',
 
-  card_time_title: 'Time per edition',
+  rhythm_title: 'Your rhythm',
+  rhythm_hint: 'One episode a day on every rhythm. A longer rhythm adds practice, not story.',
+  rhythm_line_leger: 'The episode, your reply and a few quick reviews.',
+  rhythm_line_regulier: 'Reviews first, the episode with practice, two reply turns.',
+  rhythm_line_soutenu: 'Like Régulier, with twice the reviews and practice.',
+  rhythm_line_intensif: 'Like Soutenu, with the most reviews and practice.',
+  rhythm_recommended: 'recommended',
   minutes_short: 'min',
-  field_other_duration: 'Another length (5 to 120 minutes)',
   row_cefr: 'CEFR target',
   row_cefr_hint: 'L’Atelier estimates the date from the pace you actually keep.',
   row_xp: 'Daily XP marker',
   field_other_xp: 'Another marker (10 to 500)',
   row_new_words: 'New words per day',
+  row_new_words_hint:
+    'Counts the story and the word drill together. Estimate: about {low}–{high} reviews a day once it settles (≈ {minLow}–{minHigh} min).',
   row_direction: 'Card direction',
   row_direction_hint:
     'Glossary translations exist only in German and English; English stands in for the other languages.',
@@ -549,14 +562,21 @@ const DE: SettingsCopy = {
   address_masculine_hint: 'Die Figuren sprechen Sie in der männlichen Form an.',
   address_neutral_hint: 'Die Figuren vermeiden geschlechtsgebundene Formen und Kosenamen.',
 
-  card_time_title: 'Zeit pro Ausgabe',
+  rhythm_title: 'Ihr Rhythmus',
+  rhythm_hint: 'Eine Episode pro Tag in jedem Rhythmus. Ein längerer Rhythmus bringt mehr Übung, nicht mehr Geschichte.',
+  rhythm_line_leger: 'Die Episode, Ihre Antwort und ein paar schnelle Wiederholungen.',
+  rhythm_line_regulier: 'Erst Wiederholungen, dann die Episode mit Übungen, zwei Antwortrunden.',
+  rhythm_line_soutenu: 'Wie Régulier, mit doppelt so viel Wiederholung und Übung.',
+  rhythm_line_intensif: 'Wie Soutenu, mit der meisten Wiederholung und Übung.',
+  rhythm_recommended: 'empfohlen',
   minutes_short: 'Min.',
-  field_other_duration: 'Andere Dauer (5 bis 120 Minuten)',
   row_cefr: 'GER-Ziel',
   row_cefr_hint: 'L’Atelier schätzt den Termin nach Ihrem tatsächlichen Rhythmus.',
   row_xp: 'Täglicher XP-Richtwert',
   field_other_xp: 'Anderer Richtwert (10 bis 500)',
   row_new_words: 'Neue Wörter pro Tag',
+  row_new_words_hint:
+    'Zählt Geschichte und Wortübung zusammen. Schätzung: etwa {low}–{high} Wiederholungen pro Tag, wenn es sich eingependelt hat (≈ {minLow}–{minHigh} Min.).',
   row_direction: 'Richtung der Karten',
   row_direction_hint:
     'Die Übersetzungen im Lexikon gibt es nur auf Deutsch und Englisch; für andere Sprachen dient Englisch als Stütze.',
@@ -758,14 +778,21 @@ const FR: SettingsCopy = {
   address_masculine_hint: 'Les personnages vous parleront au masculin.',
   address_neutral_hint: 'Les personnages éviteront les formes genrées et les petits noms.',
 
-  card_time_title: 'Temps par édition',
+  rhythm_title: 'Votre rythme',
+  rhythm_hint: 'Un épisode par jour à chaque rythme. Un rythme plus long ajoute de la pratique, pas de l’histoire.',
+  rhythm_line_leger: 'L’épisode, votre réponse et quelques rappels rapides.',
+  rhythm_line_regulier: 'Des rappels d’abord, l’épisode avec ses exercices, deux tours de réponse.',
+  rhythm_line_soutenu: 'Comme Régulier, avec deux fois plus de rappels et d’exercices.',
+  rhythm_line_intensif: 'Comme Soutenu, avec le plus de rappels et d’exercices.',
+  rhythm_recommended: 'conseillé',
   minutes_short: 'min',
-  field_other_duration: 'Autre durée (5 à 120 minutes)',
   row_cefr: 'Objectif CECRL',
   row_cefr_hint: 'L’Atelier estime l’échéance selon votre rythme réel.',
   row_xp: 'Repère XP quotidien',
   field_other_xp: 'Autre repère (10 à 500)',
   row_new_words: 'Nouveaux mots par jour',
+  row_new_words_hint:
+    'L’histoire et l’exercice de mots comptent ensemble. Estimation : environ {low} à {high} révisions par jour une fois le rythme installé (≈ {minLow} à {minHigh} min).',
   row_direction: 'Sens des cartes',
   row_direction_hint:
     'Les traductions du lexique n’existent qu’en allemand et en anglais ; l’anglais sert d’appui pour les autres langues.',

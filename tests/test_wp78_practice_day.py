@@ -452,7 +452,8 @@ def test_a_practice_day_is_played_end_to_end_without_leaking_a_key(
     kinds = [step["kind"] for step in journey["steps"]]
     graded = kinds.count("recall") + kinds.count("respond")
     assert graded >= 6, kinds
-    assert journey["estimated_active_seconds"] <= journey["budget_seconds"] == 300
+    # WP-L6: a new learner is on Régulier; the day fits its ten minutes.
+    assert journey["estimated_active_seconds"] <= journey["budget_seconds"] == 600
     assert kinds[0] == "recall" and kinds[-1] == "resolution"
     for step in journey["steps"]:
         if step["kind"] == "recall" and step["prompt"]["task_type"] in {

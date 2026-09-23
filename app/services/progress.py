@@ -445,8 +445,13 @@ class ProgressService:
         include_upcoming_days: int = 0,
         include_shared_phrases: bool = False,
         now: datetime | None = None,
+        exclude_new_word_ids: set[int] | None = None,
     ) -> dict[str, Any]:
-        """Return due, fragile, and new words ranked by FSRS-style memory urgency."""
+        """Return due, fragile, and new words ranked by FSRS-style memory urgency.
+
+        ``exclude_new_word_ids`` (WP-L6) are never offered as new: today's
+        journey has reserved them, and a word is introduced once.
+        """
 
         now = now or datetime.now(UTC)
         stopwords = self._queue_stopwords()
@@ -560,8 +565,9 @@ class ProgressService:
         new_count_stmt = select(func.count(VocabularyWord.id)).where(and_(*new_conditions))
         new_count = int(self.db.scalar(new_count_stmt) or 0)
         new_stmt = select(VocabularyWord).where(and_(*new_conditions))
-        if used_word_ids:
-            new_stmt = new_stmt.where(VocabularyWord.id.notin_(used_word_ids))
+        excluded_new = set(used_word_ids) | set(exclude_new_word_ids or ())
+        if excluded_new:
+            new_stmt = new_stmt.where(VocabularyWord.id.notin_(excluded_new))
         new_stmt = new_stmt.order_by(
             VocabularyWord.frequency_rank.asc().nullslast(),
             VocabularyWord.difficulty_level.asc().nullslast(),
@@ -721,6 +727,7 @@ class ProgressService:
         topic_tags: list[str] | None = None,
         linked_word_ids: list[int] | None = None,
         now: datetime | None = None,
+        exclude_new_word_ids: set[int] | None = None,
     ) -> dict[str, Any]:
         """Return a bucketed vocabulary bundle for contextual mobile surfaces."""
 
@@ -733,6 +740,7 @@ class ProgressService:
             new_limit=new_limit,
             direction=direction,
             now=now,
+            exclude_new_word_ids=exclude_new_word_ids,
         )
         from app.services.recommendation_reasons import recommendation_reason
 

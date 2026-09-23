@@ -53,7 +53,8 @@ def practice_href_for(concept_id: object | None = None) -> str:
 
 
 ContractVersion = Literal[1]
-BudgetSeconds = Literal[300]
+#: WP-L6: the four rhythms — Léger 5, Régulier 10, Soutenu 20, Intensif 30 min.
+BudgetSeconds = Literal[300, 600, 1200, 1800]
 
 
 class JourneyModel(BaseModel):
@@ -673,7 +674,10 @@ AttemptInput = Annotated[
 class JourneyCreateRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
     timezone: str = Field(default="UTC", max_length=64)
-    budget_seconds: BudgetSeconds = BUDGET_SECONDS
+    #: WP-L6: accepted for older clients and **ignored** — the server sizes
+    #: the day from the learner's rhythm (``users.daily_goal_minutes``), so a
+    #: build that still sends 300 cannot pin a Régulier learner to five minutes.
+    budget_seconds: BudgetSeconds | None = None
     preferred_input_mode: InputMode = InputMode.TEXT
 
 

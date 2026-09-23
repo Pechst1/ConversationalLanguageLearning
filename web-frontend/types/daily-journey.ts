@@ -9,7 +9,10 @@
  */
 
 export const DAILY_JOURNEY_CONTRACT_VERSION = 1;
+/** WP-L6: the five-minute rhythm. The server sizes each day from the learner's rhythm. */
 export const DAILY_JOURNEY_BUDGET_SECONDS = 300;
+/** WP-L6: Léger 5, Régulier 10, Soutenu 20, Intensif 30 minutes. */
+export type BudgetSeconds = 300 | 600 | 1200 | 1800;
 
 export type ControlLanguage = 'en' | 'de' | 'fr';
 export type JourneyStatus =
@@ -339,7 +342,7 @@ export type JourneySnapshot = {
   local_date: string;
   /** IANA. */
   timezone: string;
-  budget_seconds: 300;
+  budget_seconds: BudgetSeconds;
   estimated_active_seconds: number;
   current_step_id: string | null;
   scenario: ScenarioDescriptor;
@@ -521,7 +524,11 @@ export type AttemptInput =
 export type CreateJourneyBody = {
   mutation_id: string;
   timezone: string;
-  budget_seconds: 300;
+  /**
+   * WP-L6: no longer sent. The server sizes the day from the learner's
+   * rhythm and ignores this field when an older build still sends it.
+   */
+  budget_seconds?: BudgetSeconds;
   preferred_input_mode: InputMode;
 };
 

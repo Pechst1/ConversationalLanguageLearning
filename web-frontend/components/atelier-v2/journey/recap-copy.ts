@@ -24,7 +24,8 @@ type ChromeKey =
   | 'teaser_label'
   | 'level_label'
   | 'mood_warmer'
-  | 'mood_colder';
+  | 'mood_colder'
+  | 'encore';
 
 const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
   en: {
@@ -41,6 +42,8 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     level_label: 'Level',
     mood_warmer: '{name} smiles at you',
     mood_colder: '{name} is a little cross',
+    /** WP-L6: the quiet, optional reviews-only block after the Seal. */
+    encore: '5 more minutes',
   },
   de: {
     streak_label: 'Serie',
@@ -55,6 +58,7 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     level_label: 'Niveau',
     mood_warmer: '{name} lächelt Sie an',
     mood_colder: '{name} ist etwas verstimmt',
+    encore: 'Noch 5 Minuten',
   },
   fr: {
     streak_label: 'Série',
@@ -69,6 +73,7 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     level_label: 'Niveau',
     mood_warmer: '{name} vous sourit',
     mood_colder: '{name} vous en veut un peu',
+    encore: 'Encore 5 minutes',
   },
 };
 
@@ -79,6 +84,13 @@ export function recapChrome(language: ControlLanguage | null | undefined): Recor
 
 /** The French table, for a caller that is French by rule (B1+). */
 export const RECAP_CHROME = CHROME.fr;
+
+/**
+ * WP-L6 «Encore 5 minutes»: the word drill, reviews only — no new words, a
+ * five-minute deck. It never touches the story, and the streak is marked at
+ * most once per local day (`record_practice_day`), so it cannot count twice.
+ */
+export const ENCORE_HREF = '/vocabulary/review?encore=1';
 
 type StatusKey = 'freeze_used' | 'level_evidence' | 'level_evidence_words' | 'level_evidence_rules';
 
