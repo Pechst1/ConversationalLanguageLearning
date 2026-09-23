@@ -1071,7 +1071,7 @@ export function LEpreuveStyles() {
    ============================================================ */
 .av2 .ep-setline { min-height: max(var(--av2-tap), 3.5rem); }
 .av2 .ep-setline__hint { color: var(--av2-muted); }
-.av2 .ep-setline .ep-slug { min-height: 36px; padding: 0.25rem 0.75rem; }
+.av2 .ep-setline .ep-slug { min-height: var(--av2-tap); padding: 0.25rem 0.75rem; } /* WP-83: a placed word is still a 44 px target */
 .av2 .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .av2 .ep-slug[data-spent='true'] {
   background: var(--av2-line);
