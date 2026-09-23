@@ -110,6 +110,16 @@ class UserGrammarProgress(Base):
     difficulty: Mapped[float] = mapped_column(Float, default=5.0, server_default="5", nullable=False)
     lapses: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
+    # WP-L4: the concept's life (`app.services.concept_life`). When the learner
+    # met it (the Règle), the first and latest correct free use in a reply, the
+    # latest correct spaced item at least 14 days after the introduction, and
+    # when it was first held («Tenue»). Nullable, no backfill.
+    introduced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    free_use_first_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    free_use_last_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    spaced_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

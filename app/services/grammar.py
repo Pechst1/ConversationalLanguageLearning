@@ -83,6 +83,11 @@ def apply_grammar_evidence(
         progress.score = max(0.0, min(10.0, float(score)))
     progress.state = determine_state(float(progress.score or 0.0), progress.reps)
     progress.updated_at = now
+    # WP-L4: the concept's life (introduced, free use, spaced success, held)
+    # sees every observation that reaches the schedule.
+    from app.services.concept_life import note_concept_evidence
+
+    note_concept_evidence(progress, evidence, now=now)
     return decision
 
 
