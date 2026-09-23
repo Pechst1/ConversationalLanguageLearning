@@ -287,6 +287,9 @@ line so an agent can prove it.
 5. **E: WP-85**, starting now for the PR/CI part.
 6. **Design: WP-D1..D8** (the mark as the day's plan, faces, the Seal, gender by shape) are
    in `WORK-PACKAGES-2026-09-22-design.md` and slot into Waves C/D.
+7. **Learning: WP-L1..L9** (2026-09-23: the 8–10-minute day, rhythms, grammar lifecycle,
+   one memory model, level = syllabus coverage + checkpoint) are in
+   `WORK-PACKAGES-2026-09-23-learning.md`; WP-L1 goes first.
 
 Each wave ends with a walk on the simulator (not only the browser pane, whose hidden-tab
 hydration hides real behaviour) in both themes and three learner languages.
