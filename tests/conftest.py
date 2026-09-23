@@ -46,6 +46,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.ext.compiler import compiles
+
+
+@compiles(PG_UUID, "sqlite")
+def _pg_uuid_as_text_on_sqlite(type_, compiler, **kw):  # noqa: ARG001
+    """Declare UUID columns CHAR(32) on the SQLite test engine.
+
+    SQLite gives a column typed ``UUID`` NUMERIC affinity, so an id whose hex looks
+    numeric (all digits, or digits and one «e») was stored as a number and read
+    back as a float. CHAR has TEXT affinity and keeps every id as written
+    (tests/test_sqlite_uuid_affinity.py). PostgreSQL is untouched.
+    """
+
+    return "CHAR(32)"
 
 from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
