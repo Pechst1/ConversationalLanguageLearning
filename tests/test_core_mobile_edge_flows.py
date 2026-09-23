@@ -27,14 +27,17 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
     assert "const seanceDisabled = loading || (!hasActiveSession && !canStart)" in atelier
-    assert "toast('Cet exercice est déjà classé.')" in atelier
+    # WP-82/83: said inline in the session, in the chrome language.
+    assert "say(pageCopy.say_already_done)" in atelier
     # Finish gate lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
     # It only blocks filing an *empty* edition: a session with classed drills can
     # always be closed early, behind one confirm, because that work is already
     # banked server-side (see tests/test_atelier_honest_edition.py).
     assert "finishDisabled={submitting || completedDrills < 1}" in atelier
     assert "partial={completedDrills < total}" in atelier
-    assert "La séance n’a pas pu être terminée." in atelier
+    assert "say(pageCopy.say_finish_failed, 'alert')" in atelier
+    copy = read(WEB / "components" / "epreuve" / "epreuve-copy.ts")
+    assert "say_finish_failed: 'La séance n’a pas pu être terminée.'" in copy
 
 
 def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish() -> None:

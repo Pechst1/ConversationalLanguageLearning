@@ -197,7 +197,7 @@ def test_atelier_daily_session_surfaces_target_vocabulary_in_context() -> None:
 
     assert "session.target_vocabulary" in source
     assert "target-word-strip" in source
-    assert 'aria-label="Lexique visé pour ce paragraphe"' in source
+    assert "aria-label={t.produce_words_label}" in source
     assert "vocabularyTranslation(item)" in source
 
 
@@ -224,4 +224,6 @@ def test_atelier_daily_plan_waits_for_active_session_hydration() -> None:
     assert "apiService.getAtelierToday()" in initial_load_block
     assert "apiService.getVocabularyDueContext" in initial_load_block
     assert "apiService.getActiveAtelierSession()" in source
-    assert "L’Atelier n’a pas pu confirmer la séance en cours" in source
+    assert "ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = { kind: 'confirm_needed' }" in source
+    errors = (Path(__file__).resolve().parents[1] / "web-frontend" / "lib" / "atelier-errors.ts").read_text(encoding="utf-8")
+    assert "La séance en cours n’a pas pu être confirmée." in errors

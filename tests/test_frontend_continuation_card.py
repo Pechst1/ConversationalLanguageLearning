@@ -83,7 +83,7 @@ def test_atelier_recap_continues_session_into_context() -> None:
     assert "<EpSeal" in source
     assert "<EpHandoff" in source
     assert "session_id: result.session_id" in source
-    assert "aria-label=\"Fermer l’épreuve\"" in source
+    assert "aria-label={t.recap_close}" in source
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:

@@ -54,10 +54,15 @@ type JourneyLike = {
  * exists, the offered scenario's.
  */
 export function journeyChromeLanguage(controller: JourneyLike): ControlLanguage {
-  const level =
+  return chromeLanguage(controller.controlLanguage, journeyLevel(controller));
+}
+
+/** The learner's band as the day's journey knows it, or `null` before one exists. */
+export function journeyLevel(controller: JourneyLike): string | null {
+  return (
     controller.journey?.scenario?.level_band ??
     controller.envelope?.journey?.scenario?.level_band ??
     controller.envelope?.available?.level_band ??
-    null;
-  return chromeLanguage(controller.controlLanguage, level);
+    null
+  );
 }

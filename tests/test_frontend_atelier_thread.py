@@ -59,7 +59,10 @@ def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
     assert "{ id: 'word_bank', label: 'Banque de mots', short: 'C' }" in source
     assert "firstConceptDrill" in source
     assert "rule-bridge" in source
-    assert "Essayez maintenant avec l’élément le plus simple." in source
+    # WP-82: the ramp line is chrome and follows the language rule.
+    assert "examples={firstConceptDrill ? [t.rule_try_first] : []}" in source
+    copy = (Path(__file__).resolve().parents[1] / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
+    assert "rule_try_first: 'Commencez par l’exemple le plus simple.'" in copy
     assert "payload.rule_panel" in source
     assert "reportAtelierExercise" in source
     # Feedback is the inline épreuve verdict (EpVerdict + galley marks in the
@@ -87,7 +90,10 @@ def test_feedback_confirms_lexical_gap_words_added_to_notebook() -> None:
     # notebook by the backend; the feedback confirms it inline.
     assert "correction?.vocabulary_gaps?.added" in source
     assert 'className="ep-notebook-add"' in source
-    assert "Ajouté au carnet" in source
+    assert "{t.notebook_added}" in source
+    copy = (Path(__file__).resolve().parents[1] / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
+    assert "notebook_added: 'Ajouté au carnet'" in copy
+    assert "notebook_added: 'Added to your notebook'" in copy
 
 
 def test_atelier_feedback_uses_reduced_motion_safe_haptics() -> None:

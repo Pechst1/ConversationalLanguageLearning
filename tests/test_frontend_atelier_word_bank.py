@@ -59,15 +59,22 @@ def test_atelier_page_does_not_render_old_hardcoded_exercise_fallbacks() -> None
     assert "Use the x-ray and the rule panel as the proofing reference while you answer." not in source
     # The unavailable notice lives on the load-error shell since the 2026-08-31
     # dead-code excision removed the unused AtelierLoadNotice duplicate.
-    assert "L’Atelier est indisponible pour le moment." in source
-    # French copy per the L'Épreuve language rule (in-fiction chrome is French).
-    assert "La consigne de composition est indisponible." in source
+    # WP-82: the notice and the missing-task line follow the language rule;
+    # their words live in the copy modules, never inline French.
+    assert "atelierErrorText(loadError" in source
+    errors = (ROOT / "web-frontend" / "lib" / "atelier-errors.ts").read_text(encoding="utf-8")
+    assert "L’Atelier ne répond pas." in errors and "The Atelier is not answering." in errors
+    copy = (ROOT / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
+    assert "{promptText || t.produce_missing}" in source
+    assert "produce_missing: 'La consigne est indisponible.'" in copy
 
 
 def test_atelier_word_counts_do_not_mask_missing_generated_limits() -> None:
     source = read_atelier()
 
-    assert "function wordRangeLabel" in source
+    assert "wordRangeText(t, wordCount(answer), item.min_words, item.max_words)" in source
+    copy = (ROOT / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
+    assert "export function wordRangeText" in copy
     assert "{item.min_words || 5}-{item.max_words || 28}" not in source
     assert "{produce.min_words || 70}-{produce.max_words || 140}" not in source
 
@@ -81,8 +88,11 @@ def test_atelier_ai_review_is_polled_without_blocking_next_step() -> None:
     assert "scheduleAiReviewPolling(result.attempt_id, key)" in source
     assert "apiService.getAtelierAttempt(attemptId)" in source
     assert "}, 2000)" in source
-    assert "Relecture automatique" in source
-    assert "Relecture terminée" in source
-    assert "Relecture automatique lancée" in source
-    assert "La relecture automatique est indisponible." in source
+    assert "{t.relecture_done}" in source
+    # WP-82/83: the second look is announced inline, in the chrome language.
+    assert "say(pageCopy.say_review_started)" in source
+    assert "say(pageCopy.say_review_unavailable, 'alert')" in source
+    copy = (ROOT / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
+    assert "say_review_started: 'Relecture automatique lancée.'" in copy
+    assert "say_review_unavailable: 'La relecture automatique est indisponible.'" in copy
     assert "disabled={submitting || nextDisabled}" in source

@@ -80,6 +80,14 @@ export type RecommendedAction = LegacyRecommendedAction | JourneyRecommendedActi
  */
 export const PRACTICE_LABEL = 'Plus de pratique';
 
+/** WP-82: the drill loop's name in a chrome language (same words as the recap's `more_practice`). */
+export function practiceLabel(language: unknown): string {
+  const base = typeof language === 'string' ? language.trim().toLowerCase().slice(0, 2) : 'en';
+  if (base === 'fr') return PRACTICE_LABEL;
+  if (base === 'de') return 'Mehr üben';
+  return 'More practice';
+}
+
 export type PracticeEntry = {
   label: string;
   href: string;
