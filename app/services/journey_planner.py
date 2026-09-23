@@ -67,6 +67,7 @@ from app.services.journey_contracts import (
     normalize_answer_text,
     practice_day_shape_rule,
 )
+from app.services.scene_items import scene_lines
 from app.services.journey_day_shapes import (
     DayShapeInputs,
     LetterOffer,
@@ -171,6 +172,8 @@ QUICK_ANSWER_SECONDS: dict[str, int] = {
     "short_answer": 8,
     "match_pairs": 9,
     "transform": 12,
+    # WP-86: «Qui a dit ça ?» — read one line, tap a face.
+    "who_said": 4,
 }
 #: Seeing the colour and tapping «Continuer».
 QUICK_FEEDBACK_SECONDS = 2
@@ -2313,6 +2316,72 @@ def fill_practice_items(
     return items
 
 
+def top_up_from_scene(
+    *,
+    scenario: ScenarioBrief,
+    shape: DayShape,
+    entries: list[SelectedTarget],
+    items: list[PracticeItem],
+    expected_reply: str | None,
+    headroom: int,
+    spt: float,
+    multiplier: float,
+    target_items: int = PRACTICE_TARGET_ITEMS,
+) -> list[PracticeItem]:
+    """WP-86 — the floor: when today's words leave the day thin, the scene
+    itself poses the rest («Qui a dit ça ?», a cloze, a rebuilt line).
+
+    Adds items after the scene only, until the day holds ``target_items``
+    quick items or the budget or the cap says stop. Each item is tied to a
+    word of today that its line holds; one item per (word, kind), and a word
+    may come back once more than the fill allows (never for the same kind);
+    «Qui a dit ça ?» schedules nothing and is not counted. Pure and deterministic, like the fill it follows.
+    """
+
+    from app.services.scene_items import floor_tasks
+
+    cap = min(practice_day_shape_rule(shape).max_recall, MAX_PRACTICE_RECALL_STEPS)
+    if len(items) >= min(target_items, cap):
+        return items
+    by_identity = {target_identity(entry.target): entry for entry in entries}
+    uses: dict[str, int] = {}
+    for item in items:
+        identity = target_identity(item.entry.target)
+        uses[identity] = uses.get(identity, 0) + 1
+    taken: set[tuple[str, str, str]] = set()
+    placed = list(items)
+    for target, task in floor_tasks(
+        scenario,
+        [(entry.target, entry.candidate.metadata or {}) for entry in entries],
+        expected_reply=expected_reply,
+    ):
+        if len(placed) >= min(target_items, cap):
+            break
+        identity = target_identity(target)
+        entry = by_identity.get(identity)
+        if entry is None or not shape_allows_format(shape, task.task_type):
+            continue
+        kind = (identity, task.task_type, str(task.instruction_native))
+        if kind in taken:
+            continue
+        if task.task_type != "who_said" and uses.get(identity, 0) > PRACTICE_MAX_USES_PER_TARGET:
+            # One use beyond the fill's limit: the floor exists because the
+            # pool is thin, and a rebuilt line is a different act from a pick.
+            continue
+        cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+        if cost > headroom:
+            continue
+        slot_items = [item for item in placed if item.slot in ("mid", "post")]
+        slot = "mid" if len(slot_items) % 2 == 0 else "post"
+        position = 1 + max((item.position for item in placed if item.slot == slot), default=-1)
+        taken.add(kind)
+        if task.task_type != "who_said":
+            uses[identity] = uses.get(identity, 0) + 1
+        headroom -= cost
+        placed.append(PracticeItem(slot=slot, position=position, entry=entry, task=task, cost=cost))
+    return placed
+
+
 def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
     recall = item.task
     prompt: dict[str, Any] = {
@@ -2369,8 +2438,29 @@ def _plan_practice_day(
     """WP-78 — warm-ups → scene → build → reply → a word from today → ending."""
 
     entries = practice_entries(scenario, selection, affordances)
+    # WP-86: the floor may lean on any word of today the scene prints — a word
+    # already produced is not drilled, but its line can still be rebuilt or
+    # attributed («Qui a dit ça ?»).
+    floor_entries = [
+        *entries,
+        *(
+            SelectedTarget(
+                candidate=candidate,
+                fit=scenario_fit(candidate.target, affordances, scenario),
+                demonstrated=True,
+            )
+            for candidate in [
+                *(entry.candidate for entry in selection.selected),
+                *selection.omitted,
+            ]
+            if candidate_is_demonstrated(candidate)
+        ),
+    ]
     scene_line = _scene_line_without_spoiler(scenario)
-    sentences = scene_sentences(scenario.setup_fr, scene_line)
+    # WP-86: the characters' own lines are read too (the episode's panels).
+    sentences = scene_sentences(
+        scenario.setup_fr, scene_line, *(line.text_fr for line in scene_lines(scenario))
+    )
     expected = task.suggested_response_fr
     # A sentence rebuilt *before* the reply must not be the reply.
     safe_sentences = [line for line in sentences if not line_spoils_reply(line, expected)]
@@ -2378,7 +2468,7 @@ def _plan_practice_day(
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
         headroom = budget_seconds - (scene_cost + cost + resolution_cost)
-        return cost, fill_practice_items(
+        filled = fill_practice_items(
             scenario=scenario,
             shape=shape,
             entries=entries,
@@ -2390,6 +2480,17 @@ def _plan_practice_day(
             spt=spt,
             multiplier=multiplier,
             partners=partners or [],
+        )
+        # WP-86: a thin day is topped up from the scene's own lines.
+        return cost, top_up_from_scene(
+            scenario=scenario,
+            shape=shape,
+            entries=floor_entries,
+            items=filled,
+            expected_reply=expected,
+            headroom=max(0, headroom - sum(item.cost for item in filled)),
+            spt=spt,
+            multiplier=multiplier,
         )
 
     respond_cost, items = attempt(turns)
@@ -2666,6 +2767,7 @@ __all__ = [
     "build_match_pairs_task",
     "build_unscramble_task",
     "fill_practice_items",
+    "top_up_from_scene",
     "graded_interactions",
     "practice_entries",
     "practice_task",

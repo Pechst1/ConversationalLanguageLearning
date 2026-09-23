@@ -348,3 +348,47 @@ test('«Garder» is offered for a real entry with its sentence, and a refusal is
   assert.equal(kept.keepStatusLine({ kind: 'kept', already: false }), kept.KEEP_COPY.kept);
   assert.equal(kept.KEEP_COPY.action, 'Garder', 'sentence case, French chrome');
 });
+
+// ---------------------------------------------------------------------------
+// WP-86 — «Qui a dit ça ?»
+// ---------------------------------------------------------------------------
+
+const WHO_OPTIONS = [
+  { id: 'who_b', text_fr: 'Lila', character_id: 'lila_bonnet' },
+  { id: 'who_a', text_fr: 'Romy', character_id: 'romy_tremblay' },
+  { id: 'who_c', text_fr: 'Marin', character_id: 'marin_leveque' },
+];
+
+test('«Qui a dit ça ?» is a keyed pick posted as a choice', async () => {
+  assert.ok(answerKey.isKeyedFormat('who_said'));
+  const who = { task_type: 'who_said', answer_key: keyOf('who_a') };
+  assert.equal(await answerKey.checkAnswerLocally(who, { optionId: 'who_a' }), 'correct');
+  assert.equal(await answerKey.checkAnswerLocally(who, { optionId: 'who_b' }), 'wrong');
+  assert.equal(state.recallAnswerMode('who_said'), 'choice');
+  const prompt = recallStep({ task_type: 'who_said', options: WHO_OPTIONS }).prompt;
+  assert.deepEqual(state.recallAttempt(prompt, { choice: 'who_a', tiles: [], text: '' }), {
+    mode: 'choice',
+    option_id: 'who_a',
+  });
+});
+
+test('«Qui a dit ça ?» renders the line and one face per card', () => {
+  const step = recallStep({
+    task_type: 'who_said',
+    instruction_native: 'Who said this?',
+    prompt_fr: 'Vous avez une idée ?',
+    options: WHO_OPTIONS,
+    answer_key: keyOf('who_a'),
+  });
+  const html = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(step)));
+  assert.match(html, /Vous avez une idée \?/);
+  assert.match(html, /Who said this\?/);
+  assert.equal((html.match(/class="av2-who-said__card"/g) || []).length, 3);
+  for (const name of ['Romy', 'Lila', 'Marin']) assert.match(html, new RegExp(name));
+  assert.equal((html.match(/class="ob-portrait"/g) || []).length, 3, 'a face on every card');
+  assert.doesNotMatch(html, /class="av2-choices"/, 'no plain choice list besides the faces');
+  assert.deepEqual(
+    formats.whoSaidCards(WHO_OPTIONS).map((card) => card.characterId),
+    ['lila_bonnet', 'romy_tremblay', 'marin_leveque'],
+  );
+});

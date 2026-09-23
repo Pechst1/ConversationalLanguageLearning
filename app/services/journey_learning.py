@@ -593,7 +593,20 @@ def select_learning_candidates(
         )
         selected = extras[:MAX_KEPT_EXTRA_CANDIDATES] + selected
 
-    new_cap = min(new_room, limit - len(selected))
+    # WP-86: the scene's words are recorded on every day (the director's
+    # lexicon history reads them back); they are *practised* on a practice day.
+    lexicon = _scene_lexicon_candidates(
+        db,
+        user=user,
+        scenario=scenario,
+        exclude={c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY},
+        history=history,
+    )
+    lexicon = lexicon if practice else []
+    selected.extend(lexicon)
+    # WP-86: the scene's own words are today's new anchors; a scene that named
+    # none still gets the classic one looked up from its text.
+    new_cap = 0 if lexicon else min(new_room, limit - len(selected))
     for _ in range(max(0, new_cap)):
         anchor = _new_vocabulary_anchor(
             db,
@@ -629,6 +642,86 @@ def select_learning_candidates(
             )
         )
     return selected
+
+
+def _lexicon_label(word: Any) -> str:
+    """A noun is taught with its article, so its gender can be asked about."""
+
+    lemma = str(word.lemma)
+    if str(word.part_of_speech or "").lower() not in {"noun", "nom", "n"} or not word.gender:
+        return lemma
+    if lemma[:1].lower() in "aeiouyhàâéèêëîïôûœ":
+        return ("une " if word.gender == "f" else "un ") + lemma
+    return ("la " if word.gender == "f" else "le ") + lemma
+
+
+def _scene_lexicon_candidates(
+    db: Session,
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    exclude: set[str],
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """WP-86. The words today's scene teaches, as candidates with relevance 1.0.
+
+    Matched to the catalogue (or entered in it, learner-safely) by
+    :func:`app.services.kept_words.record_scene_lexicon`, inside a SAVEPOINT: a
+    lexicon that cannot be recorded costs the words, never the day. A word the
+    learner has never studied is ``is_new``; the gloss is the scene's own, in the
+    learner's language, and the sentence it was taught in rides along so the
+    planner can rebuild or blank it.
+    """
+
+    from app.services.kept_words import record_scene_lexicon
+    from app.services.scene_items import draft_of, lexicon_of, sentence_of
+
+    entries = lexicon_of(scenario)
+    if not entries:
+        return []
+    draft = draft_of(scenario)
+    sentences = {
+        " ".join(str(entry.get("lemma") or entry.get("surface_fr") or "").split()): sentence_of(draft, entry)
+        for entry in entries
+    }
+    try:
+        with db.begin_nested():
+            words = record_scene_lexicon(
+                db, user=user, entries=entries, sentences=sentences, level=scenario.level_band
+            )
+    except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
+        logger.warning("journey_learning_scene_lexicon_unavailable")
+        return []
+    candidates: list[LearningCandidate] = []
+    for word in words:
+        if str(word.word_id) in exclude:
+            continue
+        exclude.add(str(word.word_id))
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word.word_id),
+            label_fr=_lexicon_label(word),
+            label_native=word.gloss or None,
+        )
+        candidates.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=not word.studied,
+                relevance=1.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word.word_id,
+                    "anchor": "scene_lexicon",
+                    "surface_fr": word.surface,
+                    "example_fr": word.sentence,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+    return candidates
 
 
 def _fragile_words(
@@ -1140,7 +1233,7 @@ def evaluate_recall(
     # WP-78: `listen_tap` is a pick, `unscramble` a tile order, and a
     # `match_pairs` item is graded on the day's target alone (see
     # `match_pairs_target_correct`). All three are recognition.
-    if task.task_type in {"choice", "classify", "listen_tap"}:
+    if task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
         selected = _selected_option_id(task, answer)
         is_correct = bool(selected) and selected == task.correct_option_id
         learner_text = _option_text(task, selected) or answer.text
@@ -1170,6 +1263,10 @@ def evaluate_recall(
         learner_text=learner_text,
         corrected_text=task.solution_fr if not is_correct else None,
     )
+    if task.task_type == "who_said":
+        # WP-86. Knowing who said a line is reading the story, not knowing the
+        # word the line holds: the item is graded, and nothing is scheduled.
+        observation = None
     correction = None
     if not is_correct:
         correction = build_correction(

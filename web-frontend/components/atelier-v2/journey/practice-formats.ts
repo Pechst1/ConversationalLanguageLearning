@@ -50,3 +50,17 @@ export function gradedInteractions(journey: Pick<JourneySnapshot, 'steps'> | nul
 export function firstSceneStepId(journey: Pick<JourneySnapshot, 'steps'> | null): string | null {
   return journey?.steps.find((step) => step.kind === 'scene')?.id ?? null;
 }
+
+/**
+ * WP-86. «Qui a dit ça ?» cards: who each option names, and their face. A card
+ * with no `character_id` still renders (by name, with an initial disc).
+ */
+export function whoSaidCards(
+  options: readonly RecallOption[],
+): Array<{ id: string; name: string; characterId: string }> {
+  return options.map((option) => ({
+    id: option.id,
+    name: option.text_fr,
+    characterId: option.character_id || option.text_fr,
+  }));
+}
