@@ -317,6 +317,21 @@ def test_leger_fits_an_introduction_inside_five_minutes(db_session: Session, cat
     assert StepKind.RULE in [step.kind for step in plan.steps]
 
 
+def test_a_listening_day_introduces_only_what_can_be_heard(db_session: Session, catalogue: str) -> None:
+    from app.services.journey_contracts import DayShape
+
+    user = _learner(db_session)
+    brief = concept_life.introduction_for_today(db_session, user, now=DAY0, control_language="en")
+    plan = planner.plan_journey(
+        scenario=_brief(), candidates=[], budget_seconds=REGULIER, practice=True,
+        dice=DayShapeInputs(user_id="listen", local_date=DAY0.date()), introduction=brief,
+        day_shape=DayShape.LISTENING,
+    )
+    plan.validate()
+    for step in _grammar_steps(plan, brief["concept_id"]):
+        assert step.private_task.task_type in {"word_bank", "transform", "short_answer"}
+
+
 def test_a_classic_day_never_introduces(db_session: Session) -> None:
     brief = {
         "concept_id": 1, "title_fr": "t", "title_native": "t", "detectors": [],

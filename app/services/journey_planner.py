@@ -2487,6 +2487,7 @@ def _introduction_items(
     sentences: list[str],
     spt: float,
     multiplier: float,
+    shape: DayShape = DEFAULT_DAY_SHAPE,
 ) -> tuple[dict[str, Any] | None, int, list[tuple[RecallTask, int]]]:
     """The introduction's card, its cost, and its guided items with their costs."""
 
@@ -2500,6 +2501,8 @@ def _introduction_items(
         for task in grammar_items.guided_items(
             brief, sentences=sentences, language=scenario.control_language
         )
+        # A «jour d'écoute» poses only what can be taken down by ear.
+        if shape_allows_format(shape, task.task_type)
     ]
     if len(guided) < 2:
         # A rule with nothing to try is a lecture, not an Essai.
@@ -2678,6 +2681,7 @@ def _plan_practice_day(
         sentences=safe_sentences,
         spt=spt,
         multiplier=multiplier,
+        shape=shape,
     )
     intro_identity = (
         target_identity(grammar_items.grammar_target(introduction)) if intro_card else None
