@@ -26,6 +26,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.db.models.error import UserError
 from app.db.models.grammar import (
     GrammarConcept,
     GrammarConceptArchive,
@@ -371,6 +372,9 @@ class FrenchCoreGrammarCatalog:
         if self.version == FRENCH_CORE_CATALOG_V2_VERSION:
             self.db.flush()
             self.migrate_progress_to_v2()
+            self.remap_errata_to_v2()
+        else:
+            self.restore_errata_to_v1()
         self.db.commit()
         return concepts
 
@@ -469,12 +473,97 @@ class FrenchCoreGrammarCatalog:
                     state=row.state,
                     last_review=row.last_review,
                     next_review=row.next_review,
+                    # WP-L3's memory travels with the progress it describes.
+                    stability=getattr(row, "stability", 0.0) or 0.0,
+                    difficulty=getattr(row, "difficulty", 5.0) or 5.0,
+                    lapses=getattr(row, "lapses", 0) or 0,
                     notes="\n".join(part for part in (row.notes, note) if part),
                 )
             )
         if best:
             self.db.flush()
         return len(best)
+
+    def remap_errata_to_v2(self) -> int:
+        """Point every open erratum on a v1 concept at the v2 unit it belongs to (owner, 2026-09-23).
+
+        Without this, a learner's open mistakes vanish from the due list the day v1 is archived.
+        Among the v2 units a v1 concept maps to, the erratum goes to the first whose regex
+        detector matches the corrected text (else the learner's own text), falling back to the
+        first listed unit. The v1 id is kept in ``error_metadata["v1_concept_id"]`` so switching
+        back to v1 restores it (:meth:`restore_errata_to_v1`). Retired errata stay where they are.
+        Idempotent: an erratum already on a v2 unit is not touched. Returns the number remapped.
+        """
+
+        mapping = load_v1_to_v2_mapping()
+        if not mapping:
+            return 0
+        v1_concepts: dict[int, str] = dict(
+            self.db.query(GrammarConcept.id, GrammarConcept.external_id)
+            .filter(GrammarConcept.external_id.in_(list(mapping)))
+            .all()
+        )
+        if not v1_concepts:
+            return 0
+        targets = {target for units in mapping.values() for target in units}
+        v2_units = {
+            concept.external_id: concept
+            for concept in self.db.query(GrammarConcept)
+            .filter(
+                GrammarConcept.external_id.in_(targets),
+                GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_V2_VERSION,
+            )
+            .all()
+        }
+        errata = (
+            self.db.query(UserError)
+            .filter(UserError.concept_id.in_(list(v1_concepts)))
+            .filter(UserError.state != "mastered")
+            .all()
+        )
+        moved = 0
+        for erratum in errata:
+            candidates = [v2_units[unit] for unit in mapping.get(v1_concepts[erratum.concept_id]) or [] if unit in v2_units]
+            if not candidates:
+                continue
+            chosen = candidates[0]
+            for text in (erratum.correction, erratum.original_text):
+                hit = next(
+                    (unit for unit in candidates if detector_matches(concept_syllabus(unit).get("detector"), text or "")),
+                    None,
+                )
+                if hit is not None:
+                    chosen = hit
+                    break
+            metadata = dict(erratum.error_metadata or {})
+            metadata.setdefault("v1_concept_id", erratum.concept_id)
+            erratum.error_metadata = metadata
+            erratum.concept_id = chosen.id
+            moved += 1
+        if moved:
+            self.db.flush()
+        return moved
+
+    def restore_errata_to_v1(self) -> int:
+        """Undo :meth:`remap_errata_to_v2` when the owner switches back to v1."""
+
+        restored = 0
+        for erratum in (
+            self.db.query(UserError)
+            .join(GrammarConcept, GrammarConcept.id == UserError.concept_id)
+            .filter(GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_V2_VERSION)
+            .all()
+        ):
+            metadata = dict(erratum.error_metadata or {})
+            original = metadata.pop("v1_concept_id", None)
+            if original is None:
+                continue
+            erratum.concept_id = int(original)
+            erratum.error_metadata = metadata
+            restored += 1
+        if restored:
+            self.db.flush()
+        return restored
 
     # ------------------------------------------------------------------
     # Localizations

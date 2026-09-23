@@ -179,6 +179,19 @@ CANDIDATE_LIMIT = 3
 PRACTICE_CANDIDATE_LIMIT = 8
 
 
+def _planned_introduction(plan: Any) -> dict[str, Any] | None:
+    """WP-L4: ``{"concept_id", "title_native"}`` of the plan's rule step, or None."""
+
+    for step in getattr(plan, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == str(StepKind.RULE):
+            prompt = dict(getattr(step, "public_prompt", None) or {})
+            return {
+                "concept_id": prompt.get("concept_id"),
+                "title_native": prompt.get("title_native"),
+            }
+    return None
+
+
 def _new_word_ids(plan: Any, candidates: list[Any]) -> list[int]:
     """WP-L6: the vocabulary ids this plan introduces — kept targets that
     were offered as new. The day's reservation in the learner's intake pool."""
@@ -1140,6 +1153,8 @@ class DailyJourneyService:
             if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
                 step.status = str(StepStatus.COMPLETED)
                 step.completed_at = _utcnow()
+                if StepKind(step.kind) is StepKind.RULE:
+                    self._mark_rule_read(user, step)
             self._activate_next_step(journey, after_ordinal=step.ordinal)
             self.db.flush()
         except HTTPException as exc:
@@ -1173,6 +1188,22 @@ class DailyJourneyService:
             logger.exception("daily_journey: step_completed event not persisted")
             self.db.rollback()
         return snapshot
+
+    def _mark_rule_read(self, user: User, step: DailyJourneyStep) -> None:
+        """WP-L4: the Règle was read — the unit is introduced (visible to WP-L7)."""
+
+        concept_id = dict(step.private_task or {}).get("concept_id")
+        if concept_id is None:
+            return
+        from app.services.concept_life import mark_introduced
+
+        run_best_effort(
+            self.db,
+            "daily_journey: mark concept introduced",
+            lambda: mark_introduced(self.db, user=user, concept_id=int(concept_id), now=_utcnow()),
+            default=None,
+            log=logger,
+        )
 
     def pause(
         self, user: User, journey_id: uuid.UUID, payload: JourneyRevisionRequest
@@ -2343,6 +2374,7 @@ class DailyJourneyService:
                 )
             else:
                 candidates = self._select_candidates(user, fresh, result)
+            introduction = None if first_day else self._introduction_for_today(user, result)
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
@@ -2360,6 +2392,7 @@ class DailyJourneyService:
                 decision=decision,
                 scenario_result=result,
                 first_day=first_day,
+                introduction=introduction,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -2424,6 +2457,9 @@ class DailyJourneyService:
             # WP-L6: the new words this day introduces — the journey's share
             # of the learner's one intake pool, reserved against the drill.
             JOURNEY_NEW_WORDS_KEY: _new_word_ids(plan, list(candidates)),
+            # WP-L4: the grammar unit this day introduces, if its rule made it
+            # into the plan. The unit is *introduced* when the rule is read.
+            "introduction": _planned_introduction(plan),
         }
         if first_day:
             fresh.plan_selection = {
@@ -2894,6 +2930,9 @@ class DailyJourneyService:
             accepted = set(inspect.signature(select).parameters)
         except (TypeError, ValueError):  # pragma: no cover - exotic callables
             accepted = set()
+        if "budget_seconds" in accepted:
+            # WP-L4: the Rappel's grammar room grows with the rhythm.
+            kwargs["budget_seconds"] = journey.budget_seconds
         if "new_word_quota" in accepted:
             kwargs["new_word_quota"] = run_best_effort(
                 self.db,
@@ -2903,6 +2942,32 @@ class DailyJourneyService:
                 log=logger,
             )
         return select(self.db, **kwargs)
+
+    def _introduction_for_today(self, user: User, scenario: ScenarioBrief) -> Any:
+        """WP-L4: today's new grammar unit (a unit brief), or None.
+
+        The rhythm's weekly quota and the one new-concept picker decide
+        (`concept_life.introduction_for_today`). Only a practice day has room
+        for a rule and its guided items; a failure costs the introduction,
+        never the day.
+        """
+
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+        from app.services.concept_life import introduction_for_today
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: grammar introduction",
+            lambda: introduction_for_today(
+                self.db,
+                user,
+                now=_utcnow(),
+                control_language=str(scenario.control_language),
+            ),
+            default=None,
+            log=logger,
+        )
 
     def _pace_profile(self, user: User, journey: DailyJourney) -> Any:
         """WP-L6: the planner's pace profile from the learner's measured days.
@@ -2941,6 +3006,7 @@ class DailyJourneyService:
         decision: Any,
         scenario_result: ScenarioBrief,
         first_day: bool = False,
+        introduction: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -2979,6 +3045,9 @@ class DailyJourneyService:
         elif "practice" in accepted and settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
             # WP-78: quick items around the one open reply.
             base["practice"] = True
+            if introduction and "introduction" in accepted:
+                # WP-L4: today's new grammar unit, its rule and guided items.
+                base["introduction"] = introduction
         return plan_journey(
             **base,
             day_shape=decision.shape,
@@ -3075,6 +3144,9 @@ class DailyJourneyService:
                     "input_modes",
                     ["text", "voice"] if input_mode is InputMode.VOICE else ["text"],
                 )
+            elif kind is StepKind.RULE:
+                # WP-L4: which unit advancing this step introduces.
+                private_task["concept_id"] = public_prompt.get("concept_id")
             elif kind is StepKind.RESOLUTION:
                 private_task["resolution_lines"] = dict(brief.resolution_lines)
                 private_task["resolution_summaries"] = dict(brief.resolution_summaries)
@@ -3248,6 +3320,7 @@ class DailyJourneyService:
         )
         if evaluation.pending:
             return self._pending_result(journey, assistance)
+        evaluation = self._with_concept_evidence(task, answer, evaluation)
 
         # The provider call is done; only now is the revision verified and taken.
         self._claim_revision(journey, expected_revision)
@@ -3312,6 +3385,29 @@ class DailyJourneyService:
             next_turn=next_turn,
             pending=False,
             journey=self.snapshot(journey),
+        )
+
+    def _with_concept_evidence(
+        self, task: ResponseTask, answer: AttemptAnswer, evaluation: Any
+    ) -> Any:
+        """WP-L4 «Emploi»: the reply's grammar units, read by their detectors."""
+
+        if not any(str(target.kind) == str(TargetKind.GRAMMAR) for target in task.targets):
+            return evaluation
+        from app.services.concept_evidence import with_concept_evidence
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: concept evidence",
+            lambda: with_concept_evidence(
+                self.db,
+                evaluation=evaluation,
+                task=task,
+                text=normalize_answer_text(answer.text),
+                modality=answer.mode,
+            ),
+            default=evaluation,
+            log=logger,
         )
 
     def _record_feedback_decision(
@@ -3735,6 +3831,13 @@ class DailyJourneyService:
                 for observation in evaluation.observations
             ],
         }
+        concept_evidence = list(getattr(evaluation, "concept_evidence", None) or [])
+        if concept_evidence:
+            # WP-L4: what the reply showed about each grammar unit (WP-L7 reads it).
+            history = list(private.get("concept_evidence") or [])
+            history.extend(concept_evidence)
+            private["concept_evidence"] = history
+            private["result"]["concept_evidence"] = concept_evidence
         step.private_task = private
 
     @staticmethod

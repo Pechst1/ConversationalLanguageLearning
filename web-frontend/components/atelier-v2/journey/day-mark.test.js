@@ -134,7 +134,19 @@ test('a skipped step inside a running day still resolves its group', () => {
 });
 
 test('the step → shape mapping is the logo’s', () => {
-  assert.deepEqual(STEP_SHAPE, { scene: 'story', recall: 'reward', respond: 'action', resolution: 'done' });
+  // WP-L4: the Règle is part of the Scène movement — a blue circle too.
+  assert.deepEqual(STEP_SHAPE, {
+    scene: 'story', recall: 'reward', respond: 'action', resolution: 'done', rule: 'story',
+  });
+});
+
+test('WP-L4: an introduction day keeps four parts, the rule counted with the scene', () => {
+  const kinds = ['recall', 'scene', 'rule', 'recall', 'recall', 'respond', 'resolution'];
+  const inRule = dayMarkState(journeyOf('standard', kinds, { upTo: 2 }));
+  assert.equal(inRule.total, 4);
+  assert.equal(inRule.groups.scene, 'active', 'reading the rule is still the scene');
+  const pastRule = dayMarkState(journeyOf('standard', kinds, { upTo: 3 }));
+  assert.equal(pastRule.groups.scene, 'done');
 });
 
 // --- 2. The mark ------------------------------------------------------------

@@ -267,6 +267,69 @@ class ResolutionPrompt(JourneyModel):
     story_pending: bool = False
 
 
+class _RuleCardModel(JourneyModel):
+    """A WP-L10 card field. ``None`` fields are omitted on the wire."""
+
+    @model_serializer(mode="wrap")
+    def _omit_none(self, handler: Any) -> Any:
+        data = handler(self)
+        if isinstance(data, dict):
+            return {key: value for key, value in data.items() if value is not None}
+        return data
+
+
+class RuleCardExample(_RuleCardModel):
+    #: French, with the WP-L10 marks: ``[x]`` carries the rule, ``{x}`` is silent.
+    fr: str
+    tr: dict[str, str] | None = None
+
+
+class RuleCardRow(_RuleCardModel):
+    #: ``rows`` patterns: a gender shape and a label; ``table`` patterns: a person.
+    shape: str | None = None
+    label: str | None = None
+    p: str | None = None
+    fr: str
+
+
+class RuleCardPattern(_RuleCardModel):
+    kind: Literal["rows", "table"]
+    rows: list[RuleCardRow] = Field(default_factory=list)
+    verb: str | None = None
+    note: dict[str, str] | None = None
+
+
+class RuleCardContrast(_RuleCardModel):
+    wrong: str
+    right: str
+
+
+class RuleCardPayload(_RuleCardModel):
+    """The card, every authored language at once; the client picks the learner's."""
+
+    speaker: str | None = None
+    example: RuleCardExample
+    rule: dict[str, str]
+    pattern: RuleCardPattern | None = None
+    contrast: RuleCardContrast | None = None
+    more: dict[str, str] | None = None
+    #: The headline is a line of today's scene, not the catalogue's example.
+    from_scene: bool | None = None
+
+
+class RulePrompt(JourneyModel):
+    """WP-L4 «Règle»: the day's new grammar unit as its WP-L10 rule card.
+
+    What the learner reads, so it carries no answer key. The step is advanced,
+    not answered; advancing it introduces the unit.
+    """
+
+    concept_id: int
+    title_native: str = ""
+    title_fr: str = ""
+    rule_card: RuleCardPayload
+
+
 class _PublicStepBase(JourneyModel):
     id: str
     ordinal: int
@@ -295,8 +358,13 @@ class ResolutionStep(_PublicStepBase):
     prompt: ResolutionPrompt
 
 
+class RuleStep(_PublicStepBase):
+    kind: Literal[StepKind.RULE] = StepKind.RULE
+    prompt: RulePrompt
+
+
 PublicStep = Annotated[
-    SceneStep | RecallStep | RespondStep | ResolutionStep,
+    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep,
     Field(discriminator="kind"),
 ]
 

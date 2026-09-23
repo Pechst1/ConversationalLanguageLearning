@@ -829,3 +829,17 @@ def test_a_phrase_card_contributes_its_words_not_the_whole_phrase(db_session):
 
     assert {"avoir", "soif"} <= lemmas
     assert "avoir soif" not in lemmas
+
+
+def test_compound_numbers_are_core_a1_words():
+    """Owner, 2026-09-23: «vingt-deux» is not an unknown word (both spellings)."""
+
+    from app.services.lexical_coverage import tokenize
+
+    lexicon = load_lexicon()
+    core = lexicon.core_lemmas("A1")
+    for text in ("vingt-deux", "dix-sept", "soixante-et-onze", "quatre-vingt-dix-neuf", "quatre-vingts", "trois-cents"):
+        pieces = [token.key if hasattr(token, "key") else str(token) for token in tokenize(text)]
+        assert len(tokenize(text)) == 1, (text, pieces)
+        assert text in core, text
+    assert lexicon.band("vingt-deux") == "A1"

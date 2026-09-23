@@ -256,7 +256,7 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 #: (scene first, at most two recalls) and run with the practice day off; these
 #: modules pin the practice day and run it on, as production does. A module-
 #: scoped fixture (the 126-day harness) sees the production default either way.
-PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence")
+PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence", "test_wp_l4_")
 
 
 @pytest.fixture(autouse=True)

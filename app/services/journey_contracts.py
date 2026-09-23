@@ -156,6 +156,10 @@ class StepKind(StrEnum):
     RECALL = "recall"
     RESPOND = "respond"
     RESOLUTION = "resolution"
+    #: WP-L4 «Règle»: the day's new grammar unit, as its rule card, read after
+    #: the scene and before its guided items. Not answered: it is advanced,
+    #: like the scene, and advancing it introduces the unit.
+    RULE = "rule"
 
 
 class DayShape(StrEnum):
@@ -731,6 +735,8 @@ class PlannedJourney:
             raise ValueError("a plan must end with the resolution step")
         if kinds.count(StepKind.RESPOND) != 1:
             raise ValueError("a plan needs exactly one respond step")
+        if StepKind.RULE in kinds:
+            raise ValueError("only a practice day introduces a rule")
         recalls = kinds.count(StepKind.RECALL)
         if recalls > MAX_RECALL_STEPS:
             raise ValueError(f"at most {MAX_RECALL_STEPS} recall steps are allowed")
@@ -794,6 +800,12 @@ class PlannedJourney:
             raise ValueError(f"at most {caps.max_warmups} warm-ups before the scene")
         if kinds.index(StepKind.RESPOND) < scene_at:
             raise ValueError("the reply comes after the scene")
+        if kinds.count(StepKind.RULE) > 1:
+            raise ValueError("a day introduces at most one rule")
+        if StepKind.RULE in kinds and not (
+            scene_at < kinds.index(StepKind.RULE) < kinds.index(StepKind.RESPOND)
+        ):
+            raise ValueError("the rule card comes after the scene and before the reply")
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
         recalls = kinds.count(StepKind.RECALL)
@@ -831,6 +843,11 @@ class TargetObservation:
     modality: InputMode
     learner_text: str | None = None
     corrected_text: str | None = None
+    #: WP-L4: the recall format that produced the observation (``choice``,
+    #: ``word_bank``, ``transform`` …), so a grammar unit is credited with the
+    #: weight of what it proved (recognise < guided < transform < a reply).
+    #: ``None``: a reply.
+    task_format: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -894,6 +911,10 @@ class ResponseEvaluation:
     #: the grading and is **never** shown to a learner: it exists so the pilot
     #: can count how often a prompted repair actually lands.
     feedback_reason: str | None = None
+    #: WP-L4: what the reply showed about each grammar unit it was asked to
+    #: use — ``[{concept_id, outcome: correct | error | avoided, span}]``.
+    #: «avoided» is neutral: no lapse, no credit.
+    concept_evidence: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)

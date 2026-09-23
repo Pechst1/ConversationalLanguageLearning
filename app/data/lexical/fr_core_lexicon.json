@@ -10,7 +10,8 @@
   "built": "2026-09-10 (WP-29); v2 2026-09-23 (WP-L2)",
   "content_words_v2": "Built 2026-09-23 (WP-L2): content words extended to ~2,500 lemmas through B1 by an LLM draft from general knowledge of French frequency and CEFR course-book vocabulary (A1-B1 reference descriptions, DELF-style themes). No dataset or word list was copied. Human review pending.",
   "sub_band": "Every lemma carries a sub_band (A1.1, A1.2, A2.1, A2.2, B1.1, B1.2) consistent with its band: A1.1 survival/self-introduction/numbers/function words; A1.2 daily routine, home, city, weather, body, clothes, leisure; A2 past narration, travel, housing, shopping, work, health, feelings; B1 opinion, argument, society, media, environment, administration, abstract nouns. v1 lemmas kept their band; ranks were renumbered to keep one global list order after appending new words to each band.",
-  "forms_v2": "v2 adds irregular forms for the new verbs (and fills gaps for a few v1 verbs such as courir, rire, craindre, asseoir, prévoir, changer, lever), irregular feminines (fraîche, sèche, publique, complète) and hyphenated plurals (grands-parents). Generated from conjugation classes, then filtered so only forms the suffix rules cannot resolve are stored."
+  "forms_v2": "v2 adds irregular forms for the new verbs (and fills gaps for a few v1 verbs such as courir, rire, craindre, asseoir, prévoir, changer, lever), irregular feminines (fraîche, sèche, publique, complète) and hyphenated plurals (grands-parents). Generated from conjugation classes, then filtered so only forms the suffix rules cannot resolve are stored.",
+  "numbers": "2026-09-23: compound numbers 17–99 (traditional and 1990 hyphenation), hundreds and thousands in 1990 spelling, added on owner request (A1.1 < 70 ≤ A1.2)."
  },
  "bands": [
   "A1",
@@ -12937,6 +12938,496 @@
    "band": "B1",
    "sub_band": "B1.2",
    "rank": 2584
+  },
+  "cent-un": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2585
+  },
+  "cinq-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2586
+  },
+  "cinq-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2587
+  },
+  "cinq-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2588
+  },
+  "cinquante-cinq": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2589
+  },
+  "cinquante-deux": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2590
+  },
+  "cinquante-et-un": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2591
+  },
+  "cinquante-huit": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2592
+  },
+  "cinquante-neuf": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2593
+  },
+  "cinquante-quatre": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2594
+  },
+  "cinquante-sept": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2595
+  },
+  "cinquante-six": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2596
+  },
+  "cinquante-trois": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2597
+  },
+  "deux-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2598
+  },
+  "deux-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2599
+  },
+  "deux-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2600
+  },
+  "dix-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2601
+  },
+  "huit-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2602
+  },
+  "huit-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2603
+  },
+  "huit-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2604
+  },
+  "neuf-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2605
+  },
+  "neuf-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2606
+  },
+  "neuf-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2607
+  },
+  "quarante-cinq": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2608
+  },
+  "quarante-deux": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2609
+  },
+  "quarante-et-un": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2610
+  },
+  "quarante-huit": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2611
+  },
+  "quarante-neuf": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2612
+  },
+  "quarante-quatre": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2613
+  },
+  "quarante-sept": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2614
+  },
+  "quarante-six": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2615
+  },
+  "quarante-trois": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2616
+  },
+  "quatre-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2617
+  },
+  "quatre-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2618
+  },
+  "quatre-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2619
+  },
+  "quatre-vingt-cinq": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2620
+  },
+  "quatre-vingt-deux": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2621
+  },
+  "quatre-vingt-dix-huit": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2622
+  },
+  "quatre-vingt-dix-neuf": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2623
+  },
+  "quatre-vingt-dix-sept": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2624
+  },
+  "quatre-vingt-douze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2625
+  },
+  "quatre-vingt-huit": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2626
+  },
+  "quatre-vingt-neuf": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2627
+  },
+  "quatre-vingt-onze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2628
+  },
+  "quatre-vingt-quatorze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2629
+  },
+  "quatre-vingt-quatre": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2630
+  },
+  "quatre-vingt-quinze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2631
+  },
+  "quatre-vingt-seize": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2632
+  },
+  "quatre-vingt-sept": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2633
+  },
+  "quatre-vingt-six": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2634
+  },
+  "quatre-vingt-treize": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2635
+  },
+  "quatre-vingt-trois": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2636
+  },
+  "quatre-vingt-un": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2637
+  },
+  "quatre-vingts": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2638
+  },
+  "sept-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2639
+  },
+  "sept-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2640
+  },
+  "sept-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2641
+  },
+  "six-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2642
+  },
+  "six-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2643
+  },
+  "six-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2644
+  },
+  "soixante-cinq": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2645
+  },
+  "soixante-deux": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2646
+  },
+  "soixante-dix-huit": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2647
+  },
+  "soixante-dix-neuf": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2648
+  },
+  "soixante-dix-sept": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2649
+  },
+  "soixante-douze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2650
+  },
+  "soixante-et-onze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2651
+  },
+  "soixante-et-un": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2652
+  },
+  "soixante-huit": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2653
+  },
+  "soixante-neuf": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2654
+  },
+  "soixante-quatorze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2655
+  },
+  "soixante-quatre": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2656
+  },
+  "soixante-quinze": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2657
+  },
+  "soixante-seize": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2658
+  },
+  "soixante-sept": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2659
+  },
+  "soixante-six": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2660
+  },
+  "soixante-treize": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2661
+  },
+  "soixante-trois": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2662
+  },
+  "trente-cinq": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2663
+  },
+  "trente-deux": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2664
+  },
+  "trente-et-un": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2665
+  },
+  "trente-huit": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2666
+  },
+  "trente-neuf": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2667
+  },
+  "trente-quatre": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2668
+  },
+  "trente-sept": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2669
+  },
+  "trente-six": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2670
+  },
+  "trente-trois": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2671
+  },
+  "trois-cent": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2672
+  },
+  "trois-cents": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2673
+  },
+  "trois-mille": {
+   "band": "A1",
+   "sub_band": "A1.2",
+   "rank": 2674
+  },
+  "vingt-cinq": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2675
+  },
+  "vingt-deux": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2676
+  },
+  "vingt-huit": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2677
+  },
+  "vingt-neuf": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2678
+  },
+  "vingt-quatre": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2679
+  },
+  "vingt-sept": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2680
+  },
+  "vingt-six": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2681
+  },
+  "vingt-trois": {
+   "band": "A1",
+   "sub_band": "A1.1",
+   "rank": 2682
   }
  },
  "forms": {

@@ -444,7 +444,7 @@ class Driver:
             if step is None:
                 break
             kind = step["kind"]
-            if kind in ("scene", "resolution"):
+            if kind in ("scene", "resolution", "rule"):
                 self.advance()
                 continue
             if kind == "recall":

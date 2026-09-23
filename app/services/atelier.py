@@ -1777,84 +1777,20 @@ class AtelierScheduler:
             if len(selected) == 2:
                 break
 
-        active_query = self.db.query(GrammarConcept).filter(
-            GrammarConcept.active.is_(True),
-            GrammarConcept.external_id.isnot(None),
-            GrammarConcept.external_id != "",
-        )
-
-        # Cold start (no due errata, no scored progress yet): serve foundation
-        # concepts at or below the learner's own CEFR level, never a hardcoded
-        # catalog slice that may sit above it. Role is "new" (never attempted)
-        # rather than "fragile" (attempted and shaky) -- those are different
-        # learner states and the frontend labels them differently.
-        # WP-67 (F-30): the ladder starts *at* the estimate, not under it. The
-        # ceiling above stopped a cold start from overshooting; it did nothing
-        # about the floor, so an A2.2-placed learner still opened on the easiest
-        # A1 foundation rule in the catalogue. The pick now walks down from the
-        # learner's own band and only falls to a lower one when that band has
-        # nothing left — a learner who has never been measured still starts at
-        # A1, because A1 is then their band.
-        # WP-L1: "new" means never attempted. A concept with any progress row
-        # is either due (and already picked above as fragile) or scheduled for
-        # later, so it is not today's — it used to be re-served here as "new".
-        # A band the learner has fully studied simply yields fewer picks; the
-        # walk only ever goes down, never up into unplaced material.
-        studied_ids = select(UserGrammarProgress.concept_id).where(UserGrammarProgress.user_id == user.id)
-        # WP-L2: a unit is never introduced before its prerequisites. "Introduced"
-        # means the learner has a progress row for it — or the prerequisite sits
-        # in a CEFR level below the learner's own (placement or estimate says
-        # they know it; without this an A2-placed newcomer would be walked back
-        # to A1.1, undoing WP-67). v1 concepts have no prerequisites, so every
-        # one of them is ready and the picks are unchanged.
-        band = placement_band(self.db, user)
-        introduced_ids = {
-            concept_id
-            for (concept_id,) in self.db.query(UserGrammarProgress.concept_id)
-            .filter(UserGrammarProgress.user_id == user.id)
-            .all()
-        }
-        own_levels = _cefr_levels_at_or_below(user, placement=band)
-        below_own_level = set(own_levels[:-1])
-        if below_own_level:
-            introduced_ids |= {
-                concept_id
-                for (concept_id,) in self.db.query(GrammarConcept.id)
-                .filter(GrammarConcept.active.is_(True), GrammarConcept.level.in_(below_own_level))
-                .all()
-            }
-
-        def ready(concept: GrammarConcept) -> bool:
-            return concept.id in introduced_ids or _prerequisites_met(concept, introduced_ids)
+        active_query = self._active_query()
+        ready = self._readiness(user)
 
         if len(selected) < 2:
-            eligible_levels = _cefr_levels_at_or_below(user, placement=band)
-            cold_start_concepts: list[GrammarConcept] = []
-            for level in reversed(eligible_levels):
-                remaining = (2 - len(selected)) - len(cold_start_concepts)
-                if remaining <= 0:
-                    break
-                candidates = (
-                    active_query.filter(
-                        GrammarConcept.id.notin_(used_ids),
-                        GrammarConcept.id.notin_(studied_ids),
-                        GrammarConcept.level == level,
-                    )
-                    .order_by(
-                        GrammarConcept.is_foundation.desc(),
-                        GrammarConcept.difficulty_order.asc(),
-                        GrammarConcept.id.asc(),
-                    )
-                    .all()
-                )
-                cold_start_concepts.extend([concept for concept in candidates if ready(concept)][:remaining])
-            for concept in cold_start_concepts:
+            for concept in self.next_new_concepts(
+                user, limit=2 - len(selected), exclude_ids=used_ids, ready=ready
+            ):
                 selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
 
         def first_ready(query: Any) -> GrammarConcept | None:
             return next((concept for concept in query.all() if ready(concept)), None)
 
+        band = placement_band(self.db, user)
         contrast = first_ready(
             active_query.filter(
                 GrammarConcept.id.notin_(used_ids),
@@ -1890,6 +1826,100 @@ class AtelierScheduler:
         # the saved time budget—not a hardcoded three-concept cap—decides how
         # much grammar appears in today's prescription.
         return selected[: self.concept_limit(user)]
+
+    def _active_query(self, language: str | None = None) -> Any:
+        query = self.db.query(GrammarConcept).filter(
+            GrammarConcept.active.is_(True),
+            GrammarConcept.external_id.isnot(None),
+            GrammarConcept.external_id != "",
+        )
+        if language:
+            query = query.filter(GrammarConcept.language == language)
+        return query
+
+    def _readiness(self, user: User) -> Any:
+        """``ready(concept)``: may this unit be introduced to this learner now?
+
+        WP-L2: a unit is never introduced before its prerequisites. "Introduced"
+        means the learner has a progress row for it — or the prerequisite sits
+        in a CEFR level below the learner's own (placement or estimate says
+        they know it; without this an A2-placed newcomer would be walked back
+        to A1.1, undoing WP-67). v1 concepts have no prerequisites, so every
+        one of them is ready and the picks are unchanged.
+        """
+
+        band = placement_band(self.db, user)
+        introduced_ids = {
+            concept_id
+            for (concept_id,) in self.db.query(UserGrammarProgress.concept_id)
+            .filter(UserGrammarProgress.user_id == user.id)
+            .all()
+        }
+        own_levels = _cefr_levels_at_or_below(user, placement=band)
+        below_own_level = set(own_levels[:-1])
+        if below_own_level:
+            introduced_ids |= {
+                concept_id
+                for (concept_id,) in self.db.query(GrammarConcept.id)
+                .filter(GrammarConcept.active.is_(True), GrammarConcept.level.in_(below_own_level))
+                .all()
+            }
+
+        def ready(concept: GrammarConcept) -> bool:
+            return concept.id in introduced_ids or _prerequisites_met(concept, introduced_ids)
+
+        return ready
+
+    def next_new_concepts(
+        self,
+        user: User,
+        *,
+        limit: int = 1,
+        exclude_ids: set[int] | None = None,
+        language: str | None = None,
+        ready: Any = None,
+    ) -> list[GrammarConcept]:
+        """The next never-studied units for this learner, in teaching order.
+
+        The one new-concept picker: the Atelier's cold start and the journey's
+        intake plan (WP-L4, `app.services.concept_life`) both read it.
+
+        Cold start (no due errata, no scored progress yet): serve foundation
+        concepts at or below the learner's own CEFR level, never a hardcoded
+        catalog slice that may sit above it. WP-67 (F-30): the ladder starts
+        *at* the estimate, not under it — the pick walks down from the
+        learner's own band and only falls to a lower one when that band has
+        nothing left; a learner who has never been measured starts at A1,
+        because A1 is then their band. WP-L1: "new" means never attempted — a
+        concept with any progress row is due (and picked elsewhere) or
+        scheduled for later. WP-L2: prerequisites first (``_readiness``).
+        Reads only; never seeds the catalogue.
+        """
+
+        if limit <= 0:
+            return []
+        ready = ready or self._readiness(user)
+        exclude = set(exclude_ids or ())
+        studied_ids = select(UserGrammarProgress.concept_id).where(UserGrammarProgress.user_id == user.id)
+        band = placement_band(self.db, user)
+        picked: list[GrammarConcept] = []
+        for level in reversed(_cefr_levels_at_or_below(user, placement=band)):
+            remaining = limit - len(picked)
+            if remaining <= 0:
+                break
+            query = self._active_query(language).filter(
+                GrammarConcept.id.notin_(studied_ids),
+                GrammarConcept.level == level,
+            )
+            if exclude:
+                query = query.filter(GrammarConcept.id.notin_(exclude))
+            candidates = query.order_by(
+                GrammarConcept.is_foundation.desc(),
+                GrammarConcept.difficulty_order.asc(),
+                GrammarConcept.id.asc(),
+            ).all()
+            picked.extend([concept for concept in candidates if ready(concept)][:remaining])
+        return picked
 
     def concept_limit(self, user: User) -> int:
         if self.is_first_session(user):
