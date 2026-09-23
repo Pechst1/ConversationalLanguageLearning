@@ -9,6 +9,7 @@
 
 // Relative, not `@/`: the reader's node tests load this model without the alias.
 import { castIdFor } from '../../../lib/cast-faces';
+import type { PortraitMood } from '../../../lib/onboarding-portraits';
 
 export type ReaderScene = {
   id: string;
@@ -49,8 +50,8 @@ export type ReaderLine = {
    * speaker gets no face rather than someone else's.
    */
   faceId?: string | null;
-  /** WP-77: which of the three faces, from the story's live mood when sent. */
-  faceMood?: 'neutral' | 'happy' | 'cross';
+  /** WP-77: which face, from the story's live mood when sent (WP-D8 adds `moved`). */
+  faceMood?: PortraitMood;
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';

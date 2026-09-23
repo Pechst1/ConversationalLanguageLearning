@@ -193,8 +193,9 @@ line so an agent can prove it.
   minutes; the 126-day evidence harness reports the new mix.
 
 #### WP-79 · End of day feels like a reward
-- The recap as one screen: streak flame «Jour N» (a checked, honest streak), the daily
-  goal ring, «+3 mots» with the words, the character's mood change with their portrait,
+- The recap as one screen: the streak «Jour N» (a checked, honest streak; shown as seals,
+  WP-D5, not a flame), the completed mark (WP-D1; owner 2026-09-22: no goal ring),
+  «+3 mots» with the words, the character's mood change with their portrait,
   the day's keepsake vignette (already minted, never shown), and «La suite demain», a
   one-line teaser written by the engine.
 - An honest streak: check the date on read (today, stale-after-a-miss is a bug:
@@ -221,8 +222,9 @@ line so an agent can prove it.
 ### Wave D — simple and beautiful
 
 #### WP-81 · Home does one thing
-- The hero is the day's scene: art, title, one pill button. The header carries streak +
-  goal ring. At most two quiet chips below it (Lexique due, a letter waiting).
+- The hero is the day's scene: art, title, one red 3D-press button (`.av2-btn`, owner
+  2026-09-22). The header carries the streak and the mark as the day's progress (WP-D1; no
+  goal ring). At most two quiet chips below it (Lexique due, a letter waiting).
 - The journey card goes into `HomeScreen`'s hero slot, with a safe-area inset (not above
   the masthead). Dossier, «Vos documents», «Plus de pratique» and the legacy séance move
   to Cahier or Réglages. The «Offene ältere Übung» card goes.
@@ -283,6 +285,8 @@ line so an agent can prove it.
    WP-80, WP-78.
 4. **D: WP-81 + WP-82 together** (same screens), then WP-83, WP-84.
 5. **E: WP-85**, starting now for the PR/CI part.
+6. **Design: WP-D1..D8** (the mark as the day's plan, faces, the Seal, gender by shape) are
+   in `WORK-PACKAGES-2026-09-22-design.md` and slot into Waves C/D.
 
 Each wave ends with a walk on the simulator (not only the browser pane, whose hidden-tab
 hydration hides real behaviour) in both themes and three learner languages.
@@ -319,7 +323,7 @@ hydration hides real behaviour) in both themes and three learner languages.
 
 ## Appendix B — keep (already excellent)
 
-The av2 system (rem scale, 44 px floor, focus ring, Reduce Motion, pill buttons); the
+The av2 system (rem scale, 44 px floor, focus ring, Reduce Motion, the 16 px 3D-press primary); the
 reader's art direction; keyboard handling in `journey-lifecycle.ts`; the cached edition on
 Home; the honest server streak source; pending states on actions (no double submits); auth
 design (hashed rotating refresh tokens, token versioning, hashed single-use reset tokens,

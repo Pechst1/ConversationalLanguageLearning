@@ -1,15 +1,17 @@
 /**
  * WP-77 (portrait part) — the cast's faces.
  *
- * `scripts/crop-portraits.py` cuts three 256px expression portraits out of each
- * model sheet: `portrait-{neutral,happy,cross}.webp`. Only characters with a
- * drawn face have them — the learner's own sheet is drawn from behind, so a
- * `user` portrait never exists and falls back to an initial.
+ * Four 256px expression portraits per character: `portrait-{neutral,happy,cross,moved}.webp`.
+ * Since WP-D8 (2026-09-23) they are head crops of the owner-approved screen-print cast: one
+ * approved chest-up portrait per character, each mood an edit of it. They no longer come from
+ * the old model sheets (`scripts/crop-portraits.py` is retired for these files). Only characters
+ * with a drawn face have them — the learner is never drawn, so a `user` portrait never exists
+ * and falls back to an initial.
  */
 
-export type PortraitMood = 'neutral' | 'happy' | 'cross';
+export type PortraitMood = 'neutral' | 'happy' | 'cross' | 'moved';
 
-export const PORTRAIT_MOODS: PortraitMood[] = ['neutral', 'happy', 'cross'];
+export const PORTRAIT_MOODS: PortraitMood[] = ['neutral', 'happy', 'cross', 'moved'];
 
 /** Characters whose sheet has three expression busts. */
 export const CAST_WITH_PORTRAITS = [
