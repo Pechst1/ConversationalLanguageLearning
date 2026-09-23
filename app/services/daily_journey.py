@@ -1780,7 +1780,11 @@ class DailyJourneyService:
             return None
         if isinstance(result, ContentUnavailable) or result is None:
             return None
-        return ScenarioDescriptor.model_validate(result.public_descriptor())
+        descriptor = dict(result.public_descriptor())
+        # WP-L6: the day is planned to the learner's rhythm, so the preview says
+        # the rhythm's minutes, not the story brief's own 4½-minute estimate.
+        descriptor["estimated_seconds"] = budget_seconds_for(user)
+        return ScenarioDescriptor.model_validate(descriptor)
 
     # ------------------------------------------------------------------
     # Internals — idempotency receipts
