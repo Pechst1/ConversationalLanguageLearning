@@ -529,6 +529,19 @@ class Settings(BaseSettings):
         description="Request timeout for the one intake call. A timeout is «non lu», never a fabricated reading.",
     )
 
+    # ---- WP-L2: the syllabus ---------------------------------------------------
+    ATELIER_GRAMMAR_CATALOG_VERSION: str = Field(
+        "v1",
+        description=(
+            "WP-L2: which curated French grammar catalogue is seeded and served. "
+            "'v1' = templates/french_core_grammar_v1.tsv (54 coarse concepts, the "
+            "current product). 'v2' = templates/french_core_grammar_v2.tsv "
+            "(fr-core-v2: ~150 units A1–B2 with sub-bands, prerequisites and "
+            "localized rules); switching seeds v2, archives v1 and copies each "
+            "learner's v1 progress onto the v2 unit that replaces it."
+        ),
+    )
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",
         env_file_encoding="utf-8",

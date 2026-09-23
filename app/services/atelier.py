@@ -1,7 +1,6 @@
 """Atelier grammar practice services."""
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
 import re
@@ -1727,6 +1726,23 @@ def _cefr_levels_at_or_below(user: User, *, placement: str | None = None) -> lis
     return _GRAMMAR_LEVEL_ORDER[: index + 1]
 
 
+def _prerequisites_met(concept: GrammarConcept, introduced_ids: set[int]) -> bool:
+    """True when every prerequisite of ``concept`` has been introduced to the learner.
+
+    WP-L2: ``GrammarConcept.prerequisites`` holds concept ids (the fr-core-v2 catalogue
+    stores them; v1 rows have none, so they are always ready).
+    """
+
+    for prerequisite in concept.prerequisites or []:
+        try:
+            prerequisite_id = int(prerequisite)
+        except (TypeError, ValueError):
+            continue
+        if prerequisite_id not in introduced_ids:
+            return False
+    return True
+
+
 class AtelierScheduler:
     """Select the concepts that fit the learner's edition."""
 
@@ -1785,7 +1801,32 @@ class AtelierScheduler:
         # A band the learner has fully studied simply yields fewer picks; the
         # walk only ever goes down, never up into unplaced material.
         studied_ids = select(UserGrammarProgress.concept_id).where(UserGrammarProgress.user_id == user.id)
+        # WP-L2: a unit is never introduced before its prerequisites. "Introduced"
+        # means the learner has a progress row for it — or the prerequisite sits
+        # in a CEFR level below the learner's own (placement or estimate says
+        # they know it; without this an A2-placed newcomer would be walked back
+        # to A1.1, undoing WP-67). v1 concepts have no prerequisites, so every
+        # one of them is ready and the picks are unchanged.
         band = placement_band(self.db, user)
+        introduced_ids = {
+            concept_id
+            for (concept_id,) in self.db.query(UserGrammarProgress.concept_id)
+            .filter(UserGrammarProgress.user_id == user.id)
+            .all()
+        }
+        own_levels = _cefr_levels_at_or_below(user, placement=band)
+        below_own_level = set(own_levels[:-1])
+        if below_own_level:
+            introduced_ids |= {
+                concept_id
+                for (concept_id,) in self.db.query(GrammarConcept.id)
+                .filter(GrammarConcept.active.is_(True), GrammarConcept.level.in_(below_own_level))
+                .all()
+            }
+
+        def ready(concept: GrammarConcept) -> bool:
+            return concept.id in introduced_ids or _prerequisites_met(concept, introduced_ids)
+
         if len(selected) < 2:
             eligible_levels = _cefr_levels_at_or_below(user, placement=band)
             cold_start_concepts: list[GrammarConcept] = []
@@ -1793,7 +1834,7 @@ class AtelierScheduler:
                 remaining = (2 - len(selected)) - len(cold_start_concepts)
                 if remaining <= 0:
                     break
-                cold_start_concepts.extend(
+                candidates = (
                     active_query.filter(
                         GrammarConcept.id.notin_(used_ids),
                         GrammarConcept.id.notin_(studied_ids),
@@ -1804,33 +1845,33 @@ class AtelierScheduler:
                         GrammarConcept.difficulty_order.asc(),
                         GrammarConcept.id.asc(),
                     )
-                    .limit(remaining)
                     .all()
                 )
+                cold_start_concepts.extend([concept for concept in candidates if ready(concept)][:remaining])
             for concept in cold_start_concepts:
                 selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
 
-        contrast = (
+        def first_ready(query: Any) -> GrammarConcept | None:
+            return next((concept for concept in query.all() if ready(concept)), None)
+
+        contrast = first_ready(
             active_query.filter(
                 GrammarConcept.id.notin_(used_ids),
                 GrammarConcept.level.in_(_cefr_levels_at_or_below(user, placement=band)),
                 GrammarConcept.is_foundation.is_(True),
             )
             .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            .first()
         )
         if not contrast:
-            contrast = (
+            contrast = first_ready(
                 active_query.filter(GrammarConcept.id.notin_(used_ids), GrammarConcept.is_foundation.is_(True))
                 .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-                .first()
             )
         if not contrast:
-            contrast = (
+            contrast = first_ready(
                 active_query.filter(GrammarConcept.id.notin_(used_ids))
                 .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-                .first()
             )
         if contrast:
             selected.append(
@@ -1841,7 +1882,7 @@ class AtelierScheduler:
         for concept in active_query.order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc()).all():
             if len(selected) >= 3:
                 break
-            if concept.id not in used_ids:
+            if concept.id not in used_ids and ready(concept):
                 selected.append(ConceptSelection(concept=concept, role="contrast", progress=self._progress_for(user, concept.id)))
                 used_ids.add(concept.id)
 
@@ -1935,36 +1976,6 @@ class AtelierScheduler:
 
     def due_errata(self, user: User, limit: int = 20) -> list[dict[str, Any]]:
         return ErrorMemoryService(self.db).due_errata(user, limit=limit)
-
-    def _load_template_rows(self) -> list[dict[str, Any]]:
-        path = _repo_root() / "templates" / "french_grammar_concepts.csv"
-        if not path.exists():
-            return []
-        rows: list[dict[str, Any]] = []
-        with path.open(newline="", encoding="utf-8") as handle:
-            for raw in csv.DictReader(handle):
-                if not raw.get("concept_id"):
-                    continue
-                rows.append(
-                    {
-                        "external_id": raw.get("concept_id"),
-                        "language": raw.get("language") or "fr",
-                        "level": raw.get("cefr_level") or "A1",
-                        "category": raw.get("category"),
-                        "subskill": raw.get("subskill"),
-                        "name": raw.get("concept_name") or raw.get("concept_id"),
-                        "difficulty_order": int(raw.get("teaching_order") or 0),
-                        "is_foundation": str(raw.get("is_foundation", "")).strip().lower() == "true",
-                        "parent_external_id": raw.get("parent_concept_id") or None,
-                        "prerequisites": _split_list(raw.get("prerequisite_ids")),
-                        "core_rule": raw.get("core_rule"),
-                        "main_traps": raw.get("main_traps"),
-                        "anchor_examples": raw.get("anchor_examples"),
-                        "exercise_tags": _split_list(raw.get("exercise_tags")),
-                        "active": str(raw.get("active", "true")).strip().lower() != "false",
-                    }
-                )
-        return rows
 
     def _progress_for(self, user: User, concept_id: int) -> UserGrammarProgress | None:
         return (

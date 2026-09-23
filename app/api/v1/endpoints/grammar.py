@@ -31,7 +31,7 @@ from app.services.achievement_service import AchievementService
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import serialize_error_memory
 from app.services.grammar import GrammarService, personal_note
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 router = APIRouter(prefix="/grammar", tags=["grammar"])
 grammar_notebook_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
@@ -513,7 +513,7 @@ def get_grammar_notebook(
     FrenchCoreGrammarCatalog(db).ensure_catalog(archive_legacy=True)
     query = db.query(GrammarConcept).filter(
         GrammarConcept.active.is_(True),
-        GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+        GrammarConcept.catalog_version == active_catalog_version(),
     )
     if level:
         query = query.filter(GrammarConcept.level == level)

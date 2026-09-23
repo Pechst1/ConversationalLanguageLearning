@@ -16,7 +16,7 @@ from app.db.models.atelier import AtelierConceptBlueprint
 from app.db.models.grammar import GrammarConcept, GrammarConceptArchive, GrammarConceptLocalization
 from app.db.session import SessionLocal
 from app.services.atelier_assets import AtelierAssetService
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 
 def main() -> None:
@@ -41,7 +41,7 @@ def main() -> None:
             .filter(
                 GrammarConcept.language == "fr",
                 GrammarConcept.active.is_(True),
-                GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+                GrammarConcept.catalog_version == active_catalog_version(),
             )
             .count()
         )
@@ -52,13 +52,13 @@ def main() -> None:
             db.query(AtelierConceptBlueprint)
             .join(GrammarConcept, GrammarConcept.id == AtelierConceptBlueprint.concept_id)
             .filter(
-                GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+                GrammarConcept.catalog_version == active_catalog_version(),
                 AtelierConceptBlueprint.review_status == "approved",
             )
             .count()
         )
 
-        print(f"Catalog version: {FRENCH_CORE_CATALOG_VERSION}")
+        print(f"Catalog version: {active_catalog_version()}")
         print(f"Active French concepts: {active_count}")
         print(f"Archived legacy concepts: {archived_count}")
         print(f"German localizations: {localized_count}")

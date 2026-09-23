@@ -104,7 +104,8 @@ def _user(db_session, *, email: str, level: str = "A1", estimate: str = "A1.1") 
 def test_lexicon_declares_its_provenance_and_is_not_empty():
     lexicon = load_lexicon()
 
-    assert lexicon.version == "fr-core-lexicon-v1"
+    # WP-L2 extended the list to ~2,500 lemmas through B1 and added sub_band.
+    assert lexicon.version == "fr-core-lexicon-v2"
     assert len(lexicon.lemmas) > 500
     # A word list with no stated origin is a word list nobody can audit.
     assert lexicon.provenance["function_words"].startswith("Seeded from spaCy")

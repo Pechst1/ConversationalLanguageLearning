@@ -13,7 +13,7 @@ from app.core.srs import memory
 from app.core.srs.memory import Evidence, EvidenceFormat, MemoryDecision, MemoryState
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 # WP-L3: grammar is scheduled by the one memory model (`app.core.srs.memory`),
 # the FSRS-style stability/difficulty model vocabulary already uses, with the
@@ -465,7 +465,7 @@ class GrammarService:
         FrenchCoreGrammarCatalog(self.db).ensure_catalog(archive_legacy=True)
         catalog_filters = (
             GrammarConcept.active.is_(True),
-            GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+            GrammarConcept.catalog_version == active_catalog_version(),
         )
         total_concepts = (
             self.db.query(func.count(GrammarConcept.id))
