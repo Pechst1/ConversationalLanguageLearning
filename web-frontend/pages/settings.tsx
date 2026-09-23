@@ -51,9 +51,11 @@ import {
     RHYTHMS,
     clampNewWords,
     formatReviewLoad,
+    formatRhythmForecast,
     isRhythm,
     rhythmForMinutes,
     type Rhythm,
+    type RhythmPrior,
 } from '@/lib/rhythm';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
@@ -442,6 +444,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
     const [isAdmin, setIsAdmin] = useState(false);
+    // WP-L8: each rhythm card's planning prior for A1, from `GET /progress/cefr`.
+    // Absent (the call failed), the cards simply print no estimate.
+    const [rhythmPriors, setRhythmPriors] = useState<Record<string, RhythmPrior> | null>(null);
     /**
      * WP-32's «Écouter d’abord» preference (WP-37 hook). It lives in
      * `localStorage`, not in the settings payload, so it is read *after* mount:
@@ -576,6 +581,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         };
 
         fetchSettings();
+        api.getCefrProgress()
+            .then((cefr) => setRhythmPriors((cefr?.rhythm_priors as Record<string, RhythmPrior> | null) || null))
+            .catch(() => setRhythmPriors(null));
     }, [settingsReloadKey]);
 
     useEffect(() => {
@@ -1268,6 +1276,11 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                                 {rhythm.id === DEFAULT_RHYTHM ? ` · ${copy.rhythm_recommended}` : ''}
                                             </span>
                                             <span className="st-row__hint">{rhythmLine(copy, rhythm.id)}</span>
+                                            {/* WP-L8: the honest forecast, worded as an estimate. */}
+                                            {(() => {
+                                                const forecast = formatRhythmForecast(copy.rhythm_forecast, rhythmPriors?.[rhythm.id]);
+                                                return forecast ? <span className="st-row__hint">{forecast}</span> : null;
+                                            })()}
                                         </span>
                                         <span className="st-row__value st-option__state">
                                             {active ? <><ShapeToken kind="story" size="sm" /> {copy.level_current}</> : null}

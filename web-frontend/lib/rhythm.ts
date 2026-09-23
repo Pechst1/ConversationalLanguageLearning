@@ -70,3 +70,38 @@ export function clampNewWords(value: number): number {
   if (!Number.isFinite(value)) return 10;
   return Math.min(NEW_WORDS_MAX, Math.max(NEW_WORDS_MIN, Math.round(value)));
 }
+
+/**
+ * WP-L8 — the honest forecast on each rhythm card: the server's planning
+ * prior (`rhythm_priors` in `GET /progress/cefr`, from
+ * `app/services/level_forecast.py`) for finishing A1 at that rhythm, as a
+ * range in months. Always worded as an estimate, never as a promise.
+ */
+export type RhythmPrior = {
+  rhythm?: string;
+  target?: string;
+  range_months?: [number, number] | number[];
+  range_days?: [number, number] | number[];
+};
+
+/** Whole months, the low end rounded down and the high end up; `null` without a range. */
+export function priorMonths(prior: RhythmPrior | null | undefined): { low: number; high: number } | null {
+  const range = prior?.range_months;
+  if (!Array.isArray(range) || range.length < 2) return null;
+  const lowRaw = Number(range[0]);
+  const highRaw = Number(range[1]);
+  if (!Number.isFinite(lowRaw) || !Number.isFinite(highRaw) || lowRaw <= 0) return null;
+  const low = Math.max(1, Math.floor(lowRaw));
+  const high = Math.max(low, Math.ceil(highRaw));
+  return { low, high };
+}
+
+/** Fill `{target}`, `{low}`, `{high}` in a copy template; `null` when there is no prior. */
+export function formatRhythmForecast(template: string, prior: RhythmPrior | null | undefined): string | null {
+  const months = priorMonths(prior);
+  if (!months) return null;
+  return template
+    .replace('{target}', String(prior?.target || 'A1'))
+    .replace('{low}', String(months.low))
+    .replace('{high}', String(months.high));
+}

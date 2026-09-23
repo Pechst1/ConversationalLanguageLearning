@@ -153,6 +153,7 @@ export type SettingsCopyKey =
   | 'rhythm_line_soutenu'
   | 'rhythm_line_intensif'
   | 'rhythm_recommended'
+  | 'rhythm_forecast'
   | 'minutes_short'
   | 'row_cefr'
   | 'row_cefr_hint'
@@ -358,6 +359,8 @@ const EN: SettingsCopy = {
   rhythm_line_soutenu: 'Like Régulier, with twice the reviews and practice.',
   rhythm_line_intensif: 'Like Soutenu, with the most reviews and practice.',
   rhythm_recommended: 'recommended',
+  // WP-L8: the planning prior, never a promise.
+  rhythm_forecast: 'Estimate: {target} in {low}–{high} months at this rhythm.',
   minutes_short: 'min',
   row_cefr: 'CEFR target',
   row_cefr_hint: 'L’Atelier estimates the date from the pace you actually keep.',
@@ -569,6 +572,7 @@ const DE: SettingsCopy = {
   rhythm_line_soutenu: 'Wie Régulier, mit doppelt so viel Wiederholung und Übung.',
   rhythm_line_intensif: 'Wie Soutenu, mit der meisten Wiederholung und Übung.',
   rhythm_recommended: 'empfohlen',
+  rhythm_forecast: 'Schätzung: {target} in {low}–{high} Monaten in diesem Rhythmus.',
   minutes_short: 'Min.',
   row_cefr: 'GER-Ziel',
   row_cefr_hint: 'L’Atelier schätzt den Termin nach Ihrem tatsächlichen Rhythmus.',
@@ -785,6 +789,7 @@ const FR: SettingsCopy = {
   rhythm_line_soutenu: 'Comme Régulier, avec deux fois plus de rappels et d’exercices.',
   rhythm_line_intensif: 'Comme Soutenu, avec le plus de rappels et d’exercices.',
   rhythm_recommended: 'conseillé',
+  rhythm_forecast: 'Estimation : {target} en {low} à {high} mois à ce rythme.',
   minutes_short: 'min',
   row_cefr: 'Objectif CECRL',
   row_cefr_hint: 'L’Atelier estime l’échéance selon votre rythme réel.',

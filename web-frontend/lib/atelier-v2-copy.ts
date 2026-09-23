@@ -116,6 +116,7 @@ export type AtelierCopyKey =
   | 'home_streak_days'
   | 'home_streak_done'
   | 'home_streak_seals'
+  | 'home_level_aria'
   | 'home_letter'
   | 'home_words_one'
   | 'home_words_many'
@@ -196,6 +197,7 @@ const EN: Table = {
   home_streak_days: 'days',
   home_streak_done: 'day done',
   home_streak_seals: 'your seals',
+  home_level_aria: 'Your level: {band}, {percent} % of the way through',
   home_letter: 'New letter',
   home_letter_aria: 'A letter is waiting',
   home_words_one: '1 word',
@@ -275,6 +277,7 @@ const DE: Table = {
   home_streak_days: 'Tage',
   home_streak_done: 'Tag geschafft',
   home_streak_seals: 'Ihre Siegel',
+  home_level_aria: 'Ihr Niveau: {band}, zu {percent} % geschafft',
   home_letter: 'Neuer Brief',
   home_letter_aria: 'Ein Brief wartet auf Sie',
   home_words_one: '1 Wort',
@@ -354,6 +357,7 @@ const FR: Table = {
   home_streak_days: 'jours de suite',
   home_streak_done: 'journée bouclée',
   home_streak_seals: 'vos sceaux',
+  home_level_aria: 'Votre niveau : {band}, parcouru à {percent} %',
   home_letter: 'Nouvelle lettre',
   home_letter_aria: 'Une lettre vous attend',
   home_words_one: '1 mot',

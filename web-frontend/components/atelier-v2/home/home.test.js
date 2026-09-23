@@ -89,6 +89,7 @@ function home(language, props = {}) {
       dateLabel: 'mardi 23 septembre',
       editionLabel: 'Édition Nº 4 · A1.1',
       streak: 4,
+      level: { band: 'A1.1', percent: 60 },
       language,
       day: dayMarkState(null, language),
       hero: h(JourneyTodayCard, { controller: controllerFor(envelope, language), onOpen: () => {} }),
@@ -114,7 +115,10 @@ test('Home does one thing: ≤ 5 elements and ≤ 25 words, in every learner lan
     const html = home(language);
     const sections = (html.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length;
     assert.ok(sections <= 5, `${language}: ${sections} elements`);
-    const count = words(visibleText(html)).length;
+    // WP-L7: the level figure («A1.1 · 60 %») is a figure, not prose — it sits
+    // outside the word budget, the way the streak's number does not add a sentence.
+    const prose = html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' ');
+    const count = words(visibleText(prose)).length;
     if (process.env.HOME_WORDS) console.log(language, sections, count, visibleText(html));
     assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
     // Exactly one red press: the day's.
@@ -146,6 +150,22 @@ test('with the journey on, nothing but the day is drawn', () => {
   assert.match(html, /aria-label="A letter is waiting"/);
   assert.match(text, /3 words/);
   assert.match(html, /aria-label="Review 3 words"/);
+});
+
+test('WP-L7: the level is back in the masthead, compact, as a label and never a headline', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    const html = home(language);
+    assert.match(visibleText(html), /A1\.1 · 60 %/, language); // the narrow space folds to one
+    assert.match(html, /60\u202f%/, `${language}: a narrow no-break space before %`);
+    assert.match(html, /class="av2-home__kicker av2-home__level"/);
+    // One Garamond line on the masthead (the date): the level is a label, not a headline.
+    const mast = html.slice(html.indexOf('av2-home__mast"'), html.indexOf('</header>'));
+    assert.equal((mast.match(/av2-headline[ "]/g) || []).length, 1, `${language}: one headline in the masthead`);
+  }
+  assert.match(home('fr'), /Votre niveau : A1\.1, parcouru à 60 %/);
+  assert.match(home('de'), /Ihr Niveau: A1\.1, zu 60 % geschafft/);
+  // No coverage from the server, no level line.
+  assert.doesNotMatch(home('en', { level: null }), /av2-home__level/);
 });
 
 test('at most two chips, one once the day is done, and never a press', () => {

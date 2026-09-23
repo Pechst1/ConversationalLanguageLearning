@@ -285,4 +285,54 @@ test('every state offers exactly one primary action', () => {
   );
 });
 
+// WP-L7 / WP-L8. The level as coverage, its épreuve and the forecast.
+test('the level reads «A1.1 · 60 %» and explains every number behind it', () => {
+  const state = require('./dossier-state.ts');
+  const level = {
+    available: true,
+    estimate: 'A1.1',
+    estimate_source: 'measured',
+    level_label: 'A1.1 · 60 %',
+    next_level: 'A1.2',
+    coverage: {
+      band: 'A1.1',
+      percent: 60,
+      label: 'A1.1 · 60 %',
+      units: { held: 9, total: 18, required: 16, met: false },
+      words: { known: 180, total: 316, required: 253, met: false },
+      coverage_met: false,
+    },
+    checkpoint: { band: 'A1.1', state: 'locked', checkpoint_ready: false, attempts: 0 },
+    forecast: { status: 'available', target: 'A1.2', range_days: [62, 101], range_months: [2.0, 3.3] },
+  };
+  assert.equal(state.levelHeadline(level), 'A1.1 · 60 %');
+  assert.deepEqual(
+    state.coverageRows(level).map((row) => [row.label, row.value]),
+    [
+      ['Notions tenues', '9 / 16 (sur 18)'],
+      ['Mots connus', '180 / 253 (sur 316)'],
+      ['Épreuve', 'après la couverture du niveau'],
+    ],
+  );
+  assert.ok(state.coverageRuleSentence(level).includes('85 %'));
+  const measured = state.forecastSentence(level);
+  assert.ok(measured.startsWith('Estimation'), measured);
+  assert.ok(measured.includes('A1.2 dans 2 à 4 mois'), measured);
+  // Before seven active days it says it is the rhythm's prior, not a measurement.
+  const prior = state.forecastSentence({ ...level, forecast: { ...level.forecast, status: 'prior' } });
+  assert.ok(prior.includes('avant mesure'), prior);
+  // A stalled pace is said plainly, with no date.
+  const capped = state.forecastSentence({
+    ...level,
+    forecast: { status: 'available', target: 'A1.2', capped: true, range_days: [730, 730] },
+  });
+  assert.ok(capped.includes('plus de deux ans'), capped);
+  // The épreuve's states.
+  assert.equal(state.checkpointLabel({ state: 'ready' }), 'prête — elle arrive dans l’histoire');
+  assert.ok(state.checkpointLabel({ state: 'failed', retry_after: '2026-10-01T10:00:00+00:00' }).includes('1er oct.'));
+  // A declared level with no coverage prints no rows and no forecast.
+  assert.deepEqual(state.coverageRows({ available: true, estimate: 'B1.1', estimate_source: 'declared' }), []);
+  assert.equal(state.forecastSentence({ available: true, estimate: 'B1.1' }), null);
+});
+
 console.log(`dossier-state: ${passed} tests passed`);
