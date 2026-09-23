@@ -665,6 +665,11 @@
   --av2-btn-depth: var(--av2-press-md);
   font-size: var(--av2-t-body-lg);
 }
+/* On a card the card-coloured face would vanish and leave only its ledge: step to the line tone. */
+.av2 .av2-card .av2-btn--secondary,
+.av2 .av2-surface .av2-btn--secondary {
+  --av2-btn-face: var(--av2-line);
+}
 
 /* Quiet = no face, no press. For the third-tier actions (help, stop here) that
    must exist but must never compete with the one primary. */
@@ -2816,6 +2821,8 @@
   background: var(--av2-card);
 }
 .av2 .av2-speech__bubble > .av2-headline { margin: 0; }
+/* A long line in the bubble steps down a size, so a reply never fills the screen. */
+.av2 .av2-speech__bubble[data-long] > .av2-headline { font-size: calc(var(--av2-t-head) * 0.72); line-height: 1.22; }
 
 /* «Marin vous sourit ↑» under a correct verdict. */
 .av2 .av2-smiles { margin: 0; color: var(--av2-green); }

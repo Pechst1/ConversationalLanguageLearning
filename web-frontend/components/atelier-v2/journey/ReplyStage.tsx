@@ -54,16 +54,11 @@ export function CharacterTyping({ speaker }: { speaker: ReplySpeaker }) {
   );
 }
 
-export function TypedReply({
-  speaker,
-  reply,
-  animate,
-}: {
-  speaker: ReplySpeaker;
-  reply: string;
-  /** `true` while the verdict is held back; a settled turn shows it whole. */
-  animate: boolean;
-}) {
+/**
+ * The reply as it types in, whole words at a time; `animate` false (a settled
+ * turn, Reduced Motion) shows it whole. Shared by the reply row and the bubble.
+ */
+export function useTypedText(reply: string, animate: boolean): string {
   // Computed in render, so the first paint already shows only the first word.
   const total = animate ? replyRevealMs(reply, { reducedMotion: prefersReducedMotion() }) : 0;
   const [elapsed, setElapsed] = useState(0);
@@ -81,7 +76,20 @@ export function TypedReply({
     // `animate` flips to false when the verdict lands; the text is complete by then.
   }, [reply, total]);
 
-  const shown = total > 0 ? typedReply(reply, elapsed, total) : reply;
+  return total > 0 ? typedReply(reply, elapsed, total) : reply;
+}
+
+export function TypedReply({
+  speaker,
+  reply,
+  animate,
+}: {
+  speaker: ReplySpeaker;
+  reply: string;
+  /** `true` while the verdict is held back; a settled turn shows it whole. */
+  animate: boolean;
+}) {
+  const shown = useTypedText(reply, animate);
 
   return (
     <div className="av2-reply" data-typing={shown.length < reply.trim().length ? 'true' : undefined}>

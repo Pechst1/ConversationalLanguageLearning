@@ -96,7 +96,14 @@ import { useVoiceAnswer } from './useVoiceAnswer';
 import { MatchPairs } from './MatchPairs';
 import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
-import { CharacterSmiles, CharacterTyping, StoryWriting, TypedReply, respondSpeaker } from './ReplyStage';
+import {
+  CharacterSmiles,
+  CharacterTyping,
+  StoryWriting,
+  TypedReply,
+  respondSpeaker,
+  useTypedText,
+} from './ReplyStage';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -212,7 +219,12 @@ function StepFrame({
               ring
             />
           </span>
-          <div className="av2-speech__bubble">{title}</div>
+          <div
+            className="av2-speech__bubble"
+            data-long={typeof headline === 'string' && headline.length > 48 ? 'true' : undefined}
+          >
+            {title}
+          </div>
         </div>
       ) : (
         title
@@ -778,13 +790,16 @@ export function RespondStepView({
   const saying = !letter && replier ? replier : null;
   const sayingMood: PortraitMood =
     feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
+  // Beside a face, the reply is said in the bubble (typing in), never a second
+  // time in a row below it; without a face it keeps its own row.
+  const spoken = useTypedText(saying && reply ? reply : '', feedback.kind === 'replying');
 
   return (
     <StepFrame
       label={
         saying ? saying.name : <Byline name={letter?.correspondent_name || step.prompt.character_name} />
       }
-      headline={letter ? letter.subject_fr : step.prompt.character_line_fr}
+      headline={letter ? letter.subject_fr : spoken || step.prompt.character_line_fr}
       headlineLang="fr"
       speaker={saying}
       speakerMood={sayingMood}
@@ -890,7 +905,7 @@ export function RespondStepView({
 
       {/* WP-76: the wait has a face, and the reply is read before it is judged. */}
       {waitingForReply && <CharacterTyping speaker={replier} />}
-      {reply && (
+      {reply && !saying && (
         <TypedReply speaker={replier} reply={reply} animate={feedback.kind === 'replying'} />
       )}
 
