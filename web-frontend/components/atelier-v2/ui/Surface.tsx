@@ -203,14 +203,54 @@ function StepTokens({
         aria-valuenow={done}
         aria-valuetext={valueText}
       >
-        {steps.map((step) => (
-          <StepToken key={step.id} step={step} />
+        {groupStepTokens(steps).map((group) => (
+          <React.Fragment key={group.step.id}>
+            <StepToken step={group.step} />
+            {group.count > 1 && group.step.state === 'active' && (
+              <span className="av2-token-count" aria-hidden="true">
+                {group.position}/{group.count}
+              </span>
+            )}
+          </React.Fragment>
         ))}
       </div>
       {/* The count stays for screen readers; the tokens already show it. */}
       {caption && <span className="av2-progress__count av2-sr">{caption}</span>}
     </div>
   );
+}
+
+/** More tokens than this and a longer rhythm's run of steps collapses (WP-L6). */
+export const STEP_TOKENS_MAX = 9;
+
+type StepTokenGroup = { step: StepSegment; count: number; position: number };
+
+/**
+ * WP-L6: a Régulier day has ~30 steps, far more than a phone row holds. Up to
+ * STEP_TOKENS_MAX the rail is one token per step; beyond it, consecutive steps
+ * of one shape are one token (the day's movements), done when all are done,
+ * active while one is, with «4/14» beside the active run.
+ */
+export function groupStepTokens(steps: StepSegment[]): StepTokenGroup[] {
+  if (steps.length <= STEP_TOKENS_MAX) return steps.map((step) => ({ step, count: 1, position: 1 }));
+  const groups: { steps: StepSegment[] }[] = [];
+  for (const step of steps) {
+    const last = groups[groups.length - 1];
+    if (last && last.steps[0].shape === step.shape) last.steps.push(step);
+    else groups.push({ steps: [step] });
+  }
+  return groups.map(({ steps: run }) => {
+    const activeAt = run.findIndex((step) => step.state === 'active');
+    const finished = run.every((step) => step.state === 'done' || step.state === 'skipped');
+    const doneCount = run.filter((step) => step.state === 'done' || step.state === 'skipped').length;
+    const state: StepSegment['state'] = activeAt >= 0 ? 'active' : finished ? 'done' : 'pending';
+    const face = activeAt >= 0 ? run[activeAt].face ?? null : null;
+    return {
+      step: { ...run[0], state, face },
+      count: run.length,
+      position: activeAt >= 0 ? activeAt + 1 : doneCount,
+    };
+  });
 }
 
 function StepToken({ step }: { step: StepSegment }) {

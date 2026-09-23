@@ -2756,6 +2756,7 @@
 .av2 .av2-session__head > .av2-mark { margin-left: auto; }
 
 /* The token rail: one shape per step, never wrapping — 8 steps fit at 320px. */
+.av2 .av2-token-count { flex: none; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
 .av2 .av2-progress__tokens {
   display: flex;
   flex: 1 1 auto;
