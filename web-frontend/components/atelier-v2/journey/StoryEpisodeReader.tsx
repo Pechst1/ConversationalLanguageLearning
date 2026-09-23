@@ -31,6 +31,7 @@ import {
   StepProgress,
   Surface,
 } from '@/components/atelier-v2/ui';
+import { frenchSpacing } from '@/lib/french-typography';
 import { saveStoryReadingPosition } from '@/services/daily-journey';
 import type { StoryEpisode } from '@/types/daily-journey';
 
@@ -301,7 +302,7 @@ export function EpisodeRadio({
         caption={stageLabel[state.stage]}
       />
       <h2 className="av2-headline" lang="fr">
-        {episode.title_fr || storyEpisodeLabel(episode)}
+        {frenchSpacing(episode.title_fr || storyEpisodeLabel(episode))}
       </h2>
 
       {state.stage === 'predire' && (
@@ -421,7 +422,7 @@ export function EpisodeRadio({
             <Surface>
               <p className="av2-label">{copy.radio_evidence_label}</p>
               <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-                {verification.quoteFr}
+                {frenchSpacing(verification.quoteFr)}
               </p>
             </Surface>
           )}
@@ -435,7 +436,7 @@ export function EpisodeRadio({
                   {line.who && <Byline name={line.who} characterId={line.characterId} />}
                   {index < state.revealed ? (
                     <p className="av2-fr" lang="fr">
-                      {line.fr}
+                      {frenchSpacing(line.fr)}
                     </p>
                   ) : (
                     <Action tone="quiet" inline onClick={() => dispatch({ type: 'reveal' })}>
@@ -466,7 +467,7 @@ export function EpisodeRadio({
           <Surface tone="outline">
             {retain ? (
               <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-                {retain}
+                {frenchSpacing(retain)}
               </p>
             ) : (
               <p className="av2-body">{copy.radio_retain_none}</p>
