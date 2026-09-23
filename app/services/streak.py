@@ -34,6 +34,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from app.db.models.streak_day import STREAK_DAY_PRACTISED, STREAK_DAY_RELACHE, StreakDay
 from app.db.models.user import User
 
 #: The zone every learner had before WP-80 stored one.
@@ -172,6 +173,26 @@ def read_streak(user: User, *, today: date | None = None, now: datetime | None =
     return _resolve(user, today or local_today(user, now)).state
 
 
+def _mark_day(db: Session, user: User, day: date, kind: str) -> StreakDay:
+    """WP-D5: write the day into the calendar in the same flush as the number.
+
+    Idempotent per (learner, day); a practised day wins over a relâche.
+    """
+
+    with db.no_autoflush:
+        row = (
+            db.query(StreakDay)
+            .filter(StreakDay.user_id == user.id, StreakDay.local_date == day)
+            .one_or_none()
+        )
+    if row is None:
+        row = StreakDay(user_id=user.id, local_date=day, kind=kind)
+        db.add(row)
+    elif row.kind != kind and kind == STREAK_DAY_PRACTISED:
+        row.kind = kind
+    return row
+
+
 def _mirror(user: User, days: int) -> None:
     user.current_streak = days
     user.longest_streak = max(int(getattr(user, "longest_streak", 0) or 0), days)
@@ -186,9 +207,11 @@ def settle_streak(
     day = today or local_today(user, now)
     resolution = _resolve(user, day)
     changed = False
+    marked: list[Any] = []
     if resolution.spend_freeze_on is not None:
         user.streak_freezes = max(0, int(getattr(user, "streak_freezes", 0) or 0) - 1)
         user.streak_freeze_used_on = resolution.spend_freeze_on
+        marked.append(_mark_day(db, user, resolution.spend_freeze_on, STREAK_DAY_RELACHE))
         changed = True
         logger.info(
             "streak: jour de relâche spent",
@@ -203,7 +226,7 @@ def settle_streak(
         changed = True
     if changed:
         db.add(user)
-        db.flush([user])
+        db.flush([user, *marked])
     return resolution.state
 
 
@@ -229,8 +252,9 @@ def record_practice_day(
         user.streak_freezes = freezes + 1
     _mirror(user, days)
     user.mark_activity(day)
+    marked = _mark_day(db, user, day, STREAK_DAY_PRACTISED)
     db.add(user)
-    db.flush([user])
+    db.flush([user, marked])
     return read_streak(user, today=day)
 
 

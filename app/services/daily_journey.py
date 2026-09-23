@@ -131,6 +131,7 @@ from app.services.journey_latency import (
     take_prefetched_scene,
 )
 from app.services.journey_learning import record_daily_practice_streak
+from app.services.seals import edition_no_for
 
 logger = logging.getLogger(__name__)
 
@@ -1380,6 +1381,9 @@ class DailyJourneyService:
                 "cast_intro": _stored_cast_intro(journey),
                 # WP-80: the streak and the absence, read, never written here.
                 **_streak_snapshot_fields(self.db, journey),
+                # WP-D4: the edition, once, so Home, the recap and the seal
+                # collection print the same Nº and press the same seal.
+                "edition_no": edition_no_for(self.db, journey),
             }
         )
 

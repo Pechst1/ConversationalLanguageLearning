@@ -93,6 +93,7 @@ function day(recapOverrides = {}, journeyOverrides = {}) {
     ...FIXTURE,
     recap,
     streak: { days: 4, today_done: true, freeze_available: false, freeze_used_on: null },
+    edition_no: 47,
     ...journeyOverrides,
   };
   return { journey, recap };
@@ -122,29 +123,34 @@ const textOf = (html) => decode(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, '
 
 const FR = journeyCopy('en');
 
-test('a finished day is one screen: streak, words, face, keepsake, teaser, actions', () => {
+test('a finished day is one screen: seal, facts, words, face, teaser, actions', () => {
   const html = render(day());
   const text = textOf(html);
   assert.equal((html.match(/class="journey-recap /g) || []).length, 1, 'exactly one recap');
-  assert.match(text, /Série Jour 4/);
-  assert.match(text, /Mots \+2/);
+  // WP-D4: Scène · Mots · Série, in that order, the streak in days.
+  assert.match(text, /Scène 4 étapes Mots \+2 Série 4 jours/);
   assert.match(text, /un café/);
   assert.match(text, /la terrasse/);
   // The face, in the mood the ledger left, and the line that says so.
   assert.match(html, /portrait-happy\.webp/);
   assert.match(html, /margaux_barman/);
   assert.match(text, /Margaux vous sourit ↑/);
-  // The keepsake vignette, stamped with the mark.
+  // WP-D4: the Seal presses as the hero, captioned with the keepsake.
+  assert.equal((html.match(/class="av2-seal"/g) || []).length, 1, 'exactly one seal');
+  assert.match(html, /class="av2-seal"[^>]*data-stamp="true"/);
+  assert.match(html, /data-edition="47"/);
+  assert.match(html, /data-variant="frieze"/, 'edition 47 always presses the same seal');
+  assert.match(html, /aria-label="Sceau Nº 47 · [^"]+"/);
   assert.match(html, /data-keepsake="33333333-3333-4333-8333-333333333301"/);
-  assert.match(html, /le_mistral-counter\.webp/);
+  assert.match(text, /Atelier · le feuilleton/);
   assert.match(text, /Un café au Mistral/);
   assert.match(text, /Le Mistral · 22 sept\./);
-  assert.match(html, /aria-label="Journée bouclée"/);
   // «La suite demain».
   assert.match(text, /La suite demain « Je vous garde une place au Mistral\. Vous venez \? » — Marin/);
-  // Actions: «Continuer» primary, «Plus de pratique» quiet.
-  assert.match(html, /av2-btn--primary/);
-  assert.match(text, /Continuer/);
+  // Actions: «Ranger le sceau» the one primary, «Plus de pratique» quiet.
+  assert.equal((html.match(/av2-btn--primary/g) || []).length, 1);
+  assert.match(text, /Ranger le sceau/);
+  assert.doesNotMatch(text, /Continuer/);
   assert.match(html, /av2-btn--quiet/);
   assert.match(text, /Plus de pratique/);
 });
@@ -165,7 +171,8 @@ test('the deleted lines stay deleted and no number is invented', () => {
 
   // Zero streak and zero words: the facts are absent, not «0».
   const bare = textOf(render(day({ words: [] }, { streak: { days: 0, today_done: false, freeze_available: false, freeze_used_on: null } })));
-  assert.doesNotMatch(bare, /Série|Jour 0|Mots/);
+  assert.doesNotMatch(bare, /Série|0 jours|Mots/);
+  assert.match(textOf(render(day({}, { streak: { days: 1, today_done: true, freeze_available: false, freeze_used_on: null } }))), /Série 1 jour\b/);
 });
 
 test('a mood line only when the ledger moved today; the face still reacts', () => {
@@ -198,12 +205,27 @@ test('the level move: once, honest, with its evidence', () => {
   assert.doesNotMatch(textOf(render(day())), /Niveau/);
 });
 
-test('a partial day: no keepsake, no teaser', () => {
+test('a partial day: no seal, no keepsake, no teaser', () => {
   const { journey, recap } = day({ completion_kind: 'early' }, { status: 'ended_early' });
   const html = render({ journey, recap });
   assert.match(html, /data-state="partial"/);
+  // WP-D4: an early stop never presses a seal.
+  assert.doesNotMatch(html, /av2-seal/);
+  assert.doesNotMatch(textOf(html), /Ranger le sceau/);
+  assert.match(textOf(html), /Continuer/);
+  assert.equal(model.rewardView(journey, recap, 'en').seal, null);
   assert.doesNotMatch(html, /data-keepsake/);
   assert.doesNotMatch(textOf(html), /La suite demain/);
+});
+
+test('the same edition always presses the same seal; no edition, the logo', () => {
+  const a = model.rewardView(day().journey, day().recap, 'en').seal;
+  const b = model.rewardView(day({}, { edition_no: 47 }).journey, day().recap, 'en').seal;
+  assert.deepEqual(a, b);
+  assert.equal(a.no, 47);
+  const none = model.rewardView(day({}, { edition_no: null }).journey, day().recap, 'en').seal;
+  assert.equal(none.no, null);
+  assert.equal(none.variant, 'quad');
 });
 
 test('a recap written before WP-79 still shows its words and steps', () => {
@@ -249,7 +271,7 @@ test('the recap chrome stays under 15 words', () => {
     RECAP_CHROME.words_label,
     RECAP_CHROME.scene_label,
     RECAP_CHROME.teaser_label,
-    FR.continue,
+    RECAP_CHROME.keep_seal,
     'Plus de pratique',
   ].join(' ');
   assert.ok(chrome.split(/\s+/).length <= 15, chrome);
@@ -309,7 +331,9 @@ test('Home after the day: the streak carries the done mark, the Séance tile rea
   assert.doesNotMatch(before, /journée bouclée/);
 
   const after = home({ dayDone: true });
-  assert.match(after, /aria-label="4 jours de suite · journée bouclée · réglages"/);
+  // WP-D5: the streak opens «Vos sceaux».
+  assert.match(after, /aria-label="4 jours de suite · journée bouclée · vos sceaux"/);
+  assert.match(after, /href="\/notebook\?mode=releve#sceaux"/);
   assert.match(after, /av2-home__streak[^"]*"[^>]*data-state="done"/);
   assert.match(textOf(after), /Séance Journée bouclée/);
   assert.doesNotMatch(textOf(after), /1 règle · exercices/);

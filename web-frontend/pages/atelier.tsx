@@ -1739,6 +1739,8 @@ export default function AtelierPage() {
               becauseLine={becauseLine}
               // WP-D1: today's journey, drawn by the mark as the day's plan.
               dayJourney={journey.journey}
+              // WP-D4: the journey's own edition, so Home and the recap agree.
+              journeyEditionNo={journey.envelope?.journey?.edition_no ?? null}
             />
           </>
         ) : (
@@ -1877,12 +1879,16 @@ function RewardMomentOverlay({
         {isLogoToken ? (
           <LogoToken pop />
         ) : (
-          <Seal
-            stamp
-            tone="gilt"
-            variant={(moment.collectible?.metadata?.seal_variant as SealVariant) || 'row'}
-            date={String(moment.collectible?.metadata?.date || '')}
-          />
+          // WP-D4: the Seal is an av2 component; outside the av2 shell it
+          // brings its own token scope.
+          <div className="av2 av2-seal-host">
+            <Seal
+              stamp
+              tone="gilt"
+              variant={(moment.collectible?.metadata?.seal_variant as SealVariant) || 'row'}
+              date={String(moment.collectible?.metadata?.date || '')}
+            />
+          </div>
         )}
         <div>
           <span>{eyebrow}</span>
@@ -2042,6 +2048,7 @@ function TodayView({
   practiceEntry,
   becauseLine,
   dayJourney = null,
+  journeyEditionNo = null,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2071,6 +2078,8 @@ function TodayView({
    * carries the day's plan and the plan row replaces the tiles.
    */
   dayJourney?: JourneySnapshot | null;
+  /** WP-D4: `journey.edition_no` from the day's journey, when there is one. */
+  journeyEditionNo?: number | null;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2180,6 +2189,7 @@ function TodayView({
   // ---- La Une (front page) mapping: every field below maps onto real API data. ----
   const isRest = recommendation.kind === 'rest';
   const episodeNumber = (() => {
+    if (typeof journeyEditionNo === 'number' && journeyEditionNo > 0) return journeyEditionNo;
     const idx = Number(serialEpisode?.episode_index);
     return Number.isFinite(idx) ? idx + 1 : 1;
   })();
@@ -2486,6 +2496,8 @@ function TodayView({
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
       dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}
       settingsHref="/settings"
+      // WP-D5: the streak opens «Vos sceaux» in Cahier → Relevé.
+      streakHref="/notebook?mode=releve#sceaux"
       notice={loadError ? { label: loadError.label, message: loadError.message, onRetry: onRetry } : null}
       episode={homeEpisode}
       action={homeAction}

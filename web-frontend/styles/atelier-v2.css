@@ -2794,6 +2794,7 @@
 }
 /* end WP-D1 / WP-D3 */
 
+/* ====================================================================
 /* ===========================================================================
    WP-D2 — the cast reacts; WP-D7 — the tile's mould.
    Append-only block, scoped under `.av2`, `--av2-*` tokens only.
@@ -2831,3 +2832,208 @@
 .av2 .av2-tile__ghost { visibility: hidden; }
 .av2 .av2-tiles__line .av2-tile { cursor: default; }
 /* end WP-D2 / WP-D7 */
+
+/* ===========================================================================
+   WP-D4 · The Seal (components/ui/Seal.tsx), rebuilt in the av2 language.
+   A card-face disc on the large press, no ink border, no offset shadow; the
+   words around it in Instrument Sans 600, sentence case, --av2-muted; a
+   paper well holding the logo's four shapes, filled, each on its *-deep
+   press, no strokes anywhere.
+   =========================================================================== */
+
+.av2.av2-seal-host {
+  display: inline-block;
+  background: transparent;
+}
+
+.av2 .av2-seal {
+  --av2-seal-size: 168px;
+  display: inline-grid;
+  place-items: center;
+  padding-bottom: var(--av2-press-lg);
+}
+.av2 .av2-seal[data-size='lg'] {
+  --av2-seal-size: 216px;
+}
+
+.av2 .av2-seal__disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--av2-seal-size);
+  height: var(--av2-seal-size);
+  border-radius: 50%;
+  background: var(--av2-card);
+  box-shadow: 0 var(--av2-press-lg) 0 var(--av2-line-2);
+}
+
+.av2 .av2-seal__words {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.av2 .av2-seal__line {
+  font-family: var(--av2-sans);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: normal;
+  text-transform: none;
+  fill: var(--av2-muted);
+}
+.av2 .av2-seal[data-tone='gilt'] .av2-seal__line {
+  fill: var(--av2-yellow-deep);
+}
+
+.av2 .av2-seal__well {
+  position: relative;
+  width: 66%;
+  height: 66%;
+  border-radius: 50%;
+  background: var(--av2-paper);
+  box-shadow: inset 0 3px 0 var(--av2-line);
+}
+.av2 .av2-seal__well svg,
+.av2 .av2-seal-mini__well svg {
+  position: absolute;
+  inset: 12%;
+  width: 76%;
+  height: 76%;
+  overflow: visible;
+}
+
+.av2 .av2-seal__form {
+  stroke: none;
+}
+.av2 .av2-seal__form--circle { fill: var(--av2-blue); }
+.av2 .av2-seal__form--square { fill: var(--av2-yellow); }
+.av2 .av2-seal__form--tri { fill: var(--av2-red); }
+.av2 .av2-seal__form--block { fill: var(--av2-ink); }
+.av2 .av2-seal__form--circle.is-press { fill: var(--av2-blue-deep); }
+.av2 .av2-seal__form--square.is-press { fill: var(--av2-yellow-deep); }
+.av2 .av2-seal__form--tri.is-press { fill: var(--av2-red-deep); }
+.av2 .av2-seal__form--block.is-press { fill: var(--av2-ink-deep); }
+
+/* The press: the disc comes down onto the page once, and its press lands. */
+.av2 .av2-seal[data-stamp='true'] .av2-seal__disc {
+  animation: av2-seal-press 0.52s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+@keyframes av2-seal-press {
+  0% {
+    transform: translateY(-14px) scale(1.06);
+    box-shadow: 0 22px 0 var(--av2-line-2);
+  }
+  62% {
+    transform: translateY(3px) scale(0.985);
+    box-shadow: 0 5px 0 var(--av2-line-2);
+  }
+  100% {
+    transform: none;
+    box-shadow: 0 var(--av2-press-lg) 0 var(--av2-line-2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av2 .av2-seal[data-stamp='true'] .av2-seal__disc {
+    animation: none;
+  }
+}
+
+/* ---- SealMini: the collection's discs (WP-D5) ---- */
+.av2 .av2-seal-mini {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.av2 .av2-seal-mini__disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--av2-card);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2);
+}
+.av2 .av2-seal-mini__well {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: var(--av2-paper);
+}
+.av2 .av2-seal-mini__well svg {
+  inset: 10%;
+  width: 80%;
+  height: 80%;
+}
+.av2 .av2-seal-mini__token {
+  width: 70%;
+  height: 70%;
+}
+.av2 .av2-seal-mini[data-state='missed'] .av2-seal-mini__disc {
+  background: var(--av2-line);
+  box-shadow: none;
+}
+.av2 .av2-seal-mini[data-state='relache'] .av2-seal-mini__disc,
+.av2 .av2-seal-mini[data-state='today'] .av2-seal-mini__disc,
+.av2 .av2-seal-mini[data-state='future'] .av2-seal-mini__disc {
+  background: transparent;
+  box-shadow: none;
+  border: 2px dashed var(--av2-line-2);
+}
+.av2 .av2-seal-mini[data-state='today'] .av2-seal-mini__disc {
+  border-color: var(--av2-red);
+}
+.av2 .av2-seal-mini[data-state='future'] .av2-seal-mini__disc {
+  border-style: dotted;
+}
+.av2 .av2-seal-mini__no {
+  font-family: var(--av2-sans);
+  font-size: var(--av2-t-meta);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--av2-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- WP-D5 · «Vos sceaux» (components/releve/SealCollection.tsx) ---- */
+.av2 .av2-seals__week-days,
+.av2 .av2-seals__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  column-gap: 4px;
+  row-gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.av2 .av2-seals__week-days {
+  margin-bottom: 8px;
+  text-align: center;
+}
+.av2 .av2-seals__today {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.av2 .av2-seals__today .av2-seal-mini {
+  flex: 0 0 44px;
+}
+.av2 .av2-seals__today-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* ---- WP-D4 · the recap's hero ---- */
+.av2 .av2-recap__seal {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}

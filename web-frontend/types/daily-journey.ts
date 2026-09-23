@@ -357,6 +357,8 @@ export type JourneySnapshot = {
   streak?: StreakView | null;
   /** WP-80: whole local days with no practice before this day. From 2: «Reprise en douceur». */
   missed_days?: number;
+  /** WP-D4: the edition this day played; its seal composition is fixed by it. */
+  edition_no?: number | null;
 };
 
 /**

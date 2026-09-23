@@ -51,11 +51,13 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
+from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 
 __all__ = [
     "User",
+    "StreakDay",
     "RefreshToken",
     "VocabularyWord",
     "VerbConjugation",

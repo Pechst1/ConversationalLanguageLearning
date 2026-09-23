@@ -76,7 +76,7 @@ def read_streak(
     current_user: User = Depends(deps.get_current_user),
     service: AnalyticsService = Depends(deps.get_analytics_service),
 ) -> StreakInfo:
-    """Return streak counts and calendar data."""
+    """Return the streak and «Vos sceaux», read from the same rows (WP-D5)."""
 
     return service.get_streak_info(user=current_user, window_days=window_days)
 

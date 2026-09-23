@@ -1,14 +1,15 @@
 /**
- * WP-79 — the end of the day, as a reward. One screen:
+ * WP-79 + WP-D4 — the end of the day, as a reward. One screen:
  *
- *   the keepsake vignette (the day's scene, stamped with the mark) and the one
- *   headline → three facts (Série «Jour N» · Mots «+N» · Scène) → the words →
- *   the character's face and how the day left them → a level move, when the
- *   estimate moved → «La suite demain» → «Continuer», quiet «Plus de pratique».
+ *   the Seal pressing (a *completed* day only; an early stop never shows one)
+ *   and the one headline → three facts (Scène · Mots «+N» · Série «N jours»)
+ *   → the words → the character's face and how the day left them → a level
+ *   move, when the estimate moved → «La suite demain» → «Ranger le sceau»
+ *   («Continuer» after an early stop), quiet «Plus de pratique».
  *
  * Calm on purpose: no confetti, no mascot — the cast's face is the reward. The
- * one motion is the vignette settling in (`av2-feel-pop`), which Reduce Motion
- * removes with every other `.av2` animation. The day-complete haptic and sound
+ * one motion is the Seal's press (`av2-seal-press`), which Reduce Motion
+ * removes. The day-complete haptic and sound
  * are `useJourneyFeel`'s «complete» moment, felt once on the transition that
  * opens this screen.
  *
@@ -19,7 +20,8 @@
 
 import React from 'react';
 
-import { Action, AtelierMark, Artwork, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
+import { Action, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
+import { Seal } from '@/components/ui/Seal';
 import { PRACTICE_LABEL } from '@/lib/atelier-next';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnapshot } from '@/types/daily-journey';
@@ -54,6 +56,7 @@ export function JourneyRecap({
   const partial = view?.partial ?? journey.status === 'ended_early';
   const keepsake = view?.keepsake ?? null;
   const date = keepsakeDate(keepsake?.local_date);
+  const seal = partial ? null : view?.seal ?? null;
 
   // «Plus de pratique» opens the drill loop on what today practised when the
   // server named a place for it; otherwise the general entry.
@@ -74,22 +77,23 @@ export function JourneyRecap({
       aria-label={partial ? copy.finished_partial_title : copy.finished_title}
     >
       <Surface tone={partial ? 'outline' : 'paper'} shape="hero" className="av2-recap__header">
-        {keepsake && (
-          <figure className="av2-reward__keepsake" data-keepsake={keepsake.collectible_id}>
-            <div className="av2-reward__vignette">
-              <Artwork url={keepsake.image_url} alt="" fallbackLabel={keepsake.title_fr} />
-              <span className="av2-reward__stamp">
-                <AtelierMark size={30} title="Journée bouclée" />
-              </span>
-            </div>
-            <figcaption className="av2-reward__caption">
-              <span className="av2-fr av2-reward__title" lang="fr">
-                {keepsake.title_fr}
-              </span>
-              <span className="av2-label">
-                {[keepsake.location_name, date].filter(Boolean).join(' · ')}
-              </span>
-            </figcaption>
+        {seal && (
+          <figure
+            className="av2-recap__seal"
+            data-edition={seal.no ?? undefined}
+            data-keepsake={keepsake?.collectible_id}
+          >
+            <Seal stamp size="lg" variant={seal.variant} no={seal.no} date={seal.date ?? ''} />
+            {keepsake && (
+              <figcaption className="av2-reward__caption">
+                <span className="av2-fr av2-reward__title" lang="fr">
+                  {keepsake.title_fr}
+                </span>
+                <span className="av2-label">
+                  {[keepsake.location_name, date].filter(Boolean).join(' · ')}
+                </span>
+              </figcaption>
+            )}
           </figure>
         )}
         <h2 className="av2-headline">{partial ? copy.finished_partial_title : copy.finished_title}</h2>
@@ -183,7 +187,7 @@ export function JourneyRecap({
       <div className="av2-recap__actions">
         {onExit && (
           <Action tone="primary" onClick={onExit}>
-            {copy.continue}
+            {seal ? RECAP_CHROME.keep_seal : copy.continue}
           </Action>
         )}
         {practice && (
