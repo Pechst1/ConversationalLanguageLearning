@@ -1755,19 +1755,31 @@ class AtelierScheduler:
         # walk only ever goes down, never up into unplaced material.
         studied_ids = select(UserGrammarProgress.concept_id).where(UserGrammarProgress.user_id == user.id)
         # WP-L2: a unit is never introduced before its prerequisites. "Introduced"
-        # means the learner has a progress row for it. v1 concepts have no
-        # prerequisites, so every one of them is ready and the picks are unchanged.
+        # means the learner has a progress row for it — or the prerequisite sits
+        # in a CEFR level below the learner's own (placement or estimate says
+        # they know it; without this an A2-placed newcomer would be walked back
+        # to A1.1, undoing WP-67). v1 concepts have no prerequisites, so every
+        # one of them is ready and the picks are unchanged.
+        band = placement_band(self.db, user)
         introduced_ids = {
             concept_id
             for (concept_id,) in self.db.query(UserGrammarProgress.concept_id)
             .filter(UserGrammarProgress.user_id == user.id)
             .all()
         }
+        own_levels = _cefr_levels_at_or_below(user, placement=band)
+        below_own_level = set(own_levels[:-1])
+        if below_own_level:
+            introduced_ids |= {
+                concept_id
+                for (concept_id,) in self.db.query(GrammarConcept.id)
+                .filter(GrammarConcept.active.is_(True), GrammarConcept.level.in_(below_own_level))
+                .all()
+            }
 
         def ready(concept: GrammarConcept) -> bool:
             return concept.id in introduced_ids or _prerequisites_met(concept, introduced_ids)
 
-        band = placement_band(self.db, user)
         if len(selected) < 2:
             eligible_levels = _cefr_levels_at_or_below(user, placement=band)
             cold_start_concepts: list[GrammarConcept] = []

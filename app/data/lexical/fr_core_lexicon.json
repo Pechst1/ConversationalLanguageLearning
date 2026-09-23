@@ -1255,7 +1255,7 @@
   },
   "préférer": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 248
   },
   "choisir": {
@@ -1315,12 +1315,12 @@
   },
   "adorer": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 260
   },
   "détester": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 261
   },
   "préparer": {
@@ -1535,7 +1535,7 @@
   },
   "cuisine": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 304
   },
   "salle": {
@@ -1605,12 +1605,12 @@
   },
   "marché": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 318
   },
   "gare": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 319
   },
   "train": {
@@ -1650,7 +1650,7 @@
   },
   "prix": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 327
   },
   "addition": {
@@ -1660,7 +1660,7 @@
   },
   "carte": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 329
   },
   "billet": {
@@ -1875,7 +1875,7 @@
   },
   "pharmacie": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 372
   },
   "hôpital": {
@@ -1885,7 +1885,7 @@
   },
   "banque": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 374
   },
   "poste": {
@@ -1920,12 +1920,12 @@
   },
   "musique": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 381
   },
   "film": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 382
   },
   "photo": {
@@ -1950,7 +1950,7 @@
   },
   "pays": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 387
   },
   "ticket": {
@@ -2300,7 +2300,7 @@
   },
   "monnaie": {
    "band": "A1",
-   "sub_band": "A1.2",
+   "sub_band": "A1.1",
    "rank": 457
   },
   "caisse": {
@@ -5114,13 +5114,13 @@
    "rank": 1019
   },
   "kilo": {
-   "band": "A2",
-   "sub_band": "A2.1",
+   "band": "A1",
+   "sub_band": "A1.2",
    "rank": 1020
   },
   "gramme": {
-   "band": "A2",
-   "sub_band": "A2.1",
+   "band": "A1",
+   "sub_band": "A1.2",
    "rank": 1021
   },
   "litre": {

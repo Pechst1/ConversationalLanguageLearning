@@ -1,0 +1,1081 @@
+{
+ "version": "fr-core-can-dos-v1",
+ "catalog_version": "fr-core-v2",
+ "language": "fr",
+ "provenance": "WP-L2 (2026-09-23): LLM draft from the CEFR descriptors, Beacco's reference level descriptions and the DELF A1–B2 task types; review_status draft. Each task lists the grammar units (fr-core-v2 external_ids) and core-lexicon lemmas it exercises; WP-L7's checkpoint episode tests them.",
+ "review_status": "draft",
+ "sub_bands": {
+  "A1.1": [
+   {
+    "id": "CD_A11_GREET",
+    "title_fr": "saluer et se présenter",
+    "title_en": "greet someone and introduce yourself",
+    "title_de": "jemanden begrüßen und sich vorstellen",
+    "units": [
+     "FR2_A11_ETRE",
+     "FR2_A11_AVOIR",
+     "FR2_A11_PLACES"
+    ],
+    "words": [
+     "bonjour",
+     "salut",
+     "nom",
+     "âge",
+     "habiter",
+     "ville",
+     "pays",
+     "français"
+    ]
+   },
+   {
+    "id": "CD_A11_ORDER_CAFE",
+    "title_fr": "commander au café",
+    "title_en": "order at a café",
+    "title_de": "im Café bestellen",
+    "units": [
+     "FR2_A11_JE_VOUDRAIS",
+     "FR2_A11_UN_UNE",
+     "FR2_A11_PARTITIVE",
+     "FR2_A11_NUMBERS"
+    ],
+    "words": [
+     "café",
+     "thé",
+     "eau",
+     "pain",
+     "merci",
+     "s'il",
+     "addition",
+     "euro"
+    ]
+   },
+   {
+    "id": "CD_A11_PAY",
+    "title_fr": "demander un prix et payer",
+    "title_en": "ask a price and pay",
+    "title_de": "nach dem Preis fragen und bezahlen",
+    "units": [
+     "FR2_A11_QUESTION_WORDS",
+     "FR2_A11_NUMBERS",
+     "FR2_A11_FAIRE_PRENDRE"
+    ],
+    "words": [
+     "combien",
+     "coûter",
+     "prix",
+     "payer",
+     "carte",
+     "monnaie",
+     "euro"
+    ]
+   },
+   {
+    "id": "CD_A11_FAMILY",
+    "title_fr": "parler de sa famille",
+    "title_en": "talk about your family",
+    "title_de": "über die eigene Familie sprechen",
+    "units": [
+     "FR2_A11_POSSESSIVES",
+     "FR2_A11_AVOIR",
+     "FR2_A11_ADJ_AGREEMENT"
+    ],
+    "words": [
+     "famille",
+     "père",
+     "mère",
+     "frère",
+     "sœur",
+     "enfant",
+     "petit",
+     "grand"
+    ]
+   },
+   {
+    "id": "CD_A11_LIKES",
+    "title_fr": "dire ce qu'on aime ou n'aime pas",
+    "title_en": "say what you like and don't like",
+    "title_de": "sagen, was man mag und nicht mag",
+    "units": [
+     "FR2_A11_ER_VERBS",
+     "FR2_A11_LE_LA",
+     "FR2_A11_NEGATION"
+    ],
+    "words": [
+     "aimer",
+     "adorer",
+     "détester",
+     "préférer",
+     "musique",
+     "film",
+     "cuisine"
+    ]
+   },
+   {
+    "id": "CD_A11_WHERE",
+    "title_fr": "demander où se trouve un lieu",
+    "title_en": "ask where a place is",
+    "title_de": "fragen, wo ein Ort ist",
+    "units": [
+     "FR2_A11_QUESTION_WORDS",
+     "FR2_A11_IL_Y_A",
+     "FR2_A11_CONTRACTIONS"
+    ],
+    "words": [
+     "où",
+     "gare",
+     "pharmacie",
+     "banque",
+     "rue",
+     "ici",
+     "là"
+    ]
+   },
+   {
+    "id": "CD_A11_GOING",
+    "title_fr": "dire où on va et d'où on vient",
+    "title_en": "say where you are going and where you come from",
+    "title_de": "sagen, wohin man geht und woher man kommt",
+    "units": [
+     "FR2_A11_ALLER_VENIR",
+     "FR2_A11_PLACES",
+     "FR2_A11_CONTRACTIONS"
+    ],
+    "words": [
+     "aller",
+     "venir",
+     "marché",
+     "travail",
+     "école",
+     "maison"
+    ]
+   },
+   {
+    "id": "CD_A11_YESNO",
+    "title_fr": "poser une question simple et répondre oui ou non",
+    "title_en": "ask a simple question and answer yes or no",
+    "title_de": "eine einfache Frage stellen und mit ja oder nein antworten",
+    "units": [
+     "FR2_A11_QUESTIONS",
+     "FR2_A11_NEGATION"
+    ],
+    "words": [
+     "oui",
+     "non",
+     "pas",
+     "question",
+     "réponse"
+    ]
+   }
+  ],
+  "A1.2": [
+   {
+    "id": "CD_A12_ROUTINE",
+    "title_fr": "raconter sa journée type",
+    "title_en": "describe your typical day",
+    "title_de": "den eigenen Tagesablauf beschreiben",
+    "units": [
+     "FR2_A12_PRONOMINAL",
+     "FR2_A12_TIME",
+     "FR2_A12_FREQUENCY"
+    ],
+    "words": [
+     "lever",
+     "coucher",
+     "matin",
+     "soir",
+     "heure",
+     "toujours",
+     "souvent",
+     "travailler"
+    ]
+   },
+   {
+    "id": "CD_A12_APPOINTMENT",
+    "title_fr": "fixer un rendez-vous",
+    "title_en": "arrange to meet",
+    "title_de": "sich verabreden",
+    "units": [
+     "FR2_A12_DAYS_DATES",
+     "FR2_A12_TIME",
+     "FR2_A12_MODALS"
+    ],
+    "words": [
+     "rendez-vous",
+     "demain",
+     "lundi",
+     "heure",
+     "pouvoir",
+     "libre",
+     "occupé"
+    ]
+   },
+   {
+    "id": "CD_A12_PLANS",
+    "title_fr": "parler de ses projets pour le week-end",
+    "title_en": "talk about weekend plans",
+    "title_de": "über Pläne fürs Wochenende sprechen",
+    "units": [
+     "FR2_A12_FUTUR_PROCHE",
+     "FR2_A11_FAIRE_PRENDRE"
+    ],
+    "words": [
+     "week-end",
+     "aller",
+     "faire",
+     "visiter",
+     "voir",
+     "ami"
+    ]
+   },
+   {
+    "id": "CD_A12_DIRECTIONS",
+    "title_fr": "demander et donner un itinéraire",
+    "title_en": "ask for and give directions",
+    "title_de": "nach dem Weg fragen und ihn beschreiben",
+    "units": [
+     "FR2_A12_IMPERATIVE",
+     "FR2_A12_PLACE_PREPOSITIONS"
+    ],
+    "words": [
+     "tourner",
+     "droite",
+     "gauche",
+     "tout",
+     "rue",
+     "place",
+     "devant"
+    ]
+   },
+   {
+    "id": "CD_A12_SHOPPING",
+    "title_fr": "faire les courses au marché",
+    "title_en": "shop at the market",
+    "title_de": "auf dem Markt einkaufen",
+    "units": [
+     "FR2_A12_QUANTITIES",
+     "FR2_A12_DEMONSTRATIVES",
+     "FR2_A12_NUMBERS_BIG"
+    ],
+    "words": [
+     "kilo",
+     "bouteille",
+     "pomme",
+     "fromage",
+     "marché",
+     "acheter",
+     "peu",
+     "beaucoup"
+    ]
+   },
+   {
+    "id": "CD_A12_DESCRIBE_PERSON",
+    "title_fr": "décrire une personne",
+    "title_en": "describe a person",
+    "title_de": "eine Person beschreiben",
+    "units": [
+     "FR2_A12_CEST_IL_EST",
+     "FR2_A11_ADJ_AGREEMENT"
+    ],
+    "words": [
+     "grand",
+     "petit",
+     "jeune",
+     "gentil",
+     "sympa",
+     "cheveu",
+     "œil"
+    ]
+   },
+   {
+    "id": "CD_A12_WEEKEND_PAST",
+    "title_fr": "dire ce qu'on a fait hier",
+    "title_en": "say what you did yesterday",
+    "title_de": "sagen, was man gestern gemacht hat",
+    "units": [
+     "FR2_A12_PC_CHUNKS",
+     "FR2_A12_CONNECTORS"
+    ],
+    "words": [
+     "hier",
+     "manger",
+     "voir",
+     "prendre",
+     "faire",
+     "mais"
+    ]
+   },
+   {
+    "id": "CD_A12_INVITE",
+    "title_fr": "inviter quelqu'un et accepter ou refuser",
+    "title_en": "invite someone, accept or decline",
+    "title_de": "jemanden einladen, zusagen oder absagen",
+    "units": [
+     "FR2_A12_MODALS",
+     "FR2_A12_STRESSED_PRONOUNS",
+     "FR2_A11_NEGATION"
+    ],
+    "words": [
+     "vouloir",
+     "venir",
+     "chez",
+     "désolé",
+     "accepter",
+     "refuser",
+     "merci"
+    ]
+   }
+  ],
+  "A2.1": [
+   {
+    "id": "CD_A21_TELL_WEEKEND",
+    "title_fr": "raconter son week-end",
+    "title_en": "tell what you did at the weekend",
+    "title_de": "vom Wochenende erzählen",
+    "units": [
+     "FR2_A21_PC_AVOIR",
+     "FR2_A21_PC_ETRE",
+     "FR2_A21_PC_NEGATION"
+    ],
+    "words": [
+     "week-end",
+     "partir",
+     "rentrer",
+     "sortir",
+     "visiter",
+     "rester"
+    ]
+   },
+   {
+    "id": "CD_A21_SINCE",
+    "title_fr": "dire depuis quand on fait quelque chose",
+    "title_en": "say how long you have been doing something",
+    "title_de": "sagen, seit wann man etwas tut",
+    "units": [
+     "FR2_A21_TIME_PREPOSITIONS"
+    ],
+    "words": [
+     "depuis",
+     "pendant",
+     "an",
+     "mois",
+     "semaine",
+     "apprendre"
+    ]
+   },
+   {
+    "id": "CD_A21_COMPARE",
+    "title_fr": "comparer deux produits ou deux villes",
+    "title_en": "compare two products or two cities",
+    "title_de": "zwei Produkte oder Städte vergleichen",
+    "units": [
+     "FR2_A21_COMPARATIVE",
+     "FR2_A21_SUPERLATIVE"
+    ],
+    "words": [
+     "plus",
+     "moins",
+     "aussi",
+     "cher",
+     "grand",
+     "ville",
+     "pratique"
+    ]
+   },
+   {
+    "id": "CD_A21_REQUEST_POLITELY",
+    "title_fr": "demander un service poliment",
+    "title_en": "ask for a favour politely",
+    "title_de": "höflich um einen Gefallen bitten",
+    "units": [
+     "FR2_A21_POLITE_CONDITIONAL",
+     "FR2_A21_COI"
+    ],
+    "words": [
+     "pouvoir",
+     "aider",
+     "aimer",
+     "demander",
+     "merci"
+    ]
+   },
+   {
+    "id": "CD_A21_HABITS_NEVER",
+    "title_fr": "parler de ce qu'on ne fait plus ou jamais",
+    "title_en": "say what you no longer or never do",
+    "title_de": "sagen, was man nicht mehr oder nie tut",
+    "units": [
+     "FR2_A21_NEG_WORDS",
+     "FR2_A21_Y_PLACE"
+    ],
+    "words": [
+     "jamais",
+     "plus",
+     "rien",
+     "personne",
+     "souvent"
+    ]
+   },
+   {
+    "id": "CD_A21_EXPLAIN_WHY",
+    "title_fr": "expliquer une raison et une conséquence",
+    "title_en": "give a reason and a consequence",
+    "title_de": "einen Grund und eine Folge erklären",
+    "units": [
+     "FR2_A21_CAUSE_CONSEQUENCE"
+    ],
+    "words": [
+     "car",
+     "donc",
+     "alors",
+     "comme",
+     "parce",
+     "retard"
+    ]
+   },
+   {
+    "id": "CD_A21_SHOP_QUANTITIES",
+    "title_fr": "acheter en précisant les quantités",
+    "title_en": "buy things and specify how many",
+    "title_de": "einkaufen und Mengen angeben",
+    "units": [
+     "FR2_A21_EN_QUANTITY",
+     "FR2_A21_COD"
+    ],
+    "words": [
+     "en",
+     "prendre",
+     "kilo",
+     "deux",
+     "bouteille",
+     "vouloir"
+    ]
+   }
+  ],
+  "A2.2": [
+   {
+    "id": "CD_A22_CHILDHOOD",
+    "title_fr": "décrire son enfance",
+    "title_en": "describe your childhood",
+    "title_de": "die eigene Kindheit beschreiben",
+    "units": [
+     "FR2_A22_IMPARFAIT",
+     "FR2_A22_RELATIVE_OU"
+    ],
+    "words": [
+     "enfant",
+     "habiter",
+     "quand",
+     "petit",
+     "souvent",
+     "école"
+    ]
+   },
+   {
+    "id": "CD_A22_ANECDOTE",
+    "title_fr": "raconter une petite anecdote",
+    "title_en": "tell a short anecdote",
+    "title_de": "eine kleine Anekdote erzählen",
+    "units": [
+     "FR2_A22_IMP_VS_PC",
+     "FR2_A21_PC_ETRE"
+    ],
+    "words": [
+     "pendant",
+     "quand",
+     "arriver",
+     "tomber",
+     "voir",
+     "rentrer"
+    ]
+   },
+   {
+    "id": "CD_A22_FUTURE_PLANS",
+    "title_fr": "parler de ses projets d'avenir",
+    "title_en": "talk about your future plans",
+    "title_de": "über Zukunftspläne sprechen",
+    "units": [
+     "FR2_A22_FUTUR_SIMPLE",
+     "FR2_A22_FUTUR_IRREGULAR"
+    ],
+    "words": [
+     "an",
+     "prochain",
+     "devenir",
+     "travailler",
+     "voyager",
+     "espérer"
+    ]
+   },
+   {
+    "id": "CD_A22_RECOMMEND",
+    "title_fr": "recommander un lieu ou un film",
+    "title_en": "recommend a place or a film",
+    "title_de": "einen Ort oder Film empfehlen",
+    "units": [
+     "FR2_A22_RELATIVE_QUI_QUE",
+     "FR2_A22_MEILLEUR_MIEUX",
+     "FR2_A22_ADVICE_CONDITIONAL"
+    ],
+    "words": [
+     "bon",
+     "bien",
+     "conseiller",
+     "film",
+     "restaurant",
+     "devoir"
+    ]
+   },
+   {
+    "id": "CD_A22_PASS_MESSAGE",
+    "title_fr": "transmettre un message",
+    "title_en": "pass on a message",
+    "title_de": "eine Nachricht weitergeben",
+    "units": [
+     "FR2_A22_REPORTED_PRESENT",
+     "FR2_A21_COI"
+    ],
+    "words": [
+     "dire",
+     "demander",
+     "si",
+     "que",
+     "rappeler",
+     "téléphone"
+    ]
+   },
+   {
+    "id": "CD_A22_CHOOSE_OBJECT",
+    "title_fr": "choisir un objet en magasin",
+    "title_en": "choose an item in a shop",
+    "title_de": "im Geschäft etwas auswählen",
+    "units": [
+     "FR2_A22_DEMONSTRATIVE_PRONOUNS",
+     "FR2_A22_PRONOUN_POSITION"
+    ],
+    "words": [
+     "celui",
+     "celle",
+     "préférer",
+     "essayer",
+     "taille",
+     "couleur"
+    ]
+   },
+   {
+    "id": "CD_A22_HOUSING",
+    "title_fr": "décrire son logement et son quartier",
+    "title_en": "describe your home and neighbourhood",
+    "title_de": "Wohnung und Viertel beschreiben",
+    "units": [
+     "FR2_A22_ADJ_SPECIAL",
+     "FR2_A22_TOUT",
+     "FR2_A22_ADVERBS_MENT"
+    ],
+    "words": [
+     "appartement",
+     "quartier",
+     "immeuble",
+     "étage",
+     "calme",
+     "tout",
+     "nouveau",
+     "vieux"
+    ]
+   }
+  ],
+  "B1.1": [
+   {
+    "id": "CD_B11_OPINION",
+    "title_fr": "donner son opinion et la justifier",
+    "title_en": "give and justify an opinion",
+    "title_de": "eine Meinung äußern und begründen",
+    "units": [
+     "FR2_B11_OPINION",
+     "FR2_B11_CAUSE_PREPOSITIONS"
+    ],
+    "words": [
+     "penser",
+     "croire",
+     "trouver",
+     "avis",
+     "opinion",
+     "argument"
+    ]
+   },
+   {
+    "id": "CD_B11_HYPOTHESIS",
+    "title_fr": "imaginer une situation différente",
+    "title_en": "imagine a different situation",
+    "title_de": "sich eine andere Situation vorstellen",
+    "units": [
+     "FR2_B11_SI_TYPE2",
+     "FR2_B11_CONDITIONAL"
+    ],
+    "words": [
+     "si",
+     "imaginer",
+     "pouvoir",
+     "vivre",
+     "changer"
+    ]
+   },
+   {
+    "id": "CD_B11_CONDITIONS",
+    "title_fr": "poser des conditions pour un projet",
+    "title_en": "set conditions for a plan",
+    "title_de": "Bedingungen für ein Vorhaben stellen",
+    "units": [
+     "FR2_B11_SI_TYPE1",
+     "FR2_B11_TEMPORAL_FUTURE"
+    ],
+    "words": [
+     "si",
+     "quand",
+     "dès",
+     "prévoir",
+     "organiser"
+    ]
+   },
+   {
+    "id": "CD_B11_STORY",
+    "title_fr": "raconter une histoire avec un retour en arrière",
+    "title_en": "tell a story with a flashback",
+    "title_de": "eine Geschichte mit Rückblende erzählen",
+    "units": [
+     "FR2_B11_NARRATION",
+     "FR2_B11_PLUS_QUE_PARFAIT"
+    ],
+    "words": [
+     "déjà",
+     "avant",
+     "souvenir",
+     "arriver",
+     "oublier",
+     "raconter"
+    ]
+   },
+   {
+    "id": "CD_B11_ASK_INFO",
+    "title_fr": "se renseigner poliment (questions indirectes)",
+    "title_en": "enquire politely with indirect questions",
+    "title_de": "sich höflich erkundigen (indirekte Fragen)",
+    "units": [
+     "FR2_B11_INDIRECT_QUESTIONS",
+     "FR2_B11_CE_QUI_CE_QUE"
+    ],
+    "words": [
+     "savoir",
+     "demander",
+     "si",
+     "où",
+     "question"
+    ]
+   },
+   {
+    "id": "CD_B11_DESCRIBE_THING",
+    "title_fr": "décrire un objet ou une personne précisément",
+    "title_en": "describe an object or a person precisely",
+    "title_de": "einen Gegenstand oder eine Person genau beschreiben",
+    "units": [
+     "FR2_B11_DONT",
+     "FR2_B11_POSSESSIVE_PRONOUNS"
+    ],
+    "words": [
+     "dont",
+     "parler",
+     "besoin",
+     "mien",
+     "chose"
+    ]
+   },
+   {
+    "id": "CD_B11_LIMITS",
+    "title_fr": "exprimer une restriction ou un refus",
+    "title_en": "express a restriction or a refusal",
+    "title_de": "eine Einschränkung oder Ablehnung ausdrücken",
+    "units": [
+     "FR2_B11_NE_QUE",
+     "FR2_B11_NEG_NI_AUCUN",
+     "FR2_B11_NEG_INFINITIVE"
+    ],
+    "words": [
+     "seulement",
+     "aucun",
+     "ni",
+     "refuser",
+     "préférer"
+    ]
+   }
+  ],
+  "B1.2": [
+   {
+    "id": "CD_B12_ADVISE_NECESSITY",
+    "title_fr": "dire ce qu'il faut faire",
+    "title_en": "say what needs to be done",
+    "title_de": "sagen, was getan werden muss",
+    "units": [
+     "FR2_B12_SUBJ_NECESSITY",
+     "FR2_B12_SUBJ_FORM",
+     "FR2_B12_SUBJ_IRREGULAR"
+    ],
+    "words": [
+     "falloir",
+     "important",
+     "possible",
+     "faire",
+     "venir"
+    ]
+   },
+   {
+    "id": "CD_B12_WISHES",
+    "title_fr": "exprimer un souhait pour quelqu'un d'autre",
+    "title_en": "express a wish for someone else",
+    "title_de": "einen Wunsch für jemand anderen äußern",
+    "units": [
+     "FR2_B12_SUBJ_WILL",
+     "FR2_B12_SUBJ_CONJUNCTIONS"
+    ],
+    "words": [
+     "vouloir",
+     "préférer",
+     "aimer",
+     "pour",
+     "avant"
+    ]
+   },
+   {
+    "id": "CD_B12_DISAGREE",
+    "title_fr": "exprimer un désaccord nuancé",
+    "title_en": "disagree with nuance",
+    "title_de": "differenziert widersprechen",
+    "units": [
+     "FR2_B12_OPINION_SUBJ",
+     "FR2_B12_OPPOSITION"
+    ],
+    "words": [
+     "penser",
+     "pourtant",
+     "alors",
+     "contre",
+     "accord",
+     "avis"
+    ]
+   },
+   {
+    "id": "CD_B12_REPORT",
+    "title_fr": "rapporter une conversation passée",
+    "title_en": "report a past conversation",
+    "title_de": "ein vergangenes Gespräch wiedergeben",
+    "units": [
+     "FR2_B12_REPORTED_PAST"
+    ],
+    "words": [
+     "dire",
+     "expliquer",
+     "répondre",
+     "demander",
+     "raconter"
+    ]
+   },
+   {
+    "id": "CD_B12_NEWS",
+    "title_fr": "résumer une information ou un fait divers",
+    "title_en": "summarise a news item",
+    "title_de": "eine Nachricht zusammenfassen",
+    "units": [
+     "FR2_B12_PASSIVE",
+     "FR2_B12_CONSEQUENCE",
+     "FR2_B12_ORDINALS_FRACTIONS"
+    ],
+    "words": [
+     "accident",
+     "résultat",
+     "crise",
+     "politique"
+    ]
+   },
+   {
+    "id": "CD_B12_HIGHLIGHT",
+    "title_fr": "mettre en valeur l'essentiel",
+    "title_en": "highlight what matters",
+    "title_de": "das Wesentliche hervorheben",
+    "units": [
+     "FR2_B12_MISE_EN_RELIEF",
+     "FR2_B12_CHAQUE_CHACUN"
+    ],
+    "words": [
+     "chaque",
+     "chacun",
+     "important",
+     "surtout"
+    ]
+   },
+   {
+    "id": "CD_B12_SIMULTANEOUS",
+    "title_fr": "expliquer comment on fait deux choses à la fois",
+    "title_en": "explain doing two things at once",
+    "title_de": "erklären, wie man zwei Dinge gleichzeitig tut",
+    "units": [
+     "FR2_B12_GERUND",
+     "FR2_B12_TIME_CLAUSES"
+    ],
+    "words": [
+     "pendant",
+     "en",
+     "écouter",
+     "marcher",
+     "travailler"
+    ]
+   }
+  ],
+  "B2.1": [
+   {
+    "id": "CD_B21_FEELINGS",
+    "title_fr": "réagir avec émotion à une nouvelle",
+    "title_en": "react emotionally to news",
+    "title_de": "emotional auf eine Nachricht reagieren",
+    "units": [
+     "FR2_B21_SUBJ_EMOTION",
+     "FR2_B21_SUBJ_PAST"
+    ],
+    "words": [
+     "content",
+     "triste",
+     "déçu",
+     "regretter",
+     "soulagé"
+    ]
+   },
+   {
+    "id": "CD_B21_DOUBT",
+    "title_fr": "exprimer le doute et la probabilité",
+    "title_en": "express doubt and probability",
+    "title_de": "Zweifel und Wahrscheinlichkeit ausdrücken",
+    "units": [
+     "FR2_B21_SUBJ_DOUBT",
+     "FR2_B21_INDIC_SUBJ"
+    ],
+    "words": [
+     "douter",
+     "possible",
+     "sûrement",
+     "peut-être",
+     "certainement"
+    ]
+   },
+   {
+    "id": "CD_B21_REGRET",
+    "title_fr": "exprimer un regret ou un reproche",
+    "title_en": "express regret or reproach",
+    "title_de": "Bedauern oder einen Vorwurf ausdrücken",
+    "units": [
+     "FR2_B21_CONDITIONAL_PAST",
+     "FR2_B21_SI_TYPE3"
+    ],
+    "words": [
+     "devoir",
+     "pouvoir",
+     "regretter",
+     "reprocher",
+     "si"
+    ]
+   },
+   {
+    "id": "CD_B21_NEGOTIATE",
+    "title_fr": "négocier avec des conditions",
+    "title_en": "negotiate with conditions",
+    "title_de": "mit Bedingungen verhandeln",
+    "units": [
+     "FR2_B21_CONDITION_SUBJ",
+     "FR2_B21_CONCESSION_SUBJ",
+     "FR2_B21_CONCESSION"
+    ],
+    "words": [
+     "accepter",
+     "proposer",
+     "cependant",
+     "toutefois",
+     "malgré",
+     "exiger"
+    ]
+   },
+   {
+    "id": "CD_B21_COMPLAINT",
+    "title_fr": "faire une réclamation argumentée",
+    "title_en": "make a reasoned complaint",
+    "title_de": "eine begründete Reklamation vorbringen",
+    "units": [
+     "FR2_B21_CAUSE_ADVANCED",
+     "FR2_B21_CONSEQUENCE_ADVANCED",
+     "FR2_B21_PURPOSE"
+    ],
+    "words": [
+     "réclamation",
+     "plainte",
+     "puisque",
+     "délai",
+     "rembourser",
+     "demande"
+    ]
+   },
+   {
+    "id": "CD_B21_SERVICES",
+    "title_fr": "faire faire un travail (réparation, service)",
+    "title_en": "get something done by someone else",
+    "title_de": "etwas machen lassen (Reparatur, Dienstleistung)",
+    "units": [
+     "FR2_B21_CAUSATIVE",
+     "FR2_B21_SE_FAIRE_LAISSER"
+    ],
+    "words": [
+     "faire",
+     "réparer",
+     "laisser",
+     "nettoyer",
+     "installer"
+    ]
+   },
+   {
+    "id": "CD_B21_DEADLINES",
+    "title_fr": "parler d'échéances et d'actions accomplies",
+    "title_en": "talk about deadlines and completed actions",
+    "title_de": "über Fristen und abgeschlossene Handlungen sprechen",
+    "units": [
+     "FR2_B21_FUTUR_ANTERIEUR",
+     "FR2_B21_INFINITIF_PASSE"
+    ],
+    "words": [
+     "échéance",
+     "délai",
+     "finir",
+     "terminer",
+     "après",
+     "dès"
+    ]
+   }
+  ],
+  "B2.2": [
+   {
+    "id": "CD_B22_DEBATE",
+    "title_fr": "défendre un point de vue dans un débat",
+    "title_en": "defend a point of view in a debate",
+    "title_de": "in einer Debatte einen Standpunkt verteidigen",
+    "units": [
+     "FR2_B22_ARGUMENT",
+     "FR2_B22_HYPOTHESIS"
+    ],
+    "words": [
+     "débat",
+     "argument",
+     "néanmoins",
+     "d'ailleurs",
+     "conclusion",
+     "critique"
+    ]
+   },
+   {
+    "id": "CD_B22_REPORT_FORMAL",
+    "title_fr": "rapporter précisément des propos",
+    "title_en": "report someone's words precisely",
+    "title_de": "Aussagen genau wiedergeben",
+    "units": [
+     "FR2_B22_REPORTED_SEQUENCE",
+     "FR2_B22_INDIRECT_QUESTIONS_PAST"
+    ],
+    "words": [
+     "prétendre",
+     "avouer",
+     "admettre",
+     "reconnaître",
+     "souligner"
+    ]
+   },
+   {
+    "id": "CD_B22_UNCONFIRMED",
+    "title_fr": "présenter une information non confirmée",
+    "title_en": "present unconfirmed information",
+    "title_de": "eine unbestätigte Information darstellen",
+    "units": [
+     "FR2_B22_CONDITIONAL_HEARSAY",
+     "FR2_B21_PASSIVE_TENSES"
+    ],
+    "words": [
+     "enquête",
+     "selon",
+     "résultat",
+     "politique",
+     "mesure"
+    ]
+   },
+   {
+    "id": "CD_B22_EMPHASIS",
+    "title_fr": "insister sur ce qui compte pour soi",
+    "title_en": "stress what matters to you",
+    "title_de": "betonen, was einem wichtig ist",
+    "units": [
+     "FR2_B22_CE_QUI_EMPHASIS",
+     "FR2_B22_DISLOCATION"
+    ],
+    "words": [
+     "insister",
+     "souligner",
+     "important",
+     "surtout",
+     "vraiment"
+    ]
+   },
+   {
+    "id": "CD_B22_FORMAL_LETTER",
+    "title_fr": "écrire une lettre formelle",
+    "title_en": "write a formal letter",
+    "title_de": "einen formellen Brief schreiben",
+    "units": [
+     "FR2_B22_FORMAL_INVERSION",
+     "FR2_B22_NOMINALISATION",
+     "FR2_B22_PREPOSITIONS_ADVANCED"
+    ],
+    "words": [
+     "demande",
+     "attestation",
+     "procédure",
+     "administration",
+     "justificatif"
+    ]
+   },
+   {
+    "id": "CD_B22_PRECONDITIONS",
+    "title_fr": "anticiper un imprévu",
+    "title_en": "plan for the unexpected",
+    "title_de": "Unvorhergesehenes einplanen",
+    "units": [
+     "FR2_B22_APRES_QUE",
+     "FR2_B22_NE_EXPLETIF",
+     "FR2_B22_HYPOTHESIS"
+    ],
+    "words": [
+     "prévoir",
+     "envisager",
+     "éventuellement",
+     "avant",
+     "après"
+    ]
+   },
+   {
+    "id": "CD_B22_LITERATURE",
+    "title_fr": "comprendre et résumer un récit littéraire",
+    "title_en": "understand and summarise a literary narrative",
+    "title_de": "einen literarischen Text verstehen und zusammenfassen",
+    "units": [
+     "FR2_B22_PASSE_SIMPLE_IRREGULAR",
+     "FR2_B22_STYLISTIC_INVERSION"
+    ],
+    "words": [
+     "raconter",
+     "souvenir",
+     "émouvant",
+     "dire"
+    ]
+   }
+  ]
+ }
+}
