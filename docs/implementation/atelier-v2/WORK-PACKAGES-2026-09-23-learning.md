@@ -183,6 +183,59 @@ and the next scene gives the learner a chance to repair it.
   - a scheduler simulation shows intervals growing with success, collapsing on a lapse, and held
     concepts returning at least every 60 days;
   - the review load per new item is measured, as the input for WP-L6's throttle.
+- **Status (2026-09-23): landed.**
+  - **Model** — `app/core/srs/memory.py`: stability/difficulty/lapses moved by the vocabulary
+    scheduler's own formulas (`FSRSScheduler`, retention 0.9, so interval = stability in days);
+    a lapse comes back in 1 day; **no interval exceeds 60 days** (stability keeps growing to 365).
+  - **Migration** `d1f3a5c7e9b2` (after `c4d6e8f0a2b3`, additive) adds the three columns to
+    `user_grammar_progress`, seeded from the SM-2 fields: S = `next_review − last_review` in days
+    (≥ 1; without that pair the old seed table for the score: ≥9→30, ≥7→14, ≥5→7, ≥3→3, else 1;
+    cap 365); D = clamp(5 + (5 − score)·0.6, 1, 10); lapses = 1 if score < 5. `score`/`state`
+    unchanged (display, CEFR counts). A row without stability is read with the same formula.
+  - **Evidence → rating** (one table, `grade_evidence`; `assisted` = one step down; the weight
+    scales the rating's stability gain):
+
+    | step | evidence | right | wrong |
+    | --- | --- | --- | --- |
+    | 0 | recognise, assisted | Good × 0.25 | Hard |
+    | 1 | recognise (choice / classify / fill) · guided, assisted | Good × 0.5 | Hard |
+    | 2 | guided (tiles / word bank / build) · transform, assisted | Good × 1.0 | Hard |
+    | 3 | transform · production, assisted | Easy × 0.75 | Hard; **production: Again (lapse)** |
+    | 4 | free production in a reply | Easy × 1.0 | **Again (lapse)** |
+    | — | mention in context | no schedule change | — |
+    | — | self-rated Rappel card | its own rating | — |
+
+    Every grammar credit path goes through `apply_grammar_evidence` (Atelier `record_review`
+    with the session's strongest format, journey `_apply_grammar_credit`, erratum-linked credit,
+    live-session replies, Rappel cards, mentions); a test pins it as the only writer of
+    `next_review`.
+  - **Errata** use the same model (`ErrorMemoryService.review_error`; a recurrence collapses S as
+    an Again); three correct repairs on separate days still retire them. The daily-practice error
+    card's private interval table is gone.
+  - **One queue** — `UnifiedSRSService.plan_review_items(user_id, budget_seconds=, now=)`: all
+    due vocab / grammar / errata / conjugation, interleaved in blocks of 6 with ≥ 3 sources when
+    available, never the same concept back to back (an erratum counts as its concept), sized in
+    `RAPPEL_ITEM_SECONDS` (vocab 10 s, grammar 40 s, erratum 25 s, conjugation 20 s). A due
+    concept's contrast partner (`contrast_partners` column or `source_refs["contrast_partners"]`,
+    ids or external ids — WP-L2 fills them) joins when both are introduced and it was not seen for
+    7 days; no data → no-op. «Plus de pratique» (interleaved mode) uses the same interleaver. The
+    journey's candidate pool is unchanged (it re-ranks by scene); WP-L6 wires the planner.
+  - **Simulation** (`app/core/srs/simulation.py`, seeded; 1 new item/day introduced as a guided
+    item + a use in the reply; every due item reviewed on its day with a format that scales with
+    stability; fixed accuracy). Reviews per day **per new item per day**:
+
+    | accuracy | days 30–60 | days 60–90 | **days 90–120** | days 335–365 | lapses (120 d) |
+    | --- | --- | --- | --- | --- | --- |
+    | 70 % | 8.5 | 12.5 | **13.5** | 28.8 | 52 |
+    | 85 % | 5.9 | 6.5 | **8.1** | 14.4 | 30 |
+    | 95 % | 4.0 | 4.9 | **5.9** | 10.6 | 9 |
+
+    Self-rated cards (right → Good, wrong → Again), days 90–120: 22.6 / 10.6 / 8.0. Intervals never
+    shrink on a success, fall to 1 day on every lapse, and over 365 days the longest gap is exactly 60.
+    **For WP-L6:** the load does not plateau — the 60-day cap puts a floor of 1/60 review per day
+    under every item ever learned, so it keeps rising slowly (at 85 %, ≈ +0.8 review/day per new
+    item/day each further month). At 85 % and 40 s a grammar review, one new concept a day costs about
+    5½ minutes of Rappel a day by month four.
 
 #### WP-L4 · The concept's life inside the day
 - An **introduction day**:

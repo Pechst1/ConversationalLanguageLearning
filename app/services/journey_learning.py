@@ -49,6 +49,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.core.srs.memory import Evidence, EvidenceFormat
 from app.db.models.grammar import GrammarConcept
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
@@ -58,11 +59,9 @@ from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import word_gloss
 from app.services.grammar import (
     GrammarService,
-    calculate_next_review,
-    determine_state,
+    apply_grammar_evidence,
     is_machine_note,
     personal_note,
-    previous_interval_days,
 )
 from app.services.journey_contracts import (
     AppliedEvidence,
@@ -169,6 +168,17 @@ GRAMMAR_EVIDENCE_SCORE: dict[EvidenceKind, float] = {
     EvidenceKind.PRODUCED_SUPPORTED: 7.0,
     EvidenceKind.PRODUCED_INDEPENDENT: 8.5,
     EvidenceKind.NOT_YET: 2.0,
+}
+
+#: WP-L3: what each journey observation proves, on the one evidence ladder
+#: (`app.core.srs.memory`), for a grammar concept and an erratum alike. A journey target is posed inside the scene's reply,
+#: so producing it is free production (with or without help), and getting it
+#: wrong there is a lapse.
+JOURNEY_EVIDENCE: dict[EvidenceKind, Evidence] = {
+    EvidenceKind.RECOGNIZED: Evidence(EvidenceFormat.RECOGNISE, correct=True),
+    EvidenceKind.PRODUCED_SUPPORTED: Evidence(EvidenceFormat.PRODUCE, correct=True, assisted=True),
+    EvidenceKind.PRODUCED_INDEPENDENT: Evidence(EvidenceFormat.PRODUCE, correct=True),
+    EvidenceKind.NOT_YET: Evidence(EvidenceFormat.PRODUCE, correct=False),
 }
 
 #: Vocabulary credit events (``app.services.vocabulary_credit``).
@@ -1640,19 +1650,9 @@ def _apply_grammar_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
 
     progress = GrammarService(db).get_or_create_progress(user_id=user.id, concept_id=concept_id)
-    # WP-L1: the interval grows from the concept's own history, exactly as
-    # `GrammarService.record_review` computes it; without it every journey
-    # credit got the first-review seed interval, however often it was seen.
-    interval = calculate_next_review(
-        score,
-        previous_interval_days=previous_interval_days(progress),
-        reps=int(progress.reps or 0),
-    )
-    progress.score = score
-    progress.reps = (progress.reps or 0) + 1
-    progress.last_review = now
-    progress.next_review = now + interval
-    progress.state = determine_state(score, progress.reps)
+    # WP-L3: the one door (`apply_grammar_evidence`), with the weight of what
+    # the journey observed; the concept's own memory carries the history.
+    apply_grammar_evidence(progress, JOURNEY_EVIDENCE[evidence_kind], now=now, score=score)
     note = f"[{JOURNEY_SOURCE_TYPE}] {evidence_kind}"
     if not is_machine_note(note) or not personal_note(progress.notes):
         progress.notes = note
@@ -1666,6 +1666,7 @@ def _apply_grammar_credit(
             "score": score,
             "state": progress.state,
             "next_review": progress.next_review.isoformat(),
+            "stability": progress.stability,
         },
     )
 
@@ -1687,7 +1688,8 @@ def _apply_error_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
     rating, repaired = review
     reviewed = ErrorMemoryService(db).review_error(
-        user=user, error_id=error_id, rating=rating, repaired=repaired, now=now
+        user=user, error_id=error_id, rating=rating, repaired=repaired, now=now,
+        evidence=JOURNEY_EVIDENCE[evidence_kind],
     )
     if reviewed is None:
         return _CreditOutcome(False, {"skipped": "error_missing"})

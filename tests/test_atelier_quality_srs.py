@@ -131,7 +131,11 @@ def test_confident_hit_gets_small_mastery_and_interval_lift(db_session):
     )
 
     assert progress.score == 10.0
-    assert (progress.next_review - progress.last_review).days >= 34
+    # WP-L3: a first correct production grants a 4-day stability; confident
+    # retrieval lifts the due date by 15 % on top.
+    interval = progress.next_review - progress.last_review
+    assert progress.stability == 4.0
+    assert abs(interval.total_seconds() / 86400 - 4 * 1.15) < 1e-3
 
 
 def test_quality_threshold_retires_and_regenerates_exercise_set(db_session):

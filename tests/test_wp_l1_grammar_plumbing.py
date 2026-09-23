@@ -23,7 +23,7 @@ from app.services.atelier import (
     AtelierExerciseGenerator,
     AtelierScheduler,
 )
-from app.services.grammar import GrammarService, calculate_next_review, previous_interval_days
+from app.services.grammar import GrammarService, previous_interval_days
 from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION
 from app.services.llm_service import LLMProviderError, LLMResult
 from tests.test_atelier import _clear_exercise_sets, _concept, _raw_llm_payload
@@ -217,7 +217,10 @@ def test_practiced_in_context_first_time_writes_a_consistent_pair(db_session) ->
         .one()
     )
     assert row.reps == 1
-    assert previous_interval_days(row) == calculate_next_review(5.0).days
+    # WP-L3: a first meeting is the weakest evidence (recognise, with help): a
+    # one-day stability, and a (last_review, next_review) pair that says so.
+    assert row.stability == 1.0
+    assert previous_interval_days(row) == 1
 
 
 # ---------------------------------------------------------------------------
