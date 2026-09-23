@@ -36,6 +36,7 @@ import React from 'react';
 
 import {
   Action,
+  AtelierMark,
   AtelierV2Root,
   CrossIcon,
   IconAction,
@@ -49,6 +50,7 @@ import { useImmersiveSurface } from '@/lib/immersive-surface';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
+import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
   joinMeta,
@@ -92,9 +94,16 @@ export type JourneySessionProps = {
  * verdict is still on screen. Reading `completed` first told the learner they
  * had moved on from a step they had not left (WP-20 D-5).
  */
-function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[] {
+function segmentsOf(
+  steps: PublicStep[],
+  currentId: string | null,
+  face: StepSegment['face'] = null,
+): StepSegment[] {
   return steps.map((step) => ({
     id: step.id,
+    // WP-D3: one shape per step, from WP-D1's step → shape mapping.
+    shape: STEP_SHAPE[step.kind],
+    face: step.id === currentId ? face : null,
     state:
       step.id === currentId
         ? 'active'
@@ -142,7 +151,19 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     window.scrollTo({ top: 0 });
   }, [currentStepId]);
 
-  const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
+  // WP-D3: the active token grins or frowns once the verdict is on screen —
+  // not while the reply is still typing in (WP-76: words first).
+  const tokenFace: StepSegment['face'] =
+    feedback.kind === 'graded'
+      ? feedback.verdict === 'correct'
+        ? 'grin'
+        : feedback.verdict === 'wrong'
+          ? 'frown'
+          : null
+      : null;
+  const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
+  // WP-D1: the mark is the day's plan, in the head's right-hand slot.
+  const dayMark = journey ? dayMarkState(journey) : null;
   const caption = journeyHeaderCaption(journey, (position, total) =>
     stepOfLabel(chrome, position, total),
   );
@@ -174,7 +195,8 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
       <div className="av2-screen">
         {/* The design's session header: close, then the progress rule. The
-            streak slot the design puts on the right is deliberately empty. */}
+            streak slot the design puts on the right holds the mark as the
+            day's plan (WP-D1) — never a streak. */}
         {journey && !immersive && (
           <header className="av2-session__head">
             {onExit && (
@@ -187,6 +209,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
             ) : (
               <span className="av2-label">{copy.progress_none}</span>
             )}
+            {dayMark && <AtelierMark size={28} progress={dayMark.groups} title={dayMark.label} />}
           </header>
         )}
 

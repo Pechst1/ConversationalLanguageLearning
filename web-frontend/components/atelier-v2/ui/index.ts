@@ -25,7 +25,7 @@ export {
   SendIcon,
   StopIcon,
 } from './Shapes';
-export type { ShapeKind, ShapeTokenProps } from './Shapes';
+export type { MarkPartState, MarkProgress, ShapeKind, ShapeTokenProps } from './Shapes';
 
 export { Action, Chip, IconAction } from './Action';
 export type { ActionProps, ActionTone, ChipProps, IconActionProps } from './Action';
