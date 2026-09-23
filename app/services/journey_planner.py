@@ -32,7 +32,7 @@ import hashlib
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
-from app.services import pragmatics
+from app.services import grammar_items, pragmatics
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
     line_spoils_reply,
@@ -188,6 +188,11 @@ PRACTICE_MAX_USES_PER_TARGET = 2
 RHYTHM_FIVE_MINUTES = 300
 #: The cards a matching item shows per side.
 MATCH_PAIR_COUNT = 4
+#: WP-L4 «Règle»: the rule card is a thirty-second read (§2.1).
+RULE_CARD_SECONDS = 30
+#: WP-L4 «Réemploi»: at most this many grammar units are asked for in the
+#: reply, the day's new unit included (§2.4: ≤ 2 per day).
+MAX_REPLY_GRAMMAR_TARGETS = 2
 
 RecallTaskType = Literal["choice", "tiles", "short_answer"]
 
@@ -426,6 +431,10 @@ def candidate_is_demonstrated(candidate: LearningCandidate) -> bool:
     """
 
     metadata = candidate.metadata or {}
+    if isinstance(metadata.get("grammar_brief"), dict):
+        # WP-L4: a grammar unit's own memory says when it is due again; one
+        # past production does not retire it («Tenue» needs more than that).
+        return False
     for key in DEMONSTRATED_FLAG_KEYS:
         if bool(metadata.get(key)):
             return True
@@ -1632,8 +1641,16 @@ def plan_journey(
     audio_available: bool = False,
     first_day: bool = False,
     practice: bool = False,
+    introduction: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``introduction`` (WP-L4) is today's new grammar unit, as a unit brief
+    (:func:`app.services.grammar_units.unit_brief`). On a practice day it adds
+    the «Règle» step (the unit's rule card, after the scene), three or four
+    guided items built from the unit and the scene's lines, and the unit as
+    the reply's grammar target. Everything else in the day shrinks to fit the
+    same budget. Ignored on a first day and on a classic (non-practice) day.
 
     ``practice`` (WP-78) builds a *practice day*: quick recall items around the
     one open reply — warm-ups before the scene, one or two between the scene
@@ -1781,6 +1798,7 @@ def plan_journey(
             resolution_cost=resolution_cost,
             notes=notes,
             partners=partners,
+            introduction=introduction,
         )
 
     # --- shape the recall steps inside whatever headroom is left -----------
@@ -2317,6 +2335,7 @@ def fill_practice_items(
             return 0
         return 1 if uses.get(identity) else 2
 
+    day_key = "|".join(dice.seed_parts) if dice is not None else ""
     for slot, position in order:
         if len(items) >= cap:
             break
@@ -2327,6 +2346,44 @@ def fill_practice_items(
             for entry in entries
             if uses.get(target_identity(entry.target), 0) < max_uses
         ]
+        # WP-L4 «Rappel»: a due grammar unit is one interleaved warm-up, posed
+        # in the format its stability calls for (grammar_items.review_item).
+        grammar_placed: PracticeItem | None = None
+        if slot == "warmup":
+            for entry in ranked:
+                brief = (entry.candidate.metadata or {}).get("grammar_brief")
+                if entry.target.kind is not TargetKind.GRAMMAR or not isinstance(brief, dict):
+                    continue
+                if uses.get(target_identity(entry.target)):
+                    continue
+                task = grammar_items.review_item(
+                    brief,
+                    sentences=list(safe_sentences),
+                    language=scenario.control_language,
+                    day_key=day_key,
+                )
+                if task is None or not shape_allows_format(shape, task.task_type):
+                    continue
+                if grammar_uses(items) >= 1 and _same_concept_last(items, entry.target):
+                    continue
+                cost = grammar_item_seconds(task, spt=spt, multiplier=multiplier)
+                if cost > headroom:
+                    continue
+                grammar_placed = PracticeItem(
+                    slot=slot, position=position, entry=entry, task=task, cost=cost
+                )
+                break
+        if grammar_placed is not None:
+            identity = target_identity(grammar_placed.entry.target)
+            headroom -= grammar_placed.cost
+            # One item per unit per day: the Rappel interleaves, it does not drill.
+            uses[identity] = max_uses
+            used_today[grammar_placed.task.task_type] = (
+                used_today.get(grammar_placed.task.task_type, 0) + 1
+            )
+            items.append(grammar_placed)
+            continue
+        ranked = [entry for entry in ranked if entry.target.kind is not TargetKind.GRAMMAR]
         if slot == "post":
             ranked.sort(key=lambda entry: (today_rank(entry), entries.index(entry)))
         else:
@@ -2378,6 +2435,76 @@ def fill_practice_items(
         used_today[placed.task.task_type] = used_today.get(placed.task.task_type, 0) + 1
         items.append(placed)
     return items
+
+
+def grammar_uses(items: list[PracticeItem]) -> int:
+    return sum(1 for item in items if item.entry.target.kind is TargetKind.GRAMMAR)
+
+
+def _same_concept_last(items: list[PracticeItem], target: TargetRef) -> bool:
+    """Never the same concept back to back (WP-L3's interleaving rule)."""
+
+    return bool(items) and target_identity(items[-1].entry.target) == target_identity(target)
+
+
+def grammar_item_seconds(task: RecallTask, *, spt: float, multiplier: float) -> int:
+    """A grammar item is a quick item whose cards are sentences: they are read."""
+
+    reading = _reading_seconds(spt, *(str(option.get("text_fr") or "") for option in task.options)) \
+        if task.task_type == "choice" else 0.0
+    return max(1, round(quick_recall_seconds(task, spt=spt, multiplier=multiplier) + reading))
+
+
+def rule_card_seconds(card: dict[str, Any] | None, *, spt: float, multiplier: float) -> int:
+    """The Règle: thirty seconds with the card, plus reading its French."""
+
+    card = card or {}
+    texts = [str((card.get("example") or {}).get("fr") or "")]
+    contrast = card.get("contrast") or {}
+    texts.extend([str(contrast.get("wrong") or ""), str(contrast.get("right") or "")])
+    return max(1, round(RULE_CARD_SECONDS * multiplier + _reading_seconds(spt, *texts) * 0.5))
+
+
+def _rule_step(ordinal: int, *, brief: dict[str, Any], card: dict[str, Any], cost: int) -> PlannedStep:
+    return PlannedStep(
+        ordinal=ordinal,
+        kind=StepKind.RULE,
+        estimated_seconds=cost,
+        public_prompt={
+            "concept_id": int(brief["concept_id"]),
+            "title_native": str(brief.get("title_native") or ""),
+            "title_fr": str(brief.get("title_fr") or ""),
+            "rule_card": card,
+        },
+        target=grammar_items.grammar_target(brief),
+    )
+
+
+def _introduction_items(
+    brief: dict[str, Any] | None,
+    *,
+    scenario: ScenarioBrief,
+    sentences: list[str],
+    spt: float,
+    multiplier: float,
+) -> tuple[dict[str, Any] | None, int, list[tuple[RecallTask, int]]]:
+    """The introduction's card, its cost, and its guided items with their costs."""
+
+    if not isinstance(brief, dict) or not brief.get("concept_id"):
+        return None, 0, []
+    card = grammar_items.scene_rule_card(brief, sentences)
+    if not card:
+        return None, 0, []
+    guided = [
+        (task, grammar_item_seconds(task, spt=spt, multiplier=multiplier))
+        for task in grammar_items.guided_items(
+            brief, sentences=sentences, language=scenario.control_language
+        )
+    ]
+    if len(guided) < 2:
+        # A rule with nothing to try is a lecture, not an Essai.
+        return None, 0, []
+    return card, rule_card_seconds(card, spt=spt, multiplier=multiplier), guided
 
 
 def top_up_from_scene(
@@ -2502,8 +2629,14 @@ def _plan_practice_day(
     resolution_cost: int,
     notes: list[str],
     partners: list[TargetRef] | None = None,
+    introduction: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """WP-78 — warm-ups → scene → build → reply → a word from today → ending.
+
+    WP-L4: with an ``introduction``, the Scène movement is scene → rule card →
+    three or four guided items → the day's other builds; its budget is
+    reserved first, and the guided items are dropped from the strongest end
+    (transform, then build) before the introduction is given up.
 
     WP-L6: the same day at every rhythm, with the movements sized by
     :func:`~app.services.journey_contracts.rhythm_caps` of the budget.
@@ -2538,9 +2671,43 @@ def _plan_practice_day(
     # A sentence rebuilt *before* the reply must not be the reply.
     safe_sentences = [line for line in sentences if not line_spoils_reply(line, expected)]
 
+    # WP-L4 «Règle» + «Essai»: the new unit's card and guided items.
+    intro_card, intro_card_cost, intro_items = _introduction_items(
+        introduction,
+        scenario=scenario,
+        sentences=safe_sentences,
+        spt=spt,
+        multiplier=multiplier,
+    )
+    intro_identity = (
+        target_identity(grammar_items.grammar_target(introduction)) if intro_card else None
+    )
+    if intro_identity:
+        entries = [entry for entry in entries if target_identity(entry.target) != intro_identity]
+
+    def intro_reserve(turn_count: int) -> list[tuple[RecallTask, int]]:
+        """The guided items that fit, keeping at least room for the core day."""
+
+        if not intro_card:
+            return []
+        cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
+        room = budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
+        # The rule step and its items share the day's step envelope.
+        kept = list(intro_items)[: max(0, min(caps.max_recall, caps.max_steps - 5))]
+        while kept and sum(item_cost for _task, item_cost in kept) > room:
+            kept.pop()
+        return kept if len(kept) >= 2 else []
+
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
         headroom = budget_seconds - (scene_cost + cost + resolution_cost)
+        reserved = intro_reserve(turn_count)
+        max_items: int | None = None
+        target_items: int | None = None
+        if reserved:
+            headroom -= intro_card_cost + sum(item_cost for _task, item_cost in reserved)
+            max_items = max(0, min(caps.max_recall, caps.max_steps - 5) - len(reserved))
+            target_items = max(0, caps.target_items - len(reserved))
         filled = fill_practice_items(
             scenario=scenario,
             shape=shape,
@@ -2554,6 +2721,7 @@ def _plan_practice_day(
             multiplier=multiplier,
             partners=partners or [],
             caps=caps,
+            max_items=max_items,
         )
         # WP-86: a thin day is topped up from the scene's own lines.
         return cost, top_up_from_scene(
@@ -2566,10 +2734,18 @@ def _plan_practice_day(
             spt=spt,
             multiplier=multiplier,
             caps=caps,
+            target_items=target_items,
         )
 
     respond_cost, items = attempt(turns)
-    if len(items) < caps.target_items and turns > 1:
+    if intro_card and not intro_reserve(turns) and turns > 1 and intro_reserve(turns - 1):
+        # The new unit is worth the reply's second turn.
+        turns -= 1
+        respond_cost, items = attempt(turns)
+        notes.append("reply reduced to one turn so the new rule fits the budget")
+    if len(items) + len(intro_reserve(turns)) < caps.target_items and turns > 1 and not (
+        intro_card and not intro_reserve(turns - 1)
+    ):
         # The reply keeps its repair; it gives up its second turn so the day
         # can hold its quick items — the same trade WP-75 made for day one.
         shorter_cost, shorter = attempt(turns - 1)
@@ -2647,10 +2823,70 @@ def _plan_practice_day(
             },
         )
     )
+    intro_target: TargetRef | None = None
+    intro_entry: SelectedTarget | None = None
+    reserved = intro_reserve(turns)
+    if intro_card and reserved and introduction is not None:
+        intro_target = grammar_items.grammar_target(introduction)
+        steps.append(
+            _rule_step(len(steps), brief=introduction, card=intro_card, cost=intro_card_cost)
+        )
+        intro_entry = SelectedTarget(
+            candidate=LearningCandidate(
+                target=intro_target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=0,
+                is_new=True,
+                source_item_type="grammar",
+                metadata={"introduction": True},
+            ),
+            fit=1.0,
+            demonstrated=False,
+        )
+        for position, (guided, guided_cost) in enumerate(reserved):
+            steps.append(
+                _recall_step(
+                    len(steps),
+                    PracticeItem(
+                        slot="mid", position=-1 - position, entry=intro_entry,
+                        task=guided, cost=guided_cost,
+                    ),
+                )
+            )
+        used_targets.append(intro_entry)
+        notes.append(
+            f"introduction: {intro_target.kind}:{intro_target.id}, rule card + "
+            + ", ".join(guided.task_type for guided, _cost in reserved)
+        )
+    elif introduction is not None:
+        notes.append("introduction skipped: its rule and guided items did not fit")
     for item in placed("mid"):
         steps.append(_recall_step(len(steps), item))
 
     elicited = [entry.target for entry in selection.selected if entry.is_elicitable]
+    # WP-L4 «Emploi» / «Réemploi»: the reply's grammar targets — the new unit
+    # first, then a strong due unit asked for as free use (no item today).
+    grammar_asked: list[TargetRef] = [intro_target] if intro_target is not None else []
+    for entry in entries:
+        brief = (entry.candidate.metadata or {}).get("grammar_brief")
+        if len(grammar_asked) >= MAX_REPLY_GRAMMAR_TARGETS:
+            break
+        if (
+            entry.target.kind is TargetKind.GRAMMAR
+            and isinstance(brief, dict)
+            and brief.get("detectors")
+            and grammar_items.review_band(brief.get("stability")) == "high"
+            and target_identity(entry.target) not in {target_identity(t) for t in grammar_asked}
+        ):
+            grammar_asked.append(entry.target)
+            if target_identity(entry.target) not in {target_identity(e.target) for e in used_targets}:
+                used_targets.append(entry)
+    asked_ids = {target_identity(target) for target in grammar_asked}
+    elicited = [
+        *grammar_asked,
+        *(target for target in elicited if target_identity(target) not in asked_ids),
+    ]
     respond_task = replace(
         task, max_turns=turns, targets=list(elicited), estimated_seconds=respond_cost
     )
@@ -2703,6 +2939,14 @@ def _plan_practice_day(
         )
     )
 
+    if intro_entry is not None:
+        items = [
+            *items,
+            *(
+                PracticeItem(slot="mid", position=-1, entry=intro_entry, task=guided, cost=guided_cost)
+                for guided, guided_cost in reserved
+            ),
+        ]
     rationale = _rationale(
         selected=used_targets,
         recalls=[(item.entry, item.task, item.cost, False) for item in items],
@@ -2815,6 +3059,11 @@ __all__ = [
     "MIN_PACE_OBSERVATIONS",
     "PLANNER_VERSION",
     "RECALL_ANSWER_SECONDS",
+    # WP-L4
+    "MAX_REPLY_GRAMMAR_TARGETS",
+    "RULE_CARD_SECONDS",
+    "grammar_item_seconds",
+    "rule_card_seconds",
     "RECALL_FEEDBACK_SECONDS",
     "REPAIR_ALLOWANCE_SECONDS",
     "RESOLUTION_BASE_SECONDS",
