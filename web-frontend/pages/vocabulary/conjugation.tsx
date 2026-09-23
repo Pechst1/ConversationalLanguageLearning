@@ -15,6 +15,8 @@ import {
   StateBlock,
   Surface,
 } from '@/components/atelier-v2/ui';
+import { fill, lexiqueCopy, nextReviewText, plural } from '@/components/lexique/lexique-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
 import apiService, { ConjugationReviewItem } from '@/services/api';
 
 /* "Les formes irrégulières" — the conjugation drill, on the Claude design
@@ -26,15 +28,17 @@ import apiService, { ConjugationReviewItem } from '@/services/api';
  * 3D-press primary ("Voir le tableau"), the tinted feedback band for the
  * verdict, and the conjugation table drawn as the Séance's choice cards with
  * the asked person carried in blue. The four FSRS grades keep their exact
- * ratings (0–3) and their French labels; they are secondary presses so the
+ * ratings (0–3); their labels, like all of this screen's chrome, follow the
+ * one language rule (WP-82, components/lexique/lexique-copy.ts) while the
+ * verb, the tense and the forms stay French. They are secondary presses so the
  * screen has one primary. Tabs are hidden as on every drill screen; the close
  * control returns to the registre. Recorded as an extension in the report. */
 
 const ratingOptions = [
-  { rating: 0, label: 'À revoir', hint: 'Très bientôt', shape: 'action' },
-  { rating: 1, label: 'Difficile', hint: 'Garder près', shape: 'reward' },
-  { rating: 2, label: 'Correct', hint: 'Rythme normal', shape: 'story' },
-  { rating: 3, label: 'Facile', hint: 'Espacer', shape: 'done' },
+  { rating: 0, label: 'grade_again', hint: 'grade_again_hint', shape: 'action' },
+  { rating: 1, label: 'grade_hard', hint: 'grade_hard_hint', shape: 'reward' },
+  { rating: 2, label: 'grade_good', hint: 'grade_good_hint', shape: 'story' },
+  { rating: 3, label: 'grade_easy', hint: 'grade_easy_hint', shape: 'done' },
 ] as const;
 
 function normalizeAnswer(value: string) {
@@ -46,15 +50,10 @@ function normalizeAnswer(value: string) {
     .toLowerCase();
 }
 
-function nextReviewLabel(value?: string | null) {
-  if (!value) return 'Reprise classée';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Reprise classée';
-  return `Reprise le ${date.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' })}`;
-}
-
 export default function ConjugationReviewPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = lexiqueCopy(language);
   const [items, setItems] = useState<ConjugationReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,7 +73,7 @@ export default function ConjugationReviewPage() {
       setCompleted(0);
     } catch (nextError) {
       console.error(nextError);
-      setError('L’exercice de conjugaison ne répond pas pour l’instant.');
+      setError('unavailable');
     } finally {
       setLoading(false);
     }
@@ -98,14 +97,14 @@ export default function ConjugationReviewPage() {
         tense: current.tense,
         rating,
       });
-      toast.success(nextReviewLabel(result.next_review));
+      toast.success(nextReviewText(t, result.next_review));
       setItems((previous) => previous.slice(1));
       setCompleted((value) => value + 1);
       setTyped('');
       setRevealed(false);
     } catch (nextError) {
       console.error(nextError);
-      toast.error('La reprise n’a pas pu être classée.');
+      toast.error(t.review_failed);
     } finally {
       setSaving(false);
     }
@@ -116,30 +115,31 @@ export default function ConjugationReviewPage() {
   return (
     <>
       <Head>
-        <title>Le Cahier · Conjugaison · L’Atelier</title>
+        <title>{t.conj_head_title}</title>
       </Head>
-      <AtelierV2Root as="main" className="lx-conj" aria-label="Les formes irrégulières">
+      <AtelierV2Root as="main" language={language} className="lx-conj" aria-label={t.conj_title}>
         <div className="av2-screen">
           <header className="av2-session__head">
-            <IconAction label="Revenir au registre" onClick={() => void router.push('/vocabulary')}>
+            <IconAction label={t.conj_close} onClick={() => void router.push('/vocabulary')}>
               <CrossIcon size={16} />
             </IconAction>
-            <ProgressRule value={completed} max={total} label={`${progress}% du tour`} caption={caption} />
+            <ProgressRule value={completed} max={total} label={fill(t.conj_progress, { n: progress })} caption={caption} />
           </header>
 
           <div className="av2-screen__body">
-            <p className="av2-label">
-              Les formes irrégulières
-              {current ? ` · ${current.cefr_band} · ${current.tense_label}` : ''}
+            <p className="av2-label lx-conj__kicker">
+              {t.conj_title}
+              {current ? ` · ${current.cefr_band} · ` : ''}
+              {current ? <span lang="fr">{current.tense_label}</span> : null}
             </p>
 
-            {loading && <StateBlock tone="loading" title="L’exercice se prépare." />}
+            {loading && <StateBlock tone="loading" title={t.conj_loading} />}
 
             {!loading && error && (
               <StateBlock
                 tone="error"
-                title={error}
-                action={{ label: 'Réessayer', onSelect: () => void loadQueue() }}
+                title={t.conj_error}
+                action={{ label: t.retry, onSelect: () => void loadQueue() }}
               />
             )}
 
@@ -147,11 +147,11 @@ export default function ConjugationReviewPage() {
               <>
                 <StateBlock
                   tone="empty"
-                  title="Aucune forme irrégulière en attente."
-                  body={completed ? `${completed} ${completed === 1 ? 'forme reprise' : 'formes reprises'} ce tour.` : undefined}
+                  title={t.conj_empty}
+                  body={completed ? plural(t, 'conj_done', completed) : undefined}
                 />
                 <Link className="av2-btn av2-btn--primary" href="/vocabulary/review">
-                  <ShapeToken kind="action" size="sm" /> Reprendre le vocabulaire
+                  <ShapeToken kind="action" size="sm" /> {t.conj_to_words}
                 </Link>
               </>
             )}
@@ -159,12 +159,12 @@ export default function ConjugationReviewPage() {
             {!loading && !error && current && (
               <>
                 {/* the one Garamond-italic headline on this screen */}
-                <h1 className="av2-headline lx-conj__prompt">
+                <h1 className="av2-headline lx-conj__prompt" lang="fr">
                   {current.lemma} · {current.tense_label} · {current.person}
                 </h1>
 
                 <label className="av2-field">
-                  <span className="av2-field__label">La forme conjuguée</span>
+                  <span className="av2-field__label">{t.conj_field}</span>
                   <input
                     className="av2-field__control lx-input"
                     lang="fr"
@@ -176,8 +176,8 @@ export default function ConjugationReviewPage() {
                         setRevealed(true);
                       }
                     }}
-                    placeholder="Écrivez la forme"
-                    aria-label="Écrivez la forme conjuguée"
+                    placeholder={t.conj_placeholder}
+                    aria-label={t.conj_input_aria}
                     autoComplete="off"
                     autoCapitalize="off"
                   />
@@ -186,7 +186,7 @@ export default function ConjugationReviewPage() {
                 {!revealed && (
                   /* the one tactile 3D press on this screen */
                   <Action tone="primary" disabled={!typed.trim()} onClick={() => setRevealed(true)}>
-                    Voir le tableau
+                    {t.conj_reveal}
                   </Action>
                 )}
 
@@ -196,11 +196,11 @@ export default function ConjugationReviewPage() {
                       <FeedbackBand
                         tone={typedMatches ? 'correct' : 'wrong'}
                         title={current.answer}
-                        detail={typedMatches ? 'Juste' : `Vous avez écrit : ${typed}`}
+                        detail={typedMatches ? t.conj_right : fill(t.verdict_yours, { answer: typed })}
                       />
                     </Surface>
 
-                    <ul className="av2-choices lx-conj__table" aria-label={`${current.lemma} · ${current.tense_label}`}>
+                    <ul className="av2-choices lx-conj__table" lang="fr" aria-label={`${current.lemma} · ${current.tense_label}`}>
                       {current.table.map((row) => {
                         const target = row.person === current.person;
                         return (
@@ -218,19 +218,19 @@ export default function ConjugationReviewPage() {
                       })}
                     </ul>
 
-                    <div className="lx-conj__ratings" role="group" aria-label="Classement de la forme">
+                    <div className="lx-conj__ratings" role="group" aria-label={t.conj_rate_group}>
                       {ratingOptions.map((option) => (
                         <Action
                           key={option.rating}
                           tone="secondary"
                           pending={saving}
-                          pendingLabel={option.label}
+                          pendingLabel={t[option.label]}
                           icon={<ShapeToken kind={option.shape} size="sm" />}
                           onClick={() => submitRating(option.rating)}
-                          title={option.hint}
+                          title={t[option.hint]}
                         >
-                          {option.label}
-                          <span className="av2-sr"> · {option.hint}</span>
+                          {t[option.label]}
+                          <span className="av2-sr"> · {t[option.hint]}</span>
                         </Action>
                       ))}
                     </div>
@@ -250,7 +250,8 @@ export default function ConjugationReviewPage() {
           margin: 0 auto;
           padding: 0 0 calc(24px + var(--av2-safe-bottom));
         }
-        .av2 .lx-conj__prompt { font-size: var(--av2-t-head); }
+        .av2 .lx-conj__prompt { font-size: var(--av2-t-head); overflow-wrap: anywhere; }
+        .av2 .lx-conj__kicker { min-width: 0; overflow-wrap: anywhere; }
         /* globals.css puts an !important 1px ruled border on every input; the
            design's field is a paper well with a 2px focus edge. */
         .av2 .lx-input {
@@ -273,7 +274,7 @@ export default function ConjugationReviewPage() {
           color: var(--av2-muted);
         }
         .av2 .lx-conj__row[data-state='selected'] .lx-conj__person { color: var(--av2-blue); }
-        .av2 .lx-conj__form { flex: 1 1 auto; min-width: 0; }
+        .av2 .lx-conj__form { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
         .av2 .lx-conj__ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
         .av2 .lx-conj__ratings .av2-btn { width: auto; }
         @media (max-width: 360px) {

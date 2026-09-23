@@ -126,11 +126,17 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "session_id: result.session_id" in atelier
     assert "printed-hook" in atelier
 
-    # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
-    # review" / "Queue claire" were the last English strings on the surface.
-    assert 'aria-label="Progression de la révision"' in vocabulary_review
+    # The deck's aria labels and end-of-deck copy were the last hard-coded
+    # English strings on the surface ("Vocabulary review" / "Queue claire").
+    # WP-82: they now come from the Lexique copy table in the chrome language
+    # (the learner's up to A2, French from B1), with the French voice kept.
+    lexique_copy = read(WEB / "components" / "lexique" / "lexique-copy.ts")
+    assert "aria-label={t.progress_aria}" in vocabulary_review
+    assert "progress_aria: 'Progression de la révision'" in lexique_copy
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "Paquet vidé" in vocabulary_review
+    assert "{t.done_title}" in vocabulary_review
+    assert "done_title: 'Paquet vidé'" in lexique_copy
+    assert "Vocabulary review" not in vocabulary_review + lexique_copy
     assert "onReturn" in vocabulary_review
     assert "onRefresh" in vocabulary_review
     assert "href={`/vocabulary?word=${wordId}`}" in vocabulary_review

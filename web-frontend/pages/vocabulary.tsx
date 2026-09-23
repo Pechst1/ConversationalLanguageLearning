@@ -6,6 +6,19 @@ import toast from 'react-hot-toast';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { learnerGloss } from '@/lib/glosses';
+import { useChromeLanguage } from '@/lib/learner-language';
+import {
+  fill,
+  formatDate,
+  formatNumber,
+  landingCounts,
+  lexiqueCopy,
+  nextReviewText,
+  partOfSpeechLabel,
+  plural,
+  useLexCopy,
+  type LexiqueCopy,
+} from '@/components/lexique/lexique-copy';
 import {
   Action,
   AtelierV2Root,
@@ -120,21 +133,17 @@ const emptyDetailSupport: DetailSupport = {
 // The sheet's four FSRS grades keep their exact ratings (0–3). Each carries
 // one of the design's shapes beside its label.
 const reviewOptions = [
-  { rating: 0, label: 'À revoir', hint: 'Très bientôt', shape: 'action' },
-  { rating: 1, label: 'Difficile', hint: 'Garder près', shape: 'reward' },
-  { rating: 2, label: 'Correct', hint: 'Rythme normal', shape: 'story' },
-  { rating: 3, label: 'Facile', hint: 'Espacer', shape: 'done' },
+  { rating: 0, label: 'grade_again', hint: 'grade_again_hint', shape: 'action' },
+  { rating: 1, label: 'grade_hard', hint: 'grade_hard_hint', shape: 'reward' },
+  { rating: 2, label: 'grade_good', hint: 'grade_good_hint', shape: 'story' },
+  { rating: 3, label: 'grade_easy', hint: 'grade_easy_hint', shape: 'done' },
 ] as const;
 
 type MasteryState = 'new' | 'due' | 'fragile' | 'building' | 'solid' | 'mastered';
 
-function reviewMessage(response: ReviewResponse | AnkiReviewResponse) {
+function reviewMessage(t: LexiqueCopy, response: ReviewResponse | AnkiReviewResponse) {
   const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
-  const date = next ? new Date(next) : null;
-  const label = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString('fr-FR', { month: 'long', day: 'numeric' })
-    : '';
-  return label ? `Reprise le ${label}` : 'Reprise classée';
+  return nextReviewText(t, next);
 }
 
 function queueItems(context: VocabularyDueContext | null) {
@@ -153,12 +162,12 @@ function queueItems(context: VocabularyDueContext | null) {
   });
 }
 
-function queueBucketLabel(bucket?: string | null) {
-  if (bucket === 'due') return 'À revoir';
-  if (bucket === 'fragile') return 'Fragile';
-  if (bucket === 'new') return 'Nouveau';
-  if (bucket === 'linked') return 'Mot voisin';
-  if (bucket === 'topic' || bucket === 'topic_compatible') return 'Du thème';
+function queueBucketLabel(t: LexiqueCopy, bucket?: string | null) {
+  if (bucket === 'due') return t.state_due;
+  if (bucket === 'fragile') return t.state_fragile;
+  if (bucket === 'new') return t.state_new;
+  if (bucket === 'linked') return t.bucket_linked;
+  if (bucket === 'topic' || bucket === 'topic_compatible') return t.bucket_topic;
   return '';
 }
 
@@ -169,14 +178,14 @@ function queueBucketState(bucket?: string | null): MasteryState {
   return 'building';
 }
 
-function deckState(masteryState?: string | null): { state: MasteryState; label: string } {
+function deckState(t: LexiqueCopy, masteryState?: string | null): { state: MasteryState; label: string } {
   switch (masteryState) {
-    case 'mastered': return { state: 'mastered', label: 'Acquis' };
-    case 'solid': return { state: 'solid', label: 'Solide' };
-    case 'building': return { state: 'building', label: 'En cours' };
-    case 'fragile': return { state: 'fragile', label: 'Fragile' };
-    case 'due': return { state: 'due', label: 'À revoir' };
-    default: return { state: 'new', label: 'Nouveau' };
+    case 'mastered': return { state: 'mastered', label: t.state_mastered };
+    case 'solid': return { state: 'solid', label: t.state_solid };
+    case 'building': return { state: 'building', label: t.state_building };
+    case 'fragile': return { state: 'fragile', label: t.state_fragile };
+    case 'due': return { state: 'due', label: t.state_due };
+    default: return { state: 'new', label: t.state_new };
   }
 }
 
@@ -277,27 +286,17 @@ function optionalStringField(source: unknown, key: string) {
   return typeof value === 'string' ? value : null;
 }
 
-function formatDateLabel(value?: string | null) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDateLabel(t: LexiqueCopy, value?: string | null) {
+  return formatDate(t, value, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatShortDate(value?: string | null) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
+function formatShortDate(t: LexiqueCopy, value?: string | null) {
+  return formatDate(t, value, { month: 'short', day: 'numeric' });
 }
 
-function formatDays(value?: number | null) {
+function formatDays(t: LexiqueCopy, value?: number | null) {
   if (value === null || value === undefined) return '';
-  return `${value} ${value === 1 ? 'jour' : 'jours'}`;
-}
-
-function formatRank(rank: number) {
-  return new Intl.NumberFormat('fr-FR').format(rank);
+  return plural(t, 'day', value);
 }
 
 function trimSnippet(value?: string | null, max = 140) {
@@ -306,73 +305,42 @@ function trimSnippet(value?: string | null, max = 140) {
   return text.length > max ? `${text.slice(0, max - 3).trim()}...` : text;
 }
 
-/* Bucket keys are scheduler internals; the Cahier prints the French name of the
- * pile a word is sitting in, never the raw key. */
-function humanBucket(value?: string | null) {
-  const labels: Record<string, string> = {
-    due: 'à revoir',
-    fragile: 'fragile',
-    new: 'nouveau',
-    topic_compatible: 'dans le thème',
-    linked: 'lié à l’épisode',
-  };
-  if (!value) return 'à revoir';
-  return labels[value] || value.replace(/_/g, ' ');
+/* Bucket keys are scheduler internals; the Cahier prints the name of the pile
+ * a word is sitting in, in the chrome language, never the raw key. */
+function humanBucket(t: LexiqueCopy, value?: string | null) {
+  return queueBucketLabel(t, value || 'due') || t.state_due;
 }
 
-function humanEvent(value?: string | null) {
-  if (!value) return 'Rencontré en pratique';
+function humanEvent(t: LexiqueCopy, value?: string | null) {
+  if (!value) return t.event_default;
   const labels: Record<string, string> = {
-    seen_context: 'Vu en contexte',
-    recognized: 'Reconnu',
-    produced_correct: 'Produit juste',
-    produced_incorrect: 'Produit puis réparé',
-    missed_target: 'Cible manquée',
+    seen_context: t.event_seen_context,
+    recognized: t.event_recognized,
+    produced_correct: t.event_produced_correct,
+    produced_incorrect: t.event_produced_incorrect,
+    missed_target: t.event_missed_target,
   };
-  return labels[value] || value.replace(/_/g, ' ');
+  return labels[value] || t.event_default;
 }
 
 /* The part-of-speech column on the imported deck was written by the enrichment
  * heuristics (scripts/enrich_vocabulary.py), not by a lexical source, and it is
  * wrong often enough to notice — `élire` and `approcher` are filed as
- * adjective/noun. It is also stored as an English machine key ("noun"), and a
- * few rows hold "x" or nothing at all. So: print a French label when the value
- * is one we recognise, and print nothing when it is junk, rather than stamping
- * a guess onto the learner's page as if it were a fact. */
-const PART_OF_SPEECH_LABELS: Record<string, string> = {
-  noun: 'nom',
-  verb: 'verbe',
-  adjective: 'adjectif',
-  adverb: 'adverbe',
-  pronoun: 'pronom',
-  preposition: 'préposition',
-  determiner: 'déterminant',
-  conjunction: 'conjonction',
-  interjection: 'interjection',
-  number: 'numéral',
-};
-
-function partOfSpeechLabel(value?: string | null) {
-  const key = String(value || '').trim().toLowerCase();
-  return PART_OF_SPEECH_LABELS[key] || '';
-}
-
-function plural(n: number, one: string, many: string) {
-  return `${n} ${n === 1 ? one : many}`;
-}
+ * adjective/noun. Only a whitelisted key prints (PART_OF_SPEECH_LABELS in
+ * components/lexique/lexique-copy.ts), as a label in the chrome language;
+ * junk prints nothing rather than a guess stamped onto the page as a fact. */
 
 /* FSRS card states, as the Cahier says them. */
-const SRS_STATE_LABELS: Record<string, string> = {
-  new: 'Nouveau',
-  learning: 'En apprentissage',
-  review: 'En révision',
-  reviewing: 'En révision',
-  relearning: 'À reprendre',
-};
-
-function srsStateLabel(value?: string | null) {
+function srsStateLabel(t: LexiqueCopy, value?: string | null) {
   const key = String(value || '').trim().toLowerCase();
-  return SRS_STATE_LABELS[key] || 'Nouveau';
+  const labels: Record<string, string> = {
+    new: t.state_new,
+    learning: t.srs_learning,
+    review: t.srs_review,
+    reviewing: t.srs_review,
+    relearning: t.srs_relearning,
+  };
+  return labels[key] || t.state_new;
 }
 
 function detailQueueItem(detail: VocabularyDetail) {
@@ -388,11 +356,11 @@ function detailFrequencyRank(detail: VocabularyDetail, supportWord?: VocabularyW
   return word?.frequency_rank || null;
 }
 
-function detailPartOfSpeech(detail: VocabularyDetail, supportWord?: VocabularyWord | null) {
+function detailPartOfSpeech(t: LexiqueCopy, detail: VocabularyDetail, supportWord?: VocabularyWord | null) {
   const word = detailDeckWord(detail, supportWord);
   // An unknown value gets the same em dash as every other blank; nothing is
   // printed as a part of speech that the whitelist does not recognise.
-  return partOfSpeechLabel(word?.part_of_speech);
+  return partOfSpeechLabel(t, word?.part_of_speech);
 }
 
 function detailDifficulty(detail: VocabularyDetail, supportWord?: VocabularyWord | null) {
@@ -435,13 +403,13 @@ function messageReferencesWord(message: SessionMessage, wordId: number) {
     || (message.learning_focus || []).some((item) => Number(item.metadata?.word_id) === wordId);
 }
 
-function messageReferenceDescription(message: SessionMessage, wordId: number) {
+function messageReferenceDescription(t: LexiqueCopy, message: SessionMessage, wordId: number) {
   const bits = [];
-  if ((message.target_words || []).includes(wordId)) bits.push('visé');
-  if ((message.words_used || []).includes(wordId)) bits.push('employé');
-  if ((message.suggested_words_used || []).includes(wordId)) bits.push('suggéré');
-  if ((message.target_details || []).some((item) => item.word_id === wordId)) bits.push('prévu');
-  return bits.length ? `En conversation : ${bits.join(', ')}` : 'Passage de conversation';
+  if ((message.target_words || []).includes(wordId)) bits.push(t.conv_targeted);
+  if ((message.words_used || []).includes(wordId)) bits.push(t.conv_used);
+  if ((message.suggested_words_used || []).includes(wordId)) bits.push(t.conv_suggested);
+  if ((message.target_details || []).some((item) => item.word_id === wordId)) bits.push(t.conv_planned);
+  return bits.length ? fill(t.conv_prefix, { bits: bits.join(', ') }) : t.conv_passage;
 }
 
 function entityDate(entity: Pick<RealWorldMission | GraphicNovelScene, 'completed_at' | 'started_at' | 'created_at'>) {
@@ -459,25 +427,25 @@ function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
   );
 }
 
-function groupExamples(detail: VocabularyDetail, support: DetailSupport) {
+function groupExamples(t: LexiqueCopy, detail: VocabularyDetail, support: DetailSupport) {
   const examples: DetailExample[] = [];
   const word = detailDeckWord(detail, support.word);
   const queueItem = detailQueueItem(detail);
   addUniqueExample(examples, {
     source: 'Français 5000',
-    label: 'Exemple',
+    label: t.ex_example,
     text: detailExample(detail) || '',
     translation: queueItem?.example_translation || word?.example_translation,
   });
   addUniqueExample(examples, {
     source: 'Français 5000',
-    label: 'Définition',
+    label: t.ex_definition,
     text: word?.definition || '',
-    meta: partOfSpeechLabel(word?.part_of_speech) || null,
+    meta: partOfSpeechLabel(t, word?.part_of_speech) || null,
   });
   addUniqueExample(examples, {
     source: 'Français 5000',
-    label: 'Notes d’usage',
+    label: t.ex_usage,
     text: word?.usage_notes || '',
   });
   support.examples.forEach((item) => addUniqueExample(examples, item));
@@ -491,7 +459,7 @@ function groupExamples(detail: VocabularyDetail, support: DetailSupport) {
   return Array.from(groups.entries()).map(([source, entries]) => ({ source, entries }));
 }
 
-function srsRows(detail: VocabularyDetail, support: DetailSupport) {
+function srsRows(t: LexiqueCopy, detail: VocabularyDetail, support: DetailSupport) {
   const queueItem = detailQueueItem(detail);
   const progress = support.progress;
   const dueAt = queueItem?.due_at || progress?.next_review || queueItem?.next_review || null;
@@ -501,16 +469,16 @@ function srsRows(detail: VocabularyDetail, support: DetailSupport) {
   // the part of the record a learner can actually recognise: where the word
   // stands, when it comes back, and how often they have met it.
   return [
-    { label: 'État', value: srsStateLabel(progress?.state || queueItem?.state) },
-    { label: 'Prochaine reprise', value: formatDateLabel(dueAt) || 'Non programmée' },
-    { label: 'Dernière reprise', value: formatDateLabel(lastReview) || 'Jamais revu' },
-    { label: 'Intervalle', value: formatDays(interval) || 'Carte neuve' },
-    { label: 'Reprises', value: String(progress?.reviews_logged ?? progress?.reps ?? 0) },
-    { label: 'Oublis', value: String(progress?.lapses ?? queueItem?.lapses ?? 0) },
+    { label: t.srs_state, value: srsStateLabel(t, progress?.state || queueItem?.state) },
+    { label: t.srs_next, value: formatDateLabel(t, dueAt) || t.srs_next_none },
+    { label: t.srs_last, value: formatDateLabel(t, lastReview) || t.srs_last_none },
+    { label: t.srs_interval, value: formatDays(t, interval) || t.srs_interval_none },
+    { label: t.srs_reviews, value: String(progress?.reviews_logged ?? progress?.reps ?? 0) },
+    { label: t.srs_lapses, value: String(progress?.lapses ?? queueItem?.lapses ?? 0) },
   ];
 }
 
-async function fetchVocabularyUsageSupport(wordId: number) {
+async function fetchVocabularyUsageSupport(t: LexiqueCopy, wordId: number) {
   const examples: DetailExample[] = [];
   const traces: DetailTrace[] = [];
 
@@ -537,17 +505,17 @@ async function fetchVocabularyUsageSupport(wordId: number) {
 
       if (entityTargetsWord(mission, wordId)) {
         traces.push({
-          source: 'Mission',
-          label: mission.title || 'Mission',
-          description: `Visé dans une mission ${humanBucket(mission.status)}`,
+          source: 'Courrier',
+          label: mission.title || 'Courrier',
+          description: t.trace_letter,
           date: entityDate(mission),
           href: `/missions?mission=${mission.id}`,
         });
       }
       if (target?.example_sentence) {
         addUniqueExample(examples, {
-          source: 'Mission',
-          label: mission.title || 'Consigne de mission',
+          source: 'Courrier',
+          label: mission.title || t.ex_letter_fallback,
           text: target.example_sentence,
           translation: target.example_translation || target.translation,
           meta: mission.status,
@@ -555,9 +523,9 @@ async function fetchVocabularyUsageSupport(wordId: number) {
       }
       events.slice(0, 3).forEach((event) => {
         traces.push({
-          source: 'Mission',
-          label: mission.title || 'Mission',
-          description: [humanEvent(event.event_type), event.reason].filter(Boolean).join(' · '),
+          source: 'Courrier',
+          label: mission.title || 'Courrier',
+          description: [humanEvent(t, event.event_type), event.reason].filter(Boolean).join(' · '),
           date: entityDate(mission),
           href: `/missions?mission=${mission.id}`,
         });
@@ -582,7 +550,7 @@ async function fetchVocabularyUsageSupport(wordId: number) {
         traces.push({
           source: 'Feuilleton',
           label: scene.title || 'Feuilleton',
-          description: `Visé dans une scène ${humanBucket(scene.status)}`,
+          description: t.trace_scene,
           date: entityDate(scene),
           href: `/graphic-novel?scene=${scene.id}`,
         });
@@ -590,7 +558,7 @@ async function fetchVocabularyUsageSupport(wordId: number) {
       if (target?.example_sentence) {
         addUniqueExample(examples, {
           source: 'Feuilleton',
-          label: scene.title || 'Scène du feuilleton',
+          label: scene.title || t.ex_scene_fallback,
           text: target.example_sentence,
           translation: target.example_translation || target.translation,
           meta: scene.status,
@@ -600,7 +568,7 @@ async function fetchVocabularyUsageSupport(wordId: number) {
         traces.push({
           source: 'Feuilleton',
           label: scene.title || 'Feuilleton',
-          description: [humanEvent(event.event_type), event.reason].filter(Boolean).join(' · '),
+          description: [humanEvent(t, event.event_type), event.reason].filter(Boolean).join(' · '),
           date: entityDate(scene),
           href: `/graphic-novel?scene=${scene.id}`,
         });
@@ -619,9 +587,9 @@ async function fetchVocabularyUsageSupport(wordId: number) {
       const match = result.value.items.find((message) => messageReferencesWord(message, wordId));
       if (!match) return;
       traces.push({
-        source: 'Séance',
-        label: session.topic || 'Conversation',
-        description: messageReferenceDescription(match, wordId),
+        source: t.conversation,
+        label: session.topic || t.conversation,
+        description: messageReferenceDescription(t, match, wordId),
         date: match.created_at || session.started_at,
         // No href: the conversation-session viewer went with the /learn cluster.
         // Where the word was met is still true and still worth showing; only the
@@ -630,16 +598,16 @@ async function fetchVocabularyUsageSupport(wordId: number) {
       const target = (match.target_details || []).find((item) => item.word_id === wordId);
       if (target?.hint_sentence) {
         addUniqueExample(examples, {
-          source: 'Séance',
-          label: session.topic || 'Conversation',
+          source: t.conversation,
+          label: session.topic || t.conversation,
           text: target.hint_sentence,
           translation: target.hint_translation || target.translation,
           meta: target.familiarity || null,
         });
       } else {
         addUniqueExample(examples, {
-          source: 'Séance',
-          label: match.sender === 'user' ? 'Votre tour' : 'La réponse',
+          source: t.conversation,
+          label: match.sender === 'user' ? t.ex_your_turn : t.ex_reply,
           text: trimSnippet(match.content, 180),
           meta: session.topic || null,
         });
@@ -691,7 +659,7 @@ function LxMasthead({
   return (
     <header className="lx-mast">
       <div className="lx-mast__main">
-        <p className="lx-mast__count">{count}</p>
+        {count && <p className="lx-mast__count">{count}</p>}
         {/* the one Garamond-italic headline on this screen */}
         <h1 className="av2-headline av2-headline--screen">Le lexique</h1>
       </div>
@@ -704,24 +672,25 @@ function LxMasthead({
 }
 
 function LxSearch({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const t = useLexCopy();
   return (
     <label className="lx-search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
         <circle cx="11" cy="11" r="7" />
         <path d="M20 20l-3.5-3.5" />
       </svg>
-      <span className="av2-sr">Chercher un mot</span>
+      <span className="av2-sr">{t.search_label}</span>
       <input
         className="lx-search__input lx-input"
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Chercher un mot…"
+        placeholder={t.search_placeholder}
         autoComplete="off"
         autoCapitalize="off"
       />
       {value && (
-        <button type="button" className="lx-search__clear" onClick={() => onChange('')} aria-label="Effacer la recherche">
+        <button type="button" className="lx-search__clear" onClick={() => onChange('')} aria-label={t.search_clear}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -791,13 +760,14 @@ function LxSkeleton({ rows = 4 }: { rows?: number }) {
 /* A coverage track: label, count, and the design's progress rule. Ink for the
    whole-deck line, blue (information) for every other track. */
 function LxTrack({ label, value, max, tone }: { label: string; value: number; max: number; tone?: 'ink' }) {
+  const t = useLexCopy();
   const safeMax = Math.max(1, max);
   const percent = Math.min(100, Math.round((Math.max(0, value) / safeMax) * 100));
   return (
     <div className="lx-track">
       <div className="lx-track__head">
         <span className="lx-track__label">{label}</span>
-        <span className="av2-label">{formatRank(value)} / {formatRank(max)}</span>
+        <span className="av2-label">{formatNumber(t, value)} / {formatNumber(t, max)}</span>
       </div>
       <div
         className="av2-progress__track"
@@ -818,8 +788,9 @@ type MapTotal = { id: MasteryState; label: string; n: number };
 /* The Français 5000 mastery map: one cell per word by frequency rank, coloured
    by the state's shape token; the totals beneath print every state in words. */
 function LxMasteryMap({ cells, totals, note }: { cells: MasteryState[]; totals: MapTotal[]; note: string }) {
+  const t = useLexCopy();
   return (
-    <Surface className="lx-map" aria-label="Carte de maîtrise">
+    <Surface className="lx-map" aria-label={t.map_aria}>
       <div className="lx-map__grid" aria-hidden="true">
         {cells.map((state, index) => (
           <i key={index} data-state={state} />
@@ -830,7 +801,7 @@ function LxMasteryMap({ cells, totals, note }: { cells: MasteryState[]; totals: 
           <li key={total.id}>
             <ShapeToken kind={stateShape(total.id)} size="sm" className={`lx-map__token lx-map__token--${total.id}`} />
             <span>{total.label}</span>
-            <strong>{formatRank(total.n)}</strong>
+            <strong>{formatNumber(t, total.n)}</strong>
           </li>
         ))}
       </ul>
@@ -849,6 +820,12 @@ interface VocabularyPageProps {
 
 export default function VocabularyPage({ embedded = false }: VocabularyPageProps = {}) {
   const router = useRouter();
+  // WP-82: the Lexique has no journey envelope; the profile's language and
+  // CEFR estimate pick its chrome (the learner's language up to A2, French
+  // from B1). The page reads the table directly; everything under its
+  // AtelierV2Root reads the same language through `useLexCopy()`.
+  const language = useChromeLanguage();
+  const t = lexiqueCopy(language);
   const [context, setContext] = useState<VocabularyDueContext | null>(null);
   const [deck, setDeck] = useState<VocabularyWord[]>([]);
   const [query, setQuery] = useState('');
@@ -909,7 +886,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           setContextError(null);
         } else {
           setContext(null);
-          setContextError('Le cahier de vocabulaire n’a pas pu être ouvert.');
+          setContextError('unavailable');
         }
         if (dossierResult.status === 'fulfilled') setWeeklyDossier(dossierResult.value);
         if (mapResult.status === 'fulfilled') setMasteryMap(mapResult.value);
@@ -919,7 +896,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         console.error(error);
         if (alive) {
           setContext(null);
-          setContextError('Le cahier de vocabulaire n’a pas pu être ouvert.');
+          setContextError('unavailable');
         }
       })
       .finally(() => {
@@ -950,7 +927,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           console.error(error);
           if (alive) {
             setDeck([]);
-            setDeckError('Le registre des mots n’a pas répondu.');
+            setDeckError('unavailable');
           }
         })
         .finally(() => {
@@ -1011,7 +988,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     Promise.all([
       settle(apiService.get<VocabularyProgressDetail>(`/progress/${wordId}`, quietConfig())),
       settle(baseWord ? Promise.resolve(baseWord) : apiService.getVocabularyItem(wordId)),
-      settle(fetchVocabularyUsageSupport(wordId)),
+      settle(fetchVocabularyUsageSupport(t, wordId)),
     ])
       .then(([progressResult, wordResult, usageResult]) => {
         if (!alive) return;
@@ -1033,7 +1010,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     return () => {
       alive = false;
     };
-  }, [detail]);
+  }, [detail, t]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -1060,12 +1037,12 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       })
       .catch((error) => {
         console.error(error);
-        if (alive) toast.error('Ce mot n’a pas pu être ouvert.');
+        if (alive) toast.error(t.word_open_failed);
       });
     return () => {
       alive = false;
     };
-  }, [router.isReady, router.query.word, context, deck, detail]);
+  }, [router.isReady, router.query.word, context, deck, detail, t]);
 
   useEffect(() => {
     if (!biographyWordId) {
@@ -1087,7 +1064,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         console.error(error);
         if (!alive) return;
         setBiography(null);
-        setBiographyError('La biographie de ce mot n’a pas pu être ouverte.');
+        setBiographyError('unavailable');
       })
       .finally(() => {
         if (alive) setBiographyLoading(false);
@@ -1130,7 +1107,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     setReviewing(true);
     try {
       const response = await apiService.submitAnkiReview({ word_id: detailWordId(detail), rating });
-      toast.success(reviewMessage(response));
+      toast.success(reviewMessage(t, response));
       closeDetail();
       const nextContext = await apiService.getVocabularyDueContext({
         limit: 18,
@@ -1143,7 +1120,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       await refreshNotebookMirror();
     } catch (error) {
       console.error(error);
-      toast.error('La reprise n’a pas pu être classée.');
+      toast.error(t.review_failed);
     } finally {
       setReviewing(false);
     }
@@ -1162,7 +1139,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       await router.push(`/missions?mission=${mission.id}`);
     } catch (error) {
       console.error(error);
-      toast.error('La mission n’a pas pu être composée.');
+      toast.error(t.letter_failed);
     } finally {
       setAction(null);
     }
@@ -1186,17 +1163,17 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       await router.push(`/graphic-novel?scene=${scene.id}`);
     } catch (error) {
       console.error(error);
-      toast.error('L’épisode n’a pas pu être composé.');
+      toast.error(t.episode_failed);
     } finally {
       setAction(null);
     }
   };
 
   const summary = context?.summary;
-  const detailExampleGroups = detail ? groupExamples(detail, detailSupport) : [];
-  const detailSrsRows = detail ? srsRows(detail, detailSupport) : [];
+  const detailExampleGroups = detail ? groupExamples(t, detail, detailSupport) : [];
+  const detailSrsRows = detail ? srsRows(t, detail, detailSupport) : [];
   const detailRank = detail ? detailFrequencyRank(detail, detailSupport.word) : null;
-  const detailSpeech = detail ? detailPartOfSpeech(detail, detailSupport.word) : '';
+  const detailSpeech = detail ? detailPartOfSpeech(t, detail, detailSupport.word) : '';
   const detailLevel = detail ? detailDifficulty(detail, detailSupport.word) : null;
   const activeVocabularySearch = query.trim();
   const hasVocabularyFilters = filter !== 'all' || activeVocabularySearch.length > 0;
@@ -1205,72 +1182,56 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     .filter((track) => !['uncategorized', 'adjectives_adverbs', 'function_words'].includes(track.id))
     .slice(0, 6);
   const verbSummary = sumCoverage(coverage?.verb_tracks || []);
-  const dueCount = Number(summary?.due_total ?? summary?.due ?? 0);
 
   function clearVocabularyFilters() {
     setFilter('all');
     setQuery('');
   }
 
-  const vocabChips: Array<{ id: VocabularyFilter; label: string; n: number | null }> = [
-    { id: 'all', label: 'Tous', n: null },
-    { id: 'due', label: 'À revoir', n: summary?.due ?? null },
-    { id: 'fragile', label: 'Fragiles', n: summary?.fragile ?? null },
-    { id: 'new', label: 'Nouveaux', n: summary?.new ?? null },
-    { id: 'mastered', label: 'Acquis', n: null },
+  // The filter pills carry no counts: the due count is said once, on the
+  // primary (Appendix A «Mots»), and the other piles once, in the count line.
+  const vocabChips: Array<{ id: VocabularyFilter; label: string }> = [
+    { id: 'all', label: t.chip_all },
+    { id: 'due', label: t.chip_due },
+    { id: 'fragile', label: t.chip_fragile },
+    { id: 'new', label: t.chip_new },
+    { id: 'mastered', label: t.chip_mastered },
   ];
 
-  const mapCells: MasteryState[] = masteryCells.slice(0, 280).map((cell) => deckState(cell.mastery_state).state);
+  const mapCells: MasteryState[] = masteryCells.slice(0, 280).map((cell) => deckState(t, cell.mastery_state).state);
   const mapTotals: MapTotal[] = masteryMap
     ? [
-        { id: 'due', label: 'À revoir', n: masteryMap.summary.due || 0 },
-        { id: 'fragile', label: 'Fragiles', n: masteryMap.summary.fragile || 0 },
-        { id: 'building', label: 'En cours', n: masteryMap.summary.building || 0 },
-        { id: 'solid', label: 'Solides', n: masteryMap.summary.solid || 0 },
-        { id: 'mastered', label: 'Acquis', n: masteryMap.summary.mastered || 0 },
-        { id: 'new', label: 'Nouveaux', n: masteryMap.summary.new || 0 },
+        { id: 'due', label: t.chip_due, n: masteryMap.summary.due || 0 },
+        { id: 'fragile', label: t.chip_fragile, n: masteryMap.summary.fragile || 0 },
+        { id: 'building', label: t.map_building, n: masteryMap.summary.building || 0 },
+        { id: 'solid', label: t.map_solid, n: masteryMap.summary.solid || 0 },
+        { id: 'mastered', label: t.chip_mastered, n: masteryMap.summary.mastered || 0 },
+        { id: 'new', label: t.chip_new, n: masteryMap.summary.new || 0 },
       ]
     : [];
 
-  const filterFr = (value: VocabularyFilter): string => {
-    switch (value) {
-      case 'due': return 'à revoir';
-      case 'fragile': return 'fragiles';
-      case 'new': return 'nouveaux';
-      case 'building': return 'en cours';
-      case 'solid': return 'solides';
-      case 'mastered': return 'acquis';
-      default: return 'tout le registre';
-    }
-  };
+  // Appendix A «Mots»: the due count is said once, on the primary; the
+  // masthead's count line names only the two other piles.
+  const { countLine, cta } = landingCounts(t, summary, loading);
 
-  const countLine = loading
-    ? 'Ouverture du registre…'
-    : [
-        plural(summary?.due ?? 0, 'mot à revoir', 'mots à revoir'),
-        plural(summary?.fragile ?? 0, 'fragile', 'fragiles'),
-        plural(summary?.new ?? 0, 'nouveau', 'nouveaux'),
-      ].join(' · ');
-
-  const liveSummary = loading || deckLoading
-    ? 'Registre en cours…'
-    : `${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'} en file · ${filteredDeck.length} au registre (${filterFr(filter)})`;
+  const shownCount = plural(t, 'shown', filteredDeck.length);
 
   const thread = weeklyDossier?.fragile_threads?.[0] || weeklyDossier?.next_actions?.[0] || null;
 
   const landing = (
     <>
-      {embedded && <p className="lx-mast__count">{countLine}</p>}
+      {embedded && countLine && <p className="lx-mast__count">{countLine}</p>}
 
-      {/* the one tactile 3D press on this screen: the way into the review */}
+      {/* the one tactile 3D press on this screen: the way into the review,
+          and the one place the due count is said */}
       <Link className="av2-btn av2-btn--primary lx-cta" href="/vocabulary/review">
         <ShapeToken kind="action" size="sm" />
-        {dueCount > 0 ? `Réviser · ${plural(dueCount, 'mot', 'mots')}` : 'Ouvrir la révision'}
+        {cta}
       </Link>
 
       <LxSearch value={query} onChange={setQuery} />
 
-      <div className="lx-chips" role="group" aria-label="Filtrer le registre">
+      <div className="lx-chips" role="group" aria-label={t.filter_group}>
         {vocabChips.map((chip) => (
           <button
             key={chip.id}
@@ -1280,43 +1241,39 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
             onClick={() => setFilter(chip.id)}
           >
             {chip.label}
-            {chip.n !== null && chip.n > 0 ? <span className="lx-chip__n">{chip.n}</span> : null}
           </button>
         ))}
       </div>
 
       <div className="lx-livesum" aria-live="polite">
-        <span className="av2-label">{liveSummary}</span>
+        {hasVocabularyFilters && !deckLoading && <span className="av2-sr">{shownCount}</span>}
         {hasVocabularyFilters && (
-          <Action tone="quiet" inline onClick={clearVocabularyFilters}>Effacer</Action>
+          <Action tone="quiet" inline onClick={clearVocabularyFilters}>{t.filter_clear}</Action>
         )}
       </div>
 
-      <LxSectionHead
-        title="File du jour — à revoir"
-        note={`${todayItems.length} ${todayItems.length === 1 ? 'carte' : 'cartes'}`}
-      />
+      <LxSectionHead title={t.queue_title} />
       {loading ? (
         <LxSkeleton rows={4} />
       ) : contextError ? (
         <StateBlock
           tone="error"
-          title="Le registre des mots n’a pas pu être ouvert."
-          body="La grammaire reste consultable."
-          action={{ label: 'Réessayer', onSelect: () => setContextRetry((v) => v + 1) }}
+          title={t.queue_error_title}
+          body={t.queue_error_body}
+          action={{ label: t.retry, onSelect: () => setContextRetry((v) => v + 1) }}
         />
       ) : todayItems.length === 0 ? (
         <StateBlock
           tone="empty"
-          title="Aucune carte en file"
-          body={hasVocabularyFilters ? 'Aucun mot ne correspond à ce filtre.' : 'La file du jour est vide — le registre vous attend plus bas.'}
-          action={hasVocabularyFilters ? { label: 'Effacer les filtres', onSelect: clearVocabularyFilters } : undefined}
+          title={t.queue_empty_title}
+          body={hasVocabularyFilters ? t.queue_empty_filtered : t.queue_empty_body}
+          action={hasVocabularyFilters ? { label: t.queue_clear_filters, onSelect: clearVocabularyFilters } : undefined}
         />
       ) : (
         <div className="lx-rows" role="list">
           {todayItems.map((item) => {
             const state = queueBucketState(item.bucket);
-            const label = queueBucketLabel(item.bucket) || 'À revoir';
+            const label = queueBucketLabel(t, item.bucket) || t.state_due;
             return (
               <LxWordRow
                 key={`${item.word_id}-${item.bucket}`}
@@ -1336,37 +1293,37 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       )}
 
       <LxSectionHead
-        title="Registre des mots — Français 5000"
+        title={t.registre_title}
         tone="story"
-        note={deckLoading ? 'recherche…' : `${filteredDeck.length} affichés`}
+        note={deckLoading ? t.searching : shownCount}
       />
       {deckLoading ? (
         <LxSkeleton rows={4} />
       ) : deckError ? (
         <StateBlock
           tone="error"
-          title="Le registre des mots ne répond pas."
-          body="Réessayez dans un instant."
-          action={{ label: 'Réessayer', onSelect: () => setDeckRetry((v) => v + 1) }}
+          title={t.registre_error_title}
+          body={t.registre_error_body}
+          action={{ label: t.retry, onSelect: () => setDeckRetry((v) => v + 1) }}
         />
       ) : filteredDeck.length === 0 ? (
         <StateBlock
           tone="empty"
-          title="Aucun mot au registre"
-          body="Essayez un autre terme de recherche."
-          action={activeVocabularySearch ? { label: 'Effacer la recherche', onSelect: () => setQuery('') } : undefined}
+          title={t.registre_empty_title}
+          body={t.registre_empty_body}
+          action={activeVocabularySearch ? { label: t.search_clear, onSelect: () => setQuery('') } : undefined}
         />
       ) : (
         <div className="lx-rows" role="list">
           {filteredDeck.map((item) => {
             const cell = masteryByWordId.get(item.id);
-            const st = deckState(cell?.mastery_state);
+            const st = deckState(t, cell?.mastery_state);
             // A word with no gloss on file simply shows none; nothing promises
             // a translation nobody is going to write.
             const meta = [
               deckTranslation(item) || '—',
-              item.frequency_rank ? `rang ${formatRank(item.frequency_rank)}` : '',
-              partOfSpeechLabel(item.part_of_speech),
+              item.frequency_rank ? fill(t.rank, { n: formatNumber(t, item.frequency_rank) }) : '',
+              partOfSpeechLabel(t, item.part_of_speech),
               st.label,
             ].filter(Boolean).join(' · ');
             return (
@@ -1386,7 +1343,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       )}
 
       {coverage && (
-        <section className="lx-atlas" aria-label="Atlas des acquis">
+        <section className="lx-atlas" aria-label={t.atlas_title}>
           <button
             type="button"
             className="lx-fold"
@@ -1394,16 +1351,19 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
             onClick={() => setAtlasOpen((open) => !open)}
           >
             <span className="lx-fold__main">
-              <span className="lx-row__title">Atlas des acquis</span>
+              <span className="lx-row__title">{t.atlas_title}</span>
               <span className="lx-row__meta">
-                {formatRank(cefrTotals.nailed)} mots tenus sur {formatRank(cefrTotals.total || 5000)} · carte {atlasOpen ? 'dépliée' : 'pliée'}
+                {fill(t.atlas_meta, {
+                  nailed: formatNumber(t, cefrTotals.nailed),
+                  total: formatNumber(t, cefrTotals.total || 5000),
+                })}
               </span>
             </span>
-            <span className="av2-label">{atlasOpen ? 'Replier' : 'Déplier'}</span>
+            <span className="av2-label lx-fold__toggle">{atlasOpen ? t.atlas_close : t.atlas_open}</span>
           </button>
           {atlasOpen && (
             <div className="av2-stack lx-atlas__body">
-              <LxSectionHead title="Couverture CECR" note="mots tenus / bande" />
+              <LxSectionHead title={t.cefr_title} note={t.cefr_note} />
               <Surface className="av2-stack">
                 {(coverage.cefr_bar || []).map((band, i) => (
                   <LxTrack
@@ -1417,7 +1377,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
               </Surface>
               {topicCats.length > 0 && (
                 <>
-                  <LxSectionHead title="Pistes par domaine" tone="story" note={`${topicCats.length} en cours`} />
+                  <LxSectionHead title={t.topics_title} tone="story" note={fill(t.topics_note, { n: topicCats.length })} />
                   <Surface className="av2-stack">
                     {topicCats.map((track) => (
                       <LxTrack key={track.id} label={track.label} value={track.nailed || 0} max={track.total || 1} />
@@ -1427,25 +1387,25 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
               )}
               {(coverage.verb_tracks || []).length > 0 && (
                 <>
-                  <LxSectionHead title="Verbes & structures" tone="story" note="conjugaison" />
+                  <LxSectionHead title={t.verbs_title} tone="story" note={t.verbs_note} />
                   <Surface className="av2-stack">
-                    <LxTrack label="Verbes" value={verbSummary.nailed || 0} max={verbSummary.total || 1} tone="ink" />
+                    <LxTrack label={t.verbs_track} value={verbSummary.nailed || 0} max={verbSummary.total || 1} tone="ink" />
                     {/* The verbs block is where a learner is already looking
                         at their conjugation standing, so the way into the
                         drill belongs here. */}
                     <Link className="av2-btn av2-btn--secondary" href="/vocabulary/conjugation">
-                      Reprendre les formes irrégulières
+                      {t.verbs_cta}
                     </Link>
                   </Surface>
                 </>
               )}
               {masteryMap && mapCells.length > 0 && (
                 <>
-                  <LxSectionHead title="Carte de maîtrise — Français 5000" note="1 case = 1 mot" />
+                  <LxSectionHead title={t.map_title} note={t.map_cell} />
                   <LxMasteryMap
                     cells={mapCells}
                     totals={mapTotals}
-                    note={`Les ${mapCells.length} premières cases par rang de fréquence — la carte entière se parcourt par bandes, jamais imposée à la lecture.`}
+                    note={fill(t.map_note, { n: mapCells.length })}
                   />
                 </>
               )}
@@ -1455,14 +1415,15 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       )}
 
       {weeklyDossier && (
-        <Surface as="section" shape="hero" className="lx-dossier" aria-label="Dossier de la semaine">
-          <p className="av2-label">Dossier de la semaine</p>
-          <h2 className="av2-headline av2-headline--title">{weeklyDossier.headline || 'Le registre s’épaissit.'}</h2>
+        <Surface as="section" shape="hero" className="lx-dossier" aria-label={t.dossier_label}>
+          <p className="av2-label">{t.dossier_label}</p>
+          {/* Sans, not Garamond: «Le lexique» is the one headline on this screen. */}
+          <h2 className="lx-dossier__title">{weeklyDossier.headline || t.dossier_fallback}</h2>
           <dl className="lx-dossier__stats">
-            <div><dt className="av2-label">Réparations</dt><dd>{weeklyDossier.stats.repairs_filed ?? 0}</dd></div>
-            <div><dt className="av2-label">Révisions</dt><dd>{weeklyDossier.stats.vocabulary_reviews ?? 0}</dd></div>
-            <div><dt className="av2-label">Vus</dt><dd>{weeklyDossier.stats.words_seen ?? 0}</dd></div>
-            <div><dt className="av2-label">Employés</dt><dd>{weeklyDossier.stats.words_produced ?? 0}</dd></div>
+            <div><dt className="av2-label">{t.dossier_repairs}</dt><dd>{weeklyDossier.stats.repairs_filed ?? 0}</dd></div>
+            <div><dt className="av2-label">{t.dossier_reviews}</dt><dd>{weeklyDossier.stats.vocabulary_reviews ?? 0}</dd></div>
+            <div><dt className="av2-label">{t.dossier_seen}</dt><dd>{weeklyDossier.stats.words_seen ?? 0}</dd></div>
+            <div><dt className="av2-label">{t.dossier_used}</dt><dd>{weeklyDossier.stats.words_produced ?? 0}</dd></div>
           </dl>
           {thread && (
             <div className="lx-dossier__thread">
@@ -1487,7 +1448,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       role="button"
       tabIndex={0}
       aria-pressed={practiceRevealed}
-      aria-label={practiceRevealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}
+      aria-label={practiceRevealed ? t.flip_back : t.flip_front}
       onClick={() => setPracticeRevealed((current) => !current)}
       onKeyDown={(event) => {
         if (event.key === ' ' || event.key === 'Enter') {
@@ -1497,7 +1458,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       }}
     >
       <div className="lx-card__top">
-        <span>{practiceRevealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}</span>
+        <span>{practiceRevealed ? t.flip_back : t.flip_front}</span>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 0L14 14H0Z" fill="currentColor" /></svg>
       </div>
       <p className="av2-headline lx-card__word">
@@ -1521,11 +1482,11 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
       {detail && (
         <BottomSheet open={Boolean(detail)} title={detailWord(detail)} eyebrow="Français 5000" onClose={closeDetail}>
           <div className="av2-stack lx-sheet">
-            <div className="lx-meta" aria-label="Détails du mot">
-              <Surface shape="tile"><span className="av2-label">Rang de fréquence</span><strong>{detailRank ? `#${formatRank(detailRank)}` : '—'}</strong></Surface>
-              <Surface shape="tile"><span className="av2-label">Nature</span><strong>{detailSpeech || '—'}</strong></Surface>
-              <Surface shape="tile"><span className="av2-label">Difficulté</span><strong>{detailLevel ? `N${detailLevel}` : '—'}</strong></Surface>
-              <Surface shape="tile"><span className="av2-label">Provenance</span><strong>{detail.kind === 'queue' ? humanBucket(detail.item.bucket) : 'registre'}</strong></Surface>
+            <div className="lx-meta" aria-label={t.details_label}>
+              <Surface shape="tile"><span className="av2-label">{t.tile_rank}</span><strong>{detailRank ? `#${formatNumber(t, detailRank)}` : '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">{t.tile_nature}</span><strong>{detailSpeech || '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">{t.tile_level}</span><strong>{detailLevel ? `N${detailLevel}` : '—'}</strong></Surface>
+              <Surface shape="tile"><span className="av2-label">{t.tile_source}</span><strong>{detail.kind === 'queue' ? humanBucket(t, detail.item.bucket) : t.source_registre}</strong></Surface>
             </div>
             <FragilityBadge
               progress={detail.kind === 'queue' ? detail.item : detailSupport.progress}
@@ -1535,18 +1496,18 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
             {practiceCard}
 
             <Surface className="lx-anchor">
-              <p className="av2-label">Phrase d’ancrage</p>
+              <p className="av2-label">{t.anchor_label}</p>
               <p className="av2-fr lx-anchor__text">
                 « {detailExample(detail) || [detailFrench(detail), detailTranslation(detail)].filter(Boolean).join(' — ')} »
               </p>
             </Surface>
 
-            <section className="lx-block" aria-label="Exemples par source">
+            <section className="lx-block" aria-label={t.examples_title}>
               <LxSectionHead
-                title="Exemples par source"
+                title={t.examples_title}
                 note={detailSupport.loading
-                  ? 'en cours'
-                  : plural(detailExampleGroups.reduce((count, group) => count + group.entries.length, 0), 'relevé', 'relevés')}
+                  ? t.loading_note
+                  : plural(t, 'example', detailExampleGroups.reduce((count, group) => count + group.entries.length, 0))}
               />
               {detailExampleGroups.length > 0 ? (
                 <div className="av2-stack">
@@ -1568,14 +1529,14 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                   ))}
                 </div>
               ) : (
-                <p className="av2-body lx-placeholder">Aucun exemple au dossier pour l’instant.</p>
+                <p className="av2-body lx-placeholder">{t.examples_empty}</p>
               )}
             </section>
 
-            <section className="lx-block" aria-label="Le suivi">
+            <section className="lx-block" aria-label={t.tracking_title}>
               <LxSectionHead
-                title="Le suivi"
-                note={detailSupport.loading ? 'en cours' : detailSupport.progress ? 'à jour' : 'jamais revu'}
+                title={t.tracking_title}
+                note={detailSupport.loading ? t.loading_note : detailSupport.progress ? t.tracking_current : t.tracking_never}
               />
               <div className="lx-meta lx-meta--srs">
                 {detailSrsRows.map((row) => (
@@ -1587,10 +1548,10 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
               </div>
             </section>
 
-            <section className="lx-block" aria-label="Traces récentes">
+            <section className="lx-block" aria-label={t.traces_title}>
               <LxSectionHead
-                title="Traces récentes"
-                note={detailSupport.loading ? 'en cours' : plural(detailSupport.traces.length, 'trace', 'traces')}
+                title={t.traces_title}
+                note={detailSupport.loading ? t.loading_note : plural(t, 'trace', detailSupport.traces.length)}
               />
               {detailSupport.traces.length > 0 ? (
                 <div className="lx-rows">
@@ -1600,7 +1561,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                         <span className="lx-row__main">
                           <span className="av2-label av2-label--story">{trace.source}</span>
                           <span className="lx-row__title">{trace.label}</span>
-                          <span className="lx-row__meta">{[trace.description, formatShortDate(trace.date)].filter(Boolean).join(' · ')}</span>
+                          <span className="lx-row__meta">{[trace.description, formatShortDate(t, trace.date)].filter(Boolean).join(' · ')}</span>
                         </span>
                       </>
                     );
@@ -1612,51 +1573,51 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                   })}
                 </div>
               ) : (
-                <p className="av2-body lx-placeholder">Ce mot n’a pas encore laissé de trace.</p>
+                <p className="av2-body lx-placeholder">{t.traces_empty}</p>
               )}
             </section>
 
             <div className="lx-actions">
               <Action tone="secondary" onClick={openBiography} icon={<ShapeToken kind="story" size="sm" />}>
-                La biographie du mot
+                {t.action_biography}
               </Action>
               <Action
                 tone="secondary"
                 pending={action === 'mission'}
-                pendingLabel="Composition…"
+                pendingLabel={t.composing}
                 disabled={action !== null}
                 onClick={createMission}
                 icon={<ShapeToken kind="action" size="sm" />}
               >
-                Le mettre en mission
+                {t.action_letter}
               </Action>
               <Action
                 tone="secondary"
                 pending={action === 'feuilleton'}
-                pendingLabel="Composition…"
+                pendingLabel={t.composing}
                 disabled={action !== null}
                 onClick={createFeuilleton}
                 icon={<ShapeToken kind="story" size="sm" />}
               >
-                Le lire au Feuilleton
+                {t.action_feuilleton}
               </Action>
             </div>
 
-            <div className="lx-ratings" role="group" aria-label="Classer la carte">
-              {!practiceRevealed && <p className="av2-label lx-ratings__note">Retournez la carte avant de la classer.</p>}
+            <div className="lx-ratings" role="group" aria-label={t.ratings_group}>
+              {!practiceRevealed && <p className="av2-label lx-ratings__note">{t.ratings_note}</p>}
               {reviewOptions.map((option) => (
                 <Action
                   key={option.rating}
                   tone="secondary"
                   pending={reviewing}
-                  pendingLabel={option.label}
+                  pendingLabel={t[option.label]}
                   disabled={!practiceRevealed}
                   onClick={() => review(option.rating)}
                   icon={<ShapeToken kind={option.shape} size="sm" />}
-                  title={option.hint}
+                  title={t[option.hint]}
                 >
-                  {option.label}
-                  <span className="av2-sr"> · {option.hint}</span>
+                  {t[option.label]}
+                  <span className="av2-sr"> · {t[option.hint]}</span>
                 </Action>
               ))}
             </div>
@@ -1668,7 +1629,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         open={Boolean(biographyWordId)}
         biography={biography}
         loading={biographyLoading}
-        error={biographyError}
+        error={biographyError ? t.biography_failed : null}
         onClose={() => setBiographyWordId(null)}
       />
     </>
@@ -1678,15 +1639,15 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
     <>
       {!embedded && (
         <Head>
-          <title>Le Cahier · Lexique · L’Atelier</title>
+          <title>{t.head_title}</title>
         </Head>
       )}
       {embedded ? (
-        <AtelierV2Root as="div" className="lx-page lx-page--embedded" aria-label="Le lexique">
+        <AtelierV2Root as="div" language={language} className="lx-page lx-page--embedded" aria-label="Le lexique">
           {content}
         </AtelierV2Root>
       ) : (
-        <AtelierV2Root as="main" className="lx-page" aria-label="Le lexique">
+        <AtelierV2Root as="main" language={language} className="lx-page" aria-label="Le lexique">
           {content}
         </AtelierV2Root>
       )}
@@ -1761,6 +1722,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-search__input::placeholder { color: var(--av2-muted); opacity: 1; }
         .av2 .lx-search__input::-webkit-search-cancel-button { display: none; }
         .av2 .lx-search__clear {
+          position: relative;
           display: grid;
           place-items: center;
           flex: none;
@@ -1772,6 +1734,16 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           background: var(--av2-line);
           color: var(--av2-ink);
           cursor: pointer;
+        }
+        /* The disc stays 32px as drawn; the tap target around it is the floor. */
+        .av2 .lx-search__clear::after {
+          content: '';
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: var(--av2-tap);
+          height: var(--av2-tap);
+          transform: translate(-50%, -50%);
         }
         /* globals.css puts an !important 1px ruled border on every input. */
         .av2 .lx-input {
@@ -1785,9 +1757,9 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-input:focus { box-shadow: none !important; }
         .av2 .lx-search:focus-within { outline: 2px solid var(--av2-blue); outline-offset: 0; }
 
-        /* Filter pills: 30px, the active one on ink. */
-        .av2 .lx-chips { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-        .av2 .lx-chips::-webkit-scrollbar { display: none; }
+        /* Filter pills, the active one on ink. The row wraps rather than
+           scrolling sideways, so a 320px screen shows every pill. */
+        .av2 .lx-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
         .av2 .lx-chip {
           display: inline-flex;
           flex: none;
@@ -1805,10 +1777,12 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           cursor: pointer;
         }
         .av2 .lx-chip[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); }
-        .av2 .lx-chip__n { font-weight: 400; opacity: 0.85; }
-        .av2 .lx-livesum { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; min-height: 1.5rem; }
-        .av2 .lx-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; margin-top: 8px; }
-        .av2 .lx-section-head__note { font-weight: 400; flex: none; }
+        .av2 .lx-livesum { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+        /* Out of the flow while it has nothing to say (no gap), still live. */
+        .av2 .lx-livesum:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+        .av2 .lx-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; margin-top: 8px; }
+        .av2 .lx-section-head > * { min-width: 0; overflow-wrap: anywhere; }
+        .av2 .lx-section-head__note { font-weight: 400; }
 
         /* Rows — the Cahier artboard's concept row, verbatim. */
         .av2 .lx-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -1860,10 +1834,11 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           cursor: pointer;
         }
         .av2 .lx-fold__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .av2 .lx-fold__toggle { flex: none; }
         .av2 .lx-atlas__body { gap: 10px; }
         .av2 .lx-track { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-        .av2 .lx-track__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-        .av2 .lx-track__label { font-size: var(--av2-t-label); font-weight: 600; }
+        .av2 .lx-track__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+        .av2 .lx-track__label { min-width: 0; font-size: var(--av2-t-label); font-weight: 600; overflow-wrap: anywhere; }
         .av2 .lx-track__fill { background: var(--av2-blue); }
         .av2 .lx-track__fill[data-tone='ink'] { background: var(--av2-ink); }
         .av2 .lx-map { display: flex; flex-direction: column; gap: 12px; }
@@ -1888,30 +1863,33 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-map__note { font-size: var(--av2-t-meta); color: var(--av2-muted); }
 
         /* Weekly dossier. */
-        .av2 .lx-dossier { display: flex; flex-direction: column; gap: 10px; padding: 18px; margin-top: 8px; }
+        .av2 .lx-dossier { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px; margin-top: 8px; }
+        .av2 .lx-dossier__title { margin: 0; font-family: var(--av2-sans); font-size: var(--av2-t-title); font-weight: 700; line-height: 1.2; color: var(--av2-ink); overflow-wrap: anywhere; }
         .av2 .lx-dossier__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
         .av2 .lx-dossier__stats div { min-width: 0; padding: 10px 12px; border-radius: var(--av2-r-tile); background: var(--av2-paper); }
         .av2 .lx-dossier__stats dd { margin: 4px 0 0; font-size: var(--av2-t-title); font-weight: 700; line-height: 1; }
         .av2 .lx-dossier__thread { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
         .av2 .lx-dossier__thread .av2-shape { margin-top: 5px; }
         .av2 .lx-dossier__thread span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .av2 .lx-dossier__thread b { font-size: var(--av2-t-body); font-weight: 600; }
+        .av2 .lx-dossier__thread b { font-size: var(--av2-t-body); font-weight: 600; overflow-wrap: anywhere; }
         .av2 .lx-dossier__thread em { font-style: normal; }
 
         /* Word sheet. */
         .av2 .lx-sheet { gap: 14px; }
         .av2 .lx-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+        .av2 .lx-meta > * { min-width: 0; }
+        .av2 .lx-meta .av2-label { overflow-wrap: anywhere; }
         .av2 .lx-meta strong { display: block; margin-top: 4px; font-size: var(--av2-t-body-lg); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-        .av2 .lx-anchor { display: flex; flex-direction: column; gap: 6px; }
-        .av2 .lx-anchor__text { margin: 0; font-size: var(--av2-t-option); color: var(--av2-ink); }
+        .av2 .lx-anchor { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .av2 .lx-anchor__text { margin: 0; font-size: var(--av2-t-option); color: var(--av2-ink); overflow-wrap: anywhere; }
         .av2 .lx-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
         .av2 .lx-block .lx-section-head { margin-top: 0; }
         .av2 .lx-group { display: flex; flex-direction: column; gap: 10px; }
         .av2 .lx-group__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .av2 .lx-group__head strong { font-size: var(--av2-t-body); }
+        .av2 .lx-group__head strong { min-width: 0; font-size: var(--av2-t-body); overflow-wrap: anywhere; }
         .av2 .lx-entry { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .av2 .lx-entry + .lx-entry { padding-top: 10px; border-top: 1px solid var(--av2-line); }
-        .av2 .lx-entry__text { margin: 0; font-size: var(--av2-t-action); color: var(--av2-ink); }
+        .av2 .lx-entry__text { margin: 0; font-size: var(--av2-t-action); color: var(--av2-ink); overflow-wrap: anywhere; }
         .av2 .lx-placeholder { margin: 0; color: var(--av2-muted); }
         .av2 .lx-actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
         .av2 .lx-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
@@ -1949,8 +1927,8 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           --lx-card-shadow: var(--av2-yellow-deep);
         }
         .av2 .lx-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: var(--av2-t-label); font-weight: 700; opacity: 0.85; }
-        .av2 .lx-card__word { font-size: var(--av2-t-screen); line-height: 1; color: inherit; }
-        .av2 .lx-card__example { margin: 0; font-size: var(--av2-t-action); line-height: 1.35; opacity: 0.9; color: inherit; }
+        .av2 .lx-card__word { font-size: var(--av2-t-screen); line-height: 1; color: inherit; overflow-wrap: anywhere; hyphens: auto; }
+        .av2 .lx-card__example { margin: 0; font-size: var(--av2-t-action); line-height: 1.35; opacity: 0.9; color: inherit; overflow-wrap: anywhere; }
 
         @media (min-width: 560px) {
           .av2 .lx-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
