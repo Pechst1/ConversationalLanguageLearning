@@ -16,16 +16,26 @@
  * different reply. So the server hands back the reviewed reply with the
  * verdict, and the client stages them: words first, judgement second. The
  * wait itself is given a face instead of a spinner.
+ *
+ * WP-87 (2026-09-23): the engine now answers in lanes — the reply and the
+ * verdict come from two small parallel calls guarded deterministically, and the
+ * ending + critic run after the response. So the wait is ~max(tutor, voice) and
+ * the staged typing is capped at 0.8 s; streaming stays out of scope unless the
+ * measured p50 of the two lanes stays above 4 s.
  */
 
 import type { AttemptResult, ControlLanguage, StepKind } from '@/types/daily-journey';
 
 /** Per-character pace of the typed reply. */
-export const REPLY_CHAR_MS = 24;
+export const REPLY_CHAR_MS = 12;
 /** A short reply still reads as typed, not as a flash. */
-export const REPLY_REVEAL_MIN_MS = 500;
-/** A long reply never holds the verdict back for more than this. */
-export const REPLY_REVEAL_MAX_MS = 1_800;
+export const REPLY_REVEAL_MIN_MS = 300;
+/**
+ * A long reply never holds the verdict back for more than this. WP-87: the reply
+ * now arrives in ~max(tutor, voice) seconds, so the staging is a beat, not a wait
+ * — the artificial typing is capped at 0.8 s.
+ */
+export const REPLY_REVEAL_MAX_MS = 800;
 /** The beat between the last typed word and the verdict card. */
 export const VERDICT_BEAT_MS = 250;
 

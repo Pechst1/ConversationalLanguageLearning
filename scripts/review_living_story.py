@@ -16,6 +16,31 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 
+def _p(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return round(ordered[min(len(ordered) - 1, int(round(fraction * (len(ordered) - 1))))], 2)
+
+
+def lane_latency(report: dict) -> dict:
+    """WP-87: seconds per schema (lane) and for the reply phase the learner waits on."""
+
+    per_schema: dict[str, list[float]] = {}
+    for request in report.get("requests") or []:
+        if request.get("content") and request.get("elapsed_seconds") is not None:
+            per_schema.setdefault(str(request.get("schema")), []).append(request["elapsed_seconds"])
+    summary = {
+        schema: {"n": len(values), "p50": _p(values, 0.5), "p90": _p(values, 0.9), "max": max(values)}
+        for schema, values in sorted(per_schema.items())
+    }
+    for key in ("reply_phase_seconds", "story_lane_seconds"):
+        values = [scene[key] for scene in report.get("scenes") or [] if scene.get(key) is not None]
+        if values:
+            summary[key] = {"n": len(values), "p50": _p(values, 0.5), "max": max(values)}
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true")
@@ -47,6 +72,15 @@ def main():
         help="Per-learner dice (WP-59): the arc order and the complication cards this life is dealt.",
     )
     parser.add_argument(
+        "--lanes",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "WP-87: play each turn as production does with ATELIER_STORY_TURN_LANES_ENABLED "
+            "(tutor ‖ voice, then story + critic). Default: the setting's value."
+        ),
+    )
+    parser.add_argument(
         "--output", type=Path, default=Path("var/reviews/atelier-story-review.json")
     )
     args = parser.parse_args()
@@ -60,13 +94,17 @@ def main():
     from app.config import settings
     from app.db import models  # noqa: F401 — register model relationships for the event sink
     from app.services import living_story as engine
+    from app.services import story_lanes as lanes
     from app.services.serial import SerialThreadService
+
+    use_lanes = settings.ATELIER_STORY_TURN_LANES_ENABLED if args.lanes is None else args.lanes
 
     report = {
         "version": engine.VERSION,
         "synthetic_only": True,
         "level": args.level,
         "attempts": args.attempts,
+        "lanes": use_lanes,
         "requests": [],
         "scenes": [],
     }
@@ -93,11 +131,18 @@ def main():
                     raise engine.StoryUnavailable("review_request_limit")
                 calls += 1
             started = time.monotonic()
+            # WP-87: which lane (schema) this request served, for per-lane latency.
+            try:
+                messages = args[0] if args else kwargs.get("messages")
+                schema = json.loads(messages[0]["content"])["output_schema"]["title"]
+            except Exception:  # noqa: BLE001 - a label, never a reason to fail
+                schema = None
             try:
                 result = real_client().generate_chat_completion(*args, **kwargs)
             except Exception as exc:
                 report["requests"].append(
                     {
+                        "schema": schema,
                         "error": f"{type(exc).__name__}: {exc}"[:300],
                         "elapsed_seconds": round(time.monotonic() - started, 2),
                         "content": None,
@@ -106,6 +151,7 @@ def main():
                 raise
             report["requests"].append(
                 {
+                    "schema": schema,
                     "model": result.model,
                     "provider": result.provider,
                     "tokens": result.total_tokens,
@@ -241,15 +287,31 @@ def main():
             payload["story"]["commitments"] = [
                 c for c in context["commitments"] if scene.character_id in c["witnesses"]
             ]
+            lane_timing: dict = {}
             try:
-                result, _ = engine._approved(
-                    engine.ACTOR,
-                    payload,
-                    engine.SemanticTurn,
-                    lambda value, source=payload: engine._validate_turn(value, source),
-                    db=EventSink(),
-                    user=SimpleNamespace(id=uuid4()),
-                )
+                if use_lanes:
+                    # WP-87, as production runs it: tutor ‖ voice on the request, then
+                    # the story lane (ending + critic) off the critical path.
+                    payload["turn_plan"] = {"closing_turn": True, "clarify_form_fr": None}
+                    reply_started = time.monotonic()
+                    reply = lanes.run_reply_lanes(payload)
+                    lane_timing["reply_phase_seconds"] = round(time.monotonic() - reply_started, 2)
+                    lane_timing["lane_seconds"] = dict(reply.seconds)
+                    story = lanes.run_story_lane(payload, reply.tutor, reply.voice)
+                    lane_timing["story_lane_seconds"] = story.seconds
+                    lane_timing["released_issues"] = story.released_issues
+                    if story.turn is None:
+                        raise engine.StoryUnavailable(story.reason or "story_lane_failed", hint=story.hint)
+                    result = story.turn
+                else:
+                    result, _ = engine._approved(
+                        engine.ACTOR,
+                        payload,
+                        engine.SemanticTurn,
+                        lambda value, source=payload: engine._validate_turn(value, source),
+                        db=EventSink(),
+                        user=SimpleNamespace(id=uuid4()),
+                    )
                 reply_source = "model"
             except engine.StoryUnavailable as exc:
                 # What production does (WP-58): an honest authored ending, never a
@@ -271,6 +333,7 @@ def main():
                     "scene": scene.model_dump(mode="json"),
                     "learner_text": text,
                     "reply_source": reply_source,
+                    **lane_timing,
                     "objective_language": engine.objective_language(scene.objective_native),
                     "turn": result.model_dump(mode="json"),
                 }
@@ -496,6 +559,7 @@ def main():
         report["reason_feedback"] = str(getattr(exc, "feedback", "") or "")
     finally:
         report["attempted_requests"] = calls
+        report["lane_latency"] = lane_latency(report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
         print(f"{report['status']}: {args.output}")

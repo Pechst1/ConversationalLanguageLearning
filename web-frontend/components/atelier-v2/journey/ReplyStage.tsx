@@ -96,3 +96,36 @@ export function TypedReply({
     </div>
   );
 }
+
+const ENDING_WRITES: Record<'fr' | 'en' | 'de', string> = {
+  fr: 'La suite s’écrit…',
+  en: 'What happens next is being written…',
+  de: 'Wie es weitergeht, wird gerade geschrieben…',
+};
+
+/** WP-87: the language of the "…" line while the story lane writes the ending. */
+export function endingLine(language: string | null | undefined): string {
+  return ENDING_WRITES[language === 'fr' || language === 'de' ? language : 'en'];
+}
+
+/**
+ * WP-87: the resolution step while the story lane is still writing its ending —
+ * the character's face and a short "…" line, never a spinner. The hook polls the
+ * journey meanwhile; the server heals a dead lane with the authored ending.
+ */
+export function StoryWriting({ speaker }: { speaker: ReplySpeaker }) {
+  const language = useControlLanguage();
+  return (
+    <div className="av2-reply av2-reply--typing" role="status" aria-live="polite">
+      {speaker && <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="sm" />}
+      <p className="av2-reply__typing">
+        <span>{endingLine(language)}</span>
+        <span className="av2-reply__dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </p>
+    </div>
+  );
+}

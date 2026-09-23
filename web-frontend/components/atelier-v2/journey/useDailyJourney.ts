@@ -69,6 +69,10 @@ import {
   journeyProgress,
   phaseFromEnvelope,
   phaseFromJourney,
+  resolutionAwaitsStory,
+  STORY_POLL_LIMIT,
+  STORY_POLL_MS,
+  storyPollTarget,
   type JourneyFeedback,
   type JourneyPhase,
   type JourneyProgress,
@@ -452,6 +456,28 @@ export function useDailyJourney(
     return () => clearTimeout(timer);
   }, [phase, applySnapshot]);
 
+  // WP-87: the resolution's ending is written by the story lane after the reply
+  // came back. While it says `story_pending`, re-read the journey (a safe GET that
+  // never pays); the server heals a dead lane with the authored ending, so this
+  // always ends. Bounded all the same.
+  const storyPollsRef = useRef(0);
+  const storyTarget = storyPollTarget(journey);
+  useEffect(() => {
+    if (!storyTarget) {
+      storyPollsRef.current = 0;
+      return undefined;
+    }
+    if (storyPollsRef.current >= STORY_POLL_LIMIT) return undefined;
+    const timer = setTimeout(() => {
+      storyPollsRef.current += 1;
+      void dailyJourneyService
+        .get(storyTarget)
+        .then((next) => applySnapshot(next))
+        .catch(() => undefined);
+    }, STORY_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [storyTarget, journey, applySnapshot]);
+
   useEffect(() => {
     if (phase.kind !== 'finished') return;
     if (finishedNotifiedRef.current === phase.journey.id) return;
@@ -825,6 +851,8 @@ export function useDailyJourney(
       setHelp(null);
       return;
     }
+    // WP-87: an ending still being written is not skipped past.
+    if (resolutionAwaitsStory(currentStepOf(journeyRef.current))) return;
     const advanced = await advance();
     if (advanced && journeyAwaitsFinish(advanced)) {
       await finishSnapshot(advanced, 'complete');

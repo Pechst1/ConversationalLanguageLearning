@@ -473,6 +473,9 @@ class OpenAIProvider:
                 payload["max_tokens"] = kwargs["max_tokens"]
         if kwargs.get("reasoning_effort"):
             payload["reasoning_effort"] = kwargs["reasoning_effort"]
+        if kwargs.get("prompt_cache_key") and "api.openai.com" in self.base_url:
+            # A compatible gateway may reject unknown fields; only OpenAI gets it.
+            payload["prompt_cache_key"] = kwargs["prompt_cache_key"]
 
         request_timeout = kwargs.get("request_timeout", self.request_timeout)
         try:
@@ -846,8 +849,13 @@ class LLMService:
         disable_retries: bool = False,
         reasoning_effort: str | None = None,
         max_provider_attempts: int | None = None,
+        prompt_cache_key: str | None = None,
     ) -> LLMResult:
-        """Generate a chat completion using the configured providers."""
+        """Generate a chat completion using the configured providers.
+
+        ``prompt_cache_key`` (WP-87) is forwarded to api.openai.com only: it routes
+        requests that share a static prefix to the same prompt cache.
+        """
 
         errors: list[str] = []
         providers = self._provider_order if max_provider_attempts is None else self._provider_order[:max(1, max_provider_attempts)]
@@ -871,6 +879,8 @@ class LLMService:
                 payload_kwargs["disable_retries"] = True
             if reasoning_effort:
                 payload_kwargs["reasoning_effort"] = reasoning_effort
+            if prompt_cache_key and provider.name == "openai":
+                payload_kwargs["prompt_cache_key"] = prompt_cache_key
             if system_prompt and provider.name == "anthropic":
                 payload_kwargs["system"] = system_prompt
             provider_messages = messages

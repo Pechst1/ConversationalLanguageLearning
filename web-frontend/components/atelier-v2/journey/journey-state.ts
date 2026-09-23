@@ -611,3 +611,26 @@ export function recapView(recap: JourneyRecap | null): RecapView | null {
         : null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// WP-87 — the resolution waits honestly for the story lane
+// ---------------------------------------------------------------------------
+
+/** How often the resolution step re-reads the journey while its ending is written. */
+export const STORY_POLL_MS = 1_000;
+/**
+ * Bounded: the server heals a dead lane with the authored ending after ~15 s
+ * unclaimed or ~90 s running, so two minutes of polls always see an ending.
+ */
+export const STORY_POLL_LIMIT = 120;
+
+/** Is this step a resolution whose ending the story lane is still writing? */
+export function resolutionAwaitsStory(step: PublicStep | null | undefined): boolean {
+  return Boolean(step && step.kind === 'resolution' && step.prompt.story_pending === true);
+}
+
+/** The id of the journey to poll, or `null` when nothing is being written. */
+export function storyPollTarget(journey: JourneySnapshot | null | undefined): string | null {
+  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return null;
+  return resolutionAwaitsStory(currentStepOf(journey)) ? journey.id : null;
+}
