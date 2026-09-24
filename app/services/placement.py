@@ -46,6 +46,7 @@ from app.db.models.placement import PlacementSession
 from app.db.models.user import User
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.cefr_progress import CEFR_LEVELS, declared_level_floor, level_index
+from app.services.journey_contracts import normalize_control_language
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.pilot_events import PilotEventService
 
@@ -369,9 +370,17 @@ _GRADING_RESPONSE_FORMAT: dict[str, Any] = {
                     "required": list(DIMENSIONS),
                 },
                 "evidence_fr": {"type": "string"},
+                "evidence_native": {"type": "string"},
                 "off_task": {"type": "boolean"},
             },
-            "required": ["score_0_4", "demonstrated_band", "dimensions", "evidence_fr", "off_task"],
+            "required": [
+                "score_0_4",
+                "demonstrated_band",
+                "dimensions",
+                "evidence_fr",
+                "evidence_native",
+                "off_task",
+            ],
         },
     },
 }
@@ -388,6 +397,9 @@ _GRADING_SYSTEM_PROMPT = (
     "coherence (does it hang together), task (did it do what was asked).\n"
     "- evidence_fr is ONE short French clause quoting or naming what you judged, so a learner can see the reason. "
     "Never longer than 20 words, never a correction, never advice.\n"
+    "- evidence_native is the same note written for the learner in the language whose code is "
+    "evidence_language (en, de or fr). Any words you quote from the learner's response stay in French, "
+    "verbatim, inside quotation marks; only the note around them is in evidence_language.\n"
     "- off_task is true when the response is empty, in another language, or does not attempt the prompt. "
     "An off-task response scores 0 and demonstrates nothing.\n"
     "- Do not flatter and do not round up. A placement that is one band too high costs the learner their first week."
@@ -662,6 +674,10 @@ def estimate_from_turns(turns: list[dict[str, Any]]) -> PlacementEstimate:
                 "score_0_4": round(score, 2),
                 "demonstrated_band": grading.get("demonstrated_band"),
                 "evidence_fr": grading.get("evidence_fr"),
+                # The one-language rule: the note is the app's own words, so it
+                # is also served in the learner's language when the grader wrote it.
+                "evidence_native": grading.get("evidence_native"),
+                "evidence_language": grading.get("evidence_language"),
                 "model": grading.get("model"),
             }
         )
@@ -741,7 +757,9 @@ def record_placement_cost(
         logger.warning("Placement cost row could not be written")
 
 
-def normalize_grading(parsed: Any, *, model: str | None = None) -> dict[str, Any]:
+def normalize_grading(
+    parsed: Any, *, model: str | None = None, language: str | None = None
+) -> dict[str, Any]:
     """Validate the grader's answer. Raises ``ValueError`` on anything unusable.
 
     An unusable grading is a *failure*, not a zero: a zero would push the ladder
@@ -766,11 +784,19 @@ def normalize_grading(parsed: Any, *, model: str | None = None) -> dict[str, Any
         raise ValueError("grading carries no dimension breakdown")
     off_task = bool(parsed.get("off_task"))
     evidence = str(parsed.get("evidence_fr") or "").strip()[:240]
+    # The note in the learner's language (``language``); French learners and a
+    # grader that left it out fall back to the French note, labelled ``fr``.
+    evidence_language = normalize_control_language(language) if language else None
+    native = str(parsed.get("evidence_native") or "").strip()[:240]
+    if evidence_language == "fr" or not native:
+        native, evidence_language = (evidence, "fr") if evidence else ("", None)
     return {
         "score_0_4": 0.0 if off_task else float(score),
         "demonstrated_band": None if off_task else band,
         "dimensions": dict.fromkeys(dimensions, 0.0) if off_task else dimensions,
         "evidence_fr": evidence or None,
+        "evidence_native": native or None,
+        "evidence_language": evidence_language if native else None,
         "off_task": off_task,
         "model": model,
         "graded_at": datetime.now(UTC).isoformat(),
@@ -875,12 +901,22 @@ class PlacementService:
             turns=list(session.turns or []),
         )
 
-    def respond(self, session: PlacementSession, *, answer: str, turn_index: int) -> PlacementSession:
+    def respond(
+        self,
+        session: PlacementSession,
+        *,
+        answer: str,
+        turn_index: int,
+        language: str | None = None,
+    ) -> PlacementSession:
         """Grade one answer and move the ladder.
 
         ``turn_index`` is the client's statement of *which* turn it is answering.
         Replaying an index that already exists returns the session untouched: the
         stored grading stands and no paid call is made.
+
+        ``language`` is the learner's language (en / de / fr): the grader's
+        evidence note is also written in it (the one-language rule).
         """
         turns = list(session.turns or [])
         if session.status != "in_progress":
@@ -896,6 +932,7 @@ class PlacementService:
             prompt=prompt,
             answer=text,
             turn_index=len(turns),
+            language=language,
         )
         turns.append(
             {
@@ -966,6 +1003,7 @@ class PlacementService:
         prompt: PlacementPrompt,
         answer: str,
         turn_index: int,
+        language: str | None = None,
     ) -> dict[str, Any] | None:
         """One paid grading call, or ``None``.
 
@@ -984,6 +1022,7 @@ class PlacementService:
             "prompt_intent": prompt.intent,
             "learner_response": answer,
             "ladder": list(PLACEMENT_BANDS),
+            "evidence_language": normalize_control_language(language) if language else "fr",
         }
         try:
             result = llm.generate_error_detection(
@@ -1009,7 +1048,9 @@ class PlacementService:
             band=prompt.band,
         )
         try:
-            return normalize_grading(json.loads(result.content), model=result.model)
+            return normalize_grading(
+                json.loads(result.content), model=result.model, language=language
+            )
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
             logger.warning("Placement grading was unusable: {}", exc)
             return None

@@ -53,6 +53,7 @@ import { pickByLanguage } from '@/lib/language-rule';
 import {
   placementConfidenceLabel as confidenceLabel,
   placementCopy,
+  placementEvidenceNote,
   placementFill,
   type PlacementCopy,
 } from '@/lib/placement-copy';
@@ -385,8 +386,13 @@ export default function PlacementPage() {
                 <li key={index}>
                   <span className="av2-label">{String(item.band ?? '')}</span>
                   <p lang="fr">{String(item.answer ?? '')}</p>
-                  {/* The grader writes its evidence in French: content, marked so. */}
-                  {item.evidence_fr && <p className="pl-fine" lang="fr">{String(item.evidence_fr)}</p>}
+                  {/* The grader's note is chrome: its version in the learner's
+                      language when the grader wrote one (quotes of the answer
+                      stay French inside it); an older note keeps its French. */}
+                  {(() => {
+                    const note = placementEvidenceNote(item, language);
+                    return note ? <p className="pl-fine" lang={note.lang}>{note.text}</p> : null;
+                  })()}
                 </li>
               ))}
             </ul>

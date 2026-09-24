@@ -20,6 +20,7 @@ from app.api.deps import get_current_user, get_db
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
 from app.services.cefr_progress import CEFRProgressService
+from app.services.journey_contracts import normalize_control_language
 from app.services.placement import (
     MAX_TURNS,
     PLACEMENT_VERSION,
@@ -178,7 +179,14 @@ def respond(
     """Grade one answer and hand back the next rung, or the result."""
     session = _load(db, current_user, session_id)
     service = PlacementService(db)
-    session = service.respond(session, answer=payload.answer, turn_index=payload.turn_index)
+    # The grader's evidence note is the app's own words: written in the
+    # learner's declared language, as the rest of the placement chrome is.
+    session = service.respond(
+        session,
+        answer=payload.answer,
+        turn_index=payload.turn_index,
+        language=normalize_control_language(getattr(current_user, "native_language", None)),
+    )
     if session.status != "in_progress":
         # The estimate is the CEFR service's prior from here on; recompute so
         # Home and Le Cahier answer with the new level on their next read.

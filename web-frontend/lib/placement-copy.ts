@@ -3,9 +3,10 @@
  * learner's declared native language, whatever the level: it is the screen
  * that measures the level, so the level cannot choose its language.
  *
- * The prompts, the learner's answers and the grader's evidence are French
- * content (`lang="fr"`); the hint under the field arrives as
- * `hint_by_language` from the server. The place name «L’Atelier» stays French.
+ * The prompts and the learner's answers are French content (`lang="fr"`); the
+ * hint under the field arrives as `hint_by_language` from the server, and the
+ * grader's evidence note as `evidence_native` in `evidence_language`
+ * (`placementEvidenceNote`). The place name «L’Atelier» stays French.
  */
 
 import type { ControlLanguage } from '@/types/daily-journey';
@@ -206,6 +207,22 @@ export function placementConfidenceLabel(confidence: number, copy: PlacementCopy
   if (confidence >= 0.75) return copy.confidence_solid;
   if (confidence >= 0.55) return copy.confidence_fair;
   return copy.confidence_provisional;
+}
+
+/**
+ * The grader's evidence note is the app's own words: its version in the
+ * learner's language when the grader wrote one (French quotes of the answer
+ * stay inside it); an older note, or one in another language, keeps its
+ * French and says so with `lang="fr"`.
+ */
+export function placementEvidenceNote(
+  item: { evidence_fr?: unknown; evidence_native?: unknown; evidence_language?: unknown } | null | undefined,
+  language: ControlLanguage,
+): { text: string; lang: string } | null {
+  const native = typeof item?.evidence_native === 'string' ? item.evidence_native.trim() : '';
+  if (native && item?.evidence_language === language) return { text: native, lang: language };
+  const french = typeof item?.evidence_fr === 'string' ? item.evidence_fr.trim() : '';
+  return french ? { text: french, lang: 'fr' } : null;
 }
 
 export default placementCopy;
