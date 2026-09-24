@@ -482,6 +482,32 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schick die Umformung ab, wenn du sie geprüft haben willst; ausgelassene Zeilen werden nicht als Grammatik-Erratum eingeplant.",
         "fr": "Envoyez la réécriture quand vous voulez qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
     },
+    # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
+    "forge.diff.ending": {
+        "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
+        "de": "Die Endung stimmt nicht: Du hast «{learner}» geschrieben, hier steht «{target}».",
+        "fr": "La terminaison ne va pas : vous avez écrit «{learner}», la forme attendue est «{target}».",
+    },
+    "forge.diff.word": {
+        "en": "You wrote «{learner}»; here it is «{target}».",
+        "de": "Du hast «{learner}» geschrieben; hier steht «{target}».",
+        "fr": "Vous avez écrit «{learner}» ; ici, c’est «{target}».",
+    },
+    "forge.diff.missing": {
+        "en": "«{target}» is missing.",
+        "de": "«{target}» fehlt.",
+        "fr": "Il manque «{target}».",
+    },
+    "forge.diff.extra": {
+        "en": "«{learner}» does not belong in this line.",
+        "de": "«{learner}» gehört nicht in diesen Satz.",
+        "fr": "«{learner}» n’a pas sa place dans cette ligne.",
+    },
+    "forge.diff.order": {
+        "en": "The words are right, but not in this order.",
+        "de": "Die Wörter stimmen, aber nicht in dieser Reihenfolge.",
+        "fr": "Les mots sont justes, mais pas dans cet ordre.",
+    },
     "atelier.output.missing_label": {
         "en": "Missing output",
         "de": "Fehlende Ausgabe",

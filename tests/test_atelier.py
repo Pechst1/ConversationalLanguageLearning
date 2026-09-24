@@ -1265,6 +1265,13 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     keyed = [attempt for attempt in attempts if attempt.round in {"recognize", "transform"}]
     open_answers = [attempt for attempt in attempts if attempt.round not in {"recognize", "transform"}]
     assert all(attempt.verdict == "correct" for attempt in keyed)
+    # WP-S1: no submit waited on the (failing) model; open answers came back
+    # with a provisional local verdict and a queued relecture.
+    assert correction_service.llm_service.calls == []
+    assert all(attempt.correction_payload["assessment_status"] == "provisional" for attempt in open_answers)
+    assert all(attempt.correction_payload["ai_review"]["status"] == "pending" for attempt in open_answers)
+    # The relecture fails: the open answers are then unchecked, never accepted.
+    open_answers = [correction_service.run_ai_review_for_attempt(attempt.id) for attempt in open_answers]
     assert all(attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable" for attempt in open_answers)
     assert all(attempt.correction_payload["ai_review"]["status"] == "failed" for attempt in open_answers)
     assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
@@ -1997,6 +2004,8 @@ def test_transform_correction_uses_structured_llm_output(db_session):
         exercise_id="si-transform",
         prompt_payload=payload["transform"],
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le diner."}},
+        # WP-S1: the model reads a rewrite only in the background relecture.
+        force_llm=True,
     )
 
     assert result["corrected_answer"]["si-transform-1"].startswith("S'il arrive")
@@ -2058,7 +2067,9 @@ def test_negation_correction_names_article_change(db_session):
     assert "pas" in erratum["repair_hint"]
 
 
-def test_produce_saves_submission_without_certifying_missing_targets(db_session):
+def test_produce_saves_submission_without_certifying_missing_targets(db_session, monkeypatch):
+    # No relecture can run (no provider): the paragraph is saved unchecked.
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: False)
     user = _user(db_session)
     concepts = [_concept(db_session, "FR_B1_COND_001"), _concept(db_session, "FR_B1_TENSE_001"), _concept(db_session, "FR_A2_NEG_001")]
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id for concept in concepts])
@@ -2198,7 +2209,7 @@ def test_rule_hint_output_ladder_missing_target_is_not_recurring_erratum(db_sess
     assert result["errata"][0]["recurring"] is False
 
 
-def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_session):
+def test_sentence_submit_is_local_and_the_relecture_lands_async(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -2206,8 +2217,9 @@ def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_sessio
     db_session.commit()
     _attach_primed_exercise_set(db_session, session, concept)
     fake_llm = _FakeLLMService({"verdict": "accepted", "score_0_4": 4, "errata": []})
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
 
-    attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
+    attempt = service.submit_attempt(
         session=session,
         user=user,
         concept=concept,
@@ -2217,26 +2229,58 @@ def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_sessio
         answer_payload={"text": "Si je finis tôt, je t'appellerai."},
     )
 
+    # WP-S1: the submit returns a provisional local verdict; the model is not
+    # called on the request path.
+    assert fake_llm.calls == []
+    assert attempt.correction_payload["assessment_status"] == "provisional"
+    assert attempt.correction_payload["local_check"]["detector"] in {"hit", "miss"}
+    assert attempt.correction_payload["ai_review"]["status"] == "pending"
+    assert attempt.correction_payload["ai_review"]["auto_started"] is True
+    assert attempt.correction_payload["evidence_hold"] is True
+    assert service.should_auto_start_ai_review(attempt) is True
+
+    landed = service.run_ai_review_for_attempt(attempt.id)
+
     assert fake_llm.calls[0]["method"] == "generate_error_detection"
     llm_payload = json.loads(fake_llm.calls[0]["messages"][0]["content"])
     assert llm_payload["task"]["items"][0]["example_answer_note"].startswith("example only")
     assert "Do not use it as corrected_target" in " ".join(llm_payload["instructions"])
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
-    assert attempt.correction_payload["ai_review"]["status"] == "complete"
-    assert attempt.correction_payload["ai_review"]["auto_started"] is False
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+    assert landed.correction_payload["correction_debug"]["fallback_used"] is False
+    assert landed.correction_payload["assessment_status"] == "checked"
+    assert landed.correction_payload["ai_review"]["status"] == "complete"
+    assert "evidence_hold" not in landed.correction_payload
+    assert landed.correction_payload["second_check"]["status"] == "complete"
+    assert service.should_auto_start_ai_review(landed) is False
 
 
-def test_transform_submit_uses_llm_correction_without_background_review(db_session):
+def test_transform_submit_is_keyed_and_the_relecture_only_explains(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
     _prime_llm_exercise_set(db_session, concept)
-    fake_llm = _FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []})
+    fake_llm = _FakeLLMService(
+        {
+            "verdict": "incorrect",
+            "score_0_4": 1,
+            "errata": [
+                {
+                    "display_label": "Si clause frame",
+                    "learner_text": "Quand il arrivera",
+                    "corrected_target": "S'il arrive",
+                    "why_wrong": "You changed the si frame into quand.",
+                    "repair_hint": "You keep si with the present.",
+                    "severity": 3,
+                    "recurring": True,
+                    "task_error_type": "si_present_result_form",
+                }
+            ],
+        }
+    )
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
 
-    attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
+    attempt = service.submit_attempt(
         session=session,
         user=user,
         concept=concept,
@@ -2246,10 +2290,22 @@ def test_transform_submit_uses_llm_correction_without_background_review(db_sessi
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
     )
 
+    # The key grades the rewrite at once and names the difference; its
+    # evidence never waits (only free production's verdict can still change).
+    assert fake_llm.calls == []
+    assert attempt.verdict == "incorrect"
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
+    assert attempt.correction_payload["errata"][0]["diff"]
+    assert attempt.correction_payload["ai_review"]["status"] == "pending"
+    assert "evidence_hold" not in attempt.correction_payload
+
+    landed = service.run_ai_review_for_attempt(attempt.id)
+
     assert fake_llm.calls[0]["method"] == "generate_error_detection"
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
-    assert attempt.correction_payload["ai_review"]["status"] == "complete"
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+    assert landed.verdict == "incorrect"
+    assert landed.correction_payload["errata"][0]["why_wrong"] == "You changed the si frame into quand."
+    assert landed.correction_payload["corrected_answer"] == attempt.correction_payload["corrected_answer"]
+    assert landed.correction_payload["second_check"]["verdict_changed"] is False
 
 
 def test_recognize_submit_is_instant_and_queues_background_relecture_when_wrong(db_session):
@@ -2321,7 +2377,7 @@ def test_manual_ai_review_is_idempotent_for_not_applicable_pending_and_complete(
         round_name="transform",
         mode="rewrite",
         exercise_id="FR_B1_COND_001:transform",
-        answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
+        answer_payload={"answers": {"si-transform-1": "S'il arrive, on commencera le dîner."}},
     )
     assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
     service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []}))
@@ -2417,6 +2473,9 @@ def test_sentence_submit_ingests_lexical_gap_into_vocabulary(db_session):
         exercise_id="FR_B1_COND_001:sentence",
         answer_payload={"text": "Non, malheureusment la terrasse est (geschlossen)"},
     )
+    assert fake_llm.calls == []
+    # WP-S1: the gap is found by the relecture, which ingests it when it lands.
+    attempt = service.run_ai_review_for_attempt(attempt.id)
     correction = attempt.correction_payload
 
     # A foreign fallback word can never read as flawless.
@@ -2485,6 +2544,7 @@ def test_fully_french_sentence_submits_without_lexical_gaps(db_session):
         exercise_id="FR_B1_COND_001:sentence",
         answer_payload={"text": "Non, la terrasse est fermée ce matin."},
     )
+    attempt = service.run_ai_review_for_attempt(attempt.id)
     correction = attempt.correction_payload
     assert attempt.verdict == "accepted"
     assert correction.get("lexical_gaps") == []
@@ -2850,7 +2910,14 @@ def test_error_memory_repeats_same_pattern_without_duplicate_rows(db_session):
     assert row.lapses == 1
 
 
-def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_session):
+def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_session, monkeypatch):
+    from app.api.v1.endpoints import atelier as atelier_endpoints
+
+    # A relecture can be scheduled (a provider is configured); the queued job is
+    # recorded rather than run against a real model.
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: True)
+    queued_reviews: list = []
+    monkeypatch.setattr(atelier_endpoints, "run_atelier_ai_review", lambda attempt_id: queued_reviews.append(attempt_id))
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
@@ -2948,8 +3015,13 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
         },
     )
     assert writing.status_code == 200
-    assert writing.json()["verdict"] == "needs_review"
-    assert writing.json()["correction"]["assessment_status"] == "unavailable"
+    # WP-S1: the paragraph comes back at once with a provisional local check;
+    # the model's reading is queued, never awaited.
+    assert writing.json()["correction"]["assessment_status"] == "provisional"
+    assert writing.json()["correction"]["local_check"]["detector"] in {"hit", "miss", "unknown"}
+    assert writing.json()["ai_review"]["status"] == "pending"
+    assert writing.json()["correction"]["latency"]["local_ms"] >= 0
+    assert queued_reviews == [UUID(writing.json()["attempt_id"])]
     # An unchecked paragraph earns no success token, even if keywords match.
     assert writing.json()["minted_collectibles"] == []
 

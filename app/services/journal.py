@@ -801,6 +801,9 @@ class JournalService:
                 exercise_id=f"journal:{entry.id}",
                 prompt_payload=prompt_payload,
                 answer_payload={"text": text},
+                # The journal waits for its reading; only the séance grades
+                # locally first (WP-S1).
+                force_llm=True,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Journal correction failed: {}", exc)
