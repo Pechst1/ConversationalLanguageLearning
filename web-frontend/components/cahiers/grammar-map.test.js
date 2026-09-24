@@ -173,7 +173,13 @@ test('a tapped rule opens its card, its coach, «Forge this rule» and «Test ou
   const sheet = start >= 0 ? [html.slice(start, html.indexOf('class="gm-eclair"') > start ? html.indexOf('class="gm-eclair"') : undefined)] : null;
   assert.ok(sheet, 'the sheet renders');
   assert.match(sheet[0], /<p class="gm-sheet__title" id="gm-sheet-2" lang="fr">Un, une, des<\/p>/);
-  assert.match(sheet[0], /Taught by Margaux/);
+  // The card shows its speaker; no second coach row repeats her.
+  assert.match(sheet[0], /class="rc-source__name">Margaux</);
+  assert.doesNotMatch(sheet[0], /Taught by/);
+  // WP-S5's own coach gets the row.
+  const coached = payload();
+  coached.bands[0].rules[1] = { ...coached.bands[0].rules[1], coach: { id: 'romy_tremblay', name: 'Romy' } };
+  assert.match(renderMap('en', { selectedId: 2, data: coached }), /Taught by Romy/);
   assert.match(sheet[0], /class="rc"/, 'the rule card');
   assert.match(sheet[0], /<a class="av2-btn av2-btn--primary gm-sheet__forge" href="\/atelier\?mode=practice&amp;concept=2">Forge this rule<\/a>/);
   assert.match(sheet[0], /Test out this rule/);

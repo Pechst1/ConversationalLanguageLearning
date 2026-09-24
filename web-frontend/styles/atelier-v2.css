@@ -3028,6 +3028,8 @@
   top: 50%;
   width: calc(var(--av2-seal-size) * 1.4);
   height: calc(var(--av2-seal-size) * 1.4);
+  /* the .av2 * max-width cap would squeeze the rings onto the disc */
+  max-width: none;
   transform: translate(-50%, -50%);
   overflow: visible;
   pointer-events: none;

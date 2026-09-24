@@ -99,8 +99,10 @@ function MapRuleSheet({
   const [pending, setPending] = useState(false);
   const shape = mapRuleShape(rule);
   const stage = mapStageOf(rule);
-  const coach = coachOf(rule);
   const card = usableCard(rule.rule_card) ? rule.rule_card : null;
+  // The card already shows its speaker; the coach row is WP-S5's own coach,
+  // or the speaker of a rule whose card cannot be shown.
+  const coach = rule.coach?.id || !card ? coachOf(rule) : null;
   const headingId = `gm-sheet-${rule.concept_id}`;
 
   const testOut = async () => {
