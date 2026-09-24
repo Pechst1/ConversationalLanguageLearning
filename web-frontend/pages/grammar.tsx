@@ -33,6 +33,7 @@ import {
   type ConceptTone,
 } from '@/components/cahiers/CahierV2';
 import { cahierCopy, countLabel, fill, type CahierCopy } from '@/components/cahiers/cahier-copy';
+import GrammarMap from '@/components/cahiers/GrammarMap';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 import { forgeCopy } from '@/lib/forge-copy';
@@ -257,6 +258,8 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
 
   const indexView = (
     <>
+      {/* WP-S7: the syllabus as the four shapes, above the register. */}
+      <GrammarMap language={language} onOpenPage={selectConcept} />
       <CahierSearch placeholder={t.grammar.search} value={query} onChange={setQuery} />
       <CahierChips chips={chips} active={activeChip} onSelect={onChip} label={t.grammar.filter_label} />
       <CahierLiveLine text={liveText} clearable={filtersActive} onClear={clearFilters} />

@@ -65,6 +65,7 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/grammar',
       '/vocabulary',
       '/vocabulary/conjugation',
+      '/eclair',
     ],
   },
 ];
@@ -83,6 +84,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/vocabulary/review',
   '/vocabulary/conjugation',
   '/audio-session',
+  // WP-S7: Éclair draws its own top bar (close, clock, score).
+  '/eclair',
   // WP-72: the legal pages draw their own bar (back + language) and are read
   // signed out, so no masthead.
   '/privacy',
