@@ -20,7 +20,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import { Action, StateBlock } from '@/components/atelier-v2/ui';
 import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/daily-journey';
-import type { SceneStep, StoryEpisode } from '@/types/daily-journey';
+import type { ControlLanguage, SceneStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
 import type { JourneySpeaker } from './journey-faces';
@@ -45,6 +45,7 @@ export function StoryEpisodeStep({
   onContinue,
   onExit,
   speaker = null,
+  language = null,
 }: {
   journeyId: string;
   step: SceneStep;
@@ -54,6 +55,8 @@ export function StoryEpisodeStep({
   onExit?: () => void;
   /** WP-77: who says the scene's line, so the plain scene shows their face. */
   speaker?: JourneySpeaker | null;
+  /** WP-82: the screen's chrome language, so the reader's buttons match `copy`. */
+  language?: ControlLanguage | null;
 }) {
   // Server rendering (and the node test harness) has no effects: render the
   // scene prompt straight away rather than a loading state that never ends.
@@ -170,6 +173,7 @@ export function StoryEpisodeStep({
           onContinue={onContinue}
           continuing={busy}
           continueLabel={copy.scene_continue}
+          language={language}
           /* The foot keeps «Lire plutôt»'s counterpart nowhere: the offer is
              made once, above, and never a second time under the last panel. */
           footLink={null}

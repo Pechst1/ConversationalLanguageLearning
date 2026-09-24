@@ -134,9 +134,13 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     assert "showMobileTranslations" not in source
     assert "Afficher EN" not in source
     # The paged reader owns both affordances: one per panel, one per task.
-    assert "{showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}" in reader
+    # WP-82: the affordances' words come from the reader's copy table.
+    assert "{showTranslation ? t.hide_translation : t.translate_panel}" in reader
     assert '{showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}' in reader
-    assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
+    assert "{open ? t.hide_translation : t.translate}" in reader
+    reader_copy = read_web("components/feuilleton/reader/reader-copy.ts")
+    assert "translate_panel: 'Traduire la planche'" in reader_copy
+    assert "hide_translation: 'Masquer la traduction'" in reader_copy
 
 
 def test_the_minted_collection_survives_the_almanac_page() -> None:

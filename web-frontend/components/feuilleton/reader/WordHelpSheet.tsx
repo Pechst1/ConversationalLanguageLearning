@@ -11,8 +11,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { learnerGloss } from '@/lib/glosses';
-import { KEEP_COPY, canKeep, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
+import { canKeep, keepCopy, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
 import apiService from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
+
+import { fillReaderCopy, readerCopy } from './reader-copy';
 
 export type WordHelpRequest = {
   /** the surface form as printed */
@@ -42,10 +45,15 @@ const FOCUSABLE =
 export function WordHelpSheet({
   request,
   onClose,
+  language = null,
 }: {
   request: WordHelpRequest | null;
   onClose: () => void;
+  /** WP-82: the chrome's language; absent keeps French. */
+  language?: ControlLanguage | null;
 }) {
+  const t = readerCopy(language);
+  const keepT = keepCopy(language);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -174,15 +182,15 @@ export function WordHelpSheet({
       });
       setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
     } catch (error) {
-      setKeep({ kind: 'refused', message: keepRefusalMessage(error) });
+      setKeep({ kind: 'refused', message: keepRefusalMessage(error, language) });
     }
-  }, [request]);
+  }, [language, request]);
 
   if (!request) return null;
 
   return (
     <div className="fr-sheet-root" data-char={request.character || undefined}>
-      <button type="button" className="fr-scrim" aria-label="Fermer l’aide" onClick={handleScrim} />
+      <button type="button" className="fr-scrim" aria-label={t.help_close_label} onClick={handleScrim} />
       <div
         className="fr-sheet"
         role="dialog"
@@ -193,24 +201,24 @@ export function WordHelpSheet({
         <div className="fr-handle" aria-hidden="true" />
         <div className="fr-sheet-head">
           <div className="lede">
-            <div className="k">Aide au mot</div>
+            <div className="k">{t.help_kicker}</div>
             <h2 id="fr-word-title">{request.surface}</h2>
           </div>
           <button type="button" className="fr-sheet-close" onClick={onClose} ref={closeRef}>
-            Fermer
+            {t.help_close}
           </button>
         </div>
         <div className="fr-sheet-body">
           <p className="fr-gloss" aria-live="polite">
-            {gloss.kind === 'loading' && 'Recherche…'}
+            {gloss.kind === 'loading' && t.help_searching}
             {gloss.kind === 'gloss' && gloss.text}
-            {gloss.kind === 'sentence' && 'Pas d’entrée pour ce mot seul — voici la phrase.'}
-            {gloss.kind === 'none' && 'Aucune traduction disponible pour l’instant.'}
+            {gloss.kind === 'sentence' && t.help_sentence_only}
+            {gloss.kind === 'none' && t.no_translation}
           </p>
           {sentence && (
             <blockquote className="fr-quote">
               <p className="fr-quote-k">
-                {request.speaker ? `Dans la réplique de ${request.speaker}` : 'Dans la planche'}
+                {request.speaker ? fillReaderCopy(t.help_in_line_of, { name: request.speaker }) : t.help_in_panel}
               </p>
               <p className="fr-quote-fr">« {sentence} »</p>
               {sentenceEn && <p className="fr-quote-en">{sentenceEn}</p>}
@@ -225,18 +233,18 @@ export function WordHelpSheet({
                   onClick={() => void keepWord()}
                   disabled={keep.kind === 'saving'}
                 >
-                  {keep.kind === 'saving' ? KEEP_COPY.saving : KEEP_COPY.action}
+                  {keep.kind === 'saving' ? keepT.saving : keepT.action}
                 </button>
               ) : null}
               {keep.kind !== 'idle' && keep.kind !== 'saving' && (
                 <p className="fr-keep-status" role="status">
-                  {keepStatusLine(keep)}
+                  {keepStatusLine(keep, language)}
                 </p>
               )}
             </div>
           )}
           <p className="fr-sheet-note">
-            Consulter l’aide ne compte pas comme une réponse et ne fait pas avancer l’épisode.
+            {t.help_note}
           </p>
         </div>
       </div>

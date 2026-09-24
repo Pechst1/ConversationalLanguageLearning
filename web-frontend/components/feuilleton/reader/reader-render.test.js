@@ -314,3 +314,38 @@ test('the legacy edition keeps the layout it had', () => {
   assert.ok(!/data-story="1"/.test(markup));
   assert.ok(!/class="fr-bubble"/.test(markup));
 });
+
+// ---------------------------------------------------------------------------
+// WP-82 — the reader's chrome follows the one language rule
+// ---------------------------------------------------------------------------
+
+test('an A1 English learner reads the reader chrome in English; the story stays French', () => {
+  const { markup } = render(capturedScene, { index: 0, furthest: 0, language: 'en' });
+  assert.ok(/aria-label="Panel 1 of 5"/.test(markup), 'the position is in English');
+  assert.ok(/aria-roledescription="panel"/.test(markup));
+  assert.ok(/>Next </.test(markup), 'Next, not Suivant');
+  assert.ok(/<span class="fr-sr">Previous<\/span>/.test(markup), 'Previous, not Précédent');
+  for (const french of ['Suivant', 'Précédent', 'Planche 1 sur', 'Lecteur du feuilleton', 'Quitter la lecture']) {
+    assert.ok(!markup.includes(french), `no French chrome: ${french}`);
+  }
+  // The story's own words are content and still French.
+  assert.ok(/lang="fr"/.test(markup));
+});
+
+test('German chrome, and French stays the default for callers that pass none', () => {
+  const de = render(capturedScene, { index: 0, furthest: 0, language: 'de' }).markup;
+  assert.ok(/aria-label="Bild 1 von 5"/.test(de));
+  assert.ok(/>Weiter </.test(de));
+  const fr = render(capturedScene, { index: 0, furthest: 0 }).markup;
+  assert.ok(/>Suivant </.test(fr));
+  assert.ok(/aria-label="Planche 1 sur 5"/.test(fr));
+});
+
+test('the last panel closes in the learner language too', () => {
+  const stages = buildReaderStages(capturedScene);
+  const last = stages.length - 1;
+  const en = render(capturedScene, { index: last, furthest: last, language: 'en' }).markup;
+  assert.ok(/aria-label="End of the episode, /.test(en));
+  assert.ok(/Finish the episode/.test(en), 'the default closing label is English');
+  assert.ok(!/Terminer l’épisode/.test(en));
+});

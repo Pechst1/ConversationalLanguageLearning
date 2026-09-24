@@ -111,7 +111,10 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
     assert "isSerialAct ? t.seal_act_done : t.seal_resolved" in missions
     # Claude design: the cliffhanger is the paged reader's resolution stage.
     reader = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx")
-    assert 'className="fr-eyebrow">À suivre' in reader
+    # WP-82: the kicker is chrome, so it reads from the reader's copy table.
+    assert 'className="fr-eyebrow">{t.to_follow}' in reader
+    reader_copy = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "reader-copy.ts")
+    assert "to_follow: 'À suivre'" in reader_copy
     assert "<FeuilletonReader" in feuilleton
     assert "--char-romy: #1d3a8a" in globals_css
     assert "[data-char=\"marchand\"]" in globals_css

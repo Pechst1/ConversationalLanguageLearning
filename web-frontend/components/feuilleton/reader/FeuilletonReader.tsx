@@ -32,7 +32,9 @@ import { frenchSpacing } from '@/lib/french-typography';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
 
+import { fillReaderCopy, readerCopy, type ReaderCopy } from './reader-copy';
 import { TappableFrench } from './TappableFrench';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
 import {
@@ -104,6 +106,10 @@ export type FeuilletonReaderProps = {
       provenance is the product's business, and the banner that used to state
       it interrupted every scene with a disclaimer about a picture. */
   artProvenance?: string | null;
+  /** WP-82. The chrome's language (`lib/language-rule.ts`): the learner's up
+      to A2, French from B1. Absent keeps the French chrome. The story is
+      content and stays French either way. */
+  language?: ControlLanguage | null;
 };
 
 function prefersReducedMotion(): boolean {
@@ -132,7 +138,7 @@ export function FeuilletonReader({
   onExit,
   onComplete,
   completing = false,
-  completeLabel = 'Terminer l’épisode',
+  completeLabel,
   filed = false,
   nextHref,
   nextLabel,
@@ -143,7 +149,9 @@ export function FeuilletonReader({
   panelVariant = null,
   footLink = null,
   artProvenance = null,
+  language = null,
 }: FeuilletonReaderProps) {
+  const t = readerCopy(language);
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
 
@@ -278,8 +286,8 @@ export function FeuilletonReader({
   const railPct = count > 1 ? Math.round(((safeIndex + 1) / count) * 100) : 100;
   const positionLabel =
     stage.kind === 'resolution'
-      ? `Fin de l’épisode, ${safeIndex + 1} sur ${count}`
-      : `Planche ${safeIndex + 1} sur ${count}`;
+      ? fillReaderCopy(t.position_end, { n: safeIndex + 1, count })
+      : fillReaderCopy(t.position_panel, { n: safeIndex + 1, count });
 
   return (
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
@@ -287,13 +295,13 @@ export function FeuilletonReader({
     <AtelierV2Root as="div" className="fr-scope">
     <section
       className="fr-reader"
-      aria-label="Lecteur du feuilleton"
+      aria-label={t.reader_label}
       data-story={panelVariant ? '1' : undefined}
       data-art={artProvenance || undefined}
       ref={rootRef}
     >
       <div className="fr-bar">
-        <button type="button" className="fr-icon-btn" onClick={onExit} aria-label="Quitter la lecture">
+        <button type="button" className="fr-icon-btn" onClick={onExit} aria-label={t.exit}>
           <CrossIcon size={16} />
         </button>
         <div
@@ -302,7 +310,7 @@ export function FeuilletonReader({
           aria-valuemin={1}
           aria-valuemax={count}
           aria-valuenow={safeIndex + 1}
-          aria-label="Avancement dans l’épisode"
+          aria-label={t.progress}
         >
           <i style={{ width: `${railPct}%` }} />
         </div>
@@ -317,7 +325,7 @@ export function FeuilletonReader({
         </p>
         {/* the one Garamond italic headline on this screen */}
         <h1 className="fr-title">{frenchSpacing(title)}</h1>
-        {previously && safeIndex === 0 && <p className="fr-previously">Précédemment — {frenchSpacing(previously)}</p>}
+        {previously && safeIndex === 0 && <p className="fr-previously">{t.previously} — {frenchSpacing(previously)}</p>}
       </div>
 
       {banner}
@@ -331,7 +339,7 @@ export function FeuilletonReader({
         data-char={stage.character || undefined}
         data-kind={stage.kind}
         role="group"
-        aria-roledescription="planche"
+        aria-roledescription={t.roledescription}
         aria-label={positionLabel}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -344,13 +352,13 @@ export function FeuilletonReader({
             <span className="tok" aria-hidden="true">
               <CheckIcon size={11} />
             </span>
-            Déjà lu · vous relisez cette planche
+            {t.already_read}
           </p>
         )}
         {readState !== 'read' && stageLiveTask && (
           <p className="fr-state is-live">
             <span className="tok" aria-hidden="true" />
-            À vous de répondre sur cette planche
+            {t.your_turn}
           </p>
         )}
 
@@ -361,9 +369,10 @@ export function FeuilletonReader({
             onWord={openHelp}
             pageArt={pageArt}
             variant={panelVariant ? panelVariant(stage) : null}
+            t={t}
           />
         ) : (
-          <ResolutionBody stage={stage} />
+          <ResolutionBody stage={stage} t={t} />
         )}
 
         {stage.kind === 'panel' && (hasEnglish || stageTools) && (
@@ -376,7 +385,7 @@ export function FeuilletonReader({
                 onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
               >
                 <span className="sq" aria-hidden="true" />
-                {showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}
+                {showTranslation ? t.hide_translation : t.translate_panel}
               </button>
             )}
             {stageTools}
@@ -391,7 +400,7 @@ export function FeuilletonReader({
             return (
               <p className="fr-notice is-stale" key={taskId}>
                 <span className="fr-sheet-note">
-                  Cette réplique s’ouvre après celle qui la précède dans l’épisode.
+                  {t.task_locked}
                 </span>
               </p>
             );
@@ -410,6 +419,7 @@ export function FeuilletonReader({
               onWord={openHelp}
               character={stage.character}
               note={taskNote ? taskNote(task) : ''}
+              t={t}
             />
           );
         })}
@@ -419,12 +429,12 @@ export function FeuilletonReader({
             <span className="tok" aria-hidden="true">
               <CheckIcon size={11} />
             </span>
-            Épisode classé
+            {t.filed}
           </p>
         )}
       </div>
 
-      <nav className="fr-nav" aria-label="Navigation dans l’épisode">
+      <nav className="fr-nav" aria-label={t.nav_label}>
         <ol className="fr-dots">
           {stages.map((entry, entryIndex) => {
             const state =
@@ -439,8 +449,8 @@ export function FeuilletonReader({
                   aria-current={entryIndex === safeIndex ? 'step' : undefined}
                   aria-label={
                     entry.kind === 'resolution'
-                      ? 'Aller à la fin de l’épisode'
-                      : `Aller à la planche ${entryIndex + 1}`
+                      ? t.go_end
+                      : fillReaderCopy(t.go_panel, { n: entryIndex + 1 })
                   }
                   onClick={() => go(entryIndex)}
                 >
@@ -457,16 +467,16 @@ export function FeuilletonReader({
             className="fr-btn fr-prev"
             onClick={() => go(safeIndex - 1)}
             disabled={isFirst}
-            aria-label="Planche précédente"
+            aria-label={t.prev_label}
           >
             <ArrowLeftIcon size={18} />
-            <span className="fr-sr">Précédent</span>
+            <span className="fr-sr">{t.prev}</span>
           </button>
 
           {isLast ? (
           filed && nextHref ? (
             <Link className="fr-btn fr-next is-action" data-press="3d" href={nextHref}>
-              {nextLabel || 'Lire la suite'} <ArrowRightIcon size={18} />
+              {nextLabel || t.read_on} <ArrowRightIcon size={18} />
             </Link>
           ) : onComplete ? (
             <button
@@ -477,11 +487,11 @@ export function FeuilletonReader({
               onClick={onComplete}
             >
               {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
-              {completing ? 'Classement…' : completeLabel}
+              {completing ? t.completing : completeLabel || t.complete}
             </button>
           ) : (
             <button type="button" className="fr-btn fr-next" disabled>
-              Fin de l’épisode
+              {t.episode_end}
             </button>
           )
         ) : (
@@ -491,7 +501,7 @@ export function FeuilletonReader({
             data-press={primary === 'next' ? '3d' : undefined}
             onClick={() => go(safeIndex + 1)}
           >
-            Suivant <ArrowRightIcon size={18} />
+            {t.next} <ArrowRightIcon size={18} />
           </button>
           )}
         </div>
@@ -499,7 +509,7 @@ export function FeuilletonReader({
         {footLink && <div className="fr-foot-link">{footLink}</div>}
       </nav>
 
-      <WordHelpSheet request={help} onClose={() => setHelp(null)} />
+      <WordHelpSheet request={help} onClose={() => setHelp(null)} language={language} />
     </section>
     </AtelierV2Root>
   );
@@ -567,7 +577,9 @@ function PanelBody({
   onWord,
   pageArt,
   variant = null,
+  t,
 }: {
+  t: ReaderCopy;
   stage: Extract<ReaderStage, { kind: 'panel' }>;
   showTranslation: boolean;
   onWord: (
@@ -600,7 +612,7 @@ function PanelBody({
         {stage.artStatus === 'ready' && src ? (
           <figure className="fr-plate" data-variant={variant}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={stage.title ? `Planche : ${stage.title}` : ''} />
+            <img src={src} alt={stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : ''} />
             {bubbleLine && (
               <div
                 className="fr-bubble"
@@ -659,21 +671,21 @@ function PanelBody({
       {stage.artStatus === 'ready' && src ? (
         <figure className="fr-plate">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={stage.title ? `Planche : ${stage.title}` : ''} />
+          <img src={src} alt={stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : ''} />
         </figure>
       ) : page ? (
         /* the illustrated-page edition: one composed page is the plate */
         <figure className="fr-plate is-page">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={page} alt="La page illustrée de cette édition" />
+          <img src={page} alt={t.page_alt} />
         </figure>
       ) : stage.artStatus === 'printing' ? (
         <figure className="fr-plate is-printing" aria-live="polite">
-          <figcaption className="fr-plate-note">L’illustration de cette planche est encore sous presse. Le texte est complet.</figcaption>
+          <figcaption className="fr-plate-note">{t.art_printing}</figcaption>
         </figure>
       ) : (
         <figure className="fr-plate is-missing">
-          <figcaption className="fr-plate-note">Cette planche est parue sans illustration.</figcaption>
+          <figcaption className="fr-plate-note">{t.art_missing}</figcaption>
         </figure>
       )}
 
@@ -701,11 +713,11 @@ function PanelBody({
   );
 }
 
-function ResolutionBody({ stage }: { stage: Extract<ReaderStage, { kind: 'resolution' }> }) {
+function ResolutionBody({ stage, t }: { stage: Extract<ReaderStage, { kind: 'resolution' }>; t: ReaderCopy }) {
   if (!stage.hookQuestion && !stage.hookBeat) return null;
   return (
     <div className="fr-notice" data-char={stage.character || undefined}>
-      <p className="fr-eyebrow">À suivre</p>
+      <p className="fr-eyebrow">{t.to_follow}</p>
       {stage.hookQuestion && <h2>{stage.hookQuestion}</h2>}
       {stage.hookBeat && <p>{stage.hookBeat}</p>}
     </div>
@@ -724,7 +736,9 @@ function TaskCard({
   onWord,
   character,
   note = '',
+  t,
 }: {
+  t: ReaderCopy;
   task: ReaderTask;
   value: string;
   setValue: (value: string) => void;
@@ -762,14 +776,14 @@ function TaskCard({
           onWord={(word) => onWord(word, { sentence: prompt, sentenceEn: promptEn, character })}
         />
       </p>
-      <TaskTranslate french={prompt} supplied={promptEn} />
+      <TaskTranslate french={prompt} supplied={promptEn} t={t} />
       {note && <p className="fr-prompt-note">{note}</p>}
 
       {answered ? (
         <>
           {recorded && (
             <blockquote className="fr-quote">
-              <p className="fr-quote-k">Votre réponse, déjà envoyée</p>
+              <p className="fr-quote-k">{t.answer_sent}</p>
               <p className="fr-quote-fr">{recorded}</p>
             </blockquote>
           )}
@@ -779,7 +793,7 @@ function TaskCard({
                 {positive ? <CheckIcon size={15} /> : <CrossIcon size={15} />}
               </span>
               <span>
-                <b>{branch ? 'Choix pris en compte' : positive ? 'Acceptée' : 'Reprise classée'}</b>
+                <b>{branch ? t.verdict_branch : positive ? t.verdict_ok : t.verdict_retry}</b>
                 {feedback}
               </span>
             </p>
@@ -788,7 +802,7 @@ function TaskCard({
       ) : (
         <>
           {options.length > 0 && (
-            <div className="fr-options" role="group" aria-label="Répliques possibles">
+            <div className="fr-options" role="group" aria-label={t.options_label}>
               {options.map((option) => (
                 <button
                   key={option.value}
@@ -813,8 +827,8 @@ function TaskCard({
                 spellCheck={false}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                placeholder="Votre réponse"
-                aria-label="Votre réponse"
+                placeholder={t.answer_label}
+                aria-label={t.answer_label}
               />
             ) : (
               <textarea
@@ -826,8 +840,8 @@ function TaskCard({
                 rows={3}
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                placeholder={task.placeholder || 'Écrivez une phrase courte.'}
-                aria-label="Votre réponse"
+                placeholder={task.placeholder || t.answer_placeholder}
+                aria-label={t.answer_label}
               />
             ))}
           <button
@@ -838,7 +852,7 @@ function TaskCard({
             onClick={onSubmit}
           >
             {submitting ? <SpinnerToken /> : null}
-            {submitting ? 'Relecture…' : 'Envoyer'}
+            {submitting ? t.checking : t.send}
           </button>
           {errored && (
             <p className="fr-feedback is-wrong" role="status">
@@ -857,7 +871,7 @@ function TaskCard({
 /* Translation is one explicit affordance: the English never prints beside the
    French uncalled. A supplied translation is shown on request; otherwise the
    line is translated on demand, and the request is never a graded attempt. */
-function TaskTranslate({ french, supplied }: { french: string; supplied?: string }) {
+function TaskTranslate({ french, supplied, t }: { french: string; supplied?: string; t: ReaderCopy }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(supplied || '');
   const [loading, setLoading] = useState(false);
@@ -892,12 +906,12 @@ function TaskTranslate({ french, supplied }: { french: string; supplied?: string
       <div className="fr-tools">
         <button type="button" className="fr-chip" aria-expanded={open} onClick={() => void toggle()}>
           <span className="sq" aria-hidden="true" />
-          {open ? 'Masquer la traduction' : 'Traduire'}
+          {open ? t.hide_translation : t.translate}
         </button>
       </div>
       {open && (
         <p className="fr-prompt-en" aria-live="polite">
-          {loading ? 'Traduction…' : text || 'Aucune traduction disponible pour l’instant.'}
+          {loading ? t.translating : text || t.no_translation}
         </p>
       )}
     </>

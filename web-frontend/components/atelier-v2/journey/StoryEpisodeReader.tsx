@@ -33,7 +33,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
 import { saveStoryReadingPosition } from '@/services/daily-journey';
-import type { StoryEpisode } from '@/types/daily-journey';
+import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
 import {
@@ -69,6 +69,8 @@ export type StoryEpisodeReaderProps = {
   nextLabel?: string;
   /** WP-44. A quiet link under the nav — «Écouter d'abord» in the journey. */
   footLink?: React.ReactNode;
+  /** WP-82: the reader's chrome language — the journey screen's. Absent keeps French. */
+  language?: ControlLanguage | null;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -83,6 +85,7 @@ export function StoryEpisodeReader({
   nextHref = null,
   nextLabel,
   footLink = null,
+  language = null,
 }: StoryEpisodeReaderProps) {
   const stages = useMemo(() => buildStoryStages(episode), [episode]);
   const panelCount = episode.panels?.length ?? 0;
@@ -152,6 +155,7 @@ export function StoryEpisodeReader({
         nextLabel={nextLabel}
         panelVariant={panelReaderVariant}
         footLink={footLink}
+        language={language}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
           location's art is a production fact, not a thing the learner has done

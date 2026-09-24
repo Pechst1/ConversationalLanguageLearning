@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import type { AppProps } from 'next/app';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RouteAuthGate from '@/components/auth/RouteAuthGate';
@@ -14,7 +14,7 @@ import {
   suppressResumeRedirectOnce,
   syncAccountScope,
 } from '@/lib/pilot-resilience';
-import { resolveResumeHref } from '@/lib/journey-resume';
+import { resolveLaunchResumeHref } from '@/lib/journey-resume';
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
 import { initObservability, isSignedInForObservability, setObservabilityUser } from '@/lib/observability';
@@ -116,16 +116,24 @@ export default function App({
     };
   }, [router]);
 
+  // The resume guess is taken once per app launch, at the first ready route,
+  // and never again: a later in-app navigation (the Home tab, a link into
+  // Réglages) is always the learner's own choice.
+  const launchResumeDecidedRef = useRef(false);
   useEffect(() => {
-    if (!router.isReady || !isNativePlatform()) return;
-    if (!['/', '/atelier'].includes(router.pathname)) return;
+    if (!router.isReady || launchResumeDecidedRef.current) return;
+    launchResumeDecidedRef.current = true;
+    if (!isNativePlatform()) return;
     // A deep link that just claimed this navigation outranks the stored guess.
     if (consumeResumeSuppression()) return;
     // WP-20 (WP-19 defect D-1): an open V2 journey outranks the stored legacy
     // practice session, which is what used to win here and land a cold start in
-    // the wrong Séance. `resolveResumeHref` falls back to the stored activity
-    // unchanged whenever no journey is open.
-    const href = resolveResumeHref();
+    // the wrong Séance. `resolveLaunchResumeHref` only answers for a bare launch
+    // on `/` or `/atelier`, read from the real URL (a static host that falls
+    // back to index.html reports `/` for a load of `/settings`), so a direct
+    // visit to Réglages, the Dossier or the Cahier is never taken over.
+    const launchUrl = `${window.location.pathname}${window.location.search}`;
+    const href = resolveLaunchResumeHref(launchUrl);
     if (href && href !== router.asPath) void router.replace(href);
   }, [router]);
 

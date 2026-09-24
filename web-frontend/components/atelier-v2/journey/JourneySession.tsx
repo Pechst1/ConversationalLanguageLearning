@@ -262,6 +262,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   onContinue={actions.continueJourney}
                   onExit={onExit}
                   speaker={speaker}
+                  language={chromeLanguage}
                 />
               )}
               {step.kind === 'rule' && (
