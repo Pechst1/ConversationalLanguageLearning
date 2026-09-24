@@ -6508,8 +6508,26 @@ class AtelierSRSService:
         progress_rows = []
         grammar_service = GrammarService(self.db)
         concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
+        # WP-S3 La Forge: a forge séance wrote its evidence item by item
+        # (`app.services.forge`); the end-of-session single evidence would count
+        # the same answers twice, so the recap only reads the progress back.
+        from app.services.forge import forge_state_of
+
+        forge_state = forge_state_of(session)
         for concept_id in concept_ids:
             if not scores_by_concept.get(concept_id):
+                continue
+            if forge_state is not None:
+                forged = grammar_service.get_or_create_progress(user_id=user.id, concept_id=concept_id)
+                progress_rows.append(
+                    {
+                        "concept_id": concept_id,
+                        "score": forged.score,
+                        "state": forged.state,
+                        "next_review": forged.next_review.isoformat() if forged.next_review else None,
+                        "forge_rung": forged.forge_rung,
+                    }
+                )
                 continue
             values = scores_by_concept.get(concept_id) or [0.0]
             quality = round((sum(values) / len(values)) / 4 * 10, 1)
@@ -6552,6 +6570,15 @@ class AtelierSRSService:
             "confidence": confidence_summary,
             "adaptive_locks": dict((session.quote_payload or {}).get("adaptive_locks") or {}),
         }
+        if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
+            recap["forge"] = {
+                "items": forge_state.position,
+                "evidence_written": forge_state.evidence_written,
+                "rules": [
+                    {"concept_id": track.concept_id, "role": track.role, "rung": track.rung, "served": track.served}
+                    for track in forge_state.tracks
+                ],
+            }
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))

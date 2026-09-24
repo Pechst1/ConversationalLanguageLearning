@@ -82,6 +82,7 @@ from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopSh
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
+from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
 from app.services.learner_copy import (
     LEARNER_COPY,
@@ -546,6 +547,7 @@ def _attempt_response(
     attempt: AtelierAttempt,
     *,
     minted_collectibles: list[dict[str, Any]] | None = None,
+    forge: dict[str, Any] | None = None,
 ) -> AtelierAttemptResponse:
     correction = attempt.correction_payload or {}
     ai_review = correction.get("ai_review") if isinstance(correction, dict) else {}
@@ -556,6 +558,7 @@ def _attempt_response(
         correction=correction,
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
+        forge=forge or {},
     )
 
 
@@ -1019,6 +1022,10 @@ def _session_response(
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     asset_service = AtelierAssetService(db)
+    # WP-S3 La Forge: a fresh séance is composed by the forge (it may reseat
+    # the concepts: at most one brand-new rule, today's contrast partner).
+    forge_service = ForgeService(db)
+    forge_service.ensure_attached(user=user, session=session)
     selections = _session_selections(db, user, session)
     due_errata = scheduler.due_errata(user)
     due_by_concept = _errata_by_concept(due_errata)
@@ -1088,6 +1095,7 @@ def _session_response(
         target_vocabulary=target_vocabulary,
         recap=session.recap_payload or {},
         learning_moments={"adaptive_locks": _adaptive_locks(session)},
+        forge=forge_service.view(user=user, session=session),  # WP-S3
     )
 
 
@@ -1295,6 +1303,10 @@ def start_session(
         "target_vocabulary_ids": [int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
         "target_vocabulary": target_vocabulary,
         "concept_roles": _concept_roles_payload(selections),
+        # WP-S3 La Forge: the Cahier's chosen rule is today's rule; an explicit
+        # plan keeps every concept the learner picked.
+        "forge_today_concept_id": payload.preferred_concept_id if payload else None,
+        "forge_keep_concepts": bool(payload and payload.concept_ids),
     }
     session = AtelierSession(
         user_id=current_user.id,
@@ -1476,7 +1488,11 @@ def submit_attempt(
             db.add(attempt)
             db.commit()
             db.refresh(attempt)
-    adaptive_lock = _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
+    # WP-S3 La Forge: the staircase replaces the adaptive lock in a forge séance.
+    forge_session = is_forge_session(session)
+    adaptive_lock = (
+        None if forge_session else _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
+    )
     if adaptive_lock:
         correction = {**(attempt.correction_payload or {}), "adaptive_lock": adaptive_lock}
         attempt.correction_payload = correction
@@ -1496,7 +1512,13 @@ def submit_attempt(
     if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
         background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
     minted = [] if retest_source else AtelierRewardService(db).mint_logo_token_for_attempt(attempt, first_submission=first_submission)
-    return _attempt_response(attempt, minted_collectibles=minted)
+    # WP-S3 La Forge: every answered item is evidence (with the forge's caps).
+    forge_view = (
+        ForgeService(db).observe_attempt(user=current_user, session=session, attempt=attempt)
+        if forge_session
+        else {}
+    )
+    return _attempt_response(attempt, minted_collectibles=minted, forge=forge_view)
 
 
 @router.post("/attempts/{attempt_id}/repair", response_model=AtelierAttemptResponse)

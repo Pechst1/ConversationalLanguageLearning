@@ -67,6 +67,9 @@ class AtelierSessionStartResponse(BaseModel):
     target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
     learning_moments: dict[str, Any] = Field(default_factory=dict)
+    # WP-S3 La Forge: the séance's composition and the item the learner is on
+    # (empty for a legacy-ladder session).
+    forge: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierActiveSessionResponse(BaseModel):
@@ -133,6 +136,16 @@ class AtelierAttemptResponse(BaseModel):
     correction: dict[str, Any]
     ai_review: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+    # WP-S3 La Forge: the staircase after this answer and the next item.
+    forge: dict[str, Any] = Field(default_factory=dict)
+
+
+class AtelierForgeTestOutRequest(BaseModel):
+    concept_id: int
+
+
+class AtelierForgeStateResponse(BaseModel):
+    rules: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AtelierAttemptRepairRequest(BaseModel):

@@ -120,6 +120,12 @@ class UserGrammarProgress(Base):
     spaced_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # WP-S3 (La Forge, `app.services.forge`): the rung the rule stands on in the
+    # forge's staircase (0 recognise … 5 free use; NULL = never forged), and when
+    # the learner passed its «Épreuve de la règle» (test-out → held at once).
+    forge_rung: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tested_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
