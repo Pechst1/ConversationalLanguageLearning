@@ -31,7 +31,7 @@ import Link from 'next/link';
 
 import { ArrowRightIcon, Chip, Portrait, ShapeToken } from '@/components/atelier-v2/ui';
 
-import { courrierCopy, crFill, crPlural, useCrCopy, type CourrierCopy } from './courrier-copy';
+import { courrierCopy, crFill, crLetterHeadline, crPlural, useCrCopy, type CourrierCopy } from './courrier-copy';
 
 /* ---------- the shapes WP-64 serialises (`_courrier_fields`) ----------
    Structural, not imported: a component that only reads `name` should not make
@@ -110,6 +110,10 @@ export type CrThreadLetter = {
   mission_id?: string | null;
   title?: string | null;
   summary_fr?: string | null;
+  /** Only when `summary_fr` is the chrome fallback («Une lettre du Courrier.»):
+   *  the same headline as `{fr, en, de}` (`app/services/story_correspondence.py`). */
+  summary_by_language?: Partial<Record<string, string>> | null;
+  summary_is_fallback?: boolean | null;
   outcome?: CrLetterOutcome | null;
   stakes_level?: number | null;
   chain_index?: number | null;
@@ -338,10 +342,13 @@ export function CrCorrespondent({
             {past.map((letter, index) => {
               const outcome = crOutcomeLabel(letter.outcome, t.lang);
               const date = crShortDate(letter.at, t.lang);
+              // The letter's own headline is French content; the fallback
+              // headline is chrome, in the chrome language.
+              const headline = crLetterHeadline(letter, t.lang);
               return (
                 <li key={String(letter.mission_id || index)}>
-                  <span className="cr-corr-past" lang="fr">
-                    {String(letter.summary_fr || letter.title || '').trim()}
+                  <span className="cr-corr-past" lang={headline.lang}>
+                    {headline.text}
                   </span>
                   <span className="cr-corr-meta">
                     {date && <span>{date}</span>}

@@ -43,6 +43,7 @@ import {
   textAnswerField,
   type ChoiceOption,
 } from '@/components/atelier-v2/ui';
+import { crLetterHeadline } from '@/components/courrier/courrier-copy';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import {
@@ -71,6 +72,7 @@ import type {
 } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
+import { journeyCopy } from './journey-copy';
 import type { JourneySpeaker } from './journey-faces';
 import {
   answerIsBlank,
@@ -675,6 +677,12 @@ export function RecallStepView({
 // Respond
 // ---------------------------------------------------------------------------
 
+/** Which chrome language a journey copy table is (no hook: the step views
+ *  also render outside a React tree in tests). French when it is none of them. */
+function copyLanguage(copy: JourneyCopy): 'en' | 'de' | 'fr' {
+  return (['en', 'de', 'fr'] as const).find((language) => journeyCopy(language) === copy) ?? 'fr';
+}
+
 export function RespondStepView({
   step,
   copy,
@@ -789,6 +797,12 @@ export function RespondStepView({
   // respond step is untouched — and `letterOf` refuses half a letter, so a
   // letter block can never replace the character's line with a blank one.
   const letter = letterOf(step.prompt);
+  // A letter's subject is its French headline; the server's fallback
+  // («Une lettre du Courrier.») is chrome and is said in the chrome language —
+  // the language of the copy table this step was handed.
+  const letterHeadline = letter
+    ? crLetterHeadline({ summary_fr: letter.subject_fr }, copyLanguage(copy))
+    : null;
   const wide = widenCopy(copy);
   // WP-D2: the character's line is said beside their face, which reacts to
   // the verdict. A letter day keeps its subject headline and byline.
@@ -804,8 +818,8 @@ export function RespondStepView({
       label={
         saying ? saying.name : <Byline name={letter?.correspondent_name || step.prompt.character_name} />
       }
-      headline={letter ? letter.subject_fr : spoken || step.prompt.character_line_fr}
-      headlineLang="fr"
+      headline={letterHeadline ? letterHeadline.text : spoken || step.prompt.character_line_fr}
+      headlineLang={letterHeadline ? letterHeadline.lang : 'fr'}
       speaker={saying}
       speakerMood={sayingMood}
     >

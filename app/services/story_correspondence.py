@@ -304,6 +304,19 @@ def _compact(value: Any, *, limit: int = 220) -> str:
     return text[:limit].strip()
 
 
+#: The headline of a letter that has neither a thread title nor a title. It is
+#: the app's own words, not the letter's, so it follows the one-language rule
+#: wherever a learner reads it (``thread_history`` serves the table; the client
+#: mirrors it as ``letter_fallback`` in ``courrier-copy.ts``). The French entry
+#: is what ``summarise_letter`` returns, since that line also feeds French
+#: prompts and stored recaps.
+LETTER_HEADLINE_FALLBACK: dict[str, str] = {
+    "fr": "Une lettre du Courrier.",
+    "en": "A letter from Le Courrier.",
+    "de": "Ein Brief aus Le Courrier.",
+}
+
+
 def summarise_letter(mission: RealWorldMission) -> str:
     """One French line describing what this letter was about."""
 
@@ -312,8 +325,24 @@ def summarise_letter(mission: RealWorldMission) -> str:
     return (
         _compact(messenger.get("thread_title"), limit=120)
         or _compact(mission.title, limit=120)
-        or "Une lettre du Courrier."
+        or LETTER_HEADLINE_FALLBACK["fr"]
     )
+
+
+def letter_headline_view(summary: str, language: str) -> dict[str, Any]:
+    """``summary_fr`` plus, when it is only the chrome fallback, the headline in
+    the learner's chrome language (``summary``) and the ``{fr, en, de}`` table."""
+
+    if summary.strip() != LETTER_HEADLINE_FALLBACK["fr"]:
+        return {"summary_fr": summary}
+    from app.services.chrome_language import pick
+
+    return {
+        "summary_fr": summary,
+        "summary": pick(LETTER_HEADLINE_FALLBACK, language),
+        "summary_by_language": dict(LETTER_HEADLINE_FALLBACK),
+        "summary_is_fallback": True,
+    }
 
 
 def thread_history(
@@ -332,6 +361,9 @@ def thread_history(
 
     if not correspondent_id:
         return []
+    from app.services.chrome_language import user_chrome_language
+
+    language = user_chrome_language(user)
     rows = (
         db.query(RealWorldMission)
         .filter(
@@ -352,7 +384,10 @@ def thread_history(
             {
                 "mission_id": str(row.id),
                 "title": row.title,
-                "summary_fr": _compact(recap.get("courrier_summary_fr") or summarise_letter(row), limit=180),
+                **letter_headline_view(
+                    _compact(recap.get("courrier_summary_fr") or summarise_letter(row), limit=180),
+                    language,
+                ),
                 "outcome": str(recap.get("courrier_outcome") or ("ignored" if row.status == "lapsed" else "")) or None,
                 "stakes_level": int(getattr(row, "stakes_level", None) or 1),
                 "chain_index": getattr(row, "chain_index", None),
@@ -1309,6 +1344,8 @@ __all__ = [
     "journey_letter_provider",
     "lapse_overdue_letters",
     "living_story_thread",
+    "LETTER_HEADLINE_FALLBACK",
+    "letter_headline_view",
     "mood_line",
     "mood_value",
     "moods_of",
