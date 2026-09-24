@@ -80,7 +80,8 @@ def test_mission_deep_links_preserve_thread_context_and_clear_stale_state() -> N
 
 
 def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> None:
-    feuilleton = read(WEB / "pages" / "graphic-novel.tsx")
+    # WP-82: the page's words are read from its copy table.
+    feuilleton = read(WEB / "pages" / "graphic-novel.tsx") + read(WEB / "components" / "feuilleton" / "feuilleton-copy.ts")
 
     assert "setScene(next?.active_scene || next?.available_scene || null)" in feuilleton
     assert "autoCreateContextRef.current === contextSceneKey" in feuilleton
@@ -124,6 +125,9 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
     chapter_progress = read(WEB / "components" / "stories" / "ChapterProgressCard.tsx")
     chapter_timeline = read(WEB / "components" / "stories" / "ChapterTimeline.tsx")
+    # WP-82: the chrome moved into the one-language copy table; the French
+    # column keeps the wording pinned here, and each page reads its key.
+    copy = read(WEB / "components" / "stories" / "bibliotheque-copy.ts")
 
     assert "apiService.get<Story[]>('/stories')" in stories
     assert "useStoryDetail(resolvedStoryId)" in story_detail
@@ -131,26 +135,31 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     assert "const [storyList, setStoryList] = useState(stories)" in stories
     assert "setStoryList([])" in stories
     # An empty shelf says so and offers the import, rather than showing nothing.
-    assert "L’étagère est encore vide." in stories
-    assert "Importer un premier livre" in stories
+    assert "shelf_empty_title: 'L’étagère est encore vide.'" in copy
+    assert "shelf_empty_action: 'Importer un premier livre'" in copy
+    assert "title={t.shelf_empty_title}" in stories
+    assert "label: t.shelf_empty_action" in stories
     # A locked text is inert and reads as locked; it is no longer an <a href="#">.
     assert "disabled={isLocked}" in stories
     assert "/bibliotheque/${story.id}" in stories
 
-    assert "Ouverture du texte…" in story_detail
-    assert "Ce texte est introuvable." in story_detail
+    assert "text_opening: 'Ouverture du texte…'" in copy and "{t.text_opening}" in story_detail
+    assert "text_not_found: 'Ce texte est introuvable.'" in copy and "title={t.text_not_found}" in story_detail
     assert "disabled={!user_progress?.current_chapter_id}" in story_detail
-    assert "Ouverture…" in story_detail
-    assert "Ouverture du chapitre…" in chapter_page
-    assert "Ouverture de la séance…" in chapter_page
+    assert "opening: 'Ouverture…'" in copy and "pendingLabel={t.opening}" in story_detail
+    assert "chapter_opening: 'Ouverture du chapitre…'" in copy
+    assert "session_opening: 'Ouverture de la séance…'" in copy
+    assert "{loadingChapter ? t.chapter_opening : t.session_opening}" in chapter_page
     assert "throw new Error('Failed to create session')" in chapter_page
-    assert "Ce chapitre est introuvable." in chapter_page
-    assert "Retour au texte" in chapter_page
+    assert "chapter_not_found: 'Ce chapitre est introuvable.'" in copy and "title={t.chapter_not_found}" in chapter_page
+    assert "back_to_text: 'Retour au texte'" in copy and "label: t.back_to_text" in chapter_page
 
     assert "disabled={!canComplete}" in chapter_progress
     assert "pending={loading}" in chapter_progress
-    assert "Encore quelques objectifs à atteindre" in chapter_progress
-    assert "Atteignez au moins" in chapter_progress
+    assert "goals_missing: 'Encore quelques objectifs à atteindre'" in copy
+    assert "reach_goals_many: 'Atteignez au moins {n} objectifs pour le clore.'" in copy
+    assert "{canComplete ? t.finish_chapter : t.goals_missing}" in chapter_progress
+    assert "t.reach_goals_one : t.reach_goals_many" in chapter_progress
     assert "is_locked" in chapter_timeline
     assert "<LockIcon size={14} />" in chapter_timeline
     assert "Chapitre en cours" in chapter_timeline

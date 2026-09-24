@@ -28,7 +28,9 @@ import {
   Skeleton,
   StateBlock,
 } from '@/components/atelier-v2/ui';
+import { bibliothequeCopy, fill } from '@/components/stories/bibliotheque-copy';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { useChromeLanguage } from '@/lib/learner-language';
 import apiService from '@/services/api';
 
 interface Story {
@@ -76,6 +78,8 @@ function metaLine(story: Story): string {
 
 export default function BibliothequePage({ stories = [] }: BibliothequePageProps) {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = bibliothequeCopy(language);
   const [storyList, setStoryList] = useState(stories);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -124,28 +128,25 @@ export default function BibliothequePage({ stories = [] }: BibliothequePageProps
         <header className="bib-head">
           <p className="av2-label">
             {loading
-              ? 'Ouverture de la bibliothèque…'
-              : `${storyList.length} texte${storyList.length === 1 ? '' : 's'} sur l’étagère`}
+              ? t.shelf_loading
+              : fill(storyList.length === 1 ? t.shelf_count_one : t.shelf_count_many, { n: storyList.length })}
           </p>
           {/* the one Garamond italic headline on this screen */}
           <h1 className="av2-headline av2-headline--screen">La bibliothèque</h1>
-          <p className="av2-body av2-body--lg">
-            Les livres importés et les lectures d’à-côté vivent ici. Le feuilleton du jour reste
-            dans Le Feuilleton.
-          </p>
+          <p className="av2-body av2-body--lg">{t.shelf_intro}</p>
           <Action
             tone="secondary"
             inline
             onClick={() => setIsUploadModalOpen(true)}
             iconAfter={<ArrowRightIcon size={16} />}
           >
-            Importer un livre
+            {t.import_book}
           </Action>
         </header>
 
         {loading ? (
           <div className="bib-skeleton" aria-busy="true" aria-live="polite">
-            <span className="bib-sr">Chargement de la bibliothèque</span>
+            <span className="bib-sr">{t.shelf_loading_sr}</span>
             <Skeleton height={168} radius={24} />
             <Skeleton height={64} radius={16} />
             <Skeleton height={64} radius={16} />
@@ -153,37 +154,37 @@ export default function BibliothequePage({ stories = [] }: BibliothequePageProps
         ) : failed ? (
           <StateBlock
             tone="error"
-            title="L’étagère n’a pas pu être ouverte."
-            body="La liaison avec la bibliothèque a échoué. Rien n’est perdu ; réessayez dans un instant."
-            action={{ label: 'Réessayer', onSelect: () => void loadStories() }}
+            title={t.shelf_error_title}
+            body={t.shelf_error_body}
+            action={{ label: t.retry, onSelect: () => void loadStories() }}
           />
         ) : storyList.length === 0 ? (
           <StateBlock
             tone="empty"
-            title="L’étagère est encore vide."
-            body="Importez un livre et il sera découpé en courtes épisodes de lecture, rangés ici."
-            action={{ label: 'Importer un premier livre', onSelect: () => setIsUploadModalOpen(true) }}
+            title={t.shelf_empty_title}
+            body={t.shelf_empty_body}
+            action={{ label: t.shelf_empty_action, onSelect: () => setIsUploadModalOpen(true) }}
           />
         ) : (
           <>
             {featured && (
-              <section className="bib-hero av2-surface av2-surface--blue av2-surface--hero" aria-label="Texte en cours">
+              <section className="bib-hero av2-surface av2-surface--blue av2-surface--hero" aria-label={t.hero_aria}>
                 <div className="bib-hero__art">
                   {featured.cover_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={featured.cover_image_url} alt="" />
                   ) : (
                     <span className="av2-body">
-                      {featured.source_book || 'La couverture de ce texte n’est pas encore parue.'}
+                      {featured.source_book || t.no_cover}
                     </span>
                   )}
                 </div>
                 <div className="bib-hero__body">
-                  <p className="av2-label">{metaLine(featured) || 'Sur l’étagère'}</p>
+                  <p className="av2-label">{metaLine(featured) || t.on_shelf}</p>
                   <h2 className="av2-headline av2-headline--title">{featured.title}</h2>
                   {featured.subtitle && <p className="av2-body">{featured.subtitle}</p>}
                   {featured.source_author && (
-                    <p className="av2-body">De {featured.source_author}</p>
+                    <p className="av2-body">{fill(t.by_author, { author: featured.source_author })}</p>
                   )}
                   {featured.themes && featured.themes.length > 0 && (
                     <div className="bib-chips">
@@ -195,7 +196,9 @@ export default function BibliothequePage({ stories = [] }: BibliothequePageProps
                     </div>
                   )}
                   {hasStarted(featured) && featured.progress?.current_chapter_title && (
-                    <p className="av2-body">En cours : {featured.progress.current_chapter_title}</p>
+                    <p className="av2-body">
+                      {fill(t.in_progress, { chapter: featured.progress.current_chapter_title })}
+                    </p>
                   )}
                   {/* the one tactile 3D press on this screen */}
                   <Action
@@ -205,24 +208,24 @@ export default function BibliothequePage({ stories = [] }: BibliothequePageProps
                     iconAfter={<ArrowRightIcon size={18} />}
                   >
                     {!featured.is_unlocked
-                      ? 'Verrouillé'
+                      ? t.locked
                       : hasStarted(featured)
-                        ? 'Reprendre la lecture'
-                        : 'Commencer la lecture'}
+                        ? t.resume_reading
+                        : t.start_reading}
                   </Action>
                 </div>
               </section>
             )}
 
             {rest.length > 0 && (
-              <div className="bib-rows" aria-label="Le reste de l’étagère">
+              <div className="bib-rows" aria-label={t.rest_aria}>
                 {rest.map((story) => {
                   const isLocked = !story.is_unlocked;
                   return (
                     <Row
                       key={story.id}
                       className="bib-row"
-                      eyebrow={metaLine(story) || 'Sur l’étagère'}
+                      eyebrow={metaLine(story) || t.on_shelf}
                       title={story.title}
                       lead={
                         <span className="bib-thumb" aria-hidden="true">
@@ -234,11 +237,11 @@ export default function BibliothequePage({ stories = [] }: BibliothequePageProps
                       }
                       badge={
                         isLocked ? (
-                          <span className="bib-row__lock" role="img" aria-label="Verrouillé">
+                          <span className="bib-row__lock" role="img" aria-label={t.locked}>
                             <LockIcon size={16} />
                           </span>
                         ) : isFinished(story) ? (
-                          <DoneBadge label="Lu" />
+                          <DoneBadge label={t.read_badge} />
                         ) : (
                           <span className="bib-row__go" aria-hidden="true">
                             <ArrowRightIcon size={18} />

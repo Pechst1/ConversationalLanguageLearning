@@ -3,14 +3,17 @@
  * The upload contract is untouched: one multipart POST to `/stories/upload-book`,
  * then a poll of `/stories/upload-status/{task_id}` until the server says the
  * book is cut into episodes. What changed is the chrome — the design's bottom
- * sheet, its fields and its one 3D press — and the copy, which is now in the
- * app's own French rather than the German the legacy modal shipped with.
+ * sheet, its fields and its one 3D press — and the copy, which follows the one
+ * language rule (`bibliotheque-copy.ts`): the learner's language up to A2,
+ * French from B1.
  */
 
 import React, { useState } from 'react';
 
 import { Action, BottomSheet, ProgressRule } from '@/components/atelier-v2/ui';
+import { bibliothequeCopy, fill } from '@/components/stories/bibliotheque-copy';
 import { getAppAccessToken } from '@/lib/app-auth';
+import { useChromeLanguage } from '@/lib/learner-language';
 import { resolveBrowserApiBaseUrl } from '@/services/api';
 
 interface UploadBookModalProps {
@@ -28,6 +31,8 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
     const [progressMessage, setProgressMessage] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const language = useChromeLanguage();
+    const t = bibliothequeCopy(language);
 
     if (!isOpen) return null;
 
@@ -66,12 +71,12 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file) {
-            setError('Choisissez d’abord un fichier.');
+            setError(t.choose_file_first);
             return;
         }
 
         setLoading(true);
-        setProgressMessage('Envoi en cours…');
+        setProgressMessage(t.sending);
         setError(null);
         setSuccess(null);
 
@@ -95,7 +100,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.detail || 'Upload failed');
+                throw new Error(data.detail || t.generic_error);
             }
 
             const { task_id } = await response.json();
@@ -117,7 +122,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
 
                     if (statusData.status === 'completed') {
                         clearInterval(interval);
-                        setSuccess('Le livre est rangé sur l’étagère.');
+                        setSuccess(t.upload_done);
                         setLoading(false);
                         setProgressMessage('');
                         setTimeout(() => {
@@ -128,7 +133,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
                         clearInterval(interval);
                         setLoading(false);
                         setProgressMessage('');
-                        setError(statusData.error || 'La lecture du livre a échoué.');
+                        setError(statusData.error || t.upload_failed);
                     } else {
                         // processing
                         setProgressMessage(`${statusData.message} (${statusData.progress} %)`);
@@ -137,7 +142,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
                     if (attempts >= maxAttempts) {
                         clearInterval(interval);
                         setLoading(false);
-                        setError('Le traitement a pris trop de temps.');
+                        setError(t.upload_too_long);
                     }
                 } catch (err) {
                     // Ignore transient errors but stop on fatal
@@ -148,7 +153,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
         } catch (err: any) {
             console.error(err);
             setLoading(false);
-            setError(err.message || 'Une erreur est survenue.');
+            setError(err.message || t.generic_error);
         }
     };
 
@@ -157,7 +162,7 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
             open={isOpen}
             onClose={onClose}
             eyebrow="La bibliothèque"
-            title="Importer un livre"
+            title={t.import_book}
             dismissible={!loading}
         >
             <form className="bib-upload" onSubmit={handleSubmit}>
@@ -179,59 +184,56 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
                     {file ? (
                         <>
                             <span className="av2-headline av2-headline--rule">{file.name}</span>
-                            <span className="av2-label">{(file.size / 1024 / 1024).toFixed(2)} Mo</span>
+                            <span className="av2-label">{fill(t.file_size, { size: (file.size / 1024 / 1024).toFixed(2) })}</span>
                         </>
                     ) : (
                         <>
-                            <span className="av2-headline av2-headline--rule">Déposez un fichier ici</span>
-                            <span className="av2-label">ou touchez pour en choisir un · TXT, PDF, EPUB, HTML (10 Mo max)</span>
+                            <span className="av2-headline av2-headline--rule">{t.drop_here}</span>
+                            <span className="av2-label">{t.drop_hint}</span>
                         </>
                     )}
                 </button>
 
                 <label className="av2-field">
-                    <span className="av2-field__label">Titre (facultatif)</span>
+                    <span className="av2-field__label">{t.title_label}</span>
                     <input
                         className="av2-field__control"
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="par ex. Moby Dick"
+                        placeholder={t.title_placeholder}
                     />
                 </label>
 
                 <label className="av2-field">
-                    <span className="av2-field__label">Auteur (facultatif)</span>
+                    <span className="av2-field__label">{t.author_label}</span>
                     <input
                         className="av2-field__control"
                         type="text"
                         value={author}
                         onChange={(e) => setAuthor(e.target.value)}
-                        placeholder="par ex. Herman Melville"
+                        placeholder={t.author_placeholder}
                     />
                 </label>
 
                 <label className="av2-field">
-                    <span className="av2-field__label">Niveaux visés</span>
+                    <span className="av2-field__label">{t.levels_label}</span>
                     <input
                         className="av2-field__control"
                         type="text"
                         value={levels}
                         onChange={(e) => setLevels(e.target.value)}
-                        placeholder="par ex. A1,A2,B1"
+                        placeholder={t.levels_placeholder}
                     />
-                    <span className="av2-label">Séparés par des virgules (A1, A2, B1, B2, C1, C2).</span>
+                    <span className="av2-label">{t.levels_hint}</span>
                 </label>
 
-                <p className="av2-label">
-                    Le livre entier est traité : le texte est découpé en courtes épisodes de lecture,
-                    conservés dans votre bibliothèque.
-                </p>
+                <p className="av2-label">{t.whole_book}</p>
 
                 {loading && progressMessage && (
                     <div aria-live="polite">
                         <p className="av2-label">{progressMessage}</p>
-                        <ProgressRule value={0} max={0} label="Traitement du livre" />
+                        <ProgressRule value={0} max={0} label={t.processing} />
                     </div>
                 )}
 
@@ -254,12 +256,12 @@ export default function UploadBookModal({ isOpen, onClose, onSuccess }: UploadBo
                         tone="primary"
                         disabled={!file}
                         pending={loading}
-                        pendingLabel={progressMessage || 'Envoi en cours…'}
+                        pendingLabel={progressMessage || t.sending}
                     >
-                        Importer le livre
+                        {t.import_the_book}
                     </Action>
                     <Action tone="quiet" onClick={onClose} disabled={loading}>
-                        Annuler
+                        {t.cancel}
                     </Action>
                 </div>
             </form>
