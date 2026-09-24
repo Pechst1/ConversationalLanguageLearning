@@ -277,7 +277,7 @@ the biggest time saver against Duolingo.
 
 ## 5. Owner decisions
 
-1. Name: keep «Séance», or call the engine «La Forge»? In the app the label would be «Forge today's rule».
+1. **Name: «La Forge» (owner, 2026-09-24).** In the app: «Forge today's rule» / «Forger la règle du jour».
 2. Test-out: allow it for every rule from day one, or only after placement or once the level is measured?
 3. On Soutenu and Intensif, fold the séance into the day. On Léger and Régulier, keep it as the
    after-day chip. Is that the right split?
