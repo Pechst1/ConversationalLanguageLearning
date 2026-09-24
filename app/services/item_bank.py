@@ -44,11 +44,14 @@ import json
 import random
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Any
+
+from app.services import item_semantics as semantics
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "data" / "grammar_templates"
 ITEM_BANK_VERSION = "forge-bank-1"
@@ -1313,6 +1316,28 @@ class Filters:
         word = prep.get("fr") if isinstance(prep, dict) else str(prep)
         return [f"{word} {trap}" for trap in self.tonic_x(entry)]
 
+    def de_tonic(self, entry: dict[str, Any]) -> str:
+        """«de» + the stressed pronoun, elided: «à côté d'elle», «près de moi»."""
+
+        return elide("de", _tonic(entry))
+
+    def de_tonic_x(self, entry: dict[str, Any]) -> list[str]:
+        return [elide("de", trap) for trap in self.tonic_x(entry)]
+
+    def en_qty(self, qty: dict[str, Any], noun: dict[str, Any]) -> str:
+        """«too much» / «too many»: the quantity's English for a mass or a count noun."""
+
+        tags = noun.get("tags", [])
+        count = "count" in tags and "mass" not in tags
+        return str((qty.get("en_count") if count else None) or qty.get("en") or "")
+
+    def en_all(self, noun: dict[str, Any]) -> str:
+        """«tout le projet» is the whole project; «toute la limonade» all the lemonade."""
+
+        word = noun.get("en") or noun["fr"]
+        tags = noun.get("tags", [])
+        return f"the whole {word}" if "count" in tags and "mass" not in tags else f"all the {word}"
+
     def tonic_x(self, entry: dict[str, Any]) -> list[str]:
         person = _person(entry)
         if person == 0:
@@ -1448,6 +1473,14 @@ class BankItem:
     #: The form is chosen by meaning (parce que / mais, depuis / il y a):
     #: every prompt then carries the English meaning.
     gloss: bool = False
+    #: WP-S5: what filled the slots, ``(slot, entry)``; the declared
+    #: dependencies ``(slot, head slot)``; the frame's own time words. The
+    #: naturalness checker (:mod:`app.services.item_semantics`) reads them.
+    bindings: tuple[tuple[str, dict[str, Any]], ...] = field(default=(), compare=False, hash=False, repr=False)
+    links: tuple[tuple[str, str], ...] = field(default=(), compare=False, hash=False, repr=False)
+    frame_times: tuple[str, ...] = field(default=(), compare=False, hash=False, repr=False)
+    #: WP-S5: the frame's coach line, when the sentence answers one.
+    ask: dict[str, str] | None = field(default=None, compare=False, hash=False, repr=False)
 
     @cached_property
     def fingerprint(self) -> str:
@@ -1465,6 +1498,90 @@ class _Frame:
     accepted: list[str] = field(default_factory=list)
     weight: float = 1.0
     gloss: bool = False
+    #: WP-S5: the time categories the frame's literal words carry
+    #: («ce soir», «le samedi», «en train de»), so a slot never adds a clash.
+    times: tuple[str, ...] = ()
+    #: WP-S5: an optional coach line (``{"fr", "en"}``, with slots) the
+    #: sentence answers — the free-use rung's two-line scene.
+    ask: dict[str, str] | None = None
+
+
+#: WP-S5: how much likelier a story entry (a cast member, a bible place, a
+#: recurring object, «avec Lila») is than a generic one; an entry the
+#: learner's own story has lately been about counts twice more.
+STORY_WEIGHT = 4.0
+STORY_FOCUS_WEIGHT = 2.0
+
+
+def _story_weight(entry: dict[str, Any], story: frozenset[str]) -> float:
+    weight = STORY_WEIGHT if semantics.is_story_entry(entry) else 1.0
+    if story and (str(entry.get("id") or "").lower() in story or semantics.members(entry) & story):
+        weight *= STORY_FOCUS_WEIGHT
+    return weight
+
+
+#: WP-S5: the share of a frame's items said *to* a cast member («J'ai
+#: faim, Lila.», «Tu viens au Mistral, Gus ?»), when the frame names nobody
+#: of the story itself. A line addressed to someone is still the learner's
+#: own sentence — the pronoun the rule is about stays the subject.
+VOCATIVE_SHARE = 0.6
+_CAST_POOLS = frozenset({"cast", "person3", "pair", "subj"})
+
+
+def _with_vocative(frame: _Frame) -> list[_Frame]:
+    fr, en = frame.fr.rstrip(), frame.en.rstrip()
+    pools = {spec.split("@")[0].split(":")[0] for spec in frame.slots.values()}
+    eligible = (
+        fr[-1:] in {".", "?", "!"}
+        and en[-1:] in {".", "?", "!"}
+        and not pools & _CAST_POOLS
+        and not semantics.members({"fr": _literal_text(fr)})
+        and "s'il vous plaît" not in fr
+        and "s'il te plaît" not in fr
+        # «Voici Lila. C'est …»: two statements, the scene is already there
+        and not re.search(r"[.!]\s", _literal_text(fr[:-1]))
+    )
+    if not eligible:
+        return [frame]
+
+    def address(text: str) -> str | None:
+        # A question and its answer: the name goes with the question
+        # («Tu veux des poires, Lila ? Oui, j'en veux deux.»).
+        question = text.find("?")
+        if 0 < question < len(text) - 1:
+            if "[[" in text[:question] and "]]" not in text[:question]:
+                return None
+            return f"{text[:question].rstrip()}, {{VOC}} {text[question:]}"
+        return f"{text[:-1].rstrip()}, {{VOC}}{text[-1]}"
+
+    fr_voc, en_voc = address(fr), address(en)
+    if fr_voc is None or en_voc is None or any(spec.startswith("num:age") for spec in frame.slots.values()):
+        return [frame]
+    # Said to Lila, «tu» is Lila: the vocative agrees with a «tu» subject.
+    subject = next(
+        (
+            slot
+            for slot, spec in frame.slots.items()
+            if spec.split(":")[0].split("@")[0] in {"pron", "state_tu"} and re.search(r"\{" + slot + r"[|.}]", fr)
+        ),
+        None,
+    )
+    plain = replace(frame, weight=frame.weight * (1 - VOCATIVE_SHARE))
+    said_to = replace(
+        frame,
+        frame_id=f"{frame.frame_id}~voc",
+        fr=fr_voc,
+        en=en_voc,
+        slots={**frame.slots, "VOC": f"cast@{subject}" if subject else "cast"},
+        weight=frame.weight * VOCATIVE_SHARE,
+    )
+    return [plain, said_to]
+
+
+def _literal_text(fr: str) -> str:
+    """A frame's own words: slots and the target removed."""
+
+    return _SLOT_RE.sub(" ", _TARGET_RE.sub(" ", fr))
 
 
 class ItemBank:
@@ -1475,6 +1592,10 @@ class ItemBank:
         self.templates = templates if templates is not None else unit_templates()
         self.filters = Filters(self.lex)
         self._frames: dict[str, list[_Frame]] = {}
+        #: WP-S5: rendered items per unit, and those the naturalness checker
+        #: had to reject (by kind) — the source constraints should leave
+        #: almost nothing for it.
+        self.stats: dict[str, Counter[str]] = {}
 
     # -- frames ---------------------------------------------------------------
     def supports(self, unit: str) -> bool:
@@ -1498,8 +1619,11 @@ class ItemBank:
                     accepted=list(raw.get("accepted") or []),
                     weight=float(raw.get("weight") or 1.0),
                     gloss=bool(raw.get("gloss", spec.get("gloss", False))),
+                    times=(*(raw.get("times") or ()), *semantics.time_marks(_literal_text(raw["fr"]))),
+                    ask=raw.get("ask") if isinstance(raw.get("ask"), dict) else None,
                 )
             )
+        frames = [twin for frame in frames for twin in _with_vocative(frame)]
         self._frames[unit] = frames
         return frames
 
@@ -1559,7 +1683,13 @@ class ItemBank:
                 raise RenderError("circular slot dependencies")
         return ordered
 
-    def _bind(self, frame: _Frame, rng: random.Random, known: frozenset[str]) -> dict[str, dict[str, Any]]:
+    def _bind(
+        self,
+        frame: _Frame,
+        rng: random.Random,
+        known: frozenset[str],
+        story: frozenset[str] = frozenset(),
+    ) -> dict[str, dict[str, Any]]:
         bindings: dict[str, dict[str, Any]] = {}
         used_ids: dict[str, set[str]] = {}
         needs_comps = {spec.split("@", 1)[1] for spec in frame.slots.values() if spec.startswith("comp@")}
@@ -1572,13 +1702,24 @@ class ItemBank:
             pool_key = spec.split("@")[0].split(":")[0]
             taken = used_ids.setdefault(pool_key, set())
             entries = [entry for entry in entries if str(entry.get("id")) not in taken]
+            # WP-S5: only what makes sense next to what is already bound —
+            # a carrot at the market, a price that fits, one time of day.
+            head = bindings.get(spec.split("@", 1)[1]) if "@" in spec else None
+            entries = [
+                entry
+                for entry in entries
+                if not semantics.time_conflict(frame.times, semantics.entry_marks(entry))
+                and (head is None or semantics.link_clash(head, entry) is None)
+                and all(semantics.pair_clash(entry, other) is None for other in bindings.values())
+            ]
             if not entries:
                 raise RenderError(f"no candidates for {slot} ({spec})")
-            if known:
-                weights = [3.0 if str(entry.get("lemma") or entry.get("fr") or "").lower() in known else 1.0 for entry in entries]
-                choice = rng.choices(entries, weights=weights, k=1)[0]
-            else:
-                choice = rng.choice(entries)
+            weights = [
+                (3.0 if known and str(entry.get("lemma") or entry.get("fr") or "").lower() in known else 1.0)
+                * _story_weight(entry, story)
+                for entry in entries
+            ]
+            choice = rng.choices(entries, weights=weights, k=1)[0]
             bindings[slot] = choice
             taken.add(str(choice.get("id")))
         return bindings
@@ -1690,7 +1831,23 @@ class ItemBank:
             accepted=tuple(dict.fromkeys([sentence, *accepted])),
             lemmas=lemmas,
             gloss=frame.gloss,
+            bindings=tuple(bindings.items()),
+            links=tuple(
+                (slot, spec.split("@", 1)[1]) for slot, spec in frame.slots.items() if "@" in spec and slot in bindings
+            ),
+            frame_times=frame.times,
+            ask=self._render_ask(frame, bindings),
         )
+
+    def _render_ask(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> dict[str, str] | None:
+        if not frame.ask:
+            return None
+        try:
+            fr = finish_sentence(tidy_french(self._render_text(str(frame.ask.get("fr") or ""), bindings)))
+            en = finish_english(self._render_text(str(frame.ask.get("en") or ""), bindings, english=True))
+        except (RenderError, KeyError, IndexError):
+            return None
+        return {"fr": fr, "en": en} if fr else None
 
     # -- sampling -------------------------------------------------------------
     def sample(
@@ -1701,11 +1858,15 @@ class ItemBank:
         exclude: Iterable[str] = (),
         known: Iterable[str] = (),
         detector: Any = None,
+        story: Iterable[str] = (),
     ) -> Iterator[BankItem]:
         """Endless distinct items (by fingerprint) of one unit, skipping ``exclude``.
 
         ``detector`` is a callable(sentence) -> bool; an item whose sentence it
-        rejects is never yielded.
+        rejects is never yielded. ``story`` (WP-S5) names lexicon ids and cast
+        members the learner's story has lately been about; they are preferred.
+        Every item passes the naturalness checker
+        (:func:`app.services.item_semantics.violations`).
         """
 
         frames = self.frames(unit)
@@ -1713,13 +1874,23 @@ class ItemBank:
             return
         seen = set(exclude)
         known_set = frozenset(word.lower() for word in known if word)
+        story_set = frozenset(str(value).lower() for value in story if value)
         weights = [frame.weight for frame in frames]
+        stats = self.stats.setdefault(unit, Counter())
         misses = 0
         while misses < 400:
             frame = rng.choices(frames, weights=weights, k=1)[0]
             try:
-                item = self.render(frame, self._bind(frame, rng, known_set))
+                item = self.render(frame, self._bind(frame, rng, known_set, story_set))
             except (RenderError, KeyError, IndexError):
+                misses += 1
+                continue
+            stats["rendered"] += 1
+            clashes = semantics.violations(item)
+            if clashes:
+                stats["rejected"] += 1
+                for clash in clashes:
+                    stats[f"rejected:{clash.kind}"] += 1
                 misses += 1
                 continue
             key = item.fingerprint
@@ -1739,10 +1910,11 @@ class ItemBank:
         exclude: Iterable[str] = (),
         known: Iterable[str] = (),
         detector: Any = None,
+        story: Iterable[str] = (),
     ) -> list[BankItem]:
         rng = random.Random(str(seed))  # noqa: S311 - reproducible variety, not security
         items: list[BankItem] = []
-        for item in self.sample(unit, rng, exclude=exclude, known=known, detector=detector):
+        for item in self.sample(unit, rng, exclude=exclude, known=known, detector=detector, story=story):
             items.append(item)
             if len(items) >= count:
                 break
