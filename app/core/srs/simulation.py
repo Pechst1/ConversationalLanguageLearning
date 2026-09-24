@@ -550,6 +550,10 @@ def simulate_items_to_held(
             introduce(introduced_today, day)
             next_intro += 1
 
+        # A rule due at the start of the day stays the forge's «due» rule even
+        # after the journey's Rappel reviewed it (the Rappel only ever poses a
+        # low rung; without this the forge never climbs a reviewed rule).
+        due_at_start = {item.index for item in rules if is_due(item, day) and item.state.reps > 0}
         if rappel:
             for item in list(rules):
                 if item is introduced_today or not is_due(item, day) or item.state.reps == 0:
@@ -572,7 +576,11 @@ def simulate_items_to_held(
                     )
                 )
             due = sorted(
-                (item for item in rules if item is not today and is_due(item, day) and item.state.reps > 0),
+                (
+                    item
+                    for item in rules
+                    if item is not today and (is_due(item, day) or item.index in due_at_start) and item.state.reps > 0
+                ),
                 key=lambda item: (item.due or 0, item.index),
             )[:3]
             for item in due:

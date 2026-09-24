@@ -686,3 +686,17 @@ def test_steady_state_review_load_per_new_item() -> None:
     }
     assert loads[0.70] > loads[0.85] > loads[0.95]
     assert loads == {0.70: 13.5, 0.85: 8.1, 0.95: 5.9}
+
+
+def test_contrast_partners_are_read_from_the_v2_syllabus_block():
+    """v2 stores contrast partners under source_refs["syllabus"]; the forge seats them."""
+
+    from types import SimpleNamespace
+
+    from app.services.unified_srs import contrast_partner_refs
+
+    v2 = SimpleNamespace(source_refs={"syllabus": {"contrast_partners": ["FR2_A11_DEF_ARTICLES", " "]}})
+    flat = SimpleNamespace(source_refs={"contrast_partners": [7]})
+    assert contrast_partner_refs(v2) == ["FR2_A11_DEF_ARTICLES"]
+    assert contrast_partner_refs(flat) == [7]
+    assert contrast_partner_refs(SimpleNamespace(source_refs=None)) == []

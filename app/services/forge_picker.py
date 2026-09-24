@@ -335,6 +335,25 @@ def _review_queue(db: Session, user: Any, *, now: datetime) -> tuple[list[int], 
                 errata.append(concept_id)
             if concept_id not in due:
                 due.append(concept_id)
+    # A rule due at the start of the day stays due for the forge after the
+    # journey's Rappel reviewed it: the Rappel only poses a low rung, and a rule
+    # it just rescheduled would otherwise never climb to free use and be held
+    # (the WP-S8 simulation: forge + Rappel held ~30 % fewer rules than the forge
+    # alone on Soutenu/Intensif, ~10 % fewer with this rule).
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    reviewed_today = (
+        db.query(UserGrammarProgress.concept_id)
+        .filter(
+            UserGrammarProgress.user_id == user.id,
+            UserGrammarProgress.last_review >= start_of_day,
+            UserGrammarProgress.held_at.is_(None),
+        )
+        .order_by(UserGrammarProgress.last_review.asc())
+        .all()
+    )
+    for (concept_id,) in reviewed_today:
+        if concept_id is not None and int(concept_id) not in due:
+            due.append(int(concept_id))
     return errata, due, contrast
 
 

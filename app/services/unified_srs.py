@@ -256,7 +256,13 @@ def contrast_partner_refs(concept: GrammarConcept) -> list[int | str]:
     raw = getattr(concept, "contrast_partners", None)
     if raw is None:
         refs = getattr(concept, "source_refs", None)
-        raw = refs.get("contrast_partners") if isinstance(refs, dict) else None
+        if isinstance(refs, dict):
+            raw = refs.get("contrast_partners")
+            if raw is None:
+                # The v2 catalogue (WP-L2) keeps them in its syllabus block; missing
+                # this made the forge never seat a contrast rule on v2.
+                syllabus = refs.get("syllabus")
+                raw = syllabus.get("contrast_partners") if isinstance(syllabus, dict) else None
     if not isinstance(raw, list | tuple):
         return []
     partners: list[int | str] = []

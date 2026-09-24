@@ -211,6 +211,44 @@ def test_due_and_contrast_never_bring_a_new_rule(db_session: Session, v2) -> Non
     assert roles == sorted(roles, key=["today", "due", "contrast"].index)
 
 
+def test_a_rule_the_rappel_reviewed_today_stays_due_for_the_forge(db_session: Session, v2) -> None:
+    """WP-S8 anomaly: the day's Rappel reschedules a due rule; the forge must still
+    climb it, or it never reaches free use and is never held."""
+
+    user = _learner(db_session, minutes=20)
+    concepts = (
+        db_session.query(GrammarConcept)
+        .filter(GrammarConcept.active.is_(True), GrammarConcept.language == "fr")
+        .order_by(GrammarConcept.difficulty_order, GrammarConcept.id)
+        .limit(3)
+        .all()
+    )
+    reviewed, held = concepts[1], concepts[2]
+    db_session.add_all([
+        UserGrammarProgress(
+            user_id=user.id, concept_id=concepts[0].id, score=5.0, reps=2, stability=2.0,
+            introduced_at=DAY0 - timedelta(days=12), next_review=DAY0 + timedelta(days=5),
+        ),
+        # Reviewed by this morning's Rappel: next review pushed out, not held.
+        UserGrammarProgress(
+            user_id=user.id, concept_id=reviewed.id, score=6.0, reps=3, stability=4.0,
+            introduced_at=DAY0 - timedelta(days=10), last_review=DAY0 - timedelta(hours=1),
+            next_review=DAY0 + timedelta(days=4),
+        ),
+        # Held rules reviewed today are not pulled back in.
+        UserGrammarProgress(
+            user_id=user.id, concept_id=held.id, score=9.0, reps=6, stability=40.0,
+            introduced_at=DAY0 - timedelta(days=40), last_review=DAY0 - timedelta(hours=1),
+            next_review=DAY0 + timedelta(days=40), held_at=DAY0 - timedelta(days=5),
+        ),
+    ])
+    db_session.commit()
+    plan = forge_picker.forge_plan(db_session, user, DAY0)
+    planned = {unit.concept_id for unit in plan.units}
+    assert reviewed.id in planned
+    assert held.id not in {unit.concept_id for unit in plan.units if unit.role == "due"}
+
+
 # ---------------------------------------------------------------------------
 # 2. The intake quota holds across both surfaces
 # ---------------------------------------------------------------------------
