@@ -36,6 +36,12 @@ export type JourneyRecapProps = {
   language: ControlLanguage;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
+  /**
+   * WP-S4: «Forge today's rule» after the day (Léger, Régulier — owner
+   * decision 3). When given it replaces the quiet practice button; on
+   * Soutenu/Intensif the forge was part of the day and it is omitted.
+   */
+  forge?: { label: string; onSelect: () => void } | null;
   /** WP-16 / D-0: open the drill loop at a server-issued practice href. */
   onPractice?: (href: string) => void;
   /** WP-80's push pre-prompt, mounted by the session shell. */
@@ -49,6 +55,7 @@ export function JourneyRecap({
   onExit,
   morePractice,
   onPractice,
+  forge,
   pushOptIn,
 }: JourneyRecapProps) {
   const copy = journeyCopy(language);
@@ -199,10 +206,16 @@ export function JourneyRecap({
             {seal ? chrome.keep_seal : copy.continue}
           </Action>
         )}
-        {practice && (
-          <Action tone="quiet" onClick={practice.onSelect} aria-label={practice.ariaLabel}>
-            {copy.more_practice}
+        {forge ? (
+          <Action tone="quiet" onClick={forge.onSelect} data-forge="after-day">
+            {forge.label || copy.forge_today}
           </Action>
+        ) : (
+          practice && (
+            <Action tone="quiet" onClick={practice.onSelect} aria-label={practice.ariaLabel}>
+              {copy.more_practice}
+            </Action>
+          )
         )}
         {/* WP-L6: after the Seal only — an optional reviews-only block that
             never advances the story and never counts twice for the streak. */}

@@ -2457,7 +2457,15 @@ class ApiService {
     return this.atelierGet<CEFRProgress>('/progress/cefr');
   }
 
-  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
+  async startAtelierSession(data?: {
+    concept_ids?: number[];
+    preferred_concept_id?: number;
+    preferred_vocabulary_ids?: number[];
+    /** WP-S4 — La Forge: how the block was entered, its length, its day step. */
+    origin?: 'journey' | 'after_day' | 'practice';
+    budget_seconds?: number;
+    journey_step_id?: string;
+  }) {
     return this.atelierPost<AtelierSessionStart>('/atelier/sessions', data || {});
   }
 

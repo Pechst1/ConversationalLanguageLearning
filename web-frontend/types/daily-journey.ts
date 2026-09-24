@@ -20,7 +20,8 @@ export type ControlLanguage = 'en' | 'de' | 'fr';
 export type JourneyStatus =
   | 'preparing' | 'active' | 'paused' | 'completed' | 'ended_early' | 'unavailable';
 /** WP-L4: `rule` is the Règle — the day's new grammar unit as its rule card. */
-export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule';
+/** WP-S4: `forge` is La Forge folded into a Soutenu/Intensif day — a hand-off step. */
+export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule' | 'forge';
 export type StepStatus = 'pending' | 'active' | 'completed' | 'skipped';
 export type InputMode = 'text' | 'voice';
 export type HelpKind = 'hint' | 'translation' | 'solution' | 'suggested_response';
@@ -250,7 +251,34 @@ export type RulePrompt = {
 };
 export type RuleStep = PublicStepBase & { kind: 'rule'; prompt: RulePrompt };
 
-export type PublicStep = SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep;
+/**
+ * WP-S4 «La Forge», folded into the day (Soutenu, Intensif): the step opens the
+ * forge block on today's rule (`href`) and comes back to the day. `forged` is
+ * true once a block started from this step was completed. Advanced, never
+ * answered here — the forge credits its own items.
+ */
+export type ForgePrompt = {
+  concept_id: number | null;
+  title_native: string;
+  title_fr: string;
+  budget_seconds: number;
+  href: string;
+  forged: boolean;
+};
+export type ForgeStep = PublicStepBase & { kind: 'forge'; prompt: ForgePrompt };
+
+export type PublicStep = SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep;
+
+/**
+ * WP-S4: where «Forge today's rule» opens. `folded` — Soutenu/Intensif carry
+ * the forge inside the day; Léger/Régulier get it as the after-day chip.
+ */
+export type ForgeEntry = {
+  href: string;
+  concept_id: number | null;
+  budget_seconds: number;
+  folded: boolean;
+};
 
 export type PracticedTarget = {
   target: TargetRef;
@@ -422,6 +450,8 @@ export type TodayEnvelope = {
    * one. Never the day's primary action.
    */
   practice_href: string;
+  /** WP-S4: La Forge's entry for today (absent on an older server). */
+  forge?: ForgeEntry | null;
   /**
    * WP-24 / WP-28: why today's scene is this scene, when the plan actually kept
    * a target that exists because of a mistake the learner made. `null` means
