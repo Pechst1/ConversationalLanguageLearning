@@ -45,7 +45,7 @@ import {
   dayMarkWords,
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
-import { atelierCopy } from '@/lib/atelier-v2-copy';
+import { atelierChrome, atelierCopy } from '@/lib/atelier-v2-copy';
 import { NNBSP, frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -188,9 +188,7 @@ export type HomeScreenProps = {
   note?: string | null;
   /** Why today's scene is this scene. Omitted, no line is printed. */
   because?: HomeBecause | null;
-  /** The learner's stated budget, passed ONLY when the honest estimate overruns it. */
-  overrunMinutes?: number | null;
-  /** Where the edition's time budget is adjusted. */
+  /** Where the learner's rhythm (how long the day is) is adjusted. */
   adjustHref?: string | null;
   /** Yesterday's promised phrase — printed only when the previous edition filed one. */
   phrase?: { text: string; byline: string } | null;
@@ -246,7 +244,6 @@ export function HomeScreen({
   filedLabel,
   note,
   because,
-  overrunMinutes,
   adjustHref,
   phrase,
   library,
@@ -352,15 +349,13 @@ export function HomeScreen({
           </Action>
           {note && <p className="av2-label av2-home__note">{note}</p>}
           <BecauseLine because={because} />
-          {overrunMinutes != null && (
-            <p className="av2-body av2-home__note">
-              Plus long que les {overrunMinutes} minutes demandées — vous pouvez vous arrêter quand
-              vous voulez.
-            </p>
-          )}
+          {/* 2026-09-24: the «Plus long que les N minutes demandées» clause is
+              gone. It compared the edition with the pre-rhythm daily goal (a
+              stored 15 that no Réglages control sets any more); the rhythm now
+              sizes the day on the server, and WP-81's Home says one thing. */}
           {adjustHref && (
             <Link className="av2-btn av2-btn--quiet av2-btn--inline" href={adjustHref}>
-              Ajuster le temps de l’édition
+              Ajuster votre rythme
             </Link>
           )}
         </div>
@@ -738,9 +733,30 @@ function DayTileControl({ tile }: { tile: HomeTile }) {
 }
 
 /** The page coming off the press: the same shapes, empty. */
-export function HomeSkeleton({ children }: { children?: React.ReactNode }) {
+/**
+ * WP-83 / 2026-09-24 — Home's one loader: the journey Home's shape (the day's
+ * card, the plan row, one chip row), labelled in the learner's chrome
+ * language. It is what a learner sees until the server has said which Home
+ * they have, so it never draws the legacy Home's three tiles.
+ */
+export function HomeSkeleton({
+  children,
+  language,
+}: {
+  children?: React.ReactNode;
+  /** WP-82: the loader's label follows the one language rule. */
+  language?: ControlLanguage | null;
+}) {
+  const label = atelierChrome(language ?? 'fr').loading;
   return (
-    <AtelierV2Root as="main" className="av2-home" aria-busy="true" aria-label="Atelier · chargement">
+    <AtelierV2Root
+      as="main"
+      className="av2-home"
+      language={language ?? undefined}
+      aria-busy="true"
+      aria-label={label}
+      data-home-skeleton="journey"
+    >
       <header className="av2-home__mast">
         <div className="av2-home__mast-main">
           <AtelierMark size={26} />
@@ -758,13 +774,11 @@ export function HomeSkeleton({ children }: { children?: React.ReactNode }) {
       <div className="av2-home__section">
         <Skeleton height={56} radius={16} />
       </div>
-      <div className="av2-home__tiles">
-        <Skeleton height={104} radius={18} />
-        <Skeleton height={104} radius={18} />
-        <Skeleton height={104} radius={18} />
+      <div className="av2-home__section" style={{ width: '70%' }}>
+        <Skeleton height={36} radius={18} />
       </div>
       <span className="av2-sr" role="status">
-        Chargement de l’édition
+        {label}
       </span>
       {children}
     </AtelierV2Root>

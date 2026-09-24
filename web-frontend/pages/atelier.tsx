@@ -33,6 +33,7 @@ import {
   readCachedAtelierEdition,
   saveResumeActivity,
 } from '@/lib/pilot-resilience';
+import { homeRender, readHomeKind, rememberHomeKind, resolvedHomeKind, type HomeKind } from '@/lib/home-loading';
 import { type LuAskKind } from '@/components/laune/LaUne';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import { HomeScreen, HomeSkeleton, type HomeBecause, type HomeChip, type HomeEntry, type HomeTile } from '@/components/atelier-v2/home/HomeScreen';
@@ -625,6 +626,12 @@ export default function AtelierPage() {
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
   const [cachedEditionAt, setCachedEditionAt] = useState<string | null>(null);
+  // Which Home this device settled on last time (lib/home-loading.ts). Read
+  // after mount, so the server render and the first client render agree.
+  const [rememberedHomeKind, setRememberedHomeKind] = useState<HomeKind | null>(null);
+  useEffect(() => {
+    setRememberedHomeKind(readHomeKind());
+  }, []);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
@@ -904,6 +911,24 @@ export default function AtelierPage() {
   // Nothing may be rendered on top of it: it carries the day's primary action.
   const journeyEntryVisible =
     journeyEnabled && (journeyRecommended || journey.phase.kind === 'finished');
+
+  // 2026-09-24: the legacy Home must never flash in front of a journey Home.
+  // Until `GET /journey/today` says which Home this is, Home is its skeleton —
+  // unless this device's last Home was the legacy one, whose cached edition is
+  // then the same kind and may paint at once (lib/home-loading.ts).
+  const settledHomeKind = resolvedHomeKind({ journeyEnabled, journeyPhaseKind: journey.phase.kind });
+  useEffect(() => {
+    if (!settledHomeKind) return;
+    rememberHomeKind(settledHomeKind);
+    setRememberedHomeKind(settledHomeKind);
+  }, [settledHomeKind]);
+  const homePending = homeRender({
+    loading,
+    loadError: Boolean(loadError),
+    journeyEnabled,
+    journeyPhaseKind: journey.phase.kind,
+    rememberedKind: rememberedHomeKind,
+  }) === 'skeleton';
 
   useEffect(() => {
     if (!activeRetest && activeItemIndex !== activeItemIndexSafe) {
@@ -1660,13 +1685,15 @@ export default function AtelierPage() {
       <AtelierStyles />
       <div className="atelier-page">
         <Masthead view={view === 'today' ? 'today' : 'session'} />
-        {cachedEditionAt && (
+        {/* The cached-edition note belongs to the legacy Home it was cached
+            from; a journey Home, or a skeleton, never carries it. */}
+        {cachedEditionAt && !homePending && !journeyEnabled && (
           <div className="atelier-cache-note" role="status">
             Édition précédente · mise à jour en cours…
           </div>
         )}
         {loading ? (
-          <HomeSkeleton>
+          <HomeSkeleton language={pageChromeLanguage}>
             <AtelierEditionNav active="atelier" />
           </HomeSkeleton>
         ) : view === 'journey' && journeyEnabled ? (
@@ -1689,7 +1716,11 @@ export default function AtelierPage() {
           />
         ) : /* A capability that turns off mid-session falls back to Today, never
                into the legacy exercise view the learner did not ask for. */
-        view === 'today' || view === 'journey' || !session ? (
+        (view === 'today' || view === 'journey' || !session) && homePending ? (
+          <HomeSkeleton language={pageChromeLanguage}>
+            <AtelierEditionNav active="atelier" />
+          </HomeSkeleton>
+        ) : view === 'today' || view === 'journey' || !session ? (
           <>
             {/* The journey entry appears exactly when the frozen precedence puts
                 it in front of the legacy chain (branches 1–3 and 5), plus the
@@ -2223,7 +2254,6 @@ function TodayView({
 
   const sessionNode = (dayProgress.nodes || []).find((node) => node.id === 'session');
   const sessionMins = Math.max(1, Number(sessionNode?.estimatedMinutes ?? remainingMinutes ?? 8));
-  const timeBudget = Math.max(0, Number(dayProgress.timeBudgetMinutes || 0));
   const seanceStatus: 'fresh' | 'resume' | 'done' = sessionComplete ? 'done' : hasActiveSession ? 'resume' : 'fresh';
   const seanceConcepts: Array<{ t: string; cefr: string; role: 'new' | 'fragile' | 'contrast' }> = concepts.slice(0, 3).map((concept, index) => ({
     t: displayConceptTitle(concept),
@@ -2249,10 +2279,9 @@ function TodayView({
   const prescribedConcept = seanceConcepts.find((concept) => concept.role === 'fragile') || seanceConcepts[0];
   // The headline minutes are what the edition will really cost at this
   // learner's measured pace (server-side estimate), never the daily-goal
-  // setting echoed back at them. When the honest number overruns the budget the
-  // prescription says so rather than quietly printing the nicer figure.
+  // setting echoed back at them. (The «plus long que les N minutes demandées»
+  // clause compared it with the pre-rhythm goal and is gone — 2026-09-24.)
   const prescribedMinutes = Math.max(1, Number(remainingMinutes || sessionMins || 8));
-  const overBudgetMinutes = timeBudget > 0 && prescribedMinutes > timeBudget ? timeBudget : null;
   // On the days the written mission is not prescribed, the day's third element is
   // the voice studio, so the prescription has to name speaking rather than a
   // written reply that is not being asked for.
@@ -2524,7 +2553,6 @@ function TodayView({
       filedLabel={isRest && !errorOnlyPage && !journeyOwnsPrimary ? 'Édition bouclée — à demain.' : null}
       note={journeyOwnsPrimary ? null : prescriptionBecause}
       because={becauseLine}
-      overrunMinutes={journeyOwnsPrimary ? null : overBudgetMinutes}
       adjustHref={errorOnlyPage || isRest || journeyOwnsPrimary ? null : '/settings?section=practice'}
       phrase={phraseOfDay ? { text: phraseOfDay.text, byline: phraseOfDay.byline } : null}
       library={

@@ -22,7 +22,9 @@ def test_la_une_leads_with_explained_prescription_without_hiding_edition():
     assert "note={journeyOwnsPrimary ? null : prescriptionBecause}" in page
     assert "av2-home__note" in component
     assert "{note}" in component
-    assert "Ajuster le temps de l’édition" in component
+    # 2026-09-24: the link opens Réglages → the rhythm, and says so.
+    assert "Ajuster votre rythme" in component
+    assert "Ajuster le temps de l’édition" not in component
     # The day's word count moved to the En bref lexique row.
     assert "mots' du jour" not in page
     assert "du jour" in page
