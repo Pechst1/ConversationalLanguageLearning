@@ -403,6 +403,27 @@ and the next scene gives the learner a chance to repair it.
   listening block, the WP-L8 forecast on the cards, and the rhythm question in onboarding
   (no natural step after the first win yet: the taste leads to sign-up, then straight into
   day one).
+- **Status (2026-09-24): the auto-throttle landed** (`app/services/intake_throttle.py`,
+  `tests/test_wp_l6_throttle.py`).
+  - **Signals** — backlog = everything the unified queue has due now, costed (word 6 s — the drill;
+    unit 40 s, erratum 25 s, conjugation 20 s — the Rappel), ÷ one day of review capacity =
+    35 % of the rhythm's budget + the word drill the pace setting announced
+    (`new_words_per_day` × 10 reviews × 6 s; Régulier at 10 words = 810 s, the owner's 20 words
+    at Régulier = 1,410 s). Accuracy = share of word reviews in the last 7 days not rated Again
+    (`review_logs`; grammar keeps no per-review log, it enters through the backlog); under 20
+    reviews it is not measured.
+  - **Rule** — engage when backlog > 1.5 days or accuracy < 80 %; release only when backlog
+    ≤ 1.0 day **and** accuracy ≥ 85 % (or unmeasured), and not before 3 days. While on, the factor
+    is 0.5: the vocabulary pace (the learner's own quota, up to 20+, *and* the journey's rhythm
+    share: Régulier 4 → 2) and the grammar quota (`concept_life.weekly_concept_rate`, which feeds
+    `forge_plan`; a fractional rate spreads out: Léger halved = one unit every 14 days, Soutenu
+    1.5/week ≥ 5 days apart).
+  - **State + pilot event** — each change writes one `intake_throttle` pilot event
+    (`state: on|off`, reasons, backlog, capacity, accuracy); the latest one is the hysteresis
+    memory. No migration.
+  - **Learner-visible** — `GET /atelier/today` → `intake.consolidating`; Home prints one quiet
+    label under the date, the recap carries `consolidating`: «Cette semaine, on consolide.» /
+    «This week, we consolidate.» / «Diese Woche festigen wir.» (chrome language).
 
 #### WP-L7 · The level: syllabus coverage plus a checkpoint
 - Replace the absolute thresholds (`CEFR_THRESHOLDS`) with coverage of the current sub-band:
@@ -485,7 +506,14 @@ and the next scene gives the learner a chance to repair it.
     jours …». Relevé: «Estimation : 60 à 95 jours à ce rythme.» (was one number).
   - The «20 min/day for 50 days → A1.2» claim never reached product copy (grep of `app/`,
     `web-frontend/`, `mobile/`); the payload's `daily_minutes` fallback of 20 is now the rhythm's
-    10. **Not yet**: the weekly forecast line at the Seal.
+    10.
+  - **The Seal (2026-09-24)** — the recap carries `forecast_line {target, month, range_days}`
+    when the stored forecast is **measured** (`status: available`, not capped) and no recap of
+    the last 7 local days carried one; `month` is the month of the central day (`base_days`).
+    The recap prints it under the Seal in the chrome language: «At this rhythm: A1.2 around
+    November.» / «À ce rythme : A1.2 vers novembre.» / «In diesem Rhythmus: A1.2 etwa im
+    November.» (year added when not the current one). Before 7 active days nothing is shown
+    (`tests/test_wp_l8_seal_forecast.py`, `journey-recap.test.js`).
   - **Tests** — `tests/test_wp_l8_forecast.py`.
 
 #### WP-L9 · Measure it
@@ -505,7 +533,59 @@ and the next scene gives the learner a chance to repair it.
 - **Status (2026-09-23, timing half landed):** `daily_journey_steps.started_at` (migration
   `e1f3a5b7c9d2`) is set when a step becomes current; the daily rollup's `active_duration`
   gains `by_rhythm` (p50 / p90 of measured active seconds, rhythm read from the journey's
-  budget). The 126-day harness per rhythm is still open.
+  budget).
+- **Status (2026-09-24, harness per rhythm landed):** `app/core/srs/rhythm_horizon.py`, run by
+  `tests/test_wp_l9_rhythm_harness.py` (`-s` prints the tables). A sibling of the WP-68 harness
+  (`test_long_horizon_evidence.py` is unchanged): the séance's minutes and graded interactions come
+  from the real planner at the rhythm's budget and the prior pace; intake (§2.2), every due review
+  (the WP-L3 memory model), the WP-L6 auto-throttle rule (`intake_throttle.decide`), «Tenue»
+  (`concept_life`) and the band walk (WP-L7 coverage + one day for a first-time épreuve) are
+  simulated for 126 days, one seeded learner per rhythm × accuracy. Minutes = séance + review time
+  beyond the Rappel's 35 % (words 6 s, units 40 s), spilled into the word drill; graded = séance +
+  spilled reviews; «Throttled» = share of days with intake halved.
+
+  Catalogue v1 (the default: six units a half-level):
+
+  | Rhythm | Acc. | Min/day | Graded/day | New words/day | New units/wk | Reviews/day (d 90–126) | Throttled | Day 30 | Day 60 | Day 90 | Day 126 |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Léger | 70 % | 5.5 | 13 | 1.0 | 0.5 | 28 | 96 % | A1.1 · 4 % | A1.1 · 8 % | A1.1 · 13 % | A1.1 · 26 % |
+  | Léger | 85 % | 5.4 | 12 | 1.8 | 0.9 | 25 | 18 % | A1.1 · 5 % | A1.1 · 14 % | A1.1 · 38 % | A1.1 · 57 % |
+  | Léger | 95 % | 5.1 | 9 | 2.0 | 1.0 | 19 | 0 % | A1.1 · 8 % | A1.1 · 32 % | A1.1 · 72 % | A1.1 · 83 % |
+  | Régulier | 70 % | 10.1 | 38 | 2.1 | 1.0 | 53 | 97 % | A1.1 · 9 % | A1.1 · 17 % | A1.1 · 41 % | A1.1 · 67 % |
+  | Régulier | 85 % | 10.3 | 39 | 3.9 | 1.9 | 55 | 5 % | A1.1 · 17 % | A1.1 · 49 % | A1.1 · 75 % | A1.2 · 41 % |
+  | Régulier | 95 % | 9.3 | 31 | 4.0 | 2.0 | 38 | 0 % | A1.1 · 17 % | A1.1 · 51 % | A1.1 · 82 % | A1.2 · 58 % |
+  | Soutenu | 70 % | 16.6 | 77 | 4.1 | 1.5 | 102 | 98 % | A1.1 · 17 % | A1.1 · 49 % | A1.1 · 67 % | A1.1 · 75 % |
+  | Soutenu | 85 % | 17.3 | 83 | 7.8 | 2.7 | 109 | 5 % | A1.1 · 29 % | A1.1 · 67 % | A1.1 · 67 % | A1.1 · 82 % |
+  | Soutenu | 95 % | 15.3 | 65 | 8.0 | 2.7 | 75 | 0 % | A1.1 · 34 % | A1.1 · 82 % | A1.2 · 75 % | A2.1 · 76 % |
+  | Intensif | 70 % | 23.5 | 117 | 6.1 | 2.0 | 158 | 98 % | A1.1 · 25 % | A1.1 · 52 % | A1.1 · 60 % | A1.1 · 67 % |
+  | Intensif | 85 % | 24.0 | 123 | 12.0 | 2.7 | 164 | 0 % | A1.1 · 45 % | A1.1 · 82 % | A1.2 · 67 % | A1.2 · 82 % |
+  | Intensif | 95 % | 21.0 | 96 | 12.0 | 2.7 | 112 | 0 % | A1.1 · 45 % | A1.1 · 82 % | A2.2 · 0 % | B1.1 · 41 % |
+
+  Catalogue v2 (16–23 units a sub-band), the level only (costs within ±0.5 min and ±3 reviews of v1):
+
+  | Rhythm | Acc. | Day 30 | Day 60 | Day 90 | Day 126 |
+  | --- | --- | --- | --- | --- | --- |
+  | Léger | 70 / 85 / 95 % | A1.1 · 4 / 5 / 8 % | A1.1 · 8 / 14 / 23 % | A1.1 · 13 / 28 / 44 % | A1.1 · 21 / 48 / 66 % |
+  | Régulier | 70 / 85 / 95 % | A1.1 · 9 / 17 / 17 % | A1.1 · 17 / 39 / 41 % | A1.1 · 35 / 61 / 78 % | A1.1 · 51 %, A1.1 · 81 %, A1.2 · 37 % |
+  | Soutenu | 70 / 85 / 95 % | A1.1 · 17 / 29 / 34 % | A1.1 · 40 / 53 / 64 % | A1.1 · 56 / 73 / 87 % | A1.1 · 64 %, A1.1 · 87 %, A2.1 · 41 % |
+  | Intensif | 70 / 85 / 95 % | A1.1 · 25 / 45 / 45 % | A1.1 · 47 / 61 / 64 % | A1.1 · 53 / 78 %, A1.2 · 70 % | A1.1 · 59 %, A1.2 · 77 %, A2.1 · 81 % |
+
+  What the numbers say:
+  - **Minutes hold at 85–95 %**: Léger 5.1–5.4, Régulier 9.3–10.3, Soutenu 15–17, Intensif 21–24
+    (the séance is always inside its budget; above it is word-drill spill). The séance itself is
+    under budget on Soutenu/Intensif because the planner's pool is the limit, not the clock.
+  - **70 % accuracy keeps the throttle on ~97 % of days** (the rule, as designed: < 80 % halves
+    intake), so a struggling learner's intake and review load stay near the next-slower rhythm's.
+    At 85 % it trips on 5–18 % of days (noisy weeks), at 95 % never.
+  - **Review load** at days 90–126 (85 %): 25 / 55 / 109 / 164 a day, ≈ 12–13 reviews a day per
+    new item a day — above WP-L3's 8.1 (graded formats) and near its self-rated 10.6, because
+    words are self-rated cards (a wrong answer is an Again).
+  - **Level**: at Régulier/85 % A1.1 closes between day 90 and 126 (WP-L8's prior: 100–162 days);
+    doubling the minutes does not halve the time — the units' «Tenue» lag (41 days on a clean
+    run, median ≈ 64 at 85 %, WP-L8) is the floor, and on v1 all six units of a half-level must be held, so one
+    fragile unit stalls a band (Soutenu/85 % sits at 67 % from day 60 to 90).
+  - Intensif/95 % exhausts v1's 48 units by day 126 (units/wk 2.7 instead of 4): v1 has too few
+    units for the fast rhythms, another reason for v2.
 
 #### WP-L10 · The rule card v2: readable and beautiful
 - Spec and findings: `GRAMMAR-DUE-DILIGENCE-2026-09-23.md` §3.
