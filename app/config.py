@@ -213,6 +213,13 @@ class Settings(BaseSettings):
         "minimal",
         description="Optional reasoning_effort override for Atelier critique models that support it.",
     )
+    ATELIER_FORGE_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-S3 La Forge: new séances are composed by the forge (staircase per rule, "
+            "item-level evidence, reprise, interleaving). False keeps the legacy ladder."
+        ),
+    )
     ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
         True,
         description="Pre-generate the learner's next Atelier session in the background.",

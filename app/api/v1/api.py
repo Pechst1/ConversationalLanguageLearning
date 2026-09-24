@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     dossier,
     episode_audio,
     feedback,
+    forge,
     grammar,
     graphic_novel,
     intake,
@@ -56,6 +57,7 @@ api_router.include_router(anki.router)
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"], dependencies=_paid)
 api_router.include_router(grammar.router)
 api_router.include_router(atelier.router, dependencies=_paid_atelier)
+api_router.include_router(forge.router, dependencies=_paid_atelier)  # WP-S3 La Forge
 api_router.include_router(missions.router, dependencies=_paid_atelier)
 api_router.include_router(graphic_novel.router, dependencies=_paid_atelier)
 api_router.include_router(serial.router, dependencies=_paid_atelier)

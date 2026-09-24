@@ -55,8 +55,13 @@ def apply_grammar_evidence(
     now: datetime,
     score: float | None = None,
     interval_multiplier: float = 1.0,
+    weight_scale: float = 1.0,
 ) -> MemoryDecision | None:
     """The one door through which grammar evidence reaches the schedule.
+
+    ``weight_scale`` (WP-S3, La Forge) scales the format's evidence weight:
+    the forge's second, third… schedule-moving success of one rule inside one
+    séance is massed practice and buys less of the rating's stability gain.
 
     Writes stability/difficulty/lapses/reps and the review pair from
     :func:`app.core.srs.memory.review`; ``score`` (0–10, display only) and the
@@ -65,9 +70,18 @@ def apply_grammar_evidence(
     mention). Never commits.
     """
 
+    graded: Evidence | memory.EvidenceGrade = evidence
+    if weight_scale != 1.0:
+        grade = memory.grade_evidence(evidence)
+        if grade is not None:
+            graded = memory.EvidenceGrade(
+                rating=grade.rating,
+                weight=grade.weight * max(0.0, min(1.0, float(weight_scale))),
+                step=grade.step,
+            )
     decision = memory.review(
         grammar_memory_state(progress),
-        evidence,
+        graded,
         now=now,
         interval_multiplier=interval_multiplier,
     )

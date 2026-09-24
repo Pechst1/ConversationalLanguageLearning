@@ -33,6 +33,8 @@ import {
   type ConceptTone,
 } from '@/components/cahiers/CahierV2';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
+import { forgeCopy } from '@/lib/forge-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
 
 /* Map the backend grammar state (German keys from determine_state, or already
  * localized variants) to one of five learner states; fall back to mastery. */
@@ -426,6 +428,23 @@ function GrammarFiche({
   const tone = conceptTone(state, due);
   const tokenKind = tone === 'fragile' ? 'action' : tone === 'done' ? 'done' : 'story';
   const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
+  // WP-S3 — «Épreuve de la règle», open for every rule from day one (owner,
+  // 2026-09-24). Its chrome follows the language rule (learner's language to A2).
+  const router = useRouter();
+  const forgeChrome = forgeCopy(useChromeLanguage(concept.level));
+  const [testOutPending, setTestOutPending] = useState(false);
+  const startTestOut = async () => {
+    if (testOutPending) return;
+    setTestOutPending(true);
+    try {
+      const started = await api.startForgeTestOut(concept.id);
+      await router.push(`/atelier?testout=${started.session_id}`);
+    } catch (error) {
+      console.error(error);
+      toast.error(forgeChrome.test_out_failed_start);
+      setTestOutPending(false);
+    }
+  };
 
   return (
     <article className="nb-fiche" aria-label="Fiche de grammaire">
@@ -571,6 +590,12 @@ function GrammarFiche({
         <span>Travailler cette règle à l’Atelier</span>
         <ArrowRightIcon size={18} />
       </Link>
+      <div className="nb-testout">
+        <Action tone="secondary" inline pending={testOutPending} pendingLabel={forgeChrome.test_out_starting} onClick={startTestOut}>
+          {forgeChrome.test_out_action}
+        </Action>
+        <p className="nb-testout__hint">{forgeChrome.test_out_hint}</p>
+      </div>
       {/* `exercise_tags` are generator keys ("si", "future", "imperative") —
         * internal inventory, and in English. They steer generation; they are
         * not something to print on the learner's fiche. */}

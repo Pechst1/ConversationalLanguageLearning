@@ -17,6 +17,7 @@ import apiService, {
   AtelierErrataAttemptResult,
   AtelierErrataReviewTask,
   AtelierErratum,
+  AtelierForgeView,
   AtelierSessionStart,
   AtelierToday,
   DailyWordSlate,
@@ -113,6 +114,7 @@ import {
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
+import { fillForge, forgeCopy, forgeRungLabel } from '@/lib/forge-copy';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
@@ -170,6 +172,18 @@ const SESSION_LEVEL_DRILLS = 1;
 // A concept's earned skips, granted by the backend once the learner has proved
 // the rung (see _maybe_apply_adaptive_lock). Locked drills are removed from the
 // ladder entirely -- both the work and the denominator.
+// WP-S3 La Forge: the server composes the séance and names the next item.
+function forgeViewOf(value: unknown): AtelierForgeView | null {
+  if (!value || typeof value !== 'object') return null;
+  const view = value as AtelierForgeView;
+  return view.mode === 'seance' || view.mode === 'test_out' ? view : null;
+}
+
+function testOutQueryId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('testout');
+}
+
 type AdaptiveLock = {
   concept_id?: number;
   title?: string;
@@ -625,6 +639,10 @@ export default function AtelierPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
+  // WP-S3 La Forge: the séance's composition and the item the learner is on.
+  const [forge, setForge] = useState<AtelierForgeView | null>(null);
+  const [forgeResultOpen, setForgeResultOpen] = useState(false);
+  const [testOutPending, setTestOutPending] = useState(false);
   const [cachedEditionAt, setCachedEditionAt] = useState<string | null>(null);
   // Which Home this device settled on last time (lib/home-loading.ts). Read
   // after mount, so the server render and the first client render agree.
@@ -692,6 +710,18 @@ export default function AtelierPage() {
     setActiveItemIndex(Math.max(0, Number(position.item_index || 0)));
     setRound(nextRound as RoundName);
     setMode(recognizeModes.some((item) => item.id === position.mode) ? position.mode as RecognizeMode : 'fill');
+    // WP-S3 La Forge: the forge, not the fixed ladder, says where to resume.
+    const forgeView = forgeViewOf(next.forge);
+    setForge(forgeView);
+    setForgeResultOpen(Boolean(forgeView?.mode === 'test_out' && forgeView.finished && forgeView.result));
+    const forgeNext = forgeView?.next;
+    const forgeConceptIndex = forgeNext ? next.concepts.findIndex((concept) => concept.id === forgeNext.concept_id) : -1;
+    if (forgeNext && forgeConceptIndex >= 0) {
+      setActiveConceptIndex(forgeConceptIndex);
+      setRound(forgeNext.round as RoundName);
+      if (recognizeModes.some((item) => item.id === forgeNext.mode)) setMode(forgeNext.mode as RecognizeMode);
+      setActiveItemIndex(Math.max(0, Number(forgeNext.item_index || 0)));
+    }
     if (openSession) {
       setView('session');
     }
@@ -703,6 +733,15 @@ export default function AtelierPage() {
 
   const loadActiveSession = useCallback(async (alive: () => boolean) => {
     try {
+      const requestedTestOut = testOutQueryId();
+      if (requestedTestOut) {
+        // WP-S3: «Épreuve de la règle» is its own session, not the day's séance.
+        const testOut = await apiService.getAtelierSession(requestedTestOut);
+        if (!alive()) return;
+        hydrateSession(testOut, true);
+        setActiveSessionReady(true);
+        return true;
+      }
       const active = await oncePerLoad('sessions/active', () => apiService.getActiveAtelierSession());
       if (!alive()) return;
       if (active.session) {
@@ -769,7 +808,7 @@ export default function AtelierPage() {
   }, [loadActiveSession, reloadKey]);
 
   useEffect(() => {
-    if (!session || session.status === 'completed') return;
+    if (!session || session.status === 'completed' || forgeViewOf(session.forge)?.mode === 'test_out') return;
     saveResumeActivity({
       href: `/atelier?resume=${session.session_id}`,
       kind: 'atelier',
@@ -1142,6 +1181,8 @@ export default function AtelierPage() {
         });
       }
       applyAttemptResult(attemptKey, result);
+      const forgeAfter = forgeViewOf(result.forge);
+      if (forgeAfter) setForge(forgeAfter);
       setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
       setResubmitKeys((prev) => ({ ...prev, [attemptKey]: false }));
       const adaptiveLock = result.correction?.adaptive_lock;
@@ -1226,6 +1267,22 @@ export default function AtelierPage() {
       say(pageCopy.say_check_failed, 'alert');
     } finally {
       setRepairSubmitting((prev) => ({ ...prev, [draftKey]: false }));
+    }
+  };
+
+  // WP-S3 — «Épreuve de la règle» from the séance's rule header.
+  const startTestOut = async (conceptId: number) => {
+    if (testOutPending) return;
+    setTestOutPending(true);
+    try {
+      const started = await apiService.startForgeTestOut(conceptId);
+      hydrateSession(started, true);
+      void router.replace(`/atelier?testout=${started.session_id}`, undefined, { shallow: true });
+    } catch (error) {
+      console.error(error);
+      say(forgeCopy(pageChromeLanguage).test_out_failed_start, 'alert');
+    } finally {
+      setTestOutPending(false);
     }
   };
 
@@ -1619,6 +1676,24 @@ export default function AtelierPage() {
 
   const goNext = () => {
     if (!session) return;
+    if (forge && !activeRetest) {
+      // WP-S3 La Forge: the next item is the forge's (staircase, reprise, mix).
+      const next = forge.next;
+      const conceptIndex = next ? session.concepts.findIndex((concept) => concept.id === next.concept_id) : -1;
+      if (next && conceptIndex >= 0) {
+        setActiveConceptIndex(conceptIndex);
+        setRound(next.round as RoundName);
+        if (recognizeModes.some((item) => item.id === next.mode)) setMode(next.mode as RecognizeMode);
+        setActiveItemIndex(Math.max(0, Number(next.item_index || 0)));
+        return;
+      }
+      if (forge.mode === 'test_out') {
+        setForgeResultOpen(true);
+        return;
+      }
+      void completeSession();
+      return;
+    }
     if (activeRetest) {
       setActiveRetestId(null);
       advanceBaseDrill();
@@ -1642,9 +1717,11 @@ export default function AtelierPage() {
 
   const completedRetests = Object.values(repairRetests).filter((retest) => retest.status === 'completed').length;
   const totalRetests = Object.keys(repairRetests).length;
-  const completedDrills = submittedDrills(session, submitted, adaptiveLocks) + completedRetests;
+  const ladderCompletedDrills = submittedDrills(session, submitted, adaptiveLocks) + completedRetests;
   const baseDrills = totalDrills(session, adaptiveLocks, submitted);
-  const plannedDrills = baseDrills + totalRetests;
+  // WP-S3 La Forge: the forge counts its own items (its length is the rhythm's).
+  const completedDrills = forge ? forge.answered : ladderCompletedDrills;
+  const plannedDrills = forge ? Math.max(forge.length, forge.answered) : baseDrills + totalRetests;
   // The feuilleton welcome is onboarding for the serial, and its call to action
   // starts a legacy grammar session. When the daily journey owns Today it must
   // not render at all: a fixed overlay in front of the day's recommended action
@@ -1828,6 +1905,14 @@ export default function AtelierPage() {
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
             notice={sessionNotice}
+            forge={forge}
+            forgeResultOpen={forgeResultOpen}
+            testOutPending={testOutPending}
+            onTestOut={startTestOut}
+            onLeaveTestOut={() => {
+              const conceptId = forge?.rules?.[0]?.concept_id;
+              void router.push(conceptId ? `/grammar?concept=${conceptId}` : '/grammar');
+            }}
           />
           </>
         )}
@@ -3049,6 +3134,11 @@ function SessionView({
   produceAnswer,
   language,
   notice,
+  forge = null,
+  forgeResultOpen = false,
+  testOutPending = false,
+  onTestOut,
+  onLeaveTestOut,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3086,8 +3176,18 @@ function SessionView({
   language: ControlLanguage;
   /** WP-83: the page's short notice, shown inline under the header. */
   notice?: { text: string; tone: 'quiet' | 'alert' } | null;
+  /** WP-S3 La Forge: the forge's view (null: the legacy ladder). */
+  forge?: AtelierForgeView | null;
+  forgeResultOpen?: boolean;
+  testOutPending?: boolean;
+  onTestOut?: (conceptId: number) => void;
+  onLeaveTestOut?: () => void;
 }) {
   const t = epreuveCopy(language);
+  const fc = forgeCopy(language);
+  const forgeRule = forge && activeConcept ? forge.rules.find((rule) => rule.concept_id === activeConcept.id) : null;
+  const forgeNext = forge?.next && activeConcept && forge.next.concept_id === activeConcept.id ? forge.next : null;
+  const forgeTestOut = forge?.mode === 'test_out';
   const currentMode = roundMode(round, mode);
   const currentKey = answerKey(round, currentMode, roundUsesSessionScope(round) ? null : activeConcept?.id, activeItemId);
   const currentCorrection = correctionsByKey[currentKey] || null;
@@ -3107,7 +3207,9 @@ function SessionView({
   );
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
   const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
-  const isFinalConversation = !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
+  const isFinalConversation = forge
+    ? Boolean(forge.finished && forge.mode === 'seance')
+    : !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
   const currentFeedback = currentSubmitted
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection, t)
     : null;
@@ -3174,8 +3276,47 @@ function SessionView({
           </Notice>
         </div>
       )}
-      {activeSet && activeConcept && (
+      {forgeTestOut && forgeResultOpen && forge?.result && (
+        <section className="ep-sheet forge-result" aria-live="polite">
+          <p className="av2-label">{fc.test_out_eyebrow}</p>
+          <h2 className="av2-headline av2-headline--title">
+            {forge.result.passed ? fc.result_passed_title : fc.result_failed_title}
+          </h2>
+          <p className="forge-result__sub">
+            {fillForge(forge.result.passed ? fc.result_passed_sub : fc.result_failed_sub, {
+              correct: forge.result.correct,
+              total: forge.result.total,
+              rung: forgeRungLabel(fc, forge.result.placement_rung_name),
+            })}
+          </p>
+          <EpBar onClick={onLeaveTestOut}>{fc.back_to_rule}</EpBar>
+        </section>
+      )}
+      {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
         <section className="ep-sheet">
+          {forge && (forgeNext || forgeRule) && (
+            <div className="forge-head">
+              <span className="av2-label">
+                {forgeTestOut
+                  ? fc.test_out_eyebrow
+                  : fillForge(fc.step_of, {
+                    n: Number((forgeNext?.rung ?? forgeRule?.rung ?? 0)) + 1,
+                    rung: forgeRungLabel(fc, forgeNext?.rung_name ?? forgeRule?.rung_name),
+                  })}
+              </span>
+              {forgeNext?.reprise && <span className="av2-label forge-head__reprise">{fc.reprise}</span>}
+              {!forgeTestOut && onTestOut && (
+                <button
+                  type="button"
+                  className="forge-head__test-out"
+                  disabled={testOutPending}
+                  onClick={() => onTestOut(activeConcept.id)}
+                >
+                  {testOutPending ? fc.test_out_starting : fc.test_out_action}
+                </button>
+              )}
+            </div>
+          )}
           <EpEyebrow
             round={activeRoundLabel}
             mode={round === 'recognize' ? activeRecognizeLabel : undefined}
@@ -3911,6 +4052,14 @@ function EpreuveModelAudio({ text }: { text: string }) {
 function EpreuveWiringStyles() {
   return (
     <style jsx global>{`
+      /* WP-S3 La Forge: the rule's rung line, the test-out action, the result. */
+      .ep .forge-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 10px; }
+      .ep .forge-head .av2-label { color: var(--av2-muted); }
+      .ep .forge-head__reprise { color: var(--av2-blue); }
+      .ep .forge-head__test-out { margin-left: auto; min-height: var(--av2-tap); padding: 0 14px; border: 0; border-radius: var(--av2-r-pill); background: var(--av2-card); color: var(--av2-ink); font: 600 var(--av2-t-label)/1 var(--av2-sans); cursor: pointer; }
+      .ep .forge-head__test-out:disabled { color: var(--av2-muted); cursor: default; }
+      .ep .forge-result { display: grid; gap: 12px; padding: 20px 0; }
+      .ep .forge-result__sub { margin: 0; color: var(--av2-ink-2); font-size: var(--av2-t-body); }
       .ep .ep-exercise { display: grid; gap: 14px; padding: 4px 0 2px; }
       .ep .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid var(--app-ink); background: var(--app-sheet); }
       .ep .ep-composed-input { width: 100%; min-height: 122px; resize: vertical; border: 1px solid var(--app-ink); background: var(--app-paper); color: var(--app-ink); padding: 13px 14px; font: 400 17px/1.45 var(--app-serif); outline: none; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ep-channel) 35%, transparent); }

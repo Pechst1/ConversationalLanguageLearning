@@ -497,6 +497,9 @@ export function CahierStyles() {
       .av2 .nb-field--sans { font-family: inherit; font-style: normal; }
       .av2 .nb-field--line { min-height: 3rem; resize: none; }
       .av2 a.nb-cta { text-decoration: none; }
+      /* WP-S3 — «Test out» under the rule's primary action. */
+      .av2 .nb-testout { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 12px; }
+      .av2 .nb-testout__hint { margin: 0; color: var(--av2-muted); font-size: var(--av2-t-meta); }
 
       /* ---- Le Relevé ---- */
       .av2 .nb-rv { display: flex; flex-direction: column; gap: 16px; }

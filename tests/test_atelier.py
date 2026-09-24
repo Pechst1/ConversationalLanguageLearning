@@ -5,6 +5,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -922,7 +923,38 @@ def test_atelier_today_does_not_count_future_due_at_later_today_as_due(
     assert response.json()["progress"]["vocabularyDue"] == 0
 
 
-def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: TestClient, db_session):
+def test_start_session_with_preferred_concept_seats_it_first_in_the_forge(client: TestClient, db_session):
+    """WP-S3: the Cahier's rule is today's rule; the forge never pads the séance
+    with brand-new rules (at most one new rule a séance)."""
+    token = _token(client)
+    AtelierScheduler(db_session).ensure_catalog()
+    _prime_core_exercise_sets(db_session)
+    concept = db_session.query(GrammarConcept).filter(GrammarConcept.external_id == "FR_A2_NEG_001").one()
+
+    response = client.post(
+        "/api/v1/atelier/sessions",
+        json={"preferred_concept_id": concept.id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["concepts"][0]["id"] == concept.id
+    assert payload["forge"]["rules"][0] == {**payload["forge"]["rules"][0], "concept_id": concept.id, "role": "today"}
+    # A fresh learner: every other pick would be brand new, so the rule is alone.
+    assert len(payload["concepts"]) == 1
+    assert payload["forge"]["next"]["concept_id"] == concept.id
+
+
+@pytest.fixture
+def legacy_ladder(monkeypatch):
+    """The legacy ladder (adaptive lock, padded plan): WP-S3's forge switched off."""
+    from app.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "ATELIER_FORGE_ENABLED", False)
+
+
+def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: TestClient, db_session, legacy_ladder):
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
     _prime_core_exercise_sets(db_session)
@@ -3364,7 +3396,7 @@ def test_measured_pace_needs_evidence_before_it_overrides_the_default(client: Te
     assert measured_seconds_per_drill(db_session, user) is None
 
 
-def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db_session):
+def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db_session, legacy_ladder):
     """Mastery must cost the learner fewer drills, not just a congratulation."""
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
@@ -3460,7 +3492,7 @@ def test_a_wrong_transform_forfeits_the_skip(client: TestClient, db_session):
 
 
 def test_both_rungs_can_be_retired_and_the_moment_reports_only_its_own_saving(
-    client: TestClient, db_session
+    client: TestClient, db_session, legacy_ladder
 ):
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}

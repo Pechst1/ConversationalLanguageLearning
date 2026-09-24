@@ -205,6 +205,51 @@ the biggest time saver against Duolingo.
     measured with the same simulation;
   - no learner sees 3 brand-new rules in one séance;
   - the evidence written matches the items answered.
+- **Status (2026-09-24): landed** (`ATELIER_FORGE_ENABLED`, default on; `tests/test_wp_s3_forge.py`).
+  - **Engine** — `app/core/forge.py` (pure): the staircase, the reprise (3–5 items later, a new item),
+    the 40/40/20 mix with no rule back to back (a one-rule séance is the only exception; when only the
+    last rule could go on, the séance ends), at most one brand-new rule, a rule clean at free use
+    retires for the day (the adaptive lock, folded in), length = rhythm budget (Léger 240 s, Régulier
+    360 s, Soutenu 480 s, Intensif 600 s) ÷ measured seconds per item, 6–24 items.
+  - **Evidence** — rung → WP-L3 format: recognise / discriminate → recognise, build → guided,
+    transform → transform, produce → production *assisted*, free use → production (the only rung
+    that counts as free use for «Tenue»). Every checked answer is one entry: the first success per
+    rule per rung and the first failure per rule move the schedule (`apply_grammar_evidence`, new
+    `weight_scale`: the k-th success of a rule in one séance is massed practice, weight × 0.5^k); the
+    rest fold into the concept's life (`note_concept_evidence`). Unchecked answers count for
+    nothing. The journey's D-0 credit still wins (a rule it moved today folds). `complete_session`
+    no longer writes the single evidence for a forge séance.
+  - **Test-out** — `POST /atelier/forge/test-out {concept_id}` (any rule, from day one): recognise,
+    discriminate, build, transform, free use. ≥ 4/5 with the production right → `held_at` +
+    `tested_out_at` (migration `c3e5a7b9d1f4`, also `forge_rung`); else the rule is placed on its
+    lowest failed rung (a production-only failure: produce). `GET /atelier/forge/state` gives per rule
+    rung, stage, next due.
+  - **Interfaces** — `app/services/forge.py`: `ItemProvider.item_for(concept_id, rung, exclude)`
+    (default: today's exercise set; WP-S2 replaces it), `Composer.pick(user, now)` →
+    `[(concept_id, today|due|contrast)]` (default: `select_today` + the journey's rule of the day +
+    WP-L2 contrast partners; WP-S4 replaces it), `verdict_from_attempt` (an explicit
+    `correction["checked"]` wins; `ForgeService.amend_attempt` books a verdict that lands later — WP-S1).
+  - **Simulation** (`simulate_items_to_held`, one séance a day, rules introduced at Régulier's
+    2/week, 150 days, rules judged if introduced ≥ 45 days before the end):
+
+    | 85 % accuracy | median items to held | held | median days to held |
+    | --- | --- | --- | --- |
+    | **Forge**, séance only | **23** | 30 / 30 | 19 |
+    | Forge + journey Rappel | 29 | 28 / 30 | 19 |
+    | Today's ladder, séance only | **never** (∞) | 1 / 44 | — |
+    | Today's ladder + Rappel | 19 | 168 / 212 | 55 |
+
+    Today's ladder writes one evidence per concept at its strongest format (production), so the
+    séance alone never gives «Tenue» its spaced item: its rules are held by the Rappel, after
+    13–15 séance items on the first day, in 55 days. At 70 % the forge needs 54 items (59 with
+    the Rappel). The forge never seats more than one brand-new rule (the ladder: 2 at the
+    default budget), and writes exactly one evidence per answered item.
+  - **Web** — the séance runs `forge.next` (the existing Épreuve panels, feedback and repair); the rule
+    header shows «Step n of 6 · rung», the reprise note and «Test out this rule»; the Cahier rule
+    page has «Test out this rule»; the test-out ends on one Garamond line and «Back to the rule».
+    Chrome in `lib/forge-copy.ts` (en/de/fr, by `useChromeLanguage`).
+  - **Open** — the curated/LLM set has 3 items per recognise mode and one per production rung, so a
+    long séance can run a rule dry (it then retires); WP-S2's bank removes that limit.
 
 #### WP-S4 · One engine, one picker, one day
 - **One picker:** retire `exercise_generation.select_daily_concepts` and the padding to 3. The séance's
