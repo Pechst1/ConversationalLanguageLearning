@@ -10,9 +10,10 @@ catalogue's, the authored card's, or the scene's.
 
 The four steps of the Essai (§2.4), weakest first:
 
-* **recognise** — «which sentence uses this rule?»: one sentence the unit's
-  detector recognises (the scene's first, else a catalogue example) among
-  scene sentences it does not recognise;
+* **recognise** — «which sentence follows today's rule?»: one sentence that
+  uses the unit (the scene's first, else a catalogue example) among scene
+  sentences no one could read as using it — or no item when that is not
+  unambiguous;
 * **choose** — the ✗/✓ contrast pair: «which one is right?»;
 * **build** — an example sentence rebuilt from chips, with the wrong form of
   the contrast pair (or another form of the paradigm) as a spare chip;
@@ -43,10 +44,12 @@ REEMPLOI_STABILITY_DAYS = 10.0
 #: A sentence longer than this is not a quick item.
 MAX_ITEM_WORDS = 14
 
+#: No title: the catalogue's name is jargon (and English); the card's one-line
+#: rule is the item's hint, behind the «La règle» affordance.
 _RECOGNISE: dict[str, str] = {
-    "en": "Which sentence uses this rule: {title}?",
-    "de": "Welcher Satz nutzt diese Regel: {title}?",
-    "fr": "Quelle phrase utilise cette règle : {title} ?",
+    "en": "Which sentence follows today's rule?",
+    "de": "Welcher Satz folgt der Regel von heute?",
+    "fr": "Quelle phrase suit la règle du jour ?",
 }
 _CHOOSE: dict[str, str] = {
     "en": "Which one is right?",
@@ -89,21 +92,144 @@ def fold_apostrophes(text: str | None) -> str:
     return re.sub(r"[’ʼ‘]", "'", str(text or ""))
 
 
+#: Fixed expressions a broad detector reads as the form but that teach nothing
+#: about it: «un peu» is an adverb, not a noun phrase with an article. A match
+#: that *is* one of these (the whole span) never counts; a longer span that
+#: merely starts with one («un peu de pain», a quantity) still does.
+FIXED_EXPRESSIONS: frozenset[str] = frozenset(
+    {
+        "un peu", "un jour", "une fois", "des fois", "un instant", "un moment",
+        "un autre", "une autre", "les uns", "les unes", "l'un", "l'une",
+        "tout le monde", "tout le temps", "la plupart", "le plus", "le moins",
+        "la fois", "les deux",
+    }
+)
+
+#: Articles and determiners: the left edge of a noun phrase.
+_DETERMINERS = frozenset(
+    {
+        "un", "une", "des", "le", "la", "les", "du", "au", "aux",
+        "mon", "ma", "mes", "ton", "ta", "tes", "son", "sa", "ses",
+        "notre", "nos", "votre", "vos", "leur", "leurs", "ce", "cet", "cette", "ces",
+    }
+)
+#: Words that follow a determiner without making a noun phrase that shows gender.
+_NOT_A_NOUN = frozenset(
+    {
+        "peu", "fois", "autre", "autres", "uns", "unes", "plupart", "plus", "moins",
+        "deux", "trois", "même", "mêmes", "de", "du", "des", "que", "qui", "quoi",
+    }
+)
+#: Any determiner followed by a word: «does this sentence hold a noun phrase?»
+_NOUN_PHRASE = re.compile(
+    r"\b(?:un|une|des|le|la|les|du|au|aux|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|"
+    r"votre|vos|leurs?|ce|cet|cette|ces)\s+[a-zàâçéèêëîïôûùüÿœ]{2,}|\bl'[a-zàâçéèêëîïôûùüÿœ]",
+    re.IGNORECASE,
+)
+
+
+def _is_fixed_expression(span: str) -> bool:
+    return " ".join(span.casefold().split()) in FIXED_EXPRESSIONS
+
+
 def detector_span(patterns: list[str] | None, text: str | None) -> str | None:
     """The first span of ``text`` a regex detector recognises, or ``None``.
 
     Apostrophes are folded first (iOS types U+2019; the patterns use ``'``).
+    A match that is only a fixed expression («un peu», «une fois») is skipped:
+    the detector is looking for the form, not for the words that spell it.
     """
 
     folded = fold_apostrophes(text)
     for pattern in patterns or []:
         try:
-            match = re.search(pattern, folded, re.IGNORECASE)
+            matches = list(re.finditer(pattern, folded, re.IGNORECASE))
         except re.error:
             continue
-        if match and match.group(0).strip():
-            return match.group(0).strip()
+        for match in matches:
+            span = match.group(0).strip()
+            if span and not _is_fixed_expression(span):
+                return span
     return None
+
+
+def raw_detector_hit(patterns: list[str] | None, text: str | None) -> bool:
+    """Does any detector match anywhere, fixed expressions included?"""
+
+    folded = fold_apostrophes(text)
+    for pattern in patterns or []:
+        try:
+            if re.search(pattern, folded, re.IGNORECASE):
+                return True
+        except re.error:
+            continue
+    return False
+
+
+def _word_bounds(text: str, start: int, end: int) -> tuple[int, int]:
+    """Widen ``[start, end)`` to whole words: never mark half of «école»."""
+
+    while start > 0 and (text[start - 1].isalpha() or text[start - 1] in "'-"):
+        start -= 1
+    while end < len(text) and (text[end].isalpha() or text[end] == "-"):
+        end += 1
+    return start, end
+
+
+def _is_noun_phrase(span: str) -> bool:
+    """A determiner followed by a word that can be the noun (or its adjective)."""
+
+    words = [word.strip(".,;:!?«»\"()") for word in fold_apostrophes(span).casefold().split()]
+    words = [word for word in words if word]
+    for index, word in enumerate(words):
+        if word.startswith("l'") and len(word) > 3:
+            return True
+        if word in _DETERMINERS and index + 1 < len(words) and words[index + 1] not in _NOT_A_NOUN:
+            return True
+    return False
+
+
+def rule_span(brief: dict[str, Any], text: str | None) -> tuple[int, int] | None:
+    """Where ``text`` uses the unit, as a trustworthy ``(start, end)``, or ``None``.
+
+    Offsets are into ``fold_apostrophes(text)`` (same length as ``text``). The
+    detector's match, widened to whole words, and — for a noun-phrase unit
+    (articles, gender, agreement) — only when it is a determiner and its noun:
+    a card may only mark what its rule explains.
+    """
+
+    patterns = list(brief.get("detectors") or [])
+    if not patterns or not text:
+        return None
+    folded = fold_apostrophes(text)
+    for pattern in patterns:
+        try:
+            matches = list(re.finditer(pattern, folded, re.IGNORECASE))
+        except re.error:
+            continue
+        for match in matches:
+            span = match.group(0)
+            if not span.strip() or _is_fixed_expression(span):
+                continue
+            start = match.start() + (len(span) - len(span.lstrip()))
+            end = match.end() - (len(span) - len(span.rstrip()))
+            start, end = _word_bounds(folded, start, end)
+            if brief.get("noun_phrase") and not _is_noun_phrase(folded[start:end]):
+                continue
+            return start, end
+    return None
+
+
+def mentions_rule(brief: dict[str, Any], text: str | None) -> bool:
+    """Could a learner read ``text`` as using the rule? (the distractor test)
+
+    Any detector hit at all, fixed expressions included; for a noun-phrase unit
+    any determiner with a word after it, since every such phrase shows gender.
+    """
+
+    if raw_detector_hit(list(brief.get("detectors") or []), text):
+        return True
+    return bool(brief.get("noun_phrase")) and bool(_NOUN_PHRASE.search(fold_apostrophes(text)))
 
 
 def _localized(table: dict[str, str], language: str) -> str:
@@ -145,8 +271,17 @@ def grammar_target(brief: dict[str, Any]) -> TargetRef:
     )
 
 
-def _hint(brief: dict[str, Any]) -> str | None:
-    return str(brief.get("rule_short_native") or "").strip() or None
+def _hint(brief: dict[str, Any], language: str | None = None) -> str | None:
+    """The unit's one-line rule: the catalogue's, else the card's in ``language``."""
+
+    short = str(brief.get("rule_short_native") or "").strip()
+    if short:
+        return short
+    card = brief.get("rule_card")
+    rule = card.get("rule") if isinstance(card, dict) else None
+    if isinstance(rule, dict) and language:
+        return str(rule.get(language) or rule.get("en") or "").strip() or None
+    return None
 
 
 def _usable(sentence: str) -> bool:
@@ -162,7 +297,7 @@ def form_sentences(brief: dict[str, Any], sentences: list[str]) -> list[str]:
         text = plain(sentence)
         if not _usable(text) or _fold(text) in {_fold(item) for item in found}:
             continue
-        if patterns and detector_span(patterns, text) is None:
+        if patterns and rule_span(brief, text) is None:
             continue
         found.append(text)
     if not patterns:
@@ -171,25 +306,40 @@ def form_sentences(brief: dict[str, Any], sentences: list[str]) -> list[str]:
     return found
 
 
-def scene_rule_card(brief: dict[str, Any], sentences: list[str]) -> dict[str, Any] | None:
-    """The unit's card, its headline taken from today's scene when a line uses it."""
+def scene_rule_card(
+    brief: dict[str, Any],
+    sentences: list[str],
+    *,
+    speakers: dict[str, str] | None = None,
+) -> dict[str, Any] | None:
+    """The unit's card, its headline taken from today's scene when a line uses it.
+
+    Only a trustworthy use (:func:`rule_span`) replaces the authored example,
+    and only with what the scene knows: the line's speaker (``speakers`` maps a
+    folded sentence, :func:`_fold`, to the character who said it) and no
+    translation — the scene has none, and the authored one belongs to the
+    authored sentence. An authored example said by a character is only
+    replaced by a character's line: narration never takes a face away.
+    """
 
     card = brief.get("rule_card")
     if not isinstance(card, dict):
         return None
     card = dict(card)
-    patterns = list(brief.get("detectors") or [])
+    speakers = speakers or {}
     for sentence in sentences:
         text = plain(sentence)
-        span = detector_span(patterns, text) if patterns else None
-        if not span or not _usable(text):
+        if not _usable(text):
             continue
-        folded = text.replace("’", "'")
-        index = folded.casefold().find(span.casefold())
-        if index < 0:
+        bounds = rule_span(brief, text)
+        if bounds is None:
             continue
-        card["example"] = {"fr": f"{text[:index]}[{text[index:index + len(span)]}]{text[index + len(span):]}"}
-        card["speaker"] = None
+        speaker = speakers.get(_fold(text))
+        if card.get("speaker") and not speaker:
+            continue
+        start, end = bounds
+        card["example"] = {"fr": f"{text[:start]}[{text[start:end]}]{text[end:]}"}
+        card["speaker"] = speaker or None
         card["from_scene"] = True
         break
     return card
@@ -202,6 +352,15 @@ def recognise_item(
     language: ControlLanguage,
     optional: bool = False,
 ) -> RecallTask | None:
+    """«Which sentence follows today's rule?» — or ``None`` when it would be ambiguous.
+
+    Exactly one option may use the rule: the answer is a trustworthy use
+    (:func:`rule_span`), and every distractor is a sentence no one could read
+    as using it (:func:`mentions_rule`: no detector hit at all, and for a
+    noun-phrase unit no noun phrase). A scene without such sentences gets no
+    recognise item: the Essai starts with «choose».
+    """
+
     patterns = list(brief.get("detectors") or [])
     if not patterns:
         return None
@@ -214,7 +373,7 @@ def recognise_item(
         text = plain(sentence)
         if (
             _usable(text)
-            and detector_span(patterns, text) is None
+            and not mentions_rule(brief, text)
             and _fold(text) not in {_fold(item) for item in [answer, *others]}
         ):
             others.append(text)
@@ -227,16 +386,14 @@ def recognise_item(
     options.sort(key=lambda option: _digest(target.id, "order", option["text_fr"]))
     return RecallTask(
         task_type="choice",
-        instruction_native=_localized(_RECOGNISE, language).format(
-            title=brief.get("title_native") or brief.get("title_fr") or ""
-        ),
+        instruction_native=_localized(_RECOGNISE, language),
         prompt_fr=None,
         options=options,
         target=target,
         optional=optional,
         correct_option_id="opt_" + _digest(target.id, "r", answer)[:8],
         accepted_answers=[answer],
-        hint_native=_hint(brief),
+        hint_native=_hint(brief, language),
         translation_native=None,
         solution_fr=answer,
         estimated_seconds=0,
@@ -271,7 +428,7 @@ def choose_item(
         optional=optional,
         correct_option_id="opt_" + _digest(target.id, "c", right)[:8],
         accepted_answers=[right],
-        hint_native=_hint(brief),
+        hint_native=_hint(brief, language),
         translation_native=None,
         solution_fr=right,
         estimated_seconds=0,
@@ -388,7 +545,7 @@ def transform_item(
         target=target,
         optional=optional,
         accepted_answers=[right],
-        hint_native=_hint(brief),
+        hint_native=_hint(brief, language),
         translation_native=None,
         solution_fr=right,
         estimated_seconds=0,
@@ -469,8 +626,12 @@ def review_item(
 
 
 __all__ = [
+    "FIXED_EXPRESSIONS",
     "detector_span",
     "fold_apostrophes",
+    "mentions_rule",
+    "raw_detector_hit",
+    "rule_span",
     "plain",
     "LOW_STABILITY_DAYS",
     "REEMPLOI_STABILITY_DAYS",

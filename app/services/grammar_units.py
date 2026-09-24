@@ -226,6 +226,27 @@ def pattern_forms(concept: Any) -> list[str]:
     return [part.strip() for part in pattern.split(" / ") if 0 < len(part.split()) <= 3]
 
 
+#: Units whose form is a noun phrase (a determiner and its noun): a scene line
+#: only illustrates them where it has one, and a sentence with any noun phrase
+#: is never a «does not use this rule» distractor.
+NOUN_PHRASE_SUBSKILLS: frozenset[str] = frozenset(
+    {
+        "gender_number",
+        "definite_articles",
+        "indefinite_articles",
+        "adjective_agreement",
+        "possessives",
+        "demonstratives",
+    }
+)
+
+
+def is_noun_phrase_unit(concept: Any) -> bool:
+    subskills = {str(getattr(concept, "subskill", "") or "")}
+    subskills.update(str(row.get("subskill") or "") for row in _v2_rows_for(concept))
+    return bool(subskills & NOUN_PHRASE_SUBSKILLS)
+
+
 def unit_brief(
     concept: Any,
     *,
@@ -256,6 +277,7 @@ def unit_brief(
         "examples": examples(concept),
         "contrast_pairs": pairs,
         "detectors": regex_patterns(detectors),
+        "noun_phrase": is_noun_phrase_unit(concept),
         #: ``llm:`` detectors are never run: evidence from corrections only.
         "llm_detector_only": bool(detectors) and not regex_patterns(detectors),
         "pattern_forms": pattern_forms(concept),
@@ -268,6 +290,7 @@ __all__ = [
     "contrast_pairs",
     "detector_span",
     "examples",
+    "is_noun_phrase_unit",
     "fold_apostrophes",
     "localized_titles",
     "pattern_forms",

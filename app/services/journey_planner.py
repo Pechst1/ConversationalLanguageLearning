@@ -2480,6 +2480,16 @@ def _rule_step(ordinal: int, *, brief: dict[str, Any], card: dict[str, Any], cos
     )
 
 
+def scene_speakers(scenario: ScenarioBrief) -> dict[str, str]:
+    """Who said each sentence of the scene's dialogue (folded sentence → character id)."""
+
+    speakers: dict[str, str] = {}
+    for line in scene_lines(scenario):
+        for sentence in scene_sentences(line.text_fr):
+            speakers.setdefault(grammar_items._fold(grammar_items.plain(sentence)), line.character_id)
+    return speakers
+
+
 def _introduction_items(
     brief: dict[str, Any] | None,
     *,
@@ -2493,7 +2503,7 @@ def _introduction_items(
 
     if not isinstance(brief, dict) or not brief.get("concept_id"):
         return None, 0, []
-    card = grammar_items.scene_rule_card(brief, sentences)
+    card = grammar_items.scene_rule_card(brief, sentences, speakers=scene_speakers(scenario))
     if not card:
         return None, 0, []
     guided = [
