@@ -110,6 +110,42 @@ export function sealCaption(no?: number | null, date?: string | null): string {
   return [no != null ? `Nº ${no}` : '', date || ''].filter(Boolean).join(' · ');
 }
 
+/* ---------- WP-S7: one ring per rule held today ----------
+   Rings are filled annuli (an even-odd path, never a stroke) in the reward
+   yellow, outside the disc, in a box whose unit is the disc's radius (100).
+   At most SEAL_MAX_RINGS are drawn; the accessible name says the real count. */
+export const SEAL_MAX_RINGS = 4;
+const RING_FIRST = 106;
+const RING_PITCH = 9;
+const RING_WIDTH = 4.5;
+
+function annulus(inner: number, outer: number): string {
+  const circle = (r: number, sweep: 0 | 1) =>
+    `M ${-r},0 a ${r},${r} 0 1,${sweep} ${2 * r},0 a ${r},${r} 0 1,${sweep} ${-2 * r},0 Z`;
+  return `${circle(outer, 0)} ${circle(inner, 1)}`;
+}
+
+/** The ring paths for `count` held rules (capped). Pure: a test reads it. */
+export function sealRingPaths(count: number): string[] {
+  const n = Math.max(0, Math.min(SEAL_MAX_RINGS, Math.floor(Number(count) || 0)));
+  return Array.from({ length: n }, (_, index) => {
+    const inner = RING_FIRST + index * RING_PITCH;
+    return annulus(inner, inner + RING_WIDTH);
+  });
+}
+
+function SealRings({ count }: { count: number }) {
+  const paths = sealRingPaths(count);
+  if (!paths.length) return null;
+  return (
+    <svg className="av2-seal__rings" viewBox="-140 -140 280 280" aria-hidden="true" focusable="false">
+      {paths.map((d, index) => (
+        <path key={index} className="av2-seal__ring" d={d} fillRule="evenodd" style={{ animationDelay: `${0.45 + index * 0.12}s` }} />
+      ))}
+    </svg>
+  );
+}
+
 /* ============================================================
    THE SEAL — WP-D4, rebuilt in the av2 language (owner, 2026-09-22).
    A card-face disc on the large press (0 8px 0 --av2-line-2), no ink
@@ -127,6 +163,8 @@ export function Seal({
   size = 'md',
   tone = 'ink',
   label,
+  rings = 0,
+  ringsLabel,
 }: {
   variant?: SealVariant;
   no?: number | null;
@@ -136,9 +174,15 @@ export function Seal({
   tone?: 'ink' | 'gilt';
   /** Accessible name; defaults to «Sceau Nº 47 · 22 sept.». */
   label?: string;
+  /** WP-S7: rules held today — one ring each around the disc. */
+  rings?: number;
+  /** WP-S7: the rings' accessible words («2 rings: rules held today»). */
+  ringsLabel?: string | null;
 }) {
   const uid = useId().replace(/:/g, '');
   const caption = sealCaption(no, date);
+  const ringCount = Math.max(0, Math.min(SEAL_MAX_RINGS, Math.floor(Number(rings) || 0)));
+  const baseLabel = label || ['Sceau', caption].filter(Boolean).join(' ');
   return (
     <div
       className="av2-seal"
@@ -146,10 +190,12 @@ export function Seal({
       data-tone={tone}
       data-stamp={stamp ? 'true' : undefined}
       data-variant={variant}
+      data-rings={ringCount || undefined}
       role="img"
-      aria-label={label || ['Sceau', caption].filter(Boolean).join(' ')}
+      aria-label={ringCount && ringsLabel ? `${baseLabel} · ${ringsLabel}` : baseLabel}
     >
       <div className="av2-seal__disc">
+        <SealRings count={ringCount} />
         <svg className="av2-seal__words" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
           <defs>
             <path id={`st${uid}`} d="M 22,100 A 78,78 0 0 1 178,100" />

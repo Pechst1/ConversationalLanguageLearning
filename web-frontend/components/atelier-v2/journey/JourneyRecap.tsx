@@ -92,7 +92,15 @@ export function JourneyRecap({
             data-edition={seal.no ?? undefined}
             data-keepsake={keepsake?.collectible_id}
           >
-            <Seal stamp size="lg" variant={seal.variant} no={seal.no} date={seal.date ?? ''} />
+            <Seal
+              stamp
+              size="lg"
+              variant={seal.variant}
+              no={seal.no}
+              date={seal.date ?? ''}
+              rings={seal.rings}
+              ringsLabel={seal.ringsLabel}
+            />
             {keepsake && (
               <figcaption className="av2-reward__caption">
                 <span className="av2-label">

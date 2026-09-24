@@ -29,6 +29,7 @@ import type {
 } from '@/types/daily-journey';
 
 import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
+import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
 
 import { formatDuration } from './journey-state';
 import { fill, recapChrome, recapStatusCopy } from './recap-copy';
@@ -52,6 +53,10 @@ export type RecapSeal = {
   variant: SealVariant;
   /** «22 sept.», the journey's own local day. */
   date: string | null;
+  /** WP-S7: one ring per rule held on this day. */
+  rings: number;
+  /** WP-S7: the rings' accessible words, in the chrome language. */
+  ringsLabel: string | null;
 };
 
 export type RewardView = {
@@ -146,6 +151,12 @@ function levelEvidence(level: RecapLevelUp, language: ControlLanguage): string |
   return null;
 }
 
+/** WP-S7: how many rules became held on the journey's day (the Seal's rings). */
+export function heldToday(journey: JourneySnapshot): number {
+  const ids = journey.mastery_today?.held_concept_ids;
+  return Array.isArray(ids) ? new Set(ids.map(Number).filter(Number.isFinite)).size : 0;
+}
+
 export function rewardView(
   journey: JourneySnapshot,
   recap: JourneyRecap | null,
@@ -187,6 +198,8 @@ export function rewardView(
           no: editionNo,
           variant: editionNo != null ? sealForEdition(editionNo).variant : 'quad',
           date: keepsakeDate(recap.keepsake?.local_date ?? journey.local_date),
+          rings: heldToday(journey),
+          ringsLabel: sealRingsLabel(momentumCopy(language), heldToday(journey)),
         }
       : null,
     facts,
