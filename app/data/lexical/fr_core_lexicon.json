@@ -11,7 +11,8 @@
   "content_words_v2": "Built 2026-09-23 (WP-L2): content words extended to ~2,500 lemmas through B1 by an LLM draft from general knowledge of French frequency and CEFR course-book vocabulary (A1-B1 reference descriptions, DELF-style themes). No dataset or word list was copied. Human review pending.",
   "sub_band": "Every lemma carries a sub_band (A1.1, A1.2, A2.1, A2.2, B1.1, B1.2) consistent with its band: A1.1 survival/self-introduction/numbers/function words; A1.2 daily routine, home, city, weather, body, clothes, leisure; A2 past narration, travel, housing, shopping, work, health, feelings; B1 opinion, argument, society, media, environment, administration, abstract nouns. v1 lemmas kept their band; ranks were renumbered to keep one global list order after appending new words to each band.",
   "forms_v2": "v2 adds irregular forms for the new verbs (and fills gaps for a few v1 verbs such as courir, rire, craindre, asseoir, prévoir, changer, lever), irregular feminines (fraîche, sèche, publique, complète) and hyphenated plurals (grands-parents). Generated from conjugation classes, then filtered so only forms the suffix rules cannot resolve are stored.",
-  "numbers": "2026-09-23: compound numbers 17–99 (traditional and 1990 hyphenation), hundreds and thousands in 1990 spelling, added on owner request (A1.1 < 70 ≤ A1.2)."
+  "numbers": "2026-09-23: compound numbers 17–99 (traditional and 1990 hyphenation), hundreds and thousands in 1990 spelling, added on owner request (A1.1 < 70 ≤ A1.2).",
+  "gender": "2026-09-24 (WP-S2): grammatical gender (and pos=noun) added to the A1-A2 nouns La Forge's item bank uses (app/data/grammar_templates/lexicon.json). Nouns without a gender field have not been annotated yet."
  },
  "bands": [
   "A1",
@@ -1437,7 +1438,9 @@
   "enfant": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 284
+   "rank": 284,
+   "gender": "m",
+   "pos": "noun"
   },
   "fille": {
    "band": "A1",
@@ -1452,12 +1455,16 @@
   "ami": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 287
+   "rank": 287,
+   "gender": "m",
+   "pos": "noun"
   },
   "amie": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 288
+   "rank": 288,
+   "gender": "f",
+   "pos": "noun"
   },
   "famille": {
    "band": "A1",
@@ -1477,12 +1484,16 @@
   "frère": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 292
+   "rank": 292,
+   "gender": "m",
+   "pos": "noun"
   },
   "sœur": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 293
+   "rank": 293,
+   "gender": "f",
+   "pos": "noun"
   },
   "monsieur": {
    "band": "A1",
@@ -1512,12 +1523,16 @@
   "ville": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 299
+   "rank": 299,
+   "gender": "f",
+   "pos": "noun"
   },
   "rue": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 300
+   "rank": 300,
+   "gender": "f",
+   "pos": "noun"
   },
   "maison": {
    "band": "A1",
@@ -1527,17 +1542,23 @@
   "appartement": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 302
+   "rank": 302,
+   "gender": "m",
+   "pos": "noun"
   },
   "chambre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 303
+   "rank": 303,
+   "gender": "f",
+   "pos": "noun"
   },
   "cuisine": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 304
+   "rank": 304,
+   "gender": "f",
+   "pos": "noun"
   },
   "salle": {
    "band": "A1",
@@ -1547,72 +1568,100 @@
   "porte": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 306
+   "rank": 306,
+   "gender": "f",
+   "pos": "noun"
   },
   "fenêtre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 307
+   "rank": 307,
+   "gender": "f",
+   "pos": "noun"
   },
   "table": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 308
+   "rank": 308,
+   "gender": "f",
+   "pos": "noun"
   },
   "chaise": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 309
+   "rank": 309,
+   "gender": "f",
+   "pos": "noun"
   },
   "lit": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 310
+   "rank": 310,
+   "gender": "m",
+   "pos": "noun"
   },
   "école": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 311
+   "rank": 311,
+   "gender": "f",
+   "pos": "noun"
   },
   "travail": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 312
+   "rank": 312,
+   "gender": "m",
+   "pos": "noun"
   },
   "bureau": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 313
+   "rank": 313,
+   "gender": "m",
+   "pos": "noun"
   },
   "magasin": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 314
+   "rank": 314,
+   "gender": "m",
+   "pos": "noun"
   },
   "boulangerie": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 315
+   "rank": 315,
+   "gender": "f",
+   "pos": "noun"
   },
   "café": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 316
+   "rank": 316,
+   "gender": "m",
+   "pos": "noun"
   },
   "restaurant": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 317
+   "rank": 317,
+   "gender": "m",
+   "pos": "noun"
   },
   "marché": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 318
+   "rank": 318,
+   "gender": "m",
+   "pos": "noun"
   },
   "gare": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 319
+   "rank": 319,
+   "gender": "f",
+   "pos": "noun"
   },
   "train": {
    "band": "A1",
@@ -1632,12 +1681,16 @@
   "voiture": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 323
+   "rank": 323,
+   "gender": "f",
+   "pos": "noun"
   },
   "vélo": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 324
+   "rank": 324,
+   "gender": "m",
+   "pos": "noun"
   },
   "argent": {
    "band": "A1",
@@ -1662,27 +1715,37 @@
   "carte": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 329
+   "rank": 329,
+   "gender": "f",
+   "pos": "noun"
   },
   "billet": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 330
+   "rank": 330,
+   "gender": "m",
+   "pos": "noun"
   },
   "pain": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 331
+   "rank": 331,
+   "gender": "m",
+   "pos": "noun"
   },
   "eau": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 332
+   "rank": 332,
+   "gender": "f",
+   "pos": "noun"
   },
   "vin": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 333
+   "rank": 333,
+   "gender": "m",
+   "pos": "noun"
   },
   "bière": {
    "band": "A1",
@@ -1692,27 +1755,37 @@
   "lait": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 335
+   "rank": 335,
+   "gender": "m",
+   "pos": "noun"
   },
   "thé": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 336
+   "rank": 336,
+   "gender": "m",
+   "pos": "noun"
   },
   "fromage": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 337
+   "rank": 337,
+   "gender": "m",
+   "pos": "noun"
   },
   "viande": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 338
+   "rank": 338,
+   "gender": "f",
+   "pos": "noun"
   },
   "poisson": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 339
+   "rank": 339,
+   "gender": "m",
+   "pos": "noun"
   },
   "légume": {
    "band": "A1",
@@ -1727,7 +1800,9 @@
   "pomme": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 342
+   "rank": 342,
+   "gender": "f",
+   "pos": "noun"
   },
   "repas": {
    "band": "A1",
@@ -1752,12 +1827,16 @@
   "problème": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 347
+   "rank": 347,
+   "gender": "m",
+   "pos": "noun"
   },
   "question": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 348
+   "rank": 348,
+   "gender": "f",
+   "pos": "noun"
   },
   "réponse": {
    "band": "A1",
@@ -1787,27 +1866,37 @@
   "livre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 354
+   "rank": 354,
+   "gender": "m",
+   "pos": "noun"
   },
   "téléphone": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 355
+   "rank": 355,
+   "gender": "m",
+   "pos": "noun"
   },
   "ordinateur": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 356
+   "rank": 356,
+   "gender": "m",
+   "pos": "noun"
   },
   "clé": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 357
+   "rank": 357,
+   "gender": "f",
+   "pos": "noun"
   },
   "sac": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 358
+   "rank": 358,
+   "gender": "m",
+   "pos": "noun"
   },
   "vêtement": {
    "band": "A1",
@@ -1822,7 +1911,9 @@
   "robe": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 361
+   "rank": 361,
+   "gender": "f",
+   "pos": "noun"
   },
   "chaussure": {
    "band": "A1",
@@ -1832,7 +1923,9 @@
   "manteau": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 363
+   "rank": 363,
+   "gender": "m",
+   "pos": "noun"
   },
   "pluie": {
    "band": "A1",
@@ -1847,12 +1940,16 @@
   "chien": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 366
+   "rank": 366,
+   "gender": "m",
+   "pos": "noun"
   },
   "chat": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 367
+   "rank": 367,
+   "gender": "m",
+   "pos": "noun"
   },
   "place": {
    "band": "A1",
@@ -1862,12 +1959,16 @@
   "quartier": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 369
+   "rank": 369,
+   "gender": "m",
+   "pos": "noun"
   },
   "voisin": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 370
+   "rank": 370,
+   "gender": "m",
+   "pos": "noun"
   },
   "médecin": {
    "band": "A1",
@@ -1877,27 +1978,37 @@
   "pharmacie": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 372
+   "rank": 372,
+   "gender": "f",
+   "pos": "noun"
   },
   "hôpital": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 373
+   "rank": 373,
+   "gender": "m",
+   "pos": "noun"
   },
   "banque": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 374
+   "rank": 374,
+   "gender": "f",
+   "pos": "noun"
   },
   "poste": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 375
+   "rank": 375,
+   "gender": "f",
+   "pos": "noun"
   },
   "hôtel": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 376
+   "rank": 376,
+   "gender": "m",
+   "pos": "noun"
   },
   "vacances": {
    "band": "A1",
@@ -1907,12 +2018,16 @@
   "week-end": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 378
+   "rank": 378,
+   "gender": "m",
+   "pos": "noun"
   },
   "fête": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 379
+   "rank": 379,
+   "gender": "f",
+   "pos": "noun"
   },
   "cadeau": {
    "band": "A1",
@@ -1922,22 +2037,30 @@
   "musique": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 381
+   "rank": 381,
+   "gender": "f",
+   "pos": "noun"
   },
   "film": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 382
+   "rank": 382,
+   "gender": "m",
+   "pos": "noun"
   },
   "photo": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 383
+   "rank": 383,
+   "gender": "f",
+   "pos": "noun"
   },
   "idée": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 384
+   "rank": 384,
+   "gender": "f",
+   "pos": "noun"
   },
   "vie": {
    "band": "A1",
@@ -1962,12 +2085,16 @@
   "verre": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 389
+   "rank": 389,
+   "gender": "m",
+   "pos": "noun"
   },
   "assiette": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 390
+   "rank": 390,
+   "gender": "f",
+   "pos": "noun"
   },
   "menu": {
    "band": "A1",
@@ -1977,7 +2104,9 @@
   "serveur": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 392
+   "rank": 392,
+   "gender": "m",
+   "pos": "noun"
   },
   "client": {
    "band": "A1",
@@ -2272,7 +2401,9 @@
   "tasse": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 451
+   "rank": 451,
+   "gender": "f",
+   "pos": "noun"
   },
   "cuillère": {
    "band": "A1",
@@ -2327,7 +2458,9 @@
   "parapluie": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 462
+   "rank": 462,
+   "gender": "m",
+   "pos": "noun"
   },
   "petit": {
    "band": "A1",
@@ -2732,7 +2865,9 @@
   "orange": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 543
+   "rank": 543,
+   "gender": "f",
+   "pos": "noun"
   },
   "rose": {
    "band": "A1",
@@ -2882,7 +3017,9 @@
   "cousin": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 573
+   "rank": 573,
+   "gender": "m",
+   "pos": "noun"
   },
   "prénom": {
    "band": "A1",
@@ -2902,12 +3039,16 @@
   "étudiant": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 577
+   "rank": 577,
+   "gender": "m",
+   "pos": "noun"
   },
   "professeur": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 578
+   "rank": 578,
+   "gender": "m",
+   "pos": "noun"
   },
   "élève": {
    "band": "A1",
@@ -2947,7 +3088,9 @@
   "stylo": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 586
+   "rank": 586,
+   "gender": "m",
+   "pos": "noun"
   },
   "cahier": {
    "band": "A1",
@@ -2962,12 +3105,16 @@
   "message": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 589
+   "rank": 589,
+   "gender": "m",
+   "pos": "noun"
   },
   "anniversaire": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 590
+   "rank": 590,
+   "gender": "m",
+   "pos": "noun"
   },
   "journée": {
    "band": "A1",
@@ -2987,17 +3134,23 @@
   "croissant": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 594
+   "rank": 594,
+   "gender": "m",
+   "pos": "noun"
   },
   "chocolat": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 595
+   "rank": 595,
+   "gender": "m",
+   "pos": "noun"
   },
   "sandwich": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 596
+   "rank": 596,
+   "gender": "m",
+   "pos": "noun"
   },
   "jus": {
    "band": "A1",
@@ -3007,22 +3160,30 @@
   "gâteau": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 598
+   "rank": 598,
+   "gender": "m",
+   "pos": "noun"
   },
   "salade": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 599
+   "rank": 599,
+   "gender": "f",
+   "pos": "noun"
   },
   "glace": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 600
+   "rank": 600,
+   "gender": "f",
+   "pos": "noun"
   },
   "œuf": {
    "band": "A1",
    "sub_band": "A1.1",
-   "rank": 601
+   "rank": 601,
+   "gender": "m",
+   "pos": "noun"
   },
   "poulet": {
    "band": "A1",
@@ -3177,7 +3338,9 @@
   "salon": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 632
+   "rank": 632,
+   "gender": "m",
+   "pos": "noun"
   },
   "bain": {
    "band": "A1",
@@ -3202,32 +3365,44 @@
   "parc": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 637
+   "rank": 637,
+   "gender": "m",
+   "pos": "noun"
   },
   "musée": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 638
+   "rank": 638,
+   "gender": "m",
+   "pos": "noun"
   },
   "cinéma": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 639
+   "rank": 639,
+   "gender": "m",
+   "pos": "noun"
   },
   "théâtre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 640
+   "rank": 640,
+   "gender": "m",
+   "pos": "noun"
   },
   "piscine": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 641
+   "rank": 641,
+   "gender": "f",
+   "pos": "noun"
   },
   "supermarché": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 642
+   "rank": 642,
+   "gender": "m",
+   "pos": "noun"
   },
   "centre": {
    "band": "A1",
@@ -3237,7 +3412,9 @@
   "plage": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 644
+   "rank": 644,
+   "gender": "f",
+   "pos": "noun"
   },
   "mer": {
    "band": "A1",
@@ -3257,7 +3434,9 @@
   "arbre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 648
+   "rank": 648,
+   "gender": "m",
+   "pos": "noun"
   },
   "fleur": {
    "band": "A1",
@@ -3302,7 +3481,9 @@
   "veste": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 657
+   "rank": 657,
+   "gender": "f",
+   "pos": "noun"
   },
   "chemise": {
    "band": "A1",
@@ -3312,7 +3493,9 @@
   "chapeau": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 659
+   "rank": 659,
+   "gender": "m",
+   "pos": "noun"
   },
   "lunette": {
    "band": "A1",
@@ -3337,7 +3520,9 @@
   "chanson": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 664
+   "rank": 664,
+   "gender": "f",
+   "pos": "noun"
   },
   "internet": {
    "band": "A1",
@@ -3347,7 +3532,9 @@
   "voyage": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 666
+   "rank": 666,
+   "gender": "m",
+   "pos": "noun"
   },
   "course": {
    "band": "A1",
@@ -3367,7 +3554,9 @@
   "riz": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 670
+   "rank": 670,
+   "gender": "m",
+   "pos": "noun"
   },
   "terre": {
    "band": "A1",
@@ -3377,7 +3566,9 @@
   "histoire": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 672
+   "rank": 672,
+   "gender": "f",
+   "pos": "noun"
   },
   "exemple": {
    "band": "A1",
@@ -3387,12 +3578,16 @@
   "lettre": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 674
+   "rank": 674,
+   "gender": "f",
+   "pos": "noun"
   },
   "bibliothèque": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 675
+   "rank": 675,
+   "gender": "f",
+   "pos": "noun"
   },
   "université": {
    "band": "A1",
@@ -3402,7 +3597,9 @@
   "examen": {
    "band": "A1",
    "sub_band": "A1.2",
-   "rank": 677
+   "rank": 677,
+   "gender": "m",
+   "pos": "noun"
   },
   "besoin": {
    "band": "A1",
@@ -3877,7 +4074,9 @@
   "réunion": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 772
+   "rank": 772,
+   "gender": "f",
+   "pos": "noun"
   },
   "entretien": {
    "band": "A2",
@@ -3907,7 +4106,9 @@
   "dossier": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 778
+   "rank": 778,
+   "gender": "m",
+   "pos": "noun"
   },
   "formulaire": {
    "band": "A2",
@@ -3922,7 +4123,9 @@
   "immeuble": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 781
+   "rank": 781,
+   "gender": "m",
+   "pos": "noun"
   },
   "ascenseur": {
    "band": "A2",
@@ -3952,7 +4155,9 @@
   "jardin": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 787
+   "rank": 787,
+   "gender": "m",
+   "pos": "noun"
   },
   "balcon": {
    "band": "A2",
@@ -3982,7 +4187,9 @@
   "propriétaire": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 793
+   "rank": 793,
+   "gender": "m",
+   "pos": "noun"
   },
   "locataire": {
    "band": "A2",
@@ -4022,7 +4229,9 @@
   "collègue": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 801
+   "rank": 801,
+   "gender": "mf",
+   "pos": "noun"
   },
   "patron": {
    "band": "A2",
@@ -4157,7 +4366,9 @@
   "aéroport": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 828
+   "rank": 828,
+   "gender": "m",
+   "pos": "noun"
   },
   "avion": {
    "band": "A2",
@@ -4167,7 +4378,9 @@
   "valise": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 830
+   "rank": 830,
+   "gender": "f",
+   "pos": "noun"
   },
   "douane": {
    "band": "A2",
@@ -4217,17 +4430,23 @@
   "sucre": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 840
+   "rank": 840,
+   "gender": "m",
+   "pos": "noun"
   },
   "farine": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 841
+   "rank": 841,
+   "gender": "f",
+   "pos": "noun"
   },
   "beurre": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 842
+   "rank": 842,
+   "gender": "m",
+   "pos": "noun"
   },
   "huile": {
    "band": "A2",
@@ -4557,7 +4776,9 @@
   "lampe": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 908
+   "rank": 908,
+   "gender": "f",
+   "pos": "noun"
   },
   "mur": {
    "band": "A2",
@@ -4597,7 +4818,9 @@
   "église": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 916
+   "rank": 916,
+   "gender": "f",
+   "pos": "noun"
   },
   "nord": {
    "band": "A2",
@@ -4637,7 +4860,9 @@
   "écharpe": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 924
+   "rank": 924,
+   "gender": "f",
+   "pos": "noun"
   },
   "gant": {
    "band": "A2",
@@ -4672,7 +4897,9 @@
   "match": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 931
+   "rank": 931,
+   "gender": "m",
+   "pos": "noun"
   },
   "ballon": {
    "band": "A2",
@@ -4692,12 +4919,16 @@
   "série": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 935
+   "rank": 935,
+   "gender": "f",
+   "pos": "noun"
   },
   "confiture": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 936
+   "rank": 936,
+   "gender": "f",
+   "pos": "noun"
   },
   "yaourt": {
    "band": "A2",
@@ -4707,17 +4938,23 @@
   "carotte": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 938
+   "rank": 938,
+   "gender": "f",
+   "pos": "noun"
   },
   "citron": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 939
+   "rank": 939,
+   "gender": "m",
+   "pos": "noun"
   },
   "fraise": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 940
+   "rank": 940,
+   "gender": "f",
+   "pos": "noun"
   },
   "jambon": {
    "band": "A2",
@@ -4727,7 +4964,9 @@
   "soupe": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 942
+   "rank": 942,
+   "gender": "f",
+   "pos": "noun"
   },
   "degré": {
    "band": "A2",
@@ -5022,7 +5261,9 @@
   "miroir": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1001
+   "rank": 1001,
+   "gender": "m",
+   "pos": "noun"
   },
   "four": {
    "band": "A2",
@@ -5162,7 +5403,9 @@
   "librairie": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1029
+   "rank": 1029,
+   "gender": "f",
+   "pos": "noun"
   },
   "pâtisserie": {
    "band": "A2",
@@ -5177,7 +5420,9 @@
   "oignon": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1032
+   "rank": 1032,
+   "gender": "m",
+   "pos": "noun"
   },
   "pêche": {
    "band": "A2",
@@ -5197,7 +5442,9 @@
   "poire": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1036
+   "rank": 1036,
+   "gender": "f",
+   "pos": "noun"
   },
   "bœuf": {
    "band": "A2",
@@ -5217,12 +5464,16 @@
   "biscuit": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1040
+   "rank": 1040,
+   "gender": "m",
+   "pos": "noun"
   },
   "tarte": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1041
+   "rank": 1041,
+   "gender": "f",
+   "pos": "noun"
   },
   "omelette": {
    "band": "A2",
@@ -5872,7 +6123,9 @@
   "montre": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1171
+   "rank": 1171,
+   "gender": "f",
+   "pos": "noun"
   },
   "foot": {
    "band": "A2",
@@ -5922,12 +6175,16 @@
   "concert": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1181
+   "rank": 1181,
+   "gender": "m",
+   "pos": "noun"
   },
   "tomate": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1182
+   "rank": 1182,
+   "gender": "f",
+   "pos": "noun"
   },
   "agréable": {
    "band": "A2",
@@ -5942,7 +6199,9 @@
   "canapé": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1185
+   "rank": 1185,
+   "gender": "m",
+   "pos": "noun"
   },
   "plan": {
    "band": "A2",
@@ -5962,7 +6221,9 @@
   "guitare": {
    "band": "A2",
    "sub_band": "A2.1",
-   "rank": 1189
+   "rank": 1189,
+   "gender": "f",
+   "pos": "noun"
   },
   "tennis": {
    "band": "A2",
@@ -6147,7 +6408,9 @@
   "projet": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1226
+   "rank": 1226,
+   "gender": "m",
+   "pos": "noun"
   },
   "écran": {
    "band": "A2",
@@ -6577,12 +6840,16 @@
   "journal": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1312
+   "rank": 1312,
+   "gender": "m",
+   "pos": "noun"
   },
   "article": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1313
+   "rank": 1313,
+   "gender": "m",
+   "pos": "noun"
   },
   "information": {
    "band": "A2",
@@ -6592,7 +6859,9 @@
   "émission": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1315
+   "rank": 1315,
+   "gender": "f",
+   "pos": "noun"
   },
   "programme": {
    "band": "A2",
@@ -6612,12 +6881,16 @@
   "radio": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1319
+   "rank": 1319,
+   "gender": "f",
+   "pos": "noun"
   },
   "roman": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1320
+   "rank": 1320,
+   "gender": "m",
+   "pos": "noun"
   },
   "poème": {
    "band": "A2",
@@ -6647,17 +6920,23 @@
   "spectacle": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1326
+   "rank": 1326,
+   "gender": "m",
+   "pos": "noun"
   },
   "exposition": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1327
+   "rank": 1327,
+   "gender": "f",
+   "pos": "noun"
   },
   "tableau": {
    "band": "A2",
    "sub_band": "A2.2",
-   "rank": 1328
+   "rank": 1328,
+   "gender": "m",
+   "pos": "noun"
   },
   "peinture": {
    "band": "A2",
