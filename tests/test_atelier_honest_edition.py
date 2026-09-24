@@ -307,19 +307,27 @@ def test_le_releve_is_french_and_learner_scoped():
     raw = _source("components/releve/Releve.tsx")
     # The file documents the English dashboard it replaces; only shipped code counts.
     releve = re.sub(r"/\*.*?\*/", "", raw, flags=re.S)
+    # WP-82: the chrome lives in the copy table (learner's language up to A2,
+    # French from B1); the French table keeps the publication furniture.
+    copy = _source("components/releve/releve-copy.ts")
+    french = copy[copy.index("const FR"):copy.index("const EN")]
 
     # French publication furniture, one section head each.
-    assert "Le Relevé" in releve
-    assert 't="Le cours"' in releve
-    assert 't="Le registre"' in releve
-    assert 't="La collection"' in releve
+    assert "Le Relevé" in french
+    assert "cours_title: 'Le cours'" in french
+    assert "registre_title: 'Le registre'" in french
+    assert "collection_title: 'La collection'" in french
+    for head in ("cours_title", "registre_title", "collection_title"):
+        assert f"t={{copy.{head}}}" in releve, head
+    assert "useChromeLanguage()" in releve
     # The honest empty state, not a scoreboard with nothing on it.
-    assert "Rien d’accroché encore" in releve
-    assert "La collection commence avec la première édition bouclée." in releve
+    assert "Rien d’accroché encore" in french
+    assert "La collection commence avec la première édition bouclée." in french
 
     # The English dashboard vocabulary must not come back.
     for banned in ("Anki Sync", "XP Earned", "No Achievements Yet", "Connect to local Anki"):
         assert banned not in releve, banned
+        assert banned not in copy, banned
 
     # Learner-scoped endpoints only: no global `vocabulary_words` dump.
     for banned_call in ("getAnkiProgress", "getAnkiSummary", "api.getVocabulary("):

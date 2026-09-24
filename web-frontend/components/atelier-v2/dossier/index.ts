@@ -30,6 +30,7 @@ export {
   levelLadderSentence,
   levelSentence,
   levelSourceLine,
+  noJourneySentence,
   phaseFor,
   verdictTone,
   verifiedSentence,
@@ -38,6 +39,8 @@ export {
   vocabularySentence,
   vocabularyUnitSentence,
 } from './dossier-state';
+export { DOSSIER_COPY, dossierCopy } from './dossier-copy';
+export type { DossierCopy } from './dossier-copy';
 export type {
   CapabilityWithFrenchTitle,
   DossierPhase,

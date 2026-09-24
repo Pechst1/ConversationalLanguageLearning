@@ -2,7 +2,8 @@
  * WP-35 — «Votre dossier», the inspectable learner model.
  *
  * A thin transport shell around `DossierScreen`: it owns the envelope, the
- * pending flag and one French sentence per failure, and nothing else. Every
+ * pending flag and one sentence per failure, and nothing else. Its words are
+ * chrome (WP-82): `dossier-copy.ts` in the chrome language. Every
  * decision about *what* to show lives in `dossier-state.ts`, so this file
  * cannot invent a belief the server did not send.
  *
@@ -16,7 +17,9 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { DossierScreen } from '@/components/atelier-v2/dossier';
+import { dossierCopy } from '@/components/atelier-v2/dossier/dossier-copy';
 import { AtelierV2Root } from '@/components/atelier-v2/ui';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, { type DossierEnvelope } from '@/services/api';
 
 const HOME = '/atelier';
@@ -24,34 +27,37 @@ const HOME = '/atelier';
  *  who already declined once is on this screen on purpose. */
 const PLACEMENT = '/placement?rerun=1';
 
-/** The server sends a French sentence with every refusal; this is the fallback. */
-const GENERIC_FAILURE = 'Cette action n’a pas abouti. Réessayez dans un instant.';
-
-function messageFor(error: unknown): string {
+/** The server sends a French sentence with most refusals; `null` means the
+ *  page's own fallback (`generic_failure`) in the chrome language. */
+function messageFor(error: unknown): string | null {
   const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   if (detail && typeof detail === 'object' && 'message_fr' in detail) {
-    return String((detail as { message_fr?: unknown }).message_fr || GENERIC_FAILURE);
+    const message = (detail as { message_fr?: unknown }).message_fr;
+    return message ? String(message) : null;
   }
   if (typeof detail === 'string' && detail.trim()) return detail;
-  return GENERIC_FAILURE;
+  return null;
 }
 
 export default function DossierPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const copy = dossierCopy(language);
   const [envelope, setEnvelope] = React.useState<DossierEnvelope | null>(null);
   const [claim, setClaim] = React.useState<DossierEnvelope | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [pending, setPending] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [failure, setFailure] = React.useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = React.useState(false);
+  // `{ message: null }` is a failure the server did not word: the page says it.
+  const [failure, setFailure] = React.useState<{ message: string | null } | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       setEnvelope(await api.getDossier());
-      setError(null);
+      setLoadFailed(false);
     } catch {
-      setError('Le dossier n’a pas pu être ouvert. Réessayez dans un instant.');
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -72,7 +78,7 @@ export default function DossierPage() {
       // panel is already up to date when the learner closes it.
       if (next.dossier) setEnvelope({ ...next, check: null, verdict: null });
     } catch (caught) {
-      setFailure(messageFor(caught));
+      setFailure({ message: messageFor(caught) });
     } finally {
       setPending(false);
     }
@@ -85,17 +91,17 @@ export default function DossierPage() {
   return (
     <>
       <Head>
-        <title>Votre dossier · L’Atelier</title>
+        <title>{copy.page_title}</title>
       </Head>
-      <AtelierV2Root as="main" className="av2-screen ds-screen" aria-label="Votre dossier">
+      <AtelierV2Root as="main" language={language} className="av2-screen ds-screen" aria-label={copy.page_label}>
         <DossierScreen
             dossier={envelope?.dossier ?? null}
             check={claim?.check ?? null}
             verdict={claim?.verdict ?? null}
             loading={loading}
-            error={error}
+            error={loadFailed ? copy.load_failed : null}
             pending={pending}
-            failure={failure}
+            failure={failure ? failure.message ?? copy.generic_failure : null}
             onClaim={(kind, targetId) => void run(() => api.openDossierClaim(kind, targetId))}
             onVerify={(kind, targetId, answers) =>
               void run(() => api.verifyDossierClaim(kind, targetId, answers))

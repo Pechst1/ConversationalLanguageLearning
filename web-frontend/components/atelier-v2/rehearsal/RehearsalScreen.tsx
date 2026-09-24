@@ -2,8 +2,11 @@
  * WP-31 «Répétition» — the screen.
  *
  * One state machine (`rehearsal-state.ts`) over one envelope, on the av2 design
- * system: `.av2` tokens, pill sentence-case actions, French chrome, dark-capable
- * by inheritance, one primary action per state.
+ * system: `.av2` tokens, pill sentence-case actions, dark-capable by
+ * inheritance, one primary action per state. WP-82: the chrome is read from
+ * `rehearsal-copy.ts` in the chrome language (`useChromeLanguage`) — the
+ * learner's up to A2, French from B1; the scene and the learner's sentences
+ * stay French.
  *
  * The honesty rules the design brief and the backend share, which this file
  * must not break:
@@ -29,11 +32,14 @@
 import React from 'react';
 
 import { Action, ArrowRightIcon, Notice, ScreenFoot, Skeleton, StepProgress, Surface, textAnswerField } from '@/components/atelier-v2/ui';
+import { useChromeLanguage } from '@/lib/learner-language';
 import type { RehearsalEnvelope, RehearsalView } from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
 
+import { fill, rehearsalCopy, type RehearsalCopy } from './rehearsal-copy';
 import {
-  DEBRIEF_CHOICES,
   capSentence,
+  debriefChoices,
   eventDateSentence,
   nextSlotSentence,
   phaseFor,
@@ -76,7 +82,9 @@ function Frame({ children, foot }: { children: React.ReactNode; foot?: React.Rea
   );
 }
 
-function Transcript({ rehearsal }: { rehearsal: RehearsalView }) {
+type Chrome = { language: ControlLanguage; copy: RehearsalCopy };
+
+function Transcript({ rehearsal, copy }: { rehearsal: RehearsalView; copy: RehearsalCopy }) {
   const opening = rehearsal.scene?.opening_line_fr ?? '';
   return (
     <ol className="rp-transcript">
@@ -89,7 +97,7 @@ function Transcript({ rehearsal }: { rehearsal: RehearsalView }) {
       {rehearsal.turns.map((turn) => (
         <React.Fragment key={turn.index}>
           <li className="rp-transcript__row rp-transcript__row--you">
-            <span className="av2-label">Vous</span>
+            <span className="av2-label">{copy.you}</span>
             <p lang="fr">{turn.learner_text}</p>
           </li>
           {turn.reply_fr && (
@@ -112,16 +120,16 @@ function Transcript({ rehearsal }: { rehearsal: RehearsalView }) {
   );
 }
 
-function SituationCard({ rehearsal }: { rehearsal: RehearsalView }) {
-  const when = eventDateSentence(rehearsal) ?? rehearsal.brief.date_text;
+function SituationCard({ rehearsal, language, copy }: Chrome & { rehearsal: RehearsalView }) {
+  const when = eventDateSentence(rehearsal, language) ?? rehearsal.brief.date_text;
   return (
     <Surface tone="outline">
       <p className="rp-lead" lang="fr">
         {rehearsal.brief.goal_fr || rehearsal.declaration}
       </p>
       <p className="rp-fine">
-        Avec {rehearsal.brief.counterpart || 'votre interlocuteur'}
-        {rehearsal.brief.register ? ` · on dit « ${rehearsal.brief.register} »` : ''}
+        {fill(copy.with, { who: rehearsal.brief.counterpart || copy.counterpart_fallback })}
+        {rehearsal.brief.register ? ` · ${fill(copy.register_line, { register: rehearsal.brief.register })}` : ''}
         {when ? ` · ${when}` : ''}
       </p>
       {rehearsal.brief.facts.length > 0 && (
@@ -140,6 +148,9 @@ function SituationCard({ rehearsal }: { rehearsal: RehearsalView }) {
 export function RehearsalScreen(props: RehearsalScreenProps) {
   const { envelope, loading, error, pending, failure } = props;
   const phase: RehearsalPhase = phaseFor(envelope, { loading, error });
+  const language = useChromeLanguage();
+  const copy = rehearsalCopy(language);
+  const chrome: Chrome = { language, copy };
 
   const [declaration, setDeclaration] = React.useState('');
   const [answer, setAnswer] = React.useState('');
@@ -166,12 +177,12 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
       <Frame
         foot={
           <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
+            {copy.back_to_atelier}
           </Action>
         }
       >
-        <span className="av2-label">L’Atelier · Répétition</span>
-        <h1 className="av2-headline av2-headline--screen">Page indisponible</h1>
+        <span className="av2-label">{copy.eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.unavailable_title}</h1>
         <p className="rp-lead">{phase.message}</p>
       </Frame>
     );
@@ -182,16 +193,13 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
       <Frame
         foot={
           <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
+            {copy.back_to_atelier}
           </Action>
         }
       >
-        <span className="av2-label">L’Atelier · Répétition</span>
-        <h1 className="av2-headline av2-headline--screen">Répétitions désactivées</h1>
-        <p className="rp-lead">
-          Les répétitions ne sont pas ouvertes en ce moment. Rien n’est perdu : vos séances
-          continuent normalement.
-        </p>
+        <span className="av2-label">{copy.eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.disabled_title}</h1>
+        <p className="rp-lead">{copy.disabled_body}</p>
       </Frame>
     );
   }
@@ -205,33 +213,29 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           <>
             {capped ? (
               <Action tone="primary" onClick={props.onLeave}>
-                Revenir à l’Atelier
+                {copy.back_to_atelier}
               </Action>
             ) : (
               <Action
                 tone="primary"
                 pending={pending}
-                pendingLabel="Préparation…"
+                pendingLabel={copy.preparing}
                 disabled={!declaration.trim()}
                 onClick={() => props.onDeclare(declaration.trim())}
                 iconAfter={<ArrowRightIcon size={14} />}
               >
-                Préparer la répétition
+                {copy.prepare}
               </Action>
             )}
             <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
-              Plus tard
+              {copy.later}
             </button>
           </>
         }
       >
-        <span className="av2-label">L’Atelier · Répétition</span>
-        <h1 className="av2-headline av2-headline--screen">Répétez une vraie situation</h1>
-        <p className="rp-lead">
-          Dites ce qui vous attend, dans vos mots — en français ou dans votre langue. Nous en
-          faisons une scène à répéter une fois, puis nous vous demanderons comment ça s’est
-          passé pour de vrai.
-        </p>
+        <span className="av2-label">{copy.eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.declare_title}</h1>
+        <p className="rp-lead">{copy.declare_body}</p>
         {!capped && (
           // The artboard draws this one field taller than the system default —
           // 120px — because what the learner writes here is the whole input to
@@ -239,25 +243,25 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           // its height is page-scoped.
           <div className="rp-declare">
             {textAnswerField({
-              label: 'Ce qui vous attend',
+              label: copy.declare_label,
               value: declaration,
               rows: 4,
               disabled: pending,
-              placeholder: 'Appeler le propriétaire pour le chauffage, mardi…',
+              placeholder: copy.declare_placeholder,
               onChange: setDeclaration,
             })}
           </div>
         )}
         <Surface tone="outline">
           <p className="rp-fine">
-            {capSentence(envelope!.cap)}
-            {capped && phase.nextSlotAt ? ` ${nextSlotSentence(phase.nextSlotAt) ?? ''}` : ''}
+            {capSentence(envelope!.cap, language)}
+            {capped && phase.nextSlotAt ? ` ${nextSlotSentence(phase.nextSlotAt, language) ?? ''}` : ''}
           </p>
         </Surface>
         {phase.previous?.status === 'debriefed' && (
           <Surface tone="outline">
             <p className="rp-fine">
-              Dernière répétition : {phase.previous.brief.goal_fr || phase.previous.declaration}.
+              {fill(copy.previous, { goal: phase.previous.brief.goal_fr || phase.previous.declaration })}
             </p>
           </Surface>
         )}
@@ -276,29 +280,26 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
             <Action
               tone="primary"
               pending={pending}
-              pendingLabel="Nouvelle tentative…"
+              pendingLabel={copy.retrying}
               onClick={() => props.onPrepare(rehearsal.id)}
             >
-              Réessayer
+              {copy.retry}
             </Action>
             <button
               type="button"
               className="av2-btn av2-btn--quiet"
               onClick={() => props.onAbandon(rehearsal.id)}
             >
-              Abandonner cette répétition
+              {copy.abandon}
             </button>
           </>
         }
       >
-        <span className="av2-label">L’Atelier · Répétition</span>
-        <h1 className="av2-headline av2-headline--screen">Répétition non préparée</h1>
-        <p className="rp-lead">
-          La préparation n’a pas répondu, donc il n’y a pas de scène. Nous préférons vous le dire
-          plutôt que d’inventer une conversation autour de votre situation.
-        </p>
+        <span className="av2-label">{copy.eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.not_prepared_title}</h1>
+        <p className="rp-lead">{copy.not_prepared_body}</p>
         <Surface tone="outline">
-          <p className="rp-fine">Ce que vous avez écrit est conservé :</p>
+          <p className="rp-fine">{copy.kept}</p>
           <p className="rp-lead">{rehearsal.declaration}</p>
         </Surface>
         {alert}
@@ -327,7 +328,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
             <Action
               tone="primary"
               pending={pending}
-              pendingLabel="Envoi…"
+              pendingLabel={copy.sending}
               disabled={!answer.trim()}
               onClick={() => {
                 props.onSendTurn(rehearsal.id, answer.trim(), rehearsal.turns.length);
@@ -335,23 +336,25 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
               }}
               iconAfter={<ArrowRightIcon size={14} />}
             >
-              Répondre
+              {copy.reply}
             </Action>
             <button
               type="button"
               className="av2-btn av2-btn--quiet"
               onClick={() => props.onAbandon(rehearsal.id)}
             >
-              Arrêter la répétition
+              {copy.stop}
             </button>
           </>
         }
       >
-        <span className="av2-label">Répétition · {scene?.place_fr || 'votre situation'}</span>
+        <span className="av2-label">{fill(copy.live_eyebrow, { place: scene?.place_fr || copy.place_fallback })}</span>
         <StepProgress
           steps={steps}
-          label="Progression de la répétition"
-          caption={`Encore ${turnsRemaining(rehearsal)} tour${turnsRemaining(rehearsal) > 1 ? 's' : ''}`}
+          label={copy.progress_label}
+          caption={fill(turnsRemaining(rehearsal) > 1 ? copy.turns_many : copy.turns_one, {
+            n: turnsRemaining(rehearsal),
+          })}
         />
         <h1 className="av2-headline av2-headline--screen" lang="fr">
           {scene?.title_fr || rehearsal.brief.goal_fr}
@@ -362,18 +365,18 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
         <Surface tone="blue">
           <p className="rp-objective">{scene?.objective_native || scene?.objective_fr}</p>
         </Surface>
-        <Transcript rehearsal={rehearsal} />
+        <Transcript rehearsal={rehearsal} copy={copy} />
         {textAnswerField({
-          label: 'Votre réponse, en français',
+          label: copy.answer_label,
           value: answer,
           rows: 4,
           disabled: pending,
-          placeholder: 'Écrivez ici…',
+          placeholder: copy.answer_placeholder,
           onChange: setAnswer,
         })}
         {scene?.phrases_revealed ? (
           <Surface tone="outline">
-            <p className="rp-fine">Phrases utiles</p>
+            <p className="rp-fine">{copy.phrases_title}</p>
             <ul className="rp-phrases">
               {scene.phrases.map((phrase) => (
                 <li key={phrase.fr}>
@@ -389,7 +392,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
             className="av2-btn av2-btn--quiet"
             onClick={() => props.onRevealPhrases(rehearsal.id)}
           >
-            Voir des phrases utiles (c’est noté comme une aide)
+            {copy.reveal_phrases}
           </button>
         )}
         {alert}
@@ -404,14 +407,14 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
       <Frame
         foot={
           <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
+            {copy.back_to_atelier}
           </Action>
         }
       >
-        <span className="av2-label">Répétition · terminée</span>
-        <h1 className="av2-headline av2-headline--screen">À vous, pour de vrai</h1>
-        <p className="rp-lead">{resultSentence(rehearsal)}</p>
-        <SituationCard rehearsal={rehearsal} />
+        <span className="av2-label">{copy.waiting_eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.waiting_title}</h1>
+        <p className="rp-lead">{resultSentence(rehearsal, language)}</p>
+        <SituationCard rehearsal={rehearsal} {...chrome} />
         {rehearsal.result?.ending_summary_fr && (
           <Surface tone="outline">
             <p className="rp-fine" lang="fr">
@@ -420,11 +423,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           </Surface>
         )}
         <Surface tone="outline">
-          <p className="rp-fine">
-            Nous vous demanderons comment ça s’est passé
-            {rehearsal.event_date ? ' le jour venu' : ' quand ce sera fait'}. C’est cette
-            réponse-là qui compte, pas la note de la répétition.
-          </p>
+          <p className="rp-fine">{rehearsal.event_date ? copy.waiting_note_dated : copy.waiting_note}</p>
         </Surface>
         {alert}
       </Frame>
@@ -441,24 +440,24 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
             <Action
               tone="primary"
               pending={pending}
-              pendingLabel="Enregistrement…"
+              pendingLabel={copy.saving}
               disabled={!outcome}
               onClick={() => outcome && props.onDebrief(rehearsal.id, outcome, freeLine.trim())}
               iconAfter={<ArrowRightIcon size={14} />}
             >
-              Enregistrer le bilan
+              {copy.save_debrief}
             </Action>
             <button type="button" className="av2-btn av2-btn--quiet" onClick={props.onLeave}>
-              Pas maintenant
+              {copy.not_now}
             </button>
           </>
         }
       >
-        <span className="av2-label">Répétition · bilan</span>
-        <h1 className="av2-headline av2-headline--screen">Comment ça s’est passé ?</h1>
-        <SituationCard rehearsal={rehearsal} />
-        <div className="rp-choices" role="radiogroup" aria-label="Comment ça s’est passé">
-          {DEBRIEF_CHOICES.map((choice) => (
+        <span className="av2-label">{copy.debrief_eyebrow}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.debrief_title}</h1>
+        <SituationCard rehearsal={rehearsal} {...chrome} />
+        <div className="rp-choices" role="radiogroup" aria-label={copy.debrief_group}>
+          {debriefChoices(language).map((choice) => (
             <button
               key={choice.id}
               type="button"
@@ -473,14 +472,14 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           ))}
         </div>
         {textAnswerField({
-          label: 'Une phrase en français sur ce qui s’est passé',
+          label: copy.free_line_label,
           value: freeLine,
           rows: 3,
           disabled: pending,
           placeholder: 'J’ai appelé et il vient jeudi…',
           onChange: setFreeLine,
         })}
-        <p className="rp-fine">Cette phrase-là sera corrigée. Le reste ne l’est pas.</p>
+        <p className="rp-fine">{copy.free_line_note}</p>
         {alert}
       </Frame>
     );
@@ -494,15 +493,15 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
     <Frame
       foot={
           <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
+            {copy.back_to_atelier}
           </Action>
       }
     >
-      <span className="av2-label">Répétition · bilan enregistré</span>
+      <span className="av2-label">{copy.debriefed_eyebrow}</span>
       <h1 className="av2-headline av2-headline--screen">
-        {done ? 'Vous l’avez fait' : 'C’est noté'}
+        {done ? copy.done_title : copy.noted_title}
       </h1>
-      <SituationCard rehearsal={rehearsal} />
+      <SituationCard rehearsal={rehearsal} {...chrome} />
       {debrief?.free_line && (
         <Surface tone="outline">
           <p className="rp-lead" lang="fr">
@@ -522,9 +521,7 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
               )}
             </>
           ) : (
-            <p className="rp-fine">
-              Cette phrase n’a pas pu être corrigée. Elle n’est pas jugée correcte pour autant.
-            </p>
+            <p className="rp-fine">{copy.uncorrected}</p>
           )}
         </Surface>
       )}

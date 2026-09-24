@@ -10,9 +10,16 @@
 
 import { isSealVariant, sealForEdition, type SealMiniState, type SealVariant } from '@/components/ui/Seal';
 import type { StreakCalendar, StreakCalendarDay } from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
+
+import { fill, plural, releveCopy, type ReleveCopy } from './releve-copy';
 
 export const SEAL_GRID_WEEKS = 4;
-export const WEEKDAY_INITIALS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'] as const;
+/** Monday-first weekday initials in the chrome language. */
+export function weekdayInitials(language: ControlLanguage = 'fr'): string[] {
+  return releveCopy(language).weekday_initials.split(' ');
+}
+export const WEEKDAY_INITIALS = weekdayInitials('fr');
 
 export type SealCell =
   | { kind: 'blank'; key: string }
@@ -57,9 +64,9 @@ function mondayOf(date: Date): Date {
   return addDays(date, -weekday);
 }
 
-function longDate(date: Date): string {
+function longDate(date: Date, locale: string): string {
   try {
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -70,16 +77,16 @@ function longDate(date: Date): string {
   }
 }
 
-const STATE_WORDS: Record<Exclude<SealMiniState, 'empty'>, string> = {
-  earned: 'sceau',
-  done: 'journée faite',
-  relache: 'jour de relâche',
-  today: 'aujourd’hui, le sceau attend',
-  future: 'à venir',
-  missed: 'pas de séance',
+const STATE_WORDS: Record<Exclude<SealMiniState, 'empty'>, keyof ReleveCopy> = {
+  earned: 'seal_earned',
+  done: 'seal_done',
+  relache: 'seal_relache',
+  today: 'seal_today',
+  future: 'seal_future',
+  missed: 'seal_missed',
 };
 
-function cellFor(day: StreakCalendarDay, date: Date): SealCell {
+function cellFor(day: StreakCalendarDay, date: Date, copy: ReleveCopy): SealCell {
   let state: SealMiniState;
   if (day.state === 'completed') state = day.sealed ? 'earned' : 'done';
   else if (day.state === 'relache') state = 'relache';
@@ -93,7 +100,10 @@ function cellFor(day: StreakCalendarDay, date: Date): SealCell {
     : no != null
       ? sealForEdition(no).variant
       : 'quad';
-  const words = state === 'earned' && no != null ? `sceau Nº ${no}` : STATE_WORDS[state as Exclude<SealMiniState, 'empty'>];
+  const words =
+    state === 'earned' && no != null
+      ? fill(copy.seal_earned_no, { no })
+      : copy[STATE_WORDS[state as Exclude<SealMiniState, 'empty'>]];
   return {
     kind: 'day',
     key: day.date,
@@ -102,7 +112,7 @@ function cellFor(day: StreakCalendarDay, date: Date): SealCell {
     variant,
     no,
     caption: String(date.getUTCDate()),
-    label: `${longDate(date)} · ${words}`,
+    label: `${longDate(date, copy.locale)} · ${words}`,
     isToday: Boolean(day.is_today),
   };
 }
@@ -110,7 +120,9 @@ function cellFor(day: StreakCalendarDay, date: Date): SealCell {
 export function sealCollectionView(
   payload: StreakCalendar | null | undefined,
   weeks: number = SEAL_GRID_WEEKS,
+  language: ControlLanguage = 'fr',
 ): SealCollectionView | null {
+  const copy = releveCopy(language);
   if (!payload || !Array.isArray(payload.calendar)) return null;
   const byDate = new Map<string, StreakCalendarDay>();
   for (const day of payload.calendar) byDate.set(day.date, day);
@@ -128,7 +140,7 @@ export function sealCollectionView(
       const date = addDays(firstMonday, week * 7 + weekday);
       const key = isoDay(date);
       const day = byDate.get(key);
-      const cell = day ? cellFor(day, date) : ({ kind: 'blank', key } as SealCell);
+      const cell = day ? cellFor(day, date, copy) : ({ kind: 'blank', key } as SealCell);
       if (cell.kind === 'day' && cell.isToday) todayCell = cell;
       row.push(cell);
     }
@@ -146,6 +158,6 @@ export function sealCollectionView(
   };
 }
 
-export function daysLabel(n: number): string {
-  return n === 1 ? '1 jour' : `${n} jours`;
+export function daysLabel(n: number, language: ControlLanguage = 'fr'): string {
+  return plural(releveCopy(language), 'days', n);
 }

@@ -36,16 +36,25 @@ def test_reglages_is_the_way_in() -> None:
         assert label in copy, label
 
 
+def _french_copy() -> str:
+    """WP-82: the Dossier's chrome lives in `dossier-copy.ts`, one table per
+    chrome language; the French table keeps the page's French wording."""
+    copy = _source("components/atelier-v2/dossier/dossier-copy.ts")
+    return copy[copy.index("const FR"):copy.index("const EN")]
+
+
 def test_the_page_states_what_it_believes_and_why() -> None:
     screen = _source("components/atelier-v2/dossier/DossierScreen.tsx")
-    for heading in (
-        "Votre niveau",
-        "Ce que vous savez faire",
-        "Vos fautes notées",
-        "Vos mots",
-        "La scène du jour",
+    french = _french_copy()
+    for key, heading in (
+        ("level_title", "Votre niveau"),
+        ("caps_intro", "Ce que vous savez faire"),
+        ("errata_title", "Vos fautes notées"),
+        ("vocab_title", "Vos mots"),
+        ("today_title", "La scène du jour"),
     ):
-        assert heading in screen
+        assert heading in french
+        assert f"copy.{key}" in screen, key
     # Every belief is printed with the evidence that produced it.
     assert "EvidenceLine" in screen
     assert "evidenceSentence" in screen
@@ -56,7 +65,8 @@ def test_the_claim_is_a_check_and_never_a_switch() -> None:
 
     screen = _source("components/atelier-v2/dossier/DossierScreen.tsx")
     page = _source("pages/dossier.tsx")
-    assert "Je connais déjà" in screen
+    assert "claim: 'Je connais déjà'" in _french_copy()
+    assert "{copy.claim}" in screen
     # The claim goes through the check route; there is no client-side path that
     # marks anything known.
     assert "openDossierClaim" in page
@@ -77,11 +87,14 @@ def test_the_client_never_sees_an_accepted_answer() -> None:
 
 def test_the_no_scene_state_promises_nothing() -> None:
     state = _source("components/atelier-v2/dossier/dossier-state.ts")
-    assert "Pas encore de scène aujourd’hui." in state
+    copy = _source("components/atelier-v2/dossier/dossier-copy.ts")
+    assert "no_journey: 'Pas encore de scène aujourd’hui.'" in copy
+    assert "dossierCopy(language).no_journey" in state
     # A prospective "today's scene will pick up…" would be a promise the planner
-    # has not made (WP-28 open item 5).
-    assert "reprendra" not in state
-    assert "demain" not in state
+    # has not made (WP-28 open item 5) — in any chrome language.
+    for promise in ("reprendra", "demain", "tomorrow", "morgen"):
+        assert promise not in state, promise
+        assert promise not in copy, promise
 
 
 def test_the_screen_is_on_the_av2_system_and_speaks_french() -> None:

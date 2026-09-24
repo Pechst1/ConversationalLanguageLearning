@@ -52,6 +52,8 @@ const {
   resultSentence,
   turnsRemaining,
 } = require(path.join(HERE, 'rehearsal-state.ts'));
+const { rehearsalCopy } = require(path.join(HERE, 'rehearsal-copy.ts'));
+const FR = rehearsalCopy('fr');
 
 let passed = 0;
 function test(name, fn) {
@@ -260,8 +262,15 @@ test('the screen and the page carry no English chrome', () => {
       assert.ok(!source.includes(english), `no English chrome: ${english}`);
     }
   }
-  assert.ok(screen.includes('Répétition non préparée'), 'the honest failure state is named');
-  assert.ok(screen.includes('c’est noté comme une aide'), 'asking for help is declared before it is used');
+  // WP-82: the words live in `rehearsal-copy.ts`; the French table keeps them.
+  assert.equal(FR.not_prepared_title, 'Répétition non préparée', 'the honest failure state is named');
+  assert.ok(screen.includes('{copy.not_prepared_title}'));
+  assert.ok(FR.reveal_phrases.includes('c’est noté comme une aide'), 'asking for help is declared before it is used');
+  assert.ok(screen.includes('{copy.reveal_phrases}'));
+  for (const phrase of ['Répétition non préparée', 'Revenir à l’Atelier', 'Préparer la répétition', 'Cette action n’a pas abouti']) {
+    assert.ok(!screen.includes(phrase) && !page.includes(phrase), `inline chrome: ${phrase}`);
+  }
+  assert.ok(screen.includes('useChromeLanguage()') && page.includes('useChromeLanguage()'), 'one language rule');
   assert.ok(page.includes('AtelierV2Root'), 'the page is on the av2 system');
   // Dark capability comes from the tokens; a hard-coded hex would opt out of it.
   const hexes = page.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
@@ -323,7 +332,8 @@ test('every state carries its actions in a foot below the body', () => {
 test('the declaration field is the av2 field, drawn 120px tall', () => {
   const screen = fs.readFileSync(path.join(HERE, 'RehearsalScreen.tsx'), 'utf8');
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/repetition.tsx'), 'utf8');
-  assert.ok(screen.includes("label: 'Ce qui vous attend'"), 'the field is labelled');
+  assert.ok(screen.includes('label: copy.declare_label,'), 'the field is labelled');
+  assert.equal(FR.declare_label, 'Ce qui vous attend');
   assert.ok(screen.includes('className="rp-declare"'), 'the field carries the page hook');
   assert.match(
     page,

@@ -11,41 +11,46 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Action, Notice, Skeleton, Surface } from '@/components/atelier-v2/ui';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import { SealMini } from '@/components/ui/Seal';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, { type StreakCalendar } from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
 
-import { WEEKDAY_INITIALS, daysLabel, sealCollectionView, type SealCell } from './seal-collection-model';
+import { fill, plural, releveCopy, type ReleveCopy } from './releve-copy';
+import { daysLabel, sealCollectionView, weekdayInitials, type SealCell } from './seal-collection-model';
 
-function todayLine(cell: SealCell | null, todayDone: boolean, formsLeft: number | null): string {
-  if (cell?.kind === 'day' && cell.state === 'earned') return 'Le sceau du jour est rangé.';
-  if (todayDone) return 'Journée faite. Le sceau se presse en bouclant la scène.';
-  if (formsLeft != null && formsLeft > 0) {
-    return formsLeft === 1 ? 'Le sceau du jour : encore 1 forme.' : `Le sceau du jour : encore ${formsLeft} formes.`;
-  }
-  return 'Le sceau du jour attend sa scène.';
+function todayLine(copy: ReleveCopy, cell: SealCell | null, todayDone: boolean, formsLeft: number | null): string {
+  if (cell?.kind === 'day' && cell.state === 'earned') return copy.seals_today_earned;
+  if (todayDone) return copy.seals_today_done;
+  if (formsLeft != null && formsLeft > 0) return plural(copy, 'seals_forms', formsLeft);
+  return copy.seals_today_waiting;
 }
 
 export function SealCollectionBody({
   payload,
   formsLeft = null,
+  language = 'fr',
 }: {
   payload: StreakCalendar | null;
   /** WP-D1: shapes of today's mark not yet filled, when the caller knows. */
   formsLeft?: number | null;
+  /** The chrome language (`useChromeLanguage`); French when the caller does not say. */
+  language?: ControlLanguage;
 }) {
-  const view = useMemo(() => sealCollectionView(payload), [payload]);
+  const copy = releveCopy(language);
+  const view = useMemo(() => sealCollectionView(payload, undefined, language), [payload, language]);
   if (!view) return null;
   const today = view.today;
   return (
     <>
       <Surface className="av2-seals">
         <ol className="av2-seals__week-days" aria-hidden="true">
-          {WEEKDAY_INITIALS.map((initial, index) => (
+          {weekdayInitials(language).map((initial, index) => (
             <li key={index} className="av2-label">
               {initial}
             </li>
           ))}
         </ol>
-        <ol className="av2-seals__grid" aria-label={`Vos sceaux · série de ${daysLabel(view.streak)}`}>
+        <ol className="av2-seals__grid" aria-label={fill(copy.seals_grid, { days: daysLabel(view.streak, language) })}>
           {view.weeks.flat().map((cell) =>
             cell.kind === 'blank' ? (
               <li key={cell.key} aria-hidden="true" />
@@ -68,11 +73,14 @@ export function SealCollectionBody({
           <SealMini state={today.state} variant={today.variant} no={today.no} caption={null} />
         )}
         <div className="av2-seals__today-body">
-          <p className="av2-body">{todayLine(today, view.todayDone, formsLeft)}</p>
+          <p className="av2-body">{todayLine(copy, today, view.todayDone, formsLeft)}</p>
           <p className="av2-label">
-            {`Série · ${daysLabel(view.streak)} · record · ${daysLabel(view.longest)}`}
+            {fill(copy.seals_streak, {
+              streak: daysLabel(view.streak, language),
+              longest: daysLabel(view.longest, language),
+            })}
           </p>
-          {view.freezeAvailable && <p className="av2-label">Un jour de relâche en réserve.</p>}
+          {view.freezeAvailable && <p className="av2-label">{copy.seals_freeze}</p>}
         </div>
       </Surface>
     </>
@@ -80,6 +88,8 @@ export function SealCollectionBody({
 }
 
 export default function SealCollection() {
+  const language = useChromeLanguage();
+  const copy = releveCopy(language);
   const [payload, setPayload] = useState<StreakCalendar | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const alive = useRef(true);
@@ -108,19 +118,19 @@ export default function SealCollection() {
   }, [load]);
 
   return (
-    <section className="nb-rv__sec" id="sceaux" aria-label="Vos sceaux">
-      <NbSectionHead t="Vos sceaux" n={null} />
+    <section className="nb-rv__sec" id="sceaux" aria-label={copy.seals_title}>
+      <NbSectionHead t={copy.seals_title} n={null} />
       {state === 'loading' ? (
         <Skeleton height={180} radius={16} />
       ) : state === 'failed' ? (
         <Notice tone="alert" live="alert" shape="action">
-          <p>Les sceaux n’ont pas pu être relevés.</p>
+          <p>{copy.seals_failed}</p>
           <Action tone="secondary" inline onClick={() => void load()}>
-            Réessayer
+            {copy.retry}
           </Action>
         </Notice>
       ) : (
-        <SealCollectionBody payload={payload} />
+        <SealCollectionBody payload={payload} language={language} />
       )}
     </section>
   );

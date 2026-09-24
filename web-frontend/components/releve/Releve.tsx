@@ -33,6 +33,8 @@ import {
 } from '@/components/atelier-v2/ui';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import SealCollection from '@/components/releve/SealCollection';
+import { fill, plural, releveCopy, type ReleveCopy } from '@/components/releve/releve-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
   type AtelierAlmanac,
   type CEFRProgress,
@@ -43,25 +45,35 @@ import api, {
 
 /* ---------- vocabulary ----------
    The catalogue keys are machine keys (German SRS states, snake_case collectible
-   kinds, English achievement keys). None of them may reach the page: the Cahier
-   speaks French. Anything unmapped falls back to a neutral French line rather
-   than leaking the key. */
+   kinds, English achievement keys). None of them may reach the page: every
+   label is read from `releve-copy.ts` in the chrome language (WP-82). Anything
+   unmapped falls back to a neutral line rather than leaking the key. */
 
-const GRAMMAR_STATES: Array<{ key: string; label: [string, string]; tone: string }> = [
-  { key: 'neu', label: ['nouvelle', 'nouvelles'], tone: 'new' },
-  { key: 'ausbaufähig', label: ['fragile', 'fragiles'], tone: 'fragile' },
-  { key: 'in_arbeit', label: ['en cours', 'en cours'], tone: 'building' },
-  { key: 'gefestigt', label: ['solide', 'solides'], tone: 'solid' },
-  { key: 'gemeistert', label: ['maîtrisée', 'maîtrisées'], tone: 'mastered' },
+type GrammarStem = 'grammar_new' | 'grammar_fragile' | 'grammar_building' | 'grammar_solid' | 'grammar_mastered';
+
+const GRAMMAR_STATES: Array<{ key: string; label: GrammarStem; tone: string }> = [
+  { key: 'neu', label: 'grammar_new', tone: 'new' },
+  { key: 'ausbaufähig', label: 'grammar_fragile', tone: 'fragile' },
+  { key: 'in_arbeit', label: 'grammar_building', tone: 'building' },
+  { key: 'gefestigt', label: 'grammar_solid', tone: 'solid' },
+  { key: 'gemeistert', label: 'grammar_mastered', tone: 'mastered' },
 ];
 
-const COLLECTIBLE_LABELS: Record<string, [string, string]> = {
-  logo_token: ['vignette', 'vignettes'],
-  gilt_seal: ['sceau doré', 'sceaux dorés'],
-  story_seal: ['sceau de feuilleton', 'sceaux de feuilleton'],
-  plate_semaine: ['planche de la semaine', 'planches de la semaine'],
-  plate_chapter: ['planche de chapitre', 'planches de chapitre'],
-  colophon: ['colophon', 'colophons'],
+type CollectibleStem =
+  | 'kind_logo_token'
+  | 'kind_gilt_seal'
+  | 'kind_story_seal'
+  | 'kind_plate_semaine'
+  | 'kind_plate_chapter'
+  | 'kind_colophon';
+
+const COLLECTIBLE_LABELS: Record<string, CollectibleStem> = {
+  logo_token: 'kind_logo_token',
+  gilt_seal: 'kind_gilt_seal',
+  story_seal: 'kind_story_seal',
+  plate_semaine: 'kind_plate_semaine',
+  plate_chapter: 'kind_plate_chapter',
+  colophon: 'kind_colophon',
 };
 
 const COLLECTIBLE_ORDER = [
@@ -75,26 +87,25 @@ const COLLECTIBLE_ORDER = [
 
 /* WP-79: the one catalogue (`app/services/achievement.py::CATALOGUE`). Every
    entry is earned from a row the app really writes; a retired key is never
-   sent, and an unknown one falls back to a neutral line below. */
-const ACHIEVEMENT_COPY: Record<string, { title: string; note: string }> = {
-  first_scene: { title: 'Première scène', note: 'La première journée bouclée.' },
-  scenes_10: { title: 'Dix scènes', note: 'Dix journées bouclées.' },
-  session_streak_3: { title: 'Trois jours de suite', note: 'Trois jours d’affilée à l’Atelier.' },
-  session_streak_7: { title: 'Une semaine de suite', note: 'Sept jours d’affilée à l’Atelier.' },
-  session_streak_30: { title: 'Trente jours de suite', note: 'Trente jours d’affilée à l’Atelier.' },
-  first_letter: { title: 'Première lettre', note: 'Une première réponse au Courrier.' },
-  words_kept_50: { title: 'Cinquante mots gardés', note: 'Cinquante mots dans votre Lexique.' },
-  first_chapter: { title: 'Premier chapitre bouclé', note: 'Le premier chapitre du feuilleton s’est refermé.' },
+   sent, and an unknown one falls back to a neutral line below.
+   The title is the keepsake's name and stays French (WP-82: keepsake titles
+   are content); the note under it is chrome and comes from the copy table. */
+const ACHIEVEMENT_COPY: Record<string, { title: string; note: keyof ReleveCopy }> = {
+  first_scene: { title: 'Première scène', note: 'note_first_scene' },
+  scenes_10: { title: 'Dix scènes', note: 'note_scenes_10' },
+  session_streak_3: { title: 'Trois jours de suite', note: 'note_session_streak_3' },
+  session_streak_7: { title: 'Une semaine de suite', note: 'note_session_streak_7' },
+  session_streak_30: { title: 'Trente jours de suite', note: 'note_session_streak_30' },
+  first_letter: { title: 'Première lettre', note: 'note_first_letter' },
+  words_kept_50: { title: 'Cinquante mots gardés', note: 'note_words_kept_50' },
+  first_chapter: { title: 'Premier chapitre bouclé', note: 'note_first_chapter' },
 };
+const ACHIEVEMENT_TITLE_FALLBACK = 'Distinction de l’Atelier';
 
 /* The tier is printed as a word beside the reward token — never colour alone. */
-const TIER_LABEL: Record<string, string> = { gold: 'or', silver: 'argent', bronze: 'bronze' };
+const TIER_LABEL: Record<string, keyof ReleveCopy> = { gold: 'tier_gold', silver: 'tier_silver', bronze: 'tier_bronze' };
 
 /* ---------- helpers ---------- */
-
-function plural(n: number, [one, many]: [string, string]) {
-  return n > 1 ? many : one;
-}
 
 /** Normalise the state-count keys: `ausbaufähig` can arrive decomposed. */
 function normalizedCounts(counts: Record<string, number> | null | undefined) {
@@ -105,12 +116,12 @@ function normalizedCounts(counts: Record<string, number> | null | undefined) {
   return out;
 }
 
-function frenchDate(value: string | null | undefined) {
+function shortDate(value: string | null | undefined, locale: string) {
   if (!value) return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   try {
-    return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
   } catch {
     return null;
   }
@@ -125,11 +136,11 @@ function Line({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ArchiveNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ArchiveNotice({ copy, message, onRetry }: { copy: ReleveCopy; message: string; onRetry: () => void }) {
   return (
     <Notice tone="alert" live="alert" shape="action">
-      <p><strong>Avis du bureau des archives</strong> — {message}</p>
-      <Action tone="secondary" inline onClick={onRetry}>Réessayer</Action>
+      <p><strong>{copy.archive_notice}</strong> — {message}</p>
+      <Action tone="secondary" inline onClick={onRetry}>{copy.retry}</Action>
     </Notice>
   );
 }
@@ -137,6 +148,7 @@ function ArchiveNotice({ message, onRetry }: { message: string; onRetry: () => v
 /* ---------- the surface ---------- */
 
 export default function Releve() {
+  const copy = releveCopy(useChromeLanguage());
   const [loading, setLoading] = useState(true);
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
   const [stats, setStats] = useState<LearnerAnalyticsSummary | null>(null);
@@ -201,8 +213,8 @@ export default function Releve() {
     const at = new Date(String(taken));
     return Number.isNaN(at.getTime())
       ? null
-      : at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  }, [cefr]);
+      : at.toLocaleDateString(copy.locale, { day: 'numeric', month: 'long' });
+  }, [cefr, copy]);
   const forecastAvailable = cefr?.forecast?.status === 'available';
   // WP-L8: a range, worded as an estimate — never one number read as a promise.
   const forecastRange = useMemo(() => {
@@ -232,9 +244,9 @@ export default function Releve() {
     () =>
       GRAMMAR_STATES.map((state) => {
         const n = Number(grammarCounts[state.key.normalize('NFC')] || 0);
-        return { key: state.key, tone: state.tone, n, label: plural(n, state.label) };
+        return { key: state.key, tone: state.tone, n, label: plural(copy, state.label, n) };
       }).filter((state) => state.n > 0),
-    [grammarCounts]
+    [grammarCounts, copy]
   );
 
   /* ---- La Collection (GET /achievements/my + GET /atelier/almanac) ---- */
@@ -259,12 +271,12 @@ export default function Releve() {
         n: (grouped[kind] || []).filter((piece) => !piece.composed).length,
       }))
       .filter((row) => row.n > 0 && COLLECTIBLE_LABELS[row.kind])
-      .map((row) => ({ ...row, label: plural(row.n, COLLECTIBLE_LABELS[row.kind]) }));
-  }, [almanac]);
+      .map((row) => ({ ...row, label: plural(copy, COLLECTIBLE_LABELS[row.kind], row.n) }));
+  }, [almanac, copy]);
   const collectionPieces = unlocked.length + collectibleLines.reduce((sum, row) => sum + row.n, 0);
 
   const everythingFailed = failed.cefr && failed.stats && failed.grammar && failed.collection;
-  const stamp = frenchDate(cefr?.generated_at);
+  const stamp = shortDate(cefr?.generated_at, copy.locale);
 
   if (loading) {
     return (
@@ -272,7 +284,7 @@ export default function Releve() {
         <Skeleton height={120} radius={16} />
         <Skeleton height={160} radius={16} />
         <Skeleton height={120} radius={16} />
-        <span className="av2-sr" role="status">Le relevé sort de presse</span>
+        <span className="av2-sr" role="status">{copy.loading}</span>
       </div>
     );
   }
@@ -282,9 +294,9 @@ export default function Releve() {
       <div className="nb-rv">
         <StateBlock
           tone="error"
-          title="Le relevé n’a pas pu être tiré"
-          body="Vos chiffres restent au bureau, rien n’est perdu."
-          action={{ label: 'Réessayer', onSelect: () => void load() }}
+          title={copy.failed_title}
+          body={copy.failed_body}
+          action={{ label: copy.retry, onSelect: () => void load() }}
         />
       </div>
     );
@@ -296,12 +308,12 @@ export default function Releve() {
       <SealCollection />
 
       {/* ---- Le Cours ---- */}
-      <section className="nb-rv__sec" aria-label="Le cours">
+      <section className="nb-rv__sec" aria-label={copy.cours_title}>
         {/* The level is the headline below; repeating it in the head would be
             the same number printed twice. */}
-        <NbSectionHead t="Le cours" n={null} />
+        <NbSectionHead t={copy.cours_title} n={null} />
         {failed.cefr || !cefr ? (
-          <ArchiveNotice message="Le niveau n’a pas pu être relevé." onRetry={() => void load()} />
+          <ArchiveNotice copy={copy} message={copy.cours_failed} onRetry={() => void load()} />
         ) : (
           <Surface>
             <p className="av2-headline av2-headline--display">
@@ -311,14 +323,16 @@ export default function Releve() {
             </p>
             <p className="av2-body nb-rv__status">
               {placement
-                ? `Niveau estimé (placement)${placementDate ? `, ${placementDate}` : ''}. L’Atelier le vérifie au fil des séances.`
+                ? placementDate
+                  ? fill(copy.status_placement_dated, { date: placementDate })
+                  : copy.status_placement
                 : declared
-                ? 'Niveau que vous avez indiqué. L’Atelier le vérifie au fil des séances.'
+                ? copy.status_declared
                 : forecastAvailable && forecastRange
-                ? `Estimation : ${forecastRange.low} à ${forecastRange.high} jours à ce rythme.`
+                ? fill(copy.status_forecast, { low: forecastRange.low, high: forecastRange.high })
                 : forecastAvailable && cefr?.forecast?.capped
-                ? 'Estimation : plus de deux ans à ce rythme.'
-                : 'Prévisions après sept jours actifs.'}
+                ? copy.status_capped
+                : copy.status_no_forecast}
             </p>
             {/* Gauges count what the Atelier has verified. Against a level it has
                 not tested they would read as "vous savez 0 mot", so they wait. */}
@@ -326,14 +340,14 @@ export default function Releve() {
               <div className="nb-rv__tracks">
                 {coursWords[1] > 0 && (
                   <div className="nb-rv__track">
-                    <span>Mots</span>
-                    <ProgressRule value={coursWords[0]} max={coursWords[1]} label="Mots vérifiés" caption={`${coursWords[0]} / ${coursWords[1]}`} />
+                    <span>{copy.track_words}</span>
+                    <ProgressRule value={coursWords[0]} max={coursWords[1]} label={copy.track_words_label} caption={`${coursWords[0]} / ${coursWords[1]}`} />
                   </div>
                 )}
                 {coursRules[1] > 0 && (
                   <div className="nb-rv__track">
-                    <span>Règles</span>
-                    <ProgressRule value={coursRules[0]} max={coursRules[1]} label="Règles vérifiées" caption={`${coursRules[0]} / ${coursRules[1]}`} />
+                    <span>{copy.track_rules}</span>
+                    <ProgressRule value={coursRules[0]} max={coursRules[1]} label={copy.track_rules_label} caption={`${coursRules[0]} / ${coursRules[1]}`} />
                   </div>
                 )}
               </div>
@@ -343,32 +357,32 @@ export default function Releve() {
       </section>
 
       {/* ---- Le Registre ---- */}
-      <section className="nb-rv__sec" aria-label="Le registre">
-        <NbSectionHead t="Le registre" n={null} />
+      <section className="nb-rv__sec" aria-label={copy.registre_title}>
+        <NbSectionHead t={copy.registre_title} n={null} />
         {failed.stats && failed.grammar ? (
-          <ArchiveNotice message="Le registre n’a pas pu être ouvert." onRetry={() => void load()} />
+          <ArchiveNotice copy={copy} message={copy.registre_failed} onRetry={() => void load()} />
         ) : (
           <Surface className="nb-sec">
             <div className="nb-lines">
               {stats ? (
                 <>
-                  <Line label="Mots acquis" value={String(stats.words_mastered)} />
-                  <Line label="Mots en cours" value={String(stats.words_learning)} />
-                  <Line label="Mots à revoir aujourd’hui" value={String(stats.reviews_due_today)} />
+                  <Line label={copy.words_mastered} value={String(stats.words_mastered)} />
+                  <Line label={copy.words_learning} value={String(stats.words_learning)} />
+                  <Line label={copy.words_due} value={String(stats.reviews_due_today)} />
                 </>
               ) : (
-                <p className="nb-gap">Le compte des mots n’a pas suivi cette fois-ci.</p>
+                <p className="nb-gap">{copy.words_gap}</p>
               )}
               {grammar ? (
                 <>
                   <Line
-                    label="Règles engagées"
+                    label={copy.rules_started}
                     value={grammarTotal ? `${grammarStarted} / ${grammarTotal}` : String(grammarStarted)}
                   />
-                  <Line label="Règles à revoir aujourd’hui" value={String(grammar.due_today)} />
+                  <Line label={copy.rules_due} value={String(grammar.due_today)} />
                 </>
               ) : (
-                <p className="nb-gap">Le compte des règles n’a pas suivi cette fois-ci.</p>
+                <p className="nb-gap">{copy.rules_gap}</p>
               )}
             </div>
             {grammarBar.length > 0 && (
@@ -376,9 +390,9 @@ export default function Releve() {
                 <div
                   className="nb-bar"
                   role="img"
-                  aria-label={
-                    'Règles : ' + grammarBar.map((state) => `${state.n} ${state.label}`).join(', ')
-                  }
+                  aria-label={fill(copy.rules_bar, {
+                    list: grammarBar.map((state) => `${state.n} ${state.label}`).join(', '),
+                  })}
                 >
                   {grammarBar.map((state) => (
                     <i
@@ -403,34 +417,34 @@ export default function Releve() {
       </section>
 
       {/* ---- La Collection ---- */}
-      <section className="nb-rv__sec" aria-label="La collection">
+      <section className="nb-rv__sec" aria-label={copy.collection_title}>
         <NbSectionHead
-          t="La collection"
-          n={collectionPieces > 0 ? `${collectionPieces} pièce${collectionPieces > 1 ? 's' : ''}` : null}
+          t={copy.collection_title}
+          n={collectionPieces > 0 ? plural(copy, 'pieces', collectionPieces) : null}
         />
         {failed.collection ? (
-          <ArchiveNotice message="La collection n’a pas pu être sortie de sa boîte." onRetry={() => void load()} />
+          <ArchiveNotice copy={copy} message={copy.collection_failed} onRetry={() => void load()} />
         ) : collectionPieces === 0 ? (
           <StateBlock
             tone="empty"
-            title="Rien d’accroché encore"
-            body="La collection commence avec la première édition bouclée."
+            title={copy.collection_empty_title}
+            body={copy.collection_empty_body}
           />
         ) : (
           <Surface className="nb-sec">
             {unlocked.length > 0 && (
               <div className="nb-lines">
                 {unlocked.map((item) => {
-                  const copy = ACHIEVEMENT_COPY[item.achievement_key];
-                  const date = frenchDate(item.unlocked_at);
-                  const tier = TIER_LABEL[item.tier] || null;
+                  const entry = ACHIEVEMENT_COPY[item.achievement_key];
+                  const date = shortDate(item.unlocked_at, copy.locale);
+                  const tier = TIER_LABEL[item.tier] ? copy[TIER_LABEL[item.tier]] : null;
                   return (
                     <div className="nb-piece" key={item.achievement_id}>
                       <ShapeToken kind="reward" size="sm" />
                       <span className="nb-piece__main">
-                        <span className="nb-piece__t">{copy?.title || 'Distinction de l’Atelier'}</span>
+                        <span className="nb-piece__t" lang="fr">{entry?.title || ACHIEVEMENT_TITLE_FALLBACK}</span>
                         <span className="nb-piece__m">
-                          {copy?.note || 'Décernée au fil des séances.'}{tier ? ` · ${tier}` : ''}
+                          {entry ? copy[entry.note] : copy.achievement_note_fallback}{tier ? ` · ${tier}` : ''}
                         </span>
                       </span>
                       {date && <span className="nb-piece__d">{date}</span>}
@@ -454,7 +468,7 @@ export default function Releve() {
         )}
       </section>
 
-      <p className="nb-foot">{stamp ? `Le Relevé · arrêté au ${stamp}` : 'Le Relevé · vos chiffres, rien d’autre'}</p>
+      <p className="nb-foot">{stamp ? fill(copy.foot_dated, { date: stamp }) : copy.foot}</p>
     </div>
   );
 }

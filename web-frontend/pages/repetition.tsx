@@ -2,7 +2,8 @@
  * WP-31 — «Répétition», rehearsing a real upcoming situation.
  *
  * A thin transport shell around `RehearsalScreen`: it owns the envelope, the
- * pending flag and one French sentence per failure, and nothing else. Every
+ * pending flag and one sentence per failure, and nothing else. Its words are
+ * chrome (WP-82): `rehearsal-copy.ts` in the chrome language. Every
  * decision about *what* to show is in `rehearsal-state.ts`, so this file cannot
  * invent a state the server did not send.
  *
@@ -22,38 +23,43 @@ import { useRouter } from 'next/router';
 
 import { RehearsalScreen } from '@/components/atelier-v2/rehearsal';
 import type { DebriefOutcome } from '@/components/atelier-v2/rehearsal';
+import { rehearsalCopy } from '@/components/atelier-v2/rehearsal/rehearsal-copy';
 import { AtelierV2Root } from '@/components/atelier-v2/ui';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, { type RehearsalEnvelope } from '@/services/api';
 
 const HOME = '/atelier';
 
-/** The server sends a French sentence with every refusal; this is the fallback. */
-const GENERIC_FAILURE = 'Cette action n’a pas abouti. Réessayez dans un instant.';
-
-function messageFor(error: unknown): string {
+/** The server sends a French sentence with most refusals; `null` means the
+ *  page's own fallback (`generic_failure`) in the chrome language. */
+function messageFor(error: unknown): string | null {
   const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   if (detail && typeof detail === 'object' && 'message_fr' in detail) {
-    return String((detail as { message_fr?: unknown }).message_fr || GENERIC_FAILURE);
+    const message = (detail as { message_fr?: unknown }).message_fr;
+    return message ? String(message) : null;
   }
   if (typeof detail === 'string' && detail.trim()) return detail;
-  return GENERIC_FAILURE;
+  return null;
 }
 
 export default function RepetitionPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const copy = rehearsalCopy(language);
   const [envelope, setEnvelope] = React.useState<RehearsalEnvelope | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [pending, setPending] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [failure, setFailure] = React.useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = React.useState(false);
+  // `{ message: null }` is a failure the server did not word: the page says it.
+  const [failure, setFailure] = React.useState<{ message: string | null } | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       setEnvelope(await api.getRehearsalState());
-      setError(null);
+      setLoadFailed(false);
     } catch {
-      setError('La page n’a pas pu être ouverte. Réessayez dans un instant.');
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -70,7 +76,7 @@ export default function RepetitionPage() {
     try {
       setEnvelope(await call());
     } catch (caught) {
-      setFailure(messageFor(caught));
+      setFailure({ message: messageFor(caught) });
     } finally {
       setPending(false);
     }
@@ -85,13 +91,13 @@ export default function RepetitionPage() {
       <Head>
         <title>Répétition · L’Atelier</title>
       </Head>
-      <AtelierV2Root as="main" className="av2-screen rp-screen" aria-label="Répétition">
+      <AtelierV2Root as="main" language={language} className="av2-screen rp-screen" aria-label="Répétition">
         <RehearsalScreen
           envelope={envelope}
           loading={loading}
-          error={error}
+          error={loadFailed ? copy.load_failed : null}
           pending={pending}
-          failure={failure}
+          failure={failure ? failure.message ?? copy.generic_failure : null}
           onDeclare={(declaration) => void run(() => api.declareRehearsal(declaration))}
           onPrepare={(id) => void run(() => api.prepareRehearsal(id))}
           onRevealPhrases={(id) => void run(() => api.revealRehearsalPhrases(id))}

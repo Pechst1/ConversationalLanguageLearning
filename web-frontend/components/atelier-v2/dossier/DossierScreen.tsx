@@ -29,11 +29,16 @@
  *  5. **One chrome language.** The capability titles are French, from the
  *     payload's `title_fr`; the control-language title is the fallback, never
  *     the default, so a German title never lands under a French label.
+ *
+ * WP-82: every word the screen writes itself is read from `dossier-copy.ts` in
+ * the chrome language (`useChromeLanguage`) — the learner's up to A2, French
+ * from B1. What the server sends as content stays French.
  */
 
 import React from 'react';
 
 import { Action, Notice, ScreenFoot, Skeleton, Surface, textAnswerField } from '@/components/atelier-v2/ui';
+import { useChromeLanguage } from '@/lib/learner-language';
 import type {
   DossierCapability,
   DossierClaimCheck,
@@ -42,10 +47,11 @@ import type {
   DossierPayload,
   DossierWord,
 } from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
 
+import { dossierCopy, fill, longDate, shortDate, type DossierCopy } from './dossier-copy';
 import {
   ERRATUM_STATE_ORDER,
-  NO_JOURNEY_FR,
   becauseSentence,
   capabilityEvidenceRef,
   capabilityEvidenceSentence,
@@ -57,13 +63,12 @@ import {
   errataStateLabel,
   errataTotalSentence,
   evidenceSentence,
-  frenchDate,
   forecastSentence,
-  frenchShortDate,
   levelHeadline,
   levelLadderSentence,
   levelSentence,
   levelSourceLine,
+  noJourneySentence,
   phaseFor,
   verdictTone,
   vocabularyCount,
@@ -120,34 +125,38 @@ function EvidenceRef({ children }: { children: React.ReactNode }) {
   return <span className="ds-ref">{children}</span>;
 }
 
+type Chrome = { language: ControlLanguage; copy: DossierCopy };
+
 function LevelSection({
   dossier,
   onOpenPlacement,
-}: {
+  language,
+  copy,
+}: Chrome & {
   dossier: DossierPayload;
   onOpenPlacement?: () => void;
 }) {
   const level = dossier.level as LevelWithAttempts;
   const unavailable = !level || level.available === false || !level.estimate;
-  const rows = coverageRows(level);
-  const forecast = forecastSentence(level);
+  const rows = coverageRows(level, language);
+  const forecast = forecastSentence(level, language);
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-level">
       <p className="av2-label" id="ds-level">
-        Votre niveau
+        {copy.level_title}
       </p>
       {unavailable ? (
-        <p className="av2-body av2-body--lg">{levelSentence(level)}</p>
+        <p className="av2-body av2-body--lg">{levelSentence(level, language)}</p>
       ) : (
         <div className="ds-level">
           {/* WP-L7: the band and how much of it is covered, «A1.1 · 60 %». */}
           <span className="ds-level__value">{levelHeadline(level)}</span>
-          <span className="ds-level__source">{levelSourceLine(level)}</span>
+          <span className="ds-level__source">{levelSourceLine(level, language)}</span>
         </div>
       )}
       {!unavailable && rows.length > 0 && (
         <>
-          <ul className="ds-rows" aria-label="Ce que compte le niveau">
+          <ul className="ds-rows" aria-label={copy.level_rows}>
             {rows.map((row) => (
               <li key={row.key} className="ds-row">
                 <span className="ds-row__label">{row.label}</span>
@@ -155,34 +164,31 @@ function LevelSection({
               </li>
             ))}
           </ul>
-          <p className="ds-fine">{coverageRuleSentence(level)}</p>
+          <p className="ds-fine">{coverageRuleSentence(level, language)}</p>
         </>
       )}
       {!unavailable && forecast && <p className="av2-body">{forecast}</p>}
-      <p className="av2-body">{levelLadderSentence(level)}</p>
-      <EvidenceLine>{evidenceSentence(level?.evidence)}</EvidenceLine>
+      <p className="av2-body">{levelLadderSentence(level, language)}</p>
+      <EvidenceLine>{evidenceSentence(level?.evidence, language)}</EvidenceLine>
       {onOpenPlacement && (
         <Action tone="quiet" inline onClick={onOpenPlacement}>
-          Faire le bilan de niveau
+          {copy.open_placement}
         </Action>
       )}
     </Surface>
   );
 }
 
-function CapabilitySection({ capabilities }: { capabilities: DossierCapability[] }) {
+function CapabilitySection({ capabilities, language, copy }: Chrome & { capabilities: DossierCapability[] }) {
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-capabilities">
       <p className="av2-label" id="ds-capabilities">
-        Vos capacités
+        {copy.caps_title}
       </p>
       {/* The section heading the page has always carried, kept as the
           accessible description: «Ce que vous savez faire» is what the four
           states are, and the label above is what the card is called. */}
-      <p className="av2-body">
-        Ce que vous savez faire, en quatre états — du jamais tenté au refait un autre jour. Ils
-        viennent de vos séances, jamais d’une note recalculée ici.
-      </p>
+      <p className="av2-body">{copy.caps_intro}</p>
       <ul className="ds-caps">
         {capabilities.map((capability) => {
           const latest = capability.evidence[0];
@@ -192,10 +198,10 @@ function CapabilitySection({ capabilities }: { capabilities: DossierCapability[]
                 {capabilityTitle(capability as CapabilityWithFrenchTitle)}
               </span>
               <span className="ds-cap__right">
-                <span className="ds-cap__state">{capabilityStateLabel(capability.state)}</span>
-                <EvidenceRef>{capabilityEvidenceRef(capability)}</EvidenceRef>
+                <span className="ds-cap__state">{capabilityStateLabel(capability.state, language)}</span>
+                <EvidenceRef>{capabilityEvidenceRef(capability, language)}</EvidenceRef>
               </span>
-              <span className="av2-sr">{capabilityEvidenceSentence(latest) ?? ''}</span>
+              <span className="av2-sr">{capabilityEvidenceSentence(latest, language) ?? ''}</span>
             </li>
           );
         })}
@@ -208,7 +214,9 @@ function ErrataSection({
   errata,
   pending,
   onClaim,
-}: {
+  language,
+  copy,
+}: Chrome & {
   errata: ErrataWithTotals;
   pending?: boolean;
   onClaim: (kind: string, targetId: string) => void;
@@ -218,20 +226,20 @@ function ErrataSection({
   if (errata?.available === false) {
     return (
       <Surface as="section" className="ds-card">
-        <p className="av2-label">Vos fautes notées</p>
-        <p className="av2-body">Cette partie de votre dossier est illisible pour l’instant.</p>
+        <p className="av2-label">{copy.errata_title}</p>
+        <p className="av2-body">{copy.errata_unreadable}</p>
       </Surface>
     );
   }
 
   const byState = errata?.by_state ?? {};
-  const counters = errataCounters(errata);
+  const counters = errataCounters(errata, language);
   const anyShown = ERRATUM_STATE_ORDER.some((state) => (byState[state] ?? []).length > 0);
 
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-errata">
       <p className="av2-label" id="ds-errata">
-        Vos fautes notées
+        {copy.errata_title}
       </p>
       <div className="ds-counters">
         {counters.map((counter) => (
@@ -242,8 +250,8 @@ function ErrataSection({
         ))}
       </div>
       <p className="av2-body">
-        {errataTotalSentence(errata)} Une faute quitte le relevé après{' '}
-        {errata?.mastery_target ?? 3} reprises justes, à des jours différents.
+        {errataTotalSentence(errata, language)}{' '}
+        {fill(copy.errata_rule, { n: errata?.mastery_target ?? 3 })}
       </p>
       {anyShown && (
         <>
@@ -253,7 +261,7 @@ function ErrataSection({
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
           >
-            {open ? 'Masquer le détail' : 'Voir le détail'}
+            {open ? copy.hide_detail : copy.show_detail}
           </Action>
           {open &&
             ERRATUM_STATE_ORDER.map((state) => {
@@ -262,7 +270,7 @@ function ErrataSection({
               return (
                 <div key={state} className="ds-group">
                   <span className="av2-label">
-                    {errataStateLabel(state)} · {items.length}
+                    {errataStateLabel(state, language)} · {items.length}
                   </span>
                   <ul className="ds-rows">
                     {items.map((item) => (
@@ -277,10 +285,10 @@ function ErrataSection({
                         )}
                         <EvidenceLine>
                           {item.next_review_date
-                            ? `Prochaine reprise le ${frenchDate(item.next_review_date)}`
-                            : 'Pas encore programmée'}
+                            ? fill(copy.next_repair, { date: longDate(item.next_review_date, language) })
+                            : copy.not_scheduled}
                           {' · '}
-                          {evidenceSentence(item.evidence)}
+                          {evidenceSentence(item.evidence, language)}
                         </EvidenceLine>
                         {item.claimable && (
                           <Action
@@ -289,7 +297,7 @@ function ErrataSection({
                             disabled={pending}
                             onClick={() => onClaim('erratum', item.id)}
                           >
-                            Je connais déjà
+                            {copy.claim}
                           </Action>
                         )}
                       </li>
@@ -308,7 +316,9 @@ function VocabularySection({
   vocabulary,
   pending,
   onClaim,
-}: {
+  language,
+  copy,
+}: Chrome & {
   vocabulary: DossierPayload['vocabulary'];
   pending?: boolean;
   onClaim: (kind: string, targetId: string) => void;
@@ -321,17 +331,17 @@ function VocabularySection({
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-vocabulary">
       <p className="av2-label" id="ds-vocabulary">
-        Vos mots
+        {copy.vocab_title}
       </p>
       {count === null ? (
-        <p className="av2-body av2-body--lg">{vocabularyUnitSentence(vocabulary)}</p>
+        <p className="av2-body av2-body--lg">{vocabularyUnitSentence(vocabulary, language)}</p>
       ) : (
         <div className="ds-stock">
           <span className="ds-stock__value">{count}</span>
-          <span className="ds-stock__unit">{vocabularyUnitSentence(vocabulary)}</span>
+          <span className="ds-stock__unit">{vocabularyUnitSentence(vocabulary, language)}</span>
         </div>
       )}
-      <p className="av2-body">{vocabularyRuleSentence(vocabulary)}</p>
+      <p className="av2-body">{vocabularyRuleSentence(vocabulary, language)}</p>
       {claimable.length > 0 && (
         <>
           <button
@@ -340,7 +350,7 @@ function VocabularySection({
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
           >
-            Je connais déjà un mot…
+            {copy.claim_word}
           </button>
           {open && (
             <ul className="ds-rows">
@@ -350,14 +360,14 @@ function VocabularySection({
                     {word.word}
                   </span>
                   {word.translation && <span className="ds-row__value">{word.translation}</span>}
-                  <EvidenceLine>{evidenceSentence(word.evidence)}</EvidenceLine>
+                  <EvidenceLine>{evidenceSentence(word.evidence, language)}</EvidenceLine>
                   <Action
                     tone="quiet"
                     inline
                     disabled={pending}
                     onClick={() => onClaim('word', String(word.word_id))}
                   >
-                    Je connais déjà
+                    {copy.claim}
                   </Action>
                 </li>
               ))}
@@ -369,22 +379,24 @@ function VocabularySection({
   );
 }
 
-function TodaySection({ today }: { today: DossierPayload['today'] }) {
-  const because = becauseSentence(today);
+function TodaySection({ today, language, copy }: Chrome & { today: DossierPayload['today'] }) {
+  const because = becauseSentence(today, language);
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-today">
       <p className="av2-label av2-label--story" id="ds-today">
-        La scène du jour
+        {copy.today_title}
       </p>
       {!today?.has_journey ? (
-        <p className="av2-body av2-body--lg">{NO_JOURNEY_FR}</p>
+        <p className="av2-body av2-body--lg">{noJourneySentence(language)}</p>
       ) : (
         <>
           <p className="av2-body av2-body--lg">
-            {because ?? 'Cette scène ne reprend aucune faute notée en particulier.'}
+            {because ?? copy.today_no_because}
           </p>
           <EvidenceRef>
-            {today.evidence?.on ? `séance du ${frenchShortDate(today.evidence.on)}` : 'séance du jour'}
+            {today.evidence?.on
+              ? fill(copy.evref_one, { date: shortDate(today.evidence.on, language) })
+              : copy.today_ref}
           </EvidenceRef>
         </>
       )}
@@ -398,7 +410,9 @@ function ClaimPanel({
   pending,
   onVerify,
   onCloseClaim,
-}: {
+  language,
+  copy,
+}: Chrome & {
   check: DossierClaimCheck;
   verdict: DossierClaimVerdict | null;
   pending?: boolean;
@@ -414,17 +428,19 @@ function ClaimPanel({
       <Frame
         foot={
           <Action tone="primary" onClick={onCloseClaim}>
-            Revenir au dossier
+            {copy.back_to_dossier}
           </Action>
         }
       >
-        <p className="av2-label">L’Atelier · Votre dossier</p>
-        <h1 className="av2-headline av2-headline--screen">Votre déclaration</h1>
+        <p className="av2-label">{copy.eyebrow}</p>
+        <h1 className="av2-headline av2-headline--screen">{copy.claim_title}</h1>
         <Notice tone={verdictTone(verdict.verdict)} live="status">
           {verdict.message_fr}
         </Notice>
         {verdict.next_review_date && (
-          <p className="ds-fine">Prochaine reprise le {frenchDate(verdict.next_review_date)}.</p>
+          <p className="ds-fine">
+            {fill(copy.next_repair_sentence, { date: longDate(verdict.next_review_date, language) })}
+          </p>
         )}
       </Frame>
     );
@@ -435,14 +451,14 @@ function ClaimPanel({
       <Frame
         foot={
           <Action tone="primary" onClick={onCloseClaim}>
-            Revenir au dossier
+            {copy.back_to_dossier}
           </Action>
         }
       >
-        <p className="av2-label">L’Atelier · Votre dossier</p>
-        <h1 className="av2-headline av2-headline--screen">Votre déclaration</h1>
+        <p className="av2-label">{copy.eyebrow}</p>
+        <h1 className="av2-headline av2-headline--screen">{copy.claim_title}</h1>
         <Notice tone="quiet" live="status">
-          {check.message_fr ?? 'Nous ne pouvons pas vérifier cette déclaration.'}
+          {check.message_fr ?? copy.claim_unverifiable}
         </Notice>
       </Frame>
     );
@@ -456,28 +472,25 @@ function ClaimPanel({
           <Action
             tone="primary"
             pending={pending}
-            pendingLabel="Vérification…"
+            pendingLabel={copy.verifying}
             disabled={!complete}
             onClick={() => onVerify(check.kind, check.target_id, answers)}
           >
-            Vérifier
+            {copy.verify}
           </Action>
           <Action tone="quiet" onClick={onCloseClaim}>
-            Annuler
+            {copy.cancel}
           </Action>
         </>
       }
     >
-      <p className="av2-label">L’Atelier · Votre dossier</p>
-      <h1 className="av2-headline av2-headline--screen">Deux questions, puis c’est réglé</h1>
+      <p className="av2-label">{copy.eyebrow}</p>
+      <h1 className="av2-headline av2-headline--screen">{copy.claim_heading}</h1>
       <p className="av2-body av2-body--lg" lang="fr">
         {check.label}
       </p>
       <Surface tone="outline">
-        <p className="ds-fine">
-          Si les deux réponses sont justes, nous avançons l’échéance. Si elles ne le sont pas,
-          rien n’est retiré et rien n’est ajouté.
-        </p>
+        <p className="ds-fine">{copy.claim_terms}</p>
       </Surface>
       {check.items.map((item) => (
         <div key={item.index} className="ds-item">
@@ -486,7 +499,7 @@ function ClaimPanel({
             {item.prompt_fr}
           </p>
           {textAnswerField({
-            label: `Question ${item.index + 1}`,
+            label: fill(copy.question, { n: item.index + 1 }),
             value: answers[item.index] ?? '',
             rows: 2,
             disabled: pending,
@@ -507,6 +520,9 @@ function ClaimPanel({
 export function DossierScreen(props: DossierScreenProps) {
   const { dossier, check, verdict, loading, error, pending, failure } = props;
   const phase: DossierPhase = phaseFor(dossier, { loading, error });
+  const language = useChromeLanguage();
+  const copy = dossierCopy(language);
+  const chrome: Chrome = { language, copy };
 
   const alert = failure ? (
     <Notice tone="alert" live="alert">
@@ -528,12 +544,12 @@ export function DossierScreen(props: DossierScreenProps) {
       <Frame
         foot={
           <Action tone="primary" onClick={props.onLeave}>
-            Revenir à l’Atelier
+            {copy.back_to_atelier}
           </Action>
         }
       >
-        <p className="av2-label">L’Atelier · Votre dossier</p>
-        <h1 className="av2-headline av2-headline--screen">Dossier indisponible</h1>
+        <p className="av2-label">{copy.eyebrow}</p>
+        <h1 className="av2-headline av2-headline--screen">{copy.unavailable}</h1>
         <p className="av2-body av2-body--lg">{phase.message}</p>
       </Frame>
     );
@@ -548,6 +564,7 @@ export function DossierScreen(props: DossierScreenProps) {
         pending={pending}
         onVerify={props.onVerify}
         onCloseClaim={props.onCloseClaim}
+        {...chrome}
       />
     );
   }
@@ -555,22 +572,24 @@ export function DossierScreen(props: DossierScreenProps) {
   const model = phase.dossier;
   return (
     <Frame>
-      <p className="av2-label">L’Atelier · Votre dossier</p>
-      <h1 className="av2-headline">Ce que nous croyons savoir de vous</h1>
+      <p className="av2-label">{copy.eyebrow}</p>
+      <h1 className="av2-headline">{copy.headline}</h1>
       {alert}
-      <LevelSection dossier={model} onOpenPlacement={props.onOpenPlacement} />
-      <CapabilitySection capabilities={model.capabilities} />
+      <LevelSection dossier={model} onOpenPlacement={props.onOpenPlacement} {...chrome} />
+      <CapabilitySection capabilities={model.capabilities} {...chrome} />
       <ErrataSection
         errata={model.errata as ErrataWithTotals}
         pending={pending}
         onClaim={props.onClaim}
+        {...chrome}
       />
       <VocabularySection
         vocabulary={model.vocabulary}
         pending={pending}
         onClaim={props.onClaim}
+        {...chrome}
       />
-      <TodaySection today={model.today} />
+      <TodaySection today={model.today} {...chrome} />
     </Frame>
   );
 }

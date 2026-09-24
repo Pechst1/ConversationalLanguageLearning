@@ -11,6 +11,7 @@ export type { RehearsalScreenProps } from './RehearsalScreen';
 export {
   DEBRIEF_CHOICES,
   capSentence,
+  debriefChoices,
   eventDateSentence,
   nextSlotSentence,
   nextTurnIndex,
@@ -19,3 +20,5 @@ export {
   turnsRemaining,
 } from './rehearsal-state';
 export type { DebriefOutcome, RehearsalPhase } from './rehearsal-state';
+export { REHEARSAL_COPY, rehearsalCopy } from './rehearsal-copy';
+export type { RehearsalCopy } from './rehearsal-copy';

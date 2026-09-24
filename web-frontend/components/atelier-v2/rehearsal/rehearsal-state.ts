@@ -13,9 +13,15 @@
  *     sends `rubric_native: null` while it is live; nothing in the renderer may
  *     invent a substitute, so `phaseFor` never exposes a rubric before
  *     `finished`.
+ *
+ * WP-82: every sentence is chrome, read from `rehearsal-copy.ts` in the chrome
+ * language. Each function takes that language last and defaults to French.
  */
 
 import type { RehearsalEnvelope, RehearsalView } from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
+
+import { fill, rehearsalCopy } from './rehearsal-copy';
 
 export type RehearsalPhase =
   | { kind: 'loading' }
@@ -89,39 +95,48 @@ export function phaseFor(
 }
 
 /** «il vous reste 1 répétition cette semaine» — a sentence, never a fraction. */
-export function capSentence(cap: RehearsalEnvelope['cap']): string {
-  if (cap.limit <= 0) return 'Les répétitions sont désactivées.';
-  if (cap.remaining <= 0) return 'Vous avez utilisé vos répétitions de la semaine.';
-  if (cap.remaining === 1) return 'Il vous reste une répétition cette semaine.';
-  return `Il vous reste ${cap.remaining} répétitions cette semaine.`;
+export function capSentence(cap: RehearsalEnvelope['cap'], language: ControlLanguage = 'fr'): string {
+  const copy = rehearsalCopy(language);
+  if (cap.limit <= 0) return copy.cap_off;
+  if (cap.remaining <= 0) return copy.cap_spent;
+  if (cap.remaining === 1) return copy.cap_one;
+  return fill(copy.cap_many, { n: cap.remaining });
 }
 
-/** When the next slot frees, in French, or null when there is nothing to say. */
-export function nextSlotSentence(iso: string | null): string | null {
+/** When the next slot frees, or null when there is nothing to say. */
+export function nextSlotSentence(iso: string | null, language: ControlLanguage = 'fr'): string | null {
   if (!iso) return null;
   const when = new Date(iso);
   if (Number.isNaN(when.getTime())) return null;
-  const label = when.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  return `Prochaine répétition possible le ${label}.`;
+  const copy = rehearsalCopy(language);
+  const label = when.toLocaleDateString(copy.locale, { weekday: 'long', day: 'numeric', month: 'long' });
+  return fill(copy.next_slot, { date: label });
 }
 
-/** The date of the real event, in French, or null when nobody named one. */
-export function eventDateSentence(rehearsal: RehearsalView): string | null {
+/** The date of the real event, or null when nobody named one. */
+export function eventDateSentence(rehearsal: RehearsalView, language: ControlLanguage = 'fr'): string | null {
   if (!rehearsal.event_date) return null;
   const when = new Date(`${rehearsal.event_date}T12:00:00`);
   if (Number.isNaN(when.getTime())) return null;
-  const label = when.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  return `C’est ${label}.`;
+  const copy = rehearsalCopy(language);
+  const label = when.toLocaleDateString(copy.locale, { weekday: 'long', day: 'numeric', month: 'long' });
+  return fill(copy.event_date, { date: label });
 }
 
 export type DebriefOutcome = 'done' | 'partly' | 'not_yet';
 
 /** The three outcomes, in the order the learner reads them. */
-export const DEBRIEF_CHOICES: ReadonlyArray<{ id: DebriefOutcome; label: string; hint: string }> = [
-  { id: 'done', label: 'Je l’ai fait', hint: 'La conversation a eu lieu et vous avez obtenu ce que vous vouliez.' },
-  { id: 'partly', label: 'En partie', hint: 'Vous avez parlé, mais tout n’a pas abouti.' },
-  { id: 'not_yet', label: 'Pas encore', hint: 'Ce n’est pas arrivé. Ce n’est pas un échec : c’est une information.' },
-];
+export function debriefChoices(
+  language: ControlLanguage = 'fr',
+): ReadonlyArray<{ id: DebriefOutcome; label: string; hint: string }> {
+  const copy = rehearsalCopy(language);
+  return [
+    { id: 'done', label: copy.debrief_done, hint: copy.debrief_done_hint },
+    { id: 'partly', label: copy.debrief_partly, hint: copy.debrief_partly_hint },
+    { id: 'not_yet', label: copy.debrief_not_yet, hint: copy.debrief_not_yet_hint },
+  ];
+}
+export const DEBRIEF_CHOICES = debriefChoices('fr');
 
 /**
  * What the result panel says about the rehearsal itself.
@@ -129,13 +144,14 @@ export const DEBRIEF_CHOICES: ReadonlyArray<{ id: DebriefOutcome; label: string;
  * Deliberately modest: the rehearsal score is *not* the package's metric, so it
  * is reported as what was covered, never as a grade or a percentage.
  */
-export function resultSentence(rehearsal: RehearsalView): string {
+export function resultSentence(rehearsal: RehearsalView, language: ControlLanguage = 'fr'): string {
+  const copy = rehearsalCopy(language);
   const result = rehearsal.result;
-  if (!result) return 'Répétition terminée.';
-  if (result.outcome === 'met') return 'Vous avez dit tout ce qu’il fallait dire.';
+  if (!result) return copy.result_none;
+  if (result.outcome === 'met') return copy.result_met;
   if (result.outcome === 'partially_met') {
-    const plural = result.points_covered > 1 ? 'points' : 'point';
-    return `Vous avez couvert ${result.points_covered} ${plural} sur ${result.points_total}.`;
+    const template = result.points_covered > 1 ? copy.result_partial_many : copy.result_partial_one;
+    return fill(template, { n: result.points_covered, total: result.points_total });
   }
-  return 'L’essentiel n’est pas encore passé. La vraie conversation reste à faire.';
+  return copy.result_not_yet;
 }

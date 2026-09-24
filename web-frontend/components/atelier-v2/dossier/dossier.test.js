@@ -17,8 +17,10 @@
  *      adding them into one number;
  *   5. the claim panel says, before the learner answers, that a failure costs
  *      nothing — and no accepted answer is anywhere in the payload;
- *   6. the screen's copy is French, the page is on av2, and it hard-codes no
- *      colour, so dark mode is inherited rather than re-implemented.
+ *   6. the screen's chrome comes from `dossier-copy.ts` (WP-82: the learner's
+ *      language up to A2, French from B1), the page is on av2, and it
+ *      hard-codes no colour, so dark mode is inherited rather than
+ *      re-implemented.
  *
  * Run: `node components/atelier-v2/dossier/dossier.test.js`
  */
@@ -60,6 +62,8 @@ const {
   verifiedSentence,
   vocabularySentence,
 } = require(path.join(HERE, 'dossier-state.ts'));
+const { dossierCopy } = require(path.join(HERE, 'dossier-copy.ts'));
+const FR = dossierCopy('fr');
 
 let passed = 0;
 function test(name, fn) {
@@ -232,16 +236,19 @@ test('dates are French and the first of the month is written 1er', () => {
 // 7. The screen's own contract, read from the source.
 test('the claim panel says what a failure costs before the learner answers', () => {
   const screen = fs.readFileSync(path.join(HERE, 'DossierScreen.tsx'), 'utf8');
-  assert.ok(screen.includes('Je connais déjà'), 'the claim is offered in the learner’s words');
+  assert.equal(FR.claim, 'Je connais déjà', 'the claim is offered in the learner’s words');
+  assert.ok(screen.includes('{copy.claim}'));
   assert.ok(
-    screen.includes('rien n’est retiré et rien n’est ajouté'),
+    FR.claim_terms.includes('rien n’est retiré et rien n’est ajouté'),
     'the learner is told a failed claim costs nothing',
   );
-  assert.ok(screen.includes('nous avançons l’échéance'), 'and what passing does');
-  assert.ok(screen.includes('Vérifier'), 'the primary action is a verification, not a switch');
+  assert.ok(FR.claim_terms.includes('nous avançons l’échéance'), 'and what passing does');
+  assert.ok(screen.includes('{copy.claim_terms}'));
+  assert.equal(FR.verify, 'Vérifier', 'the primary action is a verification, not a switch');
+  assert.ok(screen.includes('{copy.verify}'));
 });
 
-test('the screen is on the av2 system, speaks French, and hard-codes no colour', () => {
+test('the screen is on the av2 system, reads its chrome from the table, and hard-codes no colour', () => {
   const screen = fs.readFileSync(path.join(HERE, 'DossierScreen.tsx'), 'utf8');
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/dossier.tsx'), 'utf8');
   const state = fs.readFileSync(path.join(HERE, 'dossier-state.ts'), 'utf8');
@@ -249,12 +256,21 @@ test('the screen is on the av2 system, speaks French, and hard-codes no colour',
   assert.ok(screen.includes('av2-headline'));
   assert.ok(!screen.includes('neo-'), 'no legacy chrome');
   assert.ok(!screen.includes('text-sm'), 'no utility-class chrome');
-  // Learner-facing strings are French. Checked as whole rendered labels rather
-  // than substrings: "Continuer" contains "Continue".
-  for (const english of ['>Continue<', 'Your level', 'I already know', 'Check answer', 'Not yet<']) {
-    assert.ok(!screen.includes(english), `English copy: ${english}`);
-    assert.ok(!state.includes(english), `English copy: ${english}`);
+  // WP-82: no inline chrome in either language — the screen and the state read
+  // `dossier-copy.ts`. Checked as whole rendered labels rather than substrings.
+  for (const phrase of [
+    '>Continue<', 'Your level', 'I already know', 'Check answer', 'Not yet<',
+    'Votre niveau', 'Je connais déjà', 'Revenir au dossier', 'Pas encore tenté',
+    'Niveau déclaré', 'Cette action n’a pas abouti',
+  ]) {
+    // Comments may quote the French; only shipped code counts.
+    for (const source of [screen, state, page]) {
+      const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      assert.ok(!code.includes(phrase), `inline chrome: ${phrase}`);
+    }
   }
+  assert.ok(screen.includes('useChromeLanguage()'), 'the screen follows the one language rule');
+  assert.ok(page.includes('useChromeLanguage()'), 'the page follows the one language rule');
   // Dark capability comes from the tokens; a hard-coded hex would opt out of it.
   const hexes = (page.match(/#[0-9a-fA-F]{3,8}\b/g) || []).concat(
     screen.match(/#[0-9a-fA-F]{3,8}\b/g) || [],
