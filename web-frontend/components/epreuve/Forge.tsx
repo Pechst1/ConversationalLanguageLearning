@@ -253,6 +253,17 @@ export function ForgeStyles() {
 .av2 .forge-head__test-out:disabled { color: var(--av2-muted); text-decoration: none; cursor: default; }
 @media (max-width: 360px) { .av2 .forge-head__test-out { margin-left: 0; } }
 
+/* One Garamond line per screen: in the forge the exercise prompt is it, so the
+   legacy rule panel (a rule with no authored card) is set in the sans. */
+.av2 .forge-sheet .ep-rule .rule-panel > p:first-of-type,
+.av2 .forge-sheet .ep-rule .examples p,
+.av2 .forge-sheet .ep-rule .ep-rule__ex {
+  font-family: var(--av2-sans);
+  font-style: normal;
+  font-weight: 600;
+  font-size: var(--av2-t-body);
+}
+
 .av2 .forge-change {
   display: flex;
   align-items: center;

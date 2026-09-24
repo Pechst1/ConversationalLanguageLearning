@@ -3467,7 +3467,7 @@ function SessionView({
         </section>
       )}
       {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
-        <section className="ep-sheet">
+        <section className={forge ? 'ep-sheet forge-sheet' : 'ep-sheet'}>
           {forge ? (
             <>
               {/* WP-S6: the rule moved — a small card names the next one. */}
@@ -3614,7 +3614,7 @@ function SessionView({
                   />
                 </div>
               )}
-              {activeLock && currentSubmitted && (
+              {activeLock && currentSubmitted && !forge && (
                 <EpLock
                   title={activeConceptTitle}
                   retired={Number(activeLock.retired_now ?? activeLock.retired_drills ?? 0)}
