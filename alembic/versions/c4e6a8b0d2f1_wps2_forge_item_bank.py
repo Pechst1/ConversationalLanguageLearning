@@ -6,7 +6,7 @@ days. ``atelier_exercise_sets.pool_band`` marks a vetted LLM set as a shared
 pool entry for one learner band (A1, A2, …).
 
 Revision ID: c4e6a8b0d2f1
-Revises: b7d9f1a3c5e8
+Revises: c3e5a7b9d1f4
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision = "c4e6a8b0d2f1"
-down_revision = "b7d9f1a3c5e8"
+down_revision = "c3e5a7b9d1f4"
 branch_labels = None
 depends_on = None
 
