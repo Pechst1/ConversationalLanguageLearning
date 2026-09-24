@@ -1986,6 +1986,7 @@ _INSTRUCTIONS = {
     "forge.sentence": "Write the sentence in French.",
     "forge.speak": "Say it aloud in French, then check the transcript.",
     "forge.conversation": "Answer the message in French, with the rule of the day.",
+    "forge.scene": "Answer in French, with the rule of the day.",
 }
 
 
@@ -2215,7 +2216,18 @@ def production_prompt(item: BankItem) -> str:
     return f'{_scene_for(item)} Say in French: "{item.en}"'
 
 
-def output_item(item: BankItem, *, round_name: str, requirement: dict[str, Any]) -> dict[str, Any]:
+def output_item(
+    item: BankItem,
+    *,
+    round_name: str,
+    requirement: dict[str, Any],
+    coach: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """A production item. With a ``coach`` the conversation rung is a two-line
+    scene (WP-S5), or ``None`` when this item cannot be one with that coach."""
+
+    if round_name == "conversation" and coach:
+        return scene_item(item, coach=coach, requirement=requirement)
     kind = {"sentence": "short_sentence", "speak": "spoken_response", "conversation": "conversation_turn"}[round_name]
     words = len(item.sentence.split())
     return {
@@ -2229,6 +2241,41 @@ def output_item(item: BankItem, *, round_name: str, requirement: dict[str, Any])
         "min_words": max(2, min(words - 2, 5)),
         "max_words": max(24, words + 12),
         **_answer_key(item),
+    }
+
+
+def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, Any]) -> dict[str, Any] | None:
+    """WP-S5 — the free-use rung as a two-line scene with the rule's coach.
+
+    The coach says a line; the learner replies, and the reply needs the rule.
+    The payload is the conversation turn the séance page already renders
+    (``character`` byline, ``prompt``) plus the scene itself (``scene.lines``)
+    for the coach's portrait; it is graded like any production, locally and
+    then by the relecture (WP-S1), against ``example_answer``.
+    """
+
+    from app.services.forge_coaches import mini_scene
+
+    scene = mini_scene(item, coach)
+    if scene is None:
+        return None
+    coach_line, reply = scene["lines"][0], scene["reply"]
+    words = len(reply.split())
+    return {
+        "id": _item_id(item.unit, item, "scene"),
+        "type": "conversation_turn",
+        "instruction": _INSTRUCTIONS["forge.scene"],
+        "instruction_key": "forge.scene",
+        "prompt": f'{coach["name"]}: « {coach_line["fr"]} » ({coach_line["en"]}) Reply in French: "{scene["reply_en"]}"',
+        "character": {"id": coach["id"], "name": coach["name"], "register": coach.get("register", "tu")},
+        "coach": dict(coach),
+        "scene": {"lines": scene["lines"]},
+        "example_answer": reply,
+        "requirements": [dict(requirement)],
+        "min_words": max(2, min(words - 2, 5)),
+        "max_words": max(24, words + 12),
+        **_answer_key(item),
+        "accepted_answers": [reply],
     }
 
 
@@ -2324,6 +2371,7 @@ def build_bank_set(
     known: Iterable[str] = (),
     rule_examples: Iterable[str] = (),
     pool_outputs: dict[str, Any] | None = None,
+    story: Iterable[str] = (),
 ) -> BankSet | None:
     """The whole exercise payload for one concept, from its units' templates.
 
@@ -2346,6 +2394,7 @@ def build_bank_set(
             exclude=blocked,
             known=known,
             detector=unit_detector(unit),
+            story=story,
         )
         for unit in units
     ]
@@ -2399,8 +2448,24 @@ def build_bank_set(
         repairs.append(take(transform_item))
     if any(entry is None for entry in (*fills, *builds, *sorts, *repairs)) or len(queue) < 5:
         return None
+    # WP-S5: the free-use rung is a two-line scene with the rule's coach —
+    # seat the first remaining item that can be one in the conversation slot.
+    from app.services.forge_coaches import coach_for_concept
+
+    coach = coach_for_concept(external_id)
+    scene_index = next(
+        (index for index, candidate in enumerate(queue) if coach and scene_item(candidate, coach=coach, requirement=requirement)),
+        None,
+    )
+    if scene_index is not None and scene_index != 2:
+        queue.insert(2, queue.pop(scene_index))
     sentence_item, speak_item, conversation_item, produce_idea, produce_model = queue[:5]
+    conversation = output_item(conversation_item, round_name="conversation", requirement=requirement, coach=coach)
+    if conversation is None:
+        conversation = output_item(conversation_item, round_name="conversation", requirement=requirement)
     payload = dict(base)
+    if coach:
+        payload["coach"] = dict(coach)
     payload["recognize"] = {
         "fill": {"items": fills},
         "word_bank": {"items": builds},
@@ -2415,7 +2480,7 @@ def build_bank_set(
         payload["output_ladder"] = {
             "sentence": {"items": [output_item(sentence_item, round_name="sentence", requirement=requirement)]},
             "speak": {"items": [output_item(speak_item, round_name="speak", requirement=requirement)]},
-            "conversation": {"items": [output_item(conversation_item, round_name="conversation", requirement=requirement)]},
+            "conversation": {"items": [conversation]},
         }
         payload["produce"] = produce_block(produce_idea, produce_model, requirement=requirement)
     payload["forge"] = {

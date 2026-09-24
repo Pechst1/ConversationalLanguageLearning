@@ -264,7 +264,8 @@ def _with_serial_conversation(
     output_ladder = dict(payload.get("output_ladder") or {})
     conversation = dict(output_ladder.get("conversation") or {})
     items = [dict(item or {}) for item in conversation.get("items") or []]
-    if not items:
+    if not items or items[0].get("scene"):
+        # WP-S5: a coached two-line scene keeps its coach as the character.
         return payload
     character = context["character"]
     register = str(character.get("register") or "vous")

@@ -120,10 +120,10 @@
  "FR2_A21_POLITE_CONDITIONAL": {
   "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular", "O": "comp:!manner@V", "S": "pron:=je_m"},
   "frames": [
-   {"id": "aimerais", "fr": "[[J'aimerais // J'aimerai // Je aimerais]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "weight": 2, "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}},
+   {"id": "aimerais", "fr": "[[J'aimerais // J'aimerai // Je aimerais]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "weight": 2, "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}, "ask": {"fr": "Qu'est-ce que je peux faire pour vous ?", "en": "What can I do for you?"}},
    {"id": "pourriez", "fr": "[[Pourriez-vous // Pourrait-vous // Pourriez-vous de]] {V|inf} {O}, s'il vous plaît ?", "en": "Could you {S|en_vc:V:O:base}, please?", "weight": 2, "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}},
    {"id": "pourrais", "fr": "[[Tu pourrais // Tu pourrait // Tu pourras]] {V|inf} {O}, s'il te plaît ?", "en": "Could you {S|en_vc:V:O:base}, please?", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}},
-   {"id": "voudrais", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}, s'il vous plaît.", "en": "I would like to {S|en_vc:V:O:base}, please.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}},
+   {"id": "voudrais", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}, s'il vous plaît.", "en": "I would like to {S|en_vc:V:O:base}, please.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}, "ask": {"fr": "Qu'est-ce que je peux faire pour vous ?", "en": "What can I do for you?"}},
    {"id": "voudriez", "fr": "[[Vous voudriez // Vous voudrez // Vous voudriez de]] {V|inf} {O} ?", "en": "Would you like to {S|en_vc:V:O:base}?", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap", "O": "comp:!manner,!adv_pre@V"}},
    {"id": "pourriez-marchand", "fr": "[[Pourriez-vous // Pourrait-vous // Pourriez-vous de]] {V|inf} {O}, Monsieur Marchand ?", "en": "Could you {S|en_vc:V:O:base}, Mr Marchand?", "weight": 2}
   ]

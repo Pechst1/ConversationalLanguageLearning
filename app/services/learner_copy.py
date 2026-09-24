@@ -1018,6 +1018,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
         "fr": "Répondez au message en français, avec la règle du jour.",
     },
+    # WP-S5: the free-use rung as a two-line scene with the rule's coach.
+    "forge.scene": {
+        "en": "Answer in French, with the rule of the day.",
+        "de": "Antworte auf Französisch, mit der Regel von heute.",
+        "fr": "Répondez en français, avec la règle du jour.",
+    },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",
         "de": "Benutze die Zielgrammatik sichtbar in deiner Antwort.",

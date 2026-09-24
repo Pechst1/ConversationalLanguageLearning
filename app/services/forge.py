@@ -49,6 +49,7 @@ from app.core.forge import ForgeState, ForgeUnit, Role, Rung, Verdict
 from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.services.forge_coaches import coach_for_concept, coach_mood
 
 FORGE_KEY = "forge"
 #: Session status of a running / finished «Épreuve de la règle». Kept apart from
@@ -343,6 +344,17 @@ class BankItemProvider:
         self.sets = sets
         self.concepts = concepts
         self.payloads = PayloadItemProvider({cid: dict(item.payload or {}) for cid, item in sets.items()})
+        self._story: frozenset[str] | None = None
+
+    @property
+    def story(self) -> frozenset[str]:
+        """WP-S5: what the learner's story has lately been about (read once)."""
+
+        if self._story is None:
+            from app.services.forge_story import story_focus
+
+            self._story = story_focus(self.db, self.user)
+        return self._story
 
     @classmethod
     def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> BankItemProvider:
@@ -394,7 +406,11 @@ class BankItemProvider:
             return item_bank.transform_item(candidate)
         if rung == Rung.PRODUCE:
             return item_bank.output_item(candidate, round_name="sentence", requirement=requirement)
-        return item_bank.output_item(candidate, round_name="conversation", requirement=requirement)
+        # WP-S5: free use is a two-line scene with the rule's coach; an item
+        # that cannot be one (it names the coach, say) gives way to the next.
+        return item_bank.output_item(
+            candidate, round_name="conversation", requirement=requirement, coach=coach_for_concept(concept.external_id)
+        )
 
     def _requirement(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
         from app.services.atelier import _concept_label
@@ -472,6 +488,7 @@ class BankItemProvider:
                 random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
                 exclude=blocked,
                 detector=item_bank.unit_detector(unit),
+                story=self.story,
             )
             for tries, candidate in enumerate(stream):
                 if tries >= self.MAX_CANDIDATES:
@@ -838,6 +855,15 @@ class ForgeService:
 
     # -- serving --------------------------------------------------------------
 
+    def coach_for(self, concept_id: int) -> dict[str, Any] | None:
+        """WP-S5: the rule's coach (cached per service)."""
+
+        cache = self.__dict__.setdefault("_coaches", {})
+        if concept_id not in cache:
+            concept = self.db.get(GrammarConcept, int(concept_id))
+            cache[concept_id] = coach_for_concept(concept.external_id) if concept is not None else None
+        return cache[concept_id]
+
     def provider(self, *, user: User, session: AtelierSession) -> ItemProvider:
         return self._item_provider or BankItemProvider.for_session(self.db, user=user, session=session)
 
@@ -869,6 +895,8 @@ class ForgeService:
                     # The item itself: a bank top-up is not in the exercise
                     # set the client loaded at the start.
                     "item": dict(item.payload or {}),
+                    # WP-S5: who teaches this rule.
+                    "coach": self.coach_for(slot.concept_id),
                 }
                 state.pending = pending
                 _store_state(session, state)
@@ -911,6 +939,7 @@ class ForgeService:
                     "rung_name": core.rung_name(track.rung),
                     "served": track.served,
                     "topped": track.topped,
+                    "coach": self.coach_for(track.concept_id),
                 }
                 for track in state.tracks
             ],
@@ -959,7 +988,7 @@ class ForgeService:
         state.served_fingerprints.append(exercise_key)
         state.history[-1]["exercise_key"] = exercise_key
         now = now or datetime.now(UTC)
-        self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt, now=now)
+        held = self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt, now=now)
         if state.mode == core.MODE_TEST_OUT and state.finished:
             self._finish_test_out(user=user, session=session, state=state, now=now)
         _store_state(session, state)
@@ -971,6 +1000,10 @@ class ForgeService:
             "new_rung": decision.new_rung,
             "counted": decision.counted,
             "schedule": decision.schedule,
+            # WP-S5: the rule's coach, and the face they make at this answer.
+            "held": held,
+            "coach": self.coach_for(int(attempt.concept_id)),
+            "coach_mood": coach_mood(correct=verdict.correct, checked=verdict.checked, held=held),
         }
         attempt.correction_payload = correction
         flag_modified(attempt, "correction_payload")
@@ -1031,19 +1064,22 @@ class ForgeService:
         attempt: AtelierAttempt,
         now: datetime,
         move_rung: bool = True,
-    ) -> None:
+    ) -> bool:
+        """Write one answer's evidence; ``True`` when it made the rule held (WP-S5: the coach is moved)."""
+
         from app.services.atelier import atelier_calibration_adjustment
         from app.services.concept_life import note_concept_evidence
         from app.services.grammar import GrammarService, apply_grammar_evidence
         from app.services.journey_learning import journey_credited_today, record_drill_credit
 
         progress = GrammarService(self.db).get_or_create_progress(user_id=user.id, concept_id=decision.concept_id)
+        was_held = getattr(progress, "held_at", None) is not None
         if move_rung and state.mode == core.MODE_SEANCE:
             progress.forge_rung = int(decision.new_rung)
         evidence = decision.evidence
         if evidence is None:
             self.db.add(progress)
-            return
+            return False
         schedule = decision.schedule
         if schedule and evidence.correct and journey_credited_today(
             self.db, user=user, target_kind="grammar", target_id=str(decision.concept_id)
@@ -1067,6 +1103,7 @@ class ForgeService:
         else:
             note_concept_evidence(progress, evidence, now=now)
         self.db.add(progress)
+        return not was_held and getattr(progress, "held_at", None) is not None
 
     def _finish_test_out(self, *, user: User, session: AtelierSession, state: ForgeState, now: datetime) -> None:
         from app.services.grammar import GrammarService

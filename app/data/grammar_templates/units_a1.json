@@ -24,16 +24,16 @@
  },
  "FR2_A11_IL_Y_A": {
   "frames": [
-   {"id": "ilya-place", "fr": "[[Il y a // Il est // Il a]] {N|indef} {P|a}.", "en": "There is {N|en:a} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 3},
-   {"id": "ilya-room", "fr": "[[Il y a // Il est // Il a]] {N|indef} dans {R|def}.", "en": "There is {N|en:a} in {R|en:the}.", "slots": {"N": "noun:count,furniture|lose|read|wear|listen", "R": "noun:room"}},
-   {"id": "ilya-plural", "fr": "[[Il y a // Ils sont // Il y ont]] {N|indef:p} {P|a}.", "en": "There are {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 2},
+   {"id": "ilya-place", "fr": "[[Il y a // Il est // Il a]] {N|indef} {P|a}.", "en": "There is {N|en:a} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 3, "ask": {"fr": "Qu'est-ce qu'il y a {P|a} ?", "en": "What is there at {P|en:the}?"}},
+   {"id": "ilya-room", "fr": "[[Il y a // Il est // Il a]] {N|indef} dans {R|def}.", "en": "There is {N|en:a} in {R|en:the}.", "slots": {"N": "noun:count,furniture|lose|read|wear|listen", "R": "noun:room"}, "ask": {"fr": "Qu'est-ce qu'il y a dans {R|def} ?", "en": "What is there in {R|en:the}?"}},
+   {"id": "ilya-plural", "fr": "[[Il y a // Ils sont // Il y ont]] {N|indef:p} {P|a}.", "en": "There are {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 2, "ask": {"fr": "Qu'est-ce qu'il y a {P|a} ?", "en": "What is there at {P|en:the}?"}},
    {"id": "ilya-neg", "fr": "[[Il n'y a pas {N|q} // Il n'y a pas {N|part} // Il n'y a pas {N|indef}]] {P|a}.", "en": "There is no {N.en} at {P|en:the}.", "slots": {"N": "noun:mass,food", "P": "noun:place,town"}}
   ]
  },
  "FR2_A11_UN_UNE": {
   "frames": [
    {"id": "unune-has", "fr": "{C} a [[{N|indef} // {N|indef_x}]] dans {R|def}.", "en": "{C} has {N|en:a} in {R|en:the}.", "slots": {"C": "cast", "N": "noun:count,obj,possess", "R": "noun:room"}, "weight": 2},
-   {"id": "unune-want", "fr": "Je voudrais [[{N|indef} // {N|indef_x}]], s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}},
+   {"id": "unune-want", "fr": "Je voudrais [[{N|indef} // {N|indef_x}]], s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "unune-look", "fr": "{S|sv:chercher} [[{N|indef} // {N|indef_x}]] {P|a}.", "en": "{S|en_sv:chercher} {N|en:a} at {P|en:the}.", "slots": {"S": "pron", "N": "noun:count,obj", "P": "noun:place,town"}},
    {"id": "unune-plural", "fr": "{C} achète [[{N|indef:p} // {N|indef_x:p}]] {P|a}.", "en": "{C} buys {N|en:pl} at {P|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy", "P": "noun:at_shop"}}
   ]
@@ -43,7 +43,7 @@
    {"id": "lela-like", "fr": "{C} aime [[{N|def} // {N|def_x}]].", "en": "{C} likes {N.en}.", "slots": {"C": "cast", "N": "noun:mass"}},
    {"id": "lela-is", "fr": "[[{N|def} // {N|def_x}]] est {A|agree:N}.", "en": "{N|en:the} is {A.en}.", "slots": {"N": "noun:count,obj|place|food", "A": "adj@N"}, "weight": 3},
    {"id": "lela-look", "fr": "{S|sv:chercher} [[{N|def} // {N|def_x}]].", "en": "{S|en_sv:chercher} {N|en:the}.", "slots": {"S": "pron", "N": "noun:count,lose|find|town"}, "weight": 2},
-   {"id": "lela-where", "fr": "Où est [[{N|def} // {N|def_x}]] ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:count,obj|place"}},
+   {"id": "lela-where", "fr": "Où est [[{N|def} // {N|def_x}]] ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:count,obj|place"}, "ask": {"fr": "Tu cherches quelque chose ?", "en": "Are you looking for something?"}},
    {"id": "lela-plural", "fr": "[[{N|def:p} // {N|def_x:p}]] sont {A|agree:N:p}.", "en": "{N|en:the_pl} are {A.en}.", "slots": {"N": "noun:count,obj|food", "A": "adj@N"}},
    {"id": "lela-cast-look", "fr": "{C} cherche [[{N|def} // {N|def_x}]].", "en": "{C} is looking for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,lose|find"}, "weight": 2}
   ]
@@ -75,7 +75,7 @@
  "FR2_A11_QUESTION_WORDS": {
   "gloss": true,
   "frames": [
-   {"id": "qw-where-is", "fr": "[[Où // Quand // Comment]] est {N|def} ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:place|obj,count"}},
+   {"id": "qw-where-is", "fr": "[[Où // Quand // Comment]] est {N|def} ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:place|obj,count"}, "ask": {"fr": "Tu cherches quelque chose ?", "en": "Are you looking for something?"}},
    {"id": "qw-where-do", "fr": "[[Où // Quand // Combien]] est-ce que {S} {S|v:V} ?", "en": "Where {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:2s|2p|3s|3p,!on", "V": "verb:=travailler|habiter|dîner|déjeuner|manger|nager|étudier"}},
    {"id": "qw-when-do", "fr": "[[Quand // Où // Comment]] est-ce que {S} {S|v:V} ?", "en": "When {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:2s|2p|3s|3p,!on", "V": "verb:=arriver|partir|rentrer|commencer|finir|sortir"}},
    {"id": "qw-how-much", "fr": "[[Combien // Comment // Où]] coûte {N|def} ?", "en": "How much does {N|en:the} cost?", "slots": {"N": "noun:count,buy"}},
@@ -88,8 +88,8 @@
  },
  "FR2_A11_JE_VOUDRAIS": {
   "frames": [
-   {"id": "voudrais-thing", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|indef}, s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}},
-   {"id": "voudrais-some", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|part}, s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}},
+   {"id": "voudrais-thing", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|indef}, s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
+   {"id": "voudrais-some", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|part}, s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "voudrais-do", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "slots": {"S": "pron:=je_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event", "O": "comp:!adv_pre@V"}, "weight": 2},
    {"id": "voulez-vous", "fr": "[[Vous voulez // Vous voulais // Vous veux]] {N|indef} ?", "en": "Would you like {N|en:a}?", "slots": {"N": "noun:count,dish|bakery|produce|drink"}},
    {"id": "tu-veux", "fr": "[[Tu veux // Tu veut // Tu voulez]] {V|inf} {O} ?", "en": "Do you want to {S|en_vc:V:O:base}?", "slots": {"S": "pron:=tu_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event", "O": "comp:!adv_pre@V"}, "weight": 2},
@@ -99,7 +99,7 @@
  "FR2_A11_NUMBERS": {
   "gloss": true,
   "frames": [
-   {"id": "num-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:small@N"}, "weight": 3},
+   {"id": "num-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:small@N"}, "weight": 3, "ask": {"fr": "Combien coûte {N|def} ?", "en": "How much does {N|en:the} cost?"}},
    {"id": "num-total", "fr": "Ça fait [[{M} // {M|x}]] euros, s'il vous plaît.", "en": "That's {M.digits} euros, please.", "slots": {"M": "num:small"}},
    {"id": "num-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy,priced", "M": "num:small@N"}, "weight": 2},
    {"id": "num-ticket", "fr": "Le billet pour {G} coûte [[{M} // {M|x}]] euros.", "en": "The ticket to {G.en} costs {M.digits} euros.", "slots": {"G": "geo:city", "M": "num:small"}}
@@ -156,7 +156,7 @@
  "FR2_A11_PARTITIVE": {
   "frames": [
    {"id": "part-verb", "fr": "{S|sv:V} [[{N|part} // {N|part_x}]].", "en": "{S|en_sv:V} {N.en}.", "slots": {"S": "pron:1s|2s|3s|2p", "V": "verb:=manger|boire|acheter", "N": "obj:mass@V"}, "weight": 2},
-   {"id": "part-want", "fr": "Je voudrais [[{N|part} // {N|part_x}]], s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}},
+   {"id": "part-want", "fr": "Je voudrais [[{N|part} // {N|part_x}]], s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "part-have", "fr": "Vous avez [[{N|part} // {N|part_x}]] ?", "en": "Do you have {N|en:any}?", "slots": {"N": "noun:mass,food"}},
    {"id": "part-do", "fr": "{S|sv:faire} [[{A|part} // {A|part_x}]] {T}.", "en": "{S|en_svc:faire:A:prog} {T.en}.", "slots": {"S": "pron:1s|2s|3s", "A": "activity", "T": "time_future"}},
    {"id": "part-prendre", "fr": "{S|sv:prendre} [[{N|part} // {N|part_x}]].", "en": "{S|en_sv:avoir} {N.en}.", "slots": {"S": "pron:1s|2s|3s|2p", "N": "noun:mass,drink|dish|deli"}},
@@ -235,7 +235,7 @@
   "gloss": true,
   "slots": {"M": "num:big"},
   "frames": [
-   {"id": "big-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:big@N"}, "weight": 3},
+   {"id": "big-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:big@N"}, "weight": 3, "ask": {"fr": "Combien coûte {N|def} ?", "en": "How much does {N|en:the} cost?"}},
    {"id": "big-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy,priced", "M": "num:big@N"}, "weight": 2},
    {"id": "big-people", "fr": "Il y a [[{M} // {M|x}]] personnes {P|a}.", "en": "There are {M.digits} people at {P|en:the}.", "slots": {"P": "noun:place,town"}}
   ]
@@ -244,8 +244,8 @@
   "gloss": true,
   "slots": {"H": "clock"},
   "frames": [
-   {"id": "time-is", "fr": "Il est [[{H} // {H|x}]].", "en": "It is {H.en}."},
-   {"id": "time-cest", "fr": "[[Il est // C'est // Il a]] {H} maintenant.", "en": "It is {H.en} now."},
+   {"id": "time-is", "fr": "Il est [[{H} // {H|x}]].", "en": "It is {H.en}.", "ask": {"fr": "Il est quelle heure ?", "en": "What time is it?"}},
+   {"id": "time-cest", "fr": "[[Il est // C'est // Il a]] {H} maintenant.", "en": "It is {H.en} now.", "ask": {"fr": "Il est quelle heure ?", "en": "What time is it?"}},
    {"id": "time-arrive", "fr": "{C} arrive {P|a} [[à {H} // en {H} // à {H|x}]].", "en": "{C} arrives at {P|en:the} at {H.en}.", "slots": {"C": "cast", "P": "noun:place,town"}, "weight": 3},
    {"id": "time-starts", "fr": "{N|def} commence [[à {H} // en {H} // à {H|x}]].", "en": "{N|en:the} starts at {H.en}.", "slots": {"N": "noun:=film|concert|réunion|match|spectacle|examen|fête|émission"}, "weight": 2},
    {"id": "time-meet", "fr": "On se retrouve {P|a} [[à {H} // en {H} // à {H|x}]] ?", "en": "Shall we meet at {P|en:the} at {H.en}?", "slots": {"P": "noun:place,town"}, "weight": 2},
@@ -288,7 +288,7 @@
  "FR2_A12_QUANTITIES": {
   "frames": [
    {"id": "qty-buy", "fr": "{S|sv:acheter} [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "{S|en_sv:acheter} {Q|en_qty:N} {N|en:q}.", "slots": {"S": "pron", "Q": "qty:any", "N": "noun:food,buy"}, "weight": 3},
-   {"id": "qty-drink", "fr": "Je voudrais [[{Q} {N|q} // {Q} {N|q_x}]], s'il vous plaît.", "en": "I would like {Q.en} {N|en:q}, please.", "slots": {"Q": "qty_drink", "N": "noun:drink"}},
+   {"id": "qty-drink", "fr": "Je voudrais [[{Q} {N|q} // {Q} {N|q_x}]], s'il vous plaît.", "en": "I would like {Q.en} {N|en:q}, please.", "slots": {"Q": "qty_drink", "N": "noun:drink"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "qty-many", "fr": "Il y a [[beaucoup {N|q} // beaucoup {N|q_x}]] {P|a}.", "en": "There are a lot of {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|people", "P": "noun:place,town"}, "weight": 2},
    {"id": "qty-little", "fr": "{C} prend [[un peu {N|q} // un peu {N|q_x}]].", "en": "{C} has a little {N.en}.", "slots": {"C": "cast", "N": "noun:mass,dish|drink|deli|sweet"}},
    {"id": "qty-weigh", "fr": "{S|sv:acheter} [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "{S|en_sv:acheter} {Q.en} {N|en:q}.", "slots": {"S": "pron", "Q": "qty:weigh", "N": "noun:food,buy,weigh"}, "weight": 2},
