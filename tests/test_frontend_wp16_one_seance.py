@@ -95,7 +95,7 @@ def test_the_cahier_concept_fiche_still_seats_its_concept():
     """«Travailler cette règle à l'Atelier» must carry the rule it is on."""
 
     source = _read(GRAMMAR_PAGE)
-    assert "/atelier?concept_id=${concept.id}" in source
+    assert "/atelier?mode=practice&concept=${concept.id}" in source
 
 
 # --------------------------------------------------------------------------

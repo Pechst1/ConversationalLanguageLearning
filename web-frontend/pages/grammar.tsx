@@ -567,7 +567,7 @@ function GrammarFiche({
         * else; /atelier reads this query and posts it as
         * `preferred_concept_id`, which seats the concept as the fragile one.
         * This is the screen's one 3D-press action. */}
-      <Link className="av2-btn av2-btn--primary nb-cta" href={`/atelier?concept_id=${concept.id}`}>
+      <Link className="av2-btn av2-btn--primary nb-cta" href={`/atelier?mode=practice&concept=${concept.id}`}>
         <span>Travailler cette règle à l’Atelier</span>
         <ArrowRightIcon size={18} />
       </Link>

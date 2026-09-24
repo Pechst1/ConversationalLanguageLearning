@@ -883,7 +883,10 @@ export default function AtelierPage() {
   // a drill loop is entered by a grammar concept or by the errata queue:
   // `/atelier?mode=practice&concept=<id>` (or `&queue=errata`). The historical
   // `?concept_id=` deep link from the Cahier fiche keeps working unchanged.
-  const practiceMode = router.isReady && String(router.query.mode || '') === 'practice';
+  // A bare `?concept_id=` (the Cahier fiche's link) is a practice request too:
+  // with the journey on, it used to fall through to Home (2026-09-24).
+  const practiceMode = router.isReady
+    && (String(router.query.mode || '') === 'practice' || Boolean(router.query.concept_id));
   const practiceQueue = String(router.query.queue || '');
   const practiceConceptId = (() => {
     const raw = router.query.concept ?? router.query.concept_id;
@@ -2439,6 +2442,17 @@ function TodayView({
                 : homeCopy.home_review_many.replace('{n}', String(vocabularyReviewDue)),
               href: '/vocabulary/review',
               shape: 'reward' as const,
+            }]
+          : []),
+        // 2026-09-24: once the day is done, the séance exercises («Plus de
+        // pratique») are one tap from Home again, not only from the recap.
+        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total
+          ? [{
+              id: 'practice',
+              label: homeCopy.home_practice,
+              ariaLabel: homeCopy.home_practice_aria,
+              href: practiceEntry.href,
+              shape: 'action' as const,
             }]
           : []),
       ]
