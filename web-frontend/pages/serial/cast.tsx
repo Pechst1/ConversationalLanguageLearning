@@ -220,7 +220,7 @@ export default function SerialCastPage() {
         .av2 .cast-me__top { display: flex; align-items: center; gap: 14px; min-width: 0; }
         .av2 .cast-me__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
         .av2 .cast-me .av2-label, .av2 .cast-me .av2-body, .av2 .cast-me .av2-headline { color: inherit; }
-        .av2 .cast-me .av2-chip { background: var(--av2-card); color: var(--av2-ink); }
+        .av2 .cast-me .av2-chip { flex: none; white-space: nowrap; background: var(--av2-card); color: var(--av2-ink); }
         .av2 .cast-me__body { display: flex; flex-direction: column; gap: 10px; }
         .av2 .cast-me__body .av2-field__label { color: inherit; }
         .av2 .cast-me__actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -228,10 +228,11 @@ export default function SerialCastPage() {
 
         /* a character: portrait, name, role, register chip; then closeness and recalls */
         .av2 .cast-card { display: flex; flex-direction: column; gap: 12px; }
-        .av2 .cast-card__top { display: flex; align-items: center; gap: 14px; min-width: 0; }
-        .av2 .cast-card__id { flex: 1 1 auto; min-width: 0; }
+        /* a longer register label (en / de) wraps under the name, never squeezes it */
+        .av2 .cast-card__top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; min-width: 0; }
+        .av2 .cast-card__id { flex: 1 1 9rem; min-width: 0; }
         .av2 .cast-card__role { margin: 3px 0 0; }
-        .av2 .cast-card__register { flex: none; }
+        .av2 .cast-card__register { flex: none; white-space: nowrap; }
         .av2 .cast-closeness { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .av2 .cast-closeness__pips { display: inline-flex; gap: 4px; }
         .av2 .cast-closeness__pips i { width: 12px; height: 12px; border-radius: 999px; background: var(--av2-line); }
