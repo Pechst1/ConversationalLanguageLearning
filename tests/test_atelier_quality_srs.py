@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.config import settings
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierGenerationEvent,
@@ -138,7 +139,7 @@ def test_confident_hit_gets_small_mastery_and_interval_lift(db_session):
     assert abs(interval.total_seconds() / 86400 - 4 * 1.15) < 1e-3
 
 
-def test_quality_threshold_retires_and_regenerates_exercise_set(db_session):
+def test_quality_threshold_retires_and_regenerates_exercise_set(db_session, monkeypatch):
     concept = _concept(db_session)
     user = _user(db_session)
     exercise_set = AtelierExerciseGenerator(db_session).get_or_create(
@@ -187,6 +188,9 @@ def test_quality_threshold_retires_and_regenerates_exercise_set(db_session):
         == 1
     )
 
+    # WP-S2: the séance builds a fresh set from La Forge's item bank first;
+    # this test is about the shared-cache path the bank falls back to.
+    monkeypatch.setattr(settings, "ATELIER_ITEM_BANK_ENABLED", False)
     assembled = session_exercise_set(
         db_session,
         user=user,
