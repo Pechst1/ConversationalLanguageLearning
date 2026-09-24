@@ -324,6 +324,15 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
     assert "SIGNUP_COPY[language]" in signup
     assert "SIGNUP_NAV[language]" in signup
     assert "{nav.submit}" in signup
+    # 2026-09-24: sign-in and password reset follow the same detected language
+    # from one copy table (lib/auth-copy.ts, en/de/fr complete).
+    auth_copy = _source("lib/auth-copy.ts")
+    for page in (signin, forgot):
+        assert "useOnboardingLanguage()" in page
+        assert "from '@/lib/auth-copy'" in page
+        assert "Mot de passe oublié" not in page
+    for phrase in ("Mot de passe oublié", "Forgot your password?", "Passwort vergessen?"):
+        assert phrase in auth_copy
     for english_island in (
         "Your first edition",
         "Start with the essentials",

@@ -14,11 +14,14 @@ import {
   AuthScreen,
   AuthSpacer,
 } from '@/components/auth/AuthShell';
+import { useOnboardingLanguage } from '@/components/onboarding/LanguageSwitch';
 import { sanitizeAuthCallbackUrl, useAppAuth } from '@/lib/app-auth';
+import { AUTH_EYEBROW, authCopy, signInErrorText } from '@/lib/auth-copy';
 
+// Messages are keys into the copy table, so the schema never fixes a language.
 const schema = yup.object({
-  email: yup.string().email('Adresse e-mail invalide').required('Indiquez votre adresse'),
-  password: yup.string().min(6, 'Au moins 6 caractères').required('Indiquez votre mot de passe'),
+  email: yup.string().email('email_invalid').required('email_required'),
+  password: yup.string().min(6, 'password_short').required('password_required'),
 });
 
 type FormData = yup.InferType<typeof schema>;
@@ -26,6 +29,8 @@ type FormData = yup.InferType<typeof schema>;
 export default function SignInPage() {
   const router = useRouter();
   const auth = useAppAuth();
+  const [language] = useOnboardingLanguage();
+  const copy = authCopy(language).signin;
   const [isLoading, setIsLoading] = React.useState(false);
   // Stated on the screen rather than only in a toast the learner may miss, and
   // never disclosing whether the address is registered.
@@ -57,12 +62,12 @@ export default function SignInPage() {
       const result = await auth.signInWithCredentials(data.email, data.password);
 
       if (result?.error) {
-        setFailure('Identifiants incorrects. Vérifiez l’adresse et le mot de passe.');
+        setFailure(copy.wrong_credentials);
       } else {
         router.push(destination);
       }
     } catch (error) {
-      setFailure('La connexion n’a pas abouti. Réessayez dans un instant.');
+      setFailure(copy.failed);
     } finally {
       setIsLoading(false);
     }
@@ -71,14 +76,14 @@ export default function SignInPage() {
   return (
     <>
       <Head>
-        <title>Se connecter · L’Atelier</title>
+        <title>{`${copy.screen} · L’Atelier`}</title>
       </Head>
 
-      <AuthScreen label="Se connecter">
-        <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
+      <AuthScreen label={copy.screen}>
+        <AuthEyebrow>{AUTH_EYEBROW}</AuthEyebrow>
 
         <h1 className="av2-headline av2-headline--screen" id="signin-title">
-          Se connecter
+          {copy.screen}
         </h1>
 
         {failure && <AuthNotice>{failure}</AuthNotice>}
@@ -90,7 +95,7 @@ export default function SignInPage() {
           action="/api/auth/pre-hydration"
           onSubmit={handleSubmit(onSubmit)}
           className="auth-form-v2"
-          /* Our own validation speaks French and renders under the field; the
+          /* Our own validation speaks the learner's language and renders under the field; the
              browser's built-in bubble speaks the device's language and covers
              the layout. Ours wins. */
           noValidate
@@ -99,9 +104,9 @@ export default function SignInPage() {
             {...register('email')}
             id="signin-email"
             type="email"
-            label="Adresse e-mail"
-            placeholder="vous@exemple.fr"
-            error={errors.email?.message}
+            label={copy.email}
+            placeholder={copy.email_placeholder}
+            error={signInErrorText(copy, errors.email?.message)}
             autoComplete="email"
             inputMode="email"
           />
@@ -110,27 +115,27 @@ export default function SignInPage() {
             {...register('password')}
             id="signin-password"
             type="password"
-            label="Mot de passe"
-            placeholder="Votre mot de passe"
-            error={errors.password?.message}
+            label={copy.password}
+            placeholder={copy.password_placeholder}
+            error={signInErrorText(copy, errors.password?.message)}
             autoComplete="current-password"
           />
 
           <div className="auth-form-v2__meta">
             <Link className="auth-foot__link" href={forgotPasswordHref}>
-              Mot de passe oublié ?
+              {copy.forgot}
             </Link>
           </div>
 
           <AuthSpacer />
 
-          <Action tone="primary" type="submit" pending={isLoading} pendingLabel="Connexion…">
-            Se connecter
+          <Action tone="primary" type="submit" pending={isLoading} pendingLabel={copy.pending}>
+            {copy.submit}
           </Action>
         </form>
 
-        <AuthFootLink href={{ pathname: '/auth/signup', query: callbackQuery }} label="Créer un compte">
-          Nouveau ici ?
+        <AuthFootLink href={{ pathname: '/auth/signup', query: callbackQuery }} label={copy.create_account}>
+          {copy.new_here}
         </AuthFootLink>
       </AuthScreen>
 

@@ -213,7 +213,15 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
  * the screen (the one-language rule; a newcomer reads as a beginner). Only the
  * names of places — La Une, Le Courrier… — stay French.
  */
-export type TasteNav = { start: string; have_account: string; next: string; keep: string; retry: string };
+export type TasteNav = {
+  start: string;
+  have_account: string;
+  next: string;
+  keep: string;
+  retry: string;
+  /** The landing's one action for a learner who is already signed in. */
+  open_edition: string;
+};
 
 export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
   en: {
@@ -222,6 +230,7 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     next: 'Continue',
     keep: 'Keep your story',
     retry: 'Try again',
+    open_edition: 'Open your edition',
   },
   de: {
     start: 'Loslegen',
@@ -229,6 +238,7 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     next: 'Weiter',
     keep: 'Behalten Sie Ihre Geschichte',
     retry: 'Nochmal versuchen',
+    open_edition: 'Ihre Ausgabe öffnen',
   },
   fr: {
     start: 'Commencer',
@@ -236,6 +246,7 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     next: 'Continuer',
     keep: 'Gardez votre histoire',
     retry: 'Réessayer',
+    open_edition: 'Ouvrir votre édition',
   },
 };
 

@@ -11,7 +11,9 @@ import {
   AuthSpacer,
 } from '@/components/auth/AuthShell';
 
+import { useOnboardingLanguage } from '@/components/onboarding/LanguageSwitch';
 import { sanitizeAuthCallbackUrl } from '@/lib/app-auth';
+import { AUTH_EYEBROW, authCopy, authFill } from '@/lib/auth-copy';
 import apiService from '@/services/api';
 
 /**
@@ -38,12 +40,14 @@ function httpStatus(error: unknown) {
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const [language] = useOnboardingLanguage();
+  const { reset: copy, signin: shared } = authCopy(language);
   const token = useMemo(() => {
     const value = router.query.token;
     return typeof value === 'string' ? value : '';
   }, [router.query.token]);
   const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim();
-  const supportSubject = encodeURIComponent('Atelier — mot de passe');
+  const supportSubject = encodeURIComponent(copy.support_subject);
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -64,7 +68,7 @@ export default function ForgotPasswordPage() {
     setNotice('');
     const address = email.trim().toLowerCase();
     if (!address || !address.includes('@')) {
-      setError('Indiquez l’adresse de votre compte.');
+      setError(copy.errors.email_required);
       return false;
     }
     setIsSubmitting(true);
@@ -75,7 +79,7 @@ export default function ForgotPasswordPage() {
       setStep('code');
       return true;
     } catch {
-      setError('L’envoi n’a pas abouti. Réessayez.');
+      setError(copy.errors.send_failed);
       return false;
     } finally {
       setIsSubmitting(false);
@@ -89,7 +93,7 @@ export default function ForgotPasswordPage() {
 
   const resendCode = async () => {
     // The server holds a fresh code back for a minute; say only what we know.
-    if (await sendCode()) setNotice('Demande envoyée. Vérifiez aussi les indésirables.');
+    if (await sendCode()) setNotice(copy.errors.resent);
   };
 
   const acceptCode = (event: FormEvent<HTMLFormElement>) => {
@@ -98,7 +102,7 @@ export default function ForgotPasswordPage() {
     setNotice('');
     const digits = code.replace(/\D/g, '');
     if (digits.length !== 6) {
-      setError('Le code a six chiffres.');
+      setError(copy.errors.code_digits);
       return;
     }
     setCode(digits);
@@ -110,15 +114,15 @@ export default function ForgotPasswordPage() {
     setError('');
     setNotice('');
     if (newPassword.length < 8) {
-      setError('Au moins 8 caractères.');
+      setError(copy.errors.password_short);
       return;
     }
     if (byteLength(newPassword) > PASSWORD_MAX_BYTES) {
-      setError('Trop long : les accents et emoji comptent double.');
+      setError(copy.errors.password_long);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Les deux ne correspondent pas.');
+      setError(copy.errors.mismatch);
       return;
     }
     setIsSubmitting(true);
@@ -140,13 +144,13 @@ export default function ForgotPasswordPage() {
       if (status === 400 && !token) {
         // Wrong, expired or used up: back to the code, password kept.
         setStep('code');
-        setError('Code incorrect ou expiré.');
+        setError(copy.errors.code_wrong);
       } else if (status === 400) {
-        setError('Lien expiré. Demandez un code.');
+        setError(copy.errors.link_expired);
       } else if (status === 422) {
-        setError('Mot de passe refusé : 8 caractères au moins, pas trop long.');
+        setError(copy.errors.password_refused);
       } else {
-        setError('L’envoi n’a pas abouti. Réessayez.');
+        setError(copy.errors.send_failed);
       }
     } finally {
       setIsSubmitting(false);
@@ -164,16 +168,16 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Head>
-        <title>Mot de passe · L’Atelier</title>
+        <title>{`${copy.tab_title} · L’Atelier`}</title>
       </Head>
 
-      <AuthScreen label="Mot de passe oublié">
-        <AuthEyebrow>L’Atelier · Quotidien de français</AuthEyebrow>
+      <AuthScreen label={copy.screen}>
+        <AuthEyebrow>{AUTH_EYEBROW}</AuthEyebrow>
 
         {currentStep === 'email' && (
           <>
-            <h1 className="av2-headline av2-headline--screen">Mot de passe oublié</h1>
-            <p className="av2-body av2-body--lg">Nous vous envoyons un code à six chiffres.</p>
+            <h1 className="av2-headline av2-headline--screen">{copy.email_title}</h1>
+            <p className="av2-body av2-body--lg">{copy.email_lead}</p>
 
             {error && <AuthNotice>{error}</AuthNotice>}
 
@@ -187,8 +191,8 @@ export default function ForgotPasswordPage() {
               <AuthField
                 id="reset-email"
                 type="email"
-                label="Adresse e-mail"
-                placeholder="vous@exemple.fr"
+                label={copy.email_label}
+                placeholder={shared.email_placeholder}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
@@ -199,8 +203,8 @@ export default function ForgotPasswordPage() {
 
               <AuthSpacer />
 
-              <Action tone="primary" type="submit" pending={isSubmitting} pendingLabel="Envoi…">
-                Recevoir le code
+              <Action tone="primary" type="submit" pending={isSubmitting} pendingLabel={copy.sending}>
+                {copy.send}
               </Action>
             </form>
           </>
@@ -208,9 +212,9 @@ export default function ForgotPasswordPage() {
 
         {currentStep === 'code' && (
           <>
-            <h1 className="av2-headline av2-headline--screen">Saisissez le code</h1>
+            <h1 className="av2-headline av2-headline--screen">{copy.code_title}</h1>
             <p className="av2-body av2-body--lg">
-              Si {email.trim().toLowerCase()} a un compte, le code y arrive. Valable 15 minutes.
+              {authFill(copy.code_lead, { email: email.trim().toLowerCase() })}
             </p>
 
             {error && <AuthNotice>{error}</AuthNotice>}
@@ -226,7 +230,7 @@ export default function ForgotPasswordPage() {
               <AuthField
                 id="reset-code"
                 type="text"
-                label="Code"
+                label={copy.code_label}
                 placeholder="000000"
                 value={code}
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -240,10 +244,10 @@ export default function ForgotPasswordPage() {
               <AuthSpacer />
 
               <Action tone="primary" type="submit">
-                Continuer
+                {copy.continue}
               </Action>
-              <Action tone="quiet" onClick={resendCode} pending={isSubmitting} pendingLabel="Envoi…">
-                Renvoyer le code
+              <Action tone="quiet" onClick={resendCode} pending={isSubmitting} pendingLabel={copy.sending}>
+                {copy.resend}
               </Action>
             </form>
           </>
@@ -251,7 +255,7 @@ export default function ForgotPasswordPage() {
 
         {currentStep === 'password' && (
           <>
-            <h1 className="av2-headline av2-headline--screen">Nouveau mot de passe</h1>
+            <h1 className="av2-headline av2-headline--screen">{copy.password_title}</h1>
 
             {error && <AuthNotice>{error}</AuthNotice>}
 
@@ -276,8 +280,8 @@ export default function ForgotPasswordPage() {
               <AuthField
                 id="reset-new"
                 type="password"
-                label="Nouveau mot de passe"
-                placeholder="Au moins 8 caractères"
+                label={copy.new_password}
+                placeholder={copy.new_password_placeholder}
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 autoComplete="new-password"
@@ -286,7 +290,7 @@ export default function ForgotPasswordPage() {
               <AuthField
                 id="reset-confirm"
                 type="password"
-                label="Confirmer"
+                label={copy.confirm}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 autoComplete="new-password"
@@ -299,9 +303,9 @@ export default function ForgotPasswordPage() {
                 tone="primary"
                 type="submit"
                 pending={isSubmitting}
-                pendingLabel="Enregistrement…"
+                pendingLabel={copy.saving}
               >
-                Enregistrer
+                {copy.save}
               </Action>
             </form>
           </>
@@ -309,32 +313,32 @@ export default function ForgotPasswordPage() {
 
         {currentStep === 'done' && (
           <>
-            <h1 className="av2-headline av2-headline--screen">C’est fait</h1>
-            <p className="av2-body av2-body--lg">Connectez-vous avec le nouveau mot de passe.</p>
+            <h1 className="av2-headline av2-headline--screen">{copy.done_title}</h1>
+            <p className="av2-body av2-body--lg">{copy.done_lead}</p>
 
             <AuthSpacer />
 
             <Action tone="primary" onClick={goToSignIn}>
-              Se connecter
+              {copy.sign_in}
             </Action>
           </>
         )}
 
         {/* Development only: the API returns the code when no mailer is wired. */}
         {devCode && currentStep === 'code' && (
-          <p className="av2-label reset-dev-link">Code de test : {devCode}</p>
+          <p className="av2-label reset-dev-link">{authFill(copy.dev_code, { code: devCode })}</p>
         )}
 
         {supportEmail && currentStep !== 'done' && (
           <p className="av2-label reset-support">
-            Bloqué ?{' '}
+            {copy.stuck}{' '}
             <a className="auth-foot__link" href={`mailto:${supportEmail}?subject=${supportSubject}`}>
               {supportEmail}
             </a>
           </p>
         )}
 
-        {currentStep !== 'done' && <AuthFootLink href={signInHref} label="Retour à la connexion" />}
+        {currentStep !== 'done' && <AuthFootLink href={signInHref} label={copy.back_to_sign_in} />}
       </AuthScreen>
 
       <style jsx global>{`
