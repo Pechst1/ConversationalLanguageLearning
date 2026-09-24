@@ -87,6 +87,7 @@ from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
 from app.services.learner_copy import (
@@ -724,6 +725,8 @@ def _stamp_forge_origin(db: Session, session: AtelierSession, payload: Any) -> N
 
 
 def _park_session(db: Session, session: AtelierSession) -> None:
+    # WP-S8: a forge séance set aside unfinished is an abandon (once per séance).
+    record_forge_abandoned(db, session, reason="parked")
     session.status = SESSION_PARKED
     db.add(session)
     db.flush()
@@ -1320,6 +1323,9 @@ def start_session(
             # chain HS-1 exists to avoid.
             return _session_response(db, current_user, resumable, fast_path=True, background_tasks=background_tasks)
 
+    # WP-S8: open forge séances nobody touched for a day were left.
+    sweep_stale_forge_seances(db, user_id=current_user.id)
+
     forge = None
     if explicit_ids:
         concepts = (
@@ -1700,6 +1706,23 @@ def request_attempt_ai_review(
     if should_enqueue:
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
     return _attempt_response(attempt)
+
+
+@router.post("/sessions/{session_id}/exit", status_code=status.HTTP_204_NO_CONTENT)
+def exit_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> None:
+    """WP-S8: the learner closed an unfinished forge séance («forge_abandoned»).
+
+    The séance stays open (a bare start resumes it); only the event is written,
+    once. A completed, finished or legacy séance writes nothing.
+    """
+
+    session = _session_or_404(db, session_id, current_user)
+    if record_forge_abandoned(db, session, reason="exit") is not None:
+        db.commit()
 
 
 @router.post("/sessions/{session_id}/complete", response_model=AtelierCompleteResponse)
