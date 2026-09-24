@@ -387,12 +387,11 @@ def test_a_broken_streak_restarts_at_one(db_session):
 # 5. The «Plus de pratique» entry names a concept, never "today"
 # --------------------------------------------------------------------------
 
-def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
-    """`get_due_concepts` yields (concept, progress) pairs — unpack them.
+def test_the_practice_href_seats_todays_rule_from_the_forge_picker(db_session):
+    """WP-S4: «Plus de pratique» is keyed by La Forge's one picker.
 
-    Regression: the first version read `.id` off the tuple and silently
-    produced the bare `/atelier?mode=practice`, which drops the learner into a
-    generic drill set instead of the rule the scheduler thinks is fragile.
+    The rule the learner met today is today's rule — the same one the forge
+    and the day's Règle work on — never a generic drill set.
     """
 
     from app.services.daily_journey import DailyJourneyService
@@ -403,6 +402,7 @@ def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
         user_id=user.id, concept_id=concept.id
     )
     progress.state = "ausbaufähig"
+    progress.introduced_at = datetime.now(UTC) - timedelta(minutes=5)
     progress.next_review = datetime.now(UTC) - timedelta(days=2)
     db_session.flush()
 
@@ -423,8 +423,13 @@ def test_practice_entry_skips_archived_due_concepts(db_session):
     progress = GrammarService(db_session).get_or_create_progress(
         user_id=user.id, concept_id=archived.id
     )
+    progress.introduced_at = datetime.now(UTC) - timedelta(minutes=1)
     progress.next_review = datetime.now(UTC) - timedelta(days=10)
     active = _concept(db_session)
+    active_progress = GrammarService(db_session).get_or_create_progress(
+        user_id=user.id, concept_id=active.id
+    )
+    active_progress.next_review = datetime.now(UTC) - timedelta(days=1)
     db_session.flush()
 
     service = DailyJourneyService(db_session, adapters=None)
@@ -435,7 +440,7 @@ def test_practice_entry_skips_archived_due_concepts(db_session):
 
 
 def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch):
-    from app.services import daily_journey as daily_journey_module
+    from app.services import forge_picker
     from app.services.daily_journey import DailyJourneyService
 
     user = _user(db_session)
@@ -443,9 +448,7 @@ def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch)
     def boom(*args, **kwargs):
         raise RuntimeError("scheduler down")
 
-    monkeypatch.setattr(
-        daily_journey_module.GrammarService, "get_due_concepts", boom, raising=True
-    )
+    monkeypatch.setattr(forge_picker, "forge_plan", boom, raising=True)
     service = DailyJourneyService(db_session, adapters=None)
     assert service._practice_href(user) == "/atelier?mode=practice"
 

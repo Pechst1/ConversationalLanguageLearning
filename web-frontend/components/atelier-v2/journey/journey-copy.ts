@@ -112,6 +112,14 @@ export type JourneyCopyKey =
   | 'next_focus'
   | 'more_practice'
   | 'more_practice_note'
+  // WP-S4 «La Forge»: the entry after the day (Léger, Régulier) and the step
+  // folded into the day (Soutenu, Intensif).
+  | 'forge_today'
+  | 'forge_eyebrow'
+  | 'forge_body'
+  | 'forge_back'
+  | 'forge_done'
+  | 'forge_later'
   // WP-16 / D-0: the recap's pointer into the «Plus de pratique» drill loop
   // for one target the scene actually practised.
   | 'practice_this'
@@ -264,6 +272,12 @@ const EN: CopyTable = {
   evidence_unscored: 'not checked',
   next_focus: 'Worth another look',
   more_practice: 'More practice',
+  forge_today: 'Forge today’s rule',
+  forge_eyebrow: 'Forge · {n} min',
+  forge_body: 'A short, mixed block on today’s rule and the rules that are due. Then back to the scene.',
+  forge_back: 'Back to the scene',
+  forge_done: 'Forged. The rule is a little more yours.',
+  forge_later: 'Not now',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
   done_today: 'Done for today',
@@ -409,6 +423,12 @@ const DE: CopyTable = {
   evidence_unscored: 'nicht geprüft',
   next_focus: 'Noch einmal ansehen',
   more_practice: 'Mehr üben',
+  forge_today: 'Regel des Tages schmieden',
+  forge_eyebrow: 'Schmiede · {n} Min.',
+  forge_body: 'Ein kurzer, gemischter Block zur Regel von heute und zu fälligen Regeln. Danach geht die Szene weiter.',
+  forge_back: 'Zurück zur Szene',
+  forge_done: 'Geschmiedet. Die Regel sitzt ein Stück besser.',
+  forge_later: 'Nicht jetzt',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
   done_today: 'Für heute erledigt',
@@ -554,6 +574,12 @@ const FR: CopyTable = {
   evidence_unscored: 'non évalué',
   next_focus: 'À revoir',
   more_practice: 'Plus d’exercices',
+  forge_today: 'Forger la règle du jour',
+  forge_eyebrow: 'Forge · {n} min',
+  forge_body: 'Un bloc court et mêlé sur la règle du jour et les règles à revoir. Puis on revient à la scène.',
+  forge_back: 'Retour à la scène',
+  forge_done: 'Forgée. La règle est un peu plus à vous.',
+  forge_later: 'Pas maintenant',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
   done_today: 'Journée bouclée',

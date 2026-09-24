@@ -954,7 +954,7 @@ def legacy_ladder(monkeypatch):
     monkeypatch.setattr(app_settings, "ATELIER_FORGE_ENABLED", False)
 
 
-def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: TestClient, db_session, legacy_ladder):
+def test_start_session_with_preferred_concept_seats_it_without_padding(client: TestClient, db_session, legacy_ladder):
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
     _prime_core_exercise_sets(db_session)
@@ -969,7 +969,10 @@ def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: Tes
     assert response.status_code == 201
     payload = response.json()
     assert payload["concepts"][0]["id"] == concept.id
-    assert len(payload["concepts"]) == 3
+    # WP-S4: no pad to three from teaching order — a new learner has nothing
+    # due or in progress, so the chosen rule is the séance.
+    assert [item["id"] for item in payload["concepts"]] == [concept.id]
+    assert payload["quote"]["forge"]["reason"] == "preferred"
 
 
 def test_session_exercise_set_upgrades_unattempted_fallback_to_shared_llm_cache(db_session):
@@ -2961,7 +2964,13 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     # the full 3-concept spread, covered by test_atelier_scheduler_full_spread_after_first_session.
     assert len(today.json()["concepts"]) == 1
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -3142,7 +3151,23 @@ def test_atelier_scheduler_uses_daily_budget_after_first_session(client: TestCli
     # WP-L6: a new learner is on Régulier (10 min), one six-minute concept.
     assert len(today_after.json()["concepts"]) == 1
 
-    # The rhythm is the budget the drill reads: Soutenu (20 min) holds three.
+    # The rhythm is the budget the drill reads: Soutenu (20 min) holds three —
+    # when there are three rules to hold (WP-S4: no padding from teaching
+    # order). Two due rules plus today's rule.
+    user = db_session.get(User, UUID(decode_token(token)["sub"]))
+    for external_id in ("FR_A2_NEG_001", "FR_B1_TENSE_001"):
+        db_session.add(
+            UserGrammarProgress(
+                user_id=user.id,
+                concept_id=_concept(db_session, external_id).id,
+                score=4.0,
+                reps=2,
+                introduced_at=datetime.now(UTC) - timedelta(days=9),
+                next_review=datetime.now(UTC) - timedelta(hours=2),
+            )
+        )
+    db_session.commit()
+    assert len(client.get("/api/v1/atelier/today", headers=headers).json()["concepts"]) == 1
     patched = client.patch("/api/v1/users/me/settings", headers=headers, json={"rhythm": "soutenu"})
     assert patched.status_code == 200, patched.text
     today_soutenu = client.get("/api/v1/atelier/today", headers=headers)
@@ -3154,7 +3179,13 @@ def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestCl
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -3402,7 +3433,13 @@ def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -3455,7 +3492,13 @@ def test_a_wrong_transform_forfeits_the_skip(client: TestClient, db_session):
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     data = started.json()
     session_id = data["session_id"]
     concept = data["concepts"][0]
@@ -3498,7 +3541,13 @@ def test_both_rungs_can_be_retired_and_the_moment_reports_only_its_own_saving(
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     data = started.json()
     session_id = data["session_id"]
     concept = data["concepts"][0]

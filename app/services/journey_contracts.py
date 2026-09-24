@@ -160,6 +160,11 @@ class StepKind(StrEnum):
     #: the scene and before its guided items. Not answered: it is advanced,
     #: like the scene, and advancing it introduces the unit.
     RULE = "rule"
+    #: WP-S4 «La Forge», folded into a Soutenu/Intensif day: a hand-off step in
+    #: the Scène movement that opens the forge block on today's rule and comes
+    #: back to the day. Not answered here: the forge credits its own items; the
+    #: step is advanced when the learner returns (its time is the block's).
+    FORGE = "forge"
 
 
 class DayShape(StrEnum):
@@ -737,6 +742,8 @@ class PlannedJourney:
             raise ValueError("a plan needs exactly one respond step")
         if StepKind.RULE in kinds:
             raise ValueError("only a practice day introduces a rule")
+        if StepKind.FORGE in kinds:
+            raise ValueError("only a practice day folds in the forge")
         recalls = kinds.count(StepKind.RECALL)
         if recalls > MAX_RECALL_STEPS:
             raise ValueError(f"at most {MAX_RECALL_STEPS} recall steps are allowed")
@@ -806,6 +813,12 @@ class PlannedJourney:
             scene_at < kinds.index(StepKind.RULE) < kinds.index(StepKind.RESPOND)
         ):
             raise ValueError("the rule card comes after the scene and before the reply")
+        if kinds.count(StepKind.FORGE) > 1:
+            raise ValueError("a day folds in at most one forge block")
+        if StepKind.FORGE in kinds and not (
+            scene_at < kinds.index(StepKind.FORGE) < kinds.index(StepKind.RESPOND)
+        ):
+            raise ValueError("the forge block sits in the Scène movement, before the reply")
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
         recalls = kinds.count(StepKind.RECALL)

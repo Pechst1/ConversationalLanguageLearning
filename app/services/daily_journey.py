@@ -56,6 +56,7 @@ from app.schemas.daily_journey import (
     CapabilityEvidence,
     CapabilityProgress,
     CapabilitySummary,
+    ForgeEntry,
     HelpResult,
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
@@ -76,6 +77,7 @@ from app.schemas.daily_journey import (
     ScenarioDescriptor,
     StoryOutcome,
     TodayEnvelope,
+    forge_href_for,
     practice_href_for,
 )
 from app.services.daily_journey_adapters import (
@@ -83,7 +85,6 @@ from app.services.daily_journey_adapters import (
     JourneyAdapters,
     preview_scenario,
 )
-from app.services.grammar import GrammarService
 from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
@@ -190,6 +191,24 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
                 "title_native": prompt.get("title_native"),
             }
     return None
+
+
+def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
+    """WP-S4: was a forge block opened from this journey step completed?"""
+
+    rows = (
+        db.query(AtelierSession.quote_payload)
+        .filter(AtelierSession.user_id == user_id, AtelierSession.status == "completed")
+        .order_by(AtelierSession.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    wanted = str(step_id)
+    for (quote,) in rows:
+        forge = (quote or {}).get("forge") if isinstance(quote, dict) else None
+        if isinstance(forge, dict) and str(forge.get("journey_step_id") or "") == wanted:
+            return True
+    return False
 
 
 def _new_word_ids(plan: Any, candidates: list[Any]) -> list[int]:
@@ -677,6 +696,7 @@ class DailyJourneyService:
         if enabled and journey is None:
             available = self._available_descriptor(user)
 
+        forge_anchor = self._forge_anchor_id(user)
         return TodayEnvelope(
             enabled=enabled,
             control_language=control_language,
@@ -685,7 +705,9 @@ class DailyJourneyService:
             journey=self.snapshot(journey) if journey else None,
             available=available,
             legacy_resume=self._legacy_resume(user),
-            practice_href=self._practice_href(user),
+            # WP-S4: one forge-picker read serves both entries.
+            practice_href=self._practice_href(user, anchor=forge_anchor),
+            forge=self._forge_entry(user, anchor=forge_anchor) if enabled else None,
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
             **streak_fields,
@@ -1189,6 +1211,30 @@ class DailyJourneyService:
             self.db.rollback()
         return snapshot
 
+    def _forge_prompt_view(self, journey: DailyJourney, step: DailyJourneyStep) -> dict[str, Any]:
+        """WP-S4: the folded forge step, with where it opens and whether it is done.
+
+        ``forged`` is read from the séance ledger: a forge block started from
+        this step (``quote_payload.forge.journey_step_id``) and completed.
+        """
+
+        prompt = dict(step.public_prompt or {})
+        budget = int(prompt.get("budget_seconds") or step.estimated_seconds or 0)
+        prompt["budget_seconds"] = budget
+        prompt["href"] = forge_href_for(
+            prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
+        )
+        prompt["forged"] = bool(
+            run_best_effort(
+                self.db,
+                "daily_journey: forge step done",
+                lambda: _forge_block_completed(self.db, journey.user_id, step.id),
+                default=False,
+                log=logger,
+            )
+        )
+        return prompt
+
     def _mark_rule_read(self, user: User, step: DailyJourneyStep) -> None:
         """WP-L4: the Règle was read — the unit is introduced (visible to WP-L7)."""
 
@@ -1412,7 +1458,9 @@ class DailyJourneyService:
                 "status": step.status,
                 "estimated_seconds": step.estimated_seconds,
                 "assistance_used": list(step.assistance_used or []),
-                "prompt": _public_prompt_view(step),
+                "prompt": self._forge_prompt_view(journey, step)
+                if StepKind(step.kind) is StepKind.FORGE
+                else _public_prompt_view(step),
             }
             for step in sorted(journey.steps, key=lambda item: item.ordinal)
         ]
@@ -1616,29 +1664,45 @@ class DailyJourneyService:
         levels = [AssistanceLevel(value) for value in (step.assistance_used or [])]
         return strongest_assistance(levels)
 
-    def _practice_href(self, user: User) -> str:
+    def _practice_href(self, user: User, *, anchor: Any = ...) -> str:
         """WP-16 / D-0: where «Plus de pratique» opens.
 
-        The legacy exercise Séance is the drill loop now, and a drill loop is
-        entered by concept, never by "today". The concept is the learner's own
-        most urgent due grammar concept — the same queue the legacy loop would
-        have picked from — so the href seats what the scheduler already thinks
-        is fragile. With an empty queue the bare practice entry is returned and
-        the loop composes its own set, exactly as it does today.
+        WP-S4: keyed by La Forge's one picker (``forge_picker``) — today's rule,
+        the same one the forge and the day's Règle work on — so every entry
+        into the drill loop seats what the journey and the séance agree on.
+        With nothing to seat, the bare practice entry is returned.
         """
 
-        with best_effort(
-            self.db, "daily_journey: due-concept lookup for practice_href", log=logger
-        ) as lookup:
-            due = GrammarService(self.db).get_due_concepts(user=user, limit=1)
-        if lookup.failed:
-            return practice_href_for(None)
-        if not due:
-            return practice_href_for(None)
-        # `get_due_concepts` yields (concept, progress) pairs.
-        first = due[0]
-        concept = first[0] if isinstance(first, tuple) else first
-        return practice_href_for(getattr(concept, "id", None))
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
+        return practice_href_for(anchor)
+
+    def _forge_anchor_id(self, user: User) -> int | None:
+        from app.services.forge_picker import forge_anchor_id
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: forge anchor for practice_href",
+            lambda: forge_anchor_id(self.db, user, _utcnow()),
+            default=None,
+            log=logger,
+        )
+
+    def _forge_entry(self, user: User, *, anchor: Any = ...) -> ForgeEntry | None:
+        """WP-S4: «Forge today's rule» — its href, length, and whether it is folded."""
+
+        from app.services import forge_picker
+
+        folded = forge_picker.forge_is_folded(user)
+        budget = forge_picker.forge_budget_seconds(user)
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
+        return ForgeEntry(
+            href=forge_href_for(anchor),
+            concept_id=anchor,
+            budget_seconds=budget,
+            folded=folded,
+        )
 
     def _legacy_resume(self, user: User) -> LegacyResume | None:
         stmt = (
@@ -2379,6 +2443,7 @@ class DailyJourneyService:
             else:
                 candidates = self._select_candidates(user, fresh, result)
             introduction = None if first_day else self._introduction_for_today(user, result)
+            forge = None if first_day else self._forge_for_today(user, introduction)
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
@@ -2397,6 +2462,7 @@ class DailyJourneyService:
                 scenario_result=result,
                 first_day=first_day,
                 introduction=introduction,
+                forge=forge,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -2973,6 +3039,47 @@ class DailyJourneyService:
             log=logger,
         )
 
+    def _forge_for_today(self, user: User, introduction: Any) -> dict[str, Any] | None:
+        """WP-S4: the folded forge's planner input, or None.
+
+        Only Soutenu and Intensif fold La Forge into the day (owner decision
+        3); Léger and Régulier get it as the after-day chip. Today's rule is
+        the day's introduction when there is one, else the forge picker's
+        anchor. A failure costs the fold, never the day.
+        """
+
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+        from app.services import forge_picker
+
+        if not forge_picker.forge_is_folded(user):
+            return None
+        ceiling = forge_picker.forge_budget_seconds(user)
+        forge: dict[str, Any] = {
+            "concept_id": None,
+            "title_native": "",
+            "title_fr": "",
+            "reserve_seconds": forge_picker.FORGE_RESERVE_SECONDS,
+            "max_seconds": ceiling,
+        }
+        if isinstance(introduction, dict) and introduction.get("concept_id"):
+            forge.update(
+                concept_id=int(introduction["concept_id"]),
+                title_native=str(introduction.get("title_native") or ""),
+                title_fr=str(introduction.get("title_fr") or ""),
+            )
+            return forge
+        anchor = run_best_effort(
+            self.db,
+            "daily_journey: forge anchor",
+            lambda: forge_picker.forge_anchor_brief(self.db, user, now=_utcnow()),
+            default=None,
+            log=logger,
+        )
+        if isinstance(anchor, dict):
+            forge.update(anchor)
+        return forge
+
     def _pace_profile(self, user: User, journey: DailyJourney) -> Any:
         """WP-L6: the planner's pace profile from the learner's measured days.
 
@@ -3011,6 +3118,7 @@ class DailyJourneyService:
         scenario_result: ScenarioBrief,
         first_day: bool = False,
         introduction: Any = None,
+        forge: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -3052,6 +3160,9 @@ class DailyJourneyService:
             if introduction and "introduction" in accepted:
                 # WP-L4: today's new grammar unit, its rule and guided items.
                 base["introduction"] = introduction
+            if forge and "forge" in accepted:
+                # WP-S4: Soutenu/Intensif fold La Forge into the Scène movement.
+                base["forge"] = forge
         return plan_journey(
             **base,
             day_shape=decision.shape,
@@ -3151,6 +3262,10 @@ class DailyJourneyService:
             elif kind is StepKind.RULE:
                 # WP-L4: which unit advancing this step introduces.
                 private_task["concept_id"] = public_prompt.get("concept_id")
+            elif kind is StepKind.FORGE:
+                # WP-S4: the folded forge block's rule and length.
+                private_task["concept_id"] = public_prompt.get("concept_id")
+                private_task["budget_seconds"] = public_prompt.get("budget_seconds")
             elif kind is StepKind.RESOLUTION:
                 private_task["resolution_lines"] = dict(brief.resolution_lines)
                 private_task["resolution_summaries"] = dict(brief.resolution_summaries)

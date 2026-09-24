@@ -106,6 +106,8 @@ import {
   resolveRecommendedNext,
   journeyBecause,
   resolvePracticeEntry,
+  resolveForgeEntry,
+  forgeLabel,
   PRACTICE_LABEL,
   practiceLabel,
   serialActionFromToday,
@@ -925,7 +927,25 @@ export default function AtelierPage() {
   // A bare `?concept_id=` (the Cahier fiche's link) is a practice request too:
   // with the journey on, it used to fall through to Home (2026-09-24).
   const practiceMode = router.isReady
-    && (String(router.query.mode || '') === 'practice' || Boolean(router.query.concept_id));
+    && (
+      String(router.query.mode || '') === 'practice'
+      || String(router.query.mode || '') === 'forge'
+      || Boolean(router.query.concept_id)
+    );
+  // WP-S4 — La Forge: `/atelier?mode=forge[&concept=][&budget=][&step=]` is the
+  // same drill loop, entered as a forge block. `step` is the day's folded forge
+  // step (Soutenu, Intensif): the block's recap then leads back to the day.
+  const forgeMode = router.isReady && String(router.query.mode || '') === 'forge';
+  const forgeStepId = (() => {
+    const raw = router.query.step;
+    const value = String(Array.isArray(raw) ? raw[0] : raw || '').trim();
+    return forgeMode && value ? value : null;
+  })();
+  const forgeBudget = (() => {
+    const raw = router.query.budget;
+    const value = Number(Array.isArray(raw) ? raw[0] : raw);
+    return forgeMode && Number.isFinite(value) && value >= 60 ? Math.round(value) : null;
+  })();
   const practiceQueue = String(router.query.queue || '');
   const practiceConceptId = (() => {
     const raw = router.query.concept ?? router.query.concept_id;
@@ -943,6 +963,13 @@ export default function AtelierPage() {
   // The secondary line Home shows under the Séance tile. `null` with the
   // capability off, so a flag-off Home is untouched.
   const practiceEntry = useMemo(() => resolvePracticeEntry(journey.envelope), [journey.envelope]);
+  // WP-S4: «Forge today's rule» after the day — Léger and Régulier only; `null`
+  // when the forge is folded into the day (Soutenu, Intensif) or the flag is off.
+  const forgeEntry = useMemo(
+    () => resolveForgeEntry(journey.envelope, journeyChromeLanguage(journey)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [journey.envelope],
+  );
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -1097,8 +1124,16 @@ export default function AtelierPage() {
       // Cahier fiche's historical one. Both seat the same concept.
       const rawConcept = router.query.concept ?? router.query.concept_id;
       const conceptId = Number(Array.isArray(rawConcept) ? rawConcept[0] : rawConcept);
+      const request: Parameters<typeof apiService.startAtelierSession>[0] = {};
+      if (Number.isFinite(conceptId) && conceptId > 0) request.preferred_concept_id = conceptId;
+      if (forgeMode) {
+        // WP-S4: the block's origin and length; a folded block names its step.
+        request.origin = forgeStepId ? 'journey' : 'after_day';
+        if (forgeBudget) request.budget_seconds = forgeBudget;
+        if (forgeStepId) request.journey_step_id = forgeStepId;
+      }
       const next = await apiService.startAtelierSession(
-        Number.isFinite(conceptId) && conceptId > 0 ? { preferred_concept_id: conceptId } : undefined
+        Object.keys(request).length ? request : undefined
       );
       setActiveSessionReady(true);
       hydrateSession(next, true);
@@ -1427,9 +1462,19 @@ export default function AtelierPage() {
       openRecommendedReview();
       return;
     }
-    if (session && session.status !== 'completed') {
+    // WP-S4: an open séance only answers a request for the rule it leads with.
+    // A request for another rule (or a forge block from the day) starts one —
+    // the server parks the open séance and seats the asked-for rule.
+    const seatsAskedRule = !practiceConceptId
+      || Number(session?.concepts?.[0]?.id) === practiceConceptId;
+    if (session && session.status !== 'completed' && seatsAskedRule && !forgeStepId) {
       practiceEnteredRef.current = true;
       setView('session');
+      return;
+    }
+    if (session && session.status !== 'completed' && activeSessionReady) {
+      practiceEnteredRef.current = true;
+      void startSession();
       return;
     }
     if (!session && activeSessionReady) {
@@ -1441,6 +1486,14 @@ export default function AtelierPage() {
     // guard is what makes the entry happen exactly once, not the dependency list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceMode, practiceQueue, loading, session, activeSessionReady]);
+
+  // WP-S4: a forge block folded into the day hands the learner back to the
+  // day's forge step, which now reads «Back to the scene».
+  const returnToForgedDay = () => {
+    void journey.actions.refresh();
+    setView('journey');
+    void router.replace('/atelier?view=journey', undefined, { shallow: true });
+  };
 
   const handleRecommendedAction = (action: RecommendedAction = recommendation) => {
     // --- Atelier V2 branches, in the frozen precedence order ----------------
@@ -1795,6 +1848,14 @@ export default function AtelierPage() {
               onSelect: () => { void router.push(practiceEntry.href); },
             } : null}
             onPractice={(href) => { void router.push(href); }}
+            // WP-S4: the folded forge step (Soutenu, Intensif) opens the block;
+            // after the day (Léger, Régulier) the recap offers it instead of
+            // «More practice».
+            onForge={(href) => { void router.push(href); }}
+            forgeAfterDay={forgeEntry ? {
+              label: forgeEntry.label,
+              onSelect: () => { void router.push(forgeEntry.href); },
+            } : null}
           />
         ) : /* A capability that turns off mid-session falls back to Today, never
                into the legacy exercise view the learner did not ask for. */
@@ -1836,6 +1897,8 @@ export default function AtelierPage() {
               // WP-16 / D-0: `null` unless the daily journey owns the day, so a
               // flag-off Home renders byte-for-byte what it rendered before.
               practiceEntry={practiceEntry}
+              // WP-S4: «Forge today's rule» after the day (Léger, Régulier).
+              forgeEntry={forgeEntry}
               // WP-24: the erratum today's scene reprises, when there is one.
               becauseLine={becauseLine}
               // WP-D1: today's journey, drawn by the mark as the day's plan.
@@ -1855,7 +1918,9 @@ export default function AtelierPage() {
                 so no SessionView internal changes. */}
             {practiceMode && (
               <div className="atelier-practice-strip av2" role="status">
-                <p className="av2-label">{practiceLabel(pageChromeLanguage)}</p>
+                <p className="av2-label">
+                  {forgeMode ? forgeLabel(pageChromeLanguage) : practiceLabel(pageChromeLanguage)}
+                </p>
                 {practiceConceptTitle && (
                   <p className="av2-headline av2-headline--rule" lang="fr">
                     {practiceConceptTitle}
@@ -1925,11 +1990,19 @@ export default function AtelierPage() {
             recommendation={legacyRecommendation}
             onRecommendedAction={() => {
               setRecap(null);
+              if (forgeStepId) {
+                returnToForgedDay();
+                return;
+              }
               setView('today');
               handleRecommendedAction(legacyRecommendation);
             }}
             onClose={() => {
               setRecap(null);
+              if (forgeStepId) {
+                returnToForgedDay();
+                return;
+              }
               setView('today');
             }}
           />
@@ -2161,6 +2234,7 @@ function TodayView({
   activeSessionReady,
   onRetry,
   practiceEntry,
+  forgeEntry = null,
   becauseLine,
   dayJourney = null,
   journeyCard = null,
@@ -2184,6 +2258,11 @@ function TodayView({
    * secondary line instead of being the day's primary action.
    */
   practiceEntry?: { label: string; href: string; conceptId: string | null } | null;
+  /**
+   * WP-S4 (owner decision 3). Non-null on Léger and Régulier: once the day is
+   * done, the after-day chip is «Forge today's rule», not «More practice».
+   */
+  forgeEntry?: { label: string; href: string; minutes: number } | null;
   /**
    * WP-24 (wired by WP-28). The structured because payload from
    * `GET /atelier/today`; `HomeScreen` writes the French. `null` — the
@@ -2533,14 +2612,24 @@ function TodayView({
           : []),
         // 2026-09-24: once the day is done, the séance exercises («Plus de
         // pratique») are one tap from Home again, not only from the recap.
+        // WP-S4: on Léger and Régulier that entry is La Forge, «Forge today's
+        // rule»; on Soutenu and Intensif the forge was part of the day.
         ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total
-          ? [{
-              id: 'practice',
-              label: homeCopy.home_practice,
-              ariaLabel: homeCopy.home_practice_aria,
-              href: practiceEntry.href,
-              shape: 'action' as const,
-            }]
+          ? [forgeEntry
+            ? {
+                id: 'forge',
+                label: forgeEntry.label,
+                ariaLabel: `${forgeEntry.label} · ${forgeEntry.minutes} min`,
+                href: forgeEntry.href,
+                shape: 'reward' as const,
+              }
+            : {
+                id: 'practice',
+                label: homeCopy.home_practice,
+                ariaLabel: homeCopy.home_practice_aria,
+                href: practiceEntry.href,
+                shape: 'action' as const,
+              }]
           : []),
       ]
     : [];

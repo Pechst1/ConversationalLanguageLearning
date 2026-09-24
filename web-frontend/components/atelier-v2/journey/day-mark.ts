@@ -13,6 +13,10 @@
  * WP-L4: the Règle (`rule`) belongs to the Scène movement — a blue circle, and
  * counted with the scene — so the mark keeps four shapes on an introduction day.
  *
+ * WP-S4: La Forge folded into a Soutenu/Intensif day (`forge`) is retrieval
+ * work — the yellow square (Rappel) counts it, so the square is done only when
+ * the forge block is too, and the mark keeps its four shapes.
+ *
  * Pure: no React, no styling, no transport. It sits beside `journey-state.ts`
  * rather than inside it so the renderers and the node tests share it without
  * touching the controller's state machine.
@@ -22,7 +26,7 @@ import type { ControlLanguage, JourneySnapshot, PublicStep, StepKind } from '@/t
 
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
-export type DayMarkGroup = Exclude<StepKind, 'rule'>;
+export type DayMarkGroup = Exclude<StepKind, 'rule' | 'forge'>;
 
 /**
  * `done` — every step of the group is resolved; `active` — the learner is in
@@ -51,11 +55,14 @@ export const STEP_SHAPE: Record<StepKind, ShapeKind> = {
   respond: 'action',
   resolution: 'done',
   rule: 'story',
+  forge: 'reward',
 };
 
-/** The mark's group a step counts in: the Règle is part of the Scène. */
+/** The mark's group a step counts in: the Règle is part of the Scène, the Forge of the Rappel. */
 export function dayMarkGroupOf(kind: StepKind): DayMarkGroup {
-  return kind === 'rule' ? 'scene' : kind;
+  if (kind === 'rule') return 'scene';
+  if (kind === 'forge') return 'recall';
+  return kind;
 }
 
 /** The word paired with each shape in Home's label row (French, for B1+). */

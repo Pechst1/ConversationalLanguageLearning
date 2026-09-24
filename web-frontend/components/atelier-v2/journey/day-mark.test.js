@@ -135,8 +135,9 @@ test('a skipped step inside a running day still resolves its group', () => {
 
 test('the step → shape mapping is the logo’s', () => {
   // WP-L4: the Règle is part of the Scène movement — a blue circle too.
+  // WP-S4: the folded Forge is retrieval — the yellow square.
   assert.deepEqual(STEP_SHAPE, {
-    scene: 'story', recall: 'reward', respond: 'action', resolution: 'done', rule: 'story',
+    scene: 'story', recall: 'reward', respond: 'action', resolution: 'done', rule: 'story', forge: 'reward',
   });
 });
 
