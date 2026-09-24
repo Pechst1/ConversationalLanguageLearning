@@ -5,3 +5,4 @@ export { TappableFrench } from './TappableFrench';
 export * from './panel-model';
 export * from './reader-position';
 export * from './french-text';
+export { readerCopy, fillReaderCopy, type ReaderCopy } from './reader-copy';

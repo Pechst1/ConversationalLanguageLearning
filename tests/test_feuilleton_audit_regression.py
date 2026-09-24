@@ -280,7 +280,7 @@ def test_the_reply_prompt_is_said_once_in_sentence_case():
     ):
         assert dead not in reader
     # One Envoyer, and the "because" line survives as one small graphite note.
-    assert reader.count("{submitting ? 'Relecture…' : 'Envoyer'}") == 1
+    assert reader.count("{submitting ? t.checking : t.send}") == 1  # WP-82: reader-copy.ts
     assert 'className="fr-prompt-note"' in reader
     assert "recommendation_reason" in reader
 
@@ -333,14 +333,14 @@ def test_option_translations_stay_hidden_until_requested():
     assert "{option.en && <small>{option.en}</small>}" not in reader
     # Translation is one explicit affordance.
     assert "function TaskTranslate" in reader
-    assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
+    assert "{open ? t.hide_translation : t.translate}" in reader  # WP-82: reader-copy.ts
 
 
 def test_sticky_bar_carries_one_action_and_no_counters():
     reader = _component()
 
     bar = reader[reader.index('<div className="fr-bar">') : reader.index('<div className="fr-head">')]
-    assert "Quitter la lecture" in bar
+    assert "aria-label={t.exit}" in bar  # WP-82: «Quitter la lecture» lives in reader-copy.ts
     nav = reader[reader.index('<nav className="fr-nav"') : reader.index("</nav>")]
     for dead in ("planches", "tâches", "submittedCount", "taskCount"):
         assert dead not in nav
