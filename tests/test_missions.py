@@ -192,6 +192,11 @@ def test_food_vocabulary_builds_food_domain_mission(db_session, monkeypatch):
     assert payload["prompt_payload"]["messenger"]["contact_name"] == "Samira"
     assert "pain" in payload["prompt_payload"]["messenger"]["opening_message"].lower()
     assert payload["target_vocabulary_ids"] == [word.id]
+    # 2026-09-24: the objective is chrome — an authored letter carries it in
+    # every control language so an A1 learner reads it in their own.
+    ask_by_language = payload["prompt_payload"]["slim_payload"]["ask_by_language"]
+    assert set(ask_by_language) == {"fr", "en", "de"}
+    assert ask_by_language["fr"].startswith("Samira sait")
 
 
 def test_consecutive_standalone_missions_vary_domain_contact_and_channel(db_session, monkeypatch):

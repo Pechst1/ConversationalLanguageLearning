@@ -261,6 +261,23 @@ _MOOD_LINES = {
 }
 
 
+def mood_value(thread: SerialThread | None, correspondent_id: str | None) -> int | None:
+    """The correspondent's mood as a number in ``MOOD_RANGE`` (−2..+2), or ``None``.
+
+    The answered-letter seal draws it as a face (cross / neutral / happy) with a
+    line in the learner's chrome language; ``mood_line`` stays the French
+    sentence the letter writer reads.
+    """
+
+    entry = moods_of(thread).get(str(correspondent_id or ""))
+    if not isinstance(entry, dict) or "mood" not in entry:
+        return None
+    try:
+        return max(MOOD_RANGE[0], min(MOOD_RANGE[1], int(entry.get("mood") or 0)))
+    except (TypeError, ValueError):
+        return None
+
+
 def mood_line(thread: SerialThread | None, correspondent_id: str | None) -> str | None:
     """The correspondent's current feeling, in one French sentence, or ``None``."""
 
@@ -1284,6 +1301,7 @@ __all__ = [
     "lapse_overdue_letters",
     "living_story_thread",
     "mood_line",
+    "mood_value",
     "moods_of",
     "note_story_letter",
     "objective_progress_from_journey",
