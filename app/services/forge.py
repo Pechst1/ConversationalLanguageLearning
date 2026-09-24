@@ -410,7 +410,11 @@ class BankItemProvider:
         """This session's own copy of the set (copy-on-write for a shared one)."""
 
         from app.db.models.atelier import AtelierExerciseSet
-        from app.services.atelier import ATELIER_ITEM_BANK_SOURCE, _payload_hash, _store_session_exercise_set_id
+        from app.services.atelier import (
+            ATELIER_ITEM_BANK_SOURCE,
+            _payload_hash,
+            _store_session_exercise_set_id,
+        )
 
         payload = dict(exercise_set.payload or {})
         forge = payload.get("forge") if isinstance(payload.get("forge"), dict) else {}
@@ -790,9 +794,24 @@ class ForgeService:
                 str(track.concept_id): _FORGE_ROLE_TO_LEGACY.get(track.role, "fragile") for track in state.tracks
             }
             session.quote_payload = quote
+            plan = {**plan, "stages_at_start": self._stages_of(user, concept_ids)}
         _store_state(session, state, plan=plan)
         self.db.add(session)
         return state
+
+    def _stages_of(self, user: User, concept_ids: list[int]) -> dict[str, str]:
+        """WP-S6: each rule's life stage when the séance starts, so the recap can
+        say what changed today (introduced → practising → held)."""
+
+        from app.services.concept_life import concept_stage
+
+        rows = {
+            progress.concept_id: progress
+            for progress in self.db.query(UserGrammarProgress)
+            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id.in_(concept_ids or [-1]))
+            .all()
+        }
+        return {str(cid): concept_stage(rows.get(cid)) for cid in concept_ids}
 
     def ensure_attached(self, *, user: User, session: AtelierSession) -> ForgeState | None:
         """A fresh in-progress séance gets the forge (flag on); others keep theirs."""

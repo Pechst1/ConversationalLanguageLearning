@@ -7219,6 +7219,86 @@ class AtelierSRSService:
             ).strip()
         return ""
 
+    @classmethod
+    def _forge_proof_sentence(cls, attempt: AtelierAttempt) -> str:
+        """One French sentence an answer proves (WP-S6 recap): the whole line,
+        never a lone article or a verdict label."""
+
+        prompt = attempt.prompt_payload or {}
+        items = prompt.get("items") if isinstance(prompt.get("items"), list) else []
+        item = items[0] if len(items) == 1 and isinstance(items[0], dict) else {}
+        text = ""
+        if attempt.round in {"sentence", "speak", "conversation"}:
+            text = cls._published_phrase_text(attempt) if attempt.verdict in {"correct", "accepted"} else ""
+            text = text or str(item.get("example_answer") or "")
+        elif attempt.round == "transform":
+            text = str(item.get("expected_answer") or "")
+        elif attempt.mode == "fill":
+            blank = str(item.get("prompt") or "")
+            answer = str(item.get("correct_answer") or "")
+            if "___" in blank and answer:
+                text = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
+        elif attempt.mode == "word_bank" or item.get("classify_kind") == "minimal_pair":
+            text = str(item.get("correct_answer") or "")
+        text = re.sub(r"\s+", " ", text).strip()
+        return text if len(text.split()) >= 2 else ""
+
+    def _forge_rule_progress(
+        self,
+        *,
+        user: User,
+        concept_id: int,
+        stage_before: Any,
+        attempts: list[AtelierAttempt],
+        started_at: datetime | None,
+    ) -> dict[str, Any]:
+        """WP-S6: one rule's day in the forge — its stage before and after, the
+        next review, and two French lines the séance proved."""
+
+        from app.services.concept_life import concept_stage
+
+        progress = (
+            self.db.query(UserGrammarProgress)
+            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == int(concept_id))
+            .one_or_none()
+        )
+        stage_after = concept_stage(progress)
+        held_at = getattr(progress, "held_at", None)
+        started = started_at if started_at is None or started_at.tzinfo else started_at.replace(tzinfo=UTC)
+        held_now = held_at is not None and (
+            started is None or (held_at if held_at.tzinfo else held_at.replace(tzinfo=UTC)) >= started
+        )
+        before = str(stage_before or "")
+        if not before:
+            before = "practising" if held_now else stage_after
+        lines: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        # The attempts arrive in answer order: the latest correct lines first
+        # (the highest rung reached), then the corrected ones.
+        ranked = sorted(
+            ((index, attempt) for index, attempt in enumerate(attempts) if attempt.concept_id == int(concept_id)),
+            key=lambda pair: (pair[1].verdict in {"correct", "accepted"}, pair[0]),
+            reverse=True,
+        )
+        for _index, attempt in ranked:
+            sentence = self._forge_proof_sentence(attempt)
+            key = sentence.casefold()
+            if not sentence or key in seen:
+                continue
+            seen.add(key)
+            lines.append({"fr": sentence, "fixed": attempt.verdict not in {"correct", "accepted"}})
+            if len(lines) == 2:
+                break
+        next_review = getattr(progress, "next_review", None)
+        return {
+            "stage_before": before,
+            "stage": stage_after,
+            "held_today": bool(held_now),
+            "tested_out": getattr(progress, "tested_out_at", None) is not None,
+            "next_due": next_review.isoformat() if next_review else None,
+            "proof": lines,
+        }
+
     def complete_session(self, *, session: AtelierSession, user: User) -> dict[str, Any]:
         attempts = list(
             self.db.query(AtelierAttempt)
@@ -7299,6 +7379,7 @@ class AtelierSRSService:
         # WP-S3 La Forge: a forge séance wrote its evidence item by item
         # (`app.services.forge`); the end-of-session single evidence would count
         # the same answers twice, so the recap only reads the progress back.
+        from app.core.forge import rung_name as forge_rung_name
         from app.services.forge import forge_state_of
 
         forge_state = forge_state_of(session)
@@ -7370,8 +7451,22 @@ class AtelierSRSService:
                 "budget_seconds": plan.get("budget_seconds"),
                 "items": forge_state.position,
                 "evidence_written": forge_state.evidence_written,
+                # WP-S6: the recap draws each rule's progress, not a tally.
                 "rules": [
-                    {"concept_id": track.concept_id, "role": track.role, "rung": track.rung, "served": track.served}
+                    {
+                        "concept_id": track.concept_id,
+                        "role": track.role,
+                        "rung": track.rung,
+                        "rung_name": forge_rung_name(track.rung),
+                        "served": track.served,
+                        **self._forge_rule_progress(
+                            user=user,
+                            concept_id=track.concept_id,
+                            stage_before=(plan.get("stages_at_start") or {}).get(str(track.concept_id)),
+                            attempts=attempts,
+                            started_at=session.started_at,
+                        ),
+                    }
                     for track in forge_state.tracks
                 ],
             }
