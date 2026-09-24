@@ -296,6 +296,25 @@ the biggest time saver against Duolingo.
   - **Progress:** completing a forge block recomputes the CEFR payload (coverage «A1.1 · x %»).
   - Tests: `tests/test_wp_s4_one_picker.py`, `web-frontend/components/atelier-v2/journey/forge-step.test.js`.
 
+#### Integration of WP-S1…S4 (2026-09-24)
+- **One `quote_payload["forge"]`:** S4's plan (`units`, `budget_seconds`, `reason`, `rhythm`, `origin`,
+  `journey_step_id`) and S3's engine state (`tracks`, `history`, `pending`, …) side by side. The Composer is
+  `ForgePlanComposer`: it reads the stored plan back, or calls `forge_plan` once. `SelectTodayComposer` is gone.
+  The séance's length comes from the plan's budget.
+- **Bank top-up:** `BankItemProvider` is the forge's default. When a rung has no unused item, it generates one
+  from the item bank. The new sentence is never one served in the last 7 days, never one already in the
+  séance, and never the rule card's example, and it is recorded as served. The item is appended to this
+  session's exercise set (`payload.forge.appended`; a shared set is copied first) and graded by its key
+  through the ordinary submit path. The forge's `next.item` carries it to the page (`lib/forge-items.ts`).
+- **Grading:** `verdict_from_attempt` reads S1's `assessment_status`. A provisional production is unchecked,
+  but a detector hit still moves the staircase. It becomes evidence when the relecture lands
+  (`ForgeService.amend_attempt`, exactly once; `evidence_applied.mode = "forge"`). In a test-out, free
+  production is graded locally and final, so a test-out passes without a model.
+- **The fold:** a start carrying `journey_step_id` resumes the open séance of that rule and stamps the step on
+  it. The recap names the step.
+- Tests: `tests/test_forge_integration.py` (Soutenu day → forge step → séance topped up from the bank →
+  complete → back to the day, level recomputed).
+
 #### WP-S5 · Story-linked content and character coaches
 - Template slots draw from the world bible (cast, places, recurring objects) and the learner's story
   so far (the chronicle, WP-62).
