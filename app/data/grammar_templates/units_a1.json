@@ -6,98 +6,109 @@
    {"id": "etre-adj", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {A|agree:S}.", "en": "{S|en_sv:être} {A.en}.", "weight": 2},
    {"id": "etre-place", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a}.", "en": "{S|en_sv:être} at {P|en:the}.", "slots": {"P": "noun:place,town"}, "weight": 2},
    {"id": "etre-place-with", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a} avec {C}.", "en": "{S|en_sv:être} at {P|en:the} with {C}.", "slots": {"P": "noun:place,town", "C": "cast"}},
-   {"id": "etre-city", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {G.in} cette semaine.", "en": "{S|en_sv:être} in {G.en} this week.", "slots": {"G": "geo"}}
+   {"id": "etre-city", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {G.in} cette semaine.", "en": "{S|en_sv:être} in {G.en} this week.", "slots": {"G": "geo"}},
+   {"id": "etre-cast-place", "fr": "{C} [[{C|v:être} // {C|v_x:être}]] {P|a}.", "en": "{C|en_sv:être} at {P|en:the}.", "slots": {"C": "person3", "P": "noun:place,town"}, "weight": 3}
   ]
  },
  "FR2_A11_AVOIR": {
   "slots": {"S": "pron", "V": "verb:=avoir"},
   "frames": [
    {"id": "avoir-thing", "fr": "[[{S|sv:avoir} // {S|sv_x:avoir}]] {O}.", "en": "{S|en_svc:V:O}.", "slots": {"O": "comp@V"}, "weight": 2},
-   {"id": "avoir-age", "fr": "[[{S|sv:avoir} // {S|sv_etre:avoir} // {S|sv_x:avoir}]] {M} ans.", "en": "{S|en_sv:être} {M.digits} years old.", "slots": {"M": "num:age"}, "weight": 2},
-   {"id": "avoir-state", "fr": "[[{S|sv:avoir} // {S|sv_etre:avoir}]] {H} ce soir.", "en": "{S|en_sv:être} {H.en} tonight.", "slots": {"H": "avoir_state"}},
-   {"id": "avoir-noun", "fr": "[[{S|sv:avoir} // {S|sv_x:avoir}]] {N|indef} {A|agree:N}.", "en": "{S|en_sv:avoir} {N|en_aadj:A}.", "slots": {"N": "noun:obj,count", "A": "adj:post@N"}}
+   {"id": "avoir-age", "fr": "[[{S|sv:avoir} // {S|sv_etre:avoir} // {S|sv_x:avoir}]] {M} ans.", "en": "{S|en_sv:être} {M.digits} years old.", "slots": {"M": "num:age"}, "weight": 1},
+   {"id": "avoir-state", "fr": "[[{S|sv:avoir} // {S|sv_etre:avoir}]] {H} ce soir.", "en": "{S|en_sv:être} {H.en} tonight.", "slots": {"H": "avoir_state:body"}},
+   {"id": "avoir-noun", "fr": "[[{S|sv:avoir} // {S|sv_x:avoir}]] {N|indef} {A|agree:N}.", "en": "{S|en_sv:avoir} {N|en_aadj:A}.", "slots": {"N": "noun:obj,count,possess", "A": "adj:post@N"}},
+   {"id": "avoir-cast", "fr": "{C} [[{C|v:avoir} // {C|v_x:avoir}]] {O}.", "en": "{C|en_svc:V:O}.", "slots": {"C": "cast", "O": "comp@V"}, "weight": 3},
+   {"id": "avoir-cast-age", "fr": "{C} [[{C|v:avoir} // {C|v:être} // {C|v_x:avoir}]] {M} ans.", "en": "{C} is {M.digits} years old.", "slots": {"C": "cast", "M": "num:age@C"}, "weight": 2},
+   {"id": "avoir-age-ask", "fr": "{C} demande ton âge. [[{S|sv:avoir} // {S|sv_etre:avoir} // {S|sv_x:avoir}]] {M} ans.", "en": "{C} asks how old you are. {S|en_sv:être} {M.digits} years old.", "slots": {"C": "cast", "S": "pron:1s", "M": "num:age"}, "weight": 2}
   ]
  },
  "FR2_A11_IL_Y_A": {
   "frames": [
-   {"id": "ilya-place", "fr": "[[Il y a // Il est // Il a]] {N|indef} {P|a}.", "en": "There is {N|en:a} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 3},
-   {"id": "ilya-room", "fr": "[[Il y a // Il est // Il a]] {N|indef} dans {R|def}.", "en": "There is {N|en:a} in {R|en:the}.", "slots": {"N": "noun:count,furniture|lose|read|wear|listen", "R": "noun:room"}},
-   {"id": "ilya-plural", "fr": "[[Il y a // Ils sont // Il y ont]] {N|indef:p} {P|a}.", "en": "There are {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 2},
+   {"id": "ilya-place", "fr": "[[Il y a // Il est // Il a]] {N|indef} {P|a}.", "en": "There is {N|en:a} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 3, "ask": {"fr": "Qu'est-ce qu'il y a {P|a} ?", "en": "What is there at {P|en:the}?"}},
+   {"id": "ilya-room", "fr": "[[Il y a // Il est // Il a]] {N|indef} dans {R|def}.", "en": "There is {N|en:a} in {R|en:the}.", "slots": {"N": "noun:count,furniture|lose|read|wear|listen", "R": "noun:room"}, "ask": {"fr": "Qu'est-ce qu'il y a dans {R|def} ?", "en": "What is there in {R|en:the}?"}},
+   {"id": "ilya-plural", "fr": "[[Il y a // Ils sont // Il y ont]] {N|indef:p} {P|a}.", "en": "There are {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|food", "P": "noun:place,town"}, "weight": 2, "ask": {"fr": "Qu'est-ce qu'il y a {P|a} ?", "en": "What is there at {P|en:the}?"}},
    {"id": "ilya-neg", "fr": "[[Il n'y a pas {N|q} // Il n'y a pas {N|part} // Il n'y a pas {N|indef}]] {P|a}.", "en": "There is no {N.en} at {P|en:the}.", "slots": {"N": "noun:mass,food", "P": "noun:place,town"}}
   ]
  },
  "FR2_A11_UN_UNE": {
   "frames": [
-   {"id": "unune-has", "fr": "{C} a [[{N|indef} // {N|indef_x}]] dans {R|def}.", "en": "{C} has {N|en:a} in {R|en:the}.", "slots": {"C": "cast", "N": "noun:count,obj", "R": "noun:room"}, "weight": 2},
-   {"id": "unune-want", "fr": "Je voudrais [[{N|indef} // {N|indef_x}]], s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,food|obj"}},
+   {"id": "unune-has", "fr": "{C} a [[{N|indef} // {N|indef_x}]] dans {R|def}.", "en": "{C} has {N|en:a} in {R|en:the}.", "slots": {"C": "cast", "N": "noun:count,obj,possess", "R": "noun:room"}, "weight": 2},
+   {"id": "unune-want", "fr": "Je voudrais [[{N|indef} // {N|indef_x}]], s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "unune-look", "fr": "{S|sv:chercher} [[{N|indef} // {N|indef_x}]] {P|a}.", "en": "{S|en_sv:chercher} {N|en:a} at {P|en:the}.", "slots": {"S": "pron", "N": "noun:count,obj", "P": "noun:place,town"}},
-   {"id": "unune-plural", "fr": "{C} achète [[{N|indef:p} // {N|indef_x:p}]] {P|a}.", "en": "{C} buys {N|en:pl} at {P|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy", "P": "noun:shop|bible"}}
+   {"id": "unune-plural", "fr": "{C} achète [[{N|indef:p} // {N|indef_x:p}]] {P|a}.", "en": "{C} buys {N|en:pl} at {P|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy", "P": "noun:at_shop"}}
   ]
  },
  "FR2_A11_LE_LA": {
   "frames": [
    {"id": "lela-like", "fr": "{C} aime [[{N|def} // {N|def_x}]].", "en": "{C} likes {N.en}.", "slots": {"C": "cast", "N": "noun:mass"}},
    {"id": "lela-is", "fr": "[[{N|def} // {N|def_x}]] est {A|agree:N}.", "en": "{N|en:the} is {A.en}.", "slots": {"N": "noun:count,obj|place|food", "A": "adj@N"}, "weight": 3},
-   {"id": "lela-look", "fr": "{S|sv:chercher} [[{N|def} // {N|def_x}]].", "en": "{S|en_sv:chercher} {N|en:the}.", "slots": {"S": "pron", "N": "noun:count,obj|place"}, "weight": 2},
-   {"id": "lela-where", "fr": "Où est [[{N|def} // {N|def_x}]] ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:count,obj|place"}},
-   {"id": "lela-plural", "fr": "[[{N|def:p} // {N|def_x:p}]] sont {A|agree:N:p}.", "en": "{N|en:the_pl} are {A.en}.", "slots": {"N": "noun:count,obj|food", "A": "adj@N"}}
+   {"id": "lela-look", "fr": "{S|sv:chercher} [[{N|def} // {N|def_x}]].", "en": "{S|en_sv:chercher} {N|en:the}.", "slots": {"S": "pron", "N": "noun:count,lose|find|town"}, "weight": 2},
+   {"id": "lela-where", "fr": "Où est [[{N|def} // {N|def_x}]] ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:count,obj|place"}, "ask": {"fr": "Tu cherches quelque chose ?", "en": "Are you looking for something?"}},
+   {"id": "lela-plural", "fr": "[[{N|def:p} // {N|def_x:p}]] sont {A|agree:N:p}.", "en": "{N|en:the_pl} are {A.en}.", "slots": {"N": "noun:count,obj|food", "A": "adj@N"}},
+   {"id": "lela-cast-look", "fr": "{C} cherche [[{N|def} // {N|def_x}]].", "en": "{C} is looking for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,lose|find"}, "weight": 2}
   ]
  },
  "FR2_A11_ER_VERBS": {
   "slots": {"S": "pron", "V": "verb:er,!aux_etre", "O": "comp@V"},
   "frames": [
    {"id": "er-comp", "fr": "[[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "{S|en_svc:V:O}.", "weight": 3},
-   {"id": "er-motion", "fr": "[[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "{S|en_svc:V:O}.", "slots": {"V": "verb:er,aux_etre"}}
+   {"id": "er-motion", "fr": "[[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "{S|en_svc:V:O}.", "slots": {"V": "verb:er,aux_etre,!event"}}
   ]
  },
  "FR2_A11_NEGATION": {
   "slots": {"S": "pron"},
   "frames": [
    {"id": "neg-verb", "fr": "{S} [[{S|neg:V} // {S|neg_x:V}]] {O}.", "en": "{S|en_svc:V:O:neg}.", "slots": {"V": "verb:!modal,!en_only,!coi", "O": "comp:!indef@V"}, "weight": 3},
-   {"id": "neg-pas-de", "fr": "{S} [[{S|neg:avoir} {N|q:s} // {S|neg:avoir} {N|indef} // {S|neg_x:avoir} {N|indef}]].", "en": "{S|en_sv:avoir:neg} {N|en:a}.", "slots": {"N": "noun:obj,count"}},
-   {"id": "neg-pas-de-mass", "fr": "{S} [[{S|neg:V} {N|q} // {S|neg:V} {N|part}]].", "en": "{S|en_sv:V:neg} {N.en}.", "slots": {"V": "verb:=manger|boire|acheter", "N": "obj:mass@V"}}
+   {"id": "neg-pas-de", "fr": "{S} [[{S|neg:avoir} {N|q:s} // {S|neg:avoir} {N|indef} // {S|neg_x:avoir} {N|indef}]].", "en": "{S|en_sv:avoir:neg} {N|en:a}.", "slots": {"N": "noun:obj,count,possess"}},
+   {"id": "neg-pas-de-mass", "fr": "{S} [[{S|neg:V} {N|q} // {S|neg:V} {N|part}]].", "en": "{S|en_sv:V:neg} {N.en}.", "slots": {"V": "verb:=manger|boire|acheter", "N": "obj:mass@V"}},
+   {"id": "neg-cast", "fr": "{C} [[{C|neg:V} // {C|neg_x:V}]] {O}.", "en": "{C|en_svc:V:O:neg}.", "slots": {"C": "person3", "V": "verb:!modal,!en_only,!coi", "O": "comp:!indef@V"}, "weight": 2}
   ]
  },
  "FR2_A11_QUESTIONS": {
   "slots": {"S": "pron:!1s", "V": "verb:!modal,!en_only,!coi,!pron", "O": "comp@V"},
   "frames": [
    {"id": "estceque", "fr": "[[{S|estceque} // {S|estceque_x}]] {S|v:V} {O} ?", "en": "{S|en_do} {S.en} {S|en_vc:V:O:base}?", "weight": 3},
-   {"id": "estceque-avoir", "fr": "[[{S|estceque} // {S|estceque_x}]] {S|v:avoir} {N|indef} ?", "en": "{S|en_do} {S.en} have {N|en:a}?", "slots": {"N": "noun:count,obj"}}
+   {"id": "estceque-avoir", "fr": "[[{S|estceque} // {S|estceque_x}]] {S|v:avoir} {N|indef} ?", "en": "{S|en_do} {S.en} have {N|en:a}?", "slots": {"N": "noun:count,obj,possess"}},
+   {"id": "estceque-cast", "fr": "[[{C|estceque} // {C|estceque_x}]] {C|v:V} {O} ?", "en": "{C|en_do} {C} {C|en_vc:V:O:base}?", "slots": {"C": "cast"}, "weight": 3}
   ]
  },
  "FR2_A11_QUESTION_WORDS": {
   "gloss": true,
   "frames": [
-   {"id": "qw-where-is", "fr": "[[Où // Quand // Comment]] est {N|def} ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:place|obj,count"}},
-   {"id": "qw-where-do", "fr": "[[Où // Quand // Combien]] est-ce que {S} {S|v:V} ?", "en": "Where {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:!1s", "V": "verb:=travailler|habiter|dîner|déjeuner|manger|nager|étudier"}},
-   {"id": "qw-when-do", "fr": "[[Quand // Où // Comment]] est-ce que {S} {S|v:V} ?", "en": "When {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:!1s", "V": "verb:=arriver|partir|rentrer|commencer|finir|sortir"}},
+   {"id": "qw-where-is", "fr": "[[Où // Quand // Comment]] est {N|def} ?", "en": "Where is {N|en:the}?", "slots": {"N": "noun:place|obj,count"}, "ask": {"fr": "Tu cherches quelque chose ?", "en": "Are you looking for something?"}},
+   {"id": "qw-where-do", "fr": "[[Où // Quand // Combien]] est-ce que {S} {S|v:V} ?", "en": "Where {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:2s|2p|3s|3p,!on", "V": "verb:=travailler|habiter|dîner|déjeuner|manger|nager|étudier"}},
+   {"id": "qw-when-do", "fr": "[[Quand // Où // Comment]] est-ce que {S} {S|v:V} ?", "en": "When {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:2s|2p|3s|3p,!on", "V": "verb:=arriver|partir|rentrer|commencer|finir|sortir"}},
    {"id": "qw-how-much", "fr": "[[Combien // Comment // Où]] coûte {N|def} ?", "en": "How much does {N|en:the} cost?", "slots": {"N": "noun:count,buy"}},
-   {"id": "qw-which", "fr": "[[{N|quel} // {N|quel_x}]] {N} est-ce que {S} {S|v:préférer} ?", "en": "Which {N.en} {S|en_do} {S.en} prefer?", "slots": {"N": "noun:count,buy", "S": "pron:!1s"}},
-   {"id": "qw-what-time", "fr": "[[À quelle heure // Quelle heure // À quel heure]] est-ce que {S} {S|v:V} ?", "en": "What time {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:!1s", "V": "verb:=partir|arriver|commencer|rentrer|dîner|déjeuner|sortir|finir"}}
+   {"id": "qw-which", "fr": "[[{N|quel} // {N|quel_x}]] {N} est-ce que {S} {S|v:préférer} ?", "en": "Which {N.en} {S|en_do} {S.en} prefer?", "slots": {"N": "noun:count,buy,possess|dish|bakery", "S": "pron:2s|2p|3s|3p,!on"}},
+   {"id": "qw-what-time", "fr": "[[À quelle heure // Quelle heure // À quel heure]] est-ce que {S} {S|v:V} ?", "en": "What time {S|en_do} {S.en} {S|en_v:V:base}?", "slots": {"S": "pron:2s|2p|3s|3p,!on", "V": "verb:=partir|arriver|commencer|rentrer|dîner|déjeuner|sortir|finir"}},
+   {"id": "qw-where-cast", "fr": "[[Où // Quand // Combien]] est-ce que {C} {C|v:V} ?", "en": "Where does {C} {C|en_v:V:base}?", "slots": {"C": "cast", "V": "verb:=travailler|habiter|dîner|déjeuner|manger|nager|étudier"}, "weight": 2},
+   {"id": "qw-when-cast", "fr": "[[Quand // Où // Comment]] est-ce que {C} {C|v:V} ?", "en": "When does {C} {C|en_v:V:base}?", "slots": {"C": "cast", "V": "verb:=arriver|partir|rentrer|commencer|finir|sortir"}, "weight": 2},
+   {"id": "qw-how-much-cast", "fr": "[[Combien // Comment // Où]] coûte {N|def} de {C} ?", "en": "How much does {C}'s {N.en} cost?", "slots": {"C": "cast", "N": "noun:count,buy,possess"}, "weight": 2}
   ]
  },
  "FR2_A11_JE_VOUDRAIS": {
   "frames": [
-   {"id": "voudrais-thing", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|indef}, s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,food|obj"}},
-   {"id": "voudrais-some", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|part}, s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}},
-   {"id": "voudrais-do", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "slots": {"S": "pron:=je_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular", "O": "comp@V"}, "weight": 2},
-   {"id": "voulez-vous", "fr": "[[Vous voulez // Vous voulais // Vous veux]] {N|indef} ?", "en": "Would you like {N|en:a}?", "slots": {"N": "noun:count,food"}},
-   {"id": "tu-veux", "fr": "[[Tu veux // Tu veut // Tu voulez]] {V|inf} {O} ?", "en": "Do you want to {S|en_vc:V:O:base}?", "slots": {"S": "pron:=tu_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular", "O": "comp@V"}, "weight": 2}
+   {"id": "voudrais-thing", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|indef}, s'il vous plaît.", "en": "I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|produce|drink|ticket|books|press"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
+   {"id": "voudrais-some", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|part}, s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
+   {"id": "voudrais-do", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "slots": {"S": "pron:=je_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event", "O": "comp:!adv_pre@V"}, "weight": 2},
+   {"id": "voulez-vous", "fr": "[[Vous voulez // Vous voulais // Vous veux]] {N|indef} ?", "en": "Would you like {N|en:a}?", "slots": {"N": "noun:count,dish|bakery|produce|drink"}},
+   {"id": "tu-veux", "fr": "[[Tu veux // Tu veut // Tu voulez]] {V|inf} {O} ?", "en": "Do you want to {S|en_vc:V:O:base}?", "slots": {"S": "pron:=tu_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event", "O": "comp:!adv_pre@V"}, "weight": 2},
+   {"id": "voudrais-mistral", "fr": "Margaux, [[je voudrais // je voudrait // je voudrai]] {N|indef}, s'il te plaît.", "en": "Margaux, I would like {N|en:a}, please.", "slots": {"N": "noun:count,dish|bakery|drink"}, "weight": 3}
   ]
  },
  "FR2_A11_NUMBERS": {
   "gloss": true,
   "frames": [
-   {"id": "num-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy", "M": "num:small"}, "weight": 3},
+   {"id": "num-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:small@N"}, "weight": 3, "ask": {"fr": "Combien coûte {N|def} ?", "en": "How much does {N|en:the} cost?"}},
    {"id": "num-total", "fr": "Ça fait [[{M} // {M|x}]] euros, s'il vous plaît.", "en": "That's {M.digits} euros, please.", "slots": {"M": "num:small"}},
-   {"id": "num-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy", "M": "num:small"}, "weight": 2},
+   {"id": "num-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy,priced", "M": "num:small@N"}, "weight": 2},
    {"id": "num-ticket", "fr": "Le billet pour {G} coûte [[{M} // {M|x}]] euros.", "en": "The ticket to {G.en} costs {M.digits} euros.", "slots": {"G": "geo:city", "M": "num:small"}}
   ]
  },
  "FR2_A11_ADJ_AGREEMENT": {
   "frames": [
    {"id": "adj-post", "fr": "{C} a {N|art_indef} {N} [[{A|agree:N} // {A|agree_x:N}]].", "en": "{C} has {N|en_aadj:A}.", "slots": {"C": "cast", "N": "noun:count,obj", "A": "adj:post@N"}, "weight": 2},
-   {"id": "adj-pre", "fr": "{C} cherche {N|art_indef} [[{A|agree_pre:N} // {A|agree_pre_x:N}]] {N}.", "en": "{C} is looking for {N|en_aadj:A}.", "slots": {"C": "cast", "N": "noun:count,obj|place", "A": "adj:pre@N"}},
+   {"id": "adj-pre", "fr": "{C} cherche {N|art_indef} [[{A|agree_pre:N} // {A|agree_pre_x:N}]] {N}.", "en": "{C} is looking for {N|en_aadj:A}.", "slots": {"C": "cast", "N": "noun:count,obj|town,!room", "A": "adj:pre@N"}},
    {"id": "adj-position-post", "fr": "{S|sv:acheter} [[{N|art_indef} {N} {A|agree:N} // {N|art_indef} {A|agree:N} {N} // {N|art_indef} {N} {A|agree_x:N}]].", "en": "{S|en_sv:acheter} {N|en_aadj:A}.", "slots": {"S": "pron", "N": "noun:count,buy,obj", "A": "adj:post@N"}},
    {"id": "adj-position-pre", "fr": "{C} habite dans [[{N|art_indef} {A|agree_pre:N} {N} // {N|art_indef} {N} {A|agree:N} // {N|art_indef} {A|agree_pre_x:N} {N}]].", "en": "{C} lives in {N|en_aadj:A}.", "slots": {"C": "cast", "N": "noun:=appartement|immeuble|quartier|rue|ville|maison", "A": "adj:pre@N"}},
    {"id": "adj-predicate", "fr": "{N|def} est [[{A|agree:N} // {A|agree_x:N}]].", "en": "{N|en:the} is {A.en}.", "slots": {"N": "noun:count,obj|place|food", "A": "adj@N"}, "weight": 2},
@@ -110,32 +121,33 @@
   "frames": [
    {"id": "places-live", "fr": "{S|sv:habiter} [[{G.in} // {G|x}]].", "en": "{S|en_sv:habiter} in {G.en}."},
    {"id": "places-work", "fr": "{S|sv:travailler} [[{G.in} // {G|x}]].", "en": "{S|en_sv:travailler} in {G.en}."},
-   {"id": "places-go", "fr": "{S|sv:aller} [[{G.in} // {G|x}]] {T}.", "en": "{S|en_sv:aller} to {G.en} {T.en}.", "slots": {"T": "time_future"}},
-   {"id": "places-be", "fr": "{C} {C|v:être} [[{G.in} // {G|x}]] pour le travail.", "en": "{C|en_sv:être} in {G.en} for work.", "slots": {"C": "person3"}},
+   {"id": "places-go", "fr": "{S|sv:aller} [[{G.in} // {G|x}]] {T}.", "en": "{S|en_sv:aller:prog} to {G.en} {T.en}.", "slots": {"T": "time_future"}},
+   {"id": "places-be", "fr": "{C} {C|v:être} [[{G.in} // {G|x}]] pour le travail.", "en": "{C|en_sv:être} in {G.en} for work.", "slots": {"C": "person3"}, "weight": 3},
    {"id": "places-leave", "fr": "{S|sv:partir} [[{G.in} // {G|x}]] {T}.", "en": "{S|en_sv:partir} for {G.en} {T.en}.", "slots": {"T": "time_future"}}
   ]
  },
  "FR2_A11_CONTRACTIONS": {
   "frames": [
-   {"id": "contr-go", "fr": "{S|sv:aller} [[{P|a} // {P|a_x}]] {T}.", "en": "{S|en_sv:aller} to {P|en:the} {T.en}.", "slots": {"S": "pron", "P": "noun:place,m", "T": "time_future"}, "weight": 3},
+   {"id": "contr-go", "fr": "{S|sv:aller} [[{P|a} // {P|a_x}]] {T}.", "en": "{S|en_sv:aller:prog} to {P|en:the} {T.en}.", "slots": {"S": "pron", "P": "noun:place,m,town", "T": "time_future"}, "weight": 3},
    {"id": "contr-come", "fr": "{S|sv:venir} [[{P|de} // {P|de_x}]].", "en": "{S|en_sv:venir} from {P|en:the}.", "slots": {"S": "pron", "P": "noun:=bureau|marché|quartier|cinéma|restaurant|musée|parc|jardin"}, "weight": 2},
-   {"id": "contr-of", "fr": "C'est {N|def} [[{H|de} // {H|de_x}]].", "en": "It's the {H.en}'s {N.en}.", "slots": {"N": "noun:count,obj", "H": "noun:=voisin|professeur"}},
-   {"id": "contr-talk", "fr": "{S|sv:parler} [[{H|a:p} // {H|a_x:p}]].", "en": "{S|en_sv:parler_a} {H|en:the_pl}.", "slots": {"S": "pron", "H": "noun:people"}},
-   {"id": "contr-play", "fr": "{S|sv:jouer} [[{G|a} // {G|a_x}]] le samedi.", "en": "{S|en_sv:jouer} {G.en} on Saturdays.", "slots": {"S": "pron", "G": "play:sport"}}
+   {"id": "contr-of", "fr": "C'est {N|def} [[{H|de} // {H|de_x}]].", "en": "It's the {H.en}'s {N.en}.", "slots": {"N": "noun:count,obj,possess", "H": "noun:=voisin|professeur"}},
+   {"id": "contr-talk", "fr": "{S|sv:parler} [[{H|a:p} // {H|a_x:p}]].", "en": "{S|en_sv:parler_a} {H|en:the_pl}.", "slots": {"S": "pron", "H": "noun:people,!family"}},
+   {"id": "contr-play", "fr": "{S|sv:jouer} [[{G|a} // {G|a_x}]] le samedi.", "en": "{S|en_sv:jouer} {G.en} on Saturdays.", "slots": {"S": "pron", "G": "play:sport"}},
+   {"id": "contr-cast-go", "fr": "{C} {C|v:aller} [[{P|a} // {P|a_x}]] {T}.", "en": "{C|en_sv:aller:prog} to {P|en:the} {T.en}.", "slots": {"C": "person3", "P": "noun:place,m,town", "T": "time_future"}, "weight": 3}
   ]
  },
  "FR2_A11_POSSESSIVES": {
   "frames": [
-   {"id": "poss-look", "fr": "{S} {S|v:chercher} [[{N|poss:S} // {N|poss_x:S}]].", "en": "{S|en_sv:chercher} {S|en_poss} {N.en}.", "slots": {"S": "pron", "N": "noun:count,obj|people"}, "weight": 3},
-   {"id": "poss-is", "fr": "C'est [[{N|poss:O} // {N|poss_x:O}]] ?", "en": "Is it {O|en_poss} {N.en}?", "slots": {"O": "pron:!on", "N": "noun:count,obj"}},
-   {"id": "poss-loves", "fr": "{C} {C|v:aimer} beaucoup [[{N|poss:C} // {N|poss_x:C}]].", "en": "{C|en_sv:aimer} {C|en_poss} {N.en} a lot.", "slots": {"C": "cast", "N": "noun:count,obj|people"}},
-   {"id": "poss-plural", "fr": "{S} {S|v:chercher} [[{N|poss:S:p} // {N|poss_x:S:p}]].", "en": "{S|en_sv:chercher} {S|en_poss} {N|en:pl}.", "slots": {"S": "pron", "N": "noun:count,obj"}}
+   {"id": "poss-look", "fr": "{S} {S|v:chercher} [[{N|poss:S} // {N|poss_x:S}]].", "en": "{S|en_sv:chercher} {S|en_poss} {N.en}.", "slots": {"S": "pron", "N": "noun:count,lose|find|family|friend,!staff"}, "weight": 3},
+   {"id": "poss-is", "fr": "C'est [[{N|poss:O} // {N|poss_x:O}]] ?", "en": "Is it {O|en_poss} {N.en}?", "slots": {"O": "pron:!on", "N": "noun:count,obj,possess"}},
+   {"id": "poss-loves", "fr": "{C} {C|v:aimer} beaucoup [[{N|poss:C} // {N|poss_x:C}]].", "en": "{C|en_sv:aimer} {C|en_poss} {N.en} a lot.", "slots": {"C": "cast", "N": "noun:count,possess|family|friend|animal,!staff"}},
+   {"id": "poss-plural", "fr": "{S} {S|v:chercher} [[{N|poss:S:p} // {N|poss_x:S:p}]].", "en": "{S|en_sv:chercher} {S|en_poss} {N|en:pl}.", "slots": {"S": "pron", "N": "noun:count,lose|find,possess"}}
   ]
  },
  "FR2_A11_ALLER_VENIR": {
   "slots": {"S": "pron"},
   "frames": [
-   {"id": "aller-place", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} {T}.", "en": "{S|en_sv:aller} to {P|en:the} {T.en}.", "slots": {"P": "noun:place,town", "T": "time_future"}, "weight": 2},
+   {"id": "aller-place", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} {T}.", "en": "{S|en_sv:aller:prog} to {P|en:the} {T.en}.", "slots": {"P": "noun:place,town", "T": "time_future"}, "weight": 2},
    {"id": "venir-place", "fr": "{S} [[{S|v:venir} // {S|v_x:venir}]] {P|de}.", "en": "{S|en_sv:venir} from {P|en:the}.", "slots": {"P": "noun:place,town"}},
    {"id": "venir-origin", "fr": "{S} [[{S|v:venir} // {S|v_x:venir}]] {G.de}.", "en": "{S|en_sv:venir} from {G.en}.", "slots": {"G": "geo"}},
    {"id": "aller-with", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} avec {C}.", "en": "{S|en_sv:aller} to {P|en:the} with {C}.", "slots": {"P": "noun:place,town", "C": "cast"}}
@@ -143,63 +155,71 @@
  },
  "FR2_A11_PARTITIVE": {
   "frames": [
-   {"id": "part-verb", "fr": "{S|sv:V} [[{N|part} // {N|part_x}]].", "en": "{S|en_sv:V} {N.en}.", "slots": {"S": "pron:1s|2s|3s|2p", "V": "verb:=manger|boire|acheter|prendre", "N": "obj:mass@V"}, "weight": 2},
-   {"id": "part-want", "fr": "Je voudrais [[{N|part} // {N|part_x}]], s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}},
+   {"id": "part-verb", "fr": "{S|sv:V} [[{N|part} // {N|part_x}]].", "en": "{S|en_sv:V} {N.en}.", "slots": {"S": "pron:1s|2s|3s|2p", "V": "verb:=manger|boire|acheter", "N": "obj:mass@V"}, "weight": 2},
+   {"id": "part-want", "fr": "Je voudrais [[{N|part} // {N|part_x}]], s'il vous plaît.", "en": "I would like {N|en:some}, please.", "slots": {"N": "noun:mass,food"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "part-have", "fr": "Vous avez [[{N|part} // {N|part_x}]] ?", "en": "Do you have {N|en:any}?", "slots": {"N": "noun:mass,food"}},
-   {"id": "part-do", "fr": "{S|sv:faire} [[{A|part} // {A|part_x}]] {T}.", "en": "{S|en_svc:faire:A} {T.en}.", "slots": {"S": "pron:1s|2s|3s", "A": "activity", "T": "time_future"}}
+   {"id": "part-do", "fr": "{S|sv:faire} [[{A|part} // {A|part_x}]] {T}.", "en": "{S|en_svc:faire:A:prog} {T.en}.", "slots": {"S": "pron:1s|2s|3s", "A": "activity", "T": "time_future"}},
+   {"id": "part-prendre", "fr": "{S|sv:prendre} [[{N|part} // {N|part_x}]].", "en": "{S|en_sv:avoir} {N.en}.", "slots": {"S": "pron:1s|2s|3s|2p", "N": "noun:mass,drink|dish|deli"}},
+   {"id": "part-mistral", "fr": "Au Mistral, {C} {C|v:V} [[{N|part} // {N|part_x}]].", "en": "At Le Mistral, {C|en_sv:V} {N.en}.", "slots": {"C": "cast", "V": "verb:=boire|manger|commander", "N": "obj:mass,drink|dish|sweet@V"}, "weight": 3},
+   {"id": "part-market", "fr": "Au marché du canal, {C} achète [[{N|part} // {N|part_x}]].", "en": "At the canal market, {C} buys {N.en}.", "slots": {"C": "cast", "N": "noun:mass,deli|grocery|bakery,!drink"}, "weight": 2}
   ]
  },
  "FR2_A11_FAIRE_PRENDRE": {
   "slots": {"S": "pron", "O": "comp@V"},
   "frames": [
-   {"id": "faire", "fr": "{S} [[{S|v:faire} // {S|v_x:faire}]] {O} {T}.", "en": "{S|en_svc:V:O} {T.en}.", "slots": {"V": "verb:=faire", "T": "time_future"}, "weight": 2},
+   {"id": "faire", "fr": "{S} [[{S|v:faire} // {S|v_x:faire}]] {O} {T}.", "en": "{S|en_svc:V:O:prog} {T.en}.", "slots": {"V": "verb:=faire", "T": "time_future"}, "weight": 2},
    {"id": "prendre", "fr": "{S} [[{S|v:prendre} // {S|v_x:prendre}]] {O}.", "en": "{S|en_svc:V:O}.", "slots": {"V": "verb:=prendre"}, "weight": 2},
-   {"id": "prendre-time", "fr": "{S} [[{S|v:prendre} // {S|v_x:prendre}]] {O} {T}.", "en": "{S|en_svc:V:O} {T.en}.", "slots": {"V": "verb:=prendre", "T": "time_future"}}
+   {"id": "prendre-time", "fr": "{S} [[{S|v:prendre} // {S|v_x:prendre}]] {O} {T}.", "en": "{S|en_svc:V:O:prog} {T.en}.", "slots": {"V": "verb:=prendre", "T": "time_future", "O": "comp:!routine@V"}},
+   {"id": "faire-cast", "fr": "{C} [[{C|v:faire} // {C|v_x:faire}]] {O} {T}.", "en": "{C|en_svc:V:O:prog} {T.en}.", "slots": {"C": "cast", "V": "verb:=faire", "T": "time_future"}, "weight": 3},
+   {"id": "prendre-cast", "fr": "{C} [[{C|v:prendre} // {C|v_x:prendre}]] {O}.", "en": "{C|en_svc:V:O}.", "slots": {"C": "cast", "V": "verb:=prendre"}, "weight": 3}
   ]
  },
  "FR2_A12_FUTUR_PROCHE": {
   "slots": {"S": "pron", "V": "verb:!modal,!en_only,!coi,!event,!irregular", "O": "comp@V", "T": "time_future"},
   "frames": [
-   {"id": "near", "fr": "{S} [[{S|v:aller} {V|inf_refl:S} // {S|v:aller} {S|v:V} // {S|v_x:aller} {V|inf_refl:S}]] {O} {T}.", "en": "{S|en_svc:V:O:near} {T.en}.", "weight": 3},
+   {"id": "near", "fr": "{S} [[{S|v:aller} {V|inf_refl:S} // {S|v:aller} {S|v:V} // {S|v_x:aller} {V|inf_refl:S}]] {O} {T}.", "en": "{S|en_svc:V:O:near} {T.en}.", "weight": 3, "slots": {"V": "verb:!modal,!en_only,!coi,!event,!irregular,!stative"}},
    {"id": "near-neg", "fr": "{S} [[{S|neg:aller} {V|inf_refl:S} // ne {S|v:aller} {V|inf_refl:S} pas // {S|neg:aller} {S|v:V}]] {O}.", "en": "{S|en_svc:V:O:near_neg}."}
   ]
  },
  "FR2_A12_MODALS": {
   "slots": {"S": "pron", "M": "verb:modal", "V": "verb:!modal,!en_only,!coi,!event,!irregular", "O": "comp@V"},
   "frames": [
-   {"id": "modal", "fr": "{S} [[{S|v:M} {V|inf_refl:S} // {S|v:M} {V|de_inf:S} // {S|v:M} {S|v:V}]] {O}.", "en": "{S|en_svc:V:O:M}.", "weight": 2},
-   {"id": "modal-person", "fr": "{S} [[{S|v:M} {V|inf_refl:S} // {S|v_x:M} {V|inf_refl:S}]] {O}.", "en": "{S|en_svc:V:O:M}."}
+   {"id": "modal", "fr": "{S} [[{S|v:M} {V|inf_refl:S} // {S|v:M} {V|de_inf:S} // {S|v:M} {S|v:V}]] {O}.", "en": "{S|en_svc:V:O:M}.", "weight": 2, "slots": {"V": "verb:!modal,!en_only,!coi,!event,!irregular,!stative,!mishap", "O": "comp:!adv_pre@V"}},
+   {"id": "modal-person", "fr": "{S} [[{S|v:M} {V|inf_refl:S} // {S|v_x:M} {V|inf_refl:S}]] {O}.", "en": "{S|en_svc:V:O:M}.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!irregular,!stative,!mishap", "O": "comp:!adv_pre@V"}}
   ]
  },
  "FR2_A12_PRONOMINAL": {
   "slots": {"S": "pron", "V": "verb:pron", "O": "comp@V"},
   "frames": [
    {"id": "pron", "fr": "[[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "{S|en_svc:V:O}.", "weight": 3},
-   {"id": "pron-when", "fr": "D'habitude, [[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "Usually, {S|en_svc:V:O}."}
+   {"id": "pron-when", "fr": "D'habitude, [[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "Usually, {S|en_svc:V:O}."},
+   {"id": "pron-cast", "fr": "[[{C|sv:V} // {C|sv_x:V}]] {O}.", "en": "{C|en_svc:V:O}.", "slots": {"C": "person3"}, "weight": 4}
   ]
  },
  "FR2_A12_IMPERATIVE": {
   "frames": [
    {"id": "imp-tu", "fr": "[[{V|imperative:2s} // {V|imperative_x:2s}]] {O}, {C} !", "en": "{V|en_imp:O}, {C}!", "slots": {"C": "cast", "V": "verb:=aller|venir|prendre|regarder|écouter|attendre", "O": "comp@V"}, "weight": 2},
    {"id": "imp-vous", "fr": "[[{V|imperative:2p} // {V|imperative_x:2p}]] {O}, s'il vous plaît.", "en": "{V|en_imp:O}, please.", "slots": {"V": "verb:=aller|venir|prendre|regarder|écouter|attendre", "O": "comp@V"}, "weight": 2},
-   {"id": "il-faut", "fr": "Il faut [[{V|inf} // de {V|inf} // {V|pp}]] {O}.", "en": "You have to {V|en_imp:O}.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron", "O": "comp@V"}, "weight": 3}
+   {"id": "il-faut", "fr": "Il faut [[{V|inf} // de {V|inf} // {V|pp}]] {O}.", "en": "You have to {V|en_imp:O}.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!stative,!mishap", "O": "comp:!adv_pre@V"}, "weight": 3}
   ]
  },
  "FR2_A12_DEMONSTRATIVES": {
   "frames": [
    {"id": "dem-is", "fr": "[[{N|dem} // {N|dem_x}]] est {A|agree:N}.", "en": "{N|en:this} is {A.en}.", "slots": {"N": "noun:count,obj|place|food", "A": "adj@N"}, "weight": 3},
-   {"id": "dem-take", "fr": "{S|sv:prendre} [[{N|dem} // {N|dem_x}]].", "en": "{S|en_sv:prendre} {N|en:this}.", "slots": {"S": "pron", "N": "noun:count,buy"}, "weight": 2},
+   {"id": "dem-take", "fr": "{S|sv:prendre} [[{N|dem} // {N|dem_x}]].", "en": "{S|en_sv:prendre} {N|en:this}.", "slots": {"S": "pron", "N": "noun:count,buy,!fixture"}, "weight": 2},
    {"id": "dem-plural", "fr": "[[{N|dem:p} // {N|dem_x:p}]] sont {A|agree:N:p}.", "en": "{N|en:these} are {A.en}.", "slots": {"N": "noun:count,obj|food", "A": "adj@N"}},
-   {"id": "dem-know", "fr": "Tu connais [[{N|dem} // {N|dem_x}]] ?", "en": "Do you know {N|en:this}?", "slots": {"N": "noun:place|people,count"}}
+   {"id": "dem-know", "fr": "Tu connais [[{N|dem} // {N|dem_x}]] ?", "en": "Do you know {N|en:this}?", "slots": {"N": "noun:place|people,count"}},
+   {"id": "dem-cast", "fr": "{C} prend [[{N|dem} // {N|dem_x}]].", "en": "{C} takes {N|en:this}.", "slots": {"C": "cast", "N": "noun:count,buy,!fixture"}, "weight": 2},
+   {"id": "dem-cast-plural", "fr": "{C} aime [[{N|dem:p} // {N|dem_x:p}]].", "en": "{C} likes {N|en:these}.", "slots": {"C": "cast", "N": "noun:count,possess|bulk,!fixture"}, "weight": 2}
   ]
  },
  "FR2_A12_STRESSED_PRONOUNS": {
   "slots": {"PR": "pron:!1p,!2p,!on", "C": "cast"},
   "frames": [
-   {"id": "tonic-prep", "fr": "{C} dîne [[{PR|with_prep:PP} // {PR|with_prep_x:PP}]] ce soir.", "en": "{C} is having dinner {PP|en_with:PR} tonight.", "slots": {"PP": "prep_tonic"}, "weight": 3},
-   {"id": "tonic-for", "fr": "{N|dem} est [[pour {PR|tonic} // pour {PR|tonic_x}]].", "en": "{N|en:this} is for {PR|en_obj}.", "slots": {"N": "noun:count,food|obj"}},
-   {"id": "tonic-home", "fr": "{C} rentre [[chez {PR|tonic} // chez {PR|tonic_x}]] {T}.", "en": "{C} is going back to {PR|en_poss} place {T.en}.", "slots": {"T": "time_future"}},
-   {"id": "tonic-next", "fr": "{C} est [[à côté de {PR|tonic} // à côté de {PR|tonic_x}]] {P|a}.", "en": "{C} is next to {PR|en_obj} at {P|en:the}.", "slots": {"P": "noun:place,town"}}
+   {"id": "tonic-prep", "fr": "{C} dîne [[{PR|with_prep:PP} // {PR|with_prep_x:PP}]] ce soir.", "en": "{C} is having dinner {PP|en_with:PR} tonight.", "slots": {"PP": "prep_tonic:company"}, "weight": 3},
+   {"id": "tonic-for", "fr": "{N|dem} est [[pour {PR|tonic} // pour {PR|tonic_x}]].", "en": "{N|en:this} is for {PR|en_obj}.", "slots": {"N": "noun:count,possess|dish|bakery|produce"}},
+   {"id": "tonic-home", "fr": "{C} rentre [[chez {C|tonic} // chez {C|tonic_x}]] {T}.", "en": "{C} is going home {T.en}.", "slots": {"T": "time_future"}},
+   {"id": "tonic-next", "fr": "{C} est [[à côté {PR|de_tonic} // à côté {PR|de_tonic_x}]] {P|a}.", "en": "{C} is next to {PR|en_obj} at {P|en:the}.", "slots": {"P": "noun:place,town"}}
   ]
  },
  "FR2_A12_CEST_IL_EST": {
@@ -215,8 +235,8 @@
   "gloss": true,
   "slots": {"M": "num:big"},
   "frames": [
-   {"id": "big-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy"}, "weight": 3},
-   {"id": "big-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy"}, "weight": 2},
+   {"id": "big-costs", "fr": "{N|def} coûte [[{M} // {M|x}]] euros.", "en": "{N|en:the} costs {M.digits} euros.", "slots": {"N": "noun:count,buy,priced", "M": "num:big@N"}, "weight": 3, "ask": {"fr": "Combien coûte {N|def} ?", "en": "How much does {N|en:the} cost?"}},
+   {"id": "big-paid", "fr": "{C} a payé [[{M} // {M|x}]] euros pour {N|def}.", "en": "{C} paid {M.digits} euros for {N|en:the}.", "slots": {"C": "cast", "N": "noun:count,buy,priced", "M": "num:big@N"}, "weight": 2},
    {"id": "big-people", "fr": "Il y a [[{M} // {M|x}]] personnes {P|a}.", "en": "There are {M.digits} people at {P|en:the}.", "slots": {"P": "noun:place,town"}}
   ]
  },
@@ -224,34 +244,36 @@
   "gloss": true,
   "slots": {"H": "clock"},
   "frames": [
-   {"id": "time-is", "fr": "Il est [[{H} // {H|x}]].", "en": "It is {H.en}."},
-   {"id": "time-cest", "fr": "[[Il est // C'est // Il a]] {H} maintenant.", "en": "It is {H.en} now."},
+   {"id": "time-is", "fr": "Il est [[{H} // {H|x}]].", "en": "It is {H.en}.", "ask": {"fr": "Il est quelle heure ?", "en": "What time is it?"}},
+   {"id": "time-cest", "fr": "[[Il est // C'est // Il a]] {H} maintenant.", "en": "It is {H.en} now.", "ask": {"fr": "Il est quelle heure ?", "en": "What time is it?"}},
    {"id": "time-arrive", "fr": "{C} arrive {P|a} [[à {H} // en {H} // à {H|x}]].", "en": "{C} arrives at {P|en:the} at {H.en}.", "slots": {"C": "cast", "P": "noun:place,town"}, "weight": 3},
    {"id": "time-starts", "fr": "{N|def} commence [[à {H} // en {H} // à {H|x}]].", "en": "{N|en:the} starts at {H.en}.", "slots": {"N": "noun:=film|concert|réunion|match|spectacle|examen|fête|émission"}, "weight": 2},
-   {"id": "time-meet", "fr": "On se retrouve {P|a} [[à {H} // en {H} // à {H|x}]] ?", "en": "Shall we meet at {P|en:the} at {H.en}?", "slots": {"P": "noun:place,town"}, "weight": 2}
+   {"id": "time-meet", "fr": "On se retrouve {P|a} [[à {H} // en {H} // à {H|x}]] ?", "en": "Shall we meet at {P|en:the} at {H.en}?", "slots": {"P": "noun:place,town"}, "weight": 2},
+   {"id": "time-ask", "fr": "{C} demande l'heure. Il est [[{H} // {H|x}]].", "en": "{C} asks the time. It is {H.en}.", "slots": {"C": "cast"}, "weight": 2}
   ]
  },
  "FR2_A12_DAYS_DATES": {
   "gloss": true,
   "frames": [
    {"id": "date-birthday", "fr": "L'anniversaire de {C} est [[{D} // {D|x}]].", "en": "{C}'s birthday is on {D.en}.", "slots": {"C": "cast", "D": "date"}, "weight": 2},
-   {"id": "date-leave", "fr": "{C} part en vacances [[{D} // {D|x}]].", "en": "{C} goes on holiday on {D.en}.", "slots": {"C": "person3", "D": "date"}, "weight": 2},
+   {"id": "date-leave", "fr": "{C} [[{C|v:partir} en vacances {D} // {C|v:partir} en vacances {D|x}]].", "en": "{C|en_sv:partir} on holiday on {D.en}.", "slots": {"C": "person3", "D": "date"}, "weight": 2},
    {"id": "month", "fr": "{C} {C|v:partir} [[en {MO} // dans {MO} // au {MO}]].", "en": "{C|en_sv:partir} in {MO.en}.", "slots": {"C": "person3", "MO": "month"}},
-   {"id": "weekday", "fr": "[[Le {DY} // Les {DY} // Au {DY}]], {S|sv:V} {O}.", "en": "On {DY.en}s, {S|en_svc:V:O}.", "slots": {"DY": "weekday", "S": "pron", "V": "verb:er,!aux_etre", "O": "comp@V"}, "weight": 2}
+   {"id": "weekday", "fr": "[[Le {DY} // Les {DY} // Au {DY}]], {S|sv:V} {O}.", "en": "On {DY.en}s, {S|en_svc:V:O}.", "slots": {"DY": "weekday", "S": "pron", "V": "verb:er,habit,!aux_etre,!stative", "O": "comp@V"}, "weight": 2}
   ]
  },
  "FR2_A12_IR_RE_VERBS": {
   "slots": {"S": "pron", "V": "verb:=finir|choisir|partir|sortir|dormir|attendre|répondre|vendre|descendre", "O": "comp@V"},
   "frames": [
    {"id": "irre", "fr": "[[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "{S|en_svc:V:O}.", "weight": 3},
-   {"id": "irre-today", "fr": "Aujourd'hui, [[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "Today, {S|en_svc:V:O}."}
+   {"id": "irre-today", "fr": "Aujourd'hui, [[{S|sv:V} // {S|sv_x:V}]] {O}.", "en": "Today, {S|en_svc:V:O}."},
+   {"id": "irre-cast", "fr": "[[{C|sv:V} // {C|sv_x:V}]] {O}.", "en": "{C|en_svc:V:O}.", "slots": {"C": "person3"}, "weight": 4}
   ]
  },
  "FR2_A12_FREQUENCY": {
   "slots": {"S": "pron", "V": "verb:!modal,!en_only,!coi,!event,!pron", "O": "comp@V"},
   "frames": [
-   {"id": "freq-adv", "fr": "[[{S|sv:V} {F} // {S} {F} {S|v:V}]] {O}.", "en": "{S.en} {F.en} {S|en_vc:V:O}.", "slots": {"F": "freq_adv"}, "weight": 3},
-   {"id": "freq-phrase", "fr": "{S|sv:V} {O} [[{F} // {F|x}]].", "en": "{S|en_svc:V:O} {F.en}.", "slots": {"F": "freq_phrase"}, "weight": 2}
+   {"id": "freq-adv", "fr": "[[{S|sv:V} {F} // {S} {F} {S|v:V}]] {O}.", "en": "{S.en} {F.en} {S|en_vc:V:O}.", "slots": {"F": "freq_adv", "V": "verb:habit,!modal,!en_only,!coi,!event,!pron,!stative"}, "weight": 3},
+   {"id": "freq-phrase", "fr": "{S|sv:V} {O} [[{F} // {F|x}]].", "en": "{S|en_svc:V:O} {F.en}.", "slots": {"F": "freq_phrase:!daily", "V": "verb:habit,!modal,!en_only,!coi,!event,!pron,!stative"}, "weight": 2}
   ]
  },
  "FR2_A12_PLACE_PREPOSITIONS": {
@@ -265,26 +287,29 @@
  },
  "FR2_A12_QUANTITIES": {
   "frames": [
-   {"id": "qty-buy", "fr": "{S|sv:acheter} [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "{S|en_sv:acheter} {Q.en} {N|en:q}.", "slots": {"S": "pron", "Q": "qty:any|weigh", "N": "noun:food,buy"}, "weight": 3},
-   {"id": "qty-drink", "fr": "Je voudrais [[{Q} {N|q} // {Q} {N|q_x}]], s'il vous plaît.", "en": "I would like {Q.en} {N|en:q}, please.", "slots": {"Q": "qty_drink", "N": "noun:drink"}},
+   {"id": "qty-buy", "fr": "{S|sv:acheter} [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "{S|en_sv:acheter} {Q|en_qty:N} {N|en:q}.", "slots": {"S": "pron", "Q": "qty:any", "N": "noun:food,buy"}, "weight": 3},
+   {"id": "qty-drink", "fr": "Je voudrais [[{Q} {N|q} // {Q} {N|q_x}]], s'il vous plaît.", "en": "I would like {Q.en} {N|en:q}, please.", "slots": {"Q": "qty_drink", "N": "noun:drink"}, "ask": {"fr": "Qu'est-ce que je te sers ?", "en": "What can I get you?"}},
    {"id": "qty-many", "fr": "Il y a [[beaucoup {N|q} // beaucoup {N|q_x}]] {P|a}.", "en": "There are a lot of {N|en:pl} at {P|en:the}.", "slots": {"N": "noun:count,obj|people", "P": "noun:place,town"}, "weight": 2},
-   {"id": "qty-little", "fr": "{C} prend [[un peu {N|q} // un peu {N|q_x}]].", "en": "{C} takes a little {N.en}.", "slots": {"C": "cast", "N": "noun:mass,food"}}
+   {"id": "qty-little", "fr": "{C} prend [[un peu {N|q} // un peu {N|q_x}]].", "en": "{C} has a little {N.en}.", "slots": {"C": "cast", "N": "noun:mass,dish|drink|deli|sweet"}},
+   {"id": "qty-weigh", "fr": "{S|sv:acheter} [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "{S|en_sv:acheter} {Q.en} {N|en:q}.", "slots": {"S": "pron", "Q": "qty:weigh", "N": "noun:food,buy,weigh"}, "weight": 2},
+   {"id": "qty-cast", "fr": "Au marché du canal, {C} achète [[{Q} {N|q} // {Q} {N|q_x}]].", "en": "At the canal market, {C} buys {Q.en} {N|en:q}.", "slots": {"C": "cast", "Q": "qty:weigh", "N": "noun:food,buy,weigh"}, "weight": 3}
   ]
  },
  "FR2_A12_CONNECTORS": {
   "gloss": true,
   "slots": {"S": "pron:!on"},
   "frames": [
-   {"id": "because-state", "fr": "{S|sv:rester} {O} [[{S|after_sv:parce que:être} // mais {S|sv:être} // parce que {S} {S|v:être}]] {A|agree:S}.", "en": "{S|en_svc:rester:O} because {S|en_sv:être} {A.en}.", "slots": {"V": "verb:=rester", "O": "comp@V", "A": "adj:state@S"}, "weight": 2},
-   {"id": "but-state", "fr": "{S|sv:V} {O} [[mais {S|sv:être} // {S|after_sv:parce que:être}]] {A|agree:S}.", "en": "{S|en_svc:V:O} but {S|en_sv:être} {A.en}.", "slots": {"V": "verb:er,!aux_etre", "O": "comp@V", "A": "adj:state@S"}, "weight": 2},
-   {"id": "because-like", "fr": "{S|sv:V} {O} [[{S|after_sv:parce que:aimer} // mais {S|sv:aimer} // parce que {S} {S|v:aimer}]] ça.", "en": "{S|en_svc:V:O} because {S|en_sv:aimer} it.", "slots": {"V": "verb:er,!aux_etre", "O": "comp@V"}}
+   {"id": "because-state", "fr": "{S|sv:rester} {O} [[{S|after_sv:parce que:être} // mais {S|sv:être} // parce que {S} {S|v:être}]] {A|agree:S}.", "en": "{S|en_svc:rester:O} because {S|en_sv:être} {A.en}.", "slots": {"V": "verb:=rester", "O": "comp:rest@V", "A": "adj:tired@S"}, "weight": 2},
+   {"id": "but-state", "fr": "{S|sv:V} {O} [[mais {S|sv:être} // {S|after_sv:parce que:être}]] {A|agree:S}.", "en": "{S|en_svc:V:O} but {S|en_sv:être} {A.en}.", "slots": {"V": "verb:er,!aux_etre,!stative,!mishap,!event", "O": "comp@V", "A": "adj:tired@S"}, "weight": 2},
+   {"id": "because-like", "fr": "{S|sv:V} {O} [[{S|after_sv:parce que:aimer} // mais {S|sv:aimer} // parce que {S} {S|v:aimer}]] ça.", "en": "{S|en_svc:V:O} because {S|en_sv:aimer} it.", "slots": {"V": "verb:er,leisure,!aux_etre", "O": "comp:!manner@V"}}
   ]
  },
  "FR2_A12_PC_CHUNKS": {
   "slots": {"S": "pron", "V": "verb:=manger|faire|prendre|voir|boire|regarder|acheter|travailler|lire|écrire|finir|dormir|parler|écouter|trouver|réserver", "O": "comp@V"},
   "frames": [
-   {"id": "pc-chunk", "fr": "{T}, [[{S|sv:V:pc} // {S|sv:V} // {S|sv:avoir} {V|inf}]] {O}.", "en": "{T.en}, {S|en_svc:V:O:pc}.", "slots": {"T": "time_past"}, "weight": 3},
-   {"id": "pc-chunk-pp", "fr": "[[{S|sv:V:pc} // {S|sv:avoir} {V|pp_x}]] {O} {T}.", "en": "{S|en_svc:V:O:pc} {T.en}.", "slots": {"T": "time_past_end"}}
+   {"id": "pc-chunk", "fr": "{T}, [[{S|sv:V:pc} // {S|sv:V} // {S|sv:avoir} {V|inf}]] {O}.", "en": "{T.en}, {S|en_svc:V:O:pc}.", "slots": {"T": "time_past", "O": "comp:!adv_pre@V"}, "weight": 3},
+   {"id": "pc-chunk-pp", "fr": "[[{S|sv:V:pc} // {S|sv:avoir} {V|pp_x}]] {O} {T}.", "en": "{S|en_svc:V:O:pc} {T.en}.", "slots": {"T": "time_past_end", "O": "comp:!adv_pre@V"}},
+   {"id": "pc-chunk-cast", "fr": "{T}, [[{C|sv:V:pc} // {C|sv:V} // {C|sv:avoir} {V|inf}]] {O}.", "en": "{T.en}, {C|en_svc:V:O:pc}.", "slots": {"C": "cast", "T": "time_past", "O": "comp:!adv_pre@V"}, "weight": 2}
   ]
  }
 }

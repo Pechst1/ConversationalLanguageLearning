@@ -325,6 +325,36 @@ the biggest time saver against Duolingo.
 - The conversation rung moves from the legacy serial to the journey's story engine (Codex).
 - **Done when:** ≥ 80 % of séance items name a cast member, place or story object, and a learner can say
   which character teaches which rule.
+- **Status (2026-09-24): landed** (with the owner-delegated template naturalness review,
+  `FORGE-TEMPLATE-REVIEW-2026-09-24.md`).
+  - **Story-linked slots** — the bank weights cast, bible places and recurring objects 4×, and the
+    learner's recent chronicle 2× more (`app/services/forge_story.py`, read only). Verbs gain story
+    complements; pronoun frames get a vocative twin said to a cast member. **85.6 %** of a seeded
+    sample (40 per A1–A2 unit) is story-linked, every unit ≥ 50 %.
+  - **Coaches** (`app/data/forge_coaches.json`, `app/services/forge_coaches.py`):
+    - Margaux — the counter (articles, amounts, ordering, negation);
+    - Gus — the past, comparing, modals, advice;
+    - Romy — questions, time, places, reasons, reporting;
+    - Lila — être/avoir, describing, demonstratives, possessives, instructions;
+    - Marin — everyday verbs, going and coming, pronouns, the future, relatives;
+    - M. Marchand — il y a, polite requests.
+
+    Every A1–A2 unit has one coach; a v1 concept's rule-card speaker stays its coach. The coach is
+    on the atelier concept, the forge's `next` and `rules`, and on each observed answer
+    (`correction.forge.coach` / `coach_mood`: happy, cross, moved when the rule became held).
+  - **Free use as a two-line scene** — `item_bank.scene_item`:
+    - the coach's line (the item's own question, a frame's `ask`, or a coach opener);
+    - the learner's reply, which needs the rule;
+    - in the page's `conversation_turn` shape, plus `scene.lines`.
+
+    It is graded like any production (S1: local check, then the relecture). A coached scene keeps its
+    coach over the legacy serial character.
+  - **Web (minimal, S6 styles it)** — `lib/forge-coach.ts`:
+    - the rule card shows the coach when it has no speaker;
+    - `EpVerdict` shows the coach's portrait with its mood in the badge's place;
+    - the scene's byline shows the coach's portrait.
+  - The conversation rung's move to the journey's story engine stays with Codex.
+  - Tests: `tests/test_forge_coaches.py`, `tests/test_forge_naturalness.py`, `web-frontend/lib/forge-coach.test.js`.
 
 #### WP-S6 · Beauty and clarity
 - **Layout:**

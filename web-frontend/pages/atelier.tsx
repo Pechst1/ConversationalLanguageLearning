@@ -89,7 +89,7 @@ import {
   ForgeRecapRules,
   ForgeRuleChange,
   ForgeStyles,
-  type ForgeCoach,
+  type ForgeCoach as ForgeHeadCoach,
 } from '@/components/epreuve/Forge';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -141,6 +141,8 @@ import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors'
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
@@ -3282,7 +3284,6 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
-  coachFor,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3326,9 +3327,6 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
-  /** WP-S5 seam: a rule's coach (the cast member who teaches it). Without
-   *  one, the rule card's speaker fills the rule-change card's portrait. */
-  coachFor?: (conceptId: number) => ForgeCoach | null;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
@@ -3376,6 +3374,8 @@ function SessionView({
   const learnerLanguage = useLearnerLanguage();
   const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
   const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
+  // WP-S5: the rule's coach — the face on the card and on every answer.
+  const ruleCoach = coachFor(forgeNext, forgeRule, activeConcept);
 
   // ---- L'Épreuve frame mapping (composing stick + assembling motif). ----
   const sessionComplete = String(session.status) === 'completed' || (total > 0 && completedDrills >= total);
@@ -3414,8 +3414,11 @@ function SessionView({
     seenRef.current = seen;
   }, [servedPosition, servedConcept]);
   const speaker = ruleCard?.speaker ? String(ruleCard.speaker) : '';
-  const forgeCoach: ForgeCoach | null = activeConcept
-    ? coachFor?.(activeConcept.id) ?? (speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null)
+  // WP-S5's coach (served with the item) wins; the rule card's speaker is the fallback.
+  const forgeCoach: ForgeHeadCoach | null = activeConcept
+    ? ruleCoach
+      ? { id: ruleCoach.id, name: ruleCoach.name }
+      : speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null
     : null;
   const showRuleChange = Boolean(
     forge && !forgeTestOut && forgeNext && ruleChangeAt === forgeNext.position && !currentSubmitted && !ruleIntro,
@@ -3520,9 +3523,10 @@ function SessionView({
               variant="intro"
               conceptId={activeConcept.id}
               onDone={toggleRule}
+              coach={ruleCoach}
             />
           ) : ruleExpanded && ruleCard ? (
-            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} />
+            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} coach={ruleCoach} />
           ) : ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
@@ -3638,6 +3642,7 @@ function SessionView({
                 isLabelCompare={round === 'recognize' && mode === 'classify'}
                 onRetryAiReview={requestAiReview}
                 aiReviewSubmitting={aiReviewSubmitting}
+                coach={ruleCoach}
               />
           </>)}
         </section>
@@ -3703,6 +3708,7 @@ function ExerciseFeedbackMoment({
   isLabelCompare,
   onRetryAiReview,
   aiReviewSubmitting,
+  coach,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3720,9 +3726,12 @@ function ExerciseFeedbackMoment({
   isLabelCompare?: boolean;
   onRetryAiReview?: () => void;
   aiReviewSubmitting?: boolean;
+  /** WP-S5: the rule's coach reacts to the answer (happy, cross, moved). */
+  coach?: ForgeCoach | null;
 }) {
   const t = useEpCopy();
   if (!submitted || !feedback) return null;
+  const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
     return (
       <div className="ep-feedback" data-verdict="unscored" role="status">
@@ -3771,7 +3780,7 @@ function ExerciseFeedbackMoment({
         {relecture}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={rule}>{t.verdict_correct}</EpVerdict>
+          <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
           <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
         </EpFoot>
       </div>
@@ -3841,7 +3850,7 @@ function ExerciseFeedbackMoment({
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
       <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule}>{t.verdict_wrong}</EpVerdict>
+        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood}>{t.verdict_wrong}</EpVerdict>
         {repairsComplete
           ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
@@ -4377,6 +4386,10 @@ function OutputLadderPanel({
     <div className={`ep-exercise ep-output ep-output-${round}`}>
       {round === 'conversation' && character.name && (
         <div className="ep-character-byline" aria-label={fill(t.conversation_with, { name: character.name })}>
+          {/* WP-S5: a free-use scene is said by the rule's coach. */}
+          {item.scene && character.id && (
+            <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
+          )}
           <span>{character.name}</span>
           <em lang="fr">{String(character.register || 'vous')}</em>
         </div>

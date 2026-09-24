@@ -1475,6 +1475,10 @@ def item_bank_exercise_set(
         pool_outputs, pool_set, pool_fingerprints = _pool_outputs_for(db, concept, band=band, exclude=exclude)
         seed = f"{user.id}:{session.id}:{concept.id}"
         known = _known_lemmas(target_vocabulary)
+        # WP-S5: the people and places of the learner's own story come first.
+        from app.services.forge_story import story_focus
+
+        story = story_focus(db, user)
 
         def build(with_pool: bool) -> tuple[Any, list[str]]:
             built = build_bank_set(
@@ -1486,6 +1490,7 @@ def item_bank_exercise_set(
                 known=known,
                 rule_examples=rule_examples,
                 pool_outputs=pool_outputs if with_pool else None,
+                story=story,
             )
             problems = AtelierExerciseGenerator._payload_validation_errors(built.payload, concept=concept) if built else ["no bank set"]
             return built, problems
@@ -7522,7 +7527,20 @@ def serialize_concept(
         "is_foundation": concept.is_foundation,
         # WP-L10: the authored rule card (all learner languages), or None.
         "rule_card": rule_card_for(concept.external_id),
+        # WP-S5: the cast member who teaches this rule (card and feedback face).
+        "coach": _coach_for_concept(concept.external_id),
     }
+
+
+def _coach_for_concept(external_id: str | None) -> dict[str, Any] | None:
+    """WP-S5: the rule's coach, or ``None`` (a coach never breaks a concept payload)."""
+
+    from app.services.forge_coaches import coach_for_concept
+
+    try:
+        return coach_for_concept(external_id)
+    except Exception:  # pragma: no cover - defensive: data files are validated by tests
+        return None
 
 
 def fr_localizations_by_concept_id(

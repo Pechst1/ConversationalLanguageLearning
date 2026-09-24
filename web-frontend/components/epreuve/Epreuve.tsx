@@ -47,7 +47,9 @@ import {
   Surface,
   useControlLanguage,
 } from '@/components/atelier-v2/ui';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { pulseAppHaptic } from '@/lib/haptics';
+import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
 
@@ -406,13 +408,32 @@ export function EpConfidence({ value, onPick }: { value?: 'sure' | 'unsure' | nu
 /* ---------- verdict band + the one primary ---------- */
 /* The footer's feedback band: round icon badge, Garamond verdict, 13px line.
    `tone` keeps its legacy values: "go" = correct, anything else = wrong. */
-export function EpVerdict({ tone = 'go', children, sub }: { tone?: string; children: Node; sub?: Node }) {
+export function EpVerdict({
+  tone = 'go',
+  children,
+  sub,
+  coach,
+  coachMood,
+}: {
+  tone?: string;
+  children: Node;
+  sub?: Node;
+  /** WP-S5: the rule's coach reacts in the badge's place (happy, cross, moved). */
+  coach?: { id: string; name: string } | null;
+  coachMood?: PortraitMood;
+}) {
   const correct = tone === 'go';
   return (
-    <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} role="status" aria-live="polite">
-      <span className="av2-feedback__icon" aria-hidden="true">
-        {correct ? <CheckIcon size={15} /> : <RepairIcon size={15} />}
-      </span>
+    <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} data-coach={coach?.id || undefined} role="status" aria-live="polite">
+      {coach ? (
+        <span className="ep-verdict__coach" data-mood={coachMood || 'neutral'}>
+          <CastPortrait characterId={coach.id} name={coach.name} mood={coachMood || 'neutral'} size="xs" ring />
+        </span>
+      ) : (
+        <span className="av2-feedback__icon" aria-hidden="true">
+          {correct ? <CheckIcon size={15} /> : <RepairIcon size={15} />}
+        </span>
+      )}
       <div className="ep-verdict__text">
         <p className="av2-feedback__title">{children}</p>
         {sub && <p className="av2-feedback__sub">{sub}</p>}
@@ -1211,6 +1232,8 @@ export function LEpreuveStyles() {
 .av2 .ep-foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
 .av2 .ep-foot .ep-verdict { margin: 0; }
 .av2 .ep-verdict__text { min-width: 0; }
+/* WP-S5: the rule's coach reacts where the badge sits (S6 owns the polish). */
+.av2 .ep-verdict__coach { flex: none; display: inline-flex; }
 .av2 .ep-bar { margin: 0; }
 
 /* ============================================================

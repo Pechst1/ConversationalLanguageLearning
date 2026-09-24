@@ -1,6 +1,6 @@
 {
- "version": "forge-lexicon-1",
- "provenance": "WP-S2 (2026-09-24): hand-authored morphological lexicon for La Forge's item bank. Nouns carry gender and plural; adjectives their four forms and position; verbs their present tables (regular -er computed), participle, auxiliary, future stem and deliberate trap stems. Cast and places come from app/prompts/serial/world_bible_paris_v2.json.",
+ "version": "forge-lexicon-2",
+ "provenance": "WP-S2 (2026-09-24): hand-authored morphological lexicon for La Forge's item bank. Nouns carry gender and plural; adjectives their four forms and position; verbs their present tables (regular -er computed), participle, auxiliary, future stem and deliberate trap stems. Cast and places come from app/prompts/serial/world_bible_paris_v2.json. WP-S5 (2026-09-24): semantic annotations — noun domains (dom), what a place holds (holds) and what happens there (use / at_*), prices, capacities, story objects, adjective domains (kinds), verb aspect (stative, mishap, oneoff, habit), where a verb happens (at), how long (dur), part of day.",
  "pronouns": [
   {
    "id": "je_m",
@@ -167,7 +167,17 @@
    "g": "m",
    "en": "Marin",
    "bible": "marin_leveque",
-   "en_p": "3s"
+   "en_p": "3s",
+   "members": [
+    "marin"
+   ],
+   "jobs": [
+    "job_écologiste"
+   ],
+   "age": [
+    29,
+    33
+   ]
   },
   {
    "id": "lila",
@@ -175,7 +185,18 @@
    "g": "f",
    "en": "Lila",
    "bible": "lila_bonnet",
-   "en_p": "3s"
+   "en_p": "3s",
+   "members": [
+    "lila"
+   ],
+   "jobs": [
+    "job_professeur",
+    "job_peintre"
+   ],
+   "age": [
+    28,
+    32
+   ]
   },
   {
    "id": "gus",
@@ -183,7 +204,17 @@
    "g": "m",
    "en": "Gus",
    "bible": "augustin_de_roncourt",
-   "en_p": "3s"
+   "en_p": "3s",
+   "members": [
+    "gus"
+   ],
+   "jobs": [
+    "job_consultant"
+   ],
+   "age": [
+    30,
+    35
+   ]
   },
   {
    "id": "romy",
@@ -191,7 +222,17 @@
    "g": "f",
    "en": "Romy",
    "bible": "romy_tremblay",
-   "en_p": "3s"
+   "en_p": "3s",
+   "members": [
+    "romy"
+   ],
+   "jobs": [
+    "job_journaliste"
+   ],
+   "age": [
+    27,
+    31
+   ]
   },
   {
    "id": "margaux",
@@ -199,7 +240,17 @@
    "g": "f",
    "en": "Margaux",
    "bible": "margaux_barman",
-   "en_p": "3s"
+   "en_p": "3s",
+   "members": [
+    "margaux"
+   ],
+   "jobs": [
+    "job_patron_de_café"
+   ],
+   "age": [
+    40,
+    50
+   ]
   }
  ],
  "cast_pairs": [
@@ -208,28 +259,44 @@
    "fr": "Marin et Lila",
    "g": "m",
    "en": "Marin and Lila",
-   "en_p": "3p"
+   "en_p": "3p",
+   "members": [
+    "marin",
+    "lila"
+   ]
   },
   {
    "id": "romy_margaux",
    "fr": "Romy et Margaux",
    "g": "f",
    "en": "Romy and Margaux",
-   "en_p": "3p"
+   "en_p": "3p",
+   "members": [
+    "romy",
+    "margaux"
+   ]
   },
   {
    "id": "lila_romy",
    "fr": "Lila et Romy",
    "g": "f",
    "en": "Lila and Romy",
-   "en_p": "3p"
+   "en_p": "3p",
+   "members": [
+    "lila",
+    "romy"
+   ]
   },
   {
    "id": "gus_marin",
    "fr": "Gus et Marin",
    "g": "m",
    "en": "Gus and Marin",
-   "en_p": "3p"
+   "en_p": "3p",
+   "members": [
+    "gus",
+    "marin"
+   ]
   }
  ],
  "nouns": [
@@ -242,9 +309,20 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "bakery",
+    "grocery",
+    "priced"
    ],
-   "lemma": "pain"
+   "lemma": "pain",
+   "dom": [
+    "bakery",
+    "grocery"
+   ],
+   "price": [
+    1,
+    5
+   ]
   },
   {
    "id": "fromage",
@@ -255,9 +333,21 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "deli",
+    "grocery",
+    "priced",
+    "weigh"
    ],
-   "lemma": "fromage"
+   "lemma": "fromage",
+   "dom": [
+    "deli",
+    "grocery"
+   ],
+   "price": [
+    3,
+    30
+   ]
   },
   {
    "id": "eau",
@@ -268,9 +358,14 @@
    "tags": [
     "mass",
     "drink",
-    "vowel"
+    "vowel",
+    "grocery"
    ],
-   "lemma": "eau"
+   "lemma": "eau",
+   "dom": [
+    "drink",
+    "grocery"
+   ]
   },
   {
    "id": "café_boisson",
@@ -281,9 +376,19 @@
    "tags": [
     "mass",
     "drink",
-    "buy"
+    "buy",
+    "grocery",
+    "priced"
    ],
-   "lemma": "café"
+   "lemma": "café",
+   "dom": [
+    "drink",
+    "grocery"
+   ],
+   "price": [
+    1,
+    5
+   ]
   },
   {
    "id": "thé",
@@ -293,9 +398,19 @@
    "kind": "food",
    "tags": [
     "mass",
-    "drink"
+    "drink",
+    "grocery",
+    "priced"
    ],
-   "lemma": "thé"
+   "lemma": "thé",
+   "dom": [
+    "drink",
+    "grocery"
+   ],
+   "price": [
+    2,
+    6
+   ]
   },
   {
    "id": "lait",
@@ -306,9 +421,19 @@
    "tags": [
     "mass",
     "drink",
-    "buy"
+    "buy",
+    "grocery",
+    "priced"
    ],
-   "lemma": "lait"
+   "lemma": "lait",
+   "dom": [
+    "drink",
+    "grocery"
+   ],
+   "price": [
+    1,
+    3
+   ]
   },
   {
    "id": "soupe",
@@ -318,9 +443,18 @@
    "kind": "food",
    "tags": [
     "mass",
-    "eat"
+    "eat",
+    "dish",
+    "priced"
    ],
-   "lemma": "soupe"
+   "lemma": "soupe",
+   "dom": [
+    "dish"
+   ],
+   "price": [
+    4,
+    10
+   ]
   },
   {
    "id": "viande",
@@ -331,9 +465,21 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "deli",
+    "grocery",
+    "priced",
+    "weigh"
    ],
-   "lemma": "viande"
+   "lemma": "viande",
+   "dom": [
+    "deli",
+    "grocery"
+   ],
+   "price": [
+    8,
+    45
+   ]
   },
   {
    "id": "confiture",
@@ -344,9 +490,18 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "grocery",
+    "priced"
    ],
-   "lemma": "confiture"
+   "lemma": "confiture",
+   "dom": [
+    "grocery"
+   ],
+   "price": [
+    2,
+    8
+   ]
   },
   {
    "id": "beurre",
@@ -356,9 +511,14 @@
    "kind": "food",
    "tags": [
     "mass",
-    "buy"
+    "buy",
+    "grocery",
+    "weigh"
    ],
-   "lemma": "beurre"
+   "lemma": "beurre",
+   "dom": [
+    "grocery"
+   ]
   },
   {
    "id": "sucre",
@@ -368,9 +528,14 @@
    "kind": "food",
    "tags": [
     "mass",
-    "buy"
+    "buy",
+    "grocery",
+    "weigh"
    ],
-   "lemma": "sucre"
+   "lemma": "sucre",
+   "dom": [
+    "grocery"
+   ]
   },
   {
    "id": "riz",
@@ -381,9 +546,19 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "grocery",
+    "priced",
+    "weigh"
    ],
-   "lemma": "riz"
+   "lemma": "riz",
+   "dom": [
+    "grocery"
+   ],
+   "price": [
+    1,
+    5
+   ]
   },
   {
    "id": "chocolat",
@@ -394,9 +569,21 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "grocery",
+    "sweet",
+    "priced",
+    "weigh"
    ],
-   "lemma": "chocolat"
+   "lemma": "chocolat",
+   "dom": [
+    "grocery",
+    "sweet"
+   ],
+   "price": [
+    2,
+    10
+   ]
   },
   {
    "id": "poisson",
@@ -407,9 +594,23 @@
    "tags": [
     "mass",
     "eat",
-    "buy"
+    "buy",
+    "deli",
+    "grocery",
+    "dish",
+    "priced",
+    "weigh"
    ],
-   "lemma": "poisson"
+   "lemma": "poisson",
+   "dom": [
+    "deli",
+    "grocery",
+    "dish"
+   ],
+   "price": [
+    8,
+    40
+   ]
   },
   {
    "id": "vin",
@@ -420,9 +621,19 @@
    "tags": [
     "mass",
     "drink",
-    "buy"
+    "buy",
+    "grocery",
+    "priced"
    ],
-   "lemma": "vin"
+   "lemma": "vin",
+   "dom": [
+    "drink",
+    "grocery"
+   ],
+   "price": [
+    5,
+    60
+   ]
   },
   {
    "id": "jus d'orange",
@@ -433,10 +644,20 @@
    "tags": [
     "mass",
     "drink",
-    "buy"
+    "buy",
+    "grocery",
+    "priced"
    ],
    "pl": "jus d'orange",
-   "lemma": "jus"
+   "lemma": "jus",
+   "dom": [
+    "drink",
+    "grocery"
+   ],
+   "price": [
+    2,
+    6
+   ]
   },
   {
    "id": "huile d'olive",
@@ -447,10 +668,19 @@
    "tags": [
     "mass",
     "buy",
-    "vowel"
+    "vowel",
+    "grocery",
+    "priced"
    ],
    "pl": "huiles d'olive",
-   "lemma": "huile"
+   "lemma": "huile",
+   "dom": [
+    "grocery"
+   ],
+   "price": [
+    5,
+    20
+   ]
   },
   {
    "id": "farine",
@@ -460,9 +690,14 @@
    "kind": "food",
    "tags": [
     "mass",
-    "buy"
+    "buy",
+    "grocery",
+    "weigh"
    ],
-   "lemma": "farine"
+   "lemma": "farine",
+   "dom": [
+    "grocery"
+   ]
   },
   {
    "id": "limonade",
@@ -474,7 +709,10 @@
     "mass",
     "drink"
    ],
-   "lemma": "limonade"
+   "lemma": "limonade",
+   "dom": [
+    "drink"
+   ]
   },
   {
    "id": "salade",
@@ -486,9 +724,20 @@
     "mass",
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "dish",
+    "priced"
    ],
-   "lemma": "salade"
+   "lemma": "salade",
+   "dom": [
+    "produce",
+    "dish"
+   ],
+   "price": [
+    5,
+    15
+   ]
   },
   {
    "id": "glace",
@@ -498,9 +747,20 @@
    "kind": "food",
    "tags": [
     "mass",
-    "eat"
+    "eat",
+    "dish",
+    "sweet",
+    "priced"
    ],
-   "lemma": "glace"
+   "lemma": "glace",
+   "dom": [
+    "dish",
+    "sweet"
+   ],
+   "price": [
+    2,
+    8
+   ]
   },
   {
    "id": "musique",
@@ -523,9 +783,20 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "priced",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "pomme"
+   "lemma": "pomme",
+   "dom": [
+    "produce"
+   ],
+   "price": [
+    1,
+    3
+   ]
   },
   {
    "id": "croissant",
@@ -536,9 +807,21 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "bakery",
+    "dish",
+    "priced",
+    "bulk"
    ],
-   "lemma": "croissant"
+   "lemma": "croissant",
+   "dom": [
+    "bakery",
+    "dish"
+   ],
+   "price": [
+    1,
+    3
+   ]
   },
   {
    "id": "gâteau",
@@ -549,10 +832,24 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "bakery",
+    "dish",
+    "sweet",
+    "priced",
+    "bulk"
    ],
    "pl": "gâteaux",
-   "lemma": "gâteau"
+   "lemma": "gâteau",
+   "dom": [
+    "bakery",
+    "dish",
+    "sweet"
+   ],
+   "price": [
+    10,
+    45
+   ]
   },
   {
    "id": "tarte",
@@ -563,9 +860,23 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "bakery",
+    "dish",
+    "sweet",
+    "priced",
+    "bulk"
    ],
-   "lemma": "tarte"
+   "lemma": "tarte",
+   "dom": [
+    "bakery",
+    "dish",
+    "sweet"
+   ],
+   "price": [
+    8,
+    30
+   ]
   },
   {
    "id": "orange",
@@ -577,9 +888,15 @@
     "count",
     "eat",
     "buy",
-    "vowel"
+    "vowel",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "orange"
+   "lemma": "orange",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "banane",
@@ -590,9 +907,15 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "banane"
+   "lemma": "banane",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "tomate",
@@ -603,10 +926,16 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
    "en_pl": "tomatoes",
-   "lemma": "tomate"
+   "lemma": "tomate",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "œuf",
@@ -618,9 +947,16 @@
     "count",
     "eat",
     "buy",
-    "vowel"
+    "vowel",
+    "deli",
+    "grocery",
+    "bulk"
    ],
-   "lemma": "œuf"
+   "lemma": "œuf",
+   "dom": [
+    "deli",
+    "grocery"
+   ]
   },
   {
    "id": "baguette",
@@ -630,9 +966,18 @@
    "kind": "food",
    "tags": [
     "count",
-    "buy"
+    "buy",
+    "bakery",
+    "priced"
    ],
-   "lemma": "baguette"
+   "lemma": "baguette",
+   "dom": [
+    "bakery"
+   ],
+   "price": [
+    1,
+    2
+   ]
   },
   {
    "id": "sandwich",
@@ -643,10 +988,19 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "dish",
+    "priced"
    ],
    "en_pl": "sandwiches",
-   "lemma": "sandwich"
+   "lemma": "sandwich",
+   "dom": [
+    "dish"
+   ],
+   "price": [
+    4,
+    12
+   ]
   },
   {
    "id": "carotte",
@@ -657,9 +1011,15 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "carotte"
+   "lemma": "carotte",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "citron",
@@ -669,9 +1029,15 @@
    "kind": "food",
    "tags": [
     "count",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "citron"
+   "lemma": "citron",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "fraise",
@@ -682,10 +1048,16 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
    "en_pl": "strawberries",
-   "lemma": "fraise"
+   "lemma": "fraise",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "biscuit",
@@ -696,9 +1068,21 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "grocery",
+    "sweet",
+    "priced",
+    "bulk"
    ],
-   "lemma": "biscuit"
+   "lemma": "biscuit",
+   "dom": [
+    "grocery",
+    "sweet"
+   ],
+   "price": [
+    1,
+    5
+   ]
   },
   {
    "id": "crêpe",
@@ -708,9 +1092,21 @@
    "kind": "food",
    "tags": [
     "count",
-    "eat"
+    "eat",
+    "dish",
+    "sweet",
+    "priced",
+    "bulk"
    ],
-   "lemma": "crêpe"
+   "lemma": "crêpe",
+   "dom": [
+    "dish",
+    "sweet"
+   ],
+   "price": [
+    3,
+    10
+   ]
   },
   {
    "id": "pizza",
@@ -720,9 +1116,18 @@
    "kind": "food",
    "tags": [
     "count",
-    "eat"
+    "eat",
+    "dish",
+    "priced"
    ],
-   "lemma": "pizza"
+   "lemma": "pizza",
+   "dom": [
+    "dish"
+   ],
+   "price": [
+    8,
+    20
+   ]
   },
   {
    "id": "poire",
@@ -733,9 +1138,15 @@
    "tags": [
     "count",
     "eat",
-    "buy"
+    "buy",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "poire"
+   "lemma": "poire",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "oignon",
@@ -746,9 +1157,15 @@
    "tags": [
     "count",
     "buy",
-    "vowel"
+    "vowel",
+    "produce",
+    "bulk",
+    "weigh"
    ],
-   "lemma": "oignon"
+   "lemma": "oignon",
+   "dom": [
+    "produce"
+   ]
   },
   {
    "id": "table",
@@ -759,9 +1176,20 @@
    "tags": [
     "count",
     "buy",
-    "furniture"
+    "furniture",
+    "seat",
+    "priced",
+    "possess"
    ],
-   "lemma": "table"
+   "lemma": "table",
+   "dom": [
+    "furniture",
+    "seat"
+   ],
+   "price": [
+    40,
+    600
+   ]
   },
   {
    "id": "chaise",
@@ -772,9 +1200,20 @@
    "tags": [
     "count",
     "buy",
-    "furniture"
+    "furniture",
+    "seat",
+    "priced",
+    "possess"
    ],
-   "lemma": "chaise"
+   "lemma": "chaise",
+   "dom": [
+    "furniture",
+    "seat"
+   ],
+   "price": [
+    20,
+    200
+   ]
   },
   {
    "id": "livre",
@@ -787,9 +1226,20 @@
     "buy",
     "read",
     "lose",
-    "find"
+    "find",
+    "books",
+    "priced",
+    "possess",
+    "bulk"
    ],
-   "lemma": "livre"
+   "lemma": "livre",
+   "dom": [
+    "books"
+   ],
+   "price": [
+    8,
+    30
+   ]
   },
   {
    "id": "clé",
@@ -800,9 +1250,16 @@
    "tags": [
     "count",
     "lose",
-    "find"
+    "find",
+    "keys",
+    "story",
+    "possess"
    ],
-   "lemma": "clé"
+   "lemma": "clé",
+   "dom": [
+    "keys"
+   ],
+   "story": "learner"
   },
   {
    "id": "téléphone",
@@ -814,9 +1271,21 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "tech",
+    "priced",
+    "story",
+    "possess"
    ],
-   "lemma": "téléphone"
+   "lemma": "téléphone",
+   "dom": [
+    "tech"
+   ],
+   "price": [
+    100,
+    900
+   ],
+   "story": "learner"
   },
   {
    "id": "sac",
@@ -828,9 +1297,19 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "accessory",
+    "priced",
+    "possess"
    ],
-   "lemma": "sac"
+   "lemma": "sac",
+   "dom": [
+    "accessory"
+   ],
+   "price": [
+    20,
+    300
+   ]
   },
   {
    "id": "parapluie",
@@ -842,9 +1321,19 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "accessory",
+    "priced",
+    "possess"
    ],
-   "lemma": "parapluie"
+   "lemma": "parapluie",
+   "dom": [
+    "accessory"
+   ],
+   "price": [
+    5,
+    40
+   ]
   },
   {
    "id": "carte",
@@ -855,9 +1344,20 @@
    "tags": [
     "count",
     "buy",
-    "read"
+    "read",
+    "books",
+    "mail",
+    "priced"
    ],
-   "lemma": "carte"
+   "lemma": "carte",
+   "dom": [
+    "books",
+    "mail"
+   ],
+   "price": [
+    2,
+    12
+   ]
   },
   {
    "id": "lettre",
@@ -868,9 +1368,14 @@
    "tags": [
     "count",
     "read",
-    "open"
+    "open",
+    "mail",
+    "bulk"
    ],
-   "lemma": "lettre"
+   "lemma": "lettre",
+   "dom": [
+    "mail"
+   ]
   },
   {
    "id": "vélo",
@@ -882,9 +1387,18 @@
     "count",
     "buy",
     "sell",
+    "vehicle",
+    "priced",
+    "possess"
+   ],
+   "lemma": "vélo",
+   "dom": [
     "vehicle"
    ],
-   "lemma": "vélo"
+   "price": [
+    80,
+    900
+   ]
   },
   {
    "id": "voiture",
@@ -896,9 +1410,13 @@
     "count",
     "buy",
     "sell",
-    "vehicle"
+    "vehicle",
+    "possess"
    ],
-   "lemma": "voiture"
+   "lemma": "voiture",
+   "dom": [
+    "vehicle"
+   ]
   },
   {
    "id": "ordinateur",
@@ -910,9 +1428,19 @@
     "count",
     "buy",
     "sell",
-    "vowel"
+    "vowel",
+    "tech",
+    "priced",
+    "possess"
    ],
-   "lemma": "ordinateur"
+   "lemma": "ordinateur",
+   "dom": [
+    "tech"
+   ],
+   "price": [
+    300,
+    990
+   ]
   },
   {
    "id": "lampe",
@@ -923,9 +1451,18 @@
    "tags": [
     "count",
     "buy",
+    "furniture",
+    "priced",
+    "possess"
+   ],
+   "lemma": "lampe",
+   "dom": [
     "furniture"
    ],
-   "lemma": "lampe"
+   "price": [
+    15,
+    150
+   ]
   },
   {
    "id": "stylo",
@@ -937,9 +1474,20 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "stationery",
+    "priced",
+    "possess",
+    "bulk"
    ],
-   "lemma": "stylo"
+   "lemma": "stylo",
+   "dom": [
+    "stationery"
+   ],
+   "price": [
+    1,
+    10
+   ]
   },
   {
    "id": "carnet",
@@ -951,9 +1499,21 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "stationery",
+    "priced",
+    "story",
+    "possess"
    ],
-   "lemma": "carnet"
+   "lemma": "carnet",
+   "dom": [
+    "stationery"
+   ],
+   "price": [
+    2,
+    15
+   ],
+   "story": "gus"
   },
   {
    "id": "journal",
@@ -964,10 +1524,21 @@
    "tags": [
     "count",
     "buy",
-    "read"
+    "read",
+    "press",
+    "priced",
+    "possess",
+    "bulk"
    ],
    "pl": "journaux",
-   "lemma": "journal"
+   "lemma": "journal",
+   "dom": [
+    "press"
+   ],
+   "price": [
+    1,
+    4
+   ]
   },
   {
    "id": "photo",
@@ -977,9 +1548,20 @@
    "kind": "obj",
    "tags": [
     "count",
-    "watch"
+    "watch",
+    "art",
+    "priced",
+    "possess",
+    "bulk"
    ],
-   "lemma": "photo"
+   "lemma": "photo",
+   "dom": [
+    "art"
+   ],
+   "price": [
+    5,
+    50
+   ]
   },
   {
    "id": "veste",
@@ -990,9 +1572,19 @@
    "tags": [
     "count",
     "buy",
-    "wear"
+    "wear",
+    "clothing",
+    "priced",
+    "possess"
    ],
-   "lemma": "veste"
+   "lemma": "veste",
+   "dom": [
+    "clothing"
+   ],
+   "price": [
+    30,
+    300
+   ]
   },
   {
    "id": "robe",
@@ -1003,10 +1595,20 @@
    "tags": [
     "count",
     "buy",
-    "wear"
+    "wear",
+    "clothing",
+    "priced",
+    "possess"
    ],
    "en_pl": "dresses",
-   "lemma": "robe"
+   "lemma": "robe",
+   "dom": [
+    "clothing"
+   ],
+   "price": [
+    20,
+    200
+   ]
   },
   {
    "id": "manteau",
@@ -1017,10 +1619,20 @@
    "tags": [
     "count",
     "buy",
-    "wear"
+    "wear",
+    "clothing",
+    "priced",
+    "possess"
    ],
    "pl": "manteaux",
-   "lemma": "manteau"
+   "lemma": "manteau",
+   "dom": [
+    "clothing"
+   ],
+   "price": [
+    50,
+    400
+   ]
   },
   {
    "id": "montre",
@@ -1032,10 +1644,20 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "accessory",
+    "priced",
+    "possess"
    ],
    "en_pl": "watches",
-   "lemma": "montre"
+   "lemma": "montre",
+   "dom": [
+    "accessory"
+   ],
+   "price": [
+    30,
+    900
+   ]
   },
   {
    "id": "billet",
@@ -1047,9 +1669,20 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "ticket",
+    "priced",
+    "possess",
+    "bulk"
    ],
-   "lemma": "billet"
+   "lemma": "billet",
+   "dom": [
+    "ticket"
+   ],
+   "price": [
+    10,
+    150
+   ]
   },
   {
    "id": "bague",
@@ -1061,9 +1694,21 @@
     "count",
     "buy",
     "lose",
-    "find"
+    "find",
+    "accessory",
+    "priced",
+    "story",
+    "possess"
    ],
-   "lemma": "bague"
+   "lemma": "bague",
+   "dom": [
+    "accessory"
+   ],
+   "price": [
+    20,
+    900
+   ],
+   "story": "marin"
   },
   {
    "id": "tableau",
@@ -1075,10 +1720,22 @@
     "count",
     "buy",
     "sell",
-    "watch"
+    "watch",
+    "art",
+    "priced",
+    "story",
+    "possess"
    ],
    "pl": "tableaux",
-   "lemma": "tableau"
+   "lemma": "tableau",
+   "dom": [
+    "art"
+   ],
+   "price": [
+    30,
+    900
+   ],
+   "story": "lila"
   },
   {
    "id": "fenêtre",
@@ -1088,9 +1745,13 @@
    "kind": "obj",
    "tags": [
     "count",
-    "open"
+    "open",
+    "fixture"
    ],
-   "lemma": "fenêtre"
+   "lemma": "fenêtre",
+   "dom": [
+    "fixture"
+   ]
   },
   {
    "id": "porte",
@@ -1100,9 +1761,13 @@
    "kind": "obj",
    "tags": [
     "count",
-    "open"
+    "open",
+    "fixture"
    ],
-   "lemma": "porte"
+   "lemma": "porte",
+   "dom": [
+    "fixture"
+   ]
   },
   {
    "id": "lit",
@@ -1112,9 +1777,18 @@
    "kind": "obj",
    "tags": [
     "count",
+    "furniture",
+    "priced",
+    "possess"
+   ],
+   "lemma": "lit",
+   "dom": [
     "furniture"
    ],
-   "lemma": "lit"
+   "price": [
+    150,
+    900
+   ]
   },
   {
    "id": "affiche",
@@ -1126,9 +1800,22 @@
     "count",
     "buy",
     "watch",
-    "vowel"
+    "vowel",
+    "art",
+    "priced",
+    "story",
+    "possess",
+    "bulk"
    ],
-   "lemma": "affiche"
+   "lemma": "affiche",
+   "dom": [
+    "art"
+   ],
+   "price": [
+    5,
+    40
+   ],
+   "story": "marin"
   },
   {
    "id": "valise",
@@ -1139,9 +1826,21 @@
    "tags": [
     "count",
     "open",
-    "buy"
+    "buy",
+    "luggage",
+    "priced",
+    "story",
+    "possess"
    ],
-   "lemma": "valise"
+   "lemma": "valise",
+   "dom": [
+    "luggage"
+   ],
+   "price": [
+    30,
+    300
+   ],
+   "story": "romy"
   },
   {
    "id": "assiette",
@@ -1152,9 +1851,19 @@
    "tags": [
     "count",
     "buy",
-    "vowel"
+    "vowel",
+    "tableware",
+    "priced",
+    "bulk"
    ],
-   "lemma": "assiette"
+   "lemma": "assiette",
+   "dom": [
+    "tableware"
+   ],
+   "price": [
+    3,
+    25
+   ]
   },
   {
    "id": "tasse",
@@ -1164,9 +1873,22 @@
    "kind": "obj",
    "tags": [
     "count",
-    "buy"
+    "buy",
+    "tableware",
+    "priced",
+    "story",
+    "possess",
+    "bulk"
    ],
-   "lemma": "tasse"
+   "lemma": "tasse",
+   "dom": [
+    "tableware"
+   ],
+   "price": [
+    3,
+    20
+   ],
+   "story": "margaux"
   },
   {
    "id": "verre",
@@ -1176,10 +1898,20 @@
    "kind": "obj",
    "tags": [
     "count",
-    "buy"
+    "buy",
+    "tableware",
+    "priced",
+    "bulk"
    ],
    "en_pl": "glasses",
-   "lemma": "verre"
+   "lemma": "verre",
+   "dom": [
+    "tableware"
+   ],
+   "price": [
+    2,
+    15
+   ]
   },
   {
    "id": "guitare",
@@ -1190,9 +1922,21 @@
    "tags": [
     "count",
     "buy",
-    "sell"
+    "sell",
+    "music_obj",
+    "priced",
+    "story",
+    "possess"
    ],
-   "lemma": "guitare"
+   "lemma": "guitare",
+   "dom": [
+    "music_obj"
+   ],
+   "price": [
+    80,
+    900
+   ],
+   "story": "lila"
   },
   {
    "id": "chapeau",
@@ -1203,10 +1947,20 @@
    "tags": [
     "count",
     "buy",
-    "wear"
+    "wear",
+    "clothing",
+    "priced",
+    "possess"
    ],
    "pl": "chapeaux",
-   "lemma": "chapeau"
+   "lemma": "chapeau",
+   "dom": [
+    "clothing"
+   ],
+   "price": [
+    10,
+    80
+   ]
   },
   {
    "id": "écharpe",
@@ -1218,10 +1972,20 @@
     "count",
     "buy",
     "wear",
-    "vowel"
+    "vowel",
+    "clothing",
+    "priced",
+    "possess"
    ],
    "en_pl": "scarves",
-   "lemma": "écharpe"
+   "lemma": "écharpe",
+   "dom": [
+    "clothing"
+   ],
+   "price": [
+    10,
+    80
+   ]
   },
   {
    "id": "horloge",
@@ -1232,9 +1996,19 @@
    "tags": [
     "count",
     "buy",
-    "vowel"
+    "vowel",
+    "furniture",
+    "priced",
+    "possess"
    ],
-   "lemma": "horloge"
+   "lemma": "horloge",
+   "dom": [
+    "furniture"
+   ],
+   "price": [
+    15,
+    200
+   ]
   },
   {
    "id": "miroir",
@@ -1245,9 +2019,18 @@
    "tags": [
     "count",
     "buy",
+    "furniture",
+    "priced",
+    "possess"
+   ],
+   "lemma": "miroir",
+   "dom": [
     "furniture"
    ],
-   "lemma": "miroir"
+   "price": [
+    20,
+    300
+   ]
   },
   {
    "id": "canapé",
@@ -1259,9 +2042,18 @@
     "count",
     "buy",
     "sell",
+    "furniture",
+    "priced",
+    "possess"
+   ],
+   "lemma": "canapé",
+   "dom": [
     "furniture"
    ],
-   "lemma": "canapé"
+   "price": [
+    200,
+    990
+   ]
   },
   {
    "id": "radiateur",
@@ -1270,9 +2062,15 @@
    "en": "radiator",
    "kind": "obj",
    "tags": [
-    "count"
+    "count",
+    "fixture",
+    "story"
    ],
-   "lemma": "radiateur"
+   "lemma": "radiateur",
+   "dom": [
+    "fixture"
+   ],
+   "story": "learner"
   },
   {
    "id": "appareil photo",
@@ -1285,10 +2083,20 @@
     "buy",
     "sell",
     "lose",
-    "vowel"
+    "vowel",
+    "tech",
+    "priced",
+    "possess"
    ],
    "pl": "appareils photo",
-   "lemma": "appareil"
+   "lemma": "appareil",
+   "dom": [
+    "tech"
+   ],
+   "price": [
+    80,
+    900
+   ]
   },
   {
    "id": "arbre",
@@ -1298,23 +2106,13 @@
    "kind": "obj",
    "tags": [
     "count",
-    "vowel"
+    "vowel",
+    "tree"
    ],
-   "lemma": "arbre"
-  },
-  {
-   "id": "objet",
-   "fr": "objet",
-   "g": "m",
-   "en": "object",
-   "kind": "obj",
-   "tags": [
-    "count",
-    "buy",
-    "sell",
-    "vowel"
-   ],
-   "lemma": "objet"
+   "lemma": "arbre",
+   "dom": [
+    "tree"
+   ]
   },
   {
    "id": "album",
@@ -1326,9 +2124,14 @@
     "count",
     "listen",
     "buy",
-    "vowel"
+    "vowel",
+    "priced"
    ],
-   "lemma": "album"
+   "lemma": "album",
+   "price": [
+    10,
+    30
+   ]
   },
   {
    "id": "anniversaire",
@@ -1400,9 +2203,18 @@
    "tags": [
     "count",
     "read",
-    "buy"
+    "buy",
+    "priced",
+    "story",
+    "possess",
+    "bulk"
    ],
-   "lemma": "roman"
+   "lemma": "roman",
+   "price": [
+    8,
+    25
+   ],
+   "story": "marin"
   },
   {
    "id": "série",
@@ -1679,9 +2491,23 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_shop",
+    "at_market"
    ],
-   "lemma": "marché"
+   "lemma": "marché",
+   "holds": [
+    "produce",
+    "bakery",
+    "deli",
+    "grocery",
+    "friend"
+   ],
+   "use": [
+    "at_shop",
+    "at_market"
+   ],
+   "cap": 3000
   },
   {
    "id": "gare",
@@ -1691,9 +2517,21 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_transit"
    ],
-   "lemma": "gare"
+   "lemma": "gare",
+   "holds": [
+    "luggage",
+    "ticket",
+    "press",
+    "dish",
+    "drink"
+   ],
+   "use": [
+    "at_transit"
+   ],
+   "cap": 5000
   },
   {
    "id": "café_lieu",
@@ -1703,9 +2541,33 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_study",
+    "at_leisure",
+    "at_meet"
    ],
-   "lemma": "café"
+   "lemma": "café",
+   "holds": [
+    "drink",
+    "dish",
+    "tableware",
+    "seat",
+    "press",
+    "friend",
+    "staff"
+   ],
+   "use": [
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_study",
+    "at_leisure",
+    "at_meet"
+   ],
+   "cap": 50
   },
   {
    "id": "boulangerie",
@@ -1716,10 +2578,20 @@
    "tags": [
     "count",
     "town",
-    "shop"
+    "shop",
+    "at_shop",
+    "at_work"
    ],
    "en_pl": "bakeries",
-   "lemma": "boulangerie"
+   "lemma": "boulangerie",
+   "holds": [
+    "bakery"
+   ],
+   "use": [
+    "at_shop",
+    "at_work"
+   ],
+   "cap": 15
   },
   {
    "id": "bureau",
@@ -1729,10 +2601,29 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_work",
+    "at_eat"
    ],
    "pl": "bureaux",
-   "lemma": "bureau"
+   "lemma": "bureau",
+   "holds": [
+    "stationery",
+    "tech",
+    "seat",
+    "tableware",
+    "art",
+    "plant",
+    "press",
+    "books",
+    "colleague",
+    "drink"
+   ],
+   "use": [
+    "at_work",
+    "at_eat"
+   ],
+   "cap": 100
   },
   {
    "id": "cinéma",
@@ -1742,9 +2633,21 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_leisure",
+    "at_meet"
    ],
-   "lemma": "cinéma"
+   "lemma": "cinéma",
+   "holds": [
+    "ticket",
+    "friend",
+    "student"
+   ],
+   "use": [
+    "at_leisure",
+    "at_meet"
+   ],
+   "cap": 400
   },
   {
    "id": "parc",
@@ -1754,9 +2657,27 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_leisure",
+    "at_walk",
+    "at_eat",
+    "at_meet"
    ],
-   "lemma": "parc"
+   "lemma": "parc",
+   "holds": [
+    "plant",
+    "animal",
+    "child",
+    "friend",
+    "tree"
+   ],
+   "use": [
+    "at_leisure",
+    "at_walk",
+    "at_eat",
+    "at_meet"
+   ],
+   "cap": 5000
   },
   {
    "id": "musée",
@@ -1766,9 +2687,23 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_leisure",
+    "at_work",
+    "at_meet"
    ],
-   "lemma": "musée"
+   "lemma": "musée",
+   "holds": [
+    "art",
+    "ticket",
+    "student"
+   ],
+   "use": [
+    "at_leisure",
+    "at_work",
+    "at_meet"
+   ],
+   "cap": 900
   },
   {
    "id": "école",
@@ -1779,9 +2714,24 @@
    "tags": [
     "count",
     "town",
-    "vowel"
+    "vowel",
+    "at_work",
+    "at_study"
    ],
-   "lemma": "école"
+   "lemma": "école",
+   "holds": [
+    "stationery",
+    "books",
+    "seat",
+    "child",
+    "teacher",
+    "student"
+   ],
+   "use": [
+    "at_work",
+    "at_study"
+   ],
+   "cap": 900
   },
   {
    "id": "restaurant",
@@ -1791,9 +2741,31 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_leisure",
+    "at_meet"
    ],
-   "lemma": "restaurant"
+   "lemma": "restaurant",
+   "holds": [
+    "drink",
+    "dish",
+    "tableware",
+    "seat",
+    "press",
+    "friend",
+    "staff"
+   ],
+   "use": [
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_leisure",
+    "at_meet"
+   ],
+   "cap": 120
   },
   {
    "id": "pharmacie",
@@ -1804,9 +2776,17 @@
    "tags": [
     "count",
     "town",
-    "shop"
+    "shop",
+    "at_shop",
+    "at_work"
    ],
-   "lemma": "pharmacie"
+   "lemma": "pharmacie",
+   "holds": [],
+   "use": [
+    "at_shop",
+    "at_work"
+   ],
+   "cap": 20
   },
   {
    "id": "poste",
@@ -1816,9 +2796,17 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_work"
    ],
-   "lemma": "poste"
+   "lemma": "poste",
+   "holds": [
+    "mail"
+   ],
+   "use": [
+    "at_work"
+   ],
+   "cap": 50
   },
   {
    "id": "bibliothèque",
@@ -1828,10 +2816,26 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_study",
+    "at_work",
+    "at_meet"
    ],
    "en_pl": "libraries",
-   "lemma": "bibliothèque"
+   "lemma": "bibliothèque",
+   "holds": [
+    "books",
+    "press",
+    "tech",
+    "seat",
+    "student"
+   ],
+   "use": [
+    "at_study",
+    "at_work",
+    "at_meet"
+   ],
+   "cap": 300
   },
   {
    "id": "supermarché",
@@ -1842,9 +2846,25 @@
    "tags": [
     "count",
     "town",
-    "shop"
+    "shop",
+    "at_shop",
+    "at_work"
    ],
-   "lemma": "supermarché"
+   "lemma": "supermarché",
+   "holds": [
+    "produce",
+    "bakery",
+    "deli",
+    "grocery",
+    "drink",
+    "tableware",
+    "sweet"
+   ],
+   "use": [
+    "at_shop",
+    "at_work"
+   ],
+   "cap": 300
   },
   {
    "id": "hôpital",
@@ -1855,10 +2875,16 @@
    "tags": [
     "count",
     "town",
-    "vowel"
+    "vowel",
+    "at_work"
    ],
    "pl": "hôpitaux",
-   "lemma": "hôpital"
+   "lemma": "hôpital",
+   "holds": [],
+   "use": [
+    "at_work"
+   ],
+   "cap": 2000
   },
   {
    "id": "aéroport",
@@ -1869,9 +2895,23 @@
    "tags": [
     "count",
     "town",
-    "vowel"
+    "vowel",
+    "at_transit",
+    "at_work"
    ],
-   "lemma": "aéroport"
+   "lemma": "aéroport",
+   "holds": [
+    "luggage",
+    "ticket",
+    "press",
+    "dish",
+    "drink"
+   ],
+   "use": [
+    "at_transit",
+    "at_work"
+   ],
+   "cap": 9000
   },
   {
    "id": "banque",
@@ -1881,9 +2921,15 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_work"
    ],
-   "lemma": "banque"
+   "lemma": "banque",
+   "holds": [],
+   "use": [
+    "at_work"
+   ],
+   "cap": 50
   },
   {
    "id": "piscine",
@@ -1893,9 +2939,17 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_swim",
+    "at_leisure"
    ],
-   "lemma": "piscine"
+   "lemma": "piscine",
+   "holds": [],
+   "use": [
+    "at_swim",
+    "at_leisure"
+   ],
+   "cap": 300
   },
   {
    "id": "théâtre",
@@ -1905,9 +2959,22 @@
    "kind": "place",
    "tags": [
     "count",
-    "town"
+    "town",
+    "at_leisure",
+    "at_work",
+    "at_meet"
    ],
-   "lemma": "théâtre"
+   "lemma": "théâtre",
+   "holds": [
+    "ticket",
+    "friend"
+   ],
+   "use": [
+    "at_leisure",
+    "at_work",
+    "at_meet"
+   ],
+   "cap": 900
   },
   {
    "id": "plage",
@@ -1916,10 +2983,23 @@
    "en": "beach",
    "kind": "place",
    "tags": [
-    "count"
+    "count",
+    "at_swim",
+    "at_walk",
+    "at_leisure"
    ],
    "en_pl": "beaches",
-   "lemma": "plage"
+   "lemma": "plage",
+   "holds": [
+    "child",
+    "friend"
+   ],
+   "use": [
+    "at_swim",
+    "at_walk",
+    "at_leisure"
+   ],
+   "cap": 5000
   },
   {
    "id": "église",
@@ -1933,7 +3013,10 @@
     "vowel"
    ],
    "en_pl": "churches",
-   "lemma": "église"
+   "lemma": "église",
+   "holds": [],
+   "use": [],
+   "cap": 500
   },
   {
    "id": "hôtel",
@@ -1944,9 +3027,24 @@
    "tags": [
     "count",
     "town",
-    "vowel"
+    "vowel",
+    "at_work",
+    "at_eat",
+    "at_stay"
    ],
-   "lemma": "hôtel"
+   "lemma": "hôtel",
+   "holds": [
+    "furniture",
+    "seat",
+    "luggage",
+    "staff"
+   ],
+   "use": [
+    "at_work",
+    "at_eat",
+    "at_stay"
+   ],
+   "cap": 500
   },
   {
    "id": "appartement",
@@ -1957,9 +3055,43 @@
    "tags": [
     "count",
     "home",
-    "vowel"
+    "vowel",
+    "at_live",
+    "at_study",
+    "at_eat",
+    "at_stay",
+    "at_home"
    ],
-   "lemma": "appartement"
+   "lemma": "appartement",
+   "holds": [
+    "furniture",
+    "seat",
+    "fixture",
+    "tech",
+    "art",
+    "books",
+    "plant",
+    "animal",
+    "luggage",
+    "clothing",
+    "accessory",
+    "tableware",
+    "music_obj",
+    "keys",
+    "stationery",
+    "friend",
+    "family",
+    "mail",
+    "neighbour"
+   ],
+   "use": [
+    "at_live",
+    "at_study",
+    "at_eat",
+    "at_stay",
+    "at_home"
+   ],
+   "cap": 20
   },
   {
    "id": "immeuble",
@@ -1970,9 +3102,17 @@
    "tags": [
     "count",
     "home",
-    "vowel"
+    "vowel",
+    "at_live"
    ],
-   "lemma": "immeuble"
+   "lemma": "immeuble",
+   "holds": [
+    "neighbour"
+   ],
+   "use": [
+    "at_live"
+   ],
+   "cap": 200
   },
   {
    "id": "quartier",
@@ -1981,9 +3121,17 @@
    "en": "neighbourhood",
    "kind": "place",
    "tags": [
-    "count"
+    "count",
+    "area",
+    "at_live",
+    "at_walk"
    ],
-   "lemma": "quartier"
+   "lemma": "quartier",
+   "holds": [],
+   "use": [
+    "at_live",
+    "at_walk"
+   ]
   },
   {
    "id": "rue",
@@ -1992,9 +3140,17 @@
    "en": "street",
    "kind": "place",
    "tags": [
-    "count"
+    "count",
+    "area",
+    "at_live",
+    "at_walk"
    ],
-   "lemma": "rue"
+   "lemma": "rue",
+   "holds": [],
+   "use": [
+    "at_live",
+    "at_walk"
+   ]
   },
   {
    "id": "ville",
@@ -2003,9 +3159,17 @@
    "en": "town",
    "kind": "place",
    "tags": [
-    "count"
+    "count",
+    "area",
+    "at_live",
+    "at_walk"
    ],
-   "lemma": "ville"
+   "lemma": "ville",
+   "holds": [],
+   "use": [
+    "at_live",
+    "at_walk"
+   ]
   },
   {
    "id": "jardin",
@@ -2015,9 +3179,25 @@
    "kind": "place",
    "tags": [
     "count",
-    "home"
+    "home",
+    "at_home",
+    "at_leisure",
+    "at_eat"
    ],
-   "lemma": "jardin"
+   "lemma": "jardin",
+   "holds": [
+    "plant",
+    "animal",
+    "seat",
+    "child",
+    "tree"
+   ],
+   "use": [
+    "at_home",
+    "at_leisure",
+    "at_eat"
+   ],
+   "cap": 40
   },
   {
    "id": "cuisine",
@@ -2027,9 +3207,26 @@
    "kind": "place",
    "tags": [
     "count",
-    "room"
+    "room",
+    "at_home",
+    "at_eat"
    ],
-   "lemma": "cuisine"
+   "lemma": "cuisine",
+   "holds": [
+    "tableware",
+    "seat",
+    "fixture",
+    "produce",
+    "bakery",
+    "grocery",
+    "drink",
+    "sweet"
+   ],
+   "use": [
+    "at_home",
+    "at_eat"
+   ],
+   "cap": 10
   },
   {
    "id": "salon",
@@ -2039,9 +3236,26 @@
    "kind": "place",
    "tags": [
     "count",
-    "room"
+    "room",
+    "at_home"
    ],
-   "lemma": "salon"
+   "lemma": "salon",
+   "holds": [
+    "furniture",
+    "seat",
+    "tech",
+    "art",
+    "books",
+    "plant",
+    "animal",
+    "music_obj",
+    "fixture",
+    "press"
+   ],
+   "use": [
+    "at_home"
+   ],
+   "cap": 20
   },
   {
    "id": "chambre",
@@ -2051,9 +3265,26 @@
    "kind": "place",
    "tags": [
     "count",
-    "room"
+    "room",
+    "at_home",
+    "at_stay"
    ],
-   "lemma": "chambre"
+   "lemma": "chambre",
+   "holds": [
+    "furniture",
+    "clothing",
+    "accessory",
+    "books",
+    "luggage",
+    "fixture",
+    "tech",
+    "keys"
+   ],
+   "use": [
+    "at_home",
+    "at_stay"
+   ],
+   "cap": 6
   },
   {
    "id": "magasin",
@@ -2064,9 +3295,25 @@
    "tags": [
     "count",
     "town",
-    "shop"
+    "shop",
+    "at_shop",
+    "at_work"
    ],
-   "lemma": "magasin"
+   "lemma": "magasin",
+   "holds": [
+    "clothing",
+    "accessory",
+    "tech",
+    "tableware",
+    "luggage",
+    "music_obj",
+    "staff"
+   ],
+   "use": [
+    "at_shop",
+    "at_work"
+   ],
+   "cap": 80
   },
   {
    "id": "librairie",
@@ -2077,9 +3324,23 @@
    "tags": [
     "count",
     "town",
-    "shop"
+    "shop",
+    "at_shop",
+    "at_work"
    ],
-   "lemma": "librairie"
+   "lemma": "librairie",
+   "holds": [
+    "books",
+    "press",
+    "stationery",
+    "art",
+    "mail"
+   ],
+   "use": [
+    "at_shop",
+    "at_work"
+   ],
+   "cap": 40
   },
   {
    "id": "mistral",
@@ -2089,10 +3350,36 @@
    "kind": "place",
    "tags": [
     "bible",
-    "town"
+    "town",
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_leisure",
+    "at_meet",
+    "at_party"
    ],
    "en_proper": true,
-   "lemma": "mistral"
+   "lemma": "mistral",
+   "holds": [
+    "drink",
+    "dish",
+    "tableware",
+    "seat",
+    "press",
+    "friend",
+    "staff",
+    "art"
+   ],
+   "use": [
+    "at_eat",
+    "at_drink",
+    "at_work",
+    "at_leisure",
+    "at_meet",
+    "at_party"
+   ],
+   "cap": 60,
+   "story": "place"
   },
   {
    "id": "marche_canal",
@@ -2102,9 +3389,27 @@
    "kind": "place",
    "tags": [
     "bible",
-    "town"
+    "town",
+    "at_shop",
+    "at_market",
+    "at_walk"
    ],
-   "lemma": "marché"
+   "lemma": "marché",
+   "holds": [
+    "produce",
+    "bakery",
+    "deli",
+    "grocery",
+    "friend",
+    "plant"
+   ],
+   "use": [
+    "at_shop",
+    "at_market",
+    "at_walk"
+   ],
+   "cap": 3000,
+   "story": "place"
   },
   {
    "id": "redaction",
@@ -2114,9 +3419,27 @@
    "kind": "place",
    "tags": [
     "bible",
-    "town"
+    "town",
+    "at_work"
    ],
-   "lemma": "rédaction"
+   "lemma": "rédaction",
+   "holds": [
+    "stationery",
+    "tech",
+    "seat",
+    "tableware",
+    "art",
+    "plant",
+    "press",
+    "books",
+    "colleague",
+    "drink"
+   ],
+   "use": [
+    "at_work"
+   ],
+   "cap": 150,
+   "story": "place"
   },
   {
    "id": "brocante",
@@ -2126,9 +3449,32 @@
    "kind": "place",
    "tags": [
     "bible",
-    "town"
+    "town",
+    "at_shop",
+    "at_market",
+    "at_walk"
    ],
-   "lemma": "brocante"
+   "lemma": "brocante",
+   "holds": [
+    "furniture",
+    "seat",
+    "tableware",
+    "art",
+    "accessory",
+    "clothing",
+    "music_obj",
+    "vehicle",
+    "books",
+    "luggage",
+    "tech"
+   ],
+   "use": [
+    "at_shop",
+    "at_market",
+    "at_walk"
+   ],
+   "cap": 3000,
+   "story": "place"
   },
   {
    "id": "canal",
@@ -2137,10 +3483,17 @@
    "en": "canal",
    "kind": "place",
    "tags": [
-    "bible"
+    "bible",
+    "area",
+    "at_walk"
    ],
    "pl": "canaux",
-   "lemma": "canal"
+   "lemma": "canal",
+   "holds": [],
+   "use": [
+    "at_walk"
+   ],
+   "story": "place"
   },
   {
    "id": "ngo_office",
@@ -2150,10 +3503,28 @@
    "kind": "place",
    "tags": [
     "bible",
-    "town"
+    "town",
+    "at_work"
    ],
    "pl": "bureaux de l'ONG",
-   "lemma": "bureau"
+   "lemma": "bureau",
+   "holds": [
+    "stationery",
+    "tech",
+    "seat",
+    "tableware",
+    "art",
+    "plant",
+    "press",
+    "books",
+    "colleague",
+    "drink"
+   ],
+   "use": [
+    "at_work"
+   ],
+   "cap": 40,
+   "story": "place"
   },
   {
    "id": "ami",
@@ -2164,9 +3535,13 @@
    "tags": [
     "count",
     "people",
-    "vowel"
+    "vowel",
+    "friend"
    ],
-   "lemma": "ami"
+   "lemma": "ami",
+   "dom": [
+    "friend"
+   ]
   },
   {
    "id": "amie",
@@ -2177,9 +3552,13 @@
    "tags": [
     "count",
     "people",
-    "vowel"
+    "vowel",
+    "friend"
    ],
-   "lemma": "amie"
+   "lemma": "amie",
+   "dom": [
+    "friend"
+   ]
   },
   {
    "id": "voisin",
@@ -2189,9 +3568,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "neighbour"
    ],
-   "lemma": "voisin"
+   "lemma": "voisin",
+   "dom": [
+    "neighbour"
+   ]
   },
   {
    "id": "voisine",
@@ -2201,9 +3584,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "neighbour"
    ],
-   "lemma": "voisine"
+   "lemma": "voisine",
+   "dom": [
+    "neighbour"
+   ]
   },
   {
    "id": "collègue_m",
@@ -2213,9 +3600,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "colleague"
    ],
-   "lemma": "collègue"
+   "lemma": "collègue",
+   "dom": [
+    "colleague"
+   ]
   },
   {
    "id": "collègue_f",
@@ -2225,9 +3616,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "colleague"
    ],
-   "lemma": "collègue"
+   "lemma": "collègue",
+   "dom": [
+    "colleague"
+   ]
   },
   {
    "id": "étudiant",
@@ -2238,9 +3633,13 @@
    "tags": [
     "count",
     "people",
-    "vowel"
+    "vowel",
+    "student"
    ],
-   "lemma": "étudiant"
+   "lemma": "étudiant",
+   "dom": [
+    "student"
+   ]
   },
   {
    "id": "étudiante",
@@ -2251,9 +3650,13 @@
    "tags": [
     "count",
     "people",
-    "vowel"
+    "vowel",
+    "student"
    ],
-   "lemma": "étudiante"
+   "lemma": "étudiante",
+   "dom": [
+    "student"
+   ]
   },
   {
    "id": "cousin",
@@ -2264,9 +3667,14 @@
    "tags": [
     "count",
     "people",
-    "family"
+    "family",
+    "friend"
    ],
-   "lemma": "cousin"
+   "lemma": "cousin",
+   "dom": [
+    "friend",
+    "family"
+   ]
   },
   {
    "id": "cousine",
@@ -2277,9 +3685,14 @@
    "tags": [
     "count",
     "people",
-    "family"
+    "family",
+    "friend"
    ],
-   "lemma": "cousine"
+   "lemma": "cousine",
+   "dom": [
+    "friend",
+    "family"
+   ]
   },
   {
    "id": "frère",
@@ -2290,9 +3703,14 @@
    "tags": [
     "count",
     "people",
-    "family"
+    "family",
+    "friend"
    ],
-   "lemma": "frère"
+   "lemma": "frère",
+   "dom": [
+    "friend",
+    "family"
+   ]
   },
   {
    "id": "sœur",
@@ -2303,9 +3721,14 @@
    "tags": [
     "count",
     "people",
-    "family"
+    "family",
+    "friend"
    ],
-   "lemma": "sœur"
+   "lemma": "sœur",
+   "dom": [
+    "friend",
+    "family"
+   ]
   },
   {
    "id": "serveur",
@@ -2315,9 +3738,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "staff"
    ],
-   "lemma": "serveur"
+   "lemma": "serveur",
+   "dom": [
+    "staff"
+   ]
   },
   {
    "id": "serveuse",
@@ -2327,10 +3754,14 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "staff"
    ],
    "en_pl": "waitresses",
-   "lemma": "serveuse"
+   "lemma": "serveuse",
+   "dom": [
+    "staff"
+   ]
   },
   {
    "id": "enfant",
@@ -2341,10 +3772,14 @@
    "tags": [
     "count",
     "people",
-    "vowel"
+    "vowel",
+    "child"
    ],
    "en_pl": "children",
-   "lemma": "enfant"
+   "lemma": "enfant",
+   "dom": [
+    "child"
+   ]
   },
   {
    "id": "propriétaire",
@@ -2354,9 +3789,13 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "landlord"
    ],
-   "lemma": "propriétaire"
+   "lemma": "propriétaire",
+   "dom": [
+    "landlord"
+   ]
   },
   {
    "id": "chat",
@@ -2366,9 +3805,13 @@
    "kind": "obj",
    "tags": [
     "count",
-    "animal"
+    "animal",
+    "possess"
    ],
-   "lemma": "chat"
+   "lemma": "chat",
+   "dom": [
+    "animal"
+   ]
   },
   {
    "id": "chien",
@@ -2378,9 +3821,13 @@
    "kind": "obj",
    "tags": [
     "count",
-    "animal"
+    "animal",
+    "possess"
    ],
-   "lemma": "chien"
+   "lemma": "chien",
+   "dom": [
+    "animal"
+   ]
   },
   {
    "id": "professeur",
@@ -2390,9 +3837,128 @@
    "kind": "person",
    "tags": [
     "count",
-    "people"
+    "people",
+    "teacher"
    ],
-   "lemma": "professeur"
+   "lemma": "professeur",
+   "dom": [
+    "teacher"
+   ]
+  },
+  {
+   "id": "micro",
+   "fr": "micro",
+   "g": "m",
+   "en": "microphone",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find",
+    "tech",
+    "priced",
+    "story",
+    "possess"
+   ],
+   "lemma": "micro",
+   "dom": [
+    "tech"
+   ],
+   "price": [
+    30,
+    300
+   ],
+   "story": "romy"
+  },
+  {
+   "id": "carton",
+   "fr": "carton",
+   "g": "m",
+   "en": "box",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "open",
+    "luggage",
+    "story",
+    "bulk"
+   ],
+   "en_pl": "boxes",
+   "lemma": "carton",
+   "dom": [
+    "luggage"
+   ],
+   "story": "romy"
+  },
+  {
+   "id": "plante",
+   "fr": "plante",
+   "g": "f",
+   "en": "plant",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "plant",
+    "priced",
+    "story",
+    "possess",
+    "bulk"
+   ],
+   "lemma": "plante",
+   "dom": [
+    "plant"
+   ],
+   "price": [
+    5,
+    50
+   ],
+   "story": "marin"
+  },
+  {
+   "id": "maison",
+   "fr": "maison",
+   "g": "f",
+   "en": "house",
+   "kind": "place",
+   "tags": [
+    "count",
+    "home",
+    "at_live",
+    "at_home",
+    "at_eat",
+    "at_stay"
+   ],
+   "lemma": "maison",
+   "holds": [
+    "furniture",
+    "seat",
+    "fixture",
+    "tech",
+    "art",
+    "books",
+    "plant",
+    "animal",
+    "luggage",
+    "clothing",
+    "accessory",
+    "tableware",
+    "music_obj",
+    "keys",
+    "stationery",
+    "friend",
+    "family",
+    "mail",
+    "neighbour"
+   ],
+   "use": [
+    "at_live",
+    "at_home",
+    "at_eat",
+    "at_stay"
+   ],
+   "cap": 20
   }
  ],
  "adjectives": [
@@ -2402,9 +3968,23 @@
    "fr": "petit",
    "en": "small",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "tableware",
+    "accessory",
+    "clothing",
+    "books",
+    "stationery",
+    "animal",
+    "plant",
     "place",
-    "food"
+    "produce",
+    "bakery",
+    "dish",
+    "tech",
+    "luggage",
+    "vehicle",
+    "art"
    ],
    "pos": "pre",
    "tags": [
@@ -2419,8 +3999,15 @@
    "fr": "grand",
    "en": "big",
    "kinds": [
-    "obj",
-    "place"
+    "furniture",
+    "seat",
+    "place",
+    "animal",
+    "plant",
+    "luggage",
+    "art",
+    "vehicle",
+    "tableware"
    ],
    "pos": "pre",
    "tags": [
@@ -2450,9 +4037,15 @@
    "fr": "joli",
    "en": "pretty",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "tableware",
+    "accessory",
+    "clothing",
+    "art",
     "place",
-    "person"
+    "plant",
+    "luggage"
    ],
    "pos": "pre",
    "tags": [
@@ -2482,9 +4075,19 @@
    "fr": "nouveau",
    "en": "new",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "accessory",
+    "clothing",
+    "tech",
+    "vehicle",
+    "books",
     "place",
-    "person"
+    "person",
+    "luggage",
+    "music_obj",
+    "art",
+    "stationery"
    ],
    "pos": "pre",
    "tags": [
@@ -2503,9 +4106,20 @@
    "fr": "vieux",
    "en": "old",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "accessory",
+    "clothing",
+    "tech",
+    "vehicle",
+    "books",
     "place",
-    "person"
+    "person",
+    "luggage",
+    "music_obj",
+    "plant",
+    "art",
+    "animal"
    ],
    "pos": "pre",
    "tags": [
@@ -2524,9 +4138,18 @@
    "fr": "beau",
    "en": "beautiful",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "accessory",
+    "clothing",
+    "art",
     "place",
-    "person"
+    "person",
+    "vehicle",
+    "plant",
+    "tableware",
+    "music_obj",
+    "animal"
    ],
    "pos": "pre",
    "tags": [
@@ -2545,7 +4168,12 @@
    "fr": "bon",
    "en": "good",
    "kinds": [
-    "food"
+    "produce",
+    "bakery",
+    "deli",
+    "dish",
+    "drink",
+    "grocery"
    ],
    "pos": "pre",
    "tags": [
@@ -2562,7 +4190,16 @@
    "fr": "blanc",
    "en": "white",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery",
+    "fixture",
+    "tech",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -2580,7 +4217,15 @@
    "fr": "noir",
    "en": "black",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery",
+    "tech",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -2597,7 +4242,15 @@
    "fr": "rouge",
    "en": "red",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery",
+    "fixture",
+    "luggage"
    ],
    "pos": "post",
    "tags": [
@@ -2614,7 +4267,15 @@
    "fr": "bleu",
    "en": "blue",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery",
+    "fixture",
+    "luggage"
    ],
    "pos": "post",
    "tags": [
@@ -2631,7 +4292,15 @@
    "fr": "vert",
    "en": "green",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery",
+    "fixture",
+    "luggage"
    ],
    "pos": "post",
    "tags": [
@@ -2648,7 +4317,14 @@
    "fr": "gris",
    "en": "grey",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "tech",
+    "fixture",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -2666,7 +4342,13 @@
    "fr": "jaune",
    "en": "yellow",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "accessory",
+    "vehicle",
+    "stationery"
    ],
    "pos": "post",
    "tags": [
@@ -2683,9 +4365,12 @@
    "fr": "français",
    "en": "French",
    "kinds": [
-    "obj",
-    "food",
-    "person"
+    "deli",
+    "grocery",
+    "drink",
+    "person",
+    "books",
+    "vehicle"
    ],
    "pos": "post",
    "tags": [
@@ -2704,9 +4389,13 @@
    "fr": "italien",
    "en": "Italian",
    "kinds": [
-    "obj",
-    "food",
-    "person"
+    "deli",
+    "grocery",
+    "drink",
+    "dish",
+    "person",
+    "vehicle",
+    "clothing"
    ],
    "pos": "post",
    "tags": [
@@ -2726,8 +4415,9 @@
    "fr": "anglais",
    "en": "English",
    "kinds": [
-    "obj",
-    "person"
+    "person",
+    "books",
+    "clothing"
    ],
    "pos": "post",
    "tags": [
@@ -2745,9 +4435,19 @@
    "fr": "cher",
    "en": "expensive",
    "kinds": [
-    "obj",
+    "furniture",
+    "seat",
+    "accessory",
+    "clothing",
+    "tech",
+    "vehicle",
     "place",
-    "food"
+    "art",
+    "luggage",
+    "music_obj",
+    "deli",
+    "drink",
+    "ticket"
    ],
    "pos": "post",
    "tags": [
@@ -2764,7 +4464,8 @@
    "en": "calm",
    "kinds": [
     "place",
-    "person"
+    "person",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -2897,7 +4598,8 @@
    "pos": "post",
    "tags": [
     "state",
-    "post"
+    "post",
+    "glad"
    ],
    "en_comp": "happier",
    "en_sup": "the happiest"
@@ -2913,7 +4615,8 @@
    "pos": "post",
    "tags": [
     "state",
-    "post"
+    "post",
+    "tired"
    ],
    "en_comp": "more tired",
    "en_sup": "the most tired"
@@ -2929,7 +4632,8 @@
    "pos": "post",
    "tags": [
     "state",
-    "post"
+    "post",
+    "glad"
    ],
    "f": "heureuse",
    "mp": "heureux",
@@ -2964,7 +4668,8 @@
    "tags": [
     "state",
     "nocomp",
-    "post"
+    "post",
+    "tired"
    ],
    "en_comp": "iller",
    "en_sup": "the illest"
@@ -3008,7 +4713,8 @@
    "fr": "rapide",
    "en": "fast",
    "kinds": [
-    "vehicle"
+    "vehicle",
+    "tech"
    ],
    "pos": "post",
    "tags": [
@@ -3024,7 +4730,9 @@
    "en": "slow",
    "kinds": [
     "vehicle",
-    "person"
+    "person",
+    "tech",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -3040,7 +4748,9 @@
    "en": "comfortable",
    "kinds": [
     "furniture",
-    "wear"
+    "seat",
+    "clothing",
+    "vehicle"
    ],
    "pos": "post",
    "tags": [
@@ -3055,8 +4765,12 @@
    "fr": "moderne",
    "en": "modern",
    "kinds": [
-    "obj",
-    "place"
+    "furniture",
+    "seat",
+    "tech",
+    "place",
+    "art",
+    "vehicle"
    ],
    "pos": "post",
    "tags": [
@@ -3071,8 +4785,13 @@
    "fr": "propre",
    "en": "clean",
    "kinds": [
-    "obj",
-    "place"
+    "furniture",
+    "seat",
+    "tableware",
+    "clothing",
+    "place",
+    "fixture",
+    "vehicle"
    ],
    "pos": "post",
    "tags": [
@@ -3087,7 +4806,8 @@
    "fr": "froid",
    "en": "cold",
    "kinds": [
-    "food"
+    "dish",
+    "drink"
    ],
    "pos": "post",
    "tags": [
@@ -3102,7 +4822,8 @@
    "fr": "chaud",
    "en": "hot",
    "kinds": [
-    "food"
+    "dish",
+    "drink"
    ],
    "pos": "post",
    "tags": [
@@ -3117,7 +4838,10 @@
    "fr": "délicieux",
    "en": "delicious",
    "kinds": [
-    "food"
+    "dish",
+    "bakery",
+    "produce",
+    "deli"
    ],
    "pos": "post",
    "tags": [
@@ -3134,7 +4858,10 @@
    "fr": "frais",
    "en": "fresh",
    "kinds": [
-    "food"
+    "produce",
+    "bakery",
+    "deli",
+    "drink"
    ],
    "pos": "post",
    "tags": [
@@ -3153,7 +4880,9 @@
    "en": "noisy",
    "kinds": [
     "place",
-    "person"
+    "person",
+    "animal",
+    "vehicle"
    ],
    "pos": "post",
    "tags": [
@@ -3198,8 +4927,13 @@
    "fr": "étrange",
    "en": "strange",
    "kinds": [
-    "obj",
-    "place"
+    "furniture",
+    "art",
+    "accessory",
+    "place",
+    "person",
+    "animal",
+    "dish"
    ],
    "pos": "post",
    "tags": [
@@ -3214,7 +4948,14 @@
    "fr": "pratique",
    "en": "practical",
    "kinds": [
-    "obj"
+    "furniture",
+    "seat",
+    "tech",
+    "accessory",
+    "luggage",
+    "vehicle",
+    "clothing",
+    "stationery"
    ],
    "pos": "post",
    "tags": [
@@ -3230,7 +4971,8 @@
    "en": "quiet",
    "kinds": [
     "place",
-    "person"
+    "person",
+    "animal"
    ],
    "pos": "post",
    "tags": [
@@ -3253,7 +4995,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "irregular"
+    "irregular",
+    "stative"
    ],
    "comps": [],
    "pres": [
@@ -3281,7 +5024,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "irregular"
+    "irregular",
+    "stative"
    ],
    "comps": [
     {
@@ -3315,6 +5059,18 @@
     {
      "fr": "des amis à Paris",
      "en": "friends in Paris"
+    },
+    {
+     "fr": "rendez-vous au Mistral",
+     "en": "an appointment at Le Mistral"
+    },
+    {
+     "fr": "un message de Romy",
+     "en": "a message from Romy"
+    },
+    {
+     "fr": "une idée pour Gus",
+     "en": "an idea for Gus"
     }
    ],
    "pres": [
@@ -3343,7 +5099,8 @@
    "tags": [
     "irregular",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit"
    ],
    "comps": [
     {
@@ -3377,6 +5134,14 @@
     {
      "fr": "au parc",
      "en": "to the park"
+    },
+    {
+     "fr": "au marché du canal",
+     "en": "to the canal market"
+    },
+    {
+     "fr": "à la rédaction",
+     "en": "to the newsroom"
     }
    ],
    "pres": [
@@ -3415,7 +5180,8 @@
    "tags": [
     "irregular",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit"
    ],
    "comps": [
     {
@@ -3441,6 +5207,10 @@
     {
      "fr": "en métro",
      "en": "by metro"
+    },
+    {
+     "fr": "à la rédaction",
+     "en": "to the newsroom"
     }
    ],
    "pres": [
@@ -3467,7 +5237,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "irregular"
+    "irregular",
+    "habit"
    ],
    "comps": [
     {
@@ -3542,6 +5313,34 @@
       "baking"
      ],
      "en_obj": "a cake"
+    },
+    {
+     "fr": "les courses au marché du canal",
+     "en": "the shopping at the canal market"
+    },
+    {
+     "fr": "un gâteau pour Lila",
+     "en": "",
+     "en_forms": [
+      "bake",
+      "bakes",
+      "baked",
+      "baked",
+      "baking"
+     ],
+     "en_obj": "a cake for Lila"
+    },
+    {
+     "fr": "une promenade le long du canal",
+     "en": "",
+     "en_forms": [
+      "go for a walk",
+      "goes for a walk",
+      "went for a walk",
+      "gone for a walk",
+      "going for a walk"
+     ],
+     "en_obj": "along the canal"
     }
    ],
    "pres": [
@@ -3581,7 +5380,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "habit"
    ],
    "comps": [
     {
@@ -3630,7 +5430,10 @@
     },
     {
      "fr": "une douche",
-     "en": "a shower"
+     "en": "a shower",
+     "tags": [
+      "routine"
+     ]
     },
     {
      "fr": "mon vélo",
@@ -3647,6 +5450,26 @@
       "having"
      ],
      "en_obj": "a tea"
+    },
+    {
+     "fr": "un café au Mistral",
+     "en": "",
+     "en_forms": [
+      "have",
+      "has",
+      "had",
+      "had",
+      "having"
+     ],
+     "en_obj": "a coffee at Le Mistral"
+    },
+    {
+     "fr": "le métro avec Romy",
+     "en": "the metro with Romy"
+    },
+    {
+     "fr": "une photo de Lila",
+     "en": "a photo of Lila"
     }
    ],
    "pres": [
@@ -3783,7 +5606,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "irregular"
+    "irregular",
+    "stative"
    ],
    "comps": [],
    "pres": [
@@ -3811,7 +5635,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "oneoff"
    ],
    "comps": [
     {
@@ -3871,7 +5696,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "habit"
    ],
    "comps": [
     {
@@ -3897,6 +5723,22 @@
     {
      "fr": "une limonade",
      "en": "a lemonade"
+    },
+    {
+     "fr": "un café au Mistral",
+     "en": "a coffee at Le Mistral"
+    },
+    {
+     "fr": "un verre avec Gus",
+     "en": "",
+     "en_forms": [
+      "have",
+      "has",
+      "had",
+      "had",
+      "having"
+     ],
+     "en_obj": "a drink with Gus"
     }
    ],
    "pres": [
@@ -3915,6 +5757,10 @@
    "pp_x": [
     "buvé",
     "boivé"
+   ],
+   "at": [
+    "at_drink",
+    "at_eat"
    ]
   },
   {
@@ -3930,7 +5776,9 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -3956,6 +5804,10 @@
     {
      "fr": "la carte",
      "en": "the menu"
+    },
+    {
+     "fr": "le carnet de Gus",
+     "en": "Gus's notebook"
     }
    ],
    "pres": [
@@ -3988,7 +5840,9 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "oneoff",
+    "habit"
    ],
    "comps": [
     {
@@ -4014,6 +5868,14 @@
     {
      "fr": "un e-mail",
      "en": "an email"
+    },
+    {
+     "fr": "un message à Romy",
+     "en": "a message to Romy"
+    },
+    {
+     "fr": "un article pour la rédaction",
+     "en": "an article for the newsroom"
     }
    ],
    "pres": [
@@ -4043,7 +5905,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4065,6 +5928,10 @@
     {
      "fr": "au revoir",
      "en": "goodbye"
+    },
+    {
+     "fr": "bonjour à Margaux",
+     "en": "hello to Margaux"
     }
    ],
    "pres": [
@@ -4091,7 +5958,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4155,7 +6023,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "stative"
    ],
    "comps": [
     {
@@ -4205,7 +6074,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "irregular"
+    "irregular",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4227,6 +6097,10 @@
     {
      "fr": "la valise",
      "en": "the suitcase"
+    },
+    {
+     "fr": "le carton de Romy",
+     "en": "Romy's box"
     }
    ],
    "pres": [
@@ -4260,7 +6134,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "ir"
+    "ir",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4281,11 +6156,18 @@
     },
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "le dossier",
      "en": "the file"
+    },
+    {
+     "fr": "l'article de Romy",
+     "en": "Romy's article"
     }
    ],
    "pres": [
@@ -4329,7 +6211,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "ir"
+    "ir",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4351,6 +6234,14 @@
     {
      "fr": "une robe",
      "en": "a dress"
+    },
+    {
+     "fr": "une table au Mistral",
+     "en": "a table at Le Mistral"
+    },
+    {
+     "fr": "un tableau de Lila",
+     "en": "one of Lila's paintings"
     }
    ],
    "pres": [
@@ -4405,7 +6296,10 @@
     },
     {
      "fr": "tôt",
-     "en": "early"
+     "en": "early",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "pour Lyon",
@@ -4418,6 +6312,10 @@
     {
      "fr": "avant la fin du film",
      "en": "before the end of the film"
+    },
+    {
+     "fr": "avec Gus",
+     "en": "with Gus"
     }
    ],
    "pres": [
@@ -4443,38 +6341,47 @@
    "id": "sortir",
    "inf": "sortir",
    "en": [
-    "go",
-    "goes",
-    "went",
-    "gone",
-    "going"
+    "go out",
+    "goes out",
+    "went out",
+    "gone out",
+    "going out"
    ],
    "aux": "être",
    "tags": [
     "ir",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
      "fr": "avec Lila",
-     "en": "out with Lila"
+     "en": "with Lila"
     },
     {
      "fr": "tard",
-     "en": "out late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "du bureau",
-     "en": "out of the office"
+     "en": "of the office"
     },
     {
      "fr": "avec des amis",
-     "en": "out with friends"
+     "en": "with friends"
     },
     {
      "fr": "en ville",
-     "en": "out into town"
+     "en": "into town"
+    },
+    {
+     "fr": "du Mistral",
+     "en": "of Le Mistral"
     }
    ],
    "pres": [
@@ -4508,28 +6415,45 @@
    ],
    "aux": "avoir",
    "tags": [
-    "ir"
+    "ir",
+    "habit"
    ],
    "comps": [
     {
      "fr": "bien",
-     "en": "well"
+     "en": "well",
+     "tags": [
+      "adv_pre",
+      "rest"
+     ]
     },
     {
      "fr": "chez Lila",
-     "en": "at Lila's place"
+     "en": "at Lila's place",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "dans le salon",
-     "en": "in the living room"
+     "en": "in the living room",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "huit heures",
-     "en": "eight hours"
+     "en": "eight hours",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "jusqu'à midi",
-     "en": "until noon"
+     "en": "until noon",
+     "tags": [
+      "rest"
+     ]
     }
    ],
    "pres": [
@@ -4549,7 +6473,10 @@
     "1": [
      "dort"
     ]
-   }
+   },
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "attendre",
@@ -4563,7 +6490,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "re"
+    "re",
+    "habit"
    ],
    "comps": [
     {
@@ -4589,6 +6517,10 @@
     {
      "fr": "Romy devant le Mistral",
      "en": "Romy outside Le Mistral"
+    },
+    {
+     "fr": "Gus au Mistral",
+     "en": "Gus at Le Mistral"
     }
    ],
    "pres": [
@@ -4611,7 +6543,10 @@
     "2": [
      "attendt"
     ]
-   }
+   },
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "répondre",
@@ -4683,7 +6618,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "re"
+    "re",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4705,6 +6641,10 @@
     {
      "fr": "des fleurs",
      "en": "flowers"
+    },
+    {
+     "fr": "un tableau de Lila",
+     "en": "one of Lila's paintings"
     }
    ],
    "pres": [
@@ -4724,7 +6664,11 @@
     "2": [
      "vendt"
     ]
-   }
+   },
+   "at": [
+    "at_shop",
+    "at_market"
+   ]
   },
   {
    "id": "entendre",
@@ -4738,7 +6682,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "re"
+    "re",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4787,7 +6732,8 @@
    "tags": [
     "re",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4805,6 +6751,10 @@
     {
      "fr": "à la cave",
      "en": "to the cellar"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "to Le Mistral"
     }
    ],
    "pres": [
@@ -4835,7 +6785,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "re"
+    "re",
+    "mishap",
+    "oneoff"
    ],
    "comps": [
     {
@@ -4853,6 +6805,10 @@
     {
      "fr": "un gant",
      "en": "a glove"
+    },
+    {
+     "fr": "le carnet de Gus",
+     "en": "Gus's notebook"
     }
    ],
    "pres": [
@@ -4881,7 +6837,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -4926,7 +6883,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "stative"
    ],
    "comps": [
     {
@@ -4952,9 +6910,20 @@
     {
      "fr": "avec Romy",
      "en": "with Romy"
+    },
+    {
+     "fr": "près de la rédaction",
+     "en": "near the newsroom"
     }
    ],
-   "pp": "habité"
+   "pp": "habité",
+   "at": [
+    "at_live"
+   ],
+   "dur": [
+    "mid",
+    "long"
+   ]
   },
   {
    "id": "travailler",
@@ -4968,7 +6937,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -4985,7 +6955,10 @@
     },
     {
      "fr": "beaucoup",
-     "en": "a lot"
+     "en": "a lot",
+     "tags": [
+      "adv_pre"
+     ]
     },
     {
      "fr": "à la maison",
@@ -4996,7 +6969,15 @@
      "en": "with Gus"
     }
    ],
-   "pp": "travaillé"
+   "pp": "travaillé",
+   "at": [
+    "at_work"
+   ],
+   "dur": [
+    "short",
+    "mid",
+    "long"
+   ]
   },
   {
    "id": "aimer",
@@ -5010,7 +6991,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "stative"
    ],
    "comps": [
     {
@@ -5036,6 +7018,10 @@
     {
      "fr": "les marchés",
      "en": "markets"
+    },
+    {
+     "fr": "les tableaux de Lila",
+     "en": "Lila's paintings"
     }
    ],
    "pp": "aimé",
@@ -5057,7 +7043,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -5099,6 +7087,18 @@
       "looking at"
      ],
      "en_obj": "the boats"
+    },
+    {
+     "fr": "les tableaux de Lila",
+     "en": "",
+     "en_forms": [
+      "look at",
+      "looks at",
+      "looked at",
+      "looked at",
+      "looking at"
+     ],
+     "en_obj": "Lila's paintings"
     }
    ],
    "pp": "regardé",
@@ -5118,7 +7118,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -5140,6 +7142,10 @@
     {
      "fr": "le prof",
      "en": "the teacher"
+    },
+    {
+     "fr": "Romy à la radio",
+     "en": "Romy on the radio"
     }
    ],
    "pp": "écouté",
@@ -5185,6 +7191,14 @@
     {
      "fr": "une solution",
      "en": "a solution"
+    },
+    {
+     "fr": "la bague de Marin",
+     "en": "Marin's ring"
+    },
+    {
+     "fr": "le carnet de Gus",
+     "en": "Gus's notebook"
     }
    ],
    "pp": "cherché",
@@ -5205,7 +7219,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -5218,7 +7233,11 @@
     },
     {
      "fr": "trop vite",
-     "en": "too fast"
+     "en": "too fast",
+     "tags": [
+      "adv_pre",
+      "manner"
+     ]
     },
     {
      "fr": "chez Lila",
@@ -5231,13 +7250,20 @@
     {
      "fr": "des crêpes",
      "en": "crêpes"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
     }
    ],
    "pp": "mangé",
    "obj": [
     "eat"
    ],
-   "imp_x": "mang"
+   "imp_x": "mang",
+   "at": [
+    "at_eat"
+   ]
   },
   {
    "id": "jouer",
@@ -5251,7 +7277,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -5273,6 +7301,10 @@
     {
      "fr": "au foot",
      "en": "football"
+    },
+    {
+     "fr": "aux cartes avec Gus",
+     "en": "cards with Gus"
     }
    ],
    "pp": "joué"
@@ -5289,7 +7321,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -5311,9 +7345,19 @@
     {
      "fr": "dans la cuisine",
      "en": "in the kitchen"
+    },
+    {
+     "fr": "avec Lila",
+     "en": "with Lila"
     }
    ],
-   "pp": "dansé"
+   "pp": "dansé",
+   "at": [
+    "at_party"
+   ],
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "chanter",
@@ -5327,7 +7371,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -5354,7 +7400,13 @@
      ]
     }
    ],
-   "pp": "chanté"
+   "pp": "chanté",
+   "at": [
+    "at_party"
+   ],
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "cuisiner",
@@ -5368,16 +7420,14 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
-     "fr": "pour les amis",
-     "en": "for our friends"
-    },
-    {
-     "fr": "ce soir",
-     "en": "tonight"
+     "fr": "pour des amis",
+     "en": "for friends"
     },
     {
      "fr": "le dimanche",
@@ -5390,9 +7440,16 @@
     {
      "fr": "des crêpes",
      "en": "crêpes"
+    },
+    {
+     "fr": "pour Lila",
+     "en": "for Lila"
     }
    ],
-   "pp": "cuisiné"
+   "pp": "cuisiné",
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "arriver",
@@ -5408,7 +7465,8 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5452,12 +7510,16 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit"
    ],
    "comps": [
     {
      "fr": "à la maison",
-     "en": "at home"
+     "en": "at home",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "au Mistral",
@@ -5465,7 +7527,10 @@
     },
     {
      "fr": "chez Lila",
-     "en": "at Lila's place"
+     "en": "at Lila's place",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "à Paris",
@@ -5473,7 +7538,10 @@
     },
     {
      "fr": "au lit",
-     "en": "in bed"
+     "en": "in bed",
+     "tags": [
+      "rest"
+     ]
     }
    ],
    "pp": "resté"
@@ -5492,7 +7560,8 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5510,6 +7579,10 @@
     {
      "fr": "dans le métro",
      "en": "into the metro"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "into Le Mistral"
     }
    ],
    "pp": "entré"
@@ -5528,12 +7601,16 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit"
    ],
    "comps": [
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "à minuit",
@@ -5541,7 +7618,10 @@
     },
     {
      "fr": "en taxi",
-     "en": "by taxi"
+     "en": "by taxi",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "à pied",
@@ -5550,6 +7630,10 @@
     {
      "fr": "avec Romy",
      "en": "with Romy"
+    },
+    {
+     "fr": "avec Gus",
+     "en": "with Gus"
     }
    ],
    "pp": "rentré"
@@ -5568,7 +7652,10 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "mishap",
+    "oneoff",
+    "event"
    ],
    "comps": [
     {
@@ -5600,7 +7687,8 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5632,7 +7720,8 @@
    "tags": [
     "er",
     "motion",
-    "aux_etre"
+    "aux_etre",
+    "habit"
    ],
    "comps": [
     {
@@ -5650,6 +7739,10 @@
     {
      "fr": "à la rédaction",
      "en": "the newsroom"
+    },
+    {
+     "fr": "au marché du canal",
+     "en": "the canal market"
     }
    ],
    "pp": "passé"
@@ -5666,7 +7759,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5700,7 +7794,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -5734,7 +7829,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5756,6 +7852,10 @@
     {
      "fr": "la ville",
      "en": "the town"
+    },
+    {
+     "fr": "la rédaction",
+     "en": "the newsroom"
     }
    ],
    "pp": "visité"
@@ -5772,7 +7872,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5790,6 +7891,10 @@
     {
      "fr": "la valise",
      "en": "the suitcase"
+    },
+    {
+     "fr": "le Mistral",
+     "en": "Le Mistral"
     }
    ],
    "pp": "fermé",
@@ -5809,7 +7914,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5832,6 +7938,10 @@
    "pp": "invité",
    "obj": [
     "people"
+   ],
+   "at": [
+    "at_leisure",
+    "at_eat"
    ]
   },
   {
@@ -5846,7 +7956,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -5879,7 +7990,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5901,6 +8013,10 @@
     {
      "fr": "du travail",
      "en": "work"
+    },
+    {
+     "fr": "la bague de Marin",
+     "en": "Marin's ring"
     }
    ],
    "pp": "trouvé",
@@ -5920,7 +8036,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "mishap",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5938,6 +8056,10 @@
     {
      "fr": "le nom de la rue",
      "en": "the name of the street"
+    },
+    {
+     "fr": "le rendez-vous avec Gus",
+     "en": "the appointment with Gus"
     }
    ],
    "pp": "oublié",
@@ -5957,7 +8079,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -5975,6 +8098,10 @@
     {
      "fr": "deux places",
      "en": "two seats"
+    },
+    {
+     "fr": "une table au Mistral",
+     "en": "a table at Le Mistral"
     }
    ],
    "pp": "réservé"
@@ -5991,7 +8118,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -6014,7 +8143,13 @@
      "en": "in the park"
     }
    ],
-   "pp": "marché"
+   "pp": "marché",
+   "at": [
+    "at_walk"
+   ],
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "dîner",
@@ -6028,7 +8163,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6041,14 +8177,20 @@
     },
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "avec Gus",
      "en": "with Gus"
     }
    ],
-   "pp": "dîné"
+   "pp": "dîné",
+   "at": [
+    "at_eat"
+   ]
   },
   {
    "id": "déjeuner",
@@ -6062,7 +8204,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6082,7 +8225,10 @@
      "en": "around noon"
     }
    ],
-   "pp": "déjeuné"
+   "pp": "déjeuné",
+   "at": [
+    "at_eat"
+   ]
   },
   {
    "id": "étudier",
@@ -6096,7 +8242,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6114,9 +8261,21 @@
     {
      "fr": "avec Lila",
      "en": "with Lila"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
     }
    ],
-   "pp": "étudié"
+   "pp": "étudié",
+   "at": [
+    "at_study"
+   ],
+   "dur": [
+    "short",
+    "mid",
+    "long"
+   ]
   },
   {
    "id": "nager",
@@ -6130,7 +8289,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -6148,9 +8309,19 @@
     {
      "fr": "le dimanche",
      "en": "on Sundays"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
     }
    ],
-   "pp": "nagé"
+   "pp": "nagé",
+   "at": [
+    "at_swim"
+   ],
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "voyager",
@@ -6164,7 +8335,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -6181,7 +8354,14 @@
     },
     {
      "fr": "beaucoup",
-     "en": "a lot"
+     "en": "a lot",
+     "tags": [
+      "adv_pre"
+     ]
+    },
+    {
+     "fr": "avec Gus",
+     "en": "with Gus"
     }
    ],
    "pp": "voyagé"
@@ -6198,7 +8378,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6220,12 +8401,20 @@
     {
      "fr": "le dessert",
      "en": "dessert"
+    },
+    {
+     "fr": "un café à Margaux",
+     "en": "a coffee from Margaux"
     }
    ],
    "pp": "commandé",
    "obj": [
     "eat",
     "drink"
+   ],
+   "at": [
+    "at_eat",
+    "at_drink"
    ]
   },
   {
@@ -6240,7 +8429,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6273,7 +8463,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -6295,6 +8486,10 @@
     {
      "fr": "une surprise",
      "en": "a surprise"
+    },
+    {
+     "fr": "un gâteau pour Lila",
+     "en": "a cake for Lila"
     }
    ],
    "pp": "préparé"
@@ -6311,7 +8506,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6333,6 +8529,14 @@
     {
      "fr": "le journal",
      "en": "the newspaper"
+    },
+    {
+     "fr": "un tableau à la brocante",
+     "en": "a painting at the flea market"
+    },
+    {
+     "fr": "du fromage au marché du canal",
+     "en": "cheese at the canal market"
     }
    ],
    "pres": [
@@ -6347,6 +8551,10 @@
    "fut": "achèter",
    "obj": [
     "buy"
+   ],
+   "at": [
+    "at_shop",
+    "at_market"
    ]
   },
   {
@@ -6361,7 +8569,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "stative"
    ],
    "comps": [
     {
@@ -6379,6 +8588,10 @@
     {
      "fr": "rester ici",
      "en": "to stay here"
+    },
+    {
+     "fr": "le Mistral",
+     "en": "Le Mistral"
     }
    ],
    "pres": [
@@ -6403,7 +8616,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6449,7 +8663,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -6493,7 +8708,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -6511,6 +8727,10 @@
     {
      "fr": "le cours",
      "en": "the class"
+    },
+    {
+     "fr": "le roman de Marin",
+     "en": "Marin's novel"
     }
    ],
    "pp": "commencé",
@@ -6529,7 +8749,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "habit"
    ],
    "comps": [
     {
@@ -6547,6 +8768,10 @@
     {
      "fr": "des lunettes",
      "en": "glasses"
+    },
+    {
+     "fr": "la veste de Gus",
+     "en": "Gus's jacket"
     }
    ],
    "pp": "porté",
@@ -6566,7 +8791,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "stative"
    ],
    "comps": [],
    "pp": "pensé"
@@ -6583,7 +8809,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
@@ -6596,7 +8823,10 @@
     },
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "à six heures",
@@ -6613,7 +8843,8 @@
    ],
    "pp": "levé",
    "fut": "lèver",
-   "pron": true
+   "pron": true,
+   "daypart": "morning"
   },
   {
    "id": "se_coucher",
@@ -6627,12 +8858,16 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "à minuit",
@@ -6640,15 +8875,23 @@
     },
     {
      "fr": "tôt",
-     "en": "early"
+     "en": "early",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "après le film",
      "en": "after the film"
+    },
+    {
+     "fr": "après le Mistral",
+     "en": "after Le Mistral"
     }
    ],
    "pp": "couché",
-   "pron": true
+   "pron": true,
+   "daypart": "evening"
   },
   {
    "id": "s_habiller",
@@ -6662,12 +8905,16 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
      "fr": "vite",
-     "en": "quickly"
+     "en": "quickly",
+     "tags": [
+      "manner"
+     ]
     },
     {
      "fr": "en noir",
@@ -6680,6 +8927,10 @@
     {
      "fr": "avant le petit-déjeuner",
      "en": "before breakfast"
+    },
+    {
+     "fr": "pour le Mistral",
+     "en": "for Le Mistral"
     }
    ],
    "pp": "habillé",
@@ -6697,28 +8948,51 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
      "fr": "le dimanche",
-     "en": "on Sundays"
+     "en": "on Sundays",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "au parc",
-     "en": "in the park"
+     "en": "in the park",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "après le travail",
-     "en": "after work"
+     "en": "after work",
+     "tags": [
+      "rest"
+     ]
     },
     {
      "fr": "un peu",
-     "en": "a little"
+     "en": "a little",
+     "tags": [
+      "rest"
+     ]
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place",
+     "tags": [
+      "rest"
+     ]
     }
    ],
    "pp": "reposé",
-   "pron": true
+   "pron": true,
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "se_depecher",
@@ -6732,7 +9006,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
@@ -6763,7 +9038,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -6780,11 +9057,18 @@
     },
     {
      "fr": "beaucoup",
-     "en": "a lot"
+     "en": "a lot",
+     "tags": [
+      "adv_pre"
+     ]
     }
    ],
    "pp": "amusé",
-   "pron": true
+   "pron": true,
+   "at": [
+    "at_leisure",
+    "at_party"
+   ]
   },
   {
    "id": "se_reveiller",
@@ -6798,7 +9082,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit"
    ],
    "comps": [
     {
@@ -6811,7 +9096,10 @@
     },
     {
      "fr": "tard",
-     "en": "late"
+     "en": "late",
+     "tags": [
+      "late"
+     ]
     },
     {
      "fr": "avant le réveil",
@@ -6819,7 +9107,8 @@
     }
    ],
    "pp": "réveillé",
-   "pron": true
+   "pron": true,
+   "daypart": "morning"
   },
   {
    "id": "se_promener",
@@ -6833,7 +9122,9 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "habit",
+    "leisure"
    ],
    "comps": [
     {
@@ -6863,7 +9154,13 @@
    ],
    "pp": "promené",
    "fut": "promèner",
-   "pron": true
+   "pron": true,
+   "at": [
+    "at_walk"
+   ],
+   "dur": [
+    "short"
+   ]
   },
   {
    "id": "se_preparer",
@@ -6877,7 +9174,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "pron"
+    "pron",
+    "oneoff"
    ],
    "comps": [
     {
@@ -6886,7 +9184,10 @@
     },
     {
      "fr": "vite",
-     "en": "quickly"
+     "en": "quickly",
+     "tags": [
+      "manner"
+     ]
     },
     {
      "fr": "pour l'examen",
@@ -7032,7 +9333,8 @@
    "aux": "avoir",
    "tags": [
     "irregular",
-    "re"
+    "re",
+    "habit"
    ],
    "comps": [
     {
@@ -7050,6 +9352,10 @@
     {
      "fr": "jusqu'à Lyon",
      "en": "to Lyon"
+    },
+    {
+     "fr": "Romy à la rédaction",
+     "en": "Romy to the newsroom"
     }
    ],
    "pres": [
@@ -7075,7 +9381,8 @@
    ],
    "aux": "avoir",
    "tags": [
-    "er"
+    "er",
+    "oneoff"
    ],
    "comps": [
     {
@@ -7093,6 +9400,10 @@
     {
      "fr": "la situation",
      "en": "the situation"
+    },
+    {
+     "fr": "la Méthode de Gus",
+     "en": "Gus's Method"
     }
    ],
    "pp": "expliqué"
@@ -7103,17 +9414,23 @@
    {
     "fr": "demain",
     "en": "tomorrow",
-    "tags": []
+    "tags": [
+     "soon"
+    ]
    },
    {
     "fr": "ce soir",
     "en": "tonight",
-    "tags": []
+    "tags": [
+     "soon"
+    ]
    },
    {
     "fr": "samedi",
     "en": "on Saturday",
-    "tags": []
+    "tags": [
+     "soon"
+    ]
    },
    {
     "fr": "la semaine prochaine",
@@ -7123,12 +9440,19 @@
    {
     "fr": "ce week-end",
     "en": "this weekend",
-    "tags": []
+    "tags": [
+     "soon"
+    ]
    },
    {
     "fr": "après le travail",
     "en": "after work",
-    "tags": []
+    "tags": [
+     "soon"
+    ],
+    "not_with": [
+     "travailler"
+    ]
    },
    {
     "fr": "cet été",
@@ -7185,8 +9509,8 @@
     "tags": []
    },
    {
-    "fr": "Quand j'étais petit",
-    "en": "When I was little",
+    "fr": "Enfant",
+    "en": "As a child",
     "tags": []
    },
    {
@@ -7930,42 +10254,58 @@
    {
     "fr": "faim",
     "en": "hungry",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "soif",
     "en": "thirsty",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "froid",
     "en": "cold",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "chaud",
     "en": "hot",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "sommeil",
     "en": "sleepy",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "peur",
     "en": "scared",
-    "tags": []
+    "tags": [
+     "body"
+    ]
    },
    {
     "fr": "raison",
     "en": "right",
-    "tags": []
+    "tags": [
+     "judgement"
+    ]
    },
    {
     "fr": "tort",
     "en": "wrong",
-    "tags": []
+    "tags": [
+     "judgement"
+    ]
    }
   ],
   "job": [
@@ -7974,98 +10314,135 @@
     "f": "serveuse",
     "en": "waiter",
     "en_f": "waitress",
-    "tags": []
+    "tags": [],
+    "id": "job_serveur"
    },
    {
     "m": "journaliste",
     "f": "journaliste",
     "en": "journalist",
-    "tags": []
+    "tags": [],
+    "id": "job_journaliste"
    },
    {
     "m": "étudiant",
     "f": "étudiante",
     "en": "student",
-    "tags": []
+    "tags": [],
+    "id": "job_étudiant"
    },
    {
     "m": "médecin",
     "f": "médecin",
     "en": "doctor",
-    "tags": []
+    "tags": [],
+    "id": "job_médecin"
    },
    {
     "m": "avocat",
     "f": "avocate",
     "en": "lawyer",
-    "tags": []
+    "tags": [],
+    "id": "job_avocat"
    },
    {
     "m": "boulanger",
     "f": "boulangère",
     "en": "baker",
-    "tags": []
+    "tags": [],
+    "id": "job_boulanger"
    },
    {
     "m": "architecte",
     "f": "architecte",
     "en": "architect",
-    "tags": []
+    "tags": [],
+    "id": "job_architecte"
    },
    {
     "m": "musicien",
     "f": "musicienne",
     "en": "musician",
-    "tags": []
+    "tags": [],
+    "id": "job_musicien"
    },
    {
     "m": "acteur",
     "f": "actrice",
     "en": "actor",
     "en_f": "actress",
-    "tags": []
+    "tags": [],
+    "id": "job_acteur"
    },
    {
     "m": "infirmier",
     "f": "infirmière",
     "en": "nurse",
-    "tags": []
+    "tags": [],
+    "id": "job_infirmier"
    },
    {
     "m": "vendeur",
     "f": "vendeuse",
     "en": "shop assistant",
-    "tags": []
+    "tags": [],
+    "id": "job_vendeur"
    },
    {
     "m": "peintre",
     "f": "peintre",
     "en": "painter",
-    "tags": []
+    "tags": [],
+    "id": "job_peintre"
    },
    {
     "m": "professeur",
     "f": "professeure",
     "en": "teacher",
-    "tags": []
+    "tags": [],
+    "id": "job_professeur"
    },
    {
     "m": "cuisinier",
     "f": "cuisinière",
     "en": "cook",
-    "tags": []
+    "tags": [],
+    "id": "job_cuisinier"
    },
    {
     "m": "photographe",
     "f": "photographe",
     "en": "photographer",
-    "tags": []
+    "tags": [],
+    "id": "job_photographe"
    },
    {
     "m": "ingénieur",
     "f": "ingénieure",
     "en": "engineer",
-    "tags": []
+    "tags": [],
+    "id": "job_ingénieur"
+   },
+   {
+    "m": "patron de café",
+    "f": "patronne de café",
+    "en": "café owner",
+    "tags": [],
+    "id": "job_patron_de_café"
+   },
+   {
+    "m": "écologiste",
+    "f": "écologiste",
+    "en": "environmentalist",
+    "tags": [],
+    "id": "job_écologiste"
+   },
+   {
+    "m": "consultant",
+    "f": "consultante",
+    "en": "consultant",
+    "tags": [],
+    "id": "job_consultant"
    }
   ],
   "clock": [
@@ -11235,7 +13612,9 @@
      "deux fois pour jour"
     ],
     "en": "twice a day",
-    "tags": []
+    "tags": [
+     "daily"
+    ]
    },
    {
     "fr": "trois fois par mois",
@@ -11284,7 +13663,8 @@
     "en": "a lot of",
     "tags": [
      "any"
-    ]
+    ],
+    "en_count": "a lot of"
    },
    {
     "fr": "trop",
@@ -11299,7 +13679,8 @@
     "en": "enough",
     "tags": [
      "any"
-    ]
+    ],
+    "en_count": "enough"
    },
    {
     "fr": "un kilo",
@@ -11327,116 +13708,201 @@
    {
     "fr": "une bouteille",
     "en": "a bottle of",
-    "tags": []
+    "tags": [],
+    "fits": [
+     "eau",
+     "vin",
+     "limonade",
+     "jus d'orange",
+     "lait"
+    ]
    },
    {
     "fr": "un verre",
     "en": "a glass of",
-    "tags": []
+    "tags": [],
+    "fits": [
+     "eau",
+     "vin",
+     "limonade",
+     "jus d'orange",
+     "lait"
+    ]
    },
    {
     "fr": "une tasse",
     "en": "a cup of",
-    "tags": []
+    "tags": [],
+    "fits": [
+     "café_boisson",
+     "thé",
+     "lait"
+    ]
    },
    {
     "fr": "un litre",
     "en": "a litre of",
-    "tags": []
+    "tags": [],
+    "fits": [
+     "lait",
+     "eau",
+     "jus d'orange",
+     "limonade"
+    ]
    }
   ],
   "dur": [
    {
     "fr": "deux ans",
     "en": "two years",
-    "tags": []
+    "tags": [
+     "long",
+     "span"
+    ],
+    "scale": "long"
    },
    {
     "fr": "trois mois",
     "en": "three months",
-    "tags": []
+    "tags": [
+     "long",
+     "span"
+    ],
+    "scale": "long"
    },
    {
     "fr": "dix minutes",
     "en": "ten minutes",
-    "tags": []
+    "tags": [
+     "short",
+     "span"
+    ],
+    "scale": "short"
    },
    {
     "fr": "une semaine",
     "en": "a week",
-    "tags": []
+    "tags": [
+     "mid",
+     "span"
+    ],
+    "scale": "mid"
    },
    {
     "fr": "cinq jours",
     "en": "five days",
-    "tags": []
+    "tags": [
+     "mid",
+     "span"
+    ],
+    "scale": "mid"
    },
    {
     "fr": "vingt minutes",
     "en": "twenty minutes",
-    "tags": []
+    "tags": [
+     "short",
+     "span"
+    ],
+    "scale": "short"
    },
    {
     "fr": "six mois",
     "en": "six months",
-    "tags": []
+    "tags": [
+     "long",
+     "span"
+    ],
+    "scale": "long"
    },
    {
     "fr": "un an",
     "en": "a year",
-    "tags": []
+    "tags": [
+     "long",
+     "span"
+    ],
+    "scale": "long"
    },
    {
     "fr": "deux heures",
     "en": "two hours",
-    "tags": []
+    "tags": [
+     "short",
+     "span"
+    ],
+    "scale": "short"
    },
    {
     "fr": "trois semaines",
     "en": "three weeks",
-    "tags": []
+    "tags": [
+     "mid",
+     "span"
+    ],
+    "scale": "mid"
    },
    {
     "fr": "quarante minutes",
     "en": "forty minutes",
-    "tags": []
+    "tags": [
+     "short",
+     "span"
+    ],
+    "scale": "short"
    },
    {
     "fr": "quinze jours",
     "en": "two weeks",
-    "tags": []
+    "tags": [
+     "mid",
+     "span"
+    ],
+    "scale": "mid"
    }
   ],
   "reason_avoir": [
    {
     "fr": "un rendez-vous",
     "en": "an appointment",
-    "tags": []
+    "tags": [
+     "urgent"
+    ]
    },
    {
     "fr": "un examen demain",
     "en": "an exam tomorrow",
-    "tags": []
+    "tags": [
+     "urgent"
+    ]
    },
    {
     "fr": "du travail",
     "en": "work to do",
-    "tags": []
+    "tags": [
+     "urgent"
+    ]
    },
    {
     "fr": "un train à prendre",
     "en": "a train to catch",
-    "tags": []
+    "tags": [
+     "urgent"
+    ]
    },
    {
     "fr": "mal à la tête",
     "en": "a headache",
-    "tags": []
+    "tags": [
+     "unwell"
+    ]
    },
    {
     "fr": "une réunion à neuf heures",
     "en": "a meeting at nine",
-    "tags": []
+    "tags": [
+     "urgent"
+    ]
    }
   ],
   "rel_clause": [
@@ -11571,7 +14037,17 @@
      "lentment"
     ],
     "en": "slowly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "parler",
+     "marcher",
+     "répondre",
+     "conduire",
+     "manger",
+     "écrire",
+     "expliquer",
+     "cuisiner"
+    ]
    },
    {
     "fr": "doucement",
@@ -11580,7 +14056,14 @@
      "doucment"
     ],
     "en": "softly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "parler",
+     "chanter",
+     "répondre",
+     "expliquer",
+     "conduire"
+    ]
    },
    {
     "fr": "rapidement",
@@ -11589,7 +14072,16 @@
      "rapidment"
     ],
     "en": "quickly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "répondre",
+     "marcher",
+     "manger",
+     "écrire",
+     "travailler",
+     "cuisiner",
+     "conduire"
+    ]
    },
    {
     "fr": "sérieusement",
@@ -11598,7 +14090,13 @@
      "sérieuxment"
     ],
     "en": "seriously",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "travailler",
+     "parler",
+     "répondre",
+     "expliquer"
+    ]
    },
    {
     "fr": "facilement",
@@ -11607,7 +14105,13 @@
      "facilment"
     ],
     "en": "easily",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "répondre",
+     "expliquer",
+     "cuisiner",
+     "écrire"
+    ]
    },
    {
     "fr": "simplement",
@@ -11616,7 +14120,14 @@
      "simplment"
     ],
     "en": "simply",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "expliquer",
+     "répondre",
+     "parler",
+     "écrire",
+     "cuisiner"
+    ]
    },
    {
     "fr": "poliment",
@@ -11625,7 +14136,13 @@
      "poliement"
     ],
     "en": "politely",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "répondre",
+     "parler",
+     "expliquer",
+     "écrire"
+    ]
    },
    {
     "fr": "gentiment",
@@ -11634,7 +14151,12 @@
      "gentillement"
     ],
     "en": "kindly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "répondre",
+     "parler",
+     "expliquer"
+    ]
    },
    {
     "fr": "patiemment",
@@ -11643,7 +14165,12 @@
      "patientement"
     ],
     "en": "patiently",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "expliquer",
+     "répondre",
+     "travailler"
+    ]
    },
    {
     "fr": "prudemment",
@@ -11652,7 +14179,11 @@
      "prudentement"
     ],
     "en": "carefully",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "conduire",
+     "marcher"
+    ]
    },
    {
     "fr": "tranquillement",
@@ -11661,7 +14192,13 @@
      "tranquilment"
     ],
     "en": "calmly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "marcher",
+     "travailler",
+     "manger",
+     "parler"
+    ]
    },
    {
     "fr": "clairement",
@@ -11670,7 +14207,13 @@
      "clairment"
     ],
     "en": "clearly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "parler",
+     "expliquer",
+     "répondre",
+     "écrire"
+    ]
    },
    {
     "fr": "régulièrement",
@@ -11679,7 +14222,14 @@
      "régulièrment"
     ],
     "en": "regularly",
-    "tags": []
+    "tags": [],
+    "verbs": [
+     "travailler",
+     "cuisiner",
+     "écrire",
+     "marcher",
+     "chanter"
+    ]
    },
    {
     "fr": "vraiment",
@@ -11690,7 +14240,8 @@
     "en": "really well",
     "tags": [
      "pre_only"
-    ]
+    ],
+    "verbs": []
    }
   ],
   "adj_rien": [
@@ -11813,49 +14364,66 @@
    {
     "fr": "deux",
     "en": "two",
-    "tags": []
+    "tags": [
+     "small"
+    ],
+    "value": 2
    },
    {
     "fr": "trois",
     "en": "three",
-    "tags": []
+    "tags": [
+     "small"
+    ],
+    "value": 3
    },
    {
     "fr": "quatre",
     "en": "four",
-    "tags": []
+    "tags": [
+     "small"
+    ],
+    "value": 4
    },
    {
     "fr": "cinq",
     "en": "five",
-    "tags": []
+    "tags": [],
+    "value": 5
    },
    {
     "fr": "six",
     "en": "six",
-    "tags": []
+    "tags": [],
+    "value": 6
    },
    {
     "fr": "dix",
     "en": "ten",
-    "tags": []
+    "tags": [],
+    "value": 10
    },
    {
     "fr": "douze",
     "en": "twelve",
-    "tags": []
+    "tags": [],
+    "value": 12
    }
   ],
   "prep_tonic": [
    {
     "fr": "chez",
     "en": "at {poss} place",
-    "tags": []
+    "tags": [
+     "company"
+    ]
    },
    {
     "fr": "avec",
     "en": "with {obj}",
-    "tags": []
+    "tags": [
+     "company"
+    ]
    },
    {
     "fr": "pour",
@@ -12077,7 +14645,9 @@
      "toutes la journée"
     ],
     "en": "all day",
-    "tags": []
+    "tags": [
+     "span"
+    ]
    },
    {
     "fr": "tous les lundis",
@@ -12095,7 +14665,9 @@
      "tous la nuit"
     ],
     "en": "all night",
-    "tags": []
+    "tags": [
+     "span"
+    ]
    },
    {
     "fr": "tout le week-end",
@@ -12104,7 +14676,9 @@
      "tous le week-end"
     ],
     "en": "all weekend",
-    "tags": []
+    "tags": [
+     "span"
+    ]
    },
    {
     "fr": "toutes les semaines",
@@ -12122,7 +14696,9 @@
      "toutes la soirée"
     ],
     "en": "all evening",
-    "tags": []
+    "tags": [
+     "span"
+    ]
    },
    {
     "fr": "tous les matins",

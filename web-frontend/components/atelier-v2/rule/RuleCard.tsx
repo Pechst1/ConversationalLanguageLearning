@@ -24,6 +24,7 @@ import {
   type RuleCardShape,
 } from '@/lib/rule-card';
 import type { ControlLanguage } from '@/types/daily-journey';
+import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 export const RULE_CARD_SPEAKERS: Record<string, string> = {
   margaux_barman: 'Margaux',
@@ -98,9 +99,15 @@ export type RuleCardProps = {
   conceptId?: number | string | null;
   /** intro only: the one primary action, «Essayer». */
   onDone?: () => void;
+  /**
+   * WP-S5: the rule's coach. A card without a speaker is said by its coach, so
+   * the face on the card is the face on the feedback; `coachMood` is theirs.
+   */
+  coach?: { id: string; name: string } | null;
+  coachMood?: PortraitMood;
 };
 
-export function RuleCard({ card, language, variant = 'intro', conceptId, onDone }: RuleCardProps) {
+export function RuleCard({ card, language, variant = 'intro', conceptId, onDone, coach, coachMood = 'neutral' }: RuleCardProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
   const [showTranslation, setShowTranslation] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
@@ -109,7 +116,13 @@ export function RuleCard({ card, language, variant = 'intro', conceptId, onDone 
   const translation = pick(card.example.tr, language);
   const rule = pick(card.rule, language);
   const more = pick(card.more, language);
-  const speakerName = card.speaker ? RULE_CARD_SPEAKERS[card.speaker] ?? null : null;
+  const speakerId = card.speaker || coach?.id || null;
+  const speakerName = card.speaker
+    ? RULE_CARD_SPEAKERS[card.speaker] ?? null
+    : coach
+      ? RULE_CARD_SPEAKERS[coach.id] ?? coach.name
+      : null;
+  const speakerMood: PortraitMood = coach && speakerId === coach.id ? coachMood : 'neutral';
   const pattern = card.pattern;
 
   return (
@@ -117,8 +130,8 @@ export function RuleCard({ card, language, variant = 'intro', conceptId, onDone 
       {variant === 'intro' && <p className="av2-label av2-label--story rc-eyebrow">{copy.eyebrow}</p>}
 
       <div className="rc-source">
-        {card.speaker && speakerName && (
-          <CastPortrait characterId={card.speaker} name={speakerName} size="sm" ring />
+        {speakerId && speakerName && (
+          <CastPortrait characterId={speakerId} name={speakerName} mood={speakerMood} size="sm" ring />
         )}
         {speakerName && <span className="rc-source__name">{speakerName}</span>}
         <button
