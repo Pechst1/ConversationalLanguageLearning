@@ -479,7 +479,9 @@ def test_home_renders_the_because_line_in_french() -> None:
     assert "HomeBecause" in source
     assert "because" in source
     assert "function BecauseLine" in source
-    assert "<BecauseLine because={because} copy={copy} />" in source
+    assert "<BecauseLine because={because} />" in source
+    # it reads Home's chrome language from the surrounding AtelierV2Root
+    assert "const copy = atelierCopy(useControlLanguage());" in source
     # The sentence itself: sentence case, naming the mistake. 2026-09-24: it is
     # chrome, so it follows Home's chrome language (one-language rule); the
     # French wording lives in the copy table and the label stays French.
