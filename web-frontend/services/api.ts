@@ -2618,6 +2618,11 @@ class ApiService {
     return this.atelierPost<{ session_id: string; recap: Record<string, any>; minted_collectibles?: AtelierCollectible[] }>(`/atelier/sessions/${sessionId}/complete`);
   }
 
+  /** WP-S8: the learner closed an unfinished forge séance (`forge_abandoned`). */
+  async exitAtelierSession(sessionId: string) {
+    return this.atelierPost<void>(`/atelier/sessions/${sessionId}/exit`);
+  }
+
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
     return this.atelierPost<{ erratum: AtelierErratum }>(`/atelier/errata/${errorId}/review`, data || {});
   }

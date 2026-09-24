@@ -308,7 +308,20 @@ def _level_belief(db: Session, *, user: User) -> dict[str, Any]:
         "checkpoint": payload.get("checkpoint"),
         # WP-L8: always an estimate (prior before 7 active days, then measured).
         "forecast": payload.get("forecast"),
+        # WP-S8: «Your rules: n held, median x days to hold» — measured from the
+        # learner's own held rules, shown from three; never a promise.
+        "rules_speed": _rules_speed(db, user=user),
     }
+
+
+def _rules_speed(db: Session, *, user: User) -> dict[str, Any] | None:
+    try:
+        from app.services.forge_metrics import learner_rule_speed
+
+        return learner_rule_speed(db, user_id=user.id)
+    except Exception:  # pragma: no cover - a measured line never 500s the dossier
+        logger.exception("learner_model: the rule speed could not be read")
+        return None
 
 
 def _placement_record(db: Session, *, user: User) -> dict[str, Any] | None:

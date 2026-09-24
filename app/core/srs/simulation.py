@@ -417,6 +417,14 @@ class ItemsToHeld:
     items_answered: int
     evidence_written: int
     days_to_held: list[int] = field(default_factory=list)
+    #: WP-S8: the simulation day each rule was held on (every held rule,
+    #: judged or not), for «rules held within N days».
+    held_on_days: list[int] = field(default_factory=list)
+
+    def held_within(self, day: int) -> int:
+        """Rules held before simulation day ``day`` (the learner's day count)."""
+
+        return sum(1 for held in self.held_on_days if held < day)
 
     @property
     def held_share(self) -> float:
@@ -667,6 +675,7 @@ def simulate_items_to_held(
         items_answered=stats["answered"],
         evidence_written=stats["evidence"],
         days_to_held=[int(item.held_day - (item.introduced or 0)) for item in held],
+        held_on_days=sorted(int(item.held_day) for item in rules if item.held_day is not None),
     )
 
 
