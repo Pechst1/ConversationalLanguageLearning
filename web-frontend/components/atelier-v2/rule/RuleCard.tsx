@@ -25,7 +25,7 @@ import {
 } from '@/lib/rule-card';
 import type { ControlLanguage } from '@/types/daily-journey';
 
-const SPEAKER_NAMES: Record<string, string> = {
+export const RULE_CARD_SPEAKERS: Record<string, string> = {
   margaux_barman: 'Margaux',
   marin_leveque: 'Marin',
   romy_tremblay: 'Romy',
@@ -109,7 +109,7 @@ export function RuleCard({ card, language, variant = 'intro', conceptId, onDone 
   const translation = pick(card.example.tr, language);
   const rule = pick(card.rule, language);
   const more = pick(card.more, language);
-  const speakerName = card.speaker ? SPEAKER_NAMES[card.speaker] ?? null : null;
+  const speakerName = card.speaker ? RULE_CARD_SPEAKERS[card.speaker] ?? null : null;
   const pattern = card.pattern;
 
   return (

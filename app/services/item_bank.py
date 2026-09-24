@@ -1817,6 +1817,81 @@ _INSTRUCTIONS = {
 }
 
 
+#: WP-S6: the cue templates around a bank item, in the three chrome languages
+#: (the séance's own words, `lib/language-rule.ts`). Only the ask and the
+#: situation move: the meaning is the frame's English gloss (the bank has no
+#: German or French frames), and the French sentences stay French. The English
+#: column is exactly the `prompt` / `instruction` the item already carries.
+_CUES: dict[str, dict[str, str]] = {
+    "pair": {
+        "en": 'Which sentence says: "{meaning}"',
+        "de": "Welcher Satz bedeutet: „{meaning}“",
+        "fr": "Quelle phrase veut dire : « {meaning} »",
+    },
+    "transform_gloss": {
+        "en": 'Correct the sentence so that it means: "{meaning}"',
+        "de": "Korrigiere den Satz, sodass er bedeutet: „{meaning}“",
+        "fr": "Corrigez la phrase pour qu’elle veuille dire : « {meaning} »",
+    },
+    "say": {
+        "en": '{scene} Say in French: "{meaning}"',
+        "de": "{scene} Sag auf Französisch: „{meaning}“",
+        "fr": "{scene} Dites en français : « {meaning} »",
+    },
+    "message": {
+        "en": (
+            '{scene} Write a short message in French (two or three sentences). '
+            'Include the idea "{meaning}" and add a reason or a detail of your own.'
+        ),
+        "de": (
+            "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze). "
+            "Bring den Gedanken „{meaning}“ unter und füge einen Grund oder ein eigenes Detail hinzu."
+        ),
+        "fr": (
+            "{scene} Écrivez un court message en français (deux ou trois phrases). "
+            "Reprenez l’idée « {meaning} » et ajoutez une raison ou un détail à vous."
+        ),
+    },
+}
+
+#: The default situations, as short native-language situations (WP-S6).
+_SCENES_L10N: dict[str, dict[str, str]] = {
+    "At Le Mistral, Margaux leans over the zinc counter and asks you something.": {
+        "de": "Im Mistral beugt sich Margaux über den Tresen und fragt dich etwas.",
+        "fr": "Au Mistral, Margaux se penche au-dessus du zinc et vous pose une question.",
+    },
+    "Romy texts you from the newsroom and wants a quick answer.": {
+        "de": "Romy schreibt dir aus der Redaktion und will schnell eine Antwort.",
+        "fr": "Romy vous écrit depuis la rédaction et veut une réponse rapide.",
+    },
+    "At the canal market, Marin turns to you with a question.": {
+        "de": "Auf dem Markt am Kanal dreht sich Marin mit einer Frage zu dir um.",
+        "fr": "Au marché du canal, Marin se tourne vers vous avec une question.",
+    },
+    "Lila calls you from her classroom during the break.": {
+        "de": "Lila ruft dich in der Pause aus ihrem Klassenzimmer an.",
+        "fr": "Lila vous appelle de sa classe pendant la récréation.",
+    },
+    "Gus sends you a message from his loft.": {
+        "de": "Gus schickt dir eine Nachricht aus seinem Loft.",
+        "fr": "Gus vous envoie un message depuis son loft.",
+    },
+}
+
+
+def _cue_l10n(key: str, item: BankItem, *, scene: str | None = None) -> dict[str, str]:
+    """``{en, de, fr}`` for one cue template (WP-S6). A situation with no
+    authored translation is left out of that language rather than mixed in."""
+
+    out: dict[str, str] = {}
+    for language, template in _CUES[key].items():
+        where = ""
+        if scene is not None:
+            where = scene if language == "en" else _SCENES_L10N.get(scene, {}).get(language, "")
+        out[language] = template.format(meaning=item.en, scene=where).strip()
+    return out
+
+
 def _item_id(unit: str, item: BankItem, mode: str) -> str:
     return f"{unit.lower().replace('_', '-')}-{mode}-{item.fingerprint[:10]}"
 
@@ -1926,6 +2001,7 @@ def pair_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
     payload = {
         "id": _item_id(item.unit, item, "pair"),
         "prompt": prompt,
+        "prompt_l10n": _cue_l10n("pair", item),
         "labels": _scramble([item.sentence, wrong], item.fingerprint),
         "correct_label": item.sentence,
         "correct_answer": item.sentence,
@@ -2007,7 +2083,10 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
     source, wrong_span = choice
     instruction: dict[str, Any] = {"instruction": _INSTRUCTIONS["forge.transform"], "instruction_key": "forge.transform"}
     if item.gloss:
-        instruction = {"instruction": f'Correct the sentence so that it means: "{item.en}"'}
+        instruction = {
+            "instruction": f'Correct the sentence so that it means: "{item.en}"',
+            "instruction_l10n": _cue_l10n("transform_gloss", item),
+        }
     return _checked(
         "transform",
         {
@@ -2052,6 +2131,7 @@ def output_item(item: BankItem, *, round_name: str, requirement: dict[str, Any])
         "instruction": _INSTRUCTIONS[f"forge.{round_name}"],
         "instruction_key": f"forge.{round_name}",
         "prompt": production_prompt(item),
+        "prompt_l10n": _cue_l10n("say", item, scene=_scene_for(item)),
         "example_answer": item.sentence,
         "requirements": [dict(requirement)],
         "min_words": max(2, min(words - 2, 5)),
@@ -2069,6 +2149,7 @@ def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any
             f'{_scene_for(item)} Write a short message in French (two or three sentences). '
             f'Include the idea "{item.en}" and add a reason or a detail of your own.'
         ),
+        "prompt_l10n": _cue_l10n("message", item, scene=_scene_for(item)),
         "requirements": [dict(requirement)],
         "min_words": 10,
         "max_words": 70,
