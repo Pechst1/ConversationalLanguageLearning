@@ -31,6 +31,7 @@ from app.db.models.atelier import (
 )
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
@@ -49,6 +50,13 @@ from app.services.exercise_generation import (
     ExerciseGenerationUnavailable,
 )
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
+from app.services.forge_grading import (
+    FREE_PRODUCTION_ROUNDS,
+    describe_diff,
+    production_local_check,
+    same_answer,
+    token_diff,
+)
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -74,6 +82,16 @@ ATELIER_GENERATOR_VERSION = "atelier-v11"
 ATELIER_GENERATION_MAX_ATTEMPTS = 3
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v3"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+#: WP-S1 / WP-S8: one pilot row per séance submit — the rung, the local
+#: verdict's latency and, once the relecture lands, its latency and whether it
+#: changed the verdict.
+FORGE_VERDICT_EVENT = "forge_verdict"
+#: Rungs whose relecture may change the verdict: their evidence waits for it.
+ATELIER_EVIDENCE_HOLD_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+
+
+def _verdict_passes(verdict: Any) -> bool:
+    return str(verdict or "") in {"correct", "accepted"}
 ATELIER_QUALITY_MIN_REPORTS = 3
 ATELIER_QUALITY_MIN_ATTEMPTS = 8
 ATELIER_QUALITY_MAX_WRONG_RATE = 0.65
@@ -3875,10 +3893,20 @@ class AtelierCorrectionService:
             **correction,
             "ai_review": self._initial_ai_review(
                 round_name=round_name,
+                mode=mode,
                 answer_payload=answer_payload,
                 correction=correction,
             ),
+            # WP-S1: what the séance showed at once, kept for the second check.
+            "local_verdict": {
+                "verdict": correction["verdict"],
+                "score_0_4": float(correction["score_0_4"]),
+            },
         }
+        if round_name in ATELIER_EVIDENCE_HOLD_ROUNDS and correction["ai_review"].get("status") == "pending":
+            # The relecture may still change this verdict: the séance's
+            # evidence waits for it (complete_session, _apply_deferred_evidence).
+            correction["evidence_hold"] = True
         attempt = AtelierAttempt(
             atelier_session_id=session.id,
             user_id=user.id,
@@ -4215,6 +4243,7 @@ class AtelierCorrectionService:
         round_name: str,
         answer_payload: dict[str, Any],
         correction: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> dict[str, Any]:
         if (correction or {}).get("assessment_status") == "unavailable":
             return {"status": "failed", "auto_started": False,
@@ -4227,14 +4256,22 @@ class AtelierCorrectionService:
                 "model": correction_debug.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
             }
-        # Recognize submits are answered from the key, so the live response is
-        # deterministic-only; when something was wrong, queue the model in the
-        # background so the relecture upgrades the explanation in place.
-        if (
-            round_name == "recognize"
-            and (correction or {}).get("errata")
-            and self._can_schedule_ai_review()
-        ):
+        # WP-S1: nothing on the request path waits on the model.
+        # * Free production: the local check is provisional, the relecture
+        #   decides (and may change the verdict).
+        # * Transform and recognise (fill / classify): the key decides; the
+        #   relecture only upgrades the explanation of a wrong answer. The word
+        #   bank has no second check: word order is exactly what the key checks.
+        substantive_errata = [
+            item for item in ((correction or {}).get("errata") or [])
+            if isinstance(item, dict) and item.get("task_error_type") != "task_compliance"
+        ]
+        wants_review = (
+            (round_name in FREE_PRODUCTION_ROUNDS and (correction or {}).get("assessment_status") == "provisional")
+            or (round_name == "transform" and bool(substantive_errata))
+            or (round_name == "recognize" and mode != "word_bank" and bool((correction or {}).get("errata")))
+        )
+        if wants_review and self._can_schedule_ai_review():
             return {
                 "status": "pending",
                 "auto_started": True,
@@ -4296,6 +4333,16 @@ class AtelierCorrectionService:
         return attempt, True
 
     def run_ai_review_for_attempt(self, attempt_id: UUID | str) -> AtelierAttempt | None:
+        """The relecture: the model's reading lands on an attempt already graded.
+
+        WP-S1 merge rules. Free production: the model's verdict replaces the
+        provisional local one. Keyed rungs (recognise, transform): the key's
+        verdict, score and target always stand; the model's explanation
+        replaces the key's only when both agree the answer was wrong (a
+        disagreement is kept on the payload for the item-quality review). The
+        evidence an attempt carries is written exactly once
+        (:meth:`_apply_deferred_evidence`), and the change is logged.
+        """
         attempt = self.db.get(AtelierAttempt, UUID(str(attempt_id)))
         if not attempt:
             return None
@@ -4310,6 +4357,7 @@ class AtelierCorrectionService:
             return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
 
         self.explanation_language = normalize_language(user.native_language)
+        started = time.perf_counter()
         try:
             ai_correction = self.correct(
                 concept=concept,
@@ -4321,13 +4369,20 @@ class AtelierCorrectionService:
                 session=session,
                 force_llm=True,
             )
+            llm_ms = round((time.perf_counter() - started) * 1000, 1)
             if (ai_correction.get("correction_debug") or {}).get("fallback_used"):
-                return self._mark_ai_review_failed(attempt, "AI correction did not complete.")
-            # Re-read the row: a micro-repair or confidence tap may have landed
-            # while the model ran, and the merge below must see it.
-            self.db.refresh(attempt)
+                return self._mark_ai_review_failed(attempt, "AI correction did not complete.", llm_ms=llm_ms)
+            # Re-read the row (locked, so a concurrent séance completion and this
+            # landing are ordered): a micro-repair or confidence tap may have
+            # landed while the model ran, and the merge below must see it.
+            self.db.refresh(attempt, with_for_update=True)
             correction = dict(attempt.correction_payload or {})
             review = self.ai_review_from_correction(correction)
+            previous_verdict = str(attempt.verdict or correction.get("verdict") or "")
+            previous_score = float(attempt.score_0_4 or 0)
+            final = self._merge_relecture(attempt.round, correction, ai_correction)
+            if attempt.round in FREE_PRODUCTION_ROUNDS and final.get("lexical_gaps"):
+                final = self._ingest_lexical_gaps(user=user, session=session, correction=final)
             ai_review = {
                 **review,
                 "status": "complete",
@@ -4336,20 +4391,23 @@ class AtelierCorrectionService:
                 "completed_at": self._now_iso(),
                 "error": None,
             }
-            if review.get("started_at") and not ai_review.get("started_at"):
-                ai_review["started_at"] = review["started_at"]
-            if correction.get("vocabulary_credit") and not ai_correction.get("vocabulary_credit"):
-                ai_correction["vocabulary_credit"] = correction["vocabulary_credit"]
-            # The learner may have typed a micro-repair or picked confidence
-            # while this review ran; those live on the same payload and must
-            # survive the swap.
-            for carried_key in ("micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock", "vocabulary_gaps"):
-                if carried_key in correction and carried_key not in ai_correction:
-                    ai_correction[carried_key] = correction[carried_key]
-            ai_correction["ai_review"] = ai_review
-            attempt.correction_payload = ai_correction
-            attempt.verdict = ai_correction["verdict"]
-            attempt.score_0_4 = float(ai_correction["score_0_4"])
+            final["ai_review"] = ai_review
+            final["assessment_status"] = "checked"
+            final.pop("evidence_hold", None)
+            verdict_changed = _verdict_passes(previous_verdict) != _verdict_passes(final.get("verdict"))
+            final["second_check"] = {
+                "status": "complete",
+                "verdict_changed": verdict_changed,
+                "previous_verdict": previous_verdict,
+                "previous_score_0_4": previous_score,
+                "verdict": final.get("verdict"),
+                "score_0_4": float(final.get("score_0_4") or 0),
+                "llm_ms": llm_ms,
+            }
+            final["latency"] = {**dict(correction.get("latency") or {}), "async_llm_ms": llm_ms}
+            attempt.correction_payload = final
+            attempt.verdict = final["verdict"]
+            attempt.score_0_4 = float(final["score_0_4"])
             flag_modified(attempt, "correction_payload")
             self.db.add(attempt)
             self.db.flush([attempt])
@@ -4360,18 +4418,160 @@ class AtelierCorrectionService:
                 merge_same_attempt=True,
             )
             if memory_updates:
-                ai_correction = self._attach_memory_updates(ai_correction, memory_updates)
-                attempt.correction_payload = ai_correction
+                final = self._attach_memory_updates(final, memory_updates)
+                attempt.correction_payload = final
                 flag_modified(attempt, "correction_payload")
                 self.db.add(attempt)
+            self._attach_world_reply(attempt, user=user)
+            self._record_second_check_event(attempt, llm_ms=llm_ms, verdict_changed=verdict_changed, status="complete")
+            self._apply_deferred_evidence(attempt, user=user, session=session)
             self.db.commit()
             self.db.refresh(attempt)
             return attempt
         except Exception as exc:  # pragma: no cover - defensive guard around background work
             logger.warning("Atelier background AI review failed", attempt_id=str(attempt_id), error=str(exc))
-            return self._mark_ai_review_failed(attempt, "AI correction failed.")
+            self.db.rollback()
+            return self._mark_ai_review_failed(
+                attempt, "AI correction failed.", llm_ms=round((time.perf_counter() - started) * 1000, 1)
+            )
 
-    def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str) -> AtelierAttempt:
+    #: Keys the learner (or the séance) wrote on the payload that the model's
+    #: correction does not carry and must survive the swap.
+    _CARRIED_CORRECTION_KEYS = (
+        "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
+        "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "latency",
+        "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
+    )
+
+    def _merge_relecture(self, round_name: str, local: dict[str, Any], ai: dict[str, Any]) -> dict[str, Any]:
+        """The stored correction once the model's reading lands (see run_ai_review_for_attempt)."""
+
+        ai_passes = _verdict_passes(ai.get("verdict")) and not [
+            item for item in (ai.get("errata") or [])
+            if isinstance(item, dict) and item.get("task_error_type") not in {"task_compliance", "length_compliance"}
+        ]
+        local_passes = _verdict_passes(local.get("verdict"))
+        if round_name in FREE_PRODUCTION_ROUNDS:
+            final = dict(ai)
+        else:
+            # The key's verdict, score and target stand.
+            final = dict(local)
+            final.pop("memory_updates", None)
+            if not ai_passes and not local_passes and ai.get("errata"):
+                final["errata"] = list(ai.get("errata") or [])
+            elif ai_passes != local_passes:
+                final["relecture_disagreed"] = {"verdict": ai.get("verdict"), "score_0_4": ai.get("score_0_4")}
+        for carried_key in self._CARRIED_CORRECTION_KEYS:
+            if carried_key in local and carried_key not in final:
+                final[carried_key] = local[carried_key]
+        return final
+
+    def _attach_world_reply(self, attempt: AtelierAttempt, *, user: User) -> None:
+        """The conversation rung's in-character reply, once the turn is accepted.
+
+        It used to be a second synchronous model call on the submit request;
+        it now follows the relecture, off the request path (WP-S1).
+        """
+
+        if attempt.round != "conversation" or attempt.verdict not in {"correct", "accepted"}:
+            return
+        correction = dict(attempt.correction_payload or {})
+        if correction.get("world_reply"):
+            return
+        item = next(
+            (
+                candidate
+                for candidate in (attempt.prompt_payload or {}).get("items") or []
+                if isinstance(candidate, dict) and isinstance(candidate.get("character"), dict)
+            ),
+            None,
+        )
+        if not item:
+            return
+        from app.services.missions import MissionConversationService
+
+        serial_context = item.get("serial_context") or {}
+        character = item.get("character") or {}
+        try:
+            reply = MissionConversationService(self.db).respond_for_atelier(
+                character=character,
+                opener=str(serial_context.get("opener") or item.get("prompt") or ""),
+                scene_context=str(serial_context.get("scene_context") or ""),
+                user_text=str((attempt.answer_payload or {}).get("text") or "").strip(),
+                user_id=user.id,
+            )
+        except Exception as exc:  # pragma: no cover - a reply is decoration, never a grade
+            logger.info("Atelier world reply unavailable", attempt_id=str(attempt.id), error=str(exc))
+            return
+        if reply:
+            correction["world_reply"] = {"text": reply, "character": character}
+            attempt.correction_payload = correction
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+
+    def _record_second_check_event(
+        self, attempt: AtelierAttempt, *, llm_ms: float | None, verdict_changed: bool, status: str
+    ) -> None:
+        """WP-S8 prep: amend the submit's `forge_verdict` row with the relecture's timing."""
+
+        event = (
+            self.db.query(PilotEvent)
+            .filter(PilotEvent.event_type == FORGE_VERDICT_EVENT, PilotEvent.entity_id == str(attempt.id))
+            .order_by(PilotEvent.occurred_at.desc())
+            .first()
+        )
+        if event is None:
+            return
+        event.payload = {
+            **dict(event.payload or {}),
+            "async_llm_ms": llm_ms,
+            "second_check": status,
+            "verdict_changed": verdict_changed,
+            "final_verdict": attempt.verdict,
+        }
+        flag_modified(event, "payload")
+        self.db.add(event)
+
+    def _apply_deferred_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
+        """Write the evidence of an attempt the séance could not count when it closed.
+
+        `complete_session` skips an attempt whose verdict was still provisional
+        (a pending relecture) or unchecked and marks it `evidence_deferred`.
+        When its verdict lands afterwards, this writes its evidence — once: the
+        `evidence_applied` stamp is written in the same transaction as the
+        review, so a second landing (a manual retry) finds it and does nothing.
+        An unchecked answer never counts. Returns whether evidence was written.
+        """
+
+        correction = dict(attempt.correction_payload or {})
+        if not correction.get("evidence_deferred") or correction.get("evidence_applied"):
+            return False
+        if correction.get("evidence_hold") or correction.get("assessment_status") in {"provisional", "unavailable"}:
+            return False
+        if session is None or session.status != "completed":
+            return False
+        correction["evidence_applied"] = {"mode": "late", "at": self._now_iso()}
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        if not attempt.concept_id:
+            return False
+        raw_score = float(attempt.score_0_4 or 0)
+        confidence = (attempt.answer_payload or {}).get("confidence")
+        adjusted, interval_multiplier = atelier_calibration_adjustment(raw_score, confidence)
+        quality = round(adjusted / 4 * 10, 1)
+        GrammarService(self.db).record_review(
+            user=user,
+            concept_id=int(attempt.concept_id),
+            score=quality,
+            notes=f"Atelier session {session.id}",
+            source_type="atelier",
+            interval_multiplier=interval_multiplier,
+            evidence=atelier_session_evidence([(attempt.round, attempt.mode, adjusted)], passed=quality >= 5.0),
+        )
+        return True
+
+    def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str, *, llm_ms: float | None = None) -> AtelierAttempt:
         correction = dict(attempt.correction_payload or {})
         review = self.ai_review_from_correction(correction)
         correction["ai_review"] = {
@@ -4382,9 +4582,27 @@ class AtelierCorrectionService:
             "completed_at": self._now_iso(),
             "error": error,
         }
+        correction.pop("evidence_hold", None)
+        if attempt.round in FREE_PRODUCTION_ROUNDS:
+            # The local check was a hint, not a grade: an open answer the model
+            # never read is unchecked, and an unchecked answer never counts.
+            correction["assessment_status"] = "unavailable"
+            correction["verdict"] = "needs_review"
+            correction["score_0_4"] = 0
+            attempt.verdict = "needs_review"
+            attempt.score_0_4 = 0.0
+        correction["second_check"] = {"status": "failed", "verdict_changed": False, "llm_ms": llm_ms}
+        if llm_ms is not None:
+            correction["latency"] = {**dict(correction.get("latency") or {}), "async_llm_ms": llm_ms}
         attempt.correction_payload = correction
         flag_modified(attempt, "correction_payload")
         self.db.add(attempt)
+        self._record_second_check_event(attempt, llm_ms=llm_ms, verdict_changed=False, status="failed")
+        user = self.db.get(User, attempt.user_id)
+        session = self.db.get(AtelierSession, attempt.atelier_session_id)
+        if user is not None:
+            # A keyed rung keeps the key's verdict: its deferred evidence lands now.
+            self._apply_deferred_evidence(attempt, user=user, session=session)
         self.db.commit()
         self.db.refresh(attempt)
         return attempt
@@ -4417,14 +4635,30 @@ class AtelierCorrectionService:
         if dropped:
             correction["errata"] = kept
         # Pattern hits cannot certify arbitrary French or task relevance.
-        if round_name in {"sentence", "speak", "conversation", "produce"} and (
-            correction.get("correction_debug") or {}
-        ).get("fallback_used"):
-            correction.update({
-                "verdict": "needs_review", "score_0_4": 0,
-                "assessment_status": "unavailable", "corrected_answer": "",
-                "concept_hits": [], "errata": [item for item in kept if item.get("task_error_type") == "length_compliance"], "missing_targets": [],
-            })
+        if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
+            local_check: dict[str, Any] | None = None
+            text = self._answer_text(answer_payload)
+            if not force_llm:
+                # WP-S1: the live submit never waits on the model. The local
+                # check (the rule's detector, closeness to a model answer) is
+                # returned now; the relecture replaces it when it lands.
+                item = (prompt_payload.get("items") or [{}])[0] or {}
+                model_answer = item.get("example_answer") or prompt_payload.get("example_answer")
+                local_concept = concept
+                if local_concept is None and session is not None:
+                    local_concept = next(iter(self._session_concepts(session)), None)
+                local_check = production_local_check(local_concept, text, model_answer)
+            if local_check is not None and text.strip() and self._can_schedule_ai_review():
+                correction["local_check"] = local_check
+                correction["assessment_status"] = "provisional"
+            else:
+                correction.update({
+                    "verdict": "needs_review", "score_0_4": 0,
+                    "assessment_status": "unavailable", "corrected_answer": "",
+                    "concept_hits": [], "errata": [item for item in kept if item.get("task_error_type") == "length_compliance"], "missing_targets": [],
+                })
+                if local_check is not None:
+                    correction["local_check"] = local_check
         # The client needs to know which language the explanation prose is in;
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
@@ -4445,12 +4679,12 @@ class AtelierCorrectionService:
         if round_name == "recognize":
             return self._correct_recognize_ai_first(concept, mode, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name == "transform":
-            return self._correct_transform(concept, prompt_payload, answer_payload)
+            return self._correct_transform(concept, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name in {"sentence", "speak", "conversation"}:
-            return self._correct_output_ladder(concept, round_name, prompt_payload, answer_payload)
+            return self._correct_output_ladder(concept, round_name, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name == "produce":
             concepts = self._session_concepts(session) if session else ([concept] if concept else [])
-            return self._correct_produce(concepts, prompt_payload, answer_payload)
+            return self._correct_produce(concepts, prompt_payload, answer_payload, force_llm=force_llm)
         return {
             "verdict": "needs_review",
             "score_0_4": 0,
@@ -5126,9 +5360,13 @@ class AtelierCorrectionService:
         concept: GrammarConcept | None,
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_transform_rule_based(concept, prompt_payload, answer_payload)
-        if not self._should_use_correction_llm():
+        # WP-S1: the key grades a rewrite on the request path; the model only
+        # reads it afterwards, in the background relecture (force_llm=True).
+        if not force_llm or not self._should_use_correction_llm():
             return fallback
         return self._correct_transform_with_llm(concept, prompt_payload, answer_payload, fallback) or fallback
 
@@ -5142,6 +5380,7 @@ class AtelierCorrectionService:
         items = prompt_payload.get("items") or []
         errata: list[dict[str, Any]] = []
         corrected: dict[str, str] = {}
+        accent_notes: list[dict[str, Any]] = []
         correct_count = 0
         for item in items:
             item_id = item["id"]
@@ -5164,10 +5403,25 @@ class AtelierCorrectionService:
                     }
                 )
                 continue
-            if self._close_enough_transform(concept, learner, target):
+            # WP-S1: the key decides, locally. Typography (quotes, case, final
+            # punctuation) never costs a point; an accent slip is forgiven but
+            # noted; any listed alternative rewrite is as good as the key.
+            keys = [target, *[str(value) for value in (item.get("accepted_answers") or []) if str(value or "").strip()]]
+            matches = [same_answer(learner, key) for key in keys]
+            if any(match for match, _slip in matches) or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
+                if any(match and slip for match, slip in matches) and not any(match and not slip for match, slip in matches):
+                    accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
-            errata.append(self._erratum(concept, item, learner, target, severity=3, recurring=True))
+            erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
+            ops = token_diff(learner, target)
+            what = describe_diff(ops, self.explanation_language)
+            if what:
+                # Name the exact difference first (the ending, the missing word),
+                # then the rule that explains it.
+                erratum["why_wrong"] = f"{what} {erratum.get('why_wrong') or ''}".strip()
+                erratum["diff"] = ops
+            errata.append(erratum)
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
             "verdict": "correct" if correct_count == len(items) else ("partial" if correct_count else "incorrect"),
@@ -5176,6 +5430,7 @@ class AtelierCorrectionService:
             "concept_hits": [serialize_concept_hit(concept, correct_count, len(items))] if concept else [],
             "missing_targets": [],
             "errata": errata,
+            **({"accent_notes": accent_notes} if accent_notes else {}),
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
 
@@ -5185,9 +5440,11 @@ class AtelierCorrectionService:
         round_name: str,
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_output_ladder_rule_based(concept, round_name, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
+        if not force_llm or not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return fallback
         return self._correct_output_ladder_with_llm(concept, round_name, prompt_payload, answer_payload, fallback) or fallback
 
@@ -5513,9 +5770,11 @@ class AtelierCorrectionService:
         concepts: list[GrammarConcept | None],
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_produce_rule_based(concepts, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
+        if not force_llm or not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return self._apply_produce_length_gate(fallback, prompt_payload=prompt_payload, answer_payload=answer_payload)
         result = self._correct_produce_with_llm(concepts, prompt_payload, answer_payload, fallback) or fallback
         return self._apply_produce_length_gate(result, prompt_payload=prompt_payload, answer_payload=answer_payload)
@@ -6450,6 +6709,10 @@ class AtelierSRSService:
             self.db.query(AtelierAttempt)
             .filter(AtelierAttempt.atelier_session_id == session.id)
             .order_by(AtelierAttempt.created_at.asc())
+            # Ordered against a relecture landing on one of these rows
+            # (run_ai_review_for_attempt locks it too): each attempt's evidence
+            # is written here or, deferred, there — never both.
+            .with_for_update()
             .all()
         )
         scores_by_concept: dict[int, list[float]] = defaultdict(list)
@@ -6460,12 +6723,22 @@ class AtelierSRSService:
         error_memory = ErrorMemoryService(self.db)
         confidence_summary = {"sure": 0, "unsure": 0, "confident_misses": 0, "hesitant_misses": 0}
         phrase_candidates: list[tuple[float, str]] = []
+        deferred_checks = 0
         for attempt in attempts:
-            if (attempt.correction_payload or {}).get("assessment_status") == "unavailable" or (
+            payload = attempt.correction_payload or {}
+            if payload.get("evidence_hold") or payload.get("assessment_status") in {"unavailable", "provisional"} or (
                 attempt.round in ATELIER_AI_AUTO_ROUNDS and
-                ((attempt.correction_payload or {}).get("correction_debug") or {}).get("fallback_used")
+                (payload.get("correction_debug") or {}).get("fallback_used")
             ):
-                continue  # An outage is neither success nor a learner mistake.
+                # An outage is neither success nor a learner mistake, and a
+                # verdict still being read is not yet either (WP-S1). If its
+                # verdict lands later, `_apply_deferred_evidence` counts it then.
+                if not payload.get("evidence_applied") and not payload.get("evidence_deferred"):
+                    attempt.correction_payload = {**payload, "evidence_deferred": True}
+                    flag_modified(attempt, "correction_payload")
+                    self.db.add(attempt)
+                    deferred_checks += 1
+                continue
             if attempt.concept_id:
                 raw_score = float(attempt.score_0_4 or 0)
                 confidence = (attempt.answer_payload or {}).get("confidence")
@@ -6551,6 +6824,9 @@ class AtelierSRSService:
             "errata": errata_rows,
             "confidence": confidence_summary,
             "adaptive_locks": dict((session.quote_payload or {}).get("adaptive_locks") or {}),
+            # WP-S1: answers whose verdict was still being read when the séance
+            # closed; their evidence is written when it lands.
+            "pending_checks": deferred_checks,
         }
         completed_at = datetime.now(UTC)
         if phrase_candidates:

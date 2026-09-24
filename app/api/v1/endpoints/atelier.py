@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -59,6 +60,7 @@ from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
     ATELIER_TRANSFORM_ITEMS,
+    FORGE_VERDICT_EVENT,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
@@ -88,7 +90,6 @@ from app.services.learner_copy import (
     learner_text,
     learner_text_for_english,
 )
-from app.services.missions import MissionConversationService
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
@@ -1364,6 +1365,7 @@ def submit_attempt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_atelier_user),
 ) -> AtelierAttemptResponse:
+    started = perf_counter()
     session = _session_or_404(db, session_id, current_user)
     if session.status == "completed":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Atelier session is already completed")
@@ -1446,36 +1448,8 @@ def submit_attempt(
         prompt_payload_override=prompt_payload_override,
         retest_of=retest_source.id if retest_source else None,
     )
-    if payload.round == "conversation":
-        conversation_item = next(
-            (
-                item
-                for item in (attempt.prompt_payload or {}).get("items") or []
-                if isinstance(item, dict) and isinstance(item.get("character"), dict)
-            ),
-            None,
-        )
-        if conversation_item and attempt.verdict in {"correct", "accepted"}:
-            serial_context = conversation_item.get("serial_context") or {}
-            character = conversation_item.get("character") or {}
-            learner_text = str((attempt.answer_payload or {}).get("text") or "").strip()
-            world_reply = MissionConversationService(db).respond_for_atelier(
-                character=character,
-                opener=str(serial_context.get("opener") or conversation_item.get("prompt") or ""),
-                scene_context=str(serial_context.get("scene_context") or ""),
-                user_text=learner_text,
-                user_id=current_user.id,
-            )
-            attempt.correction_payload = {
-                **(attempt.correction_payload or {}),
-                "world_reply": {
-                    "text": world_reply,
-                    "character": character,
-                },
-            }
-            db.add(attempt)
-            db.commit()
-            db.refresh(attempt)
+    # WP-S1: the conversation rung's in-character reply follows the relecture
+    # (AtelierCorrectionService._attach_world_reply), never this request.
     adaptive_lock = _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
     if adaptive_lock:
         correction = {**(attempt.correction_payload or {}), "adaptive_lock": adaptive_lock}
@@ -1488,9 +1462,34 @@ def submit_attempt(
         source_correction["retest"] = source_retest
         retest_source.correction_payload = source_correction
         db.add(retest_source)
-    if adaptive_lock or retest_source:
-        db.commit()
-        db.refresh(attempt)
+    # WP-S1 / WP-S8: the local verdict's latency, per rung. The relecture
+    # amends the same row with its own latency and whether it changed the verdict.
+    local_ms = round((perf_counter() - started) * 1000, 1)
+    correction = dict(attempt.correction_payload or {})
+    second_check_pending = AtelierCorrectionService.ai_review_from_correction(correction).get("status") == "pending"
+    correction["latency"] = {**dict(correction.get("latency") or {}), "local_ms": local_ms}
+    attempt.correction_payload = correction
+    db.add(attempt)
+    PilotEventService(db).record(
+        FORGE_VERDICT_EVENT,
+        user_id=current_user.id,
+        entity_type="atelier_attempt",
+        entity_id=attempt.id,
+        payload={
+            "session_id": str(session.id),
+            "concept_id": attempt.concept_id,
+            "rung": attempt.round,
+            "mode": attempt.mode,
+            "local_ms": local_ms,
+            "local_verdict": attempt.verdict,
+            "assessment_status": correction.get("assessment_status"),
+            "second_check": "pending" if second_check_pending else "none",
+            "async_llm_ms": None,
+            "verdict_changed": None,
+        },
+    )
+    db.commit()
+    db.refresh(attempt)
     if correction_service.should_auto_start_ai_review(attempt):
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
     if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
