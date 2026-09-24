@@ -574,6 +574,13 @@ class StreakView(JourneyModel):
     freeze_used_on: date | None = None
 
 
+class MasteryToday(JourneyModel):
+    """WP-S7: mastery earned on the journey's local day."""
+
+    held_concept_ids: list[int] = Field(default_factory=list)
+    tested_out_concept_ids: list[int] = Field(default_factory=list)
+
+
 class JourneySnapshot(JourneyModel):
     id: str
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -607,6 +614,9 @@ class JourneySnapshot(JourneyModel):
     #: ``episode_index + 1``; the learner's own day count when there is no
     #: episode). Its seal composition is fixed by this number.
     edition_no: int | None = None
+    #: WP-S7. The rules that became held on this local day (a Seal ring each)
+    #: and those among them that a test-out held. ``None`` with the flag off.
+    mastery_today: MasteryToday | None = None
 
 
 class LegacyResume(JourneyModel):
