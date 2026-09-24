@@ -11,6 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
@@ -704,6 +705,24 @@ def _session_answers_request(
     return True
 
 
+def _stamp_forge_origin(db: Session, session: AtelierSession, payload: Any) -> None:
+    """A resumed forge séance takes the journey step that reopened it."""
+
+    step_id = getattr(payload, "journey_step_id", None) if payload is not None else None
+    if not step_id:
+        return
+    quote = dict(session.quote_payload or {})
+    forge = quote.get("forge")
+    if not isinstance(forge, dict) or str(forge.get("journey_step_id") or "") == str(step_id):
+        return
+    quote["forge"] = {**forge, "origin": "journey", "journey_step_id": str(step_id)}
+    session.quote_payload = quote
+    flag_modified(session, "quote_payload")
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
+
 def _park_session(db: Session, session: AtelierSession) -> None:
     session.status = SESSION_PARKED
     db.add(session)
@@ -1271,6 +1290,9 @@ def start_session(
         .first()
     )
     if active and _session_answers_request(active, preferred_id=preferred_id, concept_ids=explicit_ids):
+        # WP-S4 × WP-S3: the day's forge step resumes the open forge séance of
+        # its rule; the séance now belongs to that step (its recap returns there).
+        _stamp_forge_origin(db, active, payload)
         # fast_path is a no-op once a concept's exercise set is already stored
         # (the common case); it only matters if this in-progress session was
         # flipped over from "prepared" before background pregeneration finished

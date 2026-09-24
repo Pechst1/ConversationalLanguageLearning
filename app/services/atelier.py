@@ -7362,7 +7362,12 @@ class AtelierSRSService:
             "pending_checks": deferred_checks,
         }
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
+            plan = (session.quote_payload or {}).get("forge") or {}
             recap["forge"] = {
+                # WP-S4: where the block came from; a folded block returns to its step.
+                "origin": plan.get("origin"),
+                "journey_step_id": plan.get("journey_step_id"),
+                "budget_seconds": plan.get("budget_seconds"),
                 "items": forge_state.position,
                 "evidence_written": forge_state.evidence_written,
                 "rules": [
