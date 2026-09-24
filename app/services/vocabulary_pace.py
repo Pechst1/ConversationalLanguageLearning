@@ -19,8 +19,9 @@ one quota:
   (it has a progress row, so it is a review).
 
 The auto-throttle (§2.2: intake halves when the backlog outgrows capacity or
-accuracy drops) needs WP-L3's queue numbers. :func:`intake_throttle_factor` is
-its hook and returns 1.0 until then.
+accuracy drops) lives in :mod:`app.services.intake_throttle`;
+:func:`intake_throttle_factor` is its door here. It halves the learner's own
+quota *and* the journey's rhythm share of it.
 """
 from __future__ import annotations
 
@@ -50,23 +51,38 @@ SECONDS_PER_REVIEW = 6
 
 
 def intake_throttle_factor(db: Session, user: Any, *, now: datetime | None = None) -> float:
-    """WP-L6 auto-throttle hook — **not implemented yet** (needs WP-L3).
+    """WP-L6 auto-throttle: the multiplier on today's new intake (1.0 = none).
 
     §2.2: when the due backlog exceeds 1.5 days of review capacity, or 7-day
-    review accuracy falls below 80 %, new intake halves until it recovers and
-    the learner reads «Cette semaine, on consolide.» Returns the multiplier
-    applied to the daily quota; 1.0 means no throttle.
+    review accuracy falls below 80 %, new intake halves until it recovers
+    (with hysteresis) and the learner reads «Cette semaine, on consolide.»
+    See :mod:`app.services.intake_throttle`.
     """
 
-    return 1.0
+    from app.services.intake_throttle import throttle_factor
+
+    return throttle_factor(db, user, now=now)
+
+
+def journey_word_share(user: Any, factor: float = 1.0) -> int:
+    """The rhythm's share of new words for the day, throttled."""
+
+    share = rhythm_caps(budget_seconds_for(user)).journey_new_words
+    if factor >= 1.0:
+        return share
+    return max(1, int(share * max(0.0, factor))) if share else 0
 
 
 def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
     """How many new words this learner takes in today, all surfaces together."""
 
+    return _quota(user, intake_throttle_factor(db, user, now=now))
+
+
+def _quota(user: Any, factor: float) -> int:
     raw = getattr(user, "new_words_per_day", None)
     quota = int(raw) if raw else DEFAULT_NEW_WORDS_PER_DAY
-    return max(0, int(quota * intake_throttle_factor(db, user, now=now)))
+    return max(0, int(quota * factor))
 
 
 def _local_window(user: Any, now: datetime) -> tuple[datetime, datetime]:
@@ -124,7 +140,11 @@ def journey_new_word_room(db: Session, user: Any, *, now: datetime | None = None
     """How many new words today's journey may introduce: what the quota has
     left after everything already introduced today."""
 
-    return max(0, daily_quota(db, user, now=now) - len(introduced_today(db, user, now=now)))
+    factor = intake_throttle_factor(db, user, now=now)
+    room = max(0, _quota(user, factor) - len(introduced_today(db, user, now=now)))
+    if factor < 1.0:
+        room = min(room, journey_word_share(user, factor))
+    return room
 
 
 def drill_new_word_room(
@@ -138,11 +158,12 @@ def drill_new_word_room(
     new by the drill.
     """
 
-    quota = daily_quota(db, user, now=now)
+    factor = intake_throttle_factor(db, user, now=now)
+    quota = _quota(user, factor)
     introduced = introduced_today(db, user, now=now)
     planned, reserved = journey_reservation(db, user, now=now)
     taken = len(introduced | reserved)
-    pending = 0 if planned else min(quota, rhythm_caps(budget_seconds_for(user)).journey_new_words)
+    pending = 0 if planned else min(quota, journey_word_share(user, factor))
     return max(0, quota - taken - pending), reserved - introduced
 
 
@@ -189,6 +210,7 @@ __all__ = [
     "introduced_today",
     "journey_new_word_room",
     "journey_reservation",
+    "journey_word_share",
     "review_load_estimate",
     "todays_journey",
     "vocabulary_pace_limit",

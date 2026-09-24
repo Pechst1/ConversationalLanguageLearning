@@ -701,11 +701,20 @@ def _with_word_grammar(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
     if not ids:
         return payload
     rows = (
-        db.query(VocabularyWord.id, VocabularyWord.part_of_speech, VocabularyWord.gender)
+        db.query(
+            VocabularyWord.id,
+            VocabularyWord.word,
+            VocabularyWord.language,
+            VocabularyWord.part_of_speech,
+            VocabularyWord.gender,
+        )
         .filter(VocabularyWord.id.in_(ids))
         .all()
     )
-    grammar = {int(row.id): (row.part_of_speech, row.gender) for row in rows}
+    from app.services.lexicon_grammar import word_grammar
+
+    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la.
+    grammar = {int(row.id): word_grammar(row) for row in rows}
     words = []
     for entry in payload.get("words") or []:
         if isinstance(entry, dict):

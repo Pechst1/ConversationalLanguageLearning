@@ -371,3 +371,31 @@ test('Home at a zero streak draws the gear, never a number', () => {
   assert.doesNotMatch(html, /av2-home__streak-n/);
   assert.match(html, /aria-label="Réglages"/);
 });
+
+test('WP-L8: the weekly forecast line at the Seal, measured only, in the chrome language', () => {
+  const line = { target: 'A1.2', band: 'A1.1', month: '2026-11', measured: true };
+  const local = '2026-09-22';
+  assert.equal(model.forecastLineText(line, 'en', local), 'At this rhythm: A1.2 around November.');
+  assert.equal(model.forecastLineText(line, 'fr', local), 'À ce rythme : A1.2 vers novembre.');
+  assert.equal(model.forecastLineText(line, 'de', local), 'In diesem Rhythmus: A1.2 etwa im November.');
+  assert.equal(
+    model.forecastLineText({ ...line, month: '2027-02' }, 'en', local),
+    'At this rhythm: A1.2 around February 2027.',
+  );
+  assert.equal(model.forecastLineText({ ...line, measured: false }, 'en'), null, 'never a prior as a promise');
+  assert.equal(model.forecastLineText(null, 'en'), null);
+
+  const html = render(day({ forecast_line: line }));
+  assert.match(textOf(html), /At this rhythm: A1\.2 around November\./);
+  assert.match(html, /data-forecast-line/);
+  // No line on a day without one, and never on an early stop.
+  assert.doesNotMatch(render(day()), /data-forecast-line/);
+  const early = day({ forecast_line: line, completion_kind: 'early' }, { status: 'ended_early' });
+  assert.doesNotMatch(render(early), /data-forecast-line/);
+});
+
+test('WP-L6: the recap says «Cette semaine, on consolide.» while the throttle is on', () => {
+  assert.doesNotMatch(render(day()), /data-consolidating/);
+  assert.match(textOf(render(day({ consolidating: true }))), /This week, we consolidate\./);
+  assert.match(textOf(render(day({ consolidating: true }), { language: 'fr' })), /Cette semaine, on consolide\./);
+});

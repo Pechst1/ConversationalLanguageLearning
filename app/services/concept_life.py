@@ -179,8 +179,9 @@ def mark_introduced(db: Session, *, user: Any, concept_id: int, now: datetime | 
 # ---------------------------------------------------------------------------
 
 
-def weekly_concept_quota(db: Session, user: Any, *, now: datetime) -> int:
-    """New units this learner takes in a week: the rhythm's, throttled (§2.2)."""
+def weekly_concept_rate(db: Session, user: Any, *, now: datetime) -> float:
+    """New units a week at this learner's rhythm, throttled (§2.2) — may be
+    fractional: Léger's one a week, halved, is one every two weeks."""
 
     from app.services.journey_rhythm import rhythm_of
     from app.services.vocabulary_pace import intake_throttle_factor
@@ -188,13 +189,23 @@ def weekly_concept_quota(db: Session, user: Any, *, now: datetime) -> int:
     base = NEW_CONCEPTS_PER_WEEK.get(rhythm_of(user), NEW_CONCEPTS_PER_WEEK["regulier"])
     try:
         factor = float(intake_throttle_factor(db, user, now=now))
-    except Exception:  # pragma: no cover - the throttle is a hook
+    except Exception:  # pragma: no cover - a broken read never stops the day
         factor = 1.0
-    return max(0, int(base * max(0.0, min(1.0, factor))))
+    return base * max(0.0, min(1.0, factor))
 
 
-def introductions_in_window(db: Session, user: Any, *, now: datetime) -> list[datetime]:
-    since = now - timedelta(days=INTAKE_WINDOW_DAYS)
+def weekly_concept_quota(db: Session, user: Any, *, now: datetime) -> int:
+    """New units this learner may take in a rolling week (rounded up)."""
+
+    import math
+
+    return int(math.ceil(weekly_concept_rate(db, user, now=now)))
+
+
+def introductions_in_window(
+    db: Session, user: Any, *, now: datetime, days: int = INTAKE_WINDOW_DAYS
+) -> list[datetime]:
+    since = now - timedelta(days=days)
     rows = (
         db.query(UserGrammarProgress.introduced_at)
         .filter(
@@ -218,14 +229,19 @@ def introduction_due(db: Session, user: Any, *, now: datetime) -> bool:
     """
 
     now = _aware(now) or datetime.now(UTC)
-    quota = weekly_concept_quota(db, user, now=now)
-    if quota <= 0:
+    rate = weekly_concept_rate(db, user, now=now)
+    if rate <= 0:
         return False
-    recent = introductions_in_window(db, user, now=now)
-    if len(recent) >= quota:
+    quota = int(-(-rate // 1))  # ceil
+    whole = float(rate).is_integer()
+    # The unthrottled rhythm keeps its window (7 // quota days apart); a
+    # throttled, fractional rate spreads further (Léger halved: 14 days).
+    spacing = max(1, INTAKE_WINDOW_DAYS // quota) if whole else max(1, round(INTAKE_WINDOW_DAYS / rate))
+    recent = introductions_in_window(db, user, now=now, days=max(INTAKE_WINDOW_DAYS, spacing))
+    in_week = [stamp for stamp in recent if stamp > now - timedelta(days=INTAKE_WINDOW_DAYS)]
+    if len(in_week) >= quota:
         return False
     if recent:
-        spacing = max(1, INTAKE_WINDOW_DAYS // quota)
         if (now.date() - recent[-1].date()).days < spacing:
             return False
     return True
@@ -309,4 +325,5 @@ __all__ = [
     "mark_introduced",
     "note_concept_evidence",
     "weekly_concept_quota",
+    "weekly_concept_rate",
 ]

@@ -510,6 +510,18 @@ class RecapLevelUp(JourneyModel):
     mastered_grammar: int = 0
 
 
+class RecapForecastLine(JourneyModel):
+    """WP-L8 — «At this rhythm: A1.2 around <month>» (the client writes it)."""
+
+    target: str
+    band: str | None = None
+    #: ``YYYY-MM``: the month of the forecast's central day.
+    month: str
+    range_days: list[int] = Field(default_factory=list)
+    rhythm: str | None = None
+    measured: bool = True
+
+
 # --- WP-79 (end) -------------------------------------------------------------
 
 
@@ -538,6 +550,10 @@ class JourneyRecap(JourneyModel):
     #: The CEFR estimate when this recap was written; the next recap compares.
     level: str | None = None
     level_up: RecapLevelUp | None = None
+    #: WP-L6 §2.2: the auto-throttle is on — «Cette semaine, on consolide.»
+    consolidating: bool = False
+    #: WP-L8: once a week at the Seal, from a *measured* forecast only.
+    forecast_line: RecapForecastLine | None = None
 
 
 class RetryHint(JourneyModel):

@@ -90,6 +90,7 @@ from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
+from app.services.intake_throttle import intake_notice  # WP-L6 auto-throttle
 from app.services.learner_copy import (
     LEARNER_COPY,
     learner_text,
@@ -1199,6 +1200,9 @@ async def get_today(
     # WP-80: an honest streak — a missed day reads 0, a banked «jour de
     # relâche» is spent and written down before anything prints the number.
     streak = settle_streak(db, current_user)
+    # WP-L6: the auto-throttle, evaluated once a read (a change writes its
+    # pilot event, kept by this commit).
+    intake = intake_notice(db, current_user)
     db.commit()
     scheduler = AtelierScheduler(db)
     selections = scheduler.select_today(current_user)
@@ -1251,6 +1255,7 @@ async def get_today(
         serial=serial_episode,
         phrase_of_day=AtelierSRSService(db).phrase_for_la_une(user=current_user),
         streak=streak.as_payload(),
+        intake=intake,
     )
 
 

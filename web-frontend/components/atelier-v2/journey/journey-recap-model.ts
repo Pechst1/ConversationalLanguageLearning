@@ -22,6 +22,7 @@ import type {
   ControlLanguage,
   JourneyRecap,
   JourneySnapshot,
+  RecapForecastLine,
   RecapKeepsake,
   RecapLevelUp,
   RecapTeaser,
@@ -71,6 +72,10 @@ export type RewardView = {
   keepsake: RecapKeepsake | null;
   teaser: RecapTeaser | null;
   levelUp: (RecapLevelUp & { evidence: string | null }) | null;
+  /** WP-L6: «Cette semaine, on consolide.» while the auto-throttle is on. */
+  consolidating: string | null;
+  /** WP-L8: «À ce rythme : A1.2 vers novembre.» — once a week, a completed day only. */
+  forecast: string | null;
   /** The first server-issued practice href among the day's targets. */
   practiceHref: string | null;
   practiceLabelFr: string | null;
@@ -210,6 +215,8 @@ export function rewardView(
     keepsake: partial ? null : recap.keepsake ?? null,
     teaser: partial ? null : teaser,
     levelUp: recap.level_up ? { ...recap.level_up, evidence: levelEvidence(recap.level_up, language) } : null,
+    consolidating: recap.consolidating ? recapStatusCopy(language).consolidating : null,
+    forecast: completed ? forecastLineText(recap.forecast_line, language, journey.local_date) : null,
     practiceHref: firstPractice?.practice_href ?? null,
     practiceLabelFr: firstPractice?.target.label_fr ?? null,
   };
@@ -225,4 +232,37 @@ export function keepsakeDate(value: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+const MONTH_LOCALE: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
+
+/**
+ * WP-L8 — «At this rhythm: A1.2 around November.» in the chrome language, from
+ * a *measured* forecast only (the server never sends a prior; a line not
+ * marked measured is dropped here too). The year is added when the month is
+ * not in the day's own year.
+ */
+export function forecastLineText(
+  line: RecapForecastLine | null | undefined,
+  language: ControlLanguage,
+  localDate?: string | null,
+): string | null {
+  if (!line || !line.measured || !line.target) return null;
+  const match = /^(\d{4})-(\d{2})$/.exec(String(line.month || ''));
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!(month >= 1 && month <= 12)) return null;
+  const today = localDate ? new Date(`${localDate}T12:00:00`) : new Date();
+  const sameYear = !Number.isNaN(today.getTime()) && today.getFullYear() === year;
+  let name: string;
+  try {
+    name = new Intl.DateTimeFormat(MONTH_LOCALE[language] ?? 'en-GB', {
+      month: 'long',
+      ...(sameYear ? {} : { year: 'numeric' }),
+    }).format(new Date(year, month - 1, 15, 12));
+  } catch {
+    return null;
+  }
+  return fill(recapStatusCopy(language).forecast_line, { level: line.target, month: name });
 }

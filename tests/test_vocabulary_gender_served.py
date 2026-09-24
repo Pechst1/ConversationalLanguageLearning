@@ -94,7 +94,10 @@ def test_gender_is_served_on_list_sheet_queue_and_slate(client: TestClient, db_s
     headers, user = _login(client, db_session)
     addition = _due_word(db_session, user, "addition", pos="noun", gender="f", rank=9101)
     pain = _due_word(db_session, user, "pain", pos="noun", gender="m", rank=9102)
-    unknown = _due_word(db_session, user, "hiver", pos="noun", gender=None, rank=9103)
+    # Not in the core lexicon: nothing to fill, no article (WP-84 fills the rest).
+    unknown = _due_word(db_session, user, "brume", pos="noun", gender=None, rank=9103)
+    # In the lexicon, no stored gender: WP-84 serves the lexicon's «le».
+    hiver = _due_word(db_session, user, "hiver", pos=None, gender=None, rank=9105)
     db_session.commit()
 
     # The list endpoint is cached (Redis when present, across runs), so the
@@ -120,6 +123,7 @@ def test_gender_is_served_on_list_sheet_queue_and_slate(client: TestClient, db_s
     }
     assert queue[addition.id]["gender"] == "f"
     assert queue[unknown.id]["gender"] is None
+    assert (queue[hiver.id]["gender"], queue[hiver.id]["part_of_speech"]) == ("m", "noun")
 
     slate = client.get("/api/v1/vocabulary/words-of-the-day", headers=headers)
     assert slate.status_code == 200
@@ -133,7 +137,7 @@ def test_slate_reads_gender_live_after_a_backfill(client: TestClient, db_session
     """The slate is frozen for the day; its grammar is not."""
 
     headers, user = _login(client, db_session)
-    word = _due_word(db_session, user, "gare", pos="noun", gender=None, rank=9201)
+    word = _due_word(db_session, user, "brume", pos="noun", gender=None, rank=9201)
     db_session.commit()
 
     first = client.get("/api/v1/vocabulary/words-of-the-day", headers=headers).json()

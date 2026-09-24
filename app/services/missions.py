@@ -73,12 +73,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "warm_practical",
         "register": "polite neutral",
         "scene_anchor": "At the boulangerie counter, just before the lunch rush",
-        "opening_message": "Bonjour ! Il n'y a plus de tradition pour l'instant. Vous voulez essayer le pain aux céréales ?",
+        "opening_message": "Bonjour ! Il n'y a plus de pain blanc. Vous voulez un autre pain ?",
         "brief": "The bakery is out of your usual bread. React naturally, choose an alternative, and ask one practical question.",
         "success_signal": "Samira knows what you want and whether to slice or set anything aside.",
         "twist": "Your usual baguette is gone, but the baker has one very opinionated recommendation.",
         "ambient_cues": ["warm bread smell", "a small queue behind you", "one quick decision"],
-        "quick_replies": ["D'accord, je vais prendre...", "Est-ce que vous avez aussi...", "Vous me conseillez lequel ?"],
+        "quick_replies": ["D'accord, je prends...", "Est-ce que vous avez aussi...", "Qu'est-ce que vous aimez ?"],
     },
     {
         "domain": "housing",
@@ -93,12 +93,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "polite_firm",
         "register": "vous / polite formal",
         "scene_anchor": "In your apartment, wearing a coat indoors",
-        "opening_message": "Bonjour, j'ai vu votre message. Le chauffage ne marche plus du tout ?",
+        "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
         "brief": "Your radiator has stopped working. Explain the problem and ask for a repair slot.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
         "twist": "He can only send someone in a very French window: between 8 h and noon.",
         "ambient_cues": ["cold apartment", "formal register matters", "one appointment window"],
-        "quick_replies": ["Bonjour Monsieur, le chauffage...", "Serait-il possible de...", "Je suis disponible..."],
+        "quick_replies": ["Bonjour Monsieur, le radiateur...", "Est-ce que quelqu'un peut venir...", "Je suis là le matin..."],
     },
     {
         "domain": "neighbours",
@@ -113,12 +113,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "soothing",
         "register": "polite formal",
         "scene_anchor": "At the mailboxes, after finding a stern handwritten note",
-        "opening_message": "Bonsoir, on a entendu beaucoup de bruit hier soir. Est-ce que cela va se reproduire ?",
+        "opening_message": "Bonsoir, il y a eu beaucoup de bruit hier soir. C'est fini maintenant ?",
         "brief": "A neighbour complains about noise. Smooth it over and make the next evening less tense.",
         "success_signal": "Your neighbour feels heard and knows what will change.",
         "twist": "She is grumpy, but she signs the note with a tiny smiley face.",
         "ambient_cues": ["thin walls", "shared stairwell", "keep the peace"],
-        "quick_replies": ["Bonsoir Madame, je suis désolé...", "Je ferai attention...", "Merci de me l'avoir dit..."],
+        "quick_replies": ["Bonsoir Madame, je suis désolé...", "Ce soir, je vais faire moins de bruit...", "Merci pour votre mot..."],
     },
     {
         "domain": "deliveries_admin",
@@ -133,12 +133,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "calm_specific",
         "register": "polite neutral",
         "scene_anchor": "On your phone, staring at a delivery photo that is not your door",
-        "opening_message": "Bonjour, le suivi indique que le colis a été livré. Pouvez-vous confirmer votre adresse ?",
+        "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "A parcel went to the wrong address. Explain what happened and ask for a fix.",
         "success_signal": "Support has the right address and a clear next step.",
         "twist": "The delivery photo shows a blue door; your building has a green one.",
         "ambient_cues": ["delivery screenshot", "wrong door colour", "one support ticket"],
-        "quick_replies": ["Bonjour, mon adresse est...", "La photo ne correspond pas...", "Pouvez-vous relancer..."],
+        "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
     },
     {
         "domain": "health",
@@ -153,7 +153,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "clear_courteous",
         "register": "polite formal",
         "scene_anchor": "Outside the metro, replaying a short voicemail",
-        "opening_message": "Bonjour, nous devons déplacer votre rendez-vous de jeudi. Est-ce que vendredi matin vous conviendrait ?",
+        "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
         "brief": "The dentist needs to move your appointment. Confirm or ask for a better time.",
         "success_signal": "The reception desk can book the right slot without calling again.",
         "twist": "They offer the one morning you usually have class.",
@@ -173,12 +173,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "urgent_polite",
         "register": "vous / polite formal",
         "scene_anchor": "At the station desk, while the departure board keeps changing",
-        "opening_message": "Votre train est supprimé. Vous voulez partir aujourd'hui ou demander un remboursement ?",
+        "opening_message": "Votre train ne part pas. Vous voulez partir aujourd'hui ou avoir votre argent ?",
         "brief": "Your train is cancelled. Ask for the next option and clarify the refund.",
         "success_signal": "The agent knows whether to reroute or refund you.",
         "twist": "The next direct train exists, but it leaves from a different station.",
         "ambient_cues": ["departure board flashing", "queue behind you", "refund question"],
-        "quick_replies": ["Je dois arriver aujourd'hui...", "Quel est le prochain train...", "Et pour le remboursement..."],
+        "quick_replies": ["Je dois arriver aujourd'hui...", "Le prochain train part à quelle heure ?", "Et pour mon argent..."],
     },
     {
         "domain": "social_plans",
@@ -193,12 +193,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "light_warm",
         "register": "tu / warm informal",
         "scene_anchor": "A sunny afternoon, phone buzzing on the kitchen table",
-        "opening_message": "On fait un pique-nique aux Buttes-Chaumont dans une heure. Tu viens ?",
+        "opening_message": "On mange dans le parc des Buttes-Chaumont dans une heure. Tu viens ?",
         "brief": "A friend invites you last-minute. Accept warmly and ask where to meet.",
         "success_signal": "Noémie knows you are coming and where to wait for you.",
         "twist": "Everyone is bringing something, and nobody remembered cups.",
         "ambient_cues": ["sunny park plan", "one hour notice", "bring something small"],
-        "quick_replies": ["Oui, avec plaisir !", "Je peux apporter...", "On se retrouve où ?"],
+        "quick_replies": ["Oui, avec plaisir !", "J'apporte...", "On se voit où ?"],
     },
     {
         "domain": "work",
@@ -213,12 +213,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "calm_practical",
         "register": "polite neutral",
         "scene_anchor": "On the tram, after a delay pushes your morning meeting",
-        "opening_message": "Tu es toujours là pour la réunion de 9 h ? On commence bientôt.",
+        "opening_message": "Tu es là pour la réunion de neuf heures ? On commence bientôt.",
         "brief": "Tell a colleague you will be 20 minutes late and give the practical reason.",
         "success_signal": "Nadia knows when you arrive and what to do meanwhile.",
         "twist": "The tram delay is real, but the meeting link also changed.",
         "ambient_cues": ["morning delay", "work tone", "one useful workaround"],
-        "quick_replies": ["Je suis désolé, j'aurai...", "Le tram est bloqué...", "Vous pouvez commencer par..."],
+        "quick_replies": ["Je suis désolé, j'arrive dans...", "Le bus est en retard...", "Vous pouvez commencer sans moi..."],
     },
     {
         "domain": "services",
@@ -233,12 +233,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "polite_firm",
         "register": "polite formal",
         "scene_anchor": "At home, tethering your laptop from a tired phone",
-        "opening_message": "Bonjour, je vois une panne dans votre secteur. Depuis quand exactement n'avez-vous plus internet ?",
+        "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
         "brief": "Your wifi has been down for three days. Chase the operator politely but firmly.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
         "twist": "They keep calling it a short interruption. It is day three.",
         "ambient_cues": ["phone hotspot", "third day", "polite but firm"],
-        "quick_replies": ["Bonjour, la connexion est coupée...", "Cela fait trois jours...", "Quel geste commercial..."],
+        "quick_replies": ["Bonjour, je n'ai pas internet depuis...", "Ça fait trois jours...", "Qu'est-ce que vous pouvez faire pour moi ?"],
     },
     {
         "domain": "shopping",
@@ -253,12 +253,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "polite_clear",
         "register": "polite formal",
         "scene_anchor": "At your desk, with the return label half printed",
-        "opening_message": "Bonjour, pouvez-vous nous indiquer la taille reçue et la taille souhaitée ?",
+        "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
         "brief": "The wrong size arrived. Arrange an exchange with enough detail.",
         "success_signal": "The shop can send the correct size or confirm the return.",
         "twist": "The last item in your size is being held until tonight.",
         "ambient_cues": ["order number nearby", "return label", "one size left"],
-        "quick_replies": ["Bonjour, j'ai reçu...", "Je souhaitais la taille...", "Pouvez-vous me confirmer..."],
+        "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
     },
     {
         "domain": "bureaucracy",
@@ -273,12 +273,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "formal_precise",
         "register": "vous / administrative formal",
         "scene_anchor": "At the kitchen table, one form still missing a detail",
-        "opening_message": "Bonjour, votre dossier est presque complet. Il manque une précision sur votre justificatif de domicile.",
+        "opening_message": "Bonjour, il nous faut encore une chose : où habitez-vous ?",
         "brief": "A city hall form needs one detail clarified. Ask exactly what they need.",
         "success_signal": "The clerk tells you which document or detail will complete the file.",
         "twist": "The document is valid, but the address line is formatted differently.",
         "ambient_cues": ["PDF form", "official wording", "one missing detail"],
-        "quick_replies": ["Bonjour Madame, Monsieur...", "Pourriez-vous préciser...", "Je peux vous envoyer..."],
+        "quick_replies": ["Bonjour Madame, Monsieur...", "Qu'est-ce qu'il faut ?", "J'habite..."],
     },
     {
         "domain": "everyday_warmth",
@@ -293,12 +293,12 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "tone": "kind_playful",
         "register": "tu / friendly neighbour",
         "scene_anchor": "In the stairwell, after a neighbour mentions your runaway cat",
-        "opening_message": "Ton chat a encore essayé d'entrer chez moi. Il est adorable, mais très déterminé.",
+        "opening_message": "Ton chat est encore venu chez moi. Il est très mignon, mais il veut toujours entrer !",
         "brief": "A neighbour leaves a kind note about your cat. Reply warmly and make a small plan.",
         "success_signal": "Luc smiles instead of feeling annoyed and knows what you will do.",
         "twist": "The cat apparently has a preferred chair in Luc's flat.",
         "ambient_cues": ["stairwell note", "friendly tease", "small apology"],
-        "quick_replies": ["Oh non, désolé !", "Je vais faire attention...", "Merci de me l'avoir dit..."],
+        "quick_replies": ["Oh non, désolé !", "Je vais fermer ma porte...", "Merci pour ton mot..."],
     },
 )
 
@@ -328,75 +328,75 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
 # twelve domains, the mission-type fallbacks, the serial default — is covered.
 AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     "Samira knows what you want and whether to slice or set anything aside.": {
-        "fr": "Samira sait ce que vous voulez et s'il faut trancher le pain ou le mettre de côté.",
+        "fr": "Samira sait quel pain vous voulez.",
         "de": "Samira weiß, was Sie möchten und ob sie etwas schneiden oder zurücklegen soll.",
     },
     "The landlord understands the issue and proposes a concrete time.": {
-        "fr": "Le propriétaire comprend le problème et propose un moment précis.",
+        "fr": "Monsieur Marchand comprend le problème et donne un jour et une heure.",
         "de": "Der Vermieter versteht das Problem und schlägt einen konkreten Termin vor.",
     },
     "Your neighbour feels heard and knows what will change.": {
-        "fr": "Votre voisin se sent écouté et sait ce qui va changer.",
+        "fr": "Madame Vidal est contente et sait ce que vous allez faire.",
         "de": "Ihr Nachbar fühlt sich gehört und weiß, was sich ändern wird.",
     },
     "Support has the right address and a clear next step.": {
-        "fr": "Le service client a la bonne adresse et une prochaine étape claire.",
+        "fr": "Ils savent où vous habitez et ce qu'ils vont faire.",
         "de": "Der Kundendienst hat die richtige Adresse und einen klaren nächsten Schritt.",
     },
     "The reception desk can book the right slot without calling again.": {
-        "fr": "L'accueil peut réserver le bon créneau sans rappeler.",
+        "fr": "Le cabinet a le bon jour et la bonne heure pour vous.",
         "de": "Die Rezeption kann den richtigen Termin buchen, ohne noch einmal anzurufen.",
     },
     "The agent knows whether to reroute or refund you.": {
-        "fr": "L'agent sait s'il doit changer votre trajet ou vous rembourser.",
+        "fr": "L'agent sait si vous voulez un autre train ou votre argent.",
         "de": "Der Mitarbeiter weiß, ob er Sie umbuchen oder Ihnen das Geld erstatten soll.",
     },
     "Noémie knows you are coming and where to wait for you.": {
-        "fr": "Noémie sait que vous venez et où vous attendre.",
+        "fr": "Noémie sait que vous venez et où vous trouver.",
         "de": "Noémie weiß, dass Sie kommen und wo sie auf Sie warten soll.",
     },
     "Nadia knows when you arrive and what to do meanwhile.": {
-        "fr": "Nadia sait quand vous arrivez et quoi faire en attendant.",
+        "fr": "Nadia sait quand vous arrivez.",
         "de": "Nadia weiß, wann Sie ankommen und was sie bis dahin tun soll.",
     },
     "Support logs the duration and gives a repair or compensation step.": {
-        "fr": "Le service client note la durée et propose une réparation ou un geste commercial.",
+        "fr": "Ils savent depuis quand vous n'avez pas internet et quand ça va marcher.",
         "de": "Der Kundendienst notiert die Dauer und bietet eine Reparatur oder Entschädigung an.",
     },
     "The shop can send the correct size or confirm the return.": {
-        "fr": "La boutique peut envoyer la bonne taille ou confirmer le retour.",
+        "fr": "La boutique sait quelle taille vous voulez.",
         "de": "Der Laden kann die richtige Größe schicken oder die Rücksendung bestätigen.",
     },
     "The clerk tells you which document or detail will complete the file.": {
-        "fr": "L'agent vous dit quel document ou quelle précision complétera le dossier.",
+        "fr": "La mairie vous dit ce qu'il faut.",
         "de": "Die Sachbearbeitung sagt Ihnen, welches Dokument oder welche Angabe die Akte vervollständigt.",
     },
     "Luc smiles instead of feeling annoyed and knows what you will do.": {
-        "fr": "Luc sourit au lieu d'être agacé et sait ce que vous allez faire.",
+        "fr": "Luc sourit et sait ce que vous allez faire.",
         "de": "Luc lächelt, statt sich zu ärgern, und weiß, was Sie tun werden.",
     },
     "They know what to do next.": {
-        "fr": "Votre correspondant sait quoi faire ensuite.",
+        "fr": "L'autre personne sait ce qu'il faut faire après.",
         "de": "Ihr Gegenüber weiß, was als Nächstes zu tun ist.",
     },
     "Nadia can repeat your plan without asking three follow-up questions.": {
-        "fr": "Nadia peut répéter votre plan sans poser trois questions de plus.",
+        "fr": "Nadia comprend votre plan et n'a pas de questions.",
         "de": "Nadia kann Ihren Plan wiederholen, ohne drei Rückfragen zu stellen.",
     },
     "Mina understands what happened, why it matters, and what changes next.": {
-        "fr": "Mina comprend ce qui s'est passé, pourquoi c'est important et ce qui change ensuite.",
+        "fr": "Mina comprend ce qui se passe et pourquoi c'est important.",
         "de": "Mina versteht, was passiert ist, warum es wichtig ist und was sich als Nächstes ändert.",
     },
     "The agent knows the problem, the request, and the exact next step.": {
-        "fr": "L'agent connaît le problème, la demande et la prochaine étape exacte.",
+        "fr": "L'agent comprend le problème et sait ce qu'il faut faire.",
         "de": "Der Mitarbeiter kennt das Problem, die Bitte und den genauen nächsten Schritt.",
     },
     "The conversation can continue without sounding scripted.": {
-        "fr": "La conversation peut continuer sans sonner récitée.",
+        "fr": "Vous pouvez parler encore, comme dans la vie.",
         "de": "Das Gespräch kann weitergehen, ohne auswendig gelernt zu klingen.",
     },
     "The next person in the story knows exactly what to do.": {
-        "fr": "Le personnage suivant sait exactement quoi faire.",
+        "fr": "La prochaine personne de l'histoire sait quoi faire.",
         "de": "Die nächste Person in der Geschichte weiß genau, was zu tun ist.",
     },
 }
@@ -673,6 +673,73 @@ def _safe_llm() -> LLMService | None:
         return LLMService()
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------------------
+# WP-84 — a letter at the learner's level
+# ---------------------------------------------------------------------------
+
+#: Every French field of a generated letter the Courrier prints.
+LETTER_FRENCH_FIELDS: tuple[str, ...] = (
+    "title",
+    "brief",
+    "scene_anchor",
+    "thread_title",
+    "contact_role",
+    "opening_message",
+    "ambient_cues",
+    "quick_replies",
+    "success_signal",
+    "inbox_context",
+    "twist",
+)
+#: One rewrite with the guard's hint, then the authored letter (A1-safe).
+LETTER_LEVEL_ATTEMPTS = 2
+
+
+def letter_french_text(fields: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key in LETTER_FRENCH_FIELDS:
+        value = fields.get(key)
+        if isinstance(value, str) and value.strip():
+            parts.append(value.strip())
+        elif isinstance(value, list | tuple):
+            parts.extend(str(item).strip() for item in value if str(item or "").strip())
+    return " ".join(parts)
+
+
+def letter_level_verdict(
+    known: Any,
+    fields: dict[str, Any],
+    *,
+    targets: Any = (),
+    names: Any = (),
+) -> Any:
+    """The WP-84 lexical-level check of one letter against the learner's band."""
+
+    from app.services.lexical_coverage import (
+        LearnerLexicon,
+        SceneText,
+        _target_keys,
+        check_copy_level,
+    )
+
+    proper = [fields.get("contact_name"), *list(names or ())]
+    scene = SceneText(text=letter_french_text(fields), proper_nouns=_target_keys([p for p in proper if p]))
+    return check_copy_level(scene, LearnerLexicon(known=known, targets=_target_keys(targets)))
+
+
+def _objective_language_gap(data: dict[str, Any], user: User) -> str | None:
+    """WP-68 §8: a generated letter's objective must exist in the learner's
+    own language (en/de); the French one alone is not enough up to A2."""
+
+    language = str(getattr(user, "native_language", None) or "en").strip().lower()[:2]
+    if language not in {"en", "de"}:
+        return None
+    value = data.get(f"success_signal_{language}")
+    if isinstance(value, str) and value.strip():
+        return None
+    return f"success_signal_{language}"
 
 
 def _clean_feedback(text: Any) -> str:
@@ -1933,6 +2000,18 @@ class MissionGenerator:
         )
         return {row.concept_id: row.title for row in rows if row.title}
 
+    def _letter_known_words(self, user: User) -> Any:
+        """What this learner can read (WP-29's known set), or None when unreadable."""
+
+        try:
+            from app.services.lexical_coverage import known_word_set
+
+            with self.db.begin_nested():
+                return known_word_set(self.db, user=user)
+        except Exception:  # noqa: BLE001 - a level check is never worth the letter
+            logger.exception("Courrier: known-word set unavailable")
+            return None
+
     def _llm_scenario(
         self,
         *,
@@ -1972,7 +2051,8 @@ class MissionGenerator:
             "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
             "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
             "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
-            "forward rather than starting a new situation. Return JSON only."
+            "forward rather than starting a new situation. If rewrite_because is present, your previous "
+            "letter was too hard or incomplete: rewrite it fixing exactly that. Return JSON only."
         )
         user_payload = {
             "cefr_level": cefr,
@@ -2019,22 +2099,48 @@ class MissionGenerator:
                 "mission_format": "chat_message, voicemail_reply, email_formal, admin_form, or phone_call",
             },
         }
-        try:
-            result = llm.generate_chat_completion(
-                [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
-                system_prompt=system_prompt,
-                response_format=MISSION_SCENARIO_RESPONSE_FORMAT,
-                max_tokens=2000,
-                model=settings.ATELIER_EXERCISE_LLM_MODEL,
-                reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
-                disable_retries=True,
+        # WP-84: the letter is checked against the learner's band (the lexical
+        # coverage guard's copy rule) and must carry its objective in the
+        # learner's language. One rewrite with the guard's hint; then the
+        # authored letter, which is written at A1.
+        known = self._letter_known_words(user)
+        data: dict[str, Any] | None = None
+        for attempt in range(LETTER_LEVEL_ATTEMPTS):
+            try:
+                result = llm.generate_chat_completion(
+                    [{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
+                    system_prompt=system_prompt,
+                    response_format=MISSION_SCENARIO_RESPONSE_FORMAT,
+                    max_tokens=2000,
+                    model=settings.ATELIER_EXERCISE_LLM_MODEL,
+                    reasoning_effort=settings.ATELIER_EXERCISE_LLM_REASONING_EFFORT,
+                    disable_retries=True,
+                )
+                _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="scenario")
+                candidate = json.loads(result.content)
+            except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+                logger.info("Mission scenario generation unavailable", error=str(exc))
+                return None
+            if not isinstance(candidate, dict) or not candidate.get("opening_message"):
+                return None
+            problems: list[str] = []
+            if known is not None:
+                verdict = letter_level_verdict(known, candidate, targets=vocab)
+                if verdict.rejected:
+                    problems.append(str(verdict.hint or verdict.reason))
+            gap = _objective_language_gap(candidate, user)
+            if gap:
+                problems.append(f"Return {gap}: the objective in the learner's own language.")
+            if not problems:
+                data = candidate
+                break
+            logger.info(
+                "Courrier letter rejected at the learner's level",
+                attempt=attempt + 1,
+                problems=problems,
             )
-            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="scenario")
-            data = json.loads(result.content)
-        except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
-            logger.info("Mission scenario generation unavailable", error=str(exc))
-            return None
-        if not isinstance(data, dict) or not data.get("opening_message"):
+            user_payload = {**user_payload, "rewrite_because": " ".join(problems)}
+        if data is None:
             return None
         messenger_keys = (
             "contact_name", "contact_role", "contact_initials", "scene_anchor",
@@ -2156,7 +2262,7 @@ class MissionGenerator:
             "scene_anchor": variety.get("scene_anchor") or "A real-world moment in France",
             "dispatch_note": variety.get("brief") or "Send a believable French reply that would make sense in real life.",
             "inbox_context": variety.get("twist") or "The other person needs useful information, not a classroom answer.",
-            "opening_message": variety.get("opening_message") or "Bonjour, expliquez-moi ce dont vous avez besoin.",
+            "opening_message": variety.get("opening_message") or "Bonjour, dites-moi ce que vous voulez.",
             "ambient_cues": list(variety.get("ambient_cues") or ["one practical constraint", "a real person waiting", "short message rhythm"]),
             "quick_replies": list(variety.get("quick_replies") or ["Bonjour, je voudrais...", "Est-ce que vous pouvez...", "Merci beaucoup..."]),
             "success_signal": variety.get("success_signal") or "They know what to do next.",
@@ -2181,12 +2287,12 @@ class MissionGenerator:
                 "scene_anchor": "A work chat before a schedule change",
                 "dispatch_note": "Explain the plan as a calm, practical update.",
                 "inbox_context": "Nadia needs sequence, backup, and a condition that could change the plan.",
-                "opening_message": "Tu peux me dire comment tu vas organiser demain ? J'ai besoin d'un plan clair.",
+                "opening_message": "Tu peux me dire ce que tu fais demain ? Je veux savoir.",
                 "ambient_cues": ["calendar moved", "one colleague is unavailable", "decision needed before noon"],
                 "quick_replies": [
                     "D'abord, je vais...",
-                    "Si cela change...",
-                    "Comme solution de secours...",
+                    "Si ça ne marche pas...",
+                    "Après, je...",
                 ],
                 "success_signal": "Nadia can repeat your plan without asking three follow-up questions.",
             },
@@ -2203,13 +2309,13 @@ class MissionGenerator:
                 "opening_message": (
                     f"J'ai vu ce titre : « {first_source} ». Tu peux me résumer l'idée principale ?"
                     if first_source
-                    else "J'ai vu une info française ce matin. Tu peux me résumer ce qui se passe ?"
+                    else "J'ai vu une nouvelle ce matin. Tu peux me dire ce qui se passe ?"
                 ),
                 "ambient_cues": ["one source card", "no copying", "one practical consequence"],
                 "quick_replies": [
-                    "En bref, il s'agit de...",
-                    "Ce qui compte, c'est que...",
-                    "Concrètement, cela peut...",
+                    "C'est une histoire de...",
+                    "Pour nous, ça veut dire...",
+                    "Je pense que...",
                 ],
                 "success_signal": "Mina understands what happened, why it matters, and what changes next.",
             },
@@ -2223,12 +2329,12 @@ class MissionGenerator:
                 "scene_anchor": "A service desk with a line forming behind you",
                 "dispatch_note": "Explain the problem politely and secure the next step.",
                 "inbox_context": "The agent can help only if your request is specific.",
-                "opening_message": "Bonjour, expliquez-moi le problème et je vais regarder ce que je peux faire.",
+                "opening_message": "Bonjour, dites-moi le problème et je regarde ce que je peux faire.",
                 "ambient_cues": ["queue behind you", "ticket or reservation ready", "polite register matters"],
                 "quick_replies": [
                     "Bonjour, j'ai un problème avec...",
-                    "Est-ce qu'il serait possible de...",
-                    "Je voudrais confirmer que...",
+                    "Est-ce que c'est possible de...",
+                    "Je voudrais savoir si...",
                 ],
                 "success_signal": "The agent knows the problem, the request, and the exact next step.",
             },
@@ -2242,12 +2348,12 @@ class MissionGenerator:
                 "scene_anchor": "A spontaneous chat with one time constraint",
                 "dispatch_note": "Keep the exchange alive with details, questions, and reactions.",
                 "inbox_context": "Noémie will respond naturally if you give her something real to work with.",
-                "opening_message": "On joue une scène réaliste : tu arrives avec une petite contrainte de temps. Qu'est-ce que tu me dis ?",
+                "opening_message": "On parle un peu : tu arrives et tu n'as pas beaucoup de temps. Tu me dis quoi ?",
                 "ambient_cues": ["time pressure", "one human reaction", "a natural follow-up question"],
                 "quick_replies": [
-                    "J'ai seulement quelques minutes...",
+                    "Je n'ai pas beaucoup de temps...",
                     "Je préfère...",
-                    "Qu'est-ce que vous me conseillez ?",
+                    "Qu'est-ce que vous aimez ici ?",
                 ],
                 "success_signal": "The conversation can continue without sounding scripted.",
             },
@@ -5192,7 +5298,7 @@ _ARTEFACT_TASK_INSTRUCTIONS_FR: dict[str, str] = {
 }
 
 _ARTEFACT_SUCCESS_FALLBACK: dict[str, str] = {
-    "fr": "Votre correspondant sait quoi faire ensuite.",
+    "fr": "L'autre personne sait ce qu'il faut faire après.",
     "en": "Your correspondent knows what to do next.",
     "de": "Dein Gegenüber weiß, was als Nächstes zu tun ist.",
 }

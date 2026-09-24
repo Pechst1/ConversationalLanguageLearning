@@ -15,6 +15,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.schemas.anki import AnkiCardUpdate
 from app.services.glosses import gloss_payload
+from app.services.lexicon_grammar import word_grammar
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 from app.utils.cache import cache_backend
 
@@ -424,8 +425,8 @@ class ProgressService:
             "priority_score": round(priority_score, 3),
             "is_new": progress is None,
             "deck_name": word.deck_name,
-            "part_of_speech": word.part_of_speech,
-            "gender": word.gender,
+            # WP-84: the lexicon fills what the card lacks (le / la on every noun).
+            **dict(zip(("part_of_speech", "gender"), word_grammar(word), strict=True)),
             "topic_tags": word.topic_tags or [],
             **gloss_payload(word, native_language),
             "example_sentence": word.example_sentence,

@@ -171,6 +171,11 @@ export type HomeScreenProps = {
    */
   level?: { band: string; percent: number } | null;
   /**
+   * WP-L6 §2.2: the auto-throttle is on (the server's `intake.consolidating`):
+   * one quiet label, «Cette semaine, on consolide.», under the level.
+   */
+  consolidating?: boolean;
+  /**
    * WP-79: today's practice is done (the server's `streak.today_done`). The
    * streak carries the ink «done» square, and the Séance tile — extra practice
    * once the journey owns the day — stops reading like unfinished work.
@@ -236,6 +241,7 @@ export function HomeScreen({
   editionLabel,
   streak,
   level = null,
+  consolidating = false,
   dayDone = false,
   settingsHref = '/settings',
   streakHref = '/notebook?mode=releve#sceaux',
@@ -289,6 +295,12 @@ export function HomeScreen({
             </p>
           )}
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
+          {/* WP-L6 §2.2: new intake halves while the reviews catch up. */}
+          {oneThing && consolidating && (
+            <p className="av2-home__kicker av2-home__consolidating" data-consolidating="">
+              {copy.home_consolidating}
+            </p>
+          )}
         </div>
         {streak > 0 ? (
           // WP-79: at 0 the slot stays the gear (the July rule — a zero is

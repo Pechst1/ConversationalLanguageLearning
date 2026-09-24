@@ -196,6 +196,14 @@ export interface AtelierToday {
     session_date: string;
     paru: boolean;
   } | null;
+  /** WP-L6 §2.2: the auto-throttle — «Cette semaine, on consolide.» */
+  intake?: {
+    consolidating: boolean;
+    factor: number;
+    reasons?: string[];
+    backlog_days?: number;
+    accuracy?: number | null;
+  } | null;
 }
 
 export interface AtelierDayProgress {

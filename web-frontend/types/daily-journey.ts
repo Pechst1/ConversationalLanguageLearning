@@ -329,6 +329,21 @@ export type JourneyRecap = {
   /** The CEFR estimate when the recap was written. */
   level?: string | null;
   level_up?: RecapLevelUp | null;
+  /** WP-L6 §2.2: the auto-throttle is on — «Cette semaine, on consolide.» */
+  consolidating?: boolean;
+  /** WP-L8: once a week at the Seal, from a measured forecast only. */
+  forecast_line?: RecapForecastLine | null;
+};
+
+/** WP-L8 — «At this rhythm: A1.2 around <month>»; the client writes the words. */
+export type RecapForecastLine = {
+  target: string;
+  band?: string | null;
+  /** `YYYY-MM`. */
+  month: string;
+  range_days?: number[];
+  rhythm?: string | null;
+  measured: boolean;
 };
 
 /** WP-79: one word the day practised. */

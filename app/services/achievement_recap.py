@@ -19,7 +19,11 @@ count:
 * ``level`` / ``level_up`` — the CEFR estimate, and a move up since the
   previous recap. The move is detected by comparing with the previous recap's
   stored ``level``, so it is shown exactly once, and a learner whose recaps
-  predate WP-79 is never told they "moved" on no evidence.
+  predate WP-79 is never told they "moved" on no evidence;
+* ``consolidating`` — WP-L6's auto-throttle is on («Cette semaine, on
+  consolide.»);
+* ``forecast_line`` — WP-L8, once a week at the Seal: «At this rhythm: A1.2
+  around <month>», only from a *measured* forecast (never the prior).
 
 Everything here is defensive: a failure logs and yields nothing, because a
 reward line is never worth the day (the L5 lesson).
@@ -28,7 +32,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from loguru import logger
@@ -405,6 +409,77 @@ def recap_level(db: Session, user: User, journey: DailyJourney) -> tuple[str | N
 
 
 # ---------------------------------------------------------------------------
+# WP-L6 / WP-L8 — consolidation and the weekly forecast line
+# ---------------------------------------------------------------------------
+
+#: The Seal's forecast line comes back at most once in this many days.
+FORECAST_LINE_EVERY_DAYS = 7
+
+
+def recap_consolidating(db: Session, user: User) -> bool:
+    from app.services.intake_throttle import intake_notice
+
+    notice = intake_notice(db, user)
+    return bool(notice and notice.get("consolidating"))
+
+
+def _forecast_shown_recently(db: Session, user: User, journey: DailyJourney, local_day: date) -> bool:
+    since = local_day - timedelta(days=FORECAST_LINE_EVERY_DAYS - 1)
+    rows = db.scalars(
+        select(DailyJourney).where(
+            DailyJourney.user_id == user.id,
+            DailyJourney.id != journey.id,
+            DailyJourney.local_date >= since,
+            DailyJourney.local_date <= local_day,
+            DailyJourney.recap_snapshot.isnot(None),
+        )
+    ).all()
+    return any((row.recap_snapshot or {}).get("forecast_line") for row in rows)
+
+
+def forecast_line(forecast: Any, *, now: datetime) -> dict[str, Any] | None:
+    """The line's data from a stored WP-L8 forecast — measured only.
+
+    ``month`` is the month of the forecast's central day (``base_days`` from
+    now), ``YYYY-MM``; the client writes it in the chrome language. A prior
+    (before seven active days), a capped or an unreadable forecast → None.
+    """
+
+    if not isinstance(forecast, dict) or forecast.get("status") != "available":
+        return None
+    if forecast.get("capped"):
+        return None
+    target = str(forecast.get("target") or "").strip()
+    try:
+        base = int(forecast.get("base_days"))
+    except (TypeError, ValueError):
+        return None
+    if not target or base <= 0:
+        return None
+    day = (now + timedelta(days=base)).date()
+    return {
+        "target": target,
+        "band": forecast.get("band"),
+        "month": f"{day.year:04d}-{day.month:02d}",
+        "range_days": list(forecast.get("range_days") or []),
+        "rhythm": forecast.get("rhythm"),
+        "measured": True,
+    }
+
+
+def recap_forecast_line(db: Session, user: User, journey: DailyJourney) -> dict[str, Any] | None:
+    payload = user.cefr_estimate_payload if isinstance(user.cefr_estimate_payload, dict) else {}
+    local_day = getattr(journey, "local_date", None) or datetime.now(UTC).date()
+    anchor = datetime(local_day.year, local_day.month, local_day.day, 12, tzinfo=UTC)
+    line = forecast_line(payload.get("forecast"), now=anchor)
+    if line is None:
+        return None
+    if _forecast_shown_recently(db, user, journey, local_day):
+        return None
+    return line
+
+
+# ---------------------------------------------------------------------------
 # The one entry point
 # ---------------------------------------------------------------------------
 
@@ -445,11 +520,21 @@ def recap_extras(
     level, level_up = recap_level(db, user, journey)
     extras["level"] = level
     extras["level_up"] = level_up
+    for key, build in (
+        ("consolidating", lambda: recap_consolidating(db, user)),
+        ("forecast_line", lambda: recap_forecast_line(db, user, journey)),
+    ):
+        try:
+            extras[key] = build()
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("wp-l6/l8: recap %s failed", key)
     return extras
 
 
 __all__ = [
+    "FORECAST_LINE_EVERY_DAYS",
     "FORWARD_MARKERS",
+    "forecast_line",
     "forward_line",
     "kept_today",
     "recap_extras",

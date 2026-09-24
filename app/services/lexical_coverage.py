@@ -826,6 +826,80 @@ def check_scene_coverage(scene: SceneText, learner: LearnerLexicon) -> CoverageV
     return CoverageVerdict(status="accepted", result=result)
 
 
+#: WP-84 — the copy around the story (a Courrier letter, a season's thread
+#: copy, an objective) is *supported* text: every line has a gloss and a
+#: translate glyph, it is short, and its situation words are the point of the
+#: letter. So its floor is lower than a scene's, but what it may never carry is
+#: vocabulary far above the learner.
+COPY_COVERAGE_FLOOR = 0.90
+REJECT_ABOVE_BAND = "above_band_words"
+
+
+def far_above_band_words(result: CoverageResult) -> tuple[UnknownWord, ...]:
+    """Accidental unknowns two or more bands above the learner (B1+ for an A1
+    reader: «geste», «commercial»). Up to A2, a word the core lexicon does not
+    list at all counts as far too: the lexicon runs through B1, so what it
+    lacks is rarer still."""
+
+    ceiling = band_index(result.band)
+    return tuple(
+        word
+        for word in result.accidental
+        if (word.band is not None and band_index(word.band) >= ceiling + 2)
+        or (word.band is None and ceiling <= band_index("A2"))
+    )
+
+
+def check_copy_level(scene: SceneText, learner: LearnerLexicon) -> CoverageVerdict:
+    """WP-84 — ``(copy, learner) → verdict + hint`` for the copy around the story.
+
+    * at most :func:`accidental_budget` (A1: one) words far above the band
+      (:func:`far_above_band_words`), whatever the length — so «geste
+      commercial» in an A1.1 letter is rejected even in a ten-word line;
+    * at least :data:`COPY_COVERAGE_FLOOR` known-word coverage once the copy is
+      long enough to measure (:data:`MIN_ASSESSED_TOKENS`).
+
+    Targets (today's words) and names are exempt, as in the scene guard.
+    """
+
+    if not learner.known.is_assessable:
+        return CoverageVerdict(status="not_assessed", reason="known_set_unavailable")
+    result = text_coverage(
+        scene.text,
+        learner.known,
+        targets=learner.targets,
+        proper_nouns=scene.proper_nouns,
+        resolver=learner.resolver,
+    )
+    band = result.band
+    far = far_above_band_words(result)
+    budget = accidental_budget(band)
+    if len(far) > budget:
+        return CoverageVerdict(
+            status="rejected",
+            reason=REJECT_ABOVE_BAND,
+            hint=(
+                f"Too hard for {_article(band)} {band} learner: {_quote(far)}. Say the same thing with "
+                "the everyday words of their level — short sentences, common verbs."
+                + _keep_clause(result)
+            ),
+            result=result,
+        )
+    if result.is_assessable and result.coverage < COPY_COVERAGE_FLOOR:
+        return CoverageVerdict(
+            status="rejected",
+            reason=REJECT_LOW_COVERAGE,
+            hint=(
+                f"This runs at {result.coverage * 100:.0f} % known words for {_article(band)} {band} learner "
+                f"({COPY_COVERAGE_FLOOR * 100:.0f} % is the floor). Replace "
+                f"{_quote(result.accidental) or 'the rarest words'} with everyday words."
+                + _keep_clause(result)
+            ),
+            result=result,
+        )
+    return CoverageVerdict(status="accepted", result=result)
+
+
 # ---------------------------------------------------------------------------
 # Scene text extraction (duck-typed: this module never imports living_story)
 # ---------------------------------------------------------------------------
