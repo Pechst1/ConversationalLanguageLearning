@@ -285,13 +285,14 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
             const tone = conceptTone(state, due);
             const title = concept.title_fr || concept.display_title || concept.name;
             const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
-            const stateLabel = lowerFirst(concept.state_label || '');
+            // The status word is chrome: the learner's language, never the server's French.
+            const stateLabel = t.grammar[`status_${state}` as const] || lowerFirst(concept.state_label || '');
             const meta = [
               concept.level,
               cat,
               stateLabel || null,
               due ? t.grammar.meta_due : null,
-              !due && errata > 0 ? fill(t.grammar.meta_errata, { n: errata }) : null,
+              !due && errata > 0 ? fill(errata === 1 ? t.grammar.meta_errata_one : t.grammar.meta_errata, { n: errata }) : null,
             ].filter(Boolean).join(' · ');
             return (
               <div key={concept.id} role="listitem">
@@ -478,7 +479,7 @@ function GrammarFiche({
           <ProgressRule value={mastery} max={10} label={t.grammar.mastery} caption={`${mastery} / 10`} />
           <span className="av2-byline">
             <ShapeToken kind={tokenKind} size="sm" />
-            <span className="av2-label">{concept.state_label}</span>
+            <span className="av2-label">{t.grammar[`status_${state}` as const] || concept.state_label}</span>
           </span>
           {nextReview && <span className="av2-label">{fill(t.grammar.next_review, { date: nextReview })}</span>}
         </div>
