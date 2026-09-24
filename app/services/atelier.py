@@ -100,6 +100,34 @@ ATELIER_EVIDENCE_HOLD_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 
 def _verdict_passes(verdict: Any) -> bool:
     return str(verdict or "") in {"correct", "accepted"}
+
+
+def _test_out_local_grade(local_check: dict[str, Any], text: str) -> dict[str, Any] | None:
+    """A test-out's free production, graded by the local check alone (WP-S3 × WP-S1).
+
+    The rule's detector decides: a sentence that uses the rule is right, one
+    that does not is wrong. Without a detector reading (no rule to read it
+    against), only a near-copy of the model answer is taken as right; anything
+    else stays unchecked, which a test-out scores as a miss.
+    """
+
+    if not str(text or "").strip():
+        return None
+    detector = local_check.get("detector")
+    similarity = local_check.get("model_similarity")
+    if detector == "hit" or (detector == "unknown" and isinstance(similarity, (int, float)) and similarity >= 0.8):
+        verdict, score = "correct", 4.0
+    elif detector == "miss":
+        verdict, score = "incorrect", 1.0
+    else:
+        return None
+    return {
+        "verdict": verdict,
+        "score_0_4": score,
+        "assessment_status": "checked",
+        "checked": True,
+        "graded_by": "local_test_out",
+    }
 ATELIER_QUALITY_MIN_REPORTS = 3
 ATELIER_QUALITY_MIN_ATTEMPTS = 8
 ATELIER_QUALITY_MAX_WRONG_RATE = 0.65
@@ -1227,6 +1255,14 @@ def inject_vocabulary_context(
         next_payload.setdefault("production_goal", "use_target_vocabulary_in_context")
     next_payload.setdefault("context_anchor", anchor)
     return next_payload
+
+
+def forge_appended_item_ids(payload: Any) -> set[str]:
+    """Ids of the items La Forge's bank top-up appended to a session's set."""
+
+    forge = (payload or {}).get("forge") if isinstance(payload, dict) else None
+    appended = (forge or {}).get("appended") if isinstance(forge, dict) else None
+    return {str(entry.get("id")) for entry in appended or [] if isinstance(entry, dict) and entry.get("id")}
 
 
 def _session_exercise_set_ids(session: AtelierSession) -> dict[str, str]:
@@ -2692,12 +2728,19 @@ class AtelierExerciseGenerator:
         def item_id(item: Any) -> str:
             return str((item or {}).get("id") or "?")
 
+        # WP-S2 x WP-S3: items La Forge appended to this session's set (a
+        # bank top-up, each gated on its own) do not change the set's shape.
+        appended = forge_appended_item_ids(payload)
+
+        def base_count(items: list[Any]) -> int:
+            return sum(1 for item in items if item_id(item) not in appended)
+
         recognize = payload.get("recognize") or {}
         if set(recognize.keys()) != set(ATELIER_RECOGNIZE_MODES):
             errors.append("recognize must include fill, word_bank, and classify")
             return errors
         if any(
-            len((recognize[mode] or {}).get("items") or []) not in {1, ATELIER_ITEMS_PER_RECOGNIZE_MODE}
+            base_count((recognize[mode] or {}).get("items") or []) not in {1, ATELIER_ITEMS_PER_RECOGNIZE_MODE}
             for mode in recognize
         ):
             errors.append(f"each recognize mode must have 1 or {ATELIER_ITEMS_PER_RECOGNIZE_MODE} items")
@@ -2746,7 +2789,7 @@ class AtelierExerciseGenerator:
                 errors.append(f"classify item {item_id(item)} correct_label is not one of labels")
             errors.extend(AtelierExerciseGenerator._classify_quality_errors(item))
         transform = ((payload.get("transform") or {}).get("items") or [])
-        if len(transform) not in {1, ATELIER_TRANSFORM_ITEMS}:
+        if base_count(transform) not in {1, ATELIER_TRANSFORM_ITEMS}:
             errors.append(f"transform must have 1 or {ATELIER_TRANSFORM_ITEMS} items")
         for item in transform:
             if not (
@@ -2771,7 +2814,7 @@ class AtelierExerciseGenerator:
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
-            if len(items) != 1:
+            if base_count(items) != 1:
                 errors.append(f"output_ladder.{key}.items must contain exactly 1 item")
                 continue
             for item in items:
@@ -4850,7 +4893,8 @@ class AtelierCorrectionService:
                 self.db.add(attempt)
             self._attach_world_reply(attempt, user=user)
             self._record_second_check_event(attempt, llm_ms=llm_ms, verdict_changed=verdict_changed, status="complete")
-            self._apply_deferred_evidence(attempt, user=user, session=session)
+            if not self._amend_forge_evidence(attempt, user=user, session=session):
+                self._apply_deferred_evidence(attempt, user=user, session=session)
             self.db.commit()
             self.db.refresh(attempt)
             return attempt
@@ -4867,7 +4911,34 @@ class AtelierCorrectionService:
         "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
         "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "latency",
         "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
+        "forge",
     )
+
+    def _amend_forge_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
+        """A forge séance's answer whose verdict just landed (WP-S1 → WP-S3).
+
+        The forge wrote item-level evidence for every checked answer as it was
+        given; a provisional one was recorded as unchecked. Its verdict now
+        counts through :meth:`ForgeService.amend_attempt` — once: the forge's
+        ledger marks the entry amended, and ``evidence_applied`` keeps the
+        legacy end-of-séance path (:meth:`_apply_deferred_evidence`) off it.
+        Returns whether the attempt belongs to a forge séance.
+        """
+
+        from app.services.forge import ForgeService, is_forge_session
+
+        if session is None or not is_forge_session(session):
+            return False
+        correction = dict(attempt.correction_payload or {})
+        if correction.get("evidence_applied"):
+            return True
+        outcome = ForgeService(self.db).amend_attempt(user=user, session=session, attempt=attempt, commit=False)
+        if outcome.get("amended"):
+            correction["evidence_applied"] = {"mode": "forge", "at": self._now_iso()}
+            attempt.correction_payload = correction
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+        return True
 
     def _merge_relecture(self, round_name: str, local: dict[str, Any], ai: dict[str, Any]) -> dict[str, Any]:
         """The stored correction once the model's reading lands (see run_ai_review_for_attempt)."""
@@ -5027,8 +5098,10 @@ class AtelierCorrectionService:
         user = self.db.get(User, attempt.user_id)
         session = self.db.get(AtelierSession, attempt.atelier_session_id)
         if user is not None:
-            # A keyed rung keeps the key's verdict: its deferred evidence lands now.
-            self._apply_deferred_evidence(attempt, user=user, session=session)
+            # A keyed rung keeps the key's verdict: its deferred evidence lands
+            # now (a forge séance counted it at submit; an unread answer never).
+            if not self._amend_forge_evidence(attempt, user=user, session=session):
+                self._apply_deferred_evidence(attempt, user=user, session=session)
         self.db.commit()
         self.db.refresh(attempt)
         return attempt
@@ -5074,7 +5147,21 @@ class AtelierCorrectionService:
                 if local_concept is None and session is not None:
                     local_concept = next(iter(self._session_concepts(session)), None)
                 local_check = production_local_check(local_concept, text, model_answer)
-            if local_check is not None and text.strip() and self._can_schedule_ai_review():
+            test_out_grade = (
+                _test_out_local_grade(local_check, text)
+                if local_check is not None and session is not None and session.status == "test_out"
+                else None
+            )
+            if test_out_grade is not None:
+                # WP-S3 × WP-S1: «Épreuve de la règle» is decided on the spot by
+                # the local check (the rule's detector, closeness to the model
+                # answer) — a test-out can pass with no model configured, and
+                # its verdict is final: no relecture amends a placement.
+                correction.update(test_out_grade)
+                correction["local_check"] = local_check
+                if test_out_grade["verdict"] == "correct":
+                    correction["errata"] = []
+            elif local_check is not None and text.strip() and self._can_schedule_ai_review():
                 correction["local_check"] = local_check
                 correction["assessment_status"] = "provisional"
             else:
@@ -5182,7 +5269,9 @@ class AtelierCorrectionService:
             return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
             ladder = (payload.get("output_ladder") or {}).get(round_name) or {}
-            return {**base_payload, **ladder}
+            # La Forge may pose several items of one output rung (a bank
+            # top-up): the exercise id names the one answered.
+            return self._scope_prompt_items({**base_payload, **ladder}, exercise_id)
         if round_name == "produce":
             return {**base_payload, **payload["produce"]}
         return {"id": exercise_id, "round": round_name, "mode": mode}
