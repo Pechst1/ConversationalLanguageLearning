@@ -4,7 +4,11 @@
  * reader's own primitives: the Feuilleton index head (kicker + one Garamond-
  * italic headline), the reader's plate + speech cards for a scene, and the
  * Missions chat bubbles for a mission's turns. Reading is read-only: nothing
- * here submits, completes or scores. */
+ * here submits, completes or scores.
+ *
+ * WP-82: the page's own words follow the one language rule
+ * (`components/feuilleton/feuilleton-copy.ts`); the panels, captions, turns
+ * and titles are story and stay French. */
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -15,6 +19,8 @@ import { ArrowLeftIcon, AtelierV2Root, Skeleton } from '@/components/atelier-v2/
 import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
 import apiService, { GraphicNovelScene, RealWorldMission, SerialArchiveEpisode } from '@/services/api';
 import { resolveMediaUrl } from '@/lib/media-url';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { fbFill, feuilletonCopy } from '@/components/feuilleton/feuilleton-copy';
 
 const STATIC_REPLAY_EPISODES = 24;
 
@@ -41,6 +47,8 @@ export async function getStaticProps() {
 
 export default function SerialEpisodeReplayPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = feuilletonCopy(language);
   const episodeIndex = useMemo(
     () => resolveEpisodeIndex(router.query.index, router.asPath),
     [router.asPath, router.query.index],
@@ -94,7 +102,7 @@ export default function SerialEpisodeReplayPage() {
     };
   }, [episodeIndex, reloads, router.isReady]);
 
-  const title = useMemo(() => episode?.title || scene?.title || mission?.title || 'Épisode', [episode, mission, scene]);
+  const storyTitle = episode?.title || scene?.title || mission?.title || '';
 
   /* The fiction speaks: the character's name from the mission messenger
      (same source as pages/missions.tsx), never the raw LLM role. */
@@ -103,37 +111,37 @@ export default function SerialEpisodeReplayPage() {
     const name = messenger && typeof messenger === 'object'
       ? String((messenger as Record<string, any>).contact_name || '').trim()
       : '';
-    return name || 'La correspondance';
-  }, [mission]);
+    return name || t.correspondent;
+  }, [mission, t]);
 
   const kicker = episodeIndex === null
-    ? 'Le feuilleton'
-    : `Saison ${seasonNumber} · Épisode ${episodeIndex + 1} · relecture`;
+    ? t.feuilleton
+    : fbFill(t.replay_kicker, { season: seasonNumber, n: episodeIndex + 1 });
 
   return (
     <>
       <FeuilletonReaderStyles />
-      <AtelierV2Root as="main" className="fr-page replay-page" aria-label="Relecture de l’épisode">
+      <AtelierV2Root as="main" language={language} className="fr-page replay-page" aria-label={t.replay_aria}>
         <div className="replay-back">
           <Link className="av2-btn av2-btn--secondary av2-btn--inline" href="/serial">
-            <ArrowLeftIcon size={18} /> Saison {seasonNumber}
+            <ArrowLeftIcon size={18} /> {fbFill(t.season_n, { n: seasonNumber })}
           </Link>
         </div>
         <header className="fr-page-head">
           <div className="k">{kicker}</div>
           {/* the one Garamond italic headline on this screen */}
-          <h1>{title}</h1>
+          {storyTitle ? <h1 lang="fr">{storyTitle}</h1> : <h1>{t.episode}</h1>}
         </header>
 
         {loading ? (
           <div className="replay-stack" aria-live="polite" aria-busy="true">
-            <span className="fr-sr">On tire l’épisode</span>
+            <span className="fr-sr">{t.replay_loading}</span>
             <Skeleton height={260} radius={24} />
             <Skeleton height={96} radius={18} />
             <Skeleton height={96} radius={18} />
           </div>
         ) : scene ? (
-          <section className="replay-stack" aria-label="Planches de l’épisode">
+          <section className="replay-stack" aria-label={t.replay_panels_aria}>
             {(scene.panels || []).map((panel) => {
               const caption = panel.overlay_payload?.caption || {};
               const imageUrl = resolveMediaUrl(panel.image_url || panel.image_payload?.url);
@@ -142,17 +150,17 @@ export default function SerialEpisodeReplayPage() {
                   {imageUrl ? (
                     <figure className="fr-plate">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imageUrl} alt={panel.title ? `Planche : ${panel.title}` : ''} loading="lazy" />
+                      <img src={imageUrl} alt={panel.title ? fbFill(t.plate_alt, { title: panel.title }) : ''} loading="lazy" />
                     </figure>
                   ) : (
                     <figure className="fr-plate is-missing">
-                      <figcaption className="fr-plate-note">Cette planche est parue sans illustration.</figcaption>
+                      <figcaption className="fr-plate-note">{t.plate_missing}</figcaption>
                     </figure>
                   )}
                   <div className="fr-speech">
                     <p className="fr-speaker">
                       <span className="glyph" aria-hidden="true" />
-                      Planche {panel.panel_index}{panel.title ? ` · ${panel.title}` : ''}
+                      {fbFill(t.panel_n, { n: panel.panel_index })}{panel.title ? <span lang="fr">{` · ${panel.title}`}</span> : null}
                     </p>
                     <p className="fr-line" lang="fr">{caption.fr || panel.beat}</p>
                     {caption.en && <p className="fr-line-en">{caption.en}</p>}
@@ -162,16 +170,16 @@ export default function SerialEpisodeReplayPage() {
             })}
           </section>
         ) : mission ? (
-          <section className="replay-stack mission-replay" aria-label="L’acte rejoué">
+          <section className="replay-stack mission-replay" aria-label={t.replay_act_aria}>
             <div className="fr-notice">
-              <p className="fr-eyebrow">L’acte</p>
-              <h2>{mission.title}</h2>
-              <p>{mission.brief}</p>
+              <p className="fr-eyebrow">{t.replay_act}</p>
+              <h2 lang="fr">{mission.title}</h2>
+              <p lang="fr">{mission.brief}</p>
             </div>
             <div className="replay-thread">
               {(mission.turns || []).map((turn) => (
                 <div key={turn.id} className={turn.role === 'user' ? 'replay-turn' : 'replay-turn replay-turn--them'}>
-                  <span className="av2-label">{turn.role === 'user' ? 'Vous' : correspondentName}</span>
+                  <span className="av2-label">{turn.role === 'user' ? t.you : correspondentName}</span>
                   <p className={turn.role === 'user' ? 'av2-bubble av2-bubble--mine' : 'av2-bubble'} lang="fr">
                     {turn.text}
                   </p>
@@ -179,7 +187,7 @@ export default function SerialEpisodeReplayPage() {
               ))}
               {(mission.attempts || []).map((attempt) => (
                 <div key={attempt.id} className="replay-turn">
-                  <span className="av2-label">Vous</span>
+                  <span className="av2-label">{t.you}</span>
                   <p className="av2-bubble av2-bubble--mine" lang="fr">
                     {attempt.answer_payload?.text || attempt.answer_payload?.answer || ''}
                   </p>
@@ -192,20 +200,20 @@ export default function SerialEpisodeReplayPage() {
              — the rule the journey follows (CONTRACTS §5). It never claims the
              episode is absent, because nothing here knows that. */
           <div className="fr-empty" role="alert">
-            <h2>Les archives n’ont pas répondu.</h2>
-            <p>La connexion a échoué. Rien n’est perdu — l’épisode est classé, pas la page.</p>
+            <h2>{t.archive_failed_title}</h2>
+            <p>{t.archive_failed_body}</p>
             <button
               type="button"
               className="av2-btn av2-btn--secondary av2-btn--inline"
               onClick={() => setReloads((count) => count + 1)}
             >
-              Réessayer
+              {t.retry}
             </button>
           </div>
         ) : (
           <div className="fr-empty" role="status">
-            <h2>Épisode non classé.</h2>
-            <p>Cette entrée ne figure pas encore aux archives.</p>
+            <h2>{t.not_filed_title}</h2>
+            <p>{t.not_filed_body}</p>
           </div>
         )}
       </AtelierV2Root>

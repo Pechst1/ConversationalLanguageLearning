@@ -56,17 +56,20 @@ def test_missions_preserves_query_context_before_url_replacement() -> None:
 
 def test_feuilleton_renders_visible_seeded_thread_context() -> None:
     source = read_page(FEUILLETON_PAGE)
+    # WP-82: the banner's words are chrome and come from the copy table.
+    copy = read_page(ROOT / "web-frontend" / "components" / "feuilleton" / "feuilleton-copy.ts")
 
     assert "function TodayThreadBanner" in source
-    assert 'aria-label="Fil du jour"' in source
-    assert "Fil du jour" in source
-    assert "Scène issue de l’Atelier" in source
+    assert "aria-label={t.thread_aria}" in source
+    assert "thread_aria: 'Fil du jour'" in copy
+    assert "thread_title: 'Scène issue de L’Atelier'" in copy
     assert "today-thread-chips" in source
-    assert "key: 'grammar', label: 'Grammaire'" in source
-    assert "key: 'vocabulary', label: 'Lexique'" in source
-    assert "key: 'errata', label: 'Errata'" in source
-    assert "key: 'mission', label: 'Mission'" in source
-    assert "key: 'atelier-session', label: 'Séance Atelier'" in source
+    assert "key: 'grammar', label: t.chip_grammar" in source
+    assert "key: 'vocabulary', label: t.chip_vocabulary" in source
+    assert "key: 'errata', label: t.chip_errata" in source
+    assert "key: 'mission', label: t.chip_mission" in source
+    assert "key: 'atelier-session', label: t.chip_session" in source
+    assert "chip_grammar: 'Grammaire'" in copy and "chip_grammar: 'Grammar'" in copy
     assert "gn-today-thread-chips" in source
     assert "chip.tone === 'red' ? 'action' : chip.tone === 'blue' ? 'story' : 'reward'" in source
     assert "{!scene && visibleThreadContext && (" in source
@@ -90,4 +93,4 @@ def test_feuilleton_uses_query_context_for_scene_creation_and_banner() -> None:
     assert "target_vocabulary_ids: vocabularyIds.length ? vocabularyIds : undefined" in source
     assert "preferred_concept_ids: conceptIds.length ? conceptIds : undefined" in source
     assert "preferred_errata_ids: errataIds.length ? errataIds : undefined" in source
-    assert "setThreadContext(feuilletonThreadContextFromQuery(routeQuery))" in source
+    assert "setThreadContext(feuilletonThreadContextFromQuery(routeQuery, t))" in source

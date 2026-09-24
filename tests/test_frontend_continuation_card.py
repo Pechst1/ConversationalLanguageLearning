@@ -62,16 +62,19 @@ def test_mission_completion_routes_to_new_moment_and_home() -> None:
 
 def test_feuilleton_post_scene_uses_journal_continuation_primitives() -> None:
     source = read(FEUILLETON_PAGE)
+    copy = read(ROOT / "web-frontend" / "components" / "feuilleton" / "feuilleton-copy.ts")
 
     # Reader rebuild: the post-scene furniture (completion card with counters,
     # lexical summary, two-beat continuation, duplicate complete row) collapsed
     # into one FeuilletonEnd — the filed stamp plus a single next action.
     assert "function FeuilletonEnd" in source
     assert "<FeuilletonEnd" in source
-    assert "Classé{number}" in source
+    assert "{t.filed_state}{number}" in source
+    assert "filed_state: 'Classé'" in copy
     assert "function FeuilletonContinuationCard" not in source
-    assert "Agir dans Le Courrier" in source
-    assert "Lire le prochain épisode" in source
+    assert "next_courrier: 'Agir dans Le Courrier'" in copy
+    assert "next_episode: 'Lire le prochain épisode'" in copy
+    assert "label: t.next_courrier" in source and "label: t.next_episode" in source
     assert "nextBeatIsMission" in source
     assert "routeWithQuery('/missions', missionPairs)" in source
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source

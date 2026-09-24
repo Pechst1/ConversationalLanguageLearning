@@ -13,6 +13,10 @@
  *   · it shows no picture it does not have. A row without art gets no art, not
  *     a hatched rectangle standing in for one.
  *   · when nothing has been read it says so in one sentence, and stops.
+ *
+ * WP-82: its own words (the headline, the labels, the button) follow the
+ * one language rule through `language`; none given keeps French. The
+ * episode titles, briefs, promises and threads are story and stay French.
  */
 
 import React from 'react';
@@ -20,6 +24,9 @@ import Link from 'next/link';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 import { resolveMediaUrl } from '@/lib/media-url';
+import type { ControlLanguage } from '@/types/daily-journey';
+
+import { fbFill, feuilletonCopy, type FeuilletonCopy } from '../feuilleton-copy';
 
 import {
   seasonEpisodeMeta,
@@ -35,12 +42,16 @@ import {
 export function SeasonPage({
   season,
   onOpenSeance,
+  language = null,
 }: {
   season: SeasonPayload;
   /** Routes into the daily séance. The only action on this screen. */
   onOpenSeance: () => void;
+  /** WP-82: the screen's chrome language (`chromeLanguage`). Absent keeps French. */
+  language?: ControlLanguage | null;
 }) {
-  const label = seasonStoryLabel(season);
+  const t = feuilletonCopy(language);
+  const label = seasonStoryLabel(season, language);
   const today = season.today;
   const todayArt = today ? resolveMediaUrl(today.image_url) : null;
   const threads = seasonThreads(season);
@@ -48,7 +59,7 @@ export function SeasonPage({
   return (
     <section className="wp44-season" aria-label="La saison">
       {label && <p className="av2-label av2-label--story">{label}</p>}
-      <h1 className="av2-headline av2-headline--screen">La saison jusqu’ici</h1>
+      <h1 className="av2-headline av2-headline--screen">{t.season_headline}</h1>
 
       {today && (
         <article className="wp44-today">
@@ -57,7 +68,7 @@ export function SeasonPage({
             <img src={todayArt} alt="" />
           )}
           <div className="wp44-today__body">
-            <p className="av2-label av2-label--story">{seasonTodayLabel(today)}</p>
+            <p className="av2-label av2-label--story">{seasonTodayLabel(today, language)}</p>
             <h2 className="wp44-today__title" lang="fr">
               {today.title_fr}
             </h2>
@@ -68,7 +79,7 @@ export function SeasonPage({
             )}
             <div className="wp44-today__action">
               <Action tone="story" onClick={onOpenSeance} iconAfter={<ArrowRightIcon size={18} />}>
-                Ouvrir la séance
+                {t.open_seance}
               </Action>
             </div>
           </div>
@@ -78,7 +89,7 @@ export function SeasonPage({
       {season.commitments.length > 0 && (
         <div className="wp44-commitment">
           <p className="wp44-commitment__label">
-            {season.commitments.length > 1 ? 'Engagements en cours' : 'Engagement en cours'}
+            {season.commitments.length > 1 ? t.commitment_many : t.commitment_one}
           </p>
           {season.commitments.map((commitment) => (
             <p className="wp44-commitment__text" lang="fr" key={commitment.id || commitment.text_fr}>
@@ -90,14 +101,14 @@ export function SeasonPage({
 
       {threads.length > 0 && (
         <div className="wp44-threads" data-season-threads="true">
-          <p className="av2-label av2-label--story">Les fils de la saison</p>
+          <p className="av2-label av2-label--story">{t.season_threads}</p>
           <ul className="wp44-threads__list">
             {threads.map((thread) => (
               <li className="wp44-threads__row" key={thread.key} data-thread-state={thread.state}>
                 <span className="wp44-threads__text" lang="fr">
                   {thread.text_fr}
                 </span>
-                <span className="wp44-threads__state">{seasonThreadLabel(thread.state)}</span>
+                <span className="wp44-threads__state">{seasonThreadLabel(thread.state, language)}</span>
               </li>
             ))}
           </ul>
@@ -106,13 +117,13 @@ export function SeasonPage({
 
       {seasonHasNothingRead(season) ? (
         <p className="av2-body" data-season-empty="true">
-          Votre première scène s’ouvre dans la séance.
+          {t.season_empty}
         </p>
       ) : (
         <ul className="wp44-read">
           {season.read_episodes.map((episode) => (
             <li key={episode.scene_id}>
-              <ReadRow episode={episode} />
+              <ReadRow episode={episode} t={t} language={language} />
             </li>
           ))}
         </ul>
@@ -121,9 +132,17 @@ export function SeasonPage({
   );
 }
 
-function ReadRow({ episode }: { episode: SeasonEpisode }) {
+function ReadRow({
+  episode,
+  t,
+  language,
+}: {
+  episode: SeasonEpisode;
+  t: FeuilletonCopy;
+  language: ControlLanguage | null;
+}) {
   const art = resolveMediaUrl(episode.image_url);
-  const meta = seasonEpisodeMeta(episode);
+  const meta = seasonEpisodeMeta(episode, language);
   return (
     <Link className="wp44-read__row" href={`/graphic-novel?scene=${encodeURIComponent(episode.scene_id)}`}>
       {art ? (
@@ -133,7 +152,7 @@ function ReadRow({ episode }: { episode: SeasonEpisode }) {
         <span className="wp44-read__art" aria-hidden="true" />
       )}
       <span className="wp44-read__text">
-        <span className="av2-label">Épisode {episode.number}</span>
+        <span className="av2-label">{fbFill(t.episode_n, { n: episode.number })}</span>
         <span className="wp44-read__title" lang="fr">
           {episode.title_fr}
         </span>

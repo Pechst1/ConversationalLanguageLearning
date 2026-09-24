@@ -7,7 +7,12 @@
  * hero with its paper-on-blue press, paper rows with an ink done badge, a
  * dashed locked row for a genuinely delayed episode) and its SESSION chrome
  * (notices, the hatched "sous presse" plate). Every rule below is an `--av2-*`
- * token, written `.av2 .gn-…`. */
+ * token, written `.av2 .gn-…`.
+ *
+ * WP-82: the page's own words come from `components/feuilleton/feuilleton-copy.ts`
+ * in the chrome language (`useChromeLanguage()`), and the reader is handed the
+ * same language. The story — panels, titles, a chapter's name, a character's
+ * line — and the tab names stay French. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
@@ -42,7 +47,6 @@ import {
   emptyReaderPosition,
   liveTaskId as resolveLiveTaskId,
   normalizeReaderPosition,
-  readerEpisodeLabel,
   readerLocation,
   readerPreviously,
   readerStorageKey,
@@ -57,7 +61,17 @@ import {
   type SeasonPayload,
 } from '@/components/feuilleton/season';
 import { CrStoryLetterRow } from '@/components/courrier/courrier-waiting';
+import {
+  fbFill,
+  fbJoin,
+  fbPlural,
+  feuilletonCopy,
+  type FeuilletonCopy,
+} from '@/components/feuilleton/feuilleton-copy';
+import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
 import { writeLocalDayProgressFlag } from '@/lib/atelier-next';
+import { pickByLanguage } from '@/lib/language-rule';
+import { useChromeLanguage } from '@/lib/learner-language';
 import { glossFromMap } from '@/lib/glosses';
 import { panelImageUrl } from '@/lib/graphic-novel-images';
 import { resolveMediaUrl } from '@/lib/media-url';
@@ -106,6 +120,18 @@ async function writeSideQuestProgressFlag(flag: DayProgressFlag) {
   writeLocalDayProgressFlag(flag);
 }
 
+/** The page's copy, for a part drawn inside the page's `AtelierV2Root`. */
+function useFbCopy(): FeuilletonCopy {
+  return feuilletonCopy(useControlLanguage());
+}
+
+/** «Épisode 4», or «Édition du jour» for a standalone edition. */
+function episodeLabel(scene: { episode_index?: number | null } | null | undefined, t: FeuilletonCopy): string {
+  if (!scene) return '';
+  if (typeof scene.episode_index === 'number') return fbFill(t.episode_n, { n: scene.episode_index + 1 });
+  return t.edition_today;
+}
+
 function sceneRouteQuery(scene: GraphicNovelScene): Record<string, string | number> {
   const query: Record<string, string | number> = { scene: scene.id };
   if (scene.serial_thread_id) query.serial_thread_id = scene.serial_thread_id;
@@ -135,6 +161,8 @@ function routeForSerialBeat(serial: SerialToday | null | undefined): string | nu
 
 export default function GraphicNovelPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = feuilletonCopy(language);
   const [today, setToday] = useState<GraphicNovelToday | null>(null);
   const [canonicalBeat, setCanonicalBeat] = useState<SerialToday | null>(null);
   const [scene, setScene] = useState<GraphicNovelScene | null>(null);
@@ -173,7 +201,7 @@ export default function GraphicNovelPage() {
   );
   const routeSceneId = typeof routeQuery.scene === 'string' ? routeQuery.scene : null;
   const contextSceneKey = graphicNovelContextKey(routeQuery);
-  const incomingThreadContext = useMemo(() => feuilletonThreadContextFromQuery(routeQuery), [routeQuery]);
+  const incomingThreadContext = useMemo(() => feuilletonThreadContextFromQuery(routeQuery, t), [routeQuery, t]);
   const [threadContext, setThreadContext] = useState<FeuilletonThreadContext>(null);
   const visibleThreadContext = threadContext || incomingThreadContext;
 
@@ -236,7 +264,7 @@ export default function GraphicNovelPage() {
         setScene(loaded);
         setGenerationFailure(loaded.status === 'failed' ? {
           code: 'feuilleton_generation_failed',
-          message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+          message: loaded.script_payload?.generation_error || '',
         } : null);
         return;
       }
@@ -272,14 +300,14 @@ export default function GraphicNovelPage() {
             setScene(null);
             setGenerationFailure(status === 409 ? null : {
               code: 'feuilleton_scene_unavailable',
-              message: "La planche de l’épisode n’a pas pu être ouverte. Relancez l’édition.",
+              message: '',
             });
             return;
           }
           setScene(loaded);
           setGenerationFailure(loaded.status === 'failed' ? {
             code: 'feuilleton_generation_failed',
-            message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+            message: loaded.script_payload?.generation_error || '',
           } : null);
         } else {
           setScene(null);
@@ -397,12 +425,12 @@ export default function GraphicNovelPage() {
         if (loaded.status === 'failed') {
           setGenerationFailure({
             code: 'feuilleton_generation_failed',
-            message: loaded.script_payload?.generation_error || "L’édition n’a pas pu être composée.",
+            message: loaded.script_payload?.generation_error || '',
           });
         } else if (loaded.status === 'writing' && feuilletonGenerationIsStalled(loaded)) {
           setGenerationFailure({
             code: 'feuilleton_generation_stalled',
-            message: "La rédaction a dépassé son délai. Vous pouvez relancer cette édition sans perdre votre progression.",
+            message: '',
           });
         } else {
           setGenerationFailure(null);
@@ -435,13 +463,13 @@ export default function GraphicNovelPage() {
 
   async function openCanonicalBeat() {
     setCreating(true);
-    const toastId = toast.loading('Retrouver le fil de votre histoire…');
+    const toastId = toast.loading(t.toast_finding_thread);
     try {
       const serial = await apiService.getSerialToday();
       setCanonicalBeat(serial);
       if (String(serial.status || '') === 'journey_required') {
         // Engine-managed learner: the story is today's journey (contract §5).
-        toast.success('La suite se joue dans la journée du jour.', { id: toastId });
+        toast.success(t.toast_in_journey, { id: toastId });
         await router.push(String((serial as any).continue_href || '/atelier'));
         return;
       }
@@ -450,7 +478,7 @@ export default function GraphicNovelPage() {
         setScene(loaded);
         setGenerationFailure(null);
         await router.replace({ pathname: '/graphic-novel', query: sceneRouteQuery(loaded) }, undefined, { shallow: true });
-        toast.success('L’épisode canonique est ouvert.', { id: toastId });
+        toast.success(t.toast_canonical_open, { id: toastId });
         return;
       }
       if (serial.kind === 'feuilleton' && serial.status === 'delayed') {
@@ -464,7 +492,7 @@ export default function GraphicNovelPage() {
       }
       const nextRoute = routeForSerialBeat(serial);
       if (nextRoute) {
-        toast.success(serial.kind === 'mission' ? 'La suite se joue dans la mission du jour.' : 'L’édition reprend.', { id: toastId });
+        toast.success(serial.kind === 'mission' ? t.toast_in_mission : t.toast_resumes, { id: toastId });
         await router.push(nextRoute);
         return;
       }
@@ -476,7 +504,7 @@ export default function GraphicNovelPage() {
       });
     } catch (error) {
       console.error(error);
-      toast.error('Impossible de retrouver le fil canonique.', { id: toastId });
+      toast.error(t.toast_thread_failed, { id: toastId });
     } finally {
       setCreating(false);
     }
@@ -485,7 +513,7 @@ export default function GraphicNovelPage() {
   async function createScene(extra?: Record<string, any>) {
     setCreating(true);
     if (!scene) setGenerationFailure(null);
-    const toastId = toast.loading('Composition de l’édition. Les planches paraîtront une à une.');
+    const toastId = toast.loading(t.toast_composing);
     try {
       const conceptIds = queryList(routeQuery.concept_id).map(Number).filter(Boolean);
       const errataIds = queryList(routeQuery.erratum_id);
@@ -522,16 +550,16 @@ export default function GraphicNovelPage() {
         async_generation: true,
         ...extra,
       });
-      setThreadContext(feuilletonThreadContextFromQuery(routeQuery));
+      setThreadContext(feuilletonThreadContextFromQuery(routeQuery, t));
       setScene(next);
       setGenerationFailure(null);
       router.replace({ pathname: '/graphic-novel', query: sceneRouteQuery(next) }, undefined, { shallow: true });
       toast.success(
         next.status === 'writing'
-          ? 'Édition lancée. La lecture reste ouverte pendant le travail de la presse.'
+          ? t.toast_launched
           : next.status === 'generating'
-            ? 'Récit prêt. Les planches s’impriment.'
-            : 'Le Feuilleton est prêt.',
+            ? t.toast_story_ready
+            : t.toast_ready,
         { id: toastId },
       );
     } catch (error: any) {
@@ -539,7 +567,7 @@ export default function GraphicNovelPage() {
       if (Number(error?.response?.status || 0) === 409 && detail?.code === 'story_journey_required') {
         // The story continues through today's journey; there is no scene to
         // compose here and nothing to retry (ENGINE-FRONTEND-CONTRACT §6).
-        toast.success('La suite se joue dans la journée du jour.', { id: toastId });
+        toast.success(t.toast_in_journey, { id: toastId });
         await router.push(String(detail.continue_href || '/atelier'));
         return;
       }
@@ -551,10 +579,10 @@ export default function GraphicNovelPage() {
         }
       }
       const message = error instanceof Error && error.message === 'Network Error'
-        ? 'Le Feuilleton n’a pas pu être créé. Les planches sont peut-être encore sous presse ; réessayez dans un instant.'
+        ? t.create_network
         : detail?.code === 'feuilleton_generation_failed'
-          ? 'La rédaction n’a pas livré un Feuilleton complet.'
-          : 'Le Feuilleton n’a pas pu être créé.';
+          ? t.create_incomplete
+          : t.create_failed;
       toast.error(message, { id: toastId });
     } finally {
       setCreating(false);
@@ -581,7 +609,7 @@ export default function GraphicNovelPage() {
           await router.replace({ pathname: '/graphic-novel' }, undefined, { shallow: true });
           return;
         }
-        setThreadContext(feuilletonThreadContextFromQuery(routeQuery));
+        setThreadContext(feuilletonThreadContextFromQuery(routeQuery, t));
         setScene(loaded);
         setGenerationFailure(null);
         await router.replace({ pathname: '/graphic-novel', query: sceneRouteQuery(loaded) }, undefined, { shallow: true });
@@ -614,8 +642,8 @@ export default function GraphicNovelPage() {
     const taskId = String(task.id || '');
     const answer = (answers[taskId] || '').trim();
     if (!answer) {
-      setTaskSubmitError({ taskId, message: 'Écrivez ou choisissez d’abord une réponse.' });
-      toast.error('Écrivez ou choisissez d’abord une réponse.');
+      setTaskSubmitError({ taskId, message: t.answer_first });
+      toast.error(t.answer_first);
       return;
     }
     setTaskSubmitError(null);
@@ -635,12 +663,12 @@ export default function GraphicNovelPage() {
         setSceneSuperseded(true);
         setTaskSubmitError({
           taskId,
-          message: 'Cet épisode a été remplacé ou déjà classé. Votre texte est conservé ; rouvrez l’épisode courant.',
+          message: t.superseded_task,
         });
         return;
       }
-      setTaskSubmitError({ taskId, message: 'La correction n’a pas pu être transmise. Réessayez.' });
-      toast.error('La correction du Feuilleton n’a pas pu être transmise.');
+      setTaskSubmitError({ taskId, message: t.submit_failed });
+      toast.error(t.submit_failed_toast);
     } finally {
       setSubmittingTask(null);
     }
@@ -658,12 +686,12 @@ export default function GraphicNovelPage() {
       window.localStorage.removeItem(`pilot:reader:${scene.id}`);
       clearResumeActivity('reader');
       await writeSideQuestProgressFlag('feuilletonDone');
-      toast.success('Feuilleton terminé.');
+      toast.success(t.complete_done);
       const nextRoute = routeForSerialBeat(result.next_serial);
       void router.push(nextRoute || '/atelier');
       return true;
     } catch {
-      toast.error('Le Feuilleton n’a pas pu être terminé.');
+      toast.error(t.complete_failed);
       return false;
     } finally {
       setCompleting(false);
@@ -676,11 +704,11 @@ export default function GraphicNovelPage() {
   );
   const readerMounted = !loading && !generationFailure && !scenePressing
     && (Boolean(storyEpisode) || Boolean(scene && readerStages.length > 0));
-  const nextBeat = scene ? feuilletonNextBeat(scene, targetVocabulary) : { href: null, label: '' };
+  const nextBeat = scene ? feuilletonNextBeat(scene, targetVocabulary, t) : { href: null, label: '' };
   const showEditionTools = Boolean(
     scene && !scene.serial_thread_id && !['writing', 'generating'].includes(scene.status),
   );
-  const head = pageHead({ loading, generationFailure, scene, scenePressing, canonicalBeat });
+  const head = pageHead({ loading, generationFailure, scene, scenePressing, canonicalBeat, t });
   /* WP-44. With no episode open, the Feuilleton tab *is* the season page — for
      every learner whose story the engine manages, including the one who has
      read nothing yet and gets the honest empty line. The legacy composer face
@@ -700,7 +728,8 @@ export default function GraphicNovelPage() {
       <FeuilletonStyles />
       <AtelierV2Root
         as="main"
-        aria-label="Mode Feuilleton"
+        language={language}
+        aria-label={t.feuilleton}
         className={`fr-page gn-page feuilleton-page ${scene ? 'has-scene' : ''}`}
       >
         <header className="fr-page-head gn-head">
@@ -727,9 +756,9 @@ export default function GraphicNovelPage() {
             )}
           </nav>
           {(showEditionTools || (!scene && !loading)) && (
-            <div className="gn-actions" aria-label="Actions de lecture du Feuilleton">
+            <div className="gn-actions" aria-label={t.actions_aria}>
               <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">
-                {scene ? 'Retour à l’Atelier' : 'Retour à La Une'}
+                {scene ? t.back_atelier : t.back_home}
               </Link>
               {scene && showEditionTools && (
                 <Action
@@ -737,11 +766,11 @@ export default function GraphicNovelPage() {
                   inline
                   disabled={creating || scene.status === 'writing'}
                   pending={creating || scene.status === 'writing'}
-                  pendingLabel="Recherche du fil"
+                  pendingLabel={t.finding_thread}
                   onClick={openCanonicalBeat}
                   iconAfter={<ArrowRightIcon size={14} />}
                 >
-                  Reprendre l’histoire
+                  {t.resume_story}
                 </Action>
               )}
             </div>
@@ -759,7 +788,7 @@ export default function GraphicNovelPage() {
         {loading ? (
           <div className="gn-skeleton" aria-live="polite" aria-busy="true">
             <span className="fr-sr">
-              Ouverture du Feuilleton. Recherche de l’édition en cours. Si aucune n’est prête, un seul bouton permettra de la composer.
+              {t.loading_sr}
             </span>
             <Skeleton height={200} radius={24} />
             <Skeleton height={80} radius={16} />
@@ -776,14 +805,15 @@ export default function GraphicNovelPage() {
               mode="replay"
               onExit={() => { void router.push('/serial'); }}
               nextHref="/serial"
-              nextLabel="Retour à la saison"
+              nextLabel={t.back_season}
+              language={language}
             />
           </div>
         ) : scene && readerStages.length > 0 ? (
           <>
             <div className="gn-reader">
               <FeuilletonReader
-                episodeLabel={readerEpisodeLabel(scene as any)}
+                episodeLabel={episodeLabel(scene, t)}
                 title={scene.title || 'Le feuilleton'}
                 location={readerLocation(scene as any)}
                 previously={readerPreviously(scene as any)}
@@ -801,29 +831,31 @@ export default function GraphicNovelPage() {
                 onExit={() => { void router.push('/atelier'); }}
                 onComplete={scene.status === 'completed' ? null : () => { void completeScene(); }}
                 completing={completing}
-                completeLabel="Terminer l’épisode"
+                completeLabel={t.complete_episode}
                 filed={scene.status === 'completed'}
                 nextHref={nextBeat.href}
                 nextLabel={nextBeat.label}
                 pageArt={pageArt}
                 renderStageTools={(stage) => (stage.kind === 'panel' ? <PanelAudioButton panel={panelById(scene, stage.panelId)} /> : null)}
-                taskNote={(task) => String(task.recommendation_reason?.text || '').trim()}
+                taskNote={(task) => pickByLanguage(
+                  task.recommendation_reason?.text_by_language,
+                  language,
+                  String(task.recommendation_reason?.text || '').trim(),
+                )}
+                language={language}
                 banner={(
                   <>
                     {sceneSuperseded && (
                       <div className="fr-notice is-stale" role="status">
-                        <h2>Cette édition a été remplacée.</h2>
-                        <p>
-                          Votre lecture et vos réponses restent ici. L’épisode courant du feuilleton
-                          peut être rouvert quand vous voulez.
-                        </p>
+                        <h2>{t.superseded_title}</h2>
+                        <p>{t.superseded_body}</p>
                         <button
                           type="button"
                           className="fr-btn is-action"
                           disabled={creating}
                           onClick={() => void openCanonicalBeat()}
                         >
-                          {creating ? 'Recherche…' : 'Rouvrir l’épisode courant'}
+                          {creating ? t.searching : t.reopen_current}
                         </button>
                       </div>
                     )}
@@ -846,7 +878,7 @@ export default function GraphicNovelPage() {
         ) : scene ? (
           <EditionWithoutPlates scene={scene} completing={completing} onComplete={completeScene} />
         ) : showSeason && season ? (
-          <SeasonPage season={season} onOpenSeance={() => { void router.push('/atelier'); }} />
+          <SeasonPage season={season} language={language} onOpenSeance={() => { void router.push('/atelier'); }} />
         ) : (
           <EpisodeTabSurface
             canonicalBeat={canonicalBeat}
@@ -870,27 +902,32 @@ function pageHead({
   scene,
   scenePressing,
   canonicalBeat,
+  t,
 }: {
   loading: boolean;
   generationFailure: Record<string, any> | null;
   scene: GraphicNovelScene | null;
   scenePressing: boolean;
   canonicalBeat: SerialToday | null;
+  t: FeuilletonCopy;
 }): { kicker: string; title: string } {
-  if (loading) return { kicker: 'Le feuilleton', title: 'Ouverture de l’épisode…' };
-  if (generationFailure) return { kicker: 'Le feuilleton · avis de la rédaction', title: 'L’édition n’a pas pu paraître.' };
+  if (loading) return { kicker: t.feuilleton, title: t.head_opening };
+  if (generationFailure) return { kicker: `${t.feuilleton} · ${t.head_notice}`, title: t.head_failed };
   if (scene && scenePressing) {
     const printing = scene.status === 'generating';
     return {
-      kicker: `${readerEpisodeLabel(scene as any)} · ${printing ? 'impression en cours' : 'rédaction en cours'}`,
-      title: printing ? 'Les planches s’impriment' : 'L’édition se compose',
+      kicker: `${episodeLabel(scene, t)} · ${printing ? t.state_printing : t.state_writing}`,
+      title: printing ? t.head_printing : t.head_writing,
     };
   }
-  if (scene) return { kicker: readerEpisodeLabel(scene as any), title: scene.title || 'Le feuilleton' };
+  if (scene) return { kicker: episodeLabel(scene, t), title: scene.title || t.feuilleton };
   if (canonicalBeat?.kind === 'feuilleton' || canonicalBeat?.kind === 'mission') {
-    return { kicker: `Le feuilleton · Saison ${serialSeasonNumber(canonicalBeat)}`, title: 'L’épisode du jour' };
+    return {
+      kicker: `${t.feuilleton} · ${fbFill(t.season_n, { n: serialSeasonNumber(canonicalBeat) })}`,
+      title: t.head_today,
+    };
   }
-  return { kicker: 'Le feuilleton · hors édition', title: 'Le supplément illustré' };
+  return { kicker: `${t.feuilleton} · ${t.head_off_edition}`, title: t.supplement };
 }
 
 function panelById(scene: GraphicNovelScene, panelId: string): GraphicNovelPanel | null {
@@ -904,6 +941,7 @@ function panelById(scene: GraphicNovelScene, panelId: string): GraphicNovelPanel
 function feuilletonNextBeat(
   scene: GraphicNovelScene,
   vocabulary: FeuilletonVocabularyItem[],
+  t: FeuilletonCopy,
 ): { href: string | null; label: string } {
   const hook = scene.hook || scene.script_payload?.hook || scene.recap?.hook || {};
   const items = sceneVocabularyRecapItems(scene, vocabulary);
@@ -926,10 +964,10 @@ function feuilletonNextBeat(
     ['episode_index', nextEpisode],
   ];
   if (nextBeatIsMission) {
-    return { href: routeWithQuery('/missions', missionPairs), label: 'Agir dans Le Courrier' };
+    return { href: routeWithQuery('/missions', missionPairs), label: t.next_courrier };
   }
   if (!scene.serial_thread_id) return { href: null, label: '' };
-  return { href: routeWithQuery('/graphic-novel', readerPairs), label: 'Lire le prochain épisode' };
+  return { href: routeWithQuery('/graphic-novel', readerPairs), label: t.next_episode };
 }
 
 /* ---- notices around the reader --------------------------------------------- */
@@ -938,11 +976,11 @@ function feuilletonNextBeat(
 function EditionArtProgress({ scene }: { scene: GraphicNovelScene }) {
   const panels = scene.panels || [];
   const ready = panels.filter((panel) => Boolean(panelImageUrl(panel))).length;
+  const t = useFbCopy();
   return (
     <div className="fr-notice" role="status" aria-live="polite">
       <p>
-        <b>L’histoire est prête.</b> Les illustrations s’impriment en arrière-plan —{' '}
-        {ready} sur {panels.length}.
+        <b>{t.art_ready}</b> {fbFill(t.art_progress, { ready, total: panels.length })}
       </p>
     </div>
   );
@@ -960,6 +998,7 @@ function StandaloneBrief({ scene }: { scene: GraphicNovelScene }) {
    the server has no cast for this thread. */
 function ReaderCastLink({ scene }: { scene: GraphicNovelScene }) {
   const [member, setMember] = useState<SerialCastMember | null>(null);
+  const t = useFbCopy();
   const episodeIndex = typeof scene.episode_index === 'number' ? scene.episode_index : null;
   useEffect(() => {
     if (episodeIndex === null) return undefined;
@@ -984,10 +1023,10 @@ function ReaderCastLink({ scene }: { scene: GraphicNovelScene }) {
       <Link
         className="fr-chip"
         href="/serial/cast"
-        aria-label={`Relation avec ${member.name} : ${register}, proximité ${closeness} sur 5`}
+        aria-label={fbFill(t.cast_link_aria, { name: member.name, register, closeness })}
       >
         <Portrait name={member.name} size="sm" />
-        {member.name} · vous vous dites « {register} »
+        {member.name} · {t.cast_link} «&nbsp;<span lang="fr">{register}</span>&nbsp;»
       </Link>
     </div>
   );
@@ -996,15 +1035,13 @@ function ReaderCastLink({ scene }: { scene: GraphicNovelScene }) {
 /* While a composition request is in flight. No fake step ladder, no
    percentage: the request either returns a scene or an error. */
 function ComposingNotice({ panelCount, renderMode }: { panelCount: PanelCount; renderMode: RenderMode }) {
-  const visualTarget = renderMode === 'page' ? 'la page illustrée' : `${panelCount} planches`;
+  const t = useFbCopy();
+  const visualTarget = renderMode === 'page' ? t.target_page : fbFill(t.target_panels, { n: panelCount });
   return (
     <div className="gn-stack">
       <Notice shape="story" live="status">
-        <p className="gn-inflight"><SpinnerToken /> Composition de l’édition</p>
-        <p>
-          Écriture du ressort, puis impression de {visualTarget}. Les images demandent le plus de temps ;
-          gardez cet écran ouvert, la lecture s’ouvre dès que la scène est prête.
-        </p>
+        <p className="gn-inflight"><SpinnerToken /> {t.composing_title}</p>
+        <p>{fbFill(t.composing_body, { target: visualTarget })}</p>
       </Notice>
     </div>
   );
@@ -1115,28 +1152,27 @@ function SerialEpisodeLead({
 }) {
   const number = serialEpisodeNumber(beat);
   const pressing = ['generating', 'writing'].includes(String(beat.status || ''));
+  const t = useFbCopy();
   const names = serialBeatCharacterNames(beat);
   const art = serialBeatArt(beat);
   return (
-    <section className="fr-hero" aria-label="Épisode du Feuilleton">
+    <section className="fr-hero" aria-label={t.hero_aria}>
       <div className="art">
         {art ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={art} alt="" />
         ) : (
-          <span>L’illustration de cet épisode n’est pas encore parue.</span>
+          <span>{t.illustration_missing}</span>
         )}
       </div>
       <div className="body">
-        <div className="k">Épisode {number} · {pressing ? 'sous presse' : 'aujourd’hui'}</div>
-        <h2>{pressing ? 'L’épisode du jour est sous presse.' : 'L’épisode du jour vous attend.'}</h2>
-        <p className="gn-hero-p">{pressing
-          ? 'La rédaction compose la planche. Rouvrez dans un instant : votre place dans la saison est gardée.'
-          : serialBeatStoryPressure(beat)}</p>
-        <CastChips names={names} label="Personnages de cet épisode" />
+        <div className="k">{fbFill(t.episode_n, { n: number })} · {pressing ? t.kicker_pressing : t.kicker_today}</div>
+        <h2>{pressing ? t.lead_pressing_title : t.lead_title}</h2>
+        <p className="gn-hero-p">{pressing ? t.lead_pressing_body : <StoryPressure beat={beat} t={t} />}</p>
+        <CastChips names={names} label={t.cast_episode_aria} />
         <button className="cta gn-hero-cta" type="button" disabled={creating} onClick={onOpenSerial}>
           {creating ? <SpinnerToken /> : null}
-          {creating ? 'Recherche du fil' : pressing ? 'Voir où en est l’épisode' : 'Ouvrir l’épisode du jour'}
+          {creating ? t.finding_thread : pressing ? t.see_progress : t.open_today}
           {creating ? null : <ArrowRightIcon size={18} />}
         </button>
       </div>
@@ -1159,25 +1195,26 @@ function SerialEpisodeInJourney({
   onOpenSerial: () => void;
 }) {
   const number = serialEpisodeNumber(beat);
+  const t = useFbCopy();
   const names = serialBeatCharacterNames(beat);
   const art = serialBeatArt(beat);
   return (
-    <section className="fr-hero" aria-label="Épisode du Feuilleton">
+    <section className="fr-hero" aria-label={t.hero_aria}>
       <div className="art">
         {art ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={art} alt="" />
         ) : (
-          <span>L’illustration de cet épisode n’est pas encore parue.</span>
+          <span>{t.illustration_missing}</span>
         )}
       </div>
       <div className="body">
-        <div className="k">Épisode {number} · dans la séance</div>
-        <h2>L’épisode du jour se lit dans la séance.</h2>
-        <CastChips names={names} label="Personnages de cet épisode" />
+        <div className="k">{fbFill(t.episode_n, { n: number })} · {t.kicker_in_seance}</div>
+        <h2>{t.in_seance_title}</h2>
+        <CastChips names={names} label={t.cast_episode_aria} />
         <button className="cta gn-hero-cta" type="button" disabled={creating} onClick={onOpenSerial}>
           {creating ? <SpinnerToken /> : null}
-          {creating ? 'Recherche du fil' : 'Ouvrir la séance du jour'}
+          {creating ? t.finding_thread : t.open_seance_today}
           {creating ? null : <ArrowRightIcon size={18} />}
         </button>
       </div>
@@ -1197,27 +1234,28 @@ function SerialEpisodeDelayed({
   onRetry: () => void;
 }) {
   const number = serialEpisodeNumber(beat);
+  const t = useFbCopy();
   return (
-    <section className="gn-stack" aria-label="Épisode retardé du Feuilleton">
+    <section className="gn-stack" aria-label={t.delayed_aria}>
       <div className="fr-rows">
         <div className="fr-row is-locked">
           <span className="thumb" aria-hidden="true"><LockIcon size={22} /></span>
           <span className="meta">
-            <span className="k">Épisode {number} · retardé</span>
-            <span className="t">Sous presse</span>
+            <span className="k">{fbFill(t.episode_n, { n: number })} · {t.kicker_delayed}</span>
+            <span className="t">{t.press_title}</span>
           </span>
         </div>
       </div>
       <Notice shape="action" live="status">
-        <p className="gn-strong">Le Feuilleton · Épisode {number}</p>
-        <p>L’épisode est retardé — la rédaction met la planche sous presse.</p>
-        <Action tone="primary" inline pending={creating} pendingLabel="Nouvelle tentative" onClick={onRetry}>
-          Réessayer
+        <p className="gn-strong">{t.feuilleton} · {fbFill(t.episode_n, { n: number })}</p>
+        <p>{t.delayed_body}</p>
+        <Action tone="primary" inline pending={creating} pendingLabel={t.retrying} onClick={onRetry}>
+          {t.retry}
         </Action>
       </Notice>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">Relire la saison</Link>
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">Retour à La Une</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">{t.reread_season}</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">{t.back_home}</Link>
       </div>
     </section>
   );
@@ -1227,26 +1265,27 @@ function SerialEpisodeDelayed({
    a read row with the ink done badge. */
 function SerialEpisodeFiled({ beat, onOpenSerial }: { beat: SerialToday; onOpenSerial: () => void }) {
   const number = serialEpisodeNumber(beat);
+  const t = useFbCopy();
   return (
-    <section className="gn-stack" aria-label="Épisode classé du Feuilleton">
+    <section className="gn-stack" aria-label={t.filed_aria}>
       <div className="fr-rows">
         <Link className="fr-row" href="/serial">
           <span className="thumb" aria-hidden="true" />
           <span className="meta">
-            <span className="k">Épisode {number} · classé</span>
-            <span className="t">L’épisode du jour est classé.</span>
+            <span className="k">{fbFill(t.episode_n, { n: number })} · {t.kicker_filed}</span>
+            <span className="t">{t.filed_title}</span>
           </span>
           <span className="done" aria-hidden="true"><CheckIcon size={14} /></span>
         </Link>
       </div>
       <div className="fr-notice" role="status">
-        <p>Il a rejoint la saison reliée. La suite paraîtra au prochain épisode.</p>
+        <p>{t.filed_body}</p>
         <Action tone="story" inline onClick={onOpenSerial} iconAfter={<ArrowRightIcon size={18} />}>
-          Reprendre le fil
+          {t.resume_thread}
         </Action>
       </div>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">Ouvrir la saison reliée</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">{t.open_bound_season}</Link>
       </div>
     </section>
   );
@@ -1255,17 +1294,18 @@ function SerialEpisodeFiled({ beat, onOpenSerial }: { beat: SerialToday; onOpenS
 /* The standalone supplément is optional and secondary wherever a serial thread
    exists: one quiet row under the episode, never the tab's default face. */
 function SupplementAside({ creating, onCreate }: { creating: boolean; onCreate: () => void }) {
+  const t = useFbCopy();
   return (
-    <aside className="fr-rows" aria-label="Supplément illustré du Feuilleton">
+    <aside className="fr-rows" aria-label={t.supplement_aria}>
       <button type="button" className="fr-row gn-row-btn" disabled={creating} onClick={onCreate}>
         <span className="thumb gn-thumb-token" aria-hidden="true"><ShapeToken kind="reward" /></span>
         <span className="meta">
-          <span className="k">En marge</span>
-          <span className="t">{creating ? 'Composition en cours' : 'Le supplément illustré'}</span>
+          <span className="k">{t.margin}</span>
+          <span className="t">{creating ? t.composing_now : t.supplement}</span>
         </span>
         <span className="go" aria-hidden="true">{creating ? <SpinnerToken /> : <ArrowRightIcon size={18} />}</span>
       </button>
-      <p className="gn-note">Une scène composée à la demande, en marge du feuilleton. Elle ne change rien à la saison.</p>
+      <p className="gn-note">{t.supplement_note}</p>
     </aside>
   );
 }
@@ -1277,29 +1317,29 @@ function CanonicalMissionHandoff({
   canonicalBeat: SerialToday;
   canonicalRoute: string;
 }) {
+  const t = useFbCopy();
   if (canonicalBeat?.kind === 'mission' && canonicalRoute) {
     const names = serialBeatCharacterNames(canonicalBeat);
-    const storyPressure = serialBeatStoryPressure(canonicalBeat);
     const art = serialBeatArt(canonicalBeat);
     return (
-      <section className="fr-hero" aria-label="Prochain acte du Feuilleton">
+      <section className="fr-hero" aria-label={t.mission_aria}>
         <div className="art">
           {art ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={art} alt="" />
           ) : (
-            <span>Votre histoire · maintenant</span>
+            <span>{t.mission_art}</span>
           )}
         </div>
         <div className="body">
-          <div className="k">Acte {canonicalBeat.episode_index + 1} · maintenant</div>
-          <h2>La suite se joue avant de se lire.</h2>
-          <p className="gn-hero-p">{storyPressure}</p>
-          <CastChips names={names} label="Personnages de cet acte" />
+          <div className="k">{fbFill(t.act_now, { n: canonicalBeat.episode_index + 1 })}</div>
+          <h2>{t.mission_title}</h2>
+          <p className="gn-hero-p"><StoryPressure beat={canonicalBeat} t={t} /></p>
+          <CastChips names={names} label={t.cast_act_aria} />
           <Link className="cta gn-hero-cta" href={canonicalRoute}>
-            Ouvrir la mission du jour <ArrowRightIcon size={18} />
+            {t.open_mission} <ArrowRightIcon size={18} />
           </Link>
-          <p className="gn-hero-small">Votre réponse deviendra la conséquence du prochain épisode. Aucun récit parallèle ne sera créé.</p>
+          <p className="gn-hero-small">{t.mission_small}</p>
         </div>
       </section>
     );
@@ -1319,40 +1359,41 @@ function FeuilletonEmptyState({
   today: GraphicNovelToday | null;
   threadContext: FeuilletonThreadContext;
 }) {
+  const t = useFbCopy();
   const recommendation = today?.recommendation || {};
   const seedLabel = threadContext
-    ? 'Fil de l’Atelier prêt'
+    ? t.seed_thread
     : recommendation?.reason
-      ? 'Sujet du jour prêt'
-      : 'Lecture facultative';
+      ? t.seed_topic
+      : t.seed_optional;
   const seedCopy = threadContext?.summary
     || recommendation?.reason
-    || 'Composez une édition pour une courte pause de lecture. La feuille de tâches n’apparaît qu’avec les planches.';
+    || t.seed_copy;
   return (
-    <section className="fr-empty gn-empty" data-feuilleton-empty="true" aria-label="Feuilleton sans édition">
+    <section className="fr-empty gn-empty" data-feuilleton-empty="true" aria-label={t.empty_aria}>
       <p className="av2-label">{seedLabel}</p>
-      <h2>Aucune scène sur le pupitre.</h2>
+      <h2>{t.empty_title}</h2>
       <p>{seedCopy}</p>
       <Notice tone="quiet" shape="done" live="status">
         <p>
-          <b>Feuille de tâches verrouillée</b>
+          <b>{t.locked_title}</b>
           {' — '}
-          Les tâches se déplient sous les planches une fois l’édition composée.
+          {t.locked_body}
         </p>
       </Notice>
       {creating ? (
         <p className="gn-inflight" aria-live="polite">
-          <SpinnerToken /> Composition en cours
+          <SpinnerToken /> {t.composing_now}
         </p>
       ) : (
         <button
-          aria-label="Composer une nouvelle scène du Feuilleton"
+          aria-label={t.compose_aria}
           className="fr-btn is-action"
           data-press="3d"
           type="button"
           onClick={onCreate}
         >
-          Composer la première scène <ArrowRightIcon size={18} />
+          {t.compose_first} <ArrowRightIcon size={18} />
         </button>
       )}
     </section>
@@ -1371,10 +1412,11 @@ function EditionWithoutPlates({
   onComplete: () => void | Promise<unknown>;
 }) {
   const filed = scene.status === 'completed';
+  const t = useFbCopy();
   return (
     <section className="fr-empty gn-empty" role="status">
-      <h2>Cette édition est parue sans planche.</h2>
-      <p>La rédaction n’a rien livré à lire pour cette scène.</p>
+      <h2>{t.no_plates_title}</h2>
+      <p>{t.no_plates_body}</p>
       {!filed && (
         <button
           type="button"
@@ -1384,7 +1426,7 @@ function EditionWithoutPlates({
           onClick={() => void onComplete()}
         >
           {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
-          {completing ? 'Classement…' : 'Terminer l’épisode'}
+          {completing ? t.filing : t.complete_episode}
         </button>
       )}
     </section>
@@ -1411,29 +1453,33 @@ function serialBeatCharacterNames(serial: SerialToday) {
   return required.map((id: string) => namesById[id] || id.replace(/_/g, ' ')).slice(0, 3);
 }
 
-function serialBeatStoryPressure(serial: SerialToday) {
-  const brief = serial.brief_payload || {};
+/* The line under a serial hero: the story's own French recap when it has one
+   (content, `lang="fr"`), else one chrome sentence in the screen's language. */
+function StoryPressure({ beat, t }: { beat: SerialToday; t: FeuilletonCopy }) {
+  const brief = beat.brief_payload || {};
   const plot = brief.a_plot || {};
   const required = Array.isArray(brief.required_cast) ? brief.required_cast.map(String) : [];
-  const previous = String(serial.previously || serial.hook_from_previous?.text || '').trim();
-  if (previous) return `Précédemment : ${previous}`;
-  if (required.includes('landlord_marchand')) {
-    return 'Votre message à M. Marchand doit régler le problème de l’appartement. Sa réponse deviendra la première conséquence du Feuilleton.';
+  const previous = String(beat.previously || beat.hook_from_previous?.text || '').trim();
+  if (previous) {
+    const [before, after] = t.previously_prefix.split('{text}');
+    return <>{before}<span lang="fr">{previous}</span>{after}</>;
   }
+  if (required.includes('landlord_marchand')) return <>{t.pressure_marchand}</>;
   const stage = String(plot.stage_summary || plot.summary || '').trim();
   const looksEnglish = /\b(the|your|with|must|will|from|into|about)\b/i.test(stage);
-  if (stage && !looksEnglish) return stage;
-  return 'Une réponse réelle doit faire avancer la situation. Le prochain épisode montrera exactement ce qu’elle a changé.';
+  if (stage && !looksEnglish) return <span lang="fr">{stage}</span>;
+  return <>{t.pressure_default}</>;
 }
 
 /* The seeded learning thread this edition will be composed from. */
 function TodayThreadBanner({ context }: { context: FeuilletonThreadContext }) {
+  const t = useFbCopy();
   if (!context) return null;
   return (
-    <aside className="gn-thread" aria-label="Fil du jour">
+    <aside className="gn-thread" aria-label={t.thread_aria}>
       <Notice shape="story" live="status">
-        <p className="av2-label av2-label--story">Fil du jour</p>
-        <p className="gn-thread-title">Scène issue de l’Atelier</p>
+        <p className="av2-label av2-label--story">{t.thread_aria}</p>
+        <p className="gn-thread-title">{t.thread_title}</p>
         <p>{context.summary}</p>
         <div className="gn-today-thread-chips">
           {context.chips.map((chip) => (
@@ -1462,25 +1508,35 @@ function EditionPreparing({
   onRetry: () => void;
   creating: boolean;
 }) {
-  const rawMessage = String(failure?.message || '').trim();
-  const message = !rawMessage || /feuilleton generation failed/i.test(rawMessage)
-    ? "L’édition n’a pas pu être composée. Votre progression n’a pas été modifiée."
-    : rawMessage;
+  const t = useFbCopy();
+  const message = failureMessage(failure, t);
   return (
-    <section className="gn-stack" aria-label="Avis de la rédaction">
+    <section className="gn-stack" aria-label={t.notice_title}>
       <Notice tone="alert" live="alert" shape="action">
-        <p className="gn-strong">Avis de la rédaction</p>
+        <p className="gn-strong">{t.notice_title}</p>
         <p>{message}</p>
-        <Action tone="primary" inline pending={creating} pendingLabel="Relance en cours" onClick={onRetry}>
-          Relancer l’édition
+        <Action tone="primary" inline pending={creating} pendingLabel={t.relaunching} onClick={onRetry}>
+          {t.relaunch}
         </Action>
       </Notice>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/grammar">Ouvrir le carnet</Link>
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">Retour à l’Atelier</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/grammar">{t.open_cahier}</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">{t.back_atelier}</Link>
       </div>
     </section>
   );
+}
+
+/* What a composition failure says. The page's own failures are stored as a
+   code and worded here, in the screen's language; a message the server wrote
+   about its own generation is shown as it came, unless it is the internal
+   English one. */
+function failureMessage(failure: Record<string, any> | null | undefined, t: FeuilletonCopy): string {
+  const code = String(failure?.code || '');
+  if (code === 'feuilleton_scene_unavailable') return t.scene_unavailable;
+  if (code === 'feuilleton_generation_stalled') return t.gen_stalled;
+  const rawMessage = String(failure?.message || '').trim();
+  return !rawMessage || /feuilleton generation failed/i.test(rawMessage) ? t.failure_default : rawMessage;
 }
 
 /* The edition is still being written or its first plates printed: the design's
@@ -1489,23 +1545,21 @@ function EditionWriting({ scene }: { scene: GraphicNovelScene }) {
   const printing = scene.status === 'generating';
   const panels = scene.panels || [];
   const ready = panels.filter((panel) => Boolean(panelImageUrl(panel))).length;
+  const t = useFbCopy();
+  const progress = panels.length ? fbFill(t.printing_progress, { ready, total: panels.length }) : '';
   return (
-    <section className="gn-stack" aria-live="polite" aria-label="Edition en préparation">
+    <section className="gn-stack" aria-live="polite" aria-label={t.writing_aria}>
       <figure className="fr-plate is-printing">
         <figcaption className="fr-plate-note">
-          {printing ? 'Les planches sont sous presse.' : 'La rédaction assemble le récit.'}
+          {printing ? t.plates_printing : t.assembling}
         </figcaption>
       </figure>
       <div className="fr-notice" role="status">
-        <p className="gn-strong">{printing ? 'Le récit est prêt.' : 'Le récit arrive d’abord.'}</p>
-        <p>
-          {printing
-            ? `Les planches sont en cours d’impression${panels.length ? ` — ${ready} sur ${panels.length}` : ''}. Cette page se met à jour automatiquement.`
-            : 'Les planches seront imprimées ensuite. Cette page se met à jour automatiquement.'}
-        </p>
+        <p className="gn-strong">{printing ? t.story_ready : t.story_first}</p>
+        <p>{printing ? fbFill(t.printing_body, { progress }) : t.writing_body}</p>
       </div>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">Retour à l’Atelier</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">{t.back_atelier}</Link>
       </div>
     </section>
   );
@@ -1530,6 +1584,7 @@ function PlayGlyph() {
 function PanelAudioButton({ panel }: { panel: GraphicNovelPanel | null }) {
   const audioUrl = panelAudioUrl(panel);
   const [playing, setPlaying] = useState(false);
+  const t = useFbCopy();
   if (!panel || !audioUrl) return null;
   const play = async () => {
     setPlaying(true);
@@ -1541,12 +1596,12 @@ function PanelAudioButton({ panel }: { panel: GraphicNovelPanel | null }) {
     } catch (error) {
       console.error(error);
       setPlaying(false);
-      toast.error('Cette planche n’a pas pu être lue.');
+      toast.error(t.panel_audio_failed);
     }
   };
   return (
     <IconAction
-      label={`Écouter la planche ${panel.panel_index}`}
+      label={fbFill(t.listen_panel, { n: panel.panel_index })}
       className="gn-play"
       onClick={play}
       disabled={playing}
@@ -1562,6 +1617,7 @@ function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
   const audioPanels = (scene.panels || []).filter((panel) => panelAudioUrl(panel));
   const [playing, setPlaying] = useState(false);
   const playerRef = useRef<HTMLAudioElement | null>(null);
+  const t = useFbCopy();
   useEffect(() => () => {
     playerRef.current?.pause();
     playerRef.current = null;
@@ -1595,17 +1651,17 @@ function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
     player.onerror = () => {
       setPlaying(false);
       playerRef.current = null;
-      toast.error('L’audio de l’épisode n’a pas pu être lu.');
+      toast.error(t.episode_audio_failed);
     };
     setPlaying(true);
     await player.play();
   };
 
-  const planches = `${audioPanels.length} planche${audioPanels.length === 1 ? '' : 's'} narrée${audioPanels.length === 1 ? '' : 's'}`;
+  const planches = fbPlural(t, 'narrated', audioPanels.length);
   return (
-    <div className="gn-audio" aria-label="Écouter l’épisode">
+    <div className="gn-audio" aria-label={t.listen_episode}>
       <IconAction
-        label={playing ? 'Arrêter la lecture' : 'Écouter l’épisode'}
+        label={playing ? t.stop_listening : t.listen_episode}
         className="gn-play"
         aria-pressed={playing}
         onClick={() => (playing ? stop() : void playFrom(0))}
@@ -1613,7 +1669,7 @@ function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
         {playing ? <StopIcon size={16} /> : <PlayGlyph />}
       </IconAction>
       <div className="gn-audio-meta">
-        <p className="gn-strong">{playing ? 'Lecture en cours' : 'Écouter l’épisode'}</p>
+        <p className="gn-strong">{playing ? t.playing : t.listen_episode}</p>
         <Chip tone="quiet" icon={<ShapeToken kind="story" size="sm" />}>{planches}</Chip>
       </div>
     </div>
@@ -1626,14 +1682,15 @@ function EpisodeAudioControls({ scene }: { scene: GraphicNovelScene }) {
    credit sentence. The next beat is the reader's own closing action. */
 function FeuilletonEnd({ scene }: { scene: GraphicNovelScene }) {
   const filed = scene.status === 'completed';
+  const t = useFbCopy();
   if (!filed) return null;
-  const creditLine = feuilletonCreditLine(scene);
-  const number = typeof scene.episode_index === 'number' ? ` · Épisode ${scene.episode_index + 1}` : '';
+  const creditLine = feuilletonCreditLine(scene, t);
+  const number = typeof scene.episode_index === 'number' ? ` · ${fbFill(t.episode_n, { n: scene.episode_index + 1 })}` : '';
   return (
-    <section className="gn-end" aria-label="Fin de l’épisode">
+    <section className="gn-end" aria-label={t.end_aria}>
       <p className="fr-state">
         <span className="tok" aria-hidden="true"><CheckIcon size={11} /></span>
-        Classé{number}
+        {t.filed_state}{number}
       </p>
       {creditLine && <p className="gn-credit">{creditLine}</p>}
     </section>
@@ -1642,14 +1699,12 @@ function FeuilletonEnd({ scene }: { scene: GraphicNovelScene }) {
 
 // If a credit line is needed after the last panel, it is one sentence — no deck
 // names, no English labels, no word dump (the words stay linked to the deck).
-function feuilletonCreditLine(scene: GraphicNovelScene) {
+function feuilletonCreditLine(scene: GraphicNovelScene, t: FeuilletonCopy) {
   const credit = (scene.recap?.vocabulary_credit || {}) as Record<string, any>;
   const total = ['seen_context', 'recognized', 'produced_correct', 'produced_incorrect']
     .reduce((sum, key) => sum + Number(credit[key] || 0), 0);
   if (!total) return '';
-  return total === 1
-    ? 'Un mot de cette édition rejoint votre révision.'
-    : `${total} mots de cette édition rejoignent votre révision.`;
+  return fbPlural(t, 'credit', total);
 }
 
 /* ---- pure helpers ----------------------------------------------------------- */
@@ -1829,7 +1884,7 @@ function queryList(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-function feuilletonThreadContextFromQuery(query: RouterQueryLike): FeuilletonThreadContext {
+function feuilletonThreadContextFromQuery(query: RouterQueryLike, t: FeuilletonCopy): FeuilletonThreadContext {
   const grammarCount = queryList(query.concept_id).length;
   const errataCount = queryList(query.erratum_id).length;
   const vocabularyCount = queryList(query.vocabulary_id).length;
@@ -1842,31 +1897,27 @@ function feuilletonThreadContextFromQuery(query: RouterQueryLike): FeuilletonThr
   const serialThreadId = typeof query.serial_thread_id === 'string' ? query.serial_thread_id : '';
   const chips: NonNullable<FeuilletonThreadContext>['chips'] = [];
 
-  if (grammarCount) chips.push({ key: 'grammar', label: 'Grammaire', value: formatContextCount(grammarCount, 'point'), tone: 'blue' });
-  if (vocabularyCount) chips.push({ key: 'vocabulary', label: 'Lexique', value: formatContextCount(vocabularyCount, 'mot'), tone: 'yellow' });
-  if (errataCount) chips.push({ key: 'errata', label: 'Errata', value: formatContextCount(errataCount, 'repair'), tone: 'red' });
-  if (missionId) chips.push({ key: 'mission', label: 'Mission', value: shortContextId(missionId), tone: 'blue' });
-  if (serialThreadId) chips.push({ key: 'serial', label: 'Fil du récit', value: shortContextId(serialThreadId), tone: 'yellow' });
-  if (atelierSessionId) chips.push({ key: 'atelier-session', label: 'Séance Atelier', value: shortContextId(atelierSessionId), tone: 'red' });
+  if (grammarCount) chips.push({ key: 'grammar', label: t.chip_grammar, value: fbPlural(t, 'count_point', grammarCount), tone: 'blue' });
+  if (vocabularyCount) chips.push({ key: 'vocabulary', label: t.chip_vocabulary, value: fbPlural(t, 'count_word', vocabularyCount), tone: 'yellow' });
+  if (errataCount) chips.push({ key: 'errata', label: t.chip_errata, value: fbPlural(t, 'count_repair', errataCount), tone: 'red' });
+  if (missionId) chips.push({ key: 'mission', label: t.chip_mission, value: shortContextId(missionId), tone: 'blue' });
+  if (serialThreadId) chips.push({ key: 'serial', label: t.chip_serial, value: shortContextId(serialThreadId), tone: 'yellow' });
+  if (atelierSessionId) chips.push({ key: 'atelier-session', label: t.chip_session, value: shortContextId(atelierSessionId), tone: 'red' });
   if (!chips.length) return null;
 
   const sources = [
-    atelierSessionId ? 'la séance Atelier' : '',
-    serialThreadId ? 'le fil du récit' : '',
-    missionId ? 'mission' : '',
-    grammarCount ? `${grammarCount} point${grammarCount === 1 ? '' : 's'} de grammaire` : '',
-    vocabularyCount ? `${vocabularyCount} mot${vocabularyCount === 1 ? '' : 's'} de lexique` : '',
-    errataCount ? `${errataCount} ${errataCount === 1 ? 'erratum' : 'errata'}` : '',
+    atelierSessionId ? t.source_session : '',
+    serialThreadId ? t.source_serial : '',
+    missionId ? t.source_mission : '',
+    grammarCount ? fbPlural(t, 'source_grammar', grammarCount) : '',
+    vocabularyCount ? fbPlural(t, 'source_vocabulary', vocabularyCount) : '',
+    errataCount ? fbPlural(t, 'source_errata', errataCount) : '',
   ].filter(Boolean);
 
   return {
-    summary: `Cette édition est issue de ${joinContextSources(sources)} dans le fil d’apprentissage du jour.`,
+    summary: fbFill(t.thread_summary, { sources: fbJoin(t, sources) }),
     chips,
   };
-}
-
-function formatContextCount(count: number, singular: string) {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }
 
 function shortContextId(value: string) {
@@ -1874,12 +1925,6 @@ function shortContextId(value: string) {
   if (!clean) return '';
   if (clean.length <= 12) return clean;
   return clean.slice(0, 8);
-}
-
-function joinContextSources(items: string[]) {
-  if (items.length <= 1) return items[0] || 'Atelier';
-  if (items.length === 2) return `${items[0]} et ${items[1]}`;
-  return `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`;
 }
 
 function graphicNovelContextKey(query: RouterQueryLike) {

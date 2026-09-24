@@ -7,7 +7,11 @@
  * the learner's own character, and the design's shape tokens for closeness.
  * Behaviour is unchanged: the cast comes from the serial thread, the avatar
  * choice is saved through the same endpoint, and every episode link is the
- * server's own href. */
+ * server's own href.
+ *
+ * WP-82: the page's own words follow the one language rule
+ * (`components/feuilleton/feuilleton-copy.ts`); a character's name, role and
+ * callbacks, and the «tu» / «vous» themselves, stay French. */
 
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
@@ -27,16 +31,18 @@ import {
 import { FeuilletonReaderStyles } from '@/components/feuilleton/reader';
 import { expressionForMood, faceSrcFor } from '@/lib/cast-faces';
 import apiService, { SerialCastMember } from '@/services/api';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { fbFill, feuilletonCopy, type FeuilletonCopy } from '@/components/feuilleton/feuilleton-copy';
 
 const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.webp';
 
 /* WP-61: the living story's mood per character (-2..2), said in a sentence that needs
    no gender agreement. A neutral mood says nothing. */
-const MOOD_LINES: Record<number, string> = {
-  [-2]: 'vous en veut encore.',
-  [-1]: 'garde un peu ses distances.',
-  1: 'vous sourit volontiers.',
-  2: 'se réjouit de vous voir.',
+const MOOD_LINES: Record<number, keyof FeuilletonCopy> = {
+  [-2]: 'mood_m2',
+  [-1]: 'mood_m1',
+  1: 'mood_p1',
+  2: 'mood_p2',
 };
 
 function initial(name?: string | null): string {
@@ -45,6 +51,8 @@ function initial(name?: string | null): string {
 }
 
 export default function SerialCastPage() {
+  const language = useChromeLanguage();
+  const t = feuilletonCopy(language);
   const [cast, setCast] = useState<SerialCastMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [avatarDescription, setAvatarDescription] = useState('');
@@ -86,10 +94,10 @@ export default function SerialCastPage() {
         avatar_builder: mode === 'avatar' ? { description: avatarDescription, reference: references[0] || '' } : {},
       });
       setAvatarMode(payload.protagonist_mode === 'avatar' ? 'avatar' : 'pov');
-      setAvatarMessage(payload.protagonist_mode === 'avatar' ? 'Avatar retenu pour les prochaines planches.' : 'Mode POV enregistré.');
+      setAvatarMessage(payload.protagonist_mode === 'avatar' ? t.avatar_saved : t.pov_saved);
     } catch (error) {
       console.error(error);
-      setAvatarMessage('Impossible d’enregistrer votre personnage.');
+      setAvatarMessage(t.avatar_failed);
     } finally {
       setAvatarSaving(false);
     }
@@ -103,14 +111,10 @@ export default function SerialCastPage() {
         <title>Les personnages · Le Feuilleton · L’Atelier</title>
       </Head>
       <FeuilletonReaderStyles />
-      <AtelierV2Root as="main" className="fr-page cast-page" aria-label="Le Feuilleton · les personnages">
+      <AtelierV2Root as="main" language={language} className="fr-page cast-page" aria-label={t.cast_page_aria}>
         <header className="fr-page-head">
           <div className="k">
-            {loading
-              ? 'Le registre du théâtre'
-              : anyTu
-                ? 'Le registre du théâtre · un tutoiement accordé'
-                : 'Le registre du théâtre · tout le monde vous vouvoie encore'}
+            {loading ? t.cast_register : anyTu ? t.cast_one_tu : t.cast_all_vous}
           </div>
           {/* the one Garamond italic headline on this screen */}
           <h1>Les personnages</h1>
@@ -129,7 +133,7 @@ export default function SerialCastPage() {
 
         {loading ? (
           <div className="fr-skeleton" aria-live="polite" aria-busy="true">
-            <span className="fr-sr">On appelle les rôles</span>
+            <span className="fr-sr">{t.cast_loading}</span>
             <i />
             <i />
             <i />
@@ -137,40 +141,38 @@ export default function SerialCastPage() {
         ) : (
           <div className="cast-list">
             {/* The learner's own character: POV or avatar, saved on the thread. */}
-            <Surface as="section" tone="ink" className="cast-me" aria-label="Votre personnage">
+            <Surface as="section" tone="ink" className="cast-me" aria-label={t.your_character}>
               <div className="cast-me__top">
                 <span className="cast-portrait cast-portrait--me" aria-hidden="true">T</span>
                 <div className="cast-me__id">
-                  <p className="av2-label">Votre personnage</p>
+                  <p className="av2-label">{t.your_character}</p>
                   <p className="av2-headline av2-headline--rule">
-                    {avatarMode === 'avatar' ? 'Avatar visible' : 'Mode POV'}
+                    {avatarMode === 'avatar' ? t.avatar_visible : t.pov_mode}
                   </p>
                   {!customising && (
-                    <p className="av2-body">
-                      {`Private model sheet · ${avatarMode === 'avatar' ? 'style verrouillé' : 'POV — jamais dessiné'}`}
-                    </p>
+                    <p className="av2-body">{avatarMode === 'avatar' ? t.sheet_avatar : t.sheet_pov}</p>
                   )}
                 </div>
                 <Chip tone="plain" onClick={() => setCustomising((value) => !value)} aria-expanded={customising}>
-                  {customising ? 'Fermer' : 'Personnaliser'}
+                  {customising ? t.close : t.customise}
                 </Chip>
               </div>
               {customising && (
                 <div className="cast-me__body">
                   {textAnswerField({
-                    label: 'Descripteur visuel',
+                    label: t.descriptor,
                     value: avatarDescription,
                     rows: 1,
-                    placeholder: 'ex. écharpe rouge, carnet',
+                    placeholder: t.descriptor_placeholder,
                     disabled: avatarSaving,
                     onChange: setAvatarDescription,
                   })}
                   <div className="cast-me__actions">
-                    <Action tone="reward" pending={avatarSaving} pendingLabel="Enregistrement…" onClick={() => void saveAvatar('avatar')}>
-                      Utiliser l’avatar
+                    <Action tone="reward" pending={avatarSaving} pendingLabel={t.saving} onClick={() => void saveAvatar('avatar')}>
+                      {t.use_avatar}
                     </Action>
                     <Action tone="secondary" disabled={avatarSaving} onClick={() => void saveAvatar('pov')}>
-                      Rester en POV
+                      {t.stay_pov}
                     </Action>
                   </div>
                   {avatarMessage && (
@@ -183,7 +185,7 @@ export default function SerialCastPage() {
             </Surface>
 
             {cast.map((member) => (
-              <CastCard key={member.id} member={member} />
+              <CastCard key={member.id} member={member} t={t} />
             ))}
           </div>
         )}
@@ -258,14 +260,15 @@ export default function SerialCastPage() {
 
 /* One cast member. `model_sheet_url` is the character's portrait; the accent
    colour is the world bible's, and closeness is the server's 0–5 count. */
-function CastCard({ member }: { member: SerialCastMember }) {
+function CastCard({ member, t }: { member: SerialCastMember; t: FeuilletonCopy }) {
   const closeness = Math.max(0, Math.min(5, Number(member.relationship.closeness || 0)));
   const register = member.relationship.register === 'tu' ? 'tu' : 'vous';
   const switchEp = member.relationship.register_switch_episode != null
     ? Number(member.relationship.register_switch_episode) + 1
     : null;
   const callbacks = (member.relationship.callbacks || []).slice(0, 4);
-  const moodLine = MOOD_LINES[Math.round(Number(member.relationship.mood ?? 0))];
+  const moodKey = MOOD_LINES[Math.round(Number(member.relationship.mood ?? 0))];
+  const moodLine = moodKey ? fbFill(t[moodKey], { name: member.name }) : '';
   const face = faceSrcFor([member.id, member.name], expressionForMood(Number(member.relationship.mood ?? 0)));
   const episodes = (member.episodes || []).slice(0, 4);
 
@@ -294,28 +297,28 @@ function CastCard({ member }: { member: SerialCastMember }) {
           {member.role && <p className="av2-label cast-card__role">{member.role}</p>}
         </div>
         <Chip tone={register === 'tu' ? 'reward' : 'quiet'} className="cast-card__register">
-          <span lang="fr">{register}</span> · {register === 'tu' ? 'accordé' : 'de rigueur'}
+          <span lang="fr">{register}</span> · {register === 'tu' ? t.register_granted : t.register_formal}
         </Chip>
       </div>
 
       <div className="cast-closeness">
-        <span className="av2-label">Proximité</span>
-        <span className="cast-closeness__pips" role="img" aria-label={`Proximité ${closeness} sur 5`}>
+        <span className="av2-label">{t.closeness}</span>
+        <span className="cast-closeness__pips" role="img" aria-label={fbFill(t.closeness_aria, { n: closeness })}>
           {[0, 1, 2, 3, 4].map((index) => (
             <i key={index} data-on={index < closeness ? 'true' : undefined} />
           ))}
         </span>
         <span className="av2-label" style={{ fontWeight: 400 }}>
-          {switchEp != null ? `Tutoiement — ép. ${switchEp}` : 'Pas encore de tutoiement'}
+          {switchEp != null ? fbFill(t.tu_since, { n: switchEp }) : t.no_tu}
         </span>
       </div>
 
       {moodLine ? (
-        <p className="av2-body cast-mood" lang="fr">{member.name} {moodLine}</p>
+        <p className="av2-body cast-mood">{moodLine}</p>
       ) : null}
 
       <div className="cast-ledger">
-        <span className="av2-label">Rappels</span>
+        <span className="av2-label">{t.callbacks}</span>
         {callbacks.length ? (
           <div className="cast-ledger__callbacks">
             {callbacks.map((callback, index) => (
@@ -325,14 +328,14 @@ function CastCard({ member }: { member: SerialCastMember }) {
             ))}
           </div>
         ) : (
-          <p className="av2-body">Aucun rappel encore — l’histoire commence.</p>
+          <p className="av2-body">{t.no_callbacks}</p>
         )}
         {member.relationship.last_summary ? (
           <p className="av2-body cast-ledger__last">
-            <strong>Dernier échange —</strong> {member.relationship.last_summary}
+            <strong>{t.last_exchange}</strong> <span lang="fr">{member.relationship.last_summary}</span>
           </p>
         ) : (
-          <p className="av2-body cast-ledger__last">Vous ne vous êtes pas encore parlé.</p>
+          <p className="av2-body cast-ledger__last">{t.never_spoke}</p>
         )}
       </div>
 
@@ -341,7 +344,11 @@ function CastCard({ member }: { member: SerialCastMember }) {
           {episodes.map((episode) => (
             <Link key={`${member.id}-${episode.episode_index}`} href={episode.href}>
               <span className="meta">
-                <span className="av2-label">{episode.episode_label}</span>
+                <span className="av2-label">
+                  {typeof episode.episode_index === 'number'
+                    ? fbFill(t.episode_n, { n: episode.episode_index + 1 })
+                    : episode.episode_label}
+                </span>
                 <span className="t">{episode.title}</span>
               </span>
               <ArrowRightIcon size={16} />

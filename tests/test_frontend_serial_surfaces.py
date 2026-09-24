@@ -16,6 +16,8 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     cast = read_web("pages/serial/cast.tsx")
     replay = read_web("pages/serial/episode/[index].tsx")
     api = read_web("services/api.ts")
+    # WP-82: the pages' own words live in the Feuilleton copy table.
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
 
     assert "apiService.getSerialEpisodes()" in archive
     # Claude-design Feuilleton index: one headline, a story hero, paper rows,
@@ -27,7 +29,8 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     assert "href=\"/serial/cast\"" in archive
     assert "apiService.getSerialCast()" in cast
     assert "apiService.setSerialAvatar" in cast
-    assert "Rester en POV" in cast
+    assert "stay_pov: 'Rester en POV'" in copy
+    assert "{t.stay_pov}" in cast
     # Claude-design cast register: one card per member on the av2 surface.
     assert "CastCard" in cast
     assert "model_sheet_url" in cast
@@ -93,7 +96,9 @@ def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source
     # Reader rebuild: the end of the episode is one action — Terminer l’épisode
     # while it is open, the declared next beat once it is filed.
-    assert "Terminer l’épisode" in source
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
+    assert "complete_episode: 'Terminer l’épisode'" in copy
+    assert "completeLabel={t.complete_episode}" in source
     component = read_web("components/feuilleton/reader/FeuilletonReader.tsx")
     assert 'className="fr-btn fr-next is-action" data-press="3d" href={nextHref}' in component
 
@@ -113,16 +118,18 @@ def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> 
 
 def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
     source = read_web("pages/graphic-novel.tsx")
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
 
     assert "const [canonicalBeat, setCanonicalBeat]" in source
     assert "const [serialResult, editionsResult] = await Promise.allSettled" in source
     assert "if (serial.kind === 'feuilleton' && serial.scene_id)" in source
     assert "canonicalBeat?.kind === 'mission'" in source
-    assert "La suite se joue avant de se lire." in source
+    assert "La suite se joue avant de se lire." in copy
+    assert "<h2>{t.mission_title}</h2>" in source
     # Soft-button pass: CTA labels are sentence case (text-transform removed).
-    assert "Ouvrir la mission du jour" in source
+    assert "open_mission: 'Ouvrir la mission du jour'" in copy
     assert "onClick={openCanonicalBeat}" in source
-    assert "Aucun récit parallèle ne sera créé." in source
+    assert "Aucun récit parallèle ne sera créé." in copy
 
 
 def test_feuilleton_translations_stay_hidden_until_requested() -> None:

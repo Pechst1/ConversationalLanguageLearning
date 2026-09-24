@@ -9,7 +9,13 @@
  *
  * Pure, so the composition rules (what the label says, when the page is empty,
  * what a row's second line is) are unit-tested without a browser.
+ *
+ * WP-82: the labels are chrome, so each takes the screen's chrome language
+ * (`chromeLanguage`); none given keeps the French table. The titles, briefs,
+ * threads and promises are story and stay French.
  */
+
+import { fbFill, feuilletonCopy } from '@/components/feuilleton/feuilleton-copy';
 
 export type SeasonEpisode = {
   scene_id: string;
@@ -45,11 +51,13 @@ export type SeasonPayload = {
   read_episodes: SeasonEpisode[];
 };
 
-/** The French label a thread's state gets: «en suspens», «ça bouge», «réglé». */
-export function seasonThreadLabel(state: string | null | undefined): string {
+/** The label a thread's state gets: «en suspens», «ça bouge», «réglé». */
+export function seasonThreadLabel(state: string | null | undefined, language?: unknown): string {
+  const t = feuilletonCopy(language);
   return (
-    { open: 'en suspens', developing: 'ça bouge', closed: 'réglé' }[String(state || 'open')] ||
-    'en suspens'
+    ({ open: t.thread_open, developing: t.thread_developing, closed: t.thread_closed } as Record<string, string>)[
+      String(state || 'open')
+    ] || t.thread_open
   );
 }
 
@@ -70,11 +78,12 @@ export function seasonThreads(season: SeasonPayload | null | undefined): SeasonT
 }
 
 /** The eyebrow: «Saison 1 · chapitre 1 · S'installer, avec complications». */
-export function seasonStoryLabel(season: SeasonPayload | null | undefined): string {
+export function seasonStoryLabel(season: SeasonPayload | null | undefined, language?: unknown): string {
   if (!season) return '';
-  const parts = [`Saison ${Math.max(1, Number(season.season_number) || 1)}`];
+  const t = feuilletonCopy(language);
+  const parts = [fbFill(t.season_n, { n: Math.max(1, Number(season.season_number) || 1) })];
   const chapter = season.chapter;
-  if (chapter && Number(chapter.number) > 0) parts.push(`chapitre ${chapter.number}`);
+  if (chapter && Number(chapter.number) > 0) parts.push(fbFill(t.chapter_n, { n: chapter.number }));
   if (chapter && String(chapter.title_fr || '').trim()) parts.push(String(chapter.title_fr).trim());
   return parts.join(' · ');
 }
@@ -87,17 +96,20 @@ export function seasonStoryLabel(season: SeasonPayload | null | undefined): stri
  * story moves. Saying so here is what keeps the tab a place to look back from
  * rather than a second, silent way to start a day.
  */
-export function seasonTodayLabel(episode: SeasonEpisode | null | undefined): string {
+export function seasonTodayLabel(episode: SeasonEpisode | null | undefined, language?: unknown): string {
   if (!episode) return '';
-  return `Aujourd’hui · épisode ${episode.number} · se joue dans la séance`;
+  return fbFill(feuilletonCopy(language).season_today, { n: episode.number });
 }
 
 /** A read row's second line: «avec Lila · l'appartement». Empty when neither. */
-export function seasonEpisodeMeta(episode: SeasonEpisode | null | undefined): string {
+export function seasonEpisodeMeta(
+  episode: Pick<SeasonEpisode, 'character' | 'location'> | null | undefined,
+  language?: unknown,
+): string {
   if (!episode) return '';
   const who = String(episode.character || '').trim();
   const where = String(episode.location || '').trim();
-  const parts = [who ? `avec ${who}` : '', where].filter(Boolean);
+  const parts = [who ? fbFill(feuilletonCopy(language).with_character, { name: who }) : '', where].filter(Boolean);
   return parts.join(' · ');
 }
 

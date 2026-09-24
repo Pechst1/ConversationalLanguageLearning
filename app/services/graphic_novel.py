@@ -6942,8 +6942,21 @@ class GraphicNovelCorrectionService:
             logger.debug("Graphic novel correction fallback", error=str(exc))
             return None
 
-def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
+def _scene_chrome_language(scene: GraphicNovelScene | None) -> str:
+    """The one-language rule for this scene's reader (French when unknown)."""
+    from app.services.chrome_language import user_chrome_language
+
+    try:
+        return user_chrome_language(getattr(scene, "user", None))
+    except Exception:  # a detached row cannot lazy-load its user
+        return "fr"
+
+
+def serialize_panel(panel: GraphicNovelPanel, *, language: str | None = None) -> dict[str, Any]:
     from app.services.recommendation_reasons import recommendation_reason
+
+    if language is None:
+        language = _scene_chrome_language(getattr(panel, "scene", None))
 
     overlay = dict(panel.overlay_payload or {})
     tasks = overlay.get("tasks")
@@ -6953,6 +6966,7 @@ def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
                 **task,
                 "recommendation_reason": recommendation_reason(
                     "panel_task",
+                    language=language,
                     concept_id=task.get("concept_id"),
                     target_errata_count=len(task.get("target_errata_ids") or []),
                     target_vocabulary_count=len(task.get("target_vocabulary_ids") or task.get("vocabulary_ids") or []),
@@ -7060,6 +7074,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
         return None
     from app.services.recommendation_reasons import recommendation_reason
 
+    language = _scene_chrome_language(scene)
     script_payload = dict(scene.script_payload or {})
     final_prompt = script_payload.get("final_prompt")
     if isinstance(final_prompt, dict):
@@ -7067,6 +7082,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
             **final_prompt,
             "recommendation_reason": recommendation_reason(
                 "panel_task",
+                language=language,
                 concept_id=final_prompt.get("concept_id"),
                 target_errata_count=len(
                     final_prompt.get("target_errata_ids") or scene.target_errata_ids or []
@@ -7110,7 +7126,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
         "completed_at": scene.completed_at.isoformat() if scene.completed_at else None,
     }
     if include_children:
-        payload["panels"] = [serialize_panel(panel) for panel in sorted(scene.panels or [], key=lambda item: item.panel_index)]
+        payload["panels"] = [serialize_panel(panel, language=language) for panel in sorted(scene.panels or [], key=lambda item: item.panel_index)]
         payload["attempts"] = [
             serialize_attempt(attempt) for attempt in sorted(scene.attempts or [], key=lambda item: item.created_at)
         ]
