@@ -59,5 +59,6 @@ test('the Cahier offers the test-out and the séance follows the forge', () => {
   assert.match(atelier, /const forgeView = forgeViewOf\(next\.forge\)/);
   assert.match(atelier, /if \(forge && !activeRetest\) \{/);
   assert.match(atelier, /apiService\.startForgeTestOut\(conceptId\)/);
-  assert.match(atelier, /fc\.test_out_action/);
+  // WP-S6: the action is drawn by ForgeHead (components/epreuve/Forge.tsx).
+  assert.match(atelier, /onClick: \(\) => onTestOut\(activeConcept\.id\)/);
 });

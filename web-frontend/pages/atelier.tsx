@@ -82,7 +82,15 @@ import {
   useEpCopy,
   type MotifPrim,
 } from '@/components/epreuve/Epreuve';
-import { AtelierV2Root, Notice } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, Notice, useControlLanguage } from '@/components/atelier-v2/ui';
+import {
+  ForgeCount,
+  ForgeHead,
+  ForgeRecapRules,
+  ForgeRuleChange,
+  ForgeStyles,
+  type ForgeCoach,
+} from '@/components/epreuve/Forge';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 // Atelier V2 daily journey (WP-07 functional milestone). The V2 branch below is
@@ -117,11 +125,22 @@ import {
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { fillForge, forgeCopy, forgeRungLabel } from '@/lib/forge-copy';
+import {
+  clampRung,
+  cueIsLocalized,
+  localizedCue,
+  recapRuleRows,
+  ruleChanged,
+  ruleShape,
+  seanceCountText,
+  stepText,
+  type SeenItem,
+} from '@/lib/forge-progress';
 import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
-import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
@@ -1948,7 +1967,10 @@ export default function AtelierPage() {
                 is «Plus de pratique» now, keyed by the concept the learner
                 chose; the strip sits above SessionView rather than inside it,
                 so no SessionView internal changes. */}
-            {practiceMode && (
+            {/* WP-S6: a forge séance names itself in its own top bar («La
+                Forge · 3 of 12») and its rule in its head; the strip stays
+                for the legacy ladder only. */}
+            {practiceMode && !forge && (
               <div className="atelier-practice-strip av2" role="status">
                 <p className="av2-label">
                   {forgeMode ? forgeLabel(pageChromeLanguage) : practiceLabel(pageChromeLanguage)}
@@ -3260,6 +3282,7 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
+  coachFor,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3303,6 +3326,9 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
+  /** WP-S5 seam: a rule's coach (the cast member who teaches it). Without
+   *  one, the rule card's speaker fills the rule-change card's portrait. */
+  coachFor?: (conceptId: number) => ForgeCoach | null;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
@@ -3370,14 +3396,41 @@ function SessionView({
   // nor breaks the run.
   const correctRun = correctRunFrom(Object.values(correctionsByKey));
 
+  // ---- WP-S6 La Forge: one human progress, the rule's head, the rule change. ----
+  const forgeShape = ruleShape(activeConcept);
+  const forgeRung = clampRung(forgeNext?.rung ?? forgeRule?.rung ?? 0);
+  const forgeRungName = forgeNext?.rung_name ?? forgeRule?.rung_name;
+  const forgeStep = stepText(fc, forgeRung, forgeRungName);
+  const forgeStairLabel = fillForge(fc.stair_label, { n: forgeRung + 1, rung: forgeRungLabel(fc, forgeRungName) });
+  const seenRef = useRef<SeenItem | null>(null);
+  const [ruleChangeAt, setRuleChangeAt] = useState<number | null>(null);
+  const servedPosition = forge?.mode === 'seance' && forge.next ? Number(forge.next.position) : null;
+  const servedConcept = forge?.mode === 'seance' && forge.next ? Number(forge.next.concept_id) : null;
+  useEffect(() => {
+    if (servedPosition == null || servedConcept == null) return;
+    const seen: SeenItem = { position: servedPosition, conceptId: servedConcept };
+    if (seenRef.current?.position === seen.position) return;
+    if (ruleChanged(seenRef.current, seen)) setRuleChangeAt(seen.position);
+    seenRef.current = seen;
+  }, [servedPosition, servedConcept]);
+  const speaker = ruleCard?.speaker ? String(ruleCard.speaker) : '';
+  const forgeCoach: ForgeCoach | null = activeConcept
+    ? coachFor?.(activeConcept.id) ?? (speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null)
+    : null;
+  const showRuleChange = Boolean(
+    forge && !forgeTestOut && forgeNext && ruleChangeAt === forgeNext.position && !currentSubmitted && !ruleIntro,
+  );
+
   return (
     <EpShell className="atelier-do-mode" language={language}>
       <LEpreuveStyles />
+      <ForgeStyles />
       {/* The séance names itself for the document outline. The design draws no
           screen title here — the concept is the visible headline — so the name
           is announced rather than printed (WP-20 D-11). */}
-      <h1 className="av2-sr">{t.screen_name}</h1>
+      <h1 className="av2-sr">{forge ? `${fc.surface_name} · ${fc.surface_action}` : t.screen_name}</h1>
       <EpTopbar
+        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge)} /> : undefined}
         groups={epGroups}
         cap={epCap}
         onClose={onBack}
@@ -3415,43 +3468,51 @@ function SessionView({
       )}
       {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
         <section className="ep-sheet">
-          {forge && (forgeNext || forgeRule) && (
-            <div className="forge-head">
-              <span className="av2-label">
-                {forgeTestOut
-                  ? fc.test_out_eyebrow
-                  : fillForge(fc.step_of, {
-                    n: Number((forgeNext?.rung ?? forgeRule?.rung ?? 0)) + 1,
-                    rung: forgeRungLabel(fc, forgeNext?.rung_name ?? forgeRule?.rung_name),
-                  })}
-              </span>
-              {forgeNext?.reprise && <span className="av2-label forge-head__reprise">{fc.reprise}</span>}
-              {!forgeTestOut && onTestOut && (
-                <button
-                  type="button"
-                  className="forge-head__test-out"
-                  disabled={testOutPending}
-                  onClick={() => onTestOut(activeConcept.id)}
-                >
-                  {testOutPending ? fc.test_out_starting : fc.test_out_action}
-                </button>
+          {forge ? (
+            <>
+              {/* WP-S6: the rule moved — a small card names the next one. */}
+              {showRuleChange && (
+                <ForgeRuleChange copy={fc} title={activeConceptTitle} shape={forgeShape} coach={forgeCoach} />
               )}
-            </div>
+              {/* One human progress: the rule's staircase and «Step 3 of 6 ·
+                  build»; the machine counters («Recognize · Word bank · 1/3»)
+                  are gone. */}
+              <ForgeHead
+                copy={fc}
+                title={activeConceptTitle}
+                shape={forgeShape}
+                rung={forgeRung}
+                step={forgeStep}
+                stairLabel={forgeStairLabel}
+                reprise={Boolean(forgeNext?.reprise)}
+                eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
+                ruleLabel={t.rule}
+                ruleOpen={ruleExpanded}
+                onRule={ruleIntro ? undefined : toggleRule}
+                testOut={!forgeTestOut && onTestOut && !ruleIntro
+                  ? { pending: testOutPending, onClick: () => onTestOut(activeConcept.id) }
+                  : null}
+              />
+              {provenance && <EpProvenance>{provenance}</EpProvenance>}
+            </>
+          ) : (
+            <>
+              <EpEyebrow
+                round={activeRoundLabel}
+                mode={round === 'recognize' ? activeRecognizeLabel : undefined}
+                i={activeItemCount > 1 ? activeItemIndex + 1 : 1}
+                n={activeItemCount > 1 ? activeItemCount : 1}
+                retour={isRetest}
+              />
+              {provenance && <EpProvenance>{provenance}</EpProvenance>}
+              <EpConcept
+                title={activeConceptTitle}
+                motif={<EpMotif prims={epMotifPrims} canvas={46} done={sessionComplete} />}
+                askOn={ruleExpanded}
+                onAsk={toggleRule}
+              />
+            </>
           )}
-          <EpEyebrow
-            round={activeRoundLabel}
-            mode={round === 'recognize' ? activeRecognizeLabel : undefined}
-            i={activeItemCount > 1 ? activeItemIndex + 1 : 1}
-            n={activeItemCount > 1 ? activeItemCount : 1}
-            retour={isRetest}
-          />
-          {provenance && <EpProvenance>{provenance}</EpProvenance>}
-          <EpConcept
-            title={activeConceptTitle}
-            motif={<EpMotif prims={epMotifPrims} canvas={46} done={sessionComplete} />}
-            askOn={ruleExpanded}
-            onAsk={toggleRule}
-          />
           {ruleIntro && ruleCard ? (
             <RuleCard
               card={ruleCard}
@@ -3862,6 +3923,7 @@ function RecognizePanel({
   const wordBankTokens = mode === 'word_bank' ? wordBankTokensFromAnswer(answers[item.id]) : [];
   const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
   const t = useEpCopy();
+  const cueLanguage = useControlLanguage();
   return (
     <div className="ep-exercise ep-recognize">
       {mode === 'fill' && (
@@ -3914,7 +3976,11 @@ function RecognizePanel({
       )}
       {mode === 'classify' && (
         <>
-          <EpPrompt>{item.prompt}</EpPrompt>
+          {/* WP-S6: a minimal pair's ask is the learner's language when the
+              bank offers it; a sentence to judge stays French. */}
+          <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
+            {localizedCue(item, 'prompt', cueLanguage)}
+          </EpPrompt>
           <EpCases boxes={(item.labels || []).map((label: string) => ({
             label,
             slugs: [
@@ -3954,9 +4020,10 @@ function TransformPanel({
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
   const t = useEpCopy();
+  const cueLanguage = useControlLanguage();
   return (
     <div className="ep-exercise ep-transform">
-      <EpPrompt cue={item.instruction}>
+      <EpPrompt cue={localizedCue(item, 'instruction', cueLanguage)}>
         {item.source}
       </EpPrompt>
       <textarea
@@ -4239,7 +4306,10 @@ function OutputLadderPanel({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const item = payload.output_ladder?.[round]?.items?.[0] || {};
-  const promptText = outputLadderPrompt(payload, item, round);
+  const cueLanguage = useControlLanguage();
+  // WP-S6: the bank's situation in the learner's language when it offers one.
+  const promptLocalized = cueIsLocalized(item, 'prompt', cueLanguage);
+  const promptText = promptLocalized ? localizedCue(item, 'prompt', cueLanguage) : outputLadderPrompt(payload, item, round);
   const character = item.character || {};
   const worldReply = correction?.world_reply || {};
   const t = useEpCopy();
@@ -4311,7 +4381,7 @@ function OutputLadderPanel({
           <em lang="fr">{String(character.register || 'vous')}</em>
         </div>
       )}
-      <EpPrompt cue={item.instruction || instruction}>
+      <EpPrompt cue={item.instruction || instruction} lang={promptLocalized ? cueLanguage : 'fr'}>
         {promptText}
       </EpPrompt>
       {round === 'speak' && (
@@ -4375,11 +4445,13 @@ function ProducePanel({
     count: req.target_count || 1,
   }));
   const sourceFragment = String(produce.source_fragment || '').trim();
-  const promptText = String(produce.prompt || '').trim();
+  const cueLanguage = useControlLanguage();
+  const promptLocalized = cueIsLocalized(produce, 'prompt', cueLanguage);
+  const promptText = localizedCue(produce, 'prompt', cueLanguage);
   const t = useEpCopy();
   return (
     <div className="ep-exercise ep-produce-panel">
-      <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined}>
+      <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined} lang={promptLocalized ? cueLanguage : 'fr'}>
         {promptText || t.produce_missing}
       </EpPrompt>
       <div className="target-chips">
@@ -4421,6 +4493,9 @@ function RecapModal({
   language: ControlLanguage;
 }) {
   const t = epreuveCopy(language);
+  const fc = forgeCopy(language);
+  // WP-S6: a forge séance's recap is each rule's progress, not a tally.
+  const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
   const nextLabel = recapActionLabel(recommendation, reviewTotal, t);
   const practiced = concepts.slice(0, 3).map((concept) => displayConceptTitle(concept));
@@ -4445,8 +4520,10 @@ function RecapModal({
       <AtelierV2Root as="section" language={language} className="ep ep-recap" aria-label={t.recap_dialog}>
         <LEpreuveStyles />
         <EpreuveWiringStyles />
+        <ForgeStyles />
         <button type="button" className="ep-recap-close" onClick={onClose} aria-label={t.recap_close}>×</button>
         <EpBatStage
+          title={forgeRows.length ? fc.recap_title : undefined}
           sub={giltSeal
             ? t.recap_gilt
             : filedEarly
@@ -4455,13 +4532,22 @@ function RecapModal({
         />
         <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
         <div className="ep-recap-body">
-          <EpTally items={[
-            { n: attempts, l: t.tally_lines },
-            { n: strengthened, l: t.tally_concepts },
-            { n: errataLogged, l: t.tally_errata },
-          ]} />
-          <EpProof lines={proofLines} />
-          {phrase?.text && <EpPhrase quote={phrase.text} by={phrase.byline || t.phrase_by} />}
+          {forgeRows.length ? (
+            // One Garamond line (the headline above); each rule: its shape's
+            // staircase and the step it reached, what changed today, two
+            // proof lines and the next review.
+            <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+          ) : (
+            <>
+              <EpTally items={[
+                { n: attempts, l: t.tally_lines },
+                { n: strengthened, l: t.tally_concepts },
+                { n: errataLogged, l: t.tally_errata },
+              ]} />
+              <EpProof lines={proofLines} />
+              {phrase?.text && <EpPhrase quote={phrase.text} by={phrase.byline || t.phrase_by} />}
+            </>
+          )}
           <div className="ep-recap-rewards">
             <EpSeal gilt={Boolean(giltSeal)} stamp />
             {(logoTokens.length > 0 || giltSeal) && (

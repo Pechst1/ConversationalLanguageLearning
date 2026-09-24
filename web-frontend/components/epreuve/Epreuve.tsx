@@ -128,6 +128,7 @@ export function EpTopbar({
   finishDisabled,
   partial = false,
   run,
+  middle,
 }: {
   groups: EpStickGroup[];
   cap?: [string, string | number];
@@ -136,6 +137,8 @@ export function EpTopbar({
   finishDisabled?: boolean;
   partial?: boolean;
   run?: number;
+  /** WP-S6: La Forge replaces the machine rule and «0/20» with its name and «n of N». */
+  middle?: Node;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
@@ -161,7 +164,7 @@ export function EpTopbar({
       <IconAction label={t.close_session} onClick={onClose}>
         <CrossIcon size={16} />
       </IconAction>
-      <EpStick groups={groups} cap={cap} />
+      {middle ?? <EpStick groups={groups} cap={cap} />}
       {runCount > 0 && (
         <span className="ep-run" role="img" aria-label={fill(runCount === 1 ? t.run_one : t.run_many, { n: runCount })}>
           <span className="av2-shape av2-shape--dot ep-run__dot" aria-hidden="true" />
@@ -279,10 +282,12 @@ export function EpRule({ lede, examples = [] }: { kicker?: string; lede?: Node; 
 /* The one Garamond-italic headline of the screen; the cue (instruction or
    meaning) is the 15px body under it. A block child (the word-bank line) is
    legal because this is a div, not an h-element. */
-export function EpPrompt({ children, cue }: { children: Node; cue?: Node }) {
+export function EpPrompt({ children, cue, lang = 'fr' }: { children: Node; cue?: Node; lang?: string }) {
+  /* WP-S6: a headline that is a cue in the learner's language (a minimal
+     pair's ask, a production situation) is not French: `lang` follows it. */
   return (
     <div className="ep-prompt">
-      <div className="av2-headline ep-line" lang="fr">{children}</div>
+      <div className="av2-headline ep-line" lang={lang || undefined}>{children}</div>
       {cue && <p className="av2-body av2-body--lg ep-cue">{cue}</p>}
     </div>
   );
@@ -701,7 +706,7 @@ export function EpLock({ motif, title, retired = 0 }: { motif?: Node; title: Nod
 }
 
 /* ---------- completion stamp ---------- */
-export function EpBatStage({ sub }: { sub?: Node }) {
+export function EpBatStage({ sub, title }: { sub?: Node; title?: Node }) {
   React.useEffect(() => {
     pulseAppHaptic('complete');
   }, []);
@@ -714,7 +719,7 @@ export function EpBatStage({ sub }: { sub?: Node }) {
     <div className="ep-bat-stage">
       <Surface shape="hero" className="ep-bat">
         <AtelierMark size={34} title="Atelier" />
-        <h2 className="av2-headline av2-headline--screen ep-bat__m">{t.recap_title}</h2>
+        <h2 className="av2-headline av2-headline--screen ep-bat__m">{title ?? t.recap_title}</h2>
         {sub && <p className="av2-body av2-body--lg ep-bat__sub">{sub}</p>}
       </Surface>
     </div>
@@ -917,7 +922,16 @@ export function LEpreuveStyles() {
 /* ============================================================
    HEADER — close · blue rule · red run · quiet Terminer
    ============================================================ */
-.av2 .ep-top { padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 12px; }
+/* WP-S6: the top bar stays put while the sheet scrolls (paper face, no rule). */
+.av2 .ep-top {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-bottom: 10px;
+  gap: 12px;
+  background: var(--av2-paper);
+}
 .av2 .ep-top .ep-stick { flex: 1 1 auto; min-width: 0; }
 .av2 .ep-stick__concepts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
 .av2 .ep-stick__concept[data-state='done'] .av2-label { color: var(--av2-ink); }
@@ -1072,10 +1086,14 @@ export function LEpreuveStyles() {
 .av2 .ep-setline { min-height: max(var(--av2-tap), 3.5rem); }
 .av2 .ep-setline__hint { color: var(--av2-muted); }
 .av2 .ep-setline .ep-slug { min-height: var(--av2-tap); padding: 0.25rem 0.75rem; } /* WP-83: a placed word is still a 44 px target */
+/* WP-S6: the av2 tile without strokes — a flat face on its own press, in
+   both themes; a placed word takes the blue face on the blue-deep press. */
+.av2 .ep-slug.av2-tile { border: 0; }
+.av2 .ep-slug.av2-tile[data-state='placed'] { background: var(--av2-blue); color: var(--av2-on-blue); box-shadow: 0 var(--av2-press-sm) 0 var(--av2-blue-deep); }
+.av2 .ep-slug.av2-tile[data-state='placed']:disabled { color: var(--av2-on-blue); }
 .av2 .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .av2 .ep-slug[data-spent='true'] {
   background: var(--av2-line);
-  border-color: transparent;
   box-shadow: none;
   color: var(--av2-ink-2);
   text-decoration: line-through;
@@ -1173,10 +1191,16 @@ export function LEpreuveStyles() {
    FOOTER — tinted band, verdict, the one primary. Sticky above the
    app's bottom navigation; pushed to the bottom when the sheet is short.
    ============================================================ */
+/* WP-S6: the band bleeds to both edges. The «.av2 *» rule caps every box at 100 % of
+   its parent, which cut the bleeding band two gutters short on the right (and
+   its divider with it); the band's width is the parent plus both gutters. */
 .av2 .ep-foot {
   position: sticky;
   bottom: var(--phone-bottom-nav-space, 0px);
   z-index: 5;
+  max-width: none;
+  width: calc(100% + 2 * var(--av2-gutter));
+  box-sizing: border-box;
   margin: auto calc(-1 * var(--av2-gutter)) 0;
   padding-bottom: 16px;
   display: flex;
@@ -1193,6 +1217,11 @@ export function LEpreuveStyles() {
    FEEDBACK BODY — corrections, relecture, repair, correct moment
    ============================================================ */
 .av2 .ep-feedback { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* WP-S6: the correction and its band stay together. As the sheet's last child
+   the feedback used to grow to the screen's height and push its band to the
+   bottom, so scrolling to the correction opened a large empty gap. */
+.av2 .ep-sheet > .ep-feedback:last-child { flex: 0 0 auto; }
+.av2 .ep-feedback > .ep-foot { margin-top: 0; }
 .av2 .ep-galley { margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .av2 .ep-galley__anchor { margin: 0; }
 .av2 .ep-gline { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.35; color: var(--av2-ink); overflow-wrap: anywhere; }
