@@ -84,8 +84,11 @@ import {
 } from '@/components/epreuve/Epreuve';
 import { AtelierV2Root, Notice, useControlLanguage } from '@/components/atelier-v2/ui';
 import {
+  ForgeBestCombo,
+  ForgeCombo,
   ForgeCount,
   ForgeHead,
+  ForgeRareToken,
   ForgeRecapRules,
   ForgeRuleChange,
   ForgeStyles,
@@ -137,6 +140,10 @@ import {
   type SeenItem,
 } from '@/lib/forge-progress';
 import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
+import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
+import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
+import { eclairHref } from '@/lib/grammar-map';
+import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
@@ -1256,6 +1263,15 @@ export default function AtelierPage() {
       }
       applyAttemptResult(attemptKey, result);
       const forgeAfter = forgeViewOf(result.forge);
+      // WP-S7: the combo moves only on a checked verdict (the server's run).
+      let comboHaptic: 'correct' | 'token' | null = null;
+      if (forgeAfter && forgeAfter.mode === 'seance' && comboEnabled(forgeAfter) && forgeAfter.combo) {
+        const before = Math.max(0, Number(forge?.combo?.run) || 0);
+        const after = Math.max(0, Number(forgeAfter.combo.run) || 0);
+        const feltCombo = comboFeel(comboStep(before, after), after);
+        comboHaptic = feltCombo.haptic;
+        if (feltCombo.tone) playComboTone(after);
+      }
       if (forgeAfter) {
         setForge(forgeAfter);
         const upcoming = forgeAfter.next;
@@ -1304,6 +1320,8 @@ export default function AtelierPage() {
         setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
         pulseAtelierHaptic('token');
         say(pageCopy.say_token_won);
+      } else if (comboHaptic) {
+        pulseAtelierHaptic(comboHaptic);
       } else {
         pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
       }
@@ -3395,6 +3413,10 @@ function SessionView({
   // or a provisional one (its second check still running) neither extends
   // nor breaks the run.
   const correctRun = correctRunFrom(Object.values(correctionsByKey));
+  // WP-S7: in La Forge the run is the combo — tokens in the rule's shape.
+  const mc = momentumCopy(language);
+  const combo = comboOf(forge, Object.values(correctionsByKey));
+  const showCombo = Boolean(forge && forge.mode === 'seance' && comboEnabled(forge));
 
   // ---- WP-S6 La Forge: one human progress, the rule's head, the rule change. ----
   const forgeShape = ruleShape(activeConcept);
@@ -3441,6 +3463,9 @@ function SessionView({
         finishDisabled={submitting || completedDrills < 1}
         partial={completedDrills < total}
         run={correctRun}
+        runSlot={showCombo
+          ? <ForgeCombo shape={ruleShape(activeConcept)} run={combo.run} label={comboLabel(mc, combo.run)} />
+          : undefined}
       />
       <div className="ep-body av2-screen__body">
       {notice && (
@@ -3463,6 +3488,9 @@ function SessionView({
               rung: forgeRungLabel(fc, forge.result.placement_rung_name),
             })}
           </p>
+          {forge.result.passed && forge.result.token && (
+            <ForgeRareToken title={mc.test_out_token} sub={mc.test_out_token_sub} />
+          )}
           <EpBar onClick={onLeaveTestOut}>{fc.back_to_rule}</EpBar>
         </section>
       )}
@@ -4494,6 +4522,7 @@ function RecapModal({
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
+  const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
   const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
@@ -4536,7 +4565,26 @@ function RecapModal({
             // One Garamond line (the headline above); each rule: its shape's
             // staircase and the step it reached, what changed today, two
             // proof lines and the next review.
-            <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+            <>
+              <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+              {/* WP-S7: the séance's best run, and Éclair when a pair is open. */}
+              <ForgeBestCombo
+                shape={forgeRows[0]?.shape ?? 'circle'}
+                best={Number(recap.forge?.best_combo) || 0}
+                line={bestComboLine(mc, Number(recap.forge?.best_combo) || 0)}
+              />
+              {recap.forge?.eclair?.pair && (
+                <Link className="av2-btn av2-btn--secondary av2-btn--inline forge-recap__eclair" href={eclairHref(String(recap.forge.eclair.pair))}>
+                  <span>{mc.eclair_action}</span>
+                  <span className="forge-recap__eclair-pair" lang="fr">
+                    {fillMomentum(mc.eclair_pair_label, {
+                      a: String(recap.forge.eclair.rules?.[0]?.title_fr || ''),
+                      b: String(recap.forge.eclair.rules?.[1]?.title_fr || ''),
+                    })}
+                  </span>
+                </Link>
+              )}
+            </>
           ) : (
             <>
               <EpTally items={[

@@ -128,6 +128,7 @@ export function EpTopbar({
   finishDisabled,
   partial = false,
   run,
+  runSlot,
   middle,
 }: {
   groups: EpStickGroup[];
@@ -139,6 +140,8 @@ export function EpTopbar({
   run?: number;
   /** WP-S6: La Forge replaces the machine rule and «0/20» with its name and «n of N». */
   middle?: Node;
+  /** WP-S7: La Forge draws its combo (shape tokens) where the red «● n» sits. */
+  runSlot?: Node;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
@@ -165,12 +168,12 @@ export function EpTopbar({
         <CrossIcon size={16} />
       </IconAction>
       {middle ?? <EpStick groups={groups} cap={cap} />}
-      {runCount > 0 && (
+      {runSlot ?? (runCount > 0 && (
         <span className="ep-run" role="img" aria-label={fill(runCount === 1 ? t.run_one : t.run_many, { n: runCount })}>
           <span className="av2-shape av2-shape--dot ep-run__dot" aria-hidden="true" />
           {runCount}
         </span>
-      )}
+      ))}
       <button
         type="button"
         className={'av2-btn av2-btn--quiet av2-btn--inline ep-finish' + (confirming ? ' ep-finish--confirming' : '')}
