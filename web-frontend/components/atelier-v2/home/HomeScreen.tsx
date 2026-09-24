@@ -39,6 +39,7 @@ import {
   Skeleton,
   Surface,
 } from '@/components/atelier-v2/ui';
+import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
 import {
   DAY_MARK_GROUPS,
   STEP_SHAPE,
@@ -348,7 +349,7 @@ export function HomeScreen({
             {action.label}
           </Action>
           {note && <p className="av2-label av2-home__note">{note}</p>}
-          <BecauseLine because={because} copy={copy} />
+          <BecauseLine because={because} />
           {/* 2026-09-24: the «Plus long que les N minutes demandées» clause is
               gone. It compared the edition with the pre-rhythm daily goal (a
               stored 15 that no Réglages control sets any more); the rhythm now
@@ -518,7 +519,9 @@ export function HomeScreen({
  * informed. An unknown `kind` prints nothing: an unexplained scene is better
  * than an invented explanation.
  */
-function BecauseLine({ because, copy }: { because?: HomeBecause | null; copy: AtelierCopy }) {
+function BecauseLine({ because }: { because?: HomeBecause | null }) {
+  // The chrome language of the surrounding AtelierV2Root (the home screen sets it).
+  const copy = atelierCopy(useControlLanguage());
   if (!because || because.kind !== 'erratum') return null;
   const label = (because.label || '').trim();
   if (!label) return null;
