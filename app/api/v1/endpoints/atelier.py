@@ -82,6 +82,7 @@ from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopSh
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService
 from app.services.error_memory import ErrorMemoryService
+from app.services.forge_picker import forge_plan
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
 from app.services.learner_copy import (
     LEARNER_COPY,
@@ -675,6 +676,58 @@ def _concept_roles_payload(selections: list[ConceptSelection]) -> dict[str, str]
     return {str(selection.concept.id): selection.role for selection in selections}
 
 
+#: WP-S4: a séance set aside because the learner asked for another rule.
+SESSION_PARKED = "parked"
+#: A parked séance is offered back for this long, then left alone.
+PARKED_RESUME_WINDOW = timedelta(hours=24)
+
+
+def _session_answers_request(
+    session: AtelierSession, *, preferred_id: int | None, concept_ids: list[int]
+) -> bool:
+    """Does the open séance already seat what this start asks for?
+
+    A bare start resumes it. A start for a rule resumes it only when that rule
+    leads it; explicit ``concept_ids`` only when they are the same list.
+    """
+
+    seated = [int(item) for item in (session.selected_concept_ids or [])]
+    if concept_ids:
+        return seated[: len(concept_ids[:3])] == [int(item) for item in concept_ids[:3]]
+    if preferred_id:
+        return bool(seated) and seated[0] == int(preferred_id)
+    return True
+
+
+def _park_session(db: Session, session: AtelierSession) -> None:
+    session.status = SESSION_PARKED
+    db.add(session)
+    db.flush()
+
+
+def _resumable_session(db: Session, user: User) -> AtelierSession | None:
+    """A bare start first resumes a recently parked séance, then a prepared one."""
+
+    parked = (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == SESSION_PARKED)
+        .order_by(AtelierSession.created_at.desc())
+        .first()
+    )
+    if parked is not None:
+        created = parked.created_at
+        if created is not None and created.tzinfo is None:
+            created = created.replace(tzinfo=UTC)
+        if created is None or datetime.now(UTC) - created <= PARKED_RESUME_WINDOW:
+            return parked
+    return (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == "prepared")
+        .order_by(AtelierSession.created_at.desc())
+        .first()
+    )
+
+
 def _session_selections(db: Session, user: User, session: AtelierSession) -> list[ConceptSelection]:
     concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
     if not concept_ids:
@@ -1198,6 +1251,8 @@ def start_session(
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     scheduler.ensure_catalog()
+    preferred_id = payload.preferred_concept_id if payload else None
+    explicit_ids = list(payload.concept_ids or []) if payload else []
 
     active = (
         db.query(AtelierSession)
@@ -1205,25 +1260,25 @@ def start_session(
         .order_by(AtelierSession.created_at.desc())
         .first()
     )
-    if active:
+    if active and _session_answers_request(active, preferred_id=preferred_id, concept_ids=explicit_ids):
         # fast_path is a no-op once a concept's exercise set is already stored
         # (the common case); it only matters if this in-progress session was
         # flipped over from "prepared" before background pregeneration finished
         # writing every concept's exercise set, so a reload doesn't block here.
         return _session_response(db, current_user, active, fast_path=True, background_tasks=background_tasks)
+    if active:
+        # WP-S4: the learner asked for a different rule. The open séance is
+        # parked (resumable later, never deleted) and the asked-for rule is
+        # seated — an in-progress session no longer overrides the choice.
+        _park_session(db, active)
 
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
-        prepared = (
-            db.query(AtelierSession)
-            .filter(AtelierSession.user_id == current_user.id, AtelierSession.status == "prepared")
-            .order_by(AtelierSession.created_at.desc())
-            .first()
-        )
-        if prepared:
-            prepared.status = "in_progress"
-            db.add(prepared)
+        resumable = _resumable_session(db, current_user)
+        if resumable is not None:
+            resumable.status = "in_progress"
+            db.add(resumable)
             db.commit()
-            db.refresh(prepared)
+            db.refresh(resumable)
             if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
                 background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
             # A "prepared" row can exist before background pregeneration has
@@ -1231,55 +1286,42 @@ def start_session(
             # session row up front, then populates exercise sets one by one) --
             # without fast_path this would block on the same slow generation
             # chain HS-1 exists to avoid.
-            return _session_response(db, current_user, prepared, fast_path=True, background_tasks=background_tasks)
+            return _session_response(db, current_user, resumable, fast_path=True, background_tasks=background_tasks)
 
-    if payload and payload.concept_ids:
+    forge = None
+    if explicit_ids:
         concepts = (
             db.query(GrammarConcept)
-            .filter(GrammarConcept.id.in_(payload.concept_ids), GrammarConcept.active.is_(True))
+            .filter(GrammarConcept.id.in_(explicit_ids), GrammarConcept.active.is_(True))
             .all()
         )
         concepts_by_id = {concept.id: concept for concept in concepts}
         selections = [
             ConceptSelection(concept=concepts_by_id[concept_id], role="fragile" if index < 2 else "contrast")
-            for index, concept_id in enumerate(payload.concept_ids[:3])
+            for index, concept_id in enumerate(explicit_ids[:3])
             if concept_id in concepts_by_id
         ]
-    elif payload and payload.preferred_concept_id:
-        concept = (
-            db.query(GrammarConcept)
-            .filter(GrammarConcept.id == payload.preferred_concept_id, GrammarConcept.active.is_(True))
-            .first()
-        )
-        if not concept:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook concept is not available")
-        selections = [ConceptSelection(concept=concept, role="fragile")]
-        seen_ids = {concept.id}
-        for selection in scheduler.select_today(current_user):
-            if selection.concept.id in seen_ids:
-                continue
-            role = "fragile" if len(selections) < 2 else "contrast"
-            selections.append(ConceptSelection(concept=selection.concept, role=role))
-            seen_ids.add(selection.concept.id)
-            if len(selections) >= 3:
-                break
-        if len(selections) < 3:
-            fallback_concepts = (
-                db.query(GrammarConcept)
-                .filter(
-                    GrammarConcept.language == concept.language,
-                    GrammarConcept.active.is_(True),
-                    ~GrammarConcept.id.in_(seen_ids),
-                )
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-                .limit(3 - len(selections))
-                .all()
-            )
-            for fallback in fallback_concepts:
-                role = "fragile" if len(selections) < 2 else "contrast"
-                selections.append(ConceptSelection(concept=fallback, role=role))
     else:
-        selections = scheduler.select_today(current_user)
+        if preferred_id:
+            concept = (
+                db.query(GrammarConcept)
+                .filter(GrammarConcept.id == preferred_id, GrammarConcept.active.is_(True))
+                .first()
+            )
+            if not concept:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook concept is not available")
+        # WP-S4 — La Forge's one picker: the chosen rule (or today's) first,
+        # then due rules and introduced contrast partners. No padding from
+        # teaching order; a new rule only through the rhythm quota.
+        forge = forge_plan(
+            db,
+            current_user,
+            preferred_concept_id=preferred_id,
+            budget_seconds=payload.budget_seconds if payload else None,
+        )
+        selections = scheduler.selections_for_plan(
+            current_user, forge, limit=scheduler.concept_limit(current_user)
+        )
 
     if not selections:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Atelier concepts are available")
@@ -1296,6 +1338,12 @@ def start_session(
         "target_vocabulary": target_vocabulary,
         "concept_roles": _concept_roles_payload(selections),
     }
+    if forge is not None:
+        quote["forge"] = {
+            **forge.as_payload(),
+            "origin": (payload.origin if payload else None) or ("practice" if preferred_id else "after_day"),
+            "journey_step_id": str(payload.journey_step_id) if payload and payload.journey_step_id else None,
+        }
     session = AtelierSession(
         user_id=current_user.id,
         selected_concept_ids=[selection.concept.id for selection in selections],

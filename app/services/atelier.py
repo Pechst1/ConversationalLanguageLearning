@@ -1755,77 +1755,46 @@ class AtelierScheduler:
         AtelierAssetService(self.db).ensure_assets_for_catalog("fr")
 
     def select_today(self, user: User) -> list[ConceptSelection]:
+        """Today's séance rules, through La Forge's one picker (WP-S4).
+
+        ``app.services.forge_picker.forge_plan`` decides — today's rule (the
+        one the day introduced, or today's new rule from the rhythm quota, or
+        the weakest in progress), then due rules, then introduced contrast
+        partners — and this seats the first :meth:`concept_limit` of them. No
+        padding from teaching order: a new rule enters only through the quota.
+        """
+
         self.ensure_catalog()
-        selected: list[ConceptSelection] = []
-        used_ids: set[int] = set()
+        from app.services.forge_picker import forge_plan
 
-        for concept in self._due_errata_concepts(user):
-            if concept.id in used_ids:
+        plan = forge_plan(self.db, user)
+        return self.selections_for_plan(user, plan, limit=self.concept_limit(user))
+
+    def selections_for_plan(self, user: User, plan: Any, *, limit: int | None = None) -> list[ConceptSelection]:
+        """A forge plan as the séance's :class:`ConceptSelection` rows.
+
+        Roles map onto the séance's own words: today's rule is ``new`` when
+        forging it introduces it, else ``fragile``; a due rule is ``fragile``;
+        a contrast partner is ``contrast``.
+        """
+
+        selections: list[ConceptSelection] = []
+        for unit in plan.units:
+            if limit is not None and len(selections) >= max(1, limit):
+                break
+            concept = self.db.get(GrammarConcept, unit.concept_id)
+            if concept is None or not concept.active:
                 continue
-            selected.append(ConceptSelection(concept=concept, role="fragile", progress=self._progress_for(user, concept.id)))
-            used_ids.add(concept.id)
-            if len(selected) == 2:
-                break
-
-        due = GrammarService(self.db).get_due_concepts(user=user, limit=30)
-        for concept, progress in due:
-            if not concept.active or not concept.external_id or concept.id in used_ids or progress is None:
-                continue
-            if progress.score < 7 or self._is_due(progress):
-                selected.append(ConceptSelection(concept=concept, role="fragile", progress=progress))
-                used_ids.add(concept.id)
-            if len(selected) == 2:
-                break
-
-        active_query = self._active_query()
-        ready = self._readiness(user)
-
-        if len(selected) < 2:
-            for concept in self.next_new_concepts(
-                user, limit=2 - len(selected), exclude_ids=used_ids, ready=ready
-            ):
-                selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
-                used_ids.add(concept.id)
-
-        def first_ready(query: Any) -> GrammarConcept | None:
-            return next((concept for concept in query.all() if ready(concept)), None)
-
-        band = placement_band(self.db, user)
-        contrast = first_ready(
-            active_query.filter(
-                GrammarConcept.id.notin_(used_ids),
-                GrammarConcept.level.in_(_cefr_levels_at_or_below(user, placement=band)),
-                GrammarConcept.is_foundation.is_(True),
+            if unit.role == "today":
+                role = "new" if plan.new_concept_id == concept.id else "fragile"
+            elif unit.role == "contrast":
+                role = "contrast"
+            else:
+                role = "fragile"
+            selections.append(
+                ConceptSelection(concept=concept, role=role, progress=self._progress_for(user, concept.id))
             )
-            .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-        )
-        if not contrast:
-            contrast = first_ready(
-                active_query.filter(GrammarConcept.id.notin_(used_ids), GrammarConcept.is_foundation.is_(True))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            )
-        if not contrast:
-            contrast = first_ready(
-                active_query.filter(GrammarConcept.id.notin_(used_ids))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            )
-        if contrast:
-            selected.append(
-                ConceptSelection(concept=contrast, role="contrast", progress=self._progress_for(user, contrast.id))
-            )
-            used_ids.add(contrast.id)
-
-        for concept in active_query.order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc()).all():
-            if len(selected) >= 3:
-                break
-            if concept.id not in used_ids and ready(concept):
-                selected.append(ConceptSelection(concept=concept, role="contrast", progress=self._progress_for(user, concept.id)))
-                used_ids.add(concept.id)
-
-        # A learner's very first edition is always one short win. Thereafter,
-        # the saved time budget—not a hardcoded three-concept cap—decides how
-        # much grammar appears in today's prescription.
-        return selected[: self.concept_limit(user)]
+        return selections
 
     def _active_query(self, language: str | None = None) -> Any:
         query = self.db.query(GrammarConcept).filter(
@@ -2013,36 +1982,6 @@ class AtelierScheduler:
             .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept_id)
             .first()
         )
-
-    def _due_errata_concepts(self, user: User, limit: int = 10) -> list[GrammarConcept]:
-        now = datetime.now(UTC)
-        rows = (
-            self.db.query(GrammarConcept)
-            .join(UserError, UserError.concept_id == GrammarConcept.id)
-            .filter(
-                UserError.user_id == user.id,
-                UserError.state != "mastered",
-                GrammarConcept.active.is_(True),
-                GrammarConcept.external_id.isnot(None),
-                GrammarConcept.external_id != "",
-            )
-            .filter((UserError.next_review_date.is_(None)) | (UserError.next_review_date <= now))
-            .order_by(UserError.lapses.desc(), UserError.occurrences.desc(), UserError.next_review_date.asc().nullsfirst())
-            .limit(limit)
-            .all()
-        )
-        concepts: list[GrammarConcept] = []
-        seen: set[int] = set()
-        for concept in rows:
-            if concept.id in seen:
-                continue
-            concepts.append(concept)
-            seen.add(concept.id)
-        return concepts
-
-    @staticmethod
-    def _is_due(progress: UserGrammarProgress) -> bool:
-        return not progress.next_review or progress.next_review <= datetime.now(UTC)
 
 
 class AtelierExerciseGenerator:

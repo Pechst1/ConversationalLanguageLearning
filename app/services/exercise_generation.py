@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import not_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -17,7 +16,6 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
-from app.services.grammar import GrammarService
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
@@ -419,7 +417,7 @@ class ExerciseGenerationService:
             AtelierScheduler(self.db).ensure_catalog()
         except Exception as exc:
             logger.debug("Exercise generation catalog context unavailable", error=str(exc))
-        selected = self.select_daily_concepts(
+        selected = self.daily_concepts(
             user=user,
             target_language=target_language,
             target_concept=target_concept,
@@ -442,13 +440,22 @@ class ExerciseGenerationService:
             concept_blueprints=blueprints,
         )
 
-    def select_daily_concepts(
+    def daily_concepts(
         self,
         *,
         user: User | None,
         target_language: str = "fr",
         target_concept: GrammarConcept | None = None,
     ) -> list[tuple[GrammarConcept, str, UserGrammarProgress | None]]:
+        """The generation context's rules: the target, then La Forge's plan.
+
+        WP-S4 retired the old ``select_daily_concepts`` (errata, due, then a pad
+        to exactly three from teaching order). The rules now come from the one
+        picker (``forge_picker.forge_plan``) — today's rule, due rules, contrast
+        partners, new rules only through the rhythm quota — with the concept
+        being generated for first. No padding: a context may name one rule.
+        """
+
         selected: list[tuple[GrammarConcept, str, UserGrammarProgress | None]] = []
         seen: set[int] = set()
 
@@ -464,69 +471,28 @@ class ExerciseGenerationService:
                 .first()
             )
 
-        def add(concept: GrammarConcept | None, role: str, progress: UserGrammarProgress | None = None) -> None:
-            if not concept or concept.id in seen or len(selected) >= 3:
+        def add(concept: GrammarConcept | None, role: str) -> None:
+            if not concept or concept.id in seen or not concept.active:
                 return
-            selected.append((concept, role, progress if progress is not None else progress_for(concept.id)))
+            selected.append((concept, role, progress_for(concept.id)))
             seen.add(concept.id)
 
-        if user:
-            for error in ErrorMemoryService(self.db).due_error_records(
-                user,
-                limit=20,
-                review_modes={"grammar", "spelling", "speaking"},
-            ):
-                if not error.concept_id:
-                    continue
-                concept = self.db.get(GrammarConcept, int(error.concept_id))
-                if concept and concept.active and concept.language == target_language:
-                    add(concept, "errata")
-                if len(selected) >= 3:
-                    return selected
-
-            for concept, progress in GrammarService(self.db).get_due_concepts(user=user, limit=30):
-                if not concept.active or concept.language != target_language:
-                    continue
-                fragile = progress is None or float(progress.score or 0) < 7.0
-                next_review = _as_aware(progress.next_review) if progress else None
-                due = progress is None or next_review is None or next_review <= datetime.now(UTC)
-                if fragile or due:
-                    add(concept, "fragile", progress)
-                if len(selected) >= 3:
-                    return selected
-
-        if target_concept and target_concept.active:
+        if target_concept is not None:
             add(target_concept, "target")
+        if user is not None:
+            from app.services.forge_picker import forge_plan
 
-        active_query = self.db.query(GrammarConcept).filter(
-            GrammarConcept.active.is_(True),
-            GrammarConcept.language == target_language,
-        )
-        if seen:
-            active_query = active_query.filter(not_(GrammarConcept.id.in_(seen)))
-        for concept in (
-            active_query.filter(GrammarConcept.is_foundation.is_(True))
-            .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            .limit(12)
-            .all()
-        ):
-            add(concept, "foundation")
-            if len(selected) >= 3:
-                return selected
-
-        active_query = self.db.query(GrammarConcept).filter(
-            GrammarConcept.active.is_(True),
-            GrammarConcept.language == target_language,
-        )
-        if seen:
-            active_query = active_query.filter(not_(GrammarConcept.id.in_(seen)))
-        for concept in active_query.order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc()).limit(12).all():
-            add(concept, "contrast")
-            if len(selected) >= 3:
-                return selected
-
-        if len(selected) != 3:
-            raise ExerciseGenerationUnavailable("Daily exercise generation requires exactly 3 grammar concepts.")
+            try:
+                plan = forge_plan(self.db, user)
+            except Exception as exc:  # pragma: no cover - context is best-effort
+                logger.debug("Exercise generation forge plan unavailable", error=str(exc))
+                plan = None
+            for unit in plan.units if plan is not None else ():
+                concept = self.db.get(GrammarConcept, unit.concept_id)
+                if concept is not None and concept.language == target_language:
+                    add(concept, unit.role)
+        if not selected:
+            raise ExerciseGenerationUnavailable("Exercise generation needs at least one grammar concept.")
         return selected
 
     def generate_atelier_exercise(

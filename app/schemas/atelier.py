@@ -51,6 +51,14 @@ class AtelierSessionStartRequest(BaseModel):
     concept_ids: list[int] | None = None
     preferred_concept_id: int | None = None
     preferred_vocabulary_ids: list[int] | None = None
+    #: WP-S4 — La Forge. How the block was entered: ``journey`` (folded into a
+    #: Soutenu/Intensif day, from its forge step), ``after_day`` (the Léger /
+    #: Régulier chip or the recap), ``practice`` (any other practice link).
+    origin: Literal["journey", "after_day", "practice"] | None = None
+    #: The block's length when the day sized it (the fold); else the rhythm's.
+    budget_seconds: int | None = Field(default=None, ge=60, le=1800)
+    #: The day's forge step this block belongs to (folded days only).
+    journey_step_id: UUID | None = None
 
 
 class AtelierSessionStartResponse(BaseModel):
