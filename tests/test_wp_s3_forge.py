@@ -28,7 +28,7 @@ from app.services.forge import (
     ForgeService,
     PayloadItemProvider,
     PickedUnit,
-    SelectTodayComposer,
+    ForgePlanComposer,
     forge_state_of,
     verdict_from_attempt,
 )
@@ -410,13 +410,19 @@ def test_test_out_fail_through_the_api_places_the_rule_on_the_failed_rung(client
     assert rungs == [0, 1, 2, 3, 5]
     result = body["forge"]["result"]
     assert result["passed"] is False and result["placement_rung"] == Rung.DISCRIMINATE
-    progress = db_session.query(UserGrammarProgress).filter(UserGrammarProgress.concept_id == tense.id).one()
-    db_session.refresh(progress)
-    assert progress.forge_rung == Rung.DISCRIMINATE
-    assert progress.tested_out_at is None and progress.held_at is None
     session = db_session.get(AtelierSession, UUID(data["session_id"]))
     db_session.refresh(session)
     assert session.status == "test_out_done"
+    # This learner's row: every forge séance of the run writes item-level
+    # progress, so other learners hold rows for this rule too.
+    progress = (
+        db_session.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.concept_id == tense.id, UserGrammarProgress.user_id == session.user_id)
+        .one()
+    )
+    db_session.refresh(progress)
+    assert progress.forge_rung == Rung.DISCRIMINATE
+    assert progress.tested_out_at is None and progress.held_at is None
 
 
 def test_test_out_pass_holds_the_rule_at_once(db_session):
@@ -486,15 +492,21 @@ def test_default_composer_seats_the_journeys_rule_of_the_day_and_its_contrast_pa
     ])
     db_session.commit()
 
-    class _Sel:
-        def __init__(self, concept, role):
-            self.concept, self.role = concept, role
-
-    picked = SelectTodayComposer(db_session, selections=[_Sel(other, "new")]).pick(user, now=now)
+    # The default composer is WP-S4's one picker: today's rule is the one the
+    # journey introduced, its met contrast partner comes along, and a rule
+    # never introduced (``other``) is not padded in.
+    composer = ForgePlanComposer(db_session)
+    picked = composer.pick(user, now=now)
     roles = {unit.concept_id: unit.role for unit in picked}
     assert roles[today.id] == Role.TODAY.value
     assert roles[partner.id] == Role.CONTRAST.value
+    assert other.id not in roles
     assert picked[0] == PickedUnit(today.id, Role.TODAY.value)
+    assert composer.plan["reason"] == "introduced_today"
+
+    # A stored plan (the séance start's) is read back as it is, not re-picked.
+    stored = ForgePlanComposer(db_session, plan={"units": [{"concept_id": other.id, "role": "today"}]})
+    assert stored.pick(user, now=now) == [PickedUnit(other.id, Role.TODAY.value)]
 
 
 def test_payload_item_provider_never_serves_an_excluded_item_and_falls_back_downwards():

@@ -148,7 +148,14 @@ def test_keyed_rungs_answer_from_the_key_under_300ms(client: TestClient, db_sess
         assert p95 < 300, f"{round_name} p95 {p95:.1f} ms"
     assert quantiles(server_ms, n=20)[-1] < 300
 
-    events = db_session.query(PilotEvent).filter(PilotEvent.event_type == FORGE_VERDICT_EVENT).all()
+    # The test database is shared by the whole run: every séance submit of an
+    # earlier test (the forge suites included) writes its own row, so only
+    # this séance's rows are this test's.
+    events = [
+        event
+        for event in db_session.query(PilotEvent).filter(PilotEvent.event_type == FORGE_VERDICT_EVENT).all()
+        if (event.payload or {}).get("session_id") == session_id
+    ]
     assert len(events) == 40
     assert {event.payload["rung"] for event in events} == {"recognize", "transform"}
     assert all(event.payload["local_ms"] >= 0 for event in events)

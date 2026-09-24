@@ -20,8 +20,9 @@ on today's code, and is replaced by passing another implementation:
   :class:`PayloadItemProvider`, over today's per-session exercise set.
 * :class:`Composer` (WP-S4 picker): ``pick(user, now=…)`` → a list of
   :class:`PickedUnit` ``(concept_id, role: today | due | contrast)``. Default:
-  :class:`SelectTodayComposer`, over ``AtelierScheduler.select_today`` plus
-  the WP-L4 concept life and the WP-L2 contrast partners.
+  :class:`ForgePlanComposer`, WP-S4's one picker
+  (:func:`app.services.forge_picker.forge_plan`), read back from the plan the
+  séance start stored in ``quote_payload["forge"]``.
 * **Grading** (WP-S1): the forge consumes a :class:`app.core.forge.Verdict`
   (``correct | partial | incorrect`` + ``checked``). Default:
   :func:`verdict_from_attempt` over the existing submit path's attempt row; a
@@ -90,13 +91,30 @@ def rung_for_attempt(round_name: str | None, mode: str | None) -> Rung | None:
 
 
 def verdict_from_attempt(attempt: AtelierAttempt) -> Verdict:
-    """The grader's verdict, as the forge reads it (the WP-S1 seam)."""
+    """The grader's verdict, as the forge reads it (the WP-S1 seam).
+
+    WP-S1's semantics, in order:
+
+    * an explicit ``correction["checked"]`` wins (a test-out's local grade);
+    * ``assessment_status``: ``checked`` — the key (recognise, transform) or a
+      model that actually read the answer decided, so it counts at once;
+      ``provisional`` — free production's instant local check, a hint until
+      the relecture lands (then :meth:`ForgeService.amend_attempt` counts it,
+      once); ``unavailable`` — nobody could read it, it never counts;
+    * rows without a status (older clients): a placeholder verdict of a
+      model-graded round is unchecked.
+    """
 
     correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
     confidence = (attempt.answer_payload or {}).get("confidence") if isinstance(attempt.answer_payload, dict) else None
     explicit = correction.get("checked")
+    status = correction.get("assessment_status")
     if isinstance(explicit, bool):
         checked = explicit
+    elif status in {"provisional", "unavailable"} or correction.get("evidence_hold"):
+        checked = False
+    elif status == "checked":
+        checked = attempt.verdict != "needs_review"
     else:
         debug = correction.get("correction_debug") if isinstance(correction.get("correction_debug"), dict) else {}
         checked = not (
@@ -210,29 +228,302 @@ class PayloadItemProvider:
             payloads[concept_id] = dict(exercise_set.payload or {})
         return cls(payloads)
 
-    def item_for(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+    def item_at(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+        """An unused item of exactly this rung, or ``None``."""
+
         payload = self.payloads.get(int(concept_id))
         if not payload:
             return None
-        for candidate_rung in _rung_search_order(rung):
-            for round_name, mode in RUNG_POOLS[Rung(candidate_rung)]:
-                for index, item in enumerate(_payload_items(payload, round_name, mode)):
-                    item_id = str(item.get("id") or f"{round_name}-{index}")
-                    fingerprint = fingerprint_for(concept_id, round_name, mode, item_id)
-                    if fingerprint in exclude:
-                        continue
-                    return ForgeItem(
-                        concept_id=int(concept_id),
-                        rung=int(candidate_rung),
-                        round=round_name,
-                        mode=mode,
-                        item_id=item_id,
-                        item_index=index,
-                        fingerprint=fingerprint,
-                        payload=item,
-                        answer_key=item.get("answer") or item.get("expected_answer") or item.get("correct_answer"),
-                    )
+        rung = core.clamp_rung(rung)
+        for round_name, mode in RUNG_POOLS[Rung(rung)]:
+            for index, item in enumerate(_payload_items(payload, round_name, mode)):
+                item_id = str(item.get("id") or f"{round_name}-{index}")
+                fingerprint = fingerprint_for(concept_id, round_name, mode, item_id)
+                if fingerprint in exclude:
+                    continue
+                return ForgeItem(
+                    concept_id=int(concept_id),
+                    rung=int(rung),
+                    round=round_name,
+                    mode=mode,
+                    item_id=item_id,
+                    item_index=index,
+                    fingerprint=fingerprint,
+                    payload=item,
+                    answer_key=item.get("answer") or item.get("expected_answer") or item.get("correct_answer"),
+                )
         return None
+
+    def item_for(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+        if not self.payloads.get(int(concept_id)):
+            return None
+        for candidate_rung in _rung_search_order(rung):
+            item = self.item_at(concept_id=concept_id, rung=candidate_rung, exclude=exclude)
+            if item is not None:
+                return item
+        return None
+
+
+#: Session-owned copies of a shared exercise set (copy-on-write for a top-up).
+FORGE_SESSION_SET_SOURCE = "forge_session"
+
+
+def _sentence_fingerprints(payload: dict[str, Any]) -> set[str]:
+    """Every exercise sentence a concept's set already holds (bank fingerprints)."""
+
+    from app.services.item_bank import fingerprint as bank_fingerprint
+
+    found: set[str] = set(((payload.get("forge") or {}).get("fingerprints") or []) if isinstance(payload.get("forge"), dict) else [])
+    containers: list[list[dict[str, Any]]] = []
+    for pools in RUNG_POOLS.values():
+        for round_name, mode in pools:
+            containers.append(_payload_items(payload, round_name, mode))
+    containers.append(_payload_items(payload, "speak", "speak"))
+    for items in containers:
+        for item in items:
+            if item.get("bank_fingerprint"):
+                found.add(str(item["bank_fingerprint"]))
+            for key in ("expected_answer", "example_answer"):
+                if item.get(key):
+                    found.add(bank_fingerprint(str(item[key])))
+            if item.get("correct_answer") and len(str(item["correct_answer"]).split()) > 2:
+                found.add(bank_fingerprint(str(item["correct_answer"])))
+    return found
+
+
+class BankItemProvider:
+    """The forge's :class:`ItemProvider`: the session's set, topped up from the bank.
+
+    A rule that needs another item at a rung when every item of that rung in
+    the session's exercise set is used gets a fresh one from WP-S2's item bank
+    (:mod:`app.services.item_bank`), generated in-process:
+
+    * never a sentence the learner saw in the last seven days
+      (``atelier_served_items``), never one already in this séance's set, never
+      the rule card's own example; the new sentence is recorded as served;
+    * the item is **appended to the concept's exercise set of this session**
+      (``payload["forge"]["appended"]``), so the ordinary submit path finds it
+      by its exercise id and grades it against its key. A set shared with other
+      sessions (the curated fallback, a shared LLM set) is copied first
+      (copy-on-write), the copy is seated on this session only.
+
+    A concept without templates, or a rung the bank cannot pose, falls back to
+    :class:`PayloadItemProvider` (the neighbouring rungs, then retirement).
+    """
+
+    #: Candidates tried per top-up before the rung gives up.
+    MAX_CANDIDATES = 40
+
+    def __init__(
+        self,
+        db: Session,
+        *,
+        user: User,
+        session: AtelierSession,
+        sets: dict[int, Any],
+        concepts: dict[int, GrammarConcept],
+    ) -> None:
+        self.db = db
+        self.user = user
+        self.session = session
+        self.sets = sets
+        self.concepts = concepts
+        self.payloads = PayloadItemProvider({cid: dict(item.payload or {}) for cid, item in sets.items()})
+
+    @classmethod
+    def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> BankItemProvider:
+        from app.services.atelier import AtelierExerciseGenerationError, session_exercise_set
+
+        sets: dict[int, Any] = {}
+        concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
+        concepts = {c.id: c for c in db.query(GrammarConcept).filter(GrammarConcept.id.in_(concept_ids or [-1])).all()}
+        for concept_id in concept_ids:
+            concept = concepts.get(concept_id)
+            if concept is None:
+                continue
+            try:
+                sets[concept_id] = session_exercise_set(db, user=user, session=session, concept=concept, fast_path=True)
+            except AtelierExerciseGenerationError:  # pragma: no cover - fallback always exists
+                continue
+        return cls(db, user=user, session=session, sets=sets, concepts=concepts)
+
+    def item_for(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+        concept_id = int(concept_id)
+        item = self.payloads.item_at(concept_id=concept_id, rung=rung, exclude=exclude)
+        if item is not None:
+            return item
+        try:
+            topped = self.top_up(concept_id=concept_id, rung=int(core.clamp_rung(rung)))
+        except Exception as exc:  # pragma: no cover - the bank never breaks a séance
+            logger.warning("La Forge bank top-up failed", concept_id=concept_id, rung=rung, error=str(exc))
+            self.db.rollback()
+            topped = None
+        if topped is not None and topped.fingerprint not in exclude:
+            return topped
+        return self.payloads.item_for(concept_id=concept_id, rung=rung, exclude=exclude)
+
+    # -- the top-up ---------------------------------------------------------------
+
+    def _build(self, rung: int, candidate: Any, *, concept: GrammarConcept, requirement: dict[str, Any], index: int):
+        from app.services import item_bank
+
+        lesson = concept.external_id
+        if rung == Rung.RECOGNISE:
+            return item_bank.fill_item(candidate, lesson_external_id=lesson)
+        if rung == Rung.DISCRIMINATE:
+            return item_bank.pair_item(candidate, lesson_external_id=lesson) or item_bank.classify_item(
+                candidate, show_correct=index % 2 == 0, lesson_external_id=lesson
+            )
+        if rung == Rung.BUILD:
+            return item_bank.word_bank_item(candidate, lesson_external_id=lesson)
+        if rung == Rung.TRANSFORM:
+            return item_bank.transform_item(candidate)
+        if rung == Rung.PRODUCE:
+            return item_bank.output_item(candidate, round_name="sentence", requirement=requirement)
+        return item_bank.output_item(candidate, round_name="conversation", requirement=requirement)
+
+    def _requirement(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
+        from app.services.atelier import _concept_label
+
+        for round_name in ("sentence", "conversation", "speak"):
+            for item in _payload_items(payload, round_name, round_name):
+                requirements = item.get("requirements")
+                if isinstance(requirements, list) and requirements and isinstance(requirements[0], dict):
+                    return dict(requirements[0])
+        return {"concept_id": concept.id, "external_id": concept.external_id, "label": _concept_label(concept), "target_count": 1}
+
+    def _owned_set(self, concept: GrammarConcept, exercise_set: Any) -> Any:
+        """This session's own copy of the set (copy-on-write for a shared one)."""
+
+        from app.db.models.atelier import AtelierExerciseSet
+        from app.services.atelier import ATELIER_ITEM_BANK_SOURCE, _payload_hash, _store_session_exercise_set_id
+
+        payload = dict(exercise_set.payload or {})
+        forge = payload.get("forge") if isinstance(payload.get("forge"), dict) else {}
+        owner = forge.get("owner_session_id")
+        if owner == str(self.session.id) or (owner is None and exercise_set.source == ATELIER_ITEM_BANK_SOURCE):
+            # Bank sets are built per séance (their hash carries the session).
+            return exercise_set
+        copy_payload = json_copy(payload)
+        copy_payload["forge"] = {**dict(copy_payload.get("forge") or {}), "owner_session_id": str(self.session.id),
+                                 "copied_from": str(exercise_set.id)}
+        copy = AtelierExerciseSet(
+            concept_id=exercise_set.concept_id,
+            generator_version=exercise_set.generator_version,
+            model=exercise_set.model,
+            source=FORGE_SESSION_SET_SOURCE,
+            content_hash=_payload_hash({"copied_from": str(exercise_set.id), "session_id": str(self.session.id)}),
+            payload=copy_payload,
+            validation_notes=f"La Forge: this séance's copy of set {exercise_set.id} (bank top-ups appended).",
+        )
+        self.db.add(copy)
+        self.db.flush([copy])
+        _store_session_exercise_set_id(self.session, concept, copy)
+        self.db.add(self.session)
+        return copy
+
+    def top_up(self, *, concept_id: int, rung: int) -> ForgeItem | None:
+        """Generate one more item of this rule at this rung and seat it in the set."""
+
+        import random
+
+        from app.services import item_bank
+        from app.services.atelier import _record_served_items, served_fingerprints
+        from app.services.grammar_units import examples as unit_examples
+
+        concept = self.concepts.get(concept_id)
+        exercise_set = self.sets.get(concept_id)
+        if concept is None or exercise_set is None:
+            return None
+        units = item_bank.units_for_external_id(concept.external_id)
+        if not units:
+            return None
+        payload = dict(exercise_set.payload or {})
+        forge_meta = payload.get("forge") if isinstance(payload.get("forge"), dict) else {}
+        appended = list(forge_meta.get("appended") or [])
+        blocked = (
+            served_fingerprints(self.db, self.user)
+            | _sentence_fingerprints(payload)
+            | item_bank._rule_card_sentences(payload, unit_examples(concept))
+        )
+        requirement = self._requirement(concept, payload)
+        bank = item_bank.default_bank()
+        seed = f"{self.user.id}:{self.session.id}:{concept_id}:topup:{len(appended)}:{rung}"
+        order = units[len(appended) % len(units):] + units[: len(appended) % len(units)]
+        built: dict[str, Any] | None = None
+        chosen = None
+        for unit in order:
+            stream = bank.sample(
+                unit,
+                random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
+                exclude=blocked,
+                detector=item_bank.unit_detector(unit),
+            )
+            for tries, candidate in enumerate(stream):
+                if tries >= self.MAX_CANDIDATES:
+                    break
+                if candidate.fingerprint in blocked:
+                    continue
+                built = self._build(rung, candidate, concept=concept, requirement=requirement, index=len(appended))
+                if built is not None:
+                    chosen = candidate
+                    break
+            if built is not None:
+                break
+        if built is None or chosen is None:
+            return None
+
+        round_name, mode = RUNG_POOLS[Rung(rung)][0]
+        owned = self._owned_set(concept, exercise_set)
+        new_payload = json_copy(dict(owned.payload or {}))
+        container = _payload_container(new_payload, round_name, mode)
+        items = container.setdefault("items", [])
+        items.append(built)
+        meta = dict(new_payload.get("forge") or {})
+        meta.setdefault("owner_session_id", str(self.session.id))
+        meta["appended"] = [
+            *list(meta.get("appended") or []),
+            {"id": built["id"], "round": round_name, "mode": mode, "rung": int(rung), "fingerprint": chosen.fingerprint},
+        ]
+        meta["fingerprints"] = [*list(meta.get("fingerprints") or []), chosen.fingerprint]
+        new_payload["forge"] = meta
+        owned.payload = new_payload
+        flag_modified(owned, "payload")
+        self.db.add(owned)
+        _record_served_items(self.db, user=self.user, session=self.session, fingerprints=[chosen.fingerprint], unit=chosen.unit)
+        self.db.commit()
+        self.sets[concept_id] = owned
+        self.payloads.payloads[concept_id] = dict(new_payload)
+        index = len(items) - 1
+        return ForgeItem(
+            concept_id=concept_id,
+            rung=int(rung),
+            round=round_name,
+            mode=mode,
+            item_id=str(built["id"]),
+            item_index=index,
+            fingerprint=fingerprint_for(concept_id, round_name, mode, str(built["id"])),
+            payload=built,
+            answer_key=built.get("expected_answer") or built.get("correct_answer") or built.get("example_answer"),
+        )
+
+
+def json_copy(value: Any) -> Any:
+    import json
+
+    return json.loads(json.dumps(value))
+
+
+def _payload_container(payload: dict[str, Any], round_name: str, mode: str) -> dict[str, Any]:
+    """The dict whose ``items`` hold this round/mode's items (created if missing)."""
+
+    if round_name == "recognize":
+        recognize = payload.setdefault("recognize", {})
+        return recognize.setdefault(mode, {"items": []})
+    if round_name == "transform":
+        return payload.setdefault("transform", {"items": []})
+    ladder = payload.setdefault("output_ladder", {})
+    return ladder.setdefault(round_name, {"items": []})
 
 
 # ---------------------------------------------------------------------------
@@ -257,113 +548,70 @@ def _aware(value: datetime | None) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
-_LEGACY_ROLE_TO_FORGE = {"new": Role.TODAY.value, "fragile": Role.DUE.value, "contrast": Role.CONTRAST.value}
+#: The keys of WP-S4's plan payload (``ForgePlan.as_payload()`` + the start's
+#: ``origin`` / ``journey_step_id``). They share ``quote_payload["forge"]`` with
+#: the engine's state (:meth:`ForgeState.to_dict`) — one source of truth for the
+#: séance's rules; no key of one names a key of the other.
+PLAN_KEYS = ("units", "budget_seconds", "reason", "rhythm", "new_concept_id", "origin", "journey_step_id")
 
 
-class SelectTodayComposer:
-    """Default :class:`Composer`: today's picker, read through the concept life.
+def _plan_payload_of(session: AtelierSession) -> dict[str, Any]:
+    quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
+    raw = quote.get(FORGE_KEY) if isinstance(quote, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    return {key: raw[key] for key in PLAN_KEYS if key in raw}
 
-    * **today** — the rule the journey introduced today (``introduced_at``
-      today, not held), else a requested rule (Cahier «Forge»), else the
-      weakest non-held rule of the pick (lowest forge rung);
-    * **due** — the pick's «fragile» rules (due or weak);
-    * **contrast** — today's rule's WP-L2 contrast partners the learner has
-      met (at most one), else the pick's own contrast if not brand-new.
+
+class ForgePlanComposer:
+    """The :class:`Composer`: WP-S4's one picker (:func:`forge_picker.forge_plan`).
+
+    A séance started through ``POST /atelier/sessions`` already carries the
+    plan the start seated (``quote_payload["forge"]``); the composer reads it
+    back so the start and the engine can never disagree. A session without one
+    (a pregenerated «prepared» row, a service caller) gets a fresh plan, which
+    is then stored on the session by :meth:`ForgeService.attach`.
     """
 
     def __init__(
         self,
         db: Session,
         *,
-        selections: list[Any] | None = None,
+        plan: dict[str, Any] | None = None,
         preferred_concept_id: int | None = None,
+        budget_seconds: int | None = None,
     ) -> None:
         self.db = db
-        self.selections = selections
+        self.plan = dict(plan) if isinstance(plan, dict) and plan.get("units") is not None else None
         self.preferred_concept_id = preferred_concept_id
-
-    def _progress(self, user: User, concept_ids: Iterable[int]) -> dict[int, UserGrammarProgress]:
-        ids = list({int(item) for item in concept_ids})
-        if not ids:
-            return {}
-        return {
-            row.concept_id: row
-            for row in self.db.query(UserGrammarProgress)
-            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id.in_(ids))
-            .all()
-        }
+        self.budget_seconds = budget_seconds
 
     def pick(self, user: User, *, now: datetime) -> list[PickedUnit]:
-        from app.services.concept_life import is_held
-        from app.services.unified_srs import contrast_partner_refs
+        if self.plan is None:
+            from app.services.forge_picker import forge_plan
 
-        selections = self.selections
-        if selections is None:
-            from app.services.atelier import AtelierScheduler
-
-            selections = AtelierScheduler(self.db).select_today(user)
-        picked: list[tuple[int, str]] = [
-            (int(selection.concept.id), _LEGACY_ROLE_TO_FORGE.get(str(selection.role), Role.DUE.value))
-            for selection in selections
-        ]
-        today_date = (_aware(now) or datetime.now(UTC)).date()
-        # The journey's rule of the day, even when the picker did not seat it.
-        introduced_today = [
-            row.concept_id
-            for row in self.db.query(UserGrammarProgress)
-            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.introduced_at.isnot(None))
-            .all()
-            if (_aware(row.introduced_at) or now).date() == today_date and not is_held(row)
-        ]
-        progress = self._progress(user, [cid for cid, _ in picked] + introduced_today + (
-            [int(self.preferred_concept_id)] if self.preferred_concept_id else []
-        ))
-
-        today_id: int | None = None
-        if self.preferred_concept_id:
-            today_id = int(self.preferred_concept_id)
-        elif introduced_today:
-            today_id = introduced_today[-1]
-        else:
-            candidates = [cid for cid, role in picked if role == Role.TODAY.value]
-            if not candidates:
-                weak = [
-                    cid for cid, _role in picked
-                    if progress.get(cid) is not None and not is_held(progress[cid])
-                ]
-                weak.sort(key=lambda cid: (progress[cid].forge_rung if progress[cid].forge_rung is not None else -1))
-                candidates = weak[:1]
-            today_id = candidates[0] if candidates else None
-
-        units: list[PickedUnit] = []
-        if today_id is not None:
-            units.append(PickedUnit(today_id, Role.TODAY.value))
-        for cid, role in picked:
-            if cid == today_id:
-                continue
-            units.append(PickedUnit(cid, Role.DUE.value if role == Role.TODAY.value else role))
-
-        if today_id is not None:
-            concept = self.db.get(GrammarConcept, today_id)
-            refs = contrast_partner_refs(concept) if concept is not None else []
-            partner_ids: list[int] = []
-            for ref in refs:
-                if isinstance(ref, int):
-                    partner_ids.append(ref)
-                else:
-                    row = self.db.query(GrammarConcept.id).filter(GrammarConcept.external_id == ref).first()
-                    if row:
-                        partner_ids.append(int(row[0]))
-            met = self._progress(user, partner_ids)
-            seated = {unit.concept_id for unit in units}
-            partner = next(
-                (pid for pid in partner_ids if pid in met and pid not in seated and met[pid].introduced_at is not None),
-                None,
+            fresh = forge_plan(
+                self.db,
+                user,
+                now,
+                preferred_concept_id=self.preferred_concept_id,
+                budget_seconds=self.budget_seconds,
             )
-            if partner is not None:
-                units = [unit for unit in units if unit.role != Role.CONTRAST.value]
-                units.append(PickedUnit(partner, Role.CONTRAST.value))
+            self.plan = fresh.as_payload()
+        units: list[PickedUnit] = []
+        for unit in self.plan.get("units") or []:
+            if not isinstance(unit, dict) or unit.get("concept_id") is None:
+                continue
+            role = str(unit.get("role") or Role.DUE.value)
+            if role not in {Role.TODAY.value, Role.DUE.value, Role.CONTRAST.value}:
+                role = Role.DUE.value
+            units.append(PickedUnit(int(unit["concept_id"]), role))
         return units
+
+    @property
+    def budget(self) -> int | None:
+        value = (self.plan or {}).get("budget_seconds")
+        return int(value) if isinstance(value, (int, float)) and value > 0 else None
 
 
 def initial_rung(progress: UserGrammarProgress | None) -> int:
@@ -427,26 +675,6 @@ def forge_units(db: Session, user: User, picked: Iterable[PickedUnit], *, now: d
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True, slots=True)
-class _Selection:
-    concept: GrammarConcept
-    role: str
-
-
-def _stored_selections(db: Session, session: AtelierSession) -> list[_Selection]:
-    """The session's seated concepts with the roles stored at creation."""
-
-    concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
-    concepts = {c.id: c for c in db.query(GrammarConcept).filter(GrammarConcept.id.in_(concept_ids or [-1])).all()}
-    quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
-    roles = quote.get("concept_roles") if isinstance(quote.get("concept_roles"), dict) else {}
-    return [
-        _Selection(concepts[cid], str(roles.get(str(cid)) or ("fragile" if index < 2 else "contrast")))
-        for index, cid in enumerate(concept_ids)
-        if cid in concepts
-    ]
-
-
 def forge_state_of(session: AtelierSession) -> ForgeState | None:
     quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
     raw = quote.get(FORGE_KEY) if isinstance(quote, dict) else None
@@ -457,9 +685,12 @@ def is_forge_session(session: AtelierSession) -> bool:
     return forge_state_of(session) is not None
 
 
-def _store_state(session: AtelierSession, state: ForgeState) -> None:
+def _store_state(session: AtelierSession, state: ForgeState, *, plan: dict[str, Any] | None = None) -> None:
+    """Write the engine's state next to the picker's plan (never over it)."""
+
     quote = dict(session.quote_payload or {})
-    quote[FORGE_KEY] = state.to_dict()
+    merged = {**_plan_payload_of(session), **(plan or {})}
+    quote[FORGE_KEY] = {**merged, **state.to_dict()}
     session.quote_payload = quote
     flag_modified(session, "quote_payload")
 
@@ -500,28 +731,42 @@ class ForgeService:
         now: datetime | None = None,
         keep_concepts: bool = False,
     ) -> ForgeState:
-        """Compose a séance onto a fresh session (no attempts yet)."""
+        """Compose a séance onto a fresh session (no attempts yet).
+
+        The rules come from WP-S4's one picker: the plan the start stored in
+        ``quote_payload["forge"]`` (or a fresh one); its ``budget_seconds`` is
+        the séance's length (the fold's share of the day, or the rhythm's).
+        """
 
         now = now or datetime.now(UTC)
         quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
+        plan = _plan_payload_of(session)
         if composer is None:
-            selections = _stored_selections(self.db, session) if session.selected_concept_ids else None
-            composer = SelectTodayComposer(
+            composer = ForgePlanComposer(
                 self.db,
-                selections=selections,
+                plan=plan or None,
                 preferred_concept_id=quote.get("forge_today_concept_id"),
             )
         picked = composer.pick(user, now=now)
+        if isinstance(composer, ForgePlanComposer) and composer.plan is not None:
+            plan = {**composer.plan, **{key: value for key, value in plan.items() if key in {"origin", "journey_step_id"}}}
         if keep_concepts:
             wanted = [int(cid) for cid in (session.selected_concept_ids or [])]
             by_id = {unit.concept_id: unit for unit in picked}
             picked = [by_id.get(cid) or PickedUnit(cid, Role.TODAY.value if i == 0 else Role.DUE.value)
                       for i, cid in enumerate(wanted)]
+            # The plan on the session names what was seated: the learner's list.
+            plan = {
+                **plan,
+                "units": [{"concept_id": unit.concept_id, "role": unit.role, "reason": "chosen"} for unit in picked],
+                "reason": "chosen",
+            }
         units = forge_units(self.db, user, picked, now=now)
         if keep_concepts:
             # The learner chose these rules: keep every one of them.
             units = [ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced) for u in units]
-        length = core.seance_length(seance_budget_seconds(user), seconds_per_item(self.db, user))
+        budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
+        length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
         state = ForgeState.seance(units, length=length)
         concept_ids = [track.concept_id for track in state.tracks]
         if concept_ids:
@@ -531,7 +776,7 @@ class ForgeService:
                 str(track.concept_id): _FORGE_ROLE_TO_LEGACY.get(track.role, "fragile") for track in state.tracks
             }
             session.quote_payload = quote
-        _store_state(session, state)
+        _store_state(session, state, plan=plan)
         self.db.add(session)
         return state
 
@@ -580,7 +825,7 @@ class ForgeService:
     # -- serving --------------------------------------------------------------
 
     def provider(self, *, user: User, session: AtelierSession) -> ItemProvider:
-        return self._item_provider or PayloadItemProvider.for_session(self.db, user=user, session=session)
+        return self._item_provider or BankItemProvider.for_session(self.db, user=user, session=session)
 
     def next_item(self, *, user: User, session: AtelierSession) -> dict[str, Any] | None:
         """The item the learner is on (pending) or the next one; stored as pending."""
@@ -607,6 +852,9 @@ class ForgeService:
                     "length": state.length,
                     "role": slot.role,
                     "reprise": slot.reprise,
+                    # The item itself: a bank top-up is not in the exercise
+                    # set the client loaded at the start.
+                    "item": dict(item.payload or {}),
                 }
                 state.pending = pending
                 _store_state(session, state)
@@ -717,7 +965,9 @@ class ForgeService:
         self.db.refresh(session)
         return self.view(user=user, session=session)
 
-    def amend_attempt(self, *, user: User, session: AtelierSession, attempt: AtelierAttempt) -> dict[str, Any]:
+    def amend_attempt(
+        self, *, user: User, session: AtelierSession, attempt: AtelierAttempt, commit: bool = True
+    ) -> dict[str, Any]:
         """An asynchronous verdict landed (WP-S1): count a once-unchecked answer.
 
         Only an answer the forge recorded as unchecked is amended, once; the
@@ -731,7 +981,7 @@ class ForgeService:
         entry = next((e for e in state.history if e.get("exercise_key") == exercise_key), None)
         verdict = verdict_from_attempt(attempt)
         if entry is None or entry.get("checked") or not verdict.checked or entry.get("amended"):
-            return self.view(user=user, session=session)
+            return self.view(user=user, session=session) if commit else {}
         track = state.track(int(attempt.concept_id))
         rung = int(entry["rung"])
         evidence = core.evidence_for(rung, verdict)
@@ -752,6 +1002,8 @@ class ForgeService:
                              now=datetime.now(UTC), move_rung=False)
         _store_state(session, state)
         self.db.add(session)
+        if not commit:
+            return {"amended": True, "counted": decision.counted, "schedule": decision.schedule}
         self.db.commit()
         return self.view(user=user, session=session)
 
@@ -901,8 +1153,10 @@ __all__ = [
     "ForgeService",
     "ItemProvider",
     "PayloadItemProvider",
+    "PLAN_KEYS",
     "PickedUnit",
-    "SelectTodayComposer",
+    "ForgePlanComposer",
+    "BankItemProvider",
     "fingerprint_for",
     "forge_state_of",
     "forge_units",
