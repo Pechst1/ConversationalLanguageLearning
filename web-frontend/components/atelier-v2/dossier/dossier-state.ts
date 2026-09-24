@@ -299,6 +299,43 @@ export function forecastSentence(
   return fill(copy.forecast_measured, { target, span });
 }
 
+/**
+ * WP-S8. «Your rules: n held, median x days to hold» — the learner's own
+ * measured speed (WP-L8 style: measured, never promised). The server counts
+ * every held rule and takes the median over rules held by practice (a
+ * test-out holds a rule at once and says nothing about speed). Silent below
+ * the minimum (three held rules) or when the section is missing.
+ */
+export type RulesSpeed = {
+  held: number;
+  held_by_practice?: number;
+  median_days_to_held: number | null;
+  show?: boolean;
+  minimum?: number;
+};
+export type LevelWithRulesSpeed = DossierLevel & { rules_speed?: RulesSpeed | null };
+
+export const RULES_SPEED_MIN_HELD = 3;
+
+export function rulesSpeedSentence(
+  level: LevelWithRulesSpeed | null | undefined,
+  language: ControlLanguage = 'fr',
+): string | null {
+  const speed = level?.rules_speed;
+  if (!speed) return null;
+  const held = Number(speed.held);
+  const minimum = Math.max(RULES_SPEED_MIN_HELD, Number(speed.minimum ?? RULES_SPEED_MIN_HELD));
+  if (!Number.isFinite(held) || held < minimum || speed.show === false) return null;
+  const copy = dossierCopy(language);
+  const days = speed.median_days_to_held;
+  if (days === null || days === undefined || !Number.isFinite(Number(days))) {
+    return fill(copy.rules_speed_count, { n: held });
+  }
+  const n = Math.round(Number(days));
+  const span = fill(n === 1 ? copy.unit_day : copy.unit_days, { n });
+  return fill(copy.rules_speed, { n: held, days: span });
+}
+
 /** The capability's name, from the French title the payload sends (content).
  *  Falls back, never invents. */
 export function capabilityTitle(capability: CapabilityWithFrenchTitle): string {

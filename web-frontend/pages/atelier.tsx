@@ -2020,7 +2020,14 @@ export default function AtelierPage() {
             onSubmitRepair={submitMicroRepair}
             repairSubmitting={repairSubmitting}
             isRetest={Boolean(activeRetest)}
-            onBack={() => setView('today')}
+            onBack={() => {
+              // WP-S8: leaving an unfinished forge séance is an abandon (the
+              // server writes it once, and ignores finished or legacy séances).
+              if (forge && forge.mode !== 'test_out' && !forge.finished && session?.session_id) {
+                void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
+              }
+              setView('today');
+            }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
             notice={sessionNotice}

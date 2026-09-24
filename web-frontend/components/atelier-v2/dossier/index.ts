@@ -32,6 +32,7 @@ export {
   levelSourceLine,
   noJourneySentence,
   phaseFor,
+  rulesSpeedSentence,
   verdictTone,
   verifiedSentence,
   vocabularyCount,
@@ -46,4 +47,6 @@ export type {
   DossierPhase,
   ErrataWithTotals,
   LevelWithAttempts,
+  LevelWithRulesSpeed,
+  RulesSpeed,
 } from './dossier-state';
