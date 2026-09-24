@@ -104,6 +104,8 @@ export type EpreuveCopy = {
   relecture_pending: string;
   relecture_failed: string;
   relecture_done: string;
+  second_check_better: string;
+  second_check_worse: string;
   relaunch: string;
   relaunching: string;
   // typed repair
@@ -272,6 +274,8 @@ const FR: EpreuveCopy = {
   relecture_pending: 'Relecture en cours…',
   relecture_failed: 'Relecture interrompue.',
   relecture_done: 'Relecture terminée',
+  second_check_better: 'Relecture : finalement, la ligne est juste.',
+  second_check_worse: 'Relecture : il reste une faute — voyez la correction.',
   relaunch: 'Relancer',
   relaunching: 'Relance…',
   repair_label: 'Recopiez la correction',
@@ -433,6 +437,8 @@ const EN: EpreuveCopy = {
   relecture_pending: 'Second check running…',
   relecture_failed: 'The second check stopped.',
   relecture_done: 'Second check done',
+  second_check_better: 'Second check: the line is right after all.',
+  second_check_worse: 'Second check: there is still a mistake — see the correction.',
   relaunch: 'Run again',
   relaunching: 'Running…',
   repair_label: 'Copy the correction',
@@ -594,6 +600,8 @@ const DE: EpreuveCopy = {
   relecture_pending: 'Zweite Prüfung läuft…',
   relecture_failed: 'Die zweite Prüfung brach ab.',
   relecture_done: 'Zweite Prüfung fertig',
+  second_check_better: 'Zweite Prüfung: Der Satz stimmt doch.',
+  second_check_worse: 'Zweite Prüfung: Es bleibt ein Fehler – siehe die Korrektur.',
   relaunch: 'Neu starten',
   relaunching: 'Läuft…',
   repair_label: 'Schreib die Korrektur ab',

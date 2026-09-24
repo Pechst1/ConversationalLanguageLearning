@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
-import { seanceAssessment } from '@/lib/seance-feedback';
+import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
 import apiService, {
   AtelierCollectible,
   AtelierAttemptRead,
@@ -959,7 +959,9 @@ export default function AtelierPage() {
     return correction;
   }
 
-  function scheduleAiReviewPolling(attemptId: string, key: string, remaining = 10) {
+  // WP-S1: the model's second reading lands in the background (up to the
+  // corrector's 60 s deadline); poll every 2 s for as long, then stop.
+  function scheduleAiReviewPolling(attemptId: string, key: string, remaining = 30) {
     if (!attemptId || remaining <= 0) return;
     const existing = aiPollTimers.current[attemptId];
     if (existing) {
@@ -3140,18 +3142,10 @@ function SessionView({
   const activeLock = currentCorrection?.adaptive_lock;
   // The header's red "● n" is the session's own run of consecutive correct
   // answers, read from the real corrections in submission order; it is never
-  // a placeholder. A correction with no substantive erratum is a correct line.
-  const correctRun = (() => {
-    let run = 0;
-    const corrections = Object.values(correctionsByKey);
-    for (let index = corrections.length - 1; index >= 0; index -= 1) {
-      const errata = Array.isArray(corrections[index]?.errata) ? corrections[index].errata : [];
-      const substantive = errata.filter((item: any) => String(item?.task_error_type || '') !== 'task_compliance');
-      if (substantive.length > 0) break;
-      run += 1;
-    }
-    return run;
-  })();
+  // a placeholder. WP-S1: only a checked verdict counts — an unchecked answer
+  // or a provisional one (its second check still running) neither extends
+  // nor breaks the run.
+  const correctRun = correctRunFrom(Object.values(correctionsByKey));
 
   return (
     <EpShell className="atelier-do-mode" language={language}>
@@ -3431,16 +3425,14 @@ function ExerciseFeedbackMoment({
     if (!isRepairableLine(target)) return true;
     return repairs[String(index)]?.status === 'ok';
   }));
-  const aiStatus = aiReviewStatus(correction);
-  const relecture = aiStatus === 'pending' || aiStatus === 'reviewing' || aiStatus === 'queued'
-    ? <EpRelecture status="pending" />
-    : aiStatus === 'complete'
-      ? <EpRelecture status="done">{t.relecture_done}</EpRelecture>
-      // A failed second look used to render nothing at all, so the note simply
-      // never resolved and the retry endpoint was unreachable from the sheet.
-      : (aiStatus === 'error' || aiStatus === 'failed')
-        ? <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
-        : null;
+  // WP-S1: the verdict on screen is the local one and it never waits. The
+  // model's second reading runs quietly behind it; a note appears only if it
+  // changed the verdict. (An open answer it could not read at all becomes
+  // unscored above, with its retry; a keyed answer keeps the key's verdict.)
+  const secondCheck = secondCheckChange(correction);
+  const relecture = secondCheck
+    ? <EpRelecture status="done">{secondCheck === 'better' ? t.second_check_better : t.second_check_worse}</EpRelecture>
+    : null;
   // French words the learner fell back to L1 for — the backend added each to the
   // vocabulary notebook, so we confirm it inline under the correction.
   const vocabularyGaps: Array<{ french: string; gloss?: string }> = Array.isArray(correction?.vocabulary_gaps?.added)
@@ -3453,6 +3445,7 @@ function ExerciseFeedbackMoment({
     return (
       <div className="ep-feedback" data-verdict="correct">
         <EpCorrect said={feedback.target || feedback.learner || t.line_set} struck />
+        {relecture}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
           <EpVerdict tone="go" sub={rule}>{t.verdict_correct}</EpVerdict>
@@ -3470,11 +3463,15 @@ function ExerciseFeedbackMoment({
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
         if (issue.task_error_type === 'task_compliance' || !target) {
-          return <div className="av2-surface" key={`task-${index}`} role="status">
-            <p className="av2-label">{t.task}</p>
-            <p className="av2-body">{issue.why_wrong || feedback.why}</p>
-            {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
-          </div>;
+          return <React.Fragment key={`task-${index}`}>
+            {/* The second-check note rides on the first card, whatever kind it is. */}
+            {index === 0 && relecture}
+            <div className="av2-surface" role="status">
+              <p className="av2-label">{t.task}</p>
+              <p className="av2-body">{issue.why_wrong || feedback.why}</p>
+              {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
+            </div>
+          </React.Fragment>;
         }
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
