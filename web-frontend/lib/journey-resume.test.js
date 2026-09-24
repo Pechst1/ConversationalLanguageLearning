@@ -176,6 +176,60 @@ test('journeyIsOpen answers for every contract status', () => {
   assert.equal(resume.journeyIsOpen(undefined), false);
 });
 
+// --- 2026-09-24: a resume never takes over a page the learner opened -------
+
+test('a direct visit to Réglages (or any other page) is never hijacked by an open journey', () => {
+  const storage = fakeStorage({
+    'pilot:resume:v1': LEGACY,
+    [resume.JOURNEY_RESUME_KEY]: markOf('active'),
+  });
+  for (const url of [
+    '/settings',
+    '/settings.html',
+    '/settings?section=rhythm',
+    '/dossier',
+    '/notebook',
+    '/missions',
+    '/vocabulary/review',
+    '/graphic-novel?scene=4',
+  ]) {
+    assert.equal(resume.launchMayResume(url), false, `${url} is a choice`);
+    assert.equal(resume.resolveLaunchResumeHref(url, new Date(), storage), null, `${url} stays put`);
+  }
+});
+
+test('a bare launch on the root or Home still resumes today\'s open journey', () => {
+  const storage = fakeStorage({
+    'pilot:resume:v1': LEGACY,
+    [resume.JOURNEY_RESUME_KEY]: markOf('active'),
+  });
+  for (const url of ['/', '/atelier', '/atelier/', '/index.html', '/atelier.html']) {
+    assert.equal(resume.launchMayResume(url), true, `${url} is a bare launch`);
+    assert.equal(resume.resolveLaunchResumeHref(url, new Date(), storage), '/atelier?view=journey');
+  }
+});
+
+test('Home with a query is an explicit destination, and a resume to itself is no redirect', () => {
+  const storage = fakeStorage({ [resume.JOURNEY_RESUME_KEY]: markOf('active') });
+  assert.equal(resume.resolveLaunchResumeHref('/atelier?mode=practice', new Date(), storage), null);
+  assert.equal(resume.resolveLaunchResumeHref('/atelier?view=journey', new Date(), storage), null);
+  assert.equal(resume.resolveLaunchResumeHref(null, new Date(), storage), null);
+  assert.equal(resume.resolveLaunchResumeHref('https://evil.example/', new Date(), storage), null);
+});
+
+test('with nothing open, a bare launch stays on Home', () => {
+  assert.equal(resume.resolveLaunchResumeHref('/atelier', new Date(), fakeStorage()), null);
+});
+
+test('_app takes the resume guess once per launch, from the real URL', () => {
+  const fs = require('node:fs');
+  const app = fs.readFileSync(path.join(WEB_ROOT, 'pages/_app.tsx'), 'utf8');
+  assert.ok(app.includes('resolveLaunchResumeHref(launchUrl)'), 'the launch URL decides');
+  assert.ok(app.includes('window.location.pathname'), 'read from the real URL, not router.pathname');
+  assert.ok(app.includes('launchResumeDecidedRef.current = true'), 'decided once per launch');
+  assert.ok(!app.includes("['/', '/atelier'].includes(router.pathname)"), 'the router-pathname gate is gone');
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {
