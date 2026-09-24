@@ -160,6 +160,11 @@ class Verdict:
     outcome: str
     checked: bool = True
     confidence: str | None = None
+    #: An unchecked answer's instant local reading (WP-S1: free production's
+    #: detector check while the relecture runs). It only keeps the staircase
+    #: moving — a sentence that uses the rule steps up at once — and is never
+    #: evidence: the relecture's verdict is (``ForgeService.amend_attempt``).
+    local: str | None = None
 
     @property
     def correct(self) -> bool:
@@ -182,7 +187,11 @@ def step_rung(rung: int, verdict: Verdict) -> int:
     """The staircase: up on correct, down on error, stay on partial/unchecked."""
 
     rung = clamp_rung(rung)
-    if not verdict.checked or verdict.partial:
+    if not verdict.checked:
+        # A provisional «uses the rule» moves on; a provisional miss is only a
+        # hint and never takes a rung away.
+        return clamp_rung(rung + 1) if verdict.local == OUTCOME_CORRECT else rung
+    if verdict.partial:
         return rung
     if verdict.correct:
         return clamp_rung(rung + 1)
@@ -514,6 +523,12 @@ class ForgeState:
                     track.reprise_at = min(position + gap, self.length - 1)
                     if track.reprise_at <= position:
                         track.reprise_at = None
+        elif self.mode == MODE_SEANCE and verdict.local == OUTCOME_CORRECT:
+            # Unchecked but the local check reads the rule: the staircase moves
+            # on (no evidence, no reprise); the relecture decides the evidence.
+            track.rung = step_rung(rung, verdict)
+            if rung == TOP_RUNG:
+                track.topped = True
         decision.new_rung = track.rung
         track.served += 1
         track.last_position = position

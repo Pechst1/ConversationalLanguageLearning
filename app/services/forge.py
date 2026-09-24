@@ -17,7 +17,9 @@ on today's code, and is replaced by passing another implementation:
 
 * :class:`ItemProvider` (WP-S2 item bank): ``item_for(concept, rung,
   exclude)`` → a :class:`ForgeItem` with its answer key. Default:
-  :class:`PayloadItemProvider`, over today's per-session exercise set.
+  :class:`BankItemProvider`: the session's exercise set, topped up from the
+  item bank when a rung runs dry (:class:`PayloadItemProvider` alone reads the
+  set).
 * :class:`Composer` (WP-S4 picker): ``pick(user, now=…)`` → a list of
   :class:`PickedUnit` ``(concept_id, role: today | due | contrast)``. Default:
   :class:`ForgePlanComposer`, WP-S4's one picker
@@ -129,7 +131,19 @@ def verdict_from_attempt(attempt: AtelierAttempt) -> Verdict:
         outcome = core.OUTCOME_PARTIAL
     else:
         outcome = core.OUTCOME_INCORRECT
-    return Verdict(outcome=outcome, checked=checked, confidence=confidence if confidence in {"sure", "unsure"} else None)
+    local: str | None = None
+    if not checked:
+        local_check = correction.get("local_check") if isinstance(correction.get("local_check"), dict) else {}
+        if local_check.get("detector") == "hit":
+            local = core.OUTCOME_CORRECT
+        elif local_check.get("detector") == "miss":
+            local = core.OUTCOME_INCORRECT
+    return Verdict(
+        outcome=outcome,
+        checked=checked,
+        confidence=confidence if confidence in {"sure", "unsure"} else None,
+        local=local,
+    )
 
 
 # ---------------------------------------------------------------------------
