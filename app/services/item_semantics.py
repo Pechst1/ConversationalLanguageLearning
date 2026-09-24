@@ -5,7 +5,8 @@ lexicon. Grammar alone lets it write «Il y a une carotte au théâtre» or «Hi
 vous avez nagé le dimanche»: correct French nobody says. This module holds the
 *semantic* side of the bank, used twice:
 
-* **at the source** — :func:`compatible` filters slot candidates against what
+* **at the source** — :func:`pair_clash` and :func:`link_clash` filter slot
+  candidates (``ItemBank._bind``) against what
   is already bound (a carrot belongs to the market or the kitchen, a price
   fits the thing, «tard» cannot go with «ce matin»), so bad combinations are
   not generated in the first place;
@@ -61,7 +62,7 @@ _TIME_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("rel", re.compile(r"\b(?:tôt|tard|en retard)\b")),
 )
 _MORNING = re.compile(r"\bmatins?\b")
-_EVENING = re.compile(r"\b(?:soirs?|soirée|nuit|minuit)\b")
+_EVENING = re.compile(r"\b(?:soirs?|soirée|nuit|minuit|après le travail)\b")
 
 #: Two marks of these categories never share one sentence.
 TIME_CONFLICTS: frozenset[frozenset[str]] = frozenset(
