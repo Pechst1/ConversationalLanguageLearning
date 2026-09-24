@@ -53,6 +53,16 @@ def test_a_letters_objective_carries_every_control_language():
         assert entry["fr"] and entry["de"]
 
 
+def test_every_placement_hint_has_an_english_and_german_version():
+    from app.services.placement import PROMPTS_BY_ID, hint_by_language
+
+    for prompt in PROMPTS_BY_ID.values():
+        table = hint_by_language(prompt.hint_fr)
+        assert table["fr"] == prompt.hint_fr
+        assert table.get("en") and table.get("de"), prompt.hint_fr
+    assert hint_by_language("Inconnu.") == {"fr": "Inconnu."}
+
+
 def test_mood_value_is_the_clamped_number_behind_the_mood_line():
     thread = SimpleNamespace(state={courrier.STATE_KEY: {"moods": {"anais": {"mood": 5, "trust": 2}}}})
     assert courrier.mood_value(thread, "anais") == 2

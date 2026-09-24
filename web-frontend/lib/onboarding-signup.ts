@@ -184,9 +184,30 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
   },
 };
 
-/** Navigation labels stay French (chrome rule). */
-export const SIGNUP_NAV = {
-  submit: 'Créer mon compte',
-  pending: 'Création…',
-  have_account: 'J’ai déjà un compte',
-} as const;
+/**
+ * The sign-up's buttons and the screen's name. 2026-09-24: these are chrome,
+ * so they follow the detected onboarding language like the fields above (the
+ * one-language rule; before an account exists the learner reads as a beginner).
+ */
+export type SignUpNav = { screen: string; submit: string; pending: string; have_account: string };
+
+export const SIGNUP_NAV: Record<OnboardingLanguage, SignUpNav> = {
+  en: {
+    screen: 'Create an account',
+    submit: 'Create my account',
+    pending: 'Creating…',
+    have_account: 'I already have an account',
+  },
+  de: {
+    screen: 'Konto erstellen',
+    submit: 'Mein Konto erstellen',
+    pending: 'Wird erstellt…',
+    have_account: 'Ich habe schon ein Konto',
+  },
+  fr: {
+    screen: 'Créer un compte',
+    submit: 'Créer mon compte',
+    pending: 'Création…',
+    have_account: 'J’ai déjà un compte',
+  },
+};

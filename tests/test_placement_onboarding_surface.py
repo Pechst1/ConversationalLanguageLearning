@@ -47,25 +47,38 @@ def test_the_placement_route_exists_and_is_not_public():
     assert "'/placement'" not in gate
 
 
+def _placement_copy() -> str:
+    # 2026-09-24: the placement's chrome follows the declared native language;
+    # its sentences live in one en/de/fr table and the page reads them by key.
+    return _source("lib/placement-copy.ts")
+
+
 def test_the_offer_is_skippable_and_says_what_skipping_costs():
     page = _source("pages/placement.tsx")
-    assert "Passer pour l’instant" in page
+    copy = _placement_copy()
+    assert "{copy.skip}" in page
+    assert "Passer pour l’instant" in copy and "Not now" in copy
     assert "api.skipPlacement()" in page
-    assert "Sans bilan, votre niveau continue de suivre vos scènes." in page
+    assert "{copy.offer_fine}" in page
+    assert "Sans bilan, votre niveau continue de suivre vos scènes." in copy
 
 
 def test_an_unmeasured_placement_says_so_instead_of_naming_a_level():
     page = _source("pages/placement.tsx")
     assert "status === 'unassessed'" in page
-    assert "Niveau non évalué" in page
-    assert "nous n’avons rien mesuré" in page
+    assert "{copy.unassessed_title}" in page and "{copy.unassessed_lead}" in page
+    copy = _placement_copy()
+    assert "Niveau non évalué" in copy and "Level not measured" in copy
+    assert "nous n’avons rien mesuré" in copy and "we measured nothing" in copy
 
 
 def test_the_result_is_labelled_as_an_estimate_not_a_verdict():
     page = _source("pages/placement.tsx")
-    assert "Niveau estimé" in page
+    assert "copy.estimated" in page
     assert "confidenceLabel" in page
-    assert "réponses" in page
+    copy = _placement_copy()
+    assert "Niveau estimé" in copy and "Estimated level" in copy
+    assert "réponses corrigées" in copy
 
 
 def test_reglages_can_re_run_the_placement():

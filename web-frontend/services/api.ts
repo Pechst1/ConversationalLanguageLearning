@@ -231,6 +231,8 @@ export interface PlacementPromptView {
   band: string;
   prompt_fr: string;
   hint_fr: string;
+  /** The hint in fr/en/de (the prompt stays French). */
+  hint_by_language?: Partial<Record<string, string>>;
   turns_so_far: number;
   max_turns: number;
 }

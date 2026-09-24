@@ -20,7 +20,10 @@
  *     to try again. It never shows a level nobody measured.
  *
  * On the av2 system throughout: `.av2` tokens, pill sentence-case actions,
- * French chrome, one primary action per state, dark-capable by inheritance.
+ * one primary action per state, dark-capable by inheritance.
+ *
+ * 2026-09-24 — the chrome follows the learner's declared native language
+ * (`lib/placement-copy.ts`); the prompts and the answers stay French.
  *
  * WP-45 redraws it on `docs/design-reference/nouvelles-pages-2026-09-15/`
  * `Bilan.dc.html` and its canvas note «note-pied»: every state carries its
@@ -45,15 +48,16 @@ import {
   textAnswerField,
 } from '@/components/atelier-v2/ui';
 import api, { type PlacementEnvelope } from '@/services/api';
+import { useLearnerLanguage } from '@/lib/learner-language';
+import { pickByLanguage } from '@/lib/language-rule';
+import {
+  placementConfidenceLabel as confidenceLabel,
+  placementCopy,
+  placementFill,
+  type PlacementCopy,
+} from '@/lib/placement-copy';
 
 const HOME = '/atelier';
-
-/** Turned into a sentence rather than a percentage: a learner reads words. */
-function confidenceLabel(confidence: number): string {
-  if (confidence >= 0.75) return 'Estimation solide';
-  if (confidence >= 0.55) return 'Estimation raisonnable';
-  return 'Estimation provisoire';
-}
 
 /** The screen scaffold, on `Bilan.dc.html`: a body that holds the reading and
  *  a foot that holds the actions. The foot is a sibling *after* the body in the
@@ -68,8 +72,9 @@ function PlacementFrame({
   children: React.ReactNode;
   foot?: React.ReactNode;
 }) {
+  const copy = placementCopy(useLearnerLanguage());
   return (
-    <AtelierV2Root as="main" className="av2-screen pl-screen" aria-label="Bilan de niveau">
+    <AtelierV2Root as="main" className="av2-screen pl-screen" aria-label={copy.screen_aria}>
       <div className="av2-screen__body pl-body">{children}</div>
       {foot ? <ScreenFoot className="pl-foot">{foot}</ScreenFoot> : null}
       <PlacementStyles />
@@ -80,11 +85,15 @@ function PlacementFrame({
 export default function PlacementPage() {
   const router = useRouter();
   const rerun = router.query.rerun === '1';
+  // The placement measures the level, so it cannot follow it: its chrome is
+  // the learner's declared native language at every level.
+  const language = useLearnerLanguage();
+  const copy = placementCopy(language);
   const [envelope, setEnvelope] = React.useState<PlacementEnvelope | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [pending, setPending] = React.useState(false);
   const [answer, setAnswer] = React.useState('');
-  const [failure, setFailure] = React.useState<string | null>(null);
+  const [failure, setFailure] = React.useState<'failed_open' | 'failed_send' | 'failed_close' | null>(null);
   const fieldRef = React.useRef<HTMLTextAreaElement | null>(null);
 
   const load = React.useCallback(async () => {
@@ -92,7 +101,7 @@ export default function PlacementPage() {
     try {
       setEnvelope(rerun ? await api.startPlacement(true) : await api.getPlacementState());
     } catch {
-      setFailure('Le bilan n’a pas pu être ouvert. Réessayez dans un instant.');
+      setFailure('failed_open');
     } finally {
       setLoading(false);
     }
@@ -122,7 +131,7 @@ export default function PlacementPage() {
     try {
       setEnvelope(await api.startPlacement(false));
     } catch {
-      setFailure('Le bilan n’a pas pu être ouvert. Réessayez dans un instant.');
+      setFailure('failed_open');
     } finally {
       setPending(false);
     }
@@ -157,7 +166,7 @@ export default function PlacementPage() {
       setAnswer('');
       if (next.status === 'in_progress') fieldRef.current?.focus();
     } catch {
-      setFailure('Votre réponse n’est pas partie. Elle est toujours là — réessayez.');
+      setFailure('failed_send');
     } finally {
       setPending(false);
     }
@@ -169,7 +178,7 @@ export default function PlacementPage() {
     try {
       setEnvelope(await api.finishPlacement(envelope.session_id));
     } catch {
-      setFailure('Le bilan n’a pas pu être clos. Réessayez dans un instant.');
+      setFailure('failed_close');
     } finally {
       setPending(false);
     }
@@ -193,7 +202,7 @@ export default function PlacementPage() {
     return (
       <>
         <Head>
-          <title>Trouvons votre niveau · L’Atelier</title>
+          <title>{`${copy.offer_title_tab} · L’Atelier`}</title>
         </Head>
         <PlacementFrame
           foot={
@@ -201,28 +210,25 @@ export default function PlacementPage() {
               <Action
                 tone="primary"
                 pending={pending}
-                pendingLabel="Ouverture…"
+                pendingLabel={copy.opening}
                 onClick={begin}
                 iconAfter={<ArrowRightIcon size={14} />}
               >
-                Commencer le bilan
+                {copy.begin}
               </Action>
               <button type="button" className="av2-btn av2-btn--quiet" onClick={decline}>
-                Passer pour l’instant
+                {copy.skip}
               </button>
             </>
           }
         >
-          <span className="av2-label">L’Atelier · Bilan de niveau</span>
-          <h1 className="av2-headline av2-headline--screen">Trouvons votre niveau</h1>
-          <p className="pl-lead">4 à 6 questions.</p>
+          <span className="av2-label">{copy.offer_kicker}</span>
+          <h1 className="av2-headline av2-headline--screen">{copy.offer_title}</h1>
+          <p className="pl-lead">{copy.offer_lead}</p>
           <Surface tone="outline">
-            <p className="pl-fine">
-              Sans bilan, votre niveau continue de suivre vos scènes.
-              Vous pouvez faire ce bilan plus tard depuis les Réglages.
-            </p>
+            <p className="pl-fine">{copy.offer_fine}</p>
           </Surface>
-          {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
+          {failure && <Notice tone="alert" live="alert">{copy[failure]}</Notice>}
         </PlacementFrame>
       </>
     );
@@ -231,6 +237,7 @@ export default function PlacementPage() {
   /* ---- the conversation ------------------------------------------------ */
   if (status === 'in_progress' && envelope?.prompt) {
     const prompt = envelope.prompt;
+    const hintText = pickByLanguage(prompt.hint_by_language, language);
     const steps = Array.from({ length: prompt.max_turns }, (_, index) => ({
       id: `t${index}`,
       state:
@@ -243,7 +250,7 @@ export default function PlacementPage() {
     return (
       <>
         <Head>
-          <title>Bilan de niveau · L’Atelier</title>
+          <title>{`${copy.kicker} · L’Atelier`}</title>
         </Head>
         <PlacementFrame
           foot={
@@ -251,39 +258,43 @@ export default function PlacementPage() {
               <Action
                 tone="primary"
                 pending={pending}
-                pendingLabel="Lecture…"
+                pendingLabel={copy.reading}
                 disabled={!answer.trim()}
                 onClick={send}
                 iconAfter={<ArrowRightIcon size={14} />}
               >
-                Envoyer
+                {copy.send}
               </Action>
               <button type="button" className="av2-btn av2-btn--quiet" onClick={stopEarly}>
-                Arrêter le bilan
+                {copy.stop}
               </button>
             </>
           }
         >
-          <span className="av2-label">Bilan de niveau</span>
+          <span className="av2-label">{copy.kicker}</span>
           <StepProgress
             steps={steps}
-            label="Progression du bilan"
-            caption={`Question ${prompt.turns_so_far + 1}`}
+            label={copy.progress_aria}
+            caption={placementFill(copy.question, { n: prompt.turns_so_far + 1 })}
           />
           <h1 className="av2-headline av2-headline--screen" lang="fr">
             {prompt.prompt_fr}
           </h1>
-          <p className="pl-fine">{prompt.hint_fr}</p>
+          {/* The hint is chrome: the native-language version when the server
+              has one; an unknown hint keeps its French, marked as such. */}
+          <p className="pl-fine" lang={hintText ? language : 'fr'}>
+            {hintText || prompt.hint_fr}
+          </p>
           {textAnswerField({
-            label: 'Votre réponse, en français',
+            label: copy.answer_label,
             value: answer,
             rows: 5,
             disabled: pending,
-            placeholder: 'Écrivez ici…',
+            placeholder: copy.answer_placeholder,
             onChange: setAnswer,
             inputRef: fieldRef,
           })}
-          {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
+          {failure && <Notice tone="alert" live="alert">{copy[failure]}</Notice>}
         </PlacementFrame>
       </>
     );
@@ -294,7 +305,7 @@ export default function PlacementPage() {
     return (
       <>
         <Head>
-          <title>Niveau non évalué · L’Atelier</title>
+          <title>{`${copy.unassessed_title} · L’Atelier`}</title>
         </Head>
         <PlacementFrame
           foot={
@@ -302,30 +313,24 @@ export default function PlacementPage() {
               <Action
                 tone="primary"
                 pending={pending}
-                pendingLabel="Ouverture…"
+                pendingLabel={copy.opening}
                 onClick={() => void api.startPlacement(true).then(setEnvelope)}
               >
-                Refaire le bilan
+                {copy.retry}
               </Action>
               <button type="button" className="av2-btn av2-btn--quiet" onClick={leave}>
-                Continuer sans bilan
+                {copy.continue_without}
               </button>
             </>
           }
         >
-          <span className="av2-label">Bilan de niveau</span>
-          <h1 className="av2-headline av2-headline--screen">Niveau non évalué</h1>
-          <p className="pl-lead">
-            La correction n’a pas répondu, donc nous n’avons rien mesuré. Nous préférons vous
-            le dire plutôt que d’annoncer un niveau que personne n’a vérifié.
-          </p>
+          <span className="av2-label">{copy.kicker}</span>
+          <h1 className="av2-headline av2-headline--screen">{copy.unassessed_title}</h1>
+          <p className="pl-lead">{copy.unassessed_lead}</p>
           <Surface tone="outline">
-            <p className="pl-fine">
-              Le niveau que vous avez indiqué à l’inscription reste en place. Vos réponses
-              n’ont pas été perdues : elles ne portent simplement aucune note.
-            </p>
+            <p className="pl-fine">{copy.unassessed_fine}</p>
           </Surface>
-          {failure && <Notice tone="alert" live="alert">{failure}</Notice>}
+          {failure && <Notice tone="alert" live="alert">{copy[failure]}</Notice>}
         </PlacementFrame>
       </>
     );
@@ -337,23 +342,24 @@ export default function PlacementPage() {
   return (
     <>
       <Head>
-        <title>Votre niveau estimé · L’Atelier</title>
+        <title>{`${copy.result_title_tab} · L’Atelier`}</title>
       </Head>
       <PlacementFrame
         foot={
           <Action tone="primary" onClick={leave} iconAfter={<ArrowRightIcon size={14} />}>
-            Ouvrir ma première séance
+            {copy.open_first}
           </Action>
         }
       >
-        <span className="av2-label">Bilan de niveau</span>
+        <span className="av2-label">{copy.kicker}</span>
         <h1 className="av2-headline av2-headline--screen">
-          Niveau estimé&nbsp;: {envelope?.level ?? '—'}
+          {placementFill(copy.estimated, { level: envelope?.level ?? '—' })}
         </h1>
         <p className="pl-lead">
-          {confidenceLabel(envelope?.confidence ?? 0)}, sur {estimate?.graded_turns ?? 0} réponses
-          corrigées. Ce niveau guide vos premières séances ; il bougera dès que vos exercices
-          en diront davantage.
+          {placementFill(copy.result_lead, {
+            confidence: confidenceLabel(envelope?.confidence ?? 0, copy),
+            n: estimate?.graded_turns ?? 0,
+          })}
         </p>
 
         {dimensions.length > 0 && (
@@ -361,7 +367,9 @@ export default function PlacementPage() {
             <ul className="pl-dims">
               {dimensions.map(([key, value]) => (
                 <li key={key} className="pl-dims__row">
-                  <span>{estimate?.dimension_labels?.[key] ?? key}</span>
+                  <span>
+                    {copy.dimensions[key as keyof PlacementCopy['dimensions']] ?? estimate?.dimension_labels?.[key] ?? key}
+                  </span>
                   <span className="pl-dims__score">{value.toFixed(1)} / 4</span>
                 </li>
               ))}
@@ -371,13 +379,14 @@ export default function PlacementPage() {
 
         {Array.isArray(estimate?.evidence) && estimate.evidence.length > 0 && (
           <details className="pl-evidence">
-            <summary>Sur quoi repose cette estimation</summary>
+            <summary>{copy.evidence_summary}</summary>
             <ul>
               {estimate.evidence.map((item, index) => (
                 <li key={index}>
                   <span className="av2-label">{String(item.band ?? '')}</span>
                   <p lang="fr">{String(item.answer ?? '')}</p>
-                  {item.evidence_fr && <p className="pl-fine">{String(item.evidence_fr)}</p>}
+                  {/* The grader writes its evidence in French: content, marked so. */}
+                  {item.evidence_fr && <p className="pl-fine" lang="fr">{String(item.evidence_fr)}</p>}
                 </li>
               ))}
             </ul>

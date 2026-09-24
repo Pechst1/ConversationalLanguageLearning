@@ -274,7 +274,7 @@ export function Taste({ language, onKeep }: { language: OnboardingLanguage; onKe
                 setResetKey((value) => value + 1);
               }}
             >
-              {TASTE_NAV.retry}
+              {TASTE_NAV[language].retry}
             </Action>
           )}
         </FeedbackBand>
@@ -290,12 +290,12 @@ export function Taste({ language, onKeep }: { language: OnboardingLanguage; onKe
       <div className="ob-taste__foot">
         {solved && !last && (
           <Action tone="primary" onClick={next}>
-            {TASTE_NAV.next}
+            {TASTE_NAV[language].next}
           </Action>
         )}
         {finished && (
           <Action tone="primary" onClick={onKeep}>
-            {TASTE_NAV.keep}
+            {TASTE_NAV[language].keep}
           </Action>
         )}
       </div>

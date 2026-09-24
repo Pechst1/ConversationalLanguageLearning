@@ -66,6 +66,7 @@ export default function SignUpPage() {
   const auth = useAppAuth();
   const [language, setLanguage] = useOnboardingLanguage();
   const copy = SIGNUP_COPY[language];
+  const nav = SIGNUP_NAV[language];
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState('');
@@ -136,10 +137,10 @@ export default function SignUpPage() {
   return (
     <>
       <Head>
-        <title>Créer un compte · L’Atelier</title>
+        <title>{`${nav.screen} · L’Atelier`}</title>
       </Head>
 
-      <AuthScreen label="Créer un compte">
+      <AuthScreen label={nav.screen}>
         <div className="signup-top">
           <AuthEyebrow>L’Atelier</AuthEyebrow>
           <LanguageSwitch value={language} onChange={setLanguage} label={copy.language} />
@@ -236,11 +237,11 @@ export default function SignUpPage() {
             {consent.end}
           </p>
 
-          <Action tone="primary" type="submit" pending={isLoading} pendingLabel={SIGNUP_NAV.pending}>
-            {SIGNUP_NAV.submit}
+          <Action tone="primary" type="submit" pending={isLoading} pendingLabel={nav.pending}>
+            {nav.submit}
           </Action>
 
-          <AuthFootLink href={{ pathname: '/auth/signin', query: callbackQuery }} label={SIGNUP_NAV.have_account} />
+          <AuthFootLink href={{ pathname: '/auth/signin', query: callbackQuery }} label={nav.have_account} />
         </form>
 
         <BottomSheet

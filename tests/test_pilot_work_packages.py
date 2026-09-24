@@ -319,8 +319,11 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
     # WP-75 (2026-09-22): sign-up explains itself in the learner's language
     # (en/de/fr, guessed from the browser, switchable) from one copy table;
     # the navigation labels stay French.
+    # 2026-09-24: the buttons are chrome too — the one-language rule reads a
+    # newcomer as a beginner, so they follow the same detected language.
     assert "SIGNUP_COPY[language]" in signup
-    assert "SIGNUP_NAV.submit" in signup
+    assert "SIGNUP_NAV[language]" in signup
+    assert "{nav.submit}" in signup
     for english_island in (
         "Your first edition",
         "Start with the essentials",
