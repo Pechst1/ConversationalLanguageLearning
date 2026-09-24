@@ -1127,6 +1127,8 @@ export interface AtelierForgeNext {
   item_id: string;
   item_index: number;
   reprise?: boolean;
+  /** The item itself (a bank top-up is not in the set the page loaded). */
+  item?: Record<string, any> | null;
 }
 
 export interface AtelierForgeTestOutResult {

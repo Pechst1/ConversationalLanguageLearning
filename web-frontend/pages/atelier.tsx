@@ -117,6 +117,7 @@ import {
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { fillForge, forgeCopy, forgeRungLabel } from '@/lib/forge-copy';
+import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
@@ -719,10 +720,13 @@ export default function AtelierPage() {
     const forgeNext = forgeView?.next;
     const forgeConceptIndex = forgeNext ? next.concepts.findIndex((concept) => concept.id === forgeNext.concept_id) : -1;
     if (forgeNext && forgeConceptIndex >= 0) {
+      // A bank top-up is not in the set the page loaded: seat it, point at it.
+      const seated = seatForgeItem(next.exercise_sets, forgeNext);
+      if (seated.sets !== next.exercise_sets) setSession({ ...next, exercise_sets: seated.sets });
       setActiveConceptIndex(forgeConceptIndex);
       setRound(forgeNext.round as RoundName);
       if (recognizeModes.some((item) => item.id === forgeNext.mode)) setMode(forgeNext.mode as RecognizeMode);
-      setActiveItemIndex(Math.max(0, Number(forgeNext.item_index || 0)));
+      setActiveItemIndex(seated.index);
     }
     if (openSession) {
       setView('session');
@@ -848,11 +852,25 @@ export default function AtelierPage() {
   }, [session, activeConcept]);
   const baseActiveItems = useMemo(() => drillItems(sessionActiveSet, round, mode), [sessionActiveSet, round, mode]);
   const baseActiveItemIndexSafe = safeDrillItemIndex(activeItemIndex, baseActiveItems);
-  const activeSet = activeRetest ? exerciseSetForRetest(activeRetest) : sessionActiveSet;
+  // WP-S3 × WP-S2: the forge may pose several items of one output rung (bank
+  // top-ups); the output panels render their container's first item, so the
+  // page hands them a set scoped to the item the forge named.
+  const scopedSessionSet = useMemo(
+    () => scopeOutputItem(sessionActiveSet, round, baseActiveItemIndexSafe),
+    [sessionActiveSet, round, baseActiveItemIndexSafe],
+  );
+  const activeSet = activeRetest ? exerciseSetForRetest(activeRetest) : scopedSessionSet;
   const activeItems = useMemo(() => drillItems(activeSet, exerciseRound, exerciseMode), [activeSet, exerciseRound, exerciseMode]);
-  const activeItemIndexSafe = activeRetest ? 0 : baseActiveItemIndexSafe;
+  const outputScoped = !activeRetest && scopedSessionSet !== sessionActiveSet;
+  const activeItemIndexSafe = activeRetest || outputScoped ? 0 : baseActiveItemIndexSafe;
   const activeItem = activeItems[activeItemIndexSafe] || null;
-  const activeAnswerItemId = roundUsesItemScope(exerciseRound) ? itemIdForKey(activeItem, activeItemIndexSafe) || null : null;
+  // A forge séance keys each output item by its id (each top-up is its own drill).
+  const forgeOutputItemId = forge && !activeRetest && isForgeOutputRound(exerciseRound) && activeItem?.id
+    ? String(activeItem.id)
+    : null;
+  const activeAnswerItemId = roundUsesItemScope(exerciseRound)
+    ? itemIdForKey(activeItem, activeItemIndexSafe) || null
+    : forgeOutputItemId;
   const activeItemId = activeRetest
     ? `retest:${activeRetest.id}`
     : activeAnswerItemId;
@@ -1197,7 +1215,9 @@ export default function AtelierPage() {
           mode: exerciseRound,
           exercise_id: activeRetest
             ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
-            : `${activeConcept?.external_id || activeConcept?.id}:${exerciseRound}`,
+            : forgeOutputItemId
+              ? `${activeConcept?.external_id || activeConcept?.id}:${exerciseRound}:${forgeOutputItemId}`
+              : `${activeConcept?.external_id || activeConcept?.id}:${exerciseRound}`,
           answer_payload: { text: currentAnswers.text || '' },
           confidence,
           retest_source_attempt_id: retestSourceAttemptId,
@@ -1217,7 +1237,17 @@ export default function AtelierPage() {
       }
       applyAttemptResult(attemptKey, result);
       const forgeAfter = forgeViewOf(result.forge);
-      if (forgeAfter) setForge(forgeAfter);
+      if (forgeAfter) {
+        setForge(forgeAfter);
+        const upcoming = forgeAfter.next;
+        if (upcoming) {
+          setSession((prev) => {
+            if (!prev) return prev;
+            const seated = seatForgeItem(prev.exercise_sets, upcoming);
+            return seated.sets === prev.exercise_sets ? prev : { ...prev, exercise_sets: seated.sets };
+          });
+        }
+      }
       setSubmitted((prev) => ({ ...prev, [attemptKey]: true }));
       setResubmitKeys((prev) => ({ ...prev, [attemptKey]: false }));
       const adaptiveLock = result.correction?.adaptive_lock;
@@ -1734,10 +1764,12 @@ export default function AtelierPage() {
       const next = forge.next;
       const conceptIndex = next ? session.concepts.findIndex((concept) => concept.id === next.concept_id) : -1;
       if (next && conceptIndex >= 0) {
+        const seated = seatForgeItem(session.exercise_sets, next);
+        if (seated.sets !== session.exercise_sets) setSession({ ...session, exercise_sets: seated.sets });
         setActiveConceptIndex(conceptIndex);
         setRound(next.round as RoundName);
         if (recognizeModes.some((item) => item.id === next.mode)) setMode(next.mode as RecognizeMode);
-        setActiveItemIndex(Math.max(0, Number(next.item_index || 0)));
+        setActiveItemIndex(seated.index);
         return;
       }
       if (forge.mode === 'test_out') {
