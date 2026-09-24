@@ -1,6 +1,7 @@
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import type { RuleCardData } from '@/lib/rule-card';
+import type { ForgeCoach } from '@/lib/forge-coach';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -135,6 +136,8 @@ export interface AtelierConcept {
   is_foundation: boolean;
   /** WP-L10: the authored rule card (every learner language), or null. */
   rule_card?: RuleCardData | null;
+  /** WP-S5: the cast member who teaches this rule (card and feedback face). */
+  coach?: ForgeCoach | null;
   role?: string | null;
   mastery: number;
   next_review?: string | null;
@@ -1129,6 +1132,8 @@ export interface AtelierForgeNext {
   reprise?: boolean;
   /** The item itself (a bank top-up is not in the set the page loaded). */
   item?: Record<string, any> | null;
+  /** WP-S5: the rule's coach. */
+  coach?: ForgeCoach | null;
 }
 
 export interface AtelierForgeTestOutResult {
@@ -1148,7 +1153,16 @@ export interface AtelierForgeView {
   finished: boolean;
   next: AtelierForgeNext | null;
   result: AtelierForgeTestOutResult | null;
-  rules: Array<{ concept_id: number; role: string; rung: number; rung_name: string; served: number; topped: boolean }>;
+  rules: Array<{
+    concept_id: number;
+    role: string;
+    rung: number;
+    rung_name: string;
+    served: number;
+    topped: boolean;
+    /** WP-S5: the rule's coach. */
+    coach?: ForgeCoach | null;
+  }>;
 }
 
 export interface AtelierForgeRuleState {
