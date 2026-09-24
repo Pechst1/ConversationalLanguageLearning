@@ -66,6 +66,7 @@ from app.services.atelier import (
     AtelierSRSService,
     ConceptSelection,
     estimate_session_minutes,
+    forward_report_to_pool,
     fr_localizations_by_concept_id,
     inject_vocabulary_context,
     planned_session_drills,
@@ -1577,6 +1578,9 @@ def report_exercise(
     db.refresh(event)
     if exercise_set:
         AtelierExerciseQualityService(db).evaluate_and_retire(exercise_set)
+        # WP-S2: a templated set's production prompt may come from a shared
+        # pool set; the report then counts against that pool set too.
+        forward_report_to_pool(db, exercise_set, round_name=payload.round, event=event)
     return AtelierExerciseReportResponse(ok=True, event_id=event.id)
 
 

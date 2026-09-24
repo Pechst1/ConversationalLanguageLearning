@@ -217,6 +217,22 @@ class Settings(BaseSettings):
         True,
         description="Pre-generate the learner's next Atelier session in the background.",
     )
+    ATELIER_ITEM_BANK_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-S2 La Forge: build each séance concept's exercises from the generative item bank "
+            "(app/data/grammar_templates) — no LLM on start, no sentence twice in 7 days — before the "
+            "shared LLM pool and the curated fallback."
+        ),
+    )
+    ATELIER_POOL_SETS_PER_BAND: int = Field(
+        3,
+        description="WP-S2: vetted shared LLM pool sets kept per (unit, learner band) by the batch pre-generation job.",
+    )
+    ATELIER_POOL_BACKGROUND_TOPUP_ENABLED: bool = Field(
+        False,
+        description="WP-S2: top up a thin shared LLM pool in the background after a séance starts (off the request path).",
+    )
     ATELIER_LLM_FAILURE_BACKOFF_SECONDS: float = Field(
         120.0,
         description="How long Atelier skips live exercise generation after a provider outage.",

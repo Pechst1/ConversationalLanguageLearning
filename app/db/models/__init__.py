@@ -9,6 +9,7 @@ from app.db.models.atelier import (
     AtelierExerciseSet,
     AtelierGenerationEvent,
     AtelierLanguagePack,
+    AtelierServedItem,
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory, UserLevelCheckpoint
@@ -77,6 +78,7 @@ __all__ = [
     "AtelierGenerationEvent",
     "AtelierLanguagePack",
     "AtelierSession",
+    "AtelierServedItem",
     "RealWorldMission",
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",

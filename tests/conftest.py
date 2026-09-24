@@ -81,6 +81,7 @@ from app.db.models.atelier import (
     AtelierExerciseSet,
     AtelierGenerationEvent,
     AtelierLanguagePack,
+    AtelierServedItem,
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory, UserLevelCheckpoint
@@ -168,6 +169,7 @@ def db_engine():
             AtelierExerciseSet.__table__,
             AtelierGenerationEvent.__table__,
             AtelierAttempt.__table__,
+            AtelierServedItem.__table__,
             SerialThread.__table__,
             RealWorldMission.__table__,
             RealWorldMissionAttempt.__table__,
@@ -231,6 +233,7 @@ def db_engine():
                 RealWorldMissionAttempt.__table__,
                 RealWorldMission.__table__,
                 SerialThread.__table__,
+                AtelierServedItem.__table__,
                 AtelierAttempt.__table__,
                 AtelierGenerationEvent.__table__,
                 AtelierExerciseSet.__table__,

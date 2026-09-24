@@ -27,6 +27,7 @@ from app.db.models.atelier import (
     AtelierAttempt,
     AtelierExerciseSet,
     AtelierGenerationEvent,
+    AtelierServedItem,
     AtelierSession,
 )
 from app.db.models.error import UserError
@@ -59,6 +60,13 @@ from app.services.glosses import (
 from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
+from app.services.item_bank import (
+    ITEM_BANK_VERSION,
+    VARIETY_WINDOW_DAYS,
+    build_bank_set,
+    units_for_external_id,
+)
+from app.services.item_bank import fingerprint as bank_fingerprint
 from app.services.learner_copy import learner_text as _copy
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
@@ -1232,7 +1240,21 @@ def _session_has_concept_attempt(db: Session, *, session: AtelierSession, concep
     )
 
 
-def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) -> AtelierExerciseSet | None:
+def shared_pool_sets(
+    db: Session,
+    concept: GrammarConcept,
+    *,
+    band: str | None = None,
+    limit: int = 10,
+) -> list[AtelierExerciseSet]:
+    """Vetted shared LLM sets of a concept, the learner's band first (WP-S2).
+
+    ``source == "llm"`` is the shared pool: generated without a learner and
+    gated by the structural guard and the AI critic. ``llm_user`` sets are
+    personalised and never shared. A set generated for another band, or
+    before sets carried a band, is still served after the band's own.
+    """
+
     candidates = (
         db.query(AtelierExerciseSet)
         .filter(
@@ -1242,13 +1264,368 @@ def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) 
             AtelierExerciseSet.retired_at.is_(None),
         )
         .order_by(AtelierExerciseSet.created_at.desc())
-        .limit(5)
+        .limit(max(limit * 3, 15))
         .all()
     )
-    for candidate in candidates:
-        if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept):
-            return candidate
-    return None
+    valid = [candidate for candidate in candidates if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept)]
+    if band:
+        valid.sort(key=lambda candidate: 0 if candidate.pool_band == band else (1 if candidate.pool_band is None else 2))
+    return valid[:limit]
+
+
+def _latest_valid_shared_llm_exercise_set(
+    db: Session, concept: GrammarConcept, band: str | None = None
+) -> AtelierExerciseSet | None:
+    pool = shared_pool_sets(db, concept, band=band, limit=1)
+    return pool[0] if pool else None
+
+
+# --------------------------------------------------------------------------- #
+# WP-S2 — La Forge's item bank at séance start
+# --------------------------------------------------------------------------- #
+
+ATELIER_ITEM_BANK_SOURCE = "template"
+_POOL_OUTPUT_ROUNDS = frozenset({"sentence", "speak", "conversation", "produce"})
+
+
+def learner_pool_band(db: Session, user: User | None, concept: GrammarConcept | None = None) -> str:
+    """The coarse band a learner's shared pool sets are drawn from (A1, A2, …)."""
+
+    band = placement_band(db, user) if user is not None else None
+    if not band and user is not None:
+        band = _coarse_band(getattr(user, "cefr_estimate", None))
+    if not band and concept is not None:
+        band = _coarse_band(getattr(concept, "level", None))
+    return band or "A1"
+
+
+def served_fingerprints(db: Session, user: User, *, days: int = VARIETY_WINDOW_DAYS) -> set[str]:
+    """Fingerprints of every exercise sentence the learner was served in the window."""
+
+    since = datetime.now(UTC) - timedelta(days=days)
+    rows = (
+        db.query(AtelierServedItem.fingerprint)
+        .filter(AtelierServedItem.user_id == user.id, AtelierServedItem.served_at >= since)
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
+def _record_served_items(
+    db: Session,
+    *,
+    user: User,
+    session: AtelierSession | None,
+    fingerprints: Iterable[str],
+    unit: str | None,
+) -> None:
+    now = datetime.now(UTC)
+    for value in dict.fromkeys(fingerprints):
+        db.add(
+            AtelierServedItem(
+                user_id=user.id,
+                atelier_session_id=session.id if session is not None else None,
+                fingerprint=value,
+                unit=unit,
+                served_at=now,
+            )
+        )
+
+
+def _pool_output_fingerprints(payload: dict[str, Any]) -> list[str]:
+    sentences: list[str] = []
+    ladder = payload.get("output_ladder") if isinstance(payload.get("output_ladder"), dict) else {}
+    for round_name in ("sentence", "speak", "conversation"):
+        for item in ((ladder.get(round_name) or {}).get("items") or []):
+            if isinstance(item, dict) and item.get("example_answer"):
+                sentences.append(str(item["example_answer"]))
+    produce = payload.get("produce") if isinstance(payload.get("produce"), dict) else {}
+    if produce.get("source_fragment"):
+        sentences.append(str(produce["source_fragment"]))
+    return [bank_fingerprint(sentence) for sentence in sentences]
+
+
+def _pool_outputs_for(
+    db: Session,
+    concept: GrammarConcept,
+    *,
+    band: str,
+    exclude: set[str],
+) -> tuple[dict[str, Any] | None, AtelierExerciseSet | None, list[str]]:
+    """Situations and production prompts from the shared pool — never ones the learner saw this week."""
+
+    for candidate in shared_pool_sets(db, concept, band=band):
+        payload = candidate.payload if isinstance(candidate.payload, dict) else {}
+        fingerprints = _pool_output_fingerprints(payload)
+        if any(value in exclude for value in fingerprints):
+            continue
+        if not payload.get("output_ladder") or not payload.get("produce"):
+            continue
+        return {"output_ladder": payload["output_ladder"], "produce": payload["produce"]}, candidate, fingerprints
+    return None, None, []
+
+
+def _known_lemmas(target_vocabulary: list[dict[str, Any]] | None) -> list[str]:
+    words: list[str] = []
+    for item in target_vocabulary or []:
+        if not isinstance(item, dict):
+            continue
+        for key in ("lemma", "word", "french"):
+            value = str(item.get(key) or "").strip().lower()
+            if value:
+                words.append(value.split()[-1])
+                break
+    return words
+
+
+def item_bank_exercise_set(
+    db: Session,
+    *,
+    user: User,
+    session: AtelierSession,
+    concept: GrammarConcept,
+    target_vocabulary: list[dict[str, Any]] | None = None,
+) -> AtelierExerciseSet | None:
+    """One concept's exercise set for this séance from La Forge's item bank.
+
+    Templates first (rendered in-process, no LLM); their situations and
+    production prompts are replaced by a vetted shared LLM pool set when one
+    exists that the learner has not seen this week. ``None`` when the concept
+    has no templates, so the caller falls back to the shared pool / curated
+    path. Every sentence served is recorded (``atelier_served_items``):
+    nothing repeats within seven days or within the séance, and the rule
+    card's own example is never an exercise.
+    """
+
+    if not getattr(settings, "ATELIER_ITEM_BANK_ENABLED", True):
+        return None
+    external_id = str(concept.external_id or "")
+    units = units_for_external_id(external_id)
+    if not units:
+        return None
+    started = time.perf_counter()
+    try:
+        from app.services.grammar_units import examples as unit_examples
+
+        generator = AtelierExerciseGenerator(db)
+        rule_examples = unit_examples(concept)
+        base = generator._base(concept, sentence=rule_examples[0] if rule_examples else (concept.name or ""), marks=[])
+        requirement = {
+            "concept_id": concept.id,
+            "external_id": concept.external_id,
+            "label": _concept_label(concept),
+            "target_count": 1,
+        }
+        exclude = served_fingerprints(db, user)
+        band = learner_pool_band(db, user, concept)
+        pool_outputs, pool_set, pool_fingerprints = _pool_outputs_for(db, concept, band=band, exclude=exclude)
+        seed = f"{user.id}:{session.id}:{concept.id}"
+        known = _known_lemmas(target_vocabulary)
+
+        def build(with_pool: bool) -> tuple[Any, list[str]]:
+            built = build_bank_set(
+                external_id=external_id,
+                base=base,
+                requirement=requirement,
+                seed=seed,
+                exclude=exclude,
+                known=known,
+                rule_examples=rule_examples,
+                pool_outputs=pool_outputs if with_pool else None,
+            )
+            problems = AtelierExerciseGenerator._payload_validation_errors(built.payload, concept=concept) if built else ["no bank set"]
+            return built, problems
+
+        bank_set, errors = build(True)
+        if bank_set is not None and errors and pool_outputs:
+            # A pool set that clears the gates alone can still clash with this
+            # payload; the templated production prompts never do.
+            pool_outputs, pool_set, pool_fingerprints = None, None, []
+            bank_set, errors = build(False)
+        if bank_set is None or errors:
+            logger.warning(
+                "La Forge item bank could not build a set",
+                concept_id=concept.id,
+                external_id=external_id,
+                errors=errors[:5],
+            )
+            return None
+        payload = bank_set.payload
+        payload["forge"]["pool_set_id"] = str(pool_set.id) if pool_set else None
+        payload["forge"]["band"] = band
+        content_hash = _payload_hash(
+            {"payload_hash": _payload_hash(payload), "session_id": str(session.id), "concept_id": concept.id}
+        )
+        exercise_set = AtelierExerciseSet(
+            concept_id=concept.id,
+            generator_version=ATELIER_GENERATOR_VERSION,
+            model=None,
+            source=ATELIER_ITEM_BANK_SOURCE,
+            content_hash=content_hash,
+            payload=payload,
+            validation_notes=(
+                f"La Forge item bank {ITEM_BANK_VERSION}: units {', '.join(bank_set.units)}"
+                + (f"; production prompts from shared pool set {pool_set.id}" if pool_set else "; templated production prompts")
+                + "."
+            ),
+        )
+        db.add(exercise_set)
+        db.flush([exercise_set])
+        _record_served_items(
+            db,
+            user=user,
+            session=session,
+            fingerprints=[*bank_set.fingerprints, *pool_fingerprints],
+            unit=bank_set.units[0] if len(bank_set.units) == 1 else external_id,
+        )
+        if pool_set is not None:
+            quote = dict(session.quote_payload or {})
+            pool_ids = dict(quote.get("pool_set_ids") or {})
+            pool_ids[str(concept.id)] = str(pool_set.id)
+            quote["pool_set_ids"] = pool_ids
+            session.quote_payload = quote
+            flag_modified(session, "quote_payload")
+            db.add(session)
+        generator._record_generation_event(
+            concept=concept,
+            user=user,
+            session_id=session.id,
+            exercise_set=exercise_set,
+            event_type="exercise_set",
+            source=ATELIER_ITEM_BANK_SOURCE,
+            model=None,
+            passed=True,
+            payload={
+                "content_hash": content_hash,
+                "units": bank_set.units,
+                "items": len(bank_set.fingerprints),
+                "pool_set_id": str(pool_set.id) if pool_set else None,
+                "band": band,
+                "build_ms": round((time.perf_counter() - started) * 1000, 1),
+            },
+        )
+        db.commit()
+        db.refresh(exercise_set)
+        return exercise_set
+    except Exception as exc:  # pragma: no cover - the bank must never break a séance start
+        logger.warning("La Forge item bank failed", concept_id=concept.id, error=str(exc))
+        db.rollback()
+        return None
+
+
+def top_up_shared_pool_background(concept_id: int, band: str) -> None:
+    """Grow a thin shared LLM pool off the request path (never at séance start)."""
+
+    db = SessionLocal()
+    try:
+        concept = db.get(GrammarConcept, concept_id)
+        if not concept:
+            return
+        target = int(getattr(settings, "ATELIER_POOL_SETS_PER_BAND", 3) or 0)
+        have = [item for item in shared_pool_sets(db, concept, band=band, limit=target + 1) if item.pool_band == band]
+        if len(have) >= target:
+            return
+        AtelierExerciseGenerator(db).generate_shared_pool_set(concept, band=band)
+    except Exception as exc:  # pragma: no cover - background work must not affect live sessions
+        logger.warning("Atelier shared pool top-up failed", concept_id=concept_id, band=band, error=str(exc))
+        db.rollback()
+    finally:
+        db.close()
+
+
+class AtelierPoolService:
+    """WP-S2: batched, gated pre-generation of the shared LLM pools (run offline).
+
+    One pool per (concept, learner band): ``ATELIER_POOL_SETS_PER_BAND`` vetted
+    sets generated without a learner (so they are shareable), through the same
+    structural guard and AI critic as every generated set. The quality
+    flywheel (:class:`AtelierExerciseQualityService`) retires a pool set on
+    reports or a high wrong rate and generates its replacement in the same
+    band. Entry point: ``scripts/pregenerate_atelier_pools.py``.
+    """
+
+    def __init__(self, db: Session, llm_service: LLMService | None = None) -> None:
+        self.db = db
+        self.generator = AtelierExerciseGenerator(db, llm_service=llm_service)
+
+    def pool_size(self, concept: GrammarConcept, band: str) -> int:
+        return sum(1 for item in shared_pool_sets(self.db, concept, band=band, limit=50) if item.pool_band == band)
+
+    def pregenerate(
+        self,
+        *,
+        concepts: Iterable[GrammarConcept] | None = None,
+        bands: Iterable[str] = ("A1", "A2"),
+        per_band: int | None = None,
+        max_new: int | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        target = int(per_band if per_band is not None else getattr(settings, "ATELIER_POOL_SETS_PER_BAND", 3))
+        if concepts is None:
+            concepts = (
+                self.db.query(GrammarConcept)
+                .filter(GrammarConcept.active.is_(True))
+                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                .all()
+            )
+        bands = tuple(bands)
+        report: dict[str, Any] = {"created": 0, "failed": 0, "planned": 0, "keys": []}
+        for concept in concepts:
+            if not units_for_external_id(concept.external_id):
+                continue
+            for band in bands:
+                have = self.pool_size(concept, band)
+                missing = max(0, target - have)
+                report["keys"].append({"external_id": concept.external_id, "band": band, "have": have, "missing": missing})
+                report["planned"] += missing
+                if dry_run:
+                    continue
+                for _ in range(missing):
+                    if max_new is not None and report["created"] >= max_new:
+                        return report
+                    created = self.generator.generate_shared_pool_set(concept, band=band)
+                    if created is None:
+                        report["failed"] += 1
+                        break
+                    report["created"] += 1
+        return report
+
+
+def forward_report_to_pool(
+    db: Session,
+    exercise_set: AtelierExerciseSet,
+    *,
+    round_name: str | None,
+    event: AtelierGenerationEvent,
+) -> AtelierExerciseSet | None:
+    """A report on a templated set's production prompt counts against the pool set it came from."""
+
+    if exercise_set.source != ATELIER_ITEM_BANK_SOURCE or (round_name or "") not in _POOL_OUTPUT_ROUNDS:
+        return None
+    forge = (exercise_set.payload or {}).get("forge") if isinstance(exercise_set.payload, dict) else None
+    pool_id = (forge or {}).get("pool_set_id")
+    if not pool_id:
+        return None
+    pool_set = db.get(AtelierExerciseSet, UUID(str(pool_id)))
+    if pool_set is None:
+        return None
+    db.add(
+        AtelierGenerationEvent(
+            user_id=event.user_id,
+            concept_id=pool_set.concept_id,
+            atelier_session_id=event.atelier_session_id,
+            exercise_set_id=pool_set.id,
+            generator_version=pool_set.generator_version,
+            event_type="user_report",
+            source=pool_set.source,
+            model=pool_set.model,
+            passed=False,
+            payload={**(event.payload or {}), "forwarded_from": str(exercise_set.id)},
+        )
+    )
+    db.commit()
+    AtelierExerciseQualityService(db).evaluate_and_retire(pool_set)
+    return pool_set
 
 
 def session_exercise_set(
@@ -1281,6 +1658,29 @@ def session_exercise_set(
                     db.refresh(session)
                     return cached_llm
             return exercise_set
+
+    # WP-S2: La Forge's item bank first — rendered in-process, no LLM, a new
+    # set of sentences per séance. The shared pool and the curated fallback
+    # below stay the last resort for concepts without templates.
+    bank_set = item_bank_exercise_set(
+        db,
+        user=user,
+        session=session,
+        concept=concept,
+        target_vocabulary=target_vocabulary,
+    )
+    if bank_set is not None:
+        _store_session_exercise_set_id(session, concept, bank_set)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        if background_tasks is not None and getattr(settings, "ATELIER_POOL_BACKGROUND_TOPUP_ENABLED", False):
+            background_tasks.add_task(
+                top_up_shared_pool_background,
+                concept.id,
+                str(((bank_set.payload or {}).get("forge") or {}).get("band") or "A1"),
+            )
+        return bank_set
 
     if fast_path:
         # Never block the request on a personalized LLM generation+critique chain:
@@ -1408,7 +1808,13 @@ def pregenerate_next_atelier_session(user_id: UUID | str) -> None:
         db.refresh(session)
 
         for selection in selections:
-            exercise_set = AtelierExerciseGenerator(db).get_or_create(
+            exercise_set = item_bank_exercise_set(
+                db,
+                user=user,
+                session=session,
+                concept=selection.concept,
+                target_vocabulary=target_vocabulary,
+            ) or AtelierExerciseGenerator(db).get_or_create(
                 selection.concept,
                 user=user,
                 session_id=session.id,
@@ -2225,6 +2631,65 @@ class AtelierExerciseGenerator:
         self.db.commit()
         self.db.refresh(exercise_set)
         return exercise_set
+
+    def generate_shared_pool_set(self, concept: GrammarConcept, *, band: str | None = None) -> AtelierExerciseSet | None:
+        """One vetted LLM set for the shared pool of (concept, band), or None (WP-S2).
+
+        Generated without a learner — no personal vocabulary, no session — so
+        it is shareable (``source == "llm"``), through the same structural
+        guard and AI critic as every generated set. Never a curated fallback:
+        a failed generation adds nothing to the pool.
+        """
+
+        generated = self._generate_with_llm(concept)
+        if not generated:
+            return None
+        payload, model, validation_notes = generated
+        content_hash = _payload_hash(payload)
+        existing = (
+            self.db.query(AtelierExerciseSet)
+            .filter(
+                AtelierExerciseSet.concept_id == concept.id,
+                AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                AtelierExerciseSet.content_hash == content_hash,
+            )
+            .first()
+        )
+        if existing is not None:
+            if existing.retired_at is not None:
+                return None
+            if existing.pool_band is None and band:
+                existing.pool_band = band
+                self.db.add(existing)
+                self.db.commit()
+            return existing
+        exercise_set = AtelierExerciseSet(
+            concept_id=concept.id,
+            generator_version=ATELIER_GENERATOR_VERSION,
+            model=model,
+            source="llm",
+            content_hash=content_hash,
+            payload=payload,
+            validation_notes=validation_notes + (f" Shared pool, band {band}." if band else " Shared pool."),
+            pool_band=band,
+        )
+        self.db.add(exercise_set)
+        self.db.flush([exercise_set])
+        self._record_generation_event(
+            concept=concept,
+            user=None,
+            session_id=None,
+            exercise_set=exercise_set,
+            event_type="exercise_set",
+            source="llm",
+            model=model,
+            passed=True,
+            payload={"content_hash": content_hash, "pool_band": band, "shared_pool": True},
+        )
+        self.db.commit()
+        self.db.refresh(exercise_set)
+        return exercise_set
+
 
     def _record_generation_event(
         self,
@@ -3637,9 +4102,15 @@ class AtelierExerciseQualityService:
             .all()
         )
         session_ids: list[UUID] = []
+        pool_session_ids: list[UUID] = []
         for session in self.db.query(AtelierSession).all():
             if _session_exercise_set_ids(session).get(str(exercise_set.concept_id)) == str(exercise_set.id):
                 session_ids.append(session.id)
+            quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
+            if str((quote.get("pool_set_ids") or {}).get(str(exercise_set.concept_id)) or "") == str(exercise_set.id):
+                # WP-S2: a pool set served inside a templated set answers for
+                # the production rounds it supplied.
+                pool_session_ids.append(session.id)
 
         attempts: list[AtelierAttempt] = []
         if session_ids:
@@ -3648,6 +4119,16 @@ class AtelierExerciseQualityService:
                 .filter(
                     AtelierAttempt.atelier_session_id.in_(session_ids),
                     AtelierAttempt.concept_id == exercise_set.concept_id,
+                )
+                .all()
+            )
+        if pool_session_ids:
+            attempts.extend(
+                self.db.query(AtelierAttempt)
+                .filter(
+                    AtelierAttempt.atelier_session_id.in_(pool_session_ids),
+                    AtelierAttempt.concept_id == exercise_set.concept_id,
+                    AtelierAttempt.round.in_(sorted(_POOL_OUTPUT_ROUNDS)),
                 )
                 .all()
             )
@@ -3717,7 +4198,8 @@ class AtelierExerciseQualityService:
         )
         self.db.commit()
 
-        if not regenerate:
+        if not regenerate or exercise_set.source == ATELIER_ITEM_BANK_SOURCE:
+            # A templated set belongs to one séance: nothing to regenerate.
             return None
         self.db.add(
             AtelierGenerationEvent(
@@ -3735,10 +4217,15 @@ class AtelierExerciseQualityService:
         concept = self.db.get(GrammarConcept, exercise_set.concept_id)
         if not concept:
             return None
-        replacement = AtelierExerciseGenerator(self.db).get_or_create(
-            concept,
-            reuse_shared_cache=True,
-        )
+        replacement = None
+        if exercise_set.source == "llm" and exercise_set.pool_band:
+            # WP-S2: a retired pool set is replaced in its own band's pool.
+            replacement = AtelierExerciseGenerator(self.db).generate_shared_pool_set(concept, band=exercise_set.pool_band)
+        if replacement is None:
+            replacement = AtelierExerciseGenerator(self.db).get_or_create(
+                concept,
+                reuse_shared_cache=True,
+            )
         self.db.add(
             AtelierGenerationEvent(
                 concept_id=concept.id,
@@ -6657,4 +7144,7 @@ __all__ = [
     "serialize_erratum_record",
     "serialize_concept",
     "session_exercise_set",
+    "item_bank_exercise_set",
+    "shared_pool_sets",
+    "AtelierPoolService",
 ]
