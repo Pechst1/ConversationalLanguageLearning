@@ -22,7 +22,9 @@ journey and the séance can never disagree about what today is:
      journey), when nothing was introduced today;
   5. the weakest rule in progress (introduced, not held; lowest stability,
      then score);
-  6. a held rule kept warm (earliest next review), so the forge is never empty
+  6. the most urgent due rule (a scheduled rule the learner never formally
+     met, e.g. from an older surface);
+  7. a held rule kept warm (earliest next review), so the forge is never empty
      for a learner who holds everything and has no quota left.
 
 * **due** — grammar rules the one review queue (WP-L3
@@ -35,7 +37,7 @@ journey and the séance can never disagree about what today is:
 partner must already be introduced, and the anchor is new only through step 4
 (or the learner's own explicit choice). There is no padding from teaching
 order: a plan may hold a single rule. That is what retired
-``ExerciseGenerationService.select_daily_concepts`` and the séance endpoint's
+the generation service's old «select daily concepts» and the séance endpoint's
 pad-to-three.
 
 Read-only. Nothing here writes or moves a due date.
@@ -74,6 +76,7 @@ REASON_INTRODUCED_TODAY = "introduced_today"
 REASON_DUE_ERRATUM = "due_erratum"
 REASON_NEW_FROM_QUOTA = "new_from_quota"
 REASON_WEAKEST_IN_PROGRESS = "weakest_in_progress"
+REASON_MOST_DUE = "most_due"
 REASON_KEEP_WARM = "keep_warm"
 REASON_EMPTY = "empty"
 ANCHOR_REASONS = (
@@ -82,6 +85,7 @@ ANCHOR_REASONS = (
     REASON_DUE_ERRATUM,
     REASON_NEW_FROM_QUOTA,
     REASON_WEAKEST_IN_PROGRESS,
+    REASON_MOST_DUE,
     REASON_KEEP_WARM,
     REASON_EMPTY,
 )
@@ -97,6 +101,9 @@ FORGE_SECONDS: dict[str, int] = {
 }
 #: A forge block shorter than this is not a block (the fold is then skipped).
 FORGE_MIN_SECONDS = 120
+#: The room a folded day keeps free of quick items for the forge; the forge
+#: then takes whatever the day leaves, up to the rhythm's FORGE_SECONDS.
+FORGE_RESERVE_SECONDS = 240
 #: The rhythms whose day folds the forge into the Scène movement (owner
 #: decision 3, 2026-09-24). Léger and Régulier get the after-day chip.
 FOLDED_RHYTHMS = frozenset({"soutenu", "intensif"})
@@ -226,6 +233,7 @@ def _anchor(
     rows: list[tuple[UserGrammarProgress, GrammarConcept]],
     preferred_concept_id: int | None,
     errata_ids: list[int],
+    due_ids: list[int],
 ) -> tuple[int | None, str, bool]:
     """``(concept_id, reason, is_new)`` of today's rule."""
 
@@ -273,6 +281,10 @@ def _anchor(
     ]
     if in_progress:
         return min(in_progress)[3], REASON_WEAKEST_IN_PROGRESS, False
+
+    for concept_id in due_ids:
+        if _usable(db.get(GrammarConcept, concept_id), language):
+            return concept_id, REASON_MOST_DUE, False
 
     held = sorted(
         (
@@ -404,6 +416,7 @@ def forge_plan(
         rows=rows,
         preferred_concept_id=preferred_concept_id,
         errata_ids=errata_ids,
+        due_ids=due_ids,
     )
     units: list[ForgeUnit] = []
     seen: set[int] = set()
@@ -467,6 +480,28 @@ def forge_anchor_id(db: Session, user: Any, now: datetime | None = None) -> int 
     return anchor.concept_id if anchor is not None else None
 
 
+def forge_anchor_brief(db: Session, user: Any, *, now: datetime | None = None) -> dict[str, Any] | None:
+    """``{"concept_id", "title_native", "title_fr"}`` of today's rule, for the fold."""
+
+    from app.services.concept_life import concept_brief
+    from app.services.journey_contracts import normalize_control_language
+
+    concept_id = forge_anchor_id(db, user, now)
+    concept = db.get(GrammarConcept, concept_id) if concept_id is not None else None
+    if concept is None:
+        return None
+    language = normalize_control_language(getattr(user, "native_language", None))
+    try:
+        brief = concept_brief(db, concept, control_language=language)
+    except Exception:  # pragma: no cover - a brief is a nicety; the id is what matters
+        brief = {}
+    return {
+        "concept_id": concept.id,
+        "title_native": str(brief.get("title_native") or concept.name or ""),
+        "title_fr": str(brief.get("title_fr") or ""),
+    }
+
+
 __all__ = [
     "ANCHOR_REASONS",
     "FOLDED_RHYTHMS",
@@ -478,6 +513,8 @@ __all__ = [
     "ROLE_CONTRAST",
     "ROLE_DUE",
     "ROLE_TODAY",
+    "FORGE_RESERVE_SECONDS",
+    "forge_anchor_brief",
     "forge_anchor_id",
     "forge_budget_seconds",
     "forge_is_folded",

@@ -471,14 +471,15 @@ class ExerciseGenerationService:
                 .first()
             )
 
-        def add(concept: GrammarConcept | None, role: str) -> None:
-            if not concept or concept.id in seen or not concept.active:
+        def add(concept: GrammarConcept | None, role: str, *, require_active: bool = True) -> None:
+            if not concept or concept.id in seen or (require_active and not concept.active):
                 return
             selected.append((concept, role, progress_for(concept.id)))
             seen.add(concept.id)
 
         if target_concept is not None:
-            add(target_concept, "target")
+            # The concept being generated for is always named, archived or not.
+            add(target_concept, "target", require_active=False)
         if user is not None:
             from app.services.forge_picker import forge_plan
 

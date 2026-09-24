@@ -1642,8 +1642,17 @@ def plan_journey(
     first_day: bool = False,
     practice: bool = False,
     introduction: dict[str, Any] | None = None,
+    forge: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``forge`` (WP-S4) folds La Forge into a practice day (Soutenu and Intensif,
+    owner decision 3): ``{"concept_id", "title_native", "title_fr",
+    "reserve_seconds", "max_seconds"}``. The day keeps ``reserve_seconds`` free
+    of quick items, and one «Forge» step — a hand-off to the forge block that
+    returns to the day — is placed in the Scène movement, after the guided
+    items and just before the reply, sized from what the day leaves (at most
+    ``max_seconds``, at least :data:`FORGE_MIN_SECONDS`, else it is skipped).
 
     ``introduction`` (WP-L4) is today's new grammar unit, as a unit brief
     (:func:`app.services.grammar_units.unit_brief`). On a practice day it adds
@@ -1799,6 +1808,7 @@ def plan_journey(
             notes=notes,
             partners=partners,
             introduction=introduction,
+            forge=forge,
         )
 
     # --- shape the recall steps inside whatever headroom is left -----------
@@ -2480,6 +2490,56 @@ def _rule_step(ordinal: int, *, brief: dict[str, Any], card: dict[str, Any], cos
     )
 
 
+#: WP-S4 — the shortest forge block worth folding into a day.
+FORGE_MIN_SECONDS = 120
+
+
+def forge_reserve_seconds(forge: dict[str, Any] | None) -> int:
+    """The room a folded forge keeps free of quick items (0 without a forge)."""
+
+    if not isinstance(forge, dict):
+        return 0
+    try:
+        return max(0, int(forge.get("reserve_seconds") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _forge_step(
+    ordinal: int,
+    *,
+    forge: dict[str, Any],
+    introduction: dict[str, Any] | None,
+    room: int,
+) -> PlannedStep | None:
+    """The folded forge's hand-off step, or None when the day leaves too little.
+
+    Today's rule is the rule this day introduces, when it does; otherwise the
+    forge picker's anchor, as the caller passed it.
+    """
+
+    try:
+        ceiling = int(forge.get("max_seconds") or 0)
+    except (TypeError, ValueError):
+        ceiling = 0
+    cost = min(room, ceiling) if ceiling > 0 else room
+    if cost < FORGE_MIN_SECONDS:
+        return None
+    source = introduction if isinstance(introduction, dict) and introduction.get("concept_id") else forge
+    concept_id = source.get("concept_id")
+    return PlannedStep(
+        ordinal=ordinal,
+        kind=StepKind.FORGE,
+        estimated_seconds=int(cost),
+        public_prompt={
+            "concept_id": int(concept_id) if concept_id not in (None, "") else None,
+            "title_native": str(source.get("title_native") or ""),
+            "title_fr": str(source.get("title_fr") or ""),
+            "budget_seconds": int(cost),
+        },
+    )
+
+
 def scene_speakers(scenario: ScenarioBrief) -> dict[str, str]:
     """Who said each sentence of the scene's dialogue (folded sentence → character id)."""
 
@@ -2643,6 +2703,7 @@ def _plan_practice_day(
     notes: list[str],
     partners: list[TargetRef] | None = None,
     introduction: dict[str, Any] | None = None,
+    forge: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """WP-78 — warm-ups → scene → build → reply → a word from today → ending.
 
@@ -2656,6 +2717,7 @@ def _plan_practice_day(
     """
 
     caps = rhythm_caps(budget_seconds)
+    forge_reserve = forge_reserve_seconds(forge)
     entries = practice_entries(scenario, selection, affordances)
     # WP-86: the floor may lean on any word of today the scene prints — a word
     # already produced is not drilled, but its line can still be rebuilt or
@@ -2714,7 +2776,8 @@ def _plan_practice_day(
 
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
-        headroom = budget_seconds - (scene_cost + cost + resolution_cost)
+        # WP-S4: the folded forge keeps its room free of quick items.
+        headroom = budget_seconds - (scene_cost + cost + resolution_cost) - forge_reserve
         reserved = intro_reserve(turn_count)
         max_items: int | None = None
         target_items: int | None = None
@@ -2877,6 +2940,24 @@ def _plan_practice_day(
         notes.append("introduction skipped: its rule and guided items did not fit")
     for item in placed("mid"):
         steps.append(_recall_step(len(steps), item))
+
+    if forge:
+        # WP-S4: La Forge, folded into the Scène movement — after the guided
+        # items, before the reply that asks for the rule. Sized from what the
+        # rest of the day leaves.
+        still_to_come = respond_cost + sum(item.cost for item in placed("post")) + resolution_cost
+        room = budget_seconds - sum(step.estimated_seconds for step in steps) - still_to_come
+        forge_step = _forge_step(
+            len(steps),
+            forge=forge,
+            introduction=introduction if intro_target is not None else None,
+            room=room,
+        )
+        if forge_step is not None:
+            steps.append(forge_step)
+            notes.append(f"forge folded in: {forge_step.estimated_seconds}s")
+        else:
+            notes.append(f"forge skipped: {max(0, room)}s left, {FORGE_MIN_SECONDS}s needed")
 
     elicited = [entry.target for entry in selection.selected if entry.is_elicitable]
     # WP-L4 «Emploi» / «Réemploi»: the reply's grammar targets — the new unit
