@@ -380,3 +380,23 @@ the biggest time saver against Duolingo.
 2. **Test-out from day one (owner, 2026-09-24):** every rule can be tested out at once, placement or not.
 3. **Folded into the day on Soutenu/Intensif; an after-day chip on Léger/Régulier (owner, 2026-09-24).**
 4. **Combo sound on by default (owner, 2026-09-24),** respecting the settings toggle.
+
+## 6. Pool pilot (2026-09-24, owner delegated the call)
+
+- **Run:** `scripts/pregenerate_atelier_pools.py`, the 12 v1 A1 concepts, band A1, one set each.
+- **Result: 0 of 12 sets passed** (≈ 12 min, ≈ 70 `gpt-5-mini` calls, cents). The generator kept producing:
+  - misspelled word-bank chips («grandss», «avonss»);
+  - elision errors («la étagère», «Le ami»);
+  - ungrammatical answers («L'école a fermé la»);
+  - production prompts without a question.
+
+  The AI critic caught every one; it was sometimes self-contradictory («cet ami»), but it was never wrong
+  to reject these.
+- **Decision:**
+  - No full pool fill.
+  - The deterministic item bank (WP-S2) serves every rung, including guided production prompts. Its
+    sentences are correct by construction and carry their answer keys.
+  - LLMs stay where they are strong: judging free production (WP-S1's asynchronous verdict).
+  - Revisit pools only with a stronger generator model and a deterministic post-check (elision, token
+    spelling against the answer, lexicon).
+
