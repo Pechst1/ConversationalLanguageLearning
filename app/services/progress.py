@@ -742,13 +742,17 @@ class ProgressService:
             now=now,
             exclude_new_word_ids=exclude_new_word_ids,
         )
+        from app.services.chrome_language import user_chrome_language
         from app.services.recommendation_reasons import recommendation_reason
+
+        reason_language = user_chrome_language(user)
 
         def with_reason(item: dict[str, Any]) -> dict[str, Any]:
             return {
                 **item,
                 "recommendation_reason": recommendation_reason(
                     "review",
+                    language=reason_language,
                     bucket=item.get("bucket"),
                     due_at=item.get("due_at"),
                     lapses=item.get("lapses"),

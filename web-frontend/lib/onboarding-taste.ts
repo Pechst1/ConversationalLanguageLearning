@@ -207,14 +207,37 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
   },
 };
 
-/** Navigation labels: French everywhere, per the chrome rule. */
-export const TASTE_NAV = {
-  start: 'Commencer',
-  have_account: 'J’ai déjà un compte',
-  next: 'Continuer',
-  keep: 'Gardez votre histoire',
-  retry: 'Réessayer',
-} as const;
+/**
+ * The taste's buttons. 2026-09-24: a button is the app's own words, so before an
+ * account exists it follows the detected onboarding language like the rest of
+ * the screen (the one-language rule; a newcomer reads as a beginner). Only the
+ * names of places — La Une, Le Courrier… — stay French.
+ */
+export type TasteNav = { start: string; have_account: string; next: string; keep: string; retry: string };
+
+export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
+  en: {
+    start: 'Start',
+    have_account: 'I already have an account',
+    next: 'Continue',
+    keep: 'Keep your story',
+    retry: 'Try again',
+  },
+  de: {
+    start: 'Loslegen',
+    have_account: 'Ich habe schon ein Konto',
+    next: 'Weiter',
+    keep: 'Behalten Sie Ihre Geschichte',
+    retry: 'Nochmal versuchen',
+  },
+  fr: {
+    start: 'Commencer',
+    have_account: 'J’ai déjà un compte',
+    next: 'Continuer',
+    keep: 'Gardez votre histoire',
+    retry: 'Réessayer',
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Completion flag — so sign-up does not need to say anything more about it.

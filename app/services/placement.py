@@ -231,6 +231,67 @@ PROMPT_VARIANTS: dict[str, tuple[PlacementPrompt, ...]] = {
     ),
 }
 
+#: 2026-09-24 — the hint under the field is the app's own words, not the test:
+#: the placement follows the learner's declared native language, so every
+#: authored hint has its English and German version. The prompt stays French.
+HINT_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "Commencez par saluer.": {"en": "Start with a greeting.", "de": "Beginnen Sie mit einer Begrüßung."},
+    "Deux phrases courtes suffisent.": {"en": "Two short sentences are enough.", "de": "Zwei kurze Sätze genügen."},
+    "Deux phrases simples.": {"en": "Two simple sentences.", "de": "Zwei einfache Sätze."},
+    "Deux phrases suffisent.": {"en": "Two sentences are enough.", "de": "Zwei Sätze genügen."},
+    "Deux phrases, une pour chaque demande.": {
+        "en": "Two sentences, one for each request.",
+        "de": "Zwei Sätze, einer für jede Bitte.",
+    },
+    "Deux phrases, à voix haute dans votre tête d’abord.": {
+        "en": "Two sentences — say them in your head first.",
+        "de": "Zwei Sätze — sagen Sie sie zuerst im Kopf.",
+    },
+    "Dites si vous êtes d’accord, puis pourquoi.": {
+        "en": "Say whether you agree, then why.",
+        "de": "Sagen Sie, ob Sie zustimmen, und dann warum.",
+    },
+    "Excusez-vous, puis invitez.": {"en": "Apologise, then invite.", "de": "Entschuldigen Sie sich, dann laden Sie ein."},
+    "Excusez-vous, puis proposez un jour.": {
+        "en": "Apologise, then suggest a day.",
+        "de": "Entschuldigen Sie sich, dann schlagen Sie einen Tag vor.",
+    },
+    "Excusez-vous, puis proposez un moment.": {
+        "en": "Apologise, then suggest a time.",
+        "de": "Entschuldigen Sie sich, dann schlagen Sie einen Zeitpunkt vor.",
+    },
+    "Excusez-vous, puis proposez une heure.": {
+        "en": "Apologise, then suggest a time.",
+        "de": "Entschuldigen Sie sich, dann schlagen Sie eine Uhrzeit vor.",
+    },
+    "Le temps du passé est attendu ici.": {"en": "The past tense is expected here.", "de": "Hier wird die Vergangenheit erwartet."},
+    "Nommez l’objection avant d’y répondre.": {
+        "en": "Name the objection before you answer it.",
+        "de": "Nennen Sie den Einwand, bevor Sie darauf antworten.",
+    },
+    "Pensez à la politesse.": {"en": "Remember to be polite.", "de": "Denken Sie an die Höflichkeit."},
+    "Prévenez, puis excusez-vous.": {"en": "Let them know, then apologise.", "de": "Sagen Sie Bescheid, dann entschuldigen Sie sich."},
+    "Trois informations, en phrases courtes.": {
+        "en": "Three pieces of information, in short sentences.",
+        "de": "Drei Angaben, in kurzen Sätzen.",
+    },
+    "Trois phrases au passé.": {"en": "Three sentences in the past tense.", "de": "Drei Sätze in der Vergangenheit."},
+    "Trois temps différents sont attendus.": {"en": "Three different tenses are expected.", "de": "Drei verschiedene Zeitformen werden erwartet."},
+    "Une opinion, puis pourquoi.": {"en": "An opinion, then why.", "de": "Eine Meinung, dann warum."},
+    "Une ou deux phrases polies.": {"en": "One or two polite sentences.", "de": "Ein oder zwei höfliche Sätze."},
+    "Une ou deux phrases suffisent.": {"en": "One or two sentences are enough.", "de": "Ein oder zwei Sätze genügen."},
+    "Vous écrivez à un cabinet : restez poli.": {
+        "en": "You are writing to a surgery: stay polite.",
+        "de": "Sie schreiben an eine Praxis: Bleiben Sie höflich.",
+    },
+}
+
+
+def hint_by_language(hint_fr: str) -> dict[str, str]:
+    """``{fr, en, de}`` for an authored hint; ``{fr}`` alone for anything else."""
+    return {"fr": hint_fr, **HINT_TRANSLATIONS.get(hint_fr, {})}
+
+
 #: Every prompt by id. The stored turn names its prompt by this id.
 PROMPTS_BY_ID: dict[str, PlacementPrompt] = {
     prompt.prompt_id: prompt for variants in PROMPT_VARIANTS.values() for prompt in variants
@@ -992,6 +1053,8 @@ def latest_placement_prior(db: Session, user: User) -> dict[str, Any] | None:
 
 __all__ = [
     "ANSWER_MAX_CHARS",
+    "HINT_TRANSLATIONS",
+    "hint_by_language",
     "CONFIDENCE_TO_STOP",
     "DIMENSIONS",
     "DIMENSION_LABELS_FR",

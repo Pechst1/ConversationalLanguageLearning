@@ -24,6 +24,7 @@ from app.services.placement import (
     MAX_TURNS,
     PLACEMENT_VERSION,
     PlacementService,
+    hint_by_language,
     latest_placement_prior,
     placement_offer,
 )
@@ -38,6 +39,9 @@ class PlacementPromptView(BaseModel):
     band: str
     prompt_fr: str
     hint_fr: str
+    #: The hint is chrome: {fr, en, de}; the client shows the learner's
+    #: declared native language (the prompt itself stays French).
+    hint_by_language: dict[str, str] = Field(default_factory=dict)
     turns_so_far: int
     max_turns: int = MAX_TURNS
 
@@ -92,6 +96,7 @@ def _envelope(
             band=rung.band,
             prompt_fr=rung.prompt_fr,
             hint_fr=rung.hint_fr,
+            hint_by_language=hint_by_language(rung.hint_fr),
             turns_so_far=turns,
         )
     return PlacementEnvelope(

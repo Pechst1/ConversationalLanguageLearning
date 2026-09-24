@@ -98,10 +98,10 @@ export default function HomePage() {
               ) : (
                 <>
                   <Action tone="primary" onClick={() => setTasting(true)}>
-                    {TASTE_NAV.start}
+                    {TASTE_NAV[language].start}
                   </Action>
                   <Link className="av2-btn av2-btn--quiet" href="/auth/signin">
-                    {TASTE_NAV.have_account}
+                    {TASTE_NAV[language].have_account}
                   </Link>
                   <div className="la-une__lang">
                     <LanguageSwitch value={language} onChange={setLanguage} label={copy.language} />

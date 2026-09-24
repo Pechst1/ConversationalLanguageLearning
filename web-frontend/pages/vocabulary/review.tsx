@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { learnerGloss } from '@/lib/glosses';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { pickByLanguage } from '@/lib/language-rule';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
@@ -943,7 +944,13 @@ export default function VocabularyReviewPage() {
                 </div>
                 {deckComposition && <p className="av2-body lx-review__composition">{deckComposition}</p>}
                 {current.recommendation_reason?.text && (
-                  <p className="av2-body lx-review__why">{current.recommendation_reason.text}</p>
+                  <p className="av2-body lx-review__why">
+                    {pickByLanguage(
+                      current.recommendation_reason.text_by_language,
+                      language,
+                      current.recommendation_reason.text,
+                    )}
+                  </p>
                 )}
 
                 {/* The tap-to-flip card. It holds a field and two audio

@@ -261,6 +261,23 @@ _MOOD_LINES = {
 }
 
 
+def mood_value(thread: SerialThread | None, correspondent_id: str | None) -> int | None:
+    """The correspondent's mood as a number in ``MOOD_RANGE`` (−2..+2), or ``None``.
+
+    The answered-letter seal draws it as a face (cross / neutral / happy) with a
+    line in the learner's chrome language; ``mood_line`` stays the French
+    sentence the letter writer reads.
+    """
+
+    entry = moods_of(thread).get(str(correspondent_id or ""))
+    if not isinstance(entry, dict) or "mood" not in entry:
+        return None
+    try:
+        return max(MOOD_RANGE[0], min(MOOD_RANGE[1], int(entry.get("mood") or 0)))
+    except (TypeError, ValueError):
+        return None
+
+
 def mood_line(thread: SerialThread | None, correspondent_id: str | None) -> str | None:
     """The correspondent's current feeling, in one French sentence, or ``None``."""
 
@@ -1054,6 +1071,15 @@ def journey_letter_facts(db: Session, *, user: User) -> dict[str, str] | None:
         ),
         "",
     ) or _compact(mission.brief, limit=160)
+    # 2026-09-24: `objective_native` is chrome — the letter's own objective in
+    # the learner's chrome language (one-language rule) when the letter carries
+    # it (`slim_payload.ask_by_language`); the French label above is the fallback.
+    from app.services.chrome_language import user_chrome_language
+
+    slim = prompt.get("slim_payload") if isinstance(prompt.get("slim_payload"), dict) else {}
+    by_language = slim.get("ask_by_language") if isinstance(slim.get("ask_by_language"), dict) else {}
+    localized = _compact(by_language.get(user_chrome_language(user)), limit=160)
+    objective = localized or objective
     if not body or not objective:
         return None
     return {
@@ -1284,6 +1310,7 @@ __all__ = [
     "lapse_overdue_letters",
     "living_story_thread",
     "mood_line",
+    "mood_value",
     "moods_of",
     "note_story_letter",
     "objective_progress_from_journey",

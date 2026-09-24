@@ -231,6 +231,8 @@ export interface PlacementPromptView {
   band: string;
   prompt_fr: string;
   hint_fr: string;
+  /** The hint in fr/en/de (the prompt stays French). */
+  hint_by_language?: Partial<Record<string, string>>;
   turns_so_far: number;
   max_turns: number;
 }
@@ -751,7 +753,7 @@ export interface VocabularyRecommendationSummary {
 
 export interface VocabularyRecommendationItem {
   bucket: 'due' | 'fragile' | 'new' | 'linked' | 'topic' | 'topic_compatible' | string;
-  recommendation_reason?: { text: string; signals: Record<string, any> };
+  recommendation_reason?: { text: string; text_by_language?: Partial<Record<string, string>>; signals: Record<string, any> };
   episodic_anchor?: {
     character_name?: string;
     portrait_url?: string;
@@ -1458,7 +1460,7 @@ export interface RealWorldMission {
   expires_at?: string | null;
   thread_history?: MissionThreadLetter[];
   courrier?: MissionCourrier | null;
-  recommendation_reason?: { text: string; signals: Record<string, any> };
+  recommendation_reason?: { text: string; text_by_language?: Partial<Record<string, string>>; signals: Record<string, any> };
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
   created_at?: string | null;

@@ -322,6 +322,104 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
 }
 
 
+# The authored letters' objectives (``success_signal``) are written in English;
+# these are their French and German versions so the objective can follow the
+# one-language rule. Keyed by the English text so every authored variant — the
+# twelve domains, the mission-type fallbacks, the serial default — is covered.
+AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
+    "Samira knows what you want and whether to slice or set anything aside.": {
+        "fr": "Samira sait ce que vous voulez et s'il faut trancher le pain ou le mettre de côté.",
+        "de": "Samira weiß, was Sie möchten und ob sie etwas schneiden oder zurücklegen soll.",
+    },
+    "The landlord understands the issue and proposes a concrete time.": {
+        "fr": "Le propriétaire comprend le problème et propose un moment précis.",
+        "de": "Der Vermieter versteht das Problem und schlägt einen konkreten Termin vor.",
+    },
+    "Your neighbour feels heard and knows what will change.": {
+        "fr": "Votre voisin se sent écouté et sait ce qui va changer.",
+        "de": "Ihr Nachbar fühlt sich gehört und weiß, was sich ändern wird.",
+    },
+    "Support has the right address and a clear next step.": {
+        "fr": "Le service client a la bonne adresse et une prochaine étape claire.",
+        "de": "Der Kundendienst hat die richtige Adresse und einen klaren nächsten Schritt.",
+    },
+    "The reception desk can book the right slot without calling again.": {
+        "fr": "L'accueil peut réserver le bon créneau sans rappeler.",
+        "de": "Die Rezeption kann den richtigen Termin buchen, ohne noch einmal anzurufen.",
+    },
+    "The agent knows whether to reroute or refund you.": {
+        "fr": "L'agent sait s'il doit changer votre trajet ou vous rembourser.",
+        "de": "Der Mitarbeiter weiß, ob er Sie umbuchen oder Ihnen das Geld erstatten soll.",
+    },
+    "Noémie knows you are coming and where to wait for you.": {
+        "fr": "Noémie sait que vous venez et où vous attendre.",
+        "de": "Noémie weiß, dass Sie kommen und wo sie auf Sie warten soll.",
+    },
+    "Nadia knows when you arrive and what to do meanwhile.": {
+        "fr": "Nadia sait quand vous arrivez et quoi faire en attendant.",
+        "de": "Nadia weiß, wann Sie ankommen und was sie bis dahin tun soll.",
+    },
+    "Support logs the duration and gives a repair or compensation step.": {
+        "fr": "Le service client note la durée et propose une réparation ou un geste commercial.",
+        "de": "Der Kundendienst notiert die Dauer und bietet eine Reparatur oder Entschädigung an.",
+    },
+    "The shop can send the correct size or confirm the return.": {
+        "fr": "La boutique peut envoyer la bonne taille ou confirmer le retour.",
+        "de": "Der Laden kann die richtige Größe schicken oder die Rücksendung bestätigen.",
+    },
+    "The clerk tells you which document or detail will complete the file.": {
+        "fr": "L'agent vous dit quel document ou quelle précision complétera le dossier.",
+        "de": "Die Sachbearbeitung sagt Ihnen, welches Dokument oder welche Angabe die Akte vervollständigt.",
+    },
+    "Luc smiles instead of feeling annoyed and knows what you will do.": {
+        "fr": "Luc sourit au lieu d'être agacé et sait ce que vous allez faire.",
+        "de": "Luc lächelt, statt sich zu ärgern, und weiß, was Sie tun werden.",
+    },
+    "They know what to do next.": {
+        "fr": "Votre correspondant sait quoi faire ensuite.",
+        "de": "Ihr Gegenüber weiß, was als Nächstes zu tun ist.",
+    },
+    "Nadia can repeat your plan without asking three follow-up questions.": {
+        "fr": "Nadia peut répéter votre plan sans poser trois questions de plus.",
+        "de": "Nadia kann Ihren Plan wiederholen, ohne drei Rückfragen zu stellen.",
+    },
+    "Mina understands what happened, why it matters, and what changes next.": {
+        "fr": "Mina comprend ce qui s'est passé, pourquoi c'est important et ce qui change ensuite.",
+        "de": "Mina versteht, was passiert ist, warum es wichtig ist und was sich als Nächstes ändert.",
+    },
+    "The agent knows the problem, the request, and the exact next step.": {
+        "fr": "L'agent connaît le problème, la demande et la prochaine étape exacte.",
+        "de": "Der Mitarbeiter kennt das Problem, die Bitte und den genauen nächsten Schritt.",
+    },
+    "The conversation can continue without sounding scripted.": {
+        "fr": "La conversation peut continuer sans sonner récitée.",
+        "de": "Das Gespräch kann weitergehen, ohne auswendig gelernt zu klingen.",
+    },
+    "The next person in the story knows exactly what to do.": {
+        "fr": "Le personnage suivant sait exactement quoi faire.",
+        "de": "Die nächste Person in der Geschichte weiß genau, was zu tun ist.",
+    },
+}
+
+
+def success_signal_i18n(messenger: dict[str, Any]) -> dict[str, str]:
+    """A letter's objective as ``{fr, en, de}`` (whichever are known).
+
+    * generated letters carry ``success_signal_i18n`` from the writer;
+    * authored letters are matched against ``AUTHORED_SUCCESS_SIGNAL_I18N``;
+    * anything else (a learner-typed custom outcome, an artefact's French task,
+      an older letter) comes back under ``fr`` only — the labelled fallback the
+      client shows as French content with its translate button.
+    """
+    signal = str(messenger.get("success_signal") or "").strip()
+    known = messenger.get("success_signal_i18n")
+    if signal and isinstance(known, dict) and str(known.get("fr") or "").strip() == signal:
+        return {k: str(v).strip() for k, v in known.items() if isinstance(v, str) and v.strip()}
+    if signal in AUTHORED_SUCCESS_SIGNAL_I18N:
+        return {"en": signal, **AUTHORED_SUCCESS_SIGNAL_I18N[signal]}
+    return {"fr": signal} if signal else {}
+
+
 def success_objectives_for(domain: Any, *, success_signal: str | None = None) -> list[str]:
     objectives = MISSION_SUCCESS_OBJECTIVES.get(str(domain or ""))
     if objectives:
@@ -376,6 +474,8 @@ MISSION_SCENARIO_RESPONSE_FORMAT: dict[str, Any] = {
                 "ambient_cues": {"type": "array", "items": {"type": "string"}},
                 "quick_replies": {"type": "array", "items": {"type": "string"}},
                 "success_signal": {"type": "string"},
+                "success_signal_en": {"type": "string"},
+                "success_signal_de": {"type": "string"},
                 "inbox_context": {"type": "string"},
                 "domain": {"type": "string"},
                 "channel": {"type": "string"},
@@ -386,7 +486,8 @@ MISSION_SCENARIO_RESPONSE_FORMAT: dict[str, Any] = {
             "required": [
                 "title", "brief", "contact_name", "contact_role", "contact_initials",
                 "scene_anchor", "thread_title", "opening_message", "ambient_cues",
-                "quick_replies", "success_signal", "inbox_context", "domain",
+                "quick_replies", "success_signal", "success_signal_en", "success_signal_de",
+                "inbox_context", "domain",
                 "channel", "tone", "twist", "mission_format",
             ],
         },
@@ -898,6 +999,7 @@ class MissionGenerator:
                 or courrier.slug(messenger.get("contact_name") or variety.get("contact_name")),
                 "thread_history": list(correspondence.get("thread_history") or []),
                 "mood_line": correspondence.get("mood_line"),
+                "mood": correspondence.get("mood"),
                 "cooling_note": correspondence.get("cooling_note"),
                 "origin": correspondence.get("origin") or "courrier",
             },
@@ -1239,6 +1341,10 @@ class MissionGenerator:
             or _compact_text(brief, max_length=160)
             or "Une réponse en français qui règle la situation."
         )
+        ask_by_language = {
+            language: _compact_text(text, max_length=160)
+            for language, text in success_signal_i18n(messenger).items()
+        }
         used_word_ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
         used_verb_lemmas = [
             str(item.get("word") or "").strip().lower()
@@ -1248,6 +1354,10 @@ class MissionGenerator:
         return {
             "frame": frame,
             "ask": ask,
+            # The objective as chrome: {fr, en, de} when known. The client picks
+            # by the one-language rule; a letter with only one version falls back
+            # to `ask` (see web-frontend/pages/missions.tsx `missionAsk`).
+            "ask_by_language": {key: value for key, value in ask_by_language.items() if value},
             "input_kind": "chat" if mission_type == "conversation" else "message",
             "channel": variety.get("channel") or messenger.get("channel_label") or "message",
             "domain": variety.get("domain"),
@@ -1890,6 +2000,11 @@ class MissionGenerator:
                 "ambient_cues": "2-3 short real-world details, in French",
                 "quick_replies": "2-3 French reply starters at the CEFR level",
                 "success_signal": "French, what a good outcome looks like",
+                # The letter's objective is the app's own words — up to A2 it is
+                # shown in the learner's language (the one-language rule), so the
+                # writer returns it in all three control languages at once.
+                "success_signal_en": "the same success_signal, in plain English",
+                "success_signal_de": "the same success_signal, in plain German",
                 "inbox_context": "French, one line on what the other person actually needs",
                 "domain": "same domain id as chosen_variety",
                 "channel": "same channel id as chosen_variety",
@@ -1921,6 +2036,16 @@ class MissionGenerator:
             "success_signal", "inbox_context", "twist",
         )
         messenger = {key: data[key] for key in messenger_keys if data.get(key)}
+        if data.get("success_signal"):
+            messenger["success_signal_i18n"] = {
+                language: str(value).strip()
+                for language, value in (
+                    ("fr", data.get("success_signal")),
+                    ("en", data.get("success_signal_en")),
+                    ("de", data.get("success_signal_de")),
+                )
+                if isinstance(value, str) and value.strip()
+            }
         return {
             "title": data.get("title"),
             "brief": data.get("brief"),
@@ -3741,6 +3866,7 @@ class MissionScheduler:
                 self.db, user=user, correspondent_id=correspondent_id, limit=3
             ),
             "mood_line": courrier.mood_line(thread, correspondent_id),
+            "mood": courrier.mood_value(thread, correspondent_id),
             "cooling_note": courrier.cooling_note(thread, correspondent_id),
         }
 
@@ -4450,11 +4576,14 @@ class MissionScheduler:
             }
             # The mood line on the payload was stamped when the letter was written;
             # the debrief wants what the correspondent thinks now that it is answered.
-            mood_after = courrier.mood_line(
-                courrier.living_story_thread(self.db, user), mission.correspondent_id
-            )
+            story_thread = courrier.living_story_thread(self.db, user)
+            mood_after = courrier.mood_line(story_thread, mission.correspondent_id)
             if mood_after:
                 mission.recap_payload["correspondent_mood_after"] = mood_after
+            # The seal draws the mood as a face; the number is what it reads.
+            mood_value_after = courrier.mood_value(story_thread, mission.correspondent_id)
+            if mood_value_after is not None:
+                mission.recap_payload["correspondent_mood_value_after"] = mood_value_after
         from app.services.pilot_events import PilotEventService
 
         PilotEventService(self.db).record(
@@ -5284,6 +5413,9 @@ def _courrier_fields(mission: RealWorldMission) -> dict[str, Any]:
             # WP-61's feeling, as one French line. None when the story has no
             # opinion yet — an absent line is honest; a neutral one is filler.
             "mood_line": correspondence.get("mood_line"),
+            # The same feeling as a number (−2..+2), so the client can say it
+            # in the learner's chrome language and draw it as a face.
+            "mood": correspondence.get("mood"),
         }
         if (getattr(mission, "correspondent_id", None) or identity.get("id"))
         else None
@@ -5317,6 +5449,16 @@ def _courrier_fields(mission: RealWorldMission) -> dict[str, Any]:
     return fields
 
 
+def _mission_chrome_language(mission: RealWorldMission) -> str:
+    """The one-language rule for this letter's reader (French when unknown)."""
+    from app.services.chrome_language import user_chrome_language
+
+    try:
+        return user_chrome_language(getattr(mission, "user", None))
+    except Exception:  # a detached row cannot lazy-load its user
+        return "fr"
+
+
 def serialize_mission(mission: RealWorldMission | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not mission:
         return None
@@ -5348,6 +5490,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "recap": mission.recap_payload or {},
         "recommendation_reason": recommendation_reason(
             "mission",
+            language=_mission_chrome_language(mission),
             serial_thread_id=str(mission.serial_thread_id) if getattr(mission, "serial_thread_id", None) else None,
             target_errata_count=len(mission.target_errata_ids or []),
             target_vocabulary_count=len(mission.target_vocabulary_ids or []),

@@ -245,7 +245,10 @@ test('the correspondent view is the thread with one person over weeks', () => {
   }));
   assert.ok(markup.includes('Samira'));
   assert.ok(markup.includes('boulangère'));
-  assert.ok(markup.includes('Un peu distant'));
+  // 2026-09-24: the mood is chrome now — read from the number (or, on an old
+  // payload, from the French line's opening words) and said in the chrome
+  // language: French here, as the table defaults to it.
+  assert.ok(markup.includes('Samira garde ses distances'));
   assert.ok(markup.includes('2ᵉ lettre sur 3'));
   assert.ok(markup.includes('Répondez avant jeudi, si vous pouvez.'));
   assert.ok(markup.includes('Vos 2 lettres précédentes'));
@@ -263,6 +266,7 @@ test('the answered letter leaves the mood to the debrief, which dates it', () =>
   const markup = render(h(CrCorrespondent, { correspondent: SAMIRA, showMood: false }));
   assert.ok(markup.includes('Samira'));
   assert.ok(!markup.includes('Un peu distant'));
+  assert.ok(!markup.includes('garde ses distances'));
   assert.ok(MISSIONS.includes('showMood={!completed}'));
 });
 
