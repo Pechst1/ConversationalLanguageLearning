@@ -1492,6 +1492,10 @@ export interface IntakeGlossedWord {
 export interface IntakeArtefactPayload {
   type?: string;
   type_label_fr?: string;
+  /** Chrome (one-language rule): the type label as {fr, en, de}, and the one
+   *  the server resolved for the reader. */
+  type_label_by_language?: Partial<Record<string, string>>;
+  type_label?: string;
   title_fr?: string;
   summary_fr?: string;
   summary_bounded?: boolean;
@@ -1508,6 +1512,12 @@ export interface IntakeArtefactTask {
   counterpart_fr?: string;
   register?: 'tu' | 'vous' | string;
   success_fr?: string;
+  /** Chrome (one-language rule): {fr, en, de} tables beside the French. */
+  kind_label_by_language?: Partial<Record<string, string>>;
+  instruction_by_language?: Partial<Record<string, string>>;
+  success_by_language?: Partial<Record<string, string>>;
+  /** Only when the document named nobody and the counterpart is the fallback. */
+  counterpart_by_language?: Partial<Record<string, string>>;
 }
 
 export interface IntakeArtefact {

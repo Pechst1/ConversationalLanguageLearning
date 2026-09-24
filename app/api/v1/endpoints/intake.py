@@ -30,6 +30,7 @@ from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
 from app.core.offload import off_event_loop
 from app.db.models.user import User
+from app.services.chrome_language import pick, user_chrome_language
 from app.services.intake import (
     INTAKE_VERSION,
     MAX_UNKNOWN_WORDS,
@@ -43,23 +44,57 @@ from app.services.missions import serialize_mission
 
 router = APIRouter(prefix="/intake", tags=["intake"])
 
-#: One French sentence per refusal code. The page prints them verbatim, so a new
-#: code without a sentence here shows up as the fallback line — visible, not silent.
-_REFUSAL_FR: dict[str, str] = {
-    "intake_disabled": "La lecture de vos documents est désactivée pour l’instant.",
-    "weekly_cap_reached": (
-        "Vous avez déjà fait lire vos documents de la semaine. Le prochain se libère bientôt."
-    ),
-    "cost_ceiling_reached": (
-        "Le budget de lecture de la semaine est atteint. Réessayez dans quelques jours."
-    ),
-    "document_too_short": "Collez un peu plus de texte : quelques mots ne font pas un document.",
-    "image_type_unsupported": "Ce format d’image n’est pas lisible. Essayez une photo JPEG ou PNG.",
-    "image_empty": "La photo est vide. Reprenez-la, puis réessayez.",
-    "image_too_large": "La photo est trop lourde. Reprenez-la de plus près, puis réessayez.",
-    "image_undecodable": "La photo n’a pas pu être lue. Reprenez-la, puis réessayez.",
+#: One sentence per refusal code, in every chrome language (the one-language
+#: rule: up to A2 the learner's language, French from B1). The page prints the
+#: one for its chrome language verbatim, so a new code without a sentence here
+#: shows up as the fallback line — visible, not silent.
+_REFUSAL: dict[str, dict[str, str]] = {
+    "intake_disabled": {
+        "fr": "La lecture de vos documents est désactivée pour l’instant.",
+        "en": "Reading your documents is switched off for now.",
+        "de": "Das Lesen deiner Dokumente ist gerade ausgeschaltet.",
+    },
+    "weekly_cap_reached": {
+        "fr": "Vous avez déjà fait lire vos documents de la semaine. Le prochain se libère bientôt.",
+        "en": "You have already had this week’s documents read. The next one frees up soon.",
+        "de": "Du hast diese Woche schon alle Dokumente lesen lassen. Das nächste wird bald frei.",
+    },
+    "cost_ceiling_reached": {
+        "fr": "Le budget de lecture de la semaine est atteint. Réessayez dans quelques jours.",
+        "en": "This week’s reading budget is used up. Try again in a few days.",
+        "de": "Das Lesebudget dieser Woche ist aufgebraucht. Versuche es in ein paar Tagen wieder.",
+    },
+    "document_too_short": {
+        "fr": "Collez un peu plus de texte : quelques mots ne font pas un document.",
+        "en": "Paste a little more text: a few words are not a document.",
+        "de": "Füge etwas mehr Text ein: ein paar Wörter sind noch kein Dokument.",
+    },
+    "image_type_unsupported": {
+        "fr": "Ce format d’image n’est pas lisible. Essayez une photo JPEG ou PNG.",
+        "en": "This image format cannot be read. Try a JPEG or PNG photo.",
+        "de": "Dieses Bildformat ist nicht lesbar. Versuche ein JPEG- oder PNG-Foto.",
+    },
+    "image_empty": {
+        "fr": "La photo est vide. Reprenez-la, puis réessayez.",
+        "en": "The photo is empty. Take it again, then try again.",
+        "de": "Das Foto ist leer. Nimm es noch einmal auf und versuche es erneut.",
+    },
+    "image_too_large": {
+        "fr": "La photo est trop lourde. Reprenez-la de plus près, puis réessayez.",
+        "en": "The photo is too large. Take it again from closer, then try again.",
+        "de": "Das Foto ist zu groß. Nimm es näher auf und versuche es erneut.",
+    },
+    "image_undecodable": {
+        "fr": "La photo n’a pas pu être lue. Reprenez-la, puis réessayez.",
+        "en": "The photo could not be read. Take it again, then try again.",
+        "de": "Das Foto ließ sich nicht lesen. Nimm es noch einmal auf und versuche es erneut.",
+    },
 }
-_REFUSAL_FALLBACK = "Cette action n’est pas possible pour l’instant."
+_REFUSAL_FALLBACK: dict[str, str] = {
+    "fr": "Cette action n’est pas possible pour l’instant.",
+    "en": "This is not possible right now.",
+    "de": "Das ist gerade nicht möglich.",
+}
 
 #: Codes that are about the payload the learner sent, not about their allowance.
 _BAD_REQUEST_CODES = frozenset(
@@ -98,8 +133,9 @@ class IntakeTextRequest(BaseModel):
     text: str = Field(default="", max_length=SOURCE_TEXT_MAX_CHARS * 2)
 
 
-def _refused(exc: IntakeRefused) -> HTTPException:
+def _refused(exc: IntakeRefused, language: str = "fr") -> HTTPException:
     code = exc.code
+    table = _REFUSAL.get(code, _REFUSAL_FALLBACK)
     if code == "image_too_large":
         http_status = status.HTTP_413_CONTENT_TOO_LARGE
     elif code in _BAD_REQUEST_CODES:
@@ -108,7 +144,12 @@ def _refused(exc: IntakeRefused) -> HTTPException:
         http_status = status.HTTP_409_CONFLICT
     return HTTPException(
         status_code=http_status,
-        detail={"code": code, "message_fr": _REFUSAL_FR.get(code, _REFUSAL_FALLBACK)},
+        detail={
+            "code": code,
+            "message_fr": table["fr"],
+            "message": pick(table, language),
+            "message_by_language": dict(table),
+        },
     )
 
 
@@ -131,12 +172,16 @@ def _envelope(
         row = db.get(RealWorldMission, artefact.mission_id)
         if row is not None and row.user_id == user.id:
             mission = serialize_mission(row)
+    language = user_chrome_language(user)
     return IntakeEnvelope(
-        artefact=public_view(artefact),
+        artefact=public_view(artefact, language=language),
         mission=mission,
         artefacts=[
             view
-            for view in (public_view(row) for row in (service.list_for(user) if include_list else []))
+            for view in (
+                public_view(row, language=language)
+                for row in (service.list_for(user) if include_list else [])
+            )
             if view
         ],
         cap=_cap_view(db, user),
@@ -165,7 +210,7 @@ def submit_text(
     try:
         artefact = IntakeService(db).submit_text(current_user, text=request.text)
     except IntakeRefused as exc:
-        raise _refused(exc) from exc
+        raise _refused(exc, user_chrome_language(current_user)) from exc
     return _envelope(db, current_user, artefact=artefact)
 
 
@@ -190,7 +235,7 @@ async def submit_photo(
             current_user, data=data, content_type=file.content_type or ""
         )
     except IntakeRefused as exc:
-        raise _refused(exc) from exc
+        raise _refused(exc, user_chrome_language(current_user)) from exc
     return _envelope(db, current_user, artefact=artefact)
 
 

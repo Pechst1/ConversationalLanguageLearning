@@ -76,6 +76,7 @@ from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import chrome_language, pick
 from app.services.glosses import normalize_language, resolve_gloss
 from app.services.journey_content import learner_level_band
 from app.services.llm_service import LLMProviderError, LLMService
@@ -121,25 +122,40 @@ SUMMARY_WORD_LIMITS: dict[str, int] = {
 }
 DEFAULT_SUMMARY_WORDS = 60
 
-#: French, because the artefact card lives in Le Courrier and the Courrier is in
-#: French. The gloss beside a word is the one thing in the learner's language.
-_TYPE_LABELS_FR: dict[str, str] = {
-    "menu": "Un menu",
-    "lettre": "Une lettre",
-    "courriel": "Un courriel",
-    "affiche": "Une affiche",
-    "facture": "Une facture",
-    "formulaire": "Un formulaire",
-    "message": "Un message",
-    "autre": "Un document",
+#: What kind of document this is. A label is the app's own words, so it follows
+#: the one-language rule (``app/services/chrome_language.py``): the learner's
+#: language up to A2, French from B1. ``public_view`` serves the table and the
+#: string resolved for the reader; the French entry is what is stored and what
+#: the Courrier mission quotes.
+_TYPE_LABELS: dict[str, dict[str, str]] = {
+    "menu": {"fr": "Un menu", "en": "A menu", "de": "Eine Speisekarte"},
+    "lettre": {"fr": "Une lettre", "en": "A letter", "de": "Ein Brief"},
+    "courriel": {"fr": "Un courriel", "en": "An email", "de": "Eine E-Mail"},
+    "affiche": {"fr": "Une affiche", "en": "A poster", "de": "Ein Aushang"},
+    "facture": {"fr": "Une facture", "en": "A bill", "de": "Eine Rechnung"},
+    "formulaire": {"fr": "Un formulaire", "en": "A form", "de": "Ein Formular"},
+    "message": {"fr": "Un message", "en": "A message", "de": "Eine Nachricht"},
+    "autre": {"fr": "Un document", "en": "A document", "de": "Ein Dokument"},
+}
+_TYPE_LABELS_FR: dict[str, str] = {key: table["fr"] for key, table in _TYPE_LABELS.items()}
+
+#: The three shapes a derived task can take, and the label that introduces each.
+_TASK_LABELS: dict[str, dict[str, str]] = {
+    "reply": {"fr": "Répondre", "en": "Reply", "de": "Antworten"},
+    "decide": {"fr": "Choisir", "en": "Choose", "de": "Auswählen"},
+    "ask": {"fr": "Demander", "en": "Ask", "de": "Nachfragen"},
+}
+_TASK_LABELS_FR: dict[str, str] = {key: table["fr"] for key, table in _TASK_LABELS.items()}
+
+#: Who the learner writes to when the document names nobody. Chrome, not the
+#: document's words; the French entry is the mission's contact name.
+COUNTERPART_FALLBACK: dict[str, str] = {
+    "fr": "votre correspondant",
+    "en": "your correspondent",
+    "de": "dein Gegenüber",
 }
 
-#: The three shapes a derived task can take, and the French that introduces each.
-_TASK_LABELS_FR: dict[str, str] = {
-    "reply": "Répondre",
-    "decide": "Choisir",
-    "ask": "Demander",
-}
+_LANGUAGE_NAMES = {"en": "English", "de": "German (informal du)"}
 
 _WORD = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ'’-]+")
 
@@ -213,12 +229,28 @@ _SYSTEM_PROMPT = (
 )
 
 
-def read_prompt(*, band: str, native_language: str, has_image: bool) -> str:
+def read_prompt(
+    *, band: str, native_language: str, has_image: bool, chrome: str | None = None
+) -> str:
     """The instruction half of the one call. Kept in one place so the tests can
-    assert what a learner's document is and is not asked to be used for."""
+    assert what a learner's document is and is not asked to be used for.
+
+    ``chrome`` is the learner's chrome language (one-language rule). When it is
+    not French, the task's instruction and success line — the app's own words
+    to the learner — are also asked for in it (``instruction_native`` /
+    ``success_native``). The document's reading stays French.
+    """
 
     limit = summary_word_limit(band)
     language = normalize_language(native_language)
+    native_name = _LANGUAGE_NAMES.get(str(chrome or ""))
+    native_keys = ', "instruction_native": "...", "success_native": "..."' if native_name else ""
+    native_rule = (
+        f' "instruction_native" and "success_native" are the same two sentences in {native_name}, '
+        "for a beginner's interface; French words from the document stay in French."
+        if native_name
+        else ""
+    )
     return (
         "Read the document and answer with JSON only, no prose around it.\n\n"
         "Fields:\n"
@@ -248,24 +280,28 @@ def read_prompt(*, band: str, native_language: str, has_image: bool) -> str:
         "phrase from the document that contains it.\n"
         '  "task": one object {"kind": "reply" | "decide" | "ask", '
         '"instruction_fr": "...", "counterpart_fr": "...", "register": "tu" | "vous", '
-        '"success_fr": "..."} — ONE thing the learner should now do in French '
+        '"success_fr": "..."' + native_keys + '} — ONE thing the learner should now do in French '
         "*because of* this document. \"reply\" when the document expects an answer, "
         '"decide" when it offers a choice (a menu, options), "ask" when something '
         "in it is missing or unclear. \"instruction_fr\" is one French sentence "
         "addressed to the learner. \"counterpart_fr\" is who they are writing or "
         "speaking to. \"success_fr\" is one French sentence saying what a good "
-        "answer achieves.\n\n"
+        "answer achieves." + native_rule + "\n\n"
         "Rules: never invent a price, a date or a name. Never quote a person's "
         "contact details back into summary_fr. Write every *_fr field in French."
     )
 
 
-def text_messages(*, document: str, band: str, native_language: str) -> list[dict[str, Any]]:
+def text_messages(
+    *, document: str, band: str, native_language: str, chrome: str | None = None
+) -> list[dict[str, Any]]:
     return [
         {
             "role": "user",
             "content": (
-                read_prompt(band=band, native_language=native_language, has_image=False)
+                read_prompt(
+                    band=band, native_language=native_language, has_image=False, chrome=chrome
+                )
                 + "\n\nDOCUMENT:\n"
                 + document
             ),
@@ -274,7 +310,12 @@ def text_messages(*, document: str, band: str, native_language: str) -> list[dic
 
 
 def vision_messages(
-    *, image_bytes: bytes, content_type: str, band: str, native_language: str
+    *,
+    image_bytes: bytes,
+    content_type: str,
+    band: str,
+    native_language: str,
+    chrome: str | None = None,
 ) -> list[dict[str, Any]]:
     """OpenAI-shaped multimodal content blocks.
 
@@ -295,7 +336,7 @@ def vision_messages(
                 {
                     "type": "text",
                     "text": read_prompt(
-                        band=band, native_language=native_language, has_image=True
+                        band=band, native_language=native_language, has_image=True, chrome=chrome
                     ),
                 },
                 {
@@ -351,7 +392,9 @@ class Reading:
         }
 
 
-def parse_reading(raw: Any, *, band: str, fallback_text: str = "") -> Reading | None:
+def parse_reading(
+    raw: Any, *, band: str, fallback_text: str = "", chrome: str | None = None
+) -> Reading | None:
     """Validate the model's answer. ``None`` means «non lu» — never a partial card.
 
     Every required field is checked here rather than at render time, because a
@@ -419,7 +462,7 @@ def parse_reading(raw: Any, *, band: str, fallback_text: str = "") -> Reading | 
         if len(words) >= MAX_UNKNOWN_WORDS:
             break
 
-    task = _parse_task(payload.get("task"), artefact_type=artefact_type)
+    task = _parse_task(payload.get("task"), artefact_type=artefact_type, chrome=chrome)
     if task is None:
         return None
 
@@ -435,7 +478,9 @@ def parse_reading(raw: Any, *, band: str, fallback_text: str = "") -> Reading | 
     )
 
 
-def _parse_task(raw: Any, *, artefact_type: str) -> dict[str, str] | None:
+def _parse_task(
+    raw: Any, *, artefact_type: str, chrome: str | None = None
+) -> dict[str, Any] | None:
     """The derived Courrier task. Without one there is no package, so a missing
     or unusable task is «non lu» rather than a document with nothing to do."""
 
@@ -454,13 +499,26 @@ def _parse_task(raw: Any, *, artefact_type: str) -> dict[str, str] | None:
     if register not in {"tu", "vous"}:
         register = "vous"
     success = " ".join(str(raw.get("success_fr") or "").split())[:200]
+    # The instruction and the success line are the app's words to the learner:
+    # kept as {fr, <chrome>} so the card can say them in the chrome language.
+    instruction_by_language = {"fr": instruction}
+    success_by_language = {"fr": success} if success else {}
+    if chrome in _LANGUAGE_NAMES:
+        native_instruction = " ".join(str(raw.get("instruction_native") or "").split())[:280]
+        native_success = " ".join(str(raw.get("success_native") or "").split())[:200]
+        if native_instruction:
+            instruction_by_language[chrome] = native_instruction
+        if native_success and success:
+            success_by_language[chrome] = native_success
     return {
         "kind": kind,
         "kind_label_fr": _TASK_LABELS_FR[kind],
         "instruction_fr": instruction,
-        "counterpart_fr": counterpart or "votre correspondant",
+        "instruction_by_language": instruction_by_language,
+        "counterpart_fr": counterpart or COUNTERPART_FALLBACK["fr"],
         "register": register,
         "success_fr": success,
+        "success_by_language": success_by_language,
     }
 
 
@@ -616,10 +674,53 @@ def cap_state(db: Session, user: User, *, now: datetime | None = None) -> CapSta
 # ---------------------------------------------------------------------------
 
 
-def public_view(artefact: LearnerArtefact | None) -> dict[str, Any] | None:
+def _chrome_task_view(task: dict[str, Any], language: str) -> dict[str, Any]:
+    """The task's chrome — its label, instruction, success line and a fallback
+    counterpart — as ``*_by_language`` tables plus the string for ``language``.
+    Rows written before the tables existed get them from what they stored."""
+
+    if not task:
+        return {}
+    view = dict(task)
+    kind = str(task.get("kind") or "reply")
+    labels = _TASK_LABELS.get(kind, _TASK_LABELS["reply"])
+    instruction = task.get("instruction_by_language")
+    if not isinstance(instruction, dict) or not instruction:
+        instruction = {"fr": str(task.get("instruction_fr") or "")}
+    success = task.get("success_by_language")
+    if not isinstance(success, dict):
+        success = {"fr": str(task.get("success_fr") or "")} if task.get("success_fr") else {}
+    view["kind_label_by_language"] = dict(labels)
+    view["kind_label"] = pick(labels, language)
+    view["instruction_by_language"] = dict(instruction)
+    view["instruction"] = pick(instruction, language)
+    view["success_by_language"] = dict(success)
+    view["success"] = pick(success, language)
+    if str(task.get("counterpart_fr") or "").strip() == COUNTERPART_FALLBACK["fr"]:
+        view["counterpart_by_language"] = dict(COUNTERPART_FALLBACK)
+    return view
+
+
+def _chrome_artefact_view(payload: dict[str, Any], language: str) -> dict[str, Any]:
+    if not payload:
+        return {}
+    view = dict(payload)
+    labels = _TYPE_LABELS.get(str(payload.get("type") or "autre"), _TYPE_LABELS["autre"])
+    view["type_label_by_language"] = dict(labels)
+    view["type_label"] = pick(labels, language)
+    return view
+
+
+def public_view(
+    artefact: LearnerArtefact | None, *, language: str = "fr"
+) -> dict[str, Any] | None:
     """The only serializer. There is no other way for an artefact to reach the
     wire, which is how the source document stays out of anything but its owner's
-    own page."""
+    own page.
+
+    ``language`` is the reader's chrome language: the labels and the task's
+    instruction arrive as ``{fr, en, de}`` tables plus the resolved string.
+    """
 
     if artefact is None:
         return None
@@ -629,8 +730,8 @@ def public_view(artefact: LearnerArtefact | None) -> dict[str, Any] | None:
         "status": artefact.status,
         "source_kind": artefact.source_kind,
         "source_text": artefact.source_text,
-        "artefact": artefact.artefact or {},
-        "task": artefact.task or {},
+        "artefact": _chrome_artefact_view(artefact.artefact or {}, language),
+        "task": _chrome_task_view(artefact.task or {}, language),
         "mission_id": str(artefact.mission_id) if artefact.mission_id else None,
         "queued_word_count": len(artefact.queued_word_ids or []),
         "created_at": artefact.created_at.isoformat() if artefact.created_at else None,
@@ -757,7 +858,12 @@ class IntakeService:
         band = learner_level_band(user)
         native = normalize_language(getattr(user, "native_language", None))
         reading, failure = self._read(
-            user=user, band=band, native=native, document=document, image=image
+            user=user,
+            band=band,
+            native=native,
+            document=document,
+            image=image,
+            chrome=chrome_language(getattr(user, "native_language", None), band),
         )
 
         artefact = LearnerArtefact(
@@ -819,6 +925,7 @@ class IntakeService:
         native: str,
         document: str,
         image: tuple[bytes, str] | None,
+        chrome: str | None = None,
     ) -> tuple[Reading | None, str | None]:
         llm = self._get_llm_service()
         if llm is None:
@@ -826,11 +933,17 @@ class IntakeService:
 
         if image is not None:
             messages = vision_messages(
-                image_bytes=image[0], content_type=image[1], band=band, native_language=native
+                image_bytes=image[0],
+                content_type=image[1],
+                band=band,
+                native_language=native,
+                chrome=chrome,
             )
             model = settings.ATELIER_INTAKE_VISION_MODEL
         else:
-            messages = text_messages(document=document, band=band, native_language=native)
+            messages = text_messages(
+                document=document, band=band, native_language=native, chrome=chrome
+            )
             model = settings.ATELIER_INTAKE_TEXT_MODEL
 
         try:
@@ -854,7 +967,7 @@ class IntakeService:
 
         self._record_cost(user=user, result=result, band=band, has_image=image is not None)
         reading = parse_reading(
-            getattr(result, "content", ""), band=band, fallback_text=document
+            getattr(result, "content", ""), band=band, fallback_text=document, chrome=chrome
         )
         return reading, None if reading else "unreadable"
 

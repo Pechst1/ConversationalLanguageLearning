@@ -167,6 +167,7 @@ const FR = {
   corr_aria: 'Votre correspondance avec {name}',
   corr_prev_one: 'Votre lettre précédente',
   corr_prev_many: 'Vos {n} lettres précédentes',
+  letter_fallback: 'Une lettre du Courrier.',
   lapsed_aria: 'Lettre sans réponse',
   lapsed_named: 'Le délai est passé et {name} n’a rien reçu. Ce n’est pas grave : {name} en dira un mot dans sa prochaine lettre.',
   lapsed_anon: 'Le délai est passé. Ce n’est pas grave : votre correspondant en dira un mot dans sa prochaine lettre.',
@@ -230,6 +231,9 @@ const FR = {
   art_delete: 'Supprimer ce document et sa tâche',
   task_aria: 'Votre tâche',
   task_opening: 'Ouverture…',
+  task_kind_reply: 'Répondre',
+  task_kind_decide: 'Choisir',
+  task_kind_ask: 'Demander',
   unread_aria: 'Document non lu',
   unread: 'Non lu',
   unread_photo: 'Ce document n’a pas pu être lu. Reprenez la photo de plus près, bien à plat, puis réessayez.',
@@ -374,6 +378,7 @@ const EN: CourrierCopy = {
   corr_aria: 'Your letters with {name}',
   corr_prev_one: 'Your previous letter',
   corr_prev_many: 'Your {n} previous letters',
+  letter_fallback: 'A letter from Le Courrier.',
   lapsed_aria: 'Unanswered letter',
   lapsed_named: 'The time ran out and {name} got nothing. It is fine: {name} will mention it in the next letter.',
   lapsed_anon: 'The time ran out. It is fine: your correspondent will mention it in the next letter.',
@@ -435,6 +440,9 @@ const EN: CourrierCopy = {
   art_delete: 'Delete this document and its task',
   task_aria: 'Your task',
   task_opening: 'Opening…',
+  task_kind_reply: 'Reply',
+  task_kind_decide: 'Choose',
+  task_kind_ask: 'Ask',
   unread_aria: 'Document not read',
   unread: 'Not read',
   unread_photo: 'This document could not be read. Take the photo closer, flat, then try again.',
@@ -577,6 +585,7 @@ const DE: CourrierCopy = {
   corr_aria: 'Deine Briefe mit {name}',
   corr_prev_one: 'Dein vorheriger Brief',
   corr_prev_many: 'Deine {n} vorherigen Briefe',
+  letter_fallback: 'Ein Brief aus Le Courrier.',
   lapsed_aria: 'Unbeantworteter Brief',
   lapsed_named: 'Die Zeit ist abgelaufen und {name} hat nichts bekommen. Nicht schlimm: {name} erwähnt es im nächsten Brief.',
   lapsed_anon: 'Die Zeit ist abgelaufen. Nicht schlimm: Dein Briefpartner erwähnt es im nächsten Brief.',
@@ -638,6 +647,9 @@ const DE: CourrierCopy = {
   art_delete: 'Dieses Dokument und seine Aufgabe löschen',
   task_aria: 'Deine Aufgabe',
   task_opening: 'Wird geöffnet…',
+  task_kind_reply: 'Antworten',
+  task_kind_decide: 'Auswählen',
+  task_kind_ask: 'Nachfragen',
   unread_aria: 'Dokument nicht gelesen',
   unread: 'Nicht gelesen',
   unread_photo: 'Dieses Dokument ließ sich nicht lesen. Fotografiere es näher und flach, dann versuche es noch einmal.',
@@ -666,6 +678,27 @@ export function crFill(template: string, values: Record<string, string | number>
 export function crPlural(copy: CourrierCopy, stem: string, n: number): string {
   const key = `${stem}_${n === 1 ? 'one' : 'many'}` as keyof CourrierCopy;
   return crFill(copy[key], { n });
+}
+
+/**
+ * A letter's headline in «previous letters» and on La Une. A real headline is
+ * the letter's French; the server's fallback («Une lettre du Courrier.») is
+ * chrome, so it is said in `language` — from the server's `{fr, en, de}` table
+ * when it sent one, else from this table.
+ */
+export function crLetterHeadline(
+  letter: { summary_fr?: unknown; summary_by_language?: unknown; title?: unknown } | null | undefined,
+  language: unknown,
+): { text: string; lang: string } {
+  const t = courrierCopy(language);
+  const french = String(letter?.summary_fr || letter?.title || '').trim();
+  if (french && french !== FR.letter_fallback) return { text: french, lang: 'fr' };
+  const table = letter?.summary_by_language;
+  const served = table && typeof table === 'object' ? (table as Record<string, unknown>)[t.lang] : undefined;
+  return {
+    text: typeof served === 'string' && served.trim() ? served.trim() : t.letter_fallback,
+    lang: t.lang,
+  };
 }
 
 export default courrierCopy;

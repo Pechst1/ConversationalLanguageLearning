@@ -29,6 +29,8 @@ import {
   ShapeToken,
 } from '@/components/atelier-v2/ui';
 
+import { pickByLanguage } from '@/lib/language-rule';
+
 import { courrierCopy, crFill, crPlural, useCrCopy } from './courrier-copy';
 
 export { useCrCopy } from './courrier-copy';
@@ -194,6 +196,7 @@ export function CrSlip({
   time,
   you = false,
   translate,
+  lang = 'fr',
   children,
 }: {
   who: string;
@@ -201,11 +204,13 @@ export function CrSlip({
   you?: boolean;
   sent?: boolean;
   translate?: () => Promise<string>;
+  /** A letter's line is French; an artefact's opening instruction is chrome. */
+  lang?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className={'cr-turn' + (you ? ' cr-turn--mine' : '')}>
-      <div className={'av2-bubble' + (you ? ' av2-bubble--mine' : '')} lang="fr">
+      <div className={'av2-bubble' + (you ? ' av2-bubble--mine' : '')} lang={lang}>
         <span className="av2-sr">{who} · </span>
         {children}
       </div>
@@ -634,9 +639,12 @@ export type CrGlossedWord = {
   example_fr?: string;
 };
 
+type CrByLanguage = Partial<Record<string, string>> | null;
+
 export type CrArtefactPayload = {
   type?: string;
   type_label_fr?: string;
+  type_label_by_language?: CrByLanguage;
   title_fr?: string;
   summary_fr?: string;
   summary_bounded?: boolean;
@@ -652,7 +660,51 @@ export type CrArtefactTask = {
   counterpart_fr?: string;
   register?: string;
   success_fr?: string;
+  kind_label_by_language?: CrByLanguage;
+  instruction_by_language?: CrByLanguage;
+  success_by_language?: CrByLanguage;
+  counterpart_by_language?: CrByLanguage;
 };
+
+/** One piece of an artefact's chrome: the version in the chrome language when
+ *  the server has it, else its French — marked `fr` — else `fallback`. */
+export type CrSaid = { text: string; lang: string };
+
+function crSay(table: CrByLanguage | undefined, french: string | undefined, language: string, fallback?: CrSaid): CrSaid | null {
+  const localized = pickByLanguage(table ?? null, language as 'fr' | 'en' | 'de');
+  if (localized) return { text: localized, lang: language };
+  const fr = String(french || '').trim();
+  if (fr) return { text: fr, lang: 'fr' };
+  return fallback ?? null;
+}
+
+const CR_TASK_KIND_KEYS = { reply: 'task_kind_reply', decide: 'task_kind_decide', ask: 'task_kind_ask' } as const;
+
+/** What an artefact's card says, in the chrome language (the one-language rule):
+ *  the type label, the task's label, instruction and success line, and the
+ *  counterpart when the document named nobody. The counterpart the document
+ *  does name is its own French. */
+export function crArtefactChrome(
+  artefact: { artefact?: CrArtefactPayload; task?: CrArtefactTask | null } | null | undefined,
+  language: unknown = 'fr',
+) {
+  const t = courrierCopy(language);
+  const payload = artefact?.artefact ?? {};
+  const task = artefact?.task ?? {};
+  const kindKey = CR_TASK_KIND_KEYS[(task.kind as keyof typeof CR_TASK_KIND_KEYS) || 'reply'] ?? 'task_kind_reply';
+  return {
+    type: crSay(payload.type_label_by_language, payload.type_label_fr, t.lang),
+    // The kind is known, so its label is always this table's when the server
+    // sent none in the chrome language.
+    kind: crSay(task.kind_label_by_language, '', t.lang, {
+      text: t[kindKey],
+      lang: t.lang,
+    }),
+    instruction: crSay(task.instruction_by_language, task.instruction_fr, t.lang),
+    success: crSay(task.success_by_language, task.success_fr, t.lang),
+    who: crSay(task.counterpart_by_language, task.counterpart_fr, t.lang),
+  };
+}
 
 export type CrArtefactView = {
   id: string;
@@ -674,9 +726,8 @@ export type CrArtefactView = {
  *  type and the counterpart are the document's own French; the fallback and
  *  the date clause are chrome, in `language` (French by default). */
 export function crArtefactLabel(artefact: CrArtefactView, language: unknown = 'fr'): string {
-  const type = artefact.artefact?.type_label_fr?.trim();
-  const who = artefact.task?.counterpart_fr?.trim();
-  return [type || courrierCopy(language).art_a_document, who || null, crReceivedOn(artefact.created_at, language)]
+  const said = crArtefactChrome(artefact, language);
+  return [said.type?.text || courrierCopy(language).art_a_document, said.who?.text || null, crReceivedOn(artefact.created_at, language)]
     .filter(Boolean)
     .join(' · ');
 }
@@ -916,17 +967,19 @@ export function CrArtefactCard({
   const payload = artefact.artefact ?? {};
   const facts = payload.key_facts ?? [];
   const words = payload.glossed_words ?? [];
-  const who = artefact.task?.counterpart_fr?.trim();
-  const type = payload.type_label_fr?.trim();
+  const said = crArtefactChrome(artefact, t.lang);
+  const who = said.who;
+  const type = said.type;
   const received = crReceivedOn(artefact.created_at, t.lang);
   return (
     <section className="cr-art" aria-label={t.art_aria}>
       {/* «Lettre · votre propriétaire · reçue le 12 sept.» — one 12px line,
           where a chip used to carry only the type. The type and the
-          counterpart are the document's French; the rest is chrome. */}
+          counterpart the document names is its French; the type label and
+          the rest are chrome, in the chrome language. */}
       <p className="cr-art-head">
-        {type ? <span lang="fr">{type}</span> : t.art_a_document}
-        {who && <span lang="fr"> · {who}</span>}
+        {type ? <span lang={type.lang}>{type.text}</span> : t.art_a_document}
+        {who && <span lang={who.lang}> · {who.text}</span>}
         {received && <span> · {received}</span>}
         {artefact.source_kind === 'image' && <span className="cr-art-src"> · {t.art_photographed}</span>}
       </p>
@@ -993,7 +1046,7 @@ export function CrArtefactCard({
           className="av2-btn av2-btn--primary cr-art-reply"
           href={`/missions?mission=${artefact.mission_id}`}
         >
-          <span>{who ? crFill(t.reply_to, { name: who }) : t.reply}</span>
+          <span>{who ? crFill(t.reply_to, { name: who.text }) : t.reply}</span>
           <ArrowRightIcon size={18} />
         </Link>
       )}
@@ -1021,14 +1074,18 @@ export function CrArtefactTaskCard({
 }) {
   const t = useCrCopy();
   if (!task || !task.instruction_fr) return null;
+  // The label, the instruction and the success line are the app's words to the
+  // learner: in the chrome language when the server has that version, else
+  // their French, marked so. The counterpart the document names stays French.
+  const said = crArtefactChrome({ task }, t.lang);
   return (
     <section className="cr-art-task" aria-label={t.task_aria}>
       <p className="cr-art-k">
-        {task.kind_label_fr ? <span lang="fr">{task.kind_label_fr}</span> : t.reply}
-        {task.counterpart_fr && <span lang="fr"> · {task.counterpart_fr}</span>}
+        {said.kind && <span lang={said.kind.lang}>{said.kind.text}</span>}
+        {said.who && <span lang={said.who.lang}> · {said.who.text}</span>}
       </p>
-      <p className="cr-art-ask" lang="fr">{task.instruction_fr}</p>
-      {task.success_fr && <p className="cr-art-win" lang="fr">{task.success_fr}</p>}
+      {said.instruction && <p className="cr-art-ask" lang={said.instruction.lang}>{said.instruction.text}</p>}
+      {said.success && <p className="cr-art-win" lang={said.success.lang}>{said.success.text}</p>}
       {onStart && (
         <Action
           tone="primary"

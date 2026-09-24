@@ -5141,17 +5141,70 @@ ARTEFACT_MISSION_VERSION = "real-world-mission-artefact-v1"
 #: `_shown_vocabulary_items`), so this bound is also the penalty bound.
 ARTEFACT_TARGET_WORDS = 3
 
-_ARTEFACT_TASK_TITLES_FR: dict[str, str] = {
-    "reply": "Répondre au document",
-    "decide": "Choisir dans le document",
-    "ask": "Poser la question qui manque",
+#: An artefact task's title and default instruction are the app's own words to
+#: the learner, so they follow the one-language rule: served as ``{fr, en, de}``
+#: (``*_by_language`` on the prompt payload) beside the French the corrector and
+#: the stored payload keep reading.
+_ARTEFACT_TASK_TITLES: dict[str, dict[str, str]] = {
+    "reply": {
+        "fr": "Répondre au document",
+        "en": "Reply to the document",
+        "de": "Auf das Dokument antworten",
+    },
+    "decide": {
+        "fr": "Choisir dans le document",
+        "en": "Choose from the document",
+        "de": "Im Dokument auswählen",
+    },
+    "ask": {
+        "fr": "Poser la question qui manque",
+        "en": "Ask the missing question",
+        "de": "Die fehlende Frage stellen",
+    },
+}
+_ARTEFACT_TASK_TITLES_FR: dict[str, str] = {k: v["fr"] for k, v in _ARTEFACT_TASK_TITLES.items()}
+
+_ARTEFACT_TASK_INSTRUCTIONS: dict[str, dict[str, str]] = {
+    "reply": {
+        "fr": "Écrivez votre réponse en français.",
+        "en": "Write your reply in French.",
+        "de": "Schreib deine Antwort auf Französisch.",
+    },
+    "decide": {
+        "fr": "Écrivez votre choix en français, et dites pourquoi en une phrase.",
+        "en": "Write your choice in French, and say why in one sentence.",
+        "de": "Schreib deine Wahl auf Französisch und sag in einem Satz, warum.",
+    },
+    "ask": {
+        "fr": "Écrivez votre question en français.",
+        "en": "Write your question in French.",
+        "de": "Schreib deine Frage auf Französisch.",
+    },
+}
+_ARTEFACT_TASK_INSTRUCTIONS_FR: dict[str, str] = {
+    k: v["fr"] for k, v in _ARTEFACT_TASK_INSTRUCTIONS.items()
 }
 
-_ARTEFACT_TASK_INSTRUCTIONS_FR: dict[str, str] = {
-    "reply": "Écrivez votre réponse en français.",
-    "decide": "Écrivez votre choix en français, et dites pourquoi en une phrase.",
-    "ask": "Écrivez votre question en français.",
+_ARTEFACT_SUCCESS_FALLBACK: dict[str, str] = {
+    "fr": "Votre correspondant sait quoi faire ensuite.",
+    "en": "Your correspondent knows what to do next.",
+    "de": "Dein Gegenüber weiß, was als Nächstes zu tun ist.",
 }
+
+
+def _artefact_table(value: Any, *, french: str, max_length: int) -> dict[str, str]:
+    """A stored ``{fr, en, de}`` table whose French still matches ``french``;
+    otherwise the labelled French-only fallback."""
+
+    if isinstance(value, dict):
+        table = {
+            key: _compact_text(text, max_length=max_length)
+            for key, text in value.items()
+            if key in ("fr", "en", "de") and isinstance(text, str) and text.strip()
+        }
+        if table.get("fr") == french:
+            return table
+    return {"fr": french} if french else {}
 
 
 def artefact_mission_payload(
@@ -5222,6 +5275,23 @@ def artefact_mission_payload(
         if part
     )
 
+    # The instruction to the learner doubles as the opening line of the thread.
+    # It is chrome, not a letter: the corrector keeps the French
+    # `opening_message`; the page says `opening_message_by_language`.
+    if instruction:
+        instruction_by_language = _artefact_table(
+            task.get("instruction_by_language"), french=instruction, max_length=280
+        )
+    else:
+        instruction_by_language = dict(_ARTEFACT_TASK_INSTRUCTIONS[kind])
+    success_fr = _compact_text(task.get("success_fr"), max_length=160)
+    if success_fr:
+        success_by_language = _artefact_table(
+            task.get("success_by_language"), french=success_fr, max_length=160
+        )
+    else:
+        success_by_language = dict(_ARTEFACT_SUCCESS_FALLBACK)
+
     messenger = {
         "contact_name": counterpart,
         "contact_role": type_label.lower(),
@@ -5235,9 +5305,12 @@ def artefact_mission_payload(
         # The learner already read the document on the artefact card above; the
         # opening line names the ask rather than replaying the whole text.
         "opening_message": instruction or _ARTEFACT_TASK_INSTRUCTIONS_FR[kind],
+        "opening_message_by_language": instruction_by_language,
+        "opening_is_chrome": True,
         "brief": brief,
-        "success_signal": _compact_text(task.get("success_fr"), max_length=160)
-        or "Votre correspondant sait quoi faire ensuite.",
+        "success_signal": success_fr or _ARTEFACT_SUCCESS_FALLBACK["fr"],
+        # Read by `success_signal_i18n` → `slim_payload.ask_by_language`.
+        "success_signal_i18n": success_by_language,
         "twist": "",
         "ambient_cues": [type_label.lower(), f"registre : {register}"],
         "quick_replies": [],
@@ -5248,6 +5321,7 @@ def artefact_mission_payload(
         {
             "id": "real_world_task",
             "label": _ARTEFACT_TASK_TITLES_FR[kind],
+            "label_by_language": dict(_ARTEFACT_TASK_TITLES[kind]),
             "target_count": 1,
             "kind": "communication",
             "required": True,
@@ -5304,6 +5378,9 @@ def artefact_mission_payload(
         "conversation_instruction": generator._conversation_instruction("message"),
         "writing_title": _ARTEFACT_TASK_TITLES_FR[kind],
         "writing_instruction": instruction or _ARTEFACT_TASK_INSTRUCTIONS_FR[kind],
+        "title_by_language": dict(_ARTEFACT_TASK_TITLES[kind]),
+        "writing_title_by_language": dict(_ARTEFACT_TASK_TITLES[kind]),
+        "writing_instruction_by_language": instruction_by_language,
         "writing_placeholder": generator._placeholder("message"),
         "min_words": max(
             generator._min_words(mission_type="message", stakes_level=1),

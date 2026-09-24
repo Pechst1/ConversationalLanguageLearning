@@ -163,6 +163,28 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   };
 }
 
+// An artefact task's title («Répondre au document») is chrome, served as
+// `title_by_language` (app/services/missions.py); every other title is the
+// letter's own French.
+function missionTitleView(mission: RealWorldMission | null, chromeLang: ControlLanguage): { text: string; lang: string } {
+  const localized = pickByLanguage(mission?.prompt_payload?.title_by_language, chromeLang);
+  if (localized) return { text: localized, lang: chromeLang };
+  return { text: missionTitle(mission), lang: 'fr' };
+}
+
+// An artefact task opens its thread with the instruction to the learner, not a
+// correspondent's line: chrome, in the chrome language when served
+// (`messenger.opening_message_by_language`). A letter's opening stays French.
+function missionOpening(mission: RealWorldMission | null, messenger: MissionMessenger, chromeLang: ControlLanguage): { text: string; lang: string } {
+  const raw = mission?.prompt_payload?.messenger;
+  const table = raw && typeof raw === 'object' && (raw as Record<string, any>).opening_is_chrome
+    ? (raw as Record<string, any>).opening_message_by_language
+    : null;
+  const localized = pickByLanguage(table, chromeLang);
+  if (localized) return { text: localized, lang: chromeLang };
+  return { text: messenger.opening_message, lang: 'fr' };
+}
+
 function missionTitle(mission: RealWorldMission | null) {
   if (!mission) return 'Mission';
   const variety = missionVariety(mission);
@@ -439,12 +461,17 @@ function loadErrorMessage(kind: LoadErrorKind, t: CourrierCopy): string {
   return kind === 'not_ready' ? t.error_not_ready : t.error_open;
 }
 
-// WP-34's refusals already arrive in French from the server (`detail.message_fr`
-// — the weekly cap, an unreadable photo, a document too long). Printing our own
+// WP-34's refusals arrive from the server in every chrome language
+// (`detail.message_by_language`, with `message_fr` for older servers) — the
+// weekly cap, an unreadable photo, a document too long. Printing our own
 // sentence over them would be inventing a reason we do not know.
 function intakeErrorMessage(error: any, t: CourrierCopy): string {
   const detail = error?.response?.data?.detail;
-  const french = detail && typeof detail === 'object' ? String(detail.message_fr || '') : '';
+  if (!detail || typeof detail !== 'object') return t.intake_error;
+  const localized = pickByLanguage(detail.message_by_language, t.lang as ControlLanguage);
+  if (localized) return localized;
+  // An older server's French sentence is only chrome for a French reader.
+  const french = t.lang === 'fr' ? String(detail.message_fr || '') : '';
   return french || t.intake_error;
 }
 
@@ -643,20 +670,25 @@ export default function MissionsPage() {
   const cadenceLabel = missionCadenceLabel(mission, t);
   const isVoiceFormat = missionIsVoice(format);
   const recentCompleted = today?.recent_completed || [];
-  const openingMessage = isVoiceFormat && formatPayload.transcript
-    ? String(formatPayload.transcript)
-    : messenger.opening_message;
+  const opening = isVoiceFormat && formatPayload.transcript
+    ? { text: String(formatPayload.transcript), lang: 'fr' }
+    : missionOpening(mission, messenger, chromeLang);
+  const openingMessage = opening.text;
   const visibleTurns = useMemo(() => {
     let hasLearnerTurn = false;
-    const openingKey = _normalizeVisibleMessage(openingMessage);
+    // The stored opening turn is the French one; a localized opening must hide it too.
+    const openingKeys = new Set([
+      _normalizeVisibleMessage(openingMessage),
+      _normalizeVisibleMessage(messenger.opening_message),
+    ]);
     return turns.filter((turn) => {
       if (turn.role === 'user') {
         hasLearnerTurn = true;
         return true;
       }
-      return hasLearnerTurn || _normalizeVisibleMessage(turn.text) !== openingKey;
+      return hasLearnerTurn || !openingKeys.has(_normalizeVisibleMessage(turn.text));
     });
-  }, [openingMessage, turns]);
+  }, [openingMessage, messenger.opening_message, turns]);
   const actNumber = typeof mission?.episode_index === 'number'
     ? mission.episode_index + 1
     : typeof seed.episodeIndex === 'number' ? seed.episodeIndex + 1 : null;
@@ -898,7 +930,7 @@ export default function MissionsPage() {
 
   // Header line: "<cadence or act> · <mission title>" — the design's
   // "Mission de la semaine · résumer un titre".
-  const deskLine = `${cadenceLabel || kicker} · ${missionTitle(mission)}`;
+  const deskLine = `${cadenceLabel || kicker} · ${missionTitleView(mission, chromeLang).text}`;
   const placedCount = ribbon.filter((word) => word.used).length;
   const deskChip = completed ? (
     <Chip className="cr-status" icon={<ShapeToken kind="done" size="sm" />}>{t.chip_done}</Chip>
@@ -1118,7 +1150,11 @@ export default function MissionsPage() {
                     translate={() => apiService.translateToEnglish(openingMessage)}
                   />
                 ) : (
-                  <CrSlip who={messenger.contact_name} translate={() => apiService.translateToEnglish(openingMessage)}>
+                  <CrSlip
+                    who={messenger.contact_name}
+                    lang={opening.lang}
+                    translate={opening.lang === 'fr' ? () => apiService.translateToEnglish(openingMessage) : undefined}
+                  >
                     {openingMessage}
                   </CrSlip>
                 )}
@@ -1260,7 +1296,10 @@ export default function MissionsPage() {
                     {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
                       <li key={past.id}>
                         <Link className="cr-archive-row" href={{ pathname: '/missions', query: { mission: past.id } }}>
-                          <b lang="fr">{missionTitle(past)}</b>
+                          {(() => {
+                            const title = missionTitleView(past, chromeLang);
+                            return <b lang={title.lang}>{title.text}</b>;
+                          })()}
                           <span>
                             <ShapeToken kind={past.status === 'completed' ? 'done' : 'story'} size="sm" />
                             {archiveStatus(past, t)}
