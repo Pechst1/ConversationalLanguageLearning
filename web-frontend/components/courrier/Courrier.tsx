@@ -123,14 +123,20 @@ export function CrDesk({
 }
 
 /* ---------- the situation (no artboard: extended as a card surface) ----------
-   frame ← slim_payload.frame · ask ← slim_payload.ask (red triangle = action) */
+   frame ← slim_payload.frame · ask ← slim_payload.ask_by_language[chrome]
+   (red triangle = action). The objective is chrome: in the learner's language
+   up to A2 when the letter carries that version; `askLang` says which language
+   the text is actually in (a letter with only its French objective keeps it,
+   marked `fr`). */
 export function CrSituation({
   frame,
   ask,
+  askLang = 'fr',
   translate,
 }: {
   frame: string;
   ask: string;
+  askLang?: string;
   translate?: () => Promise<string>;
 }) {
   const t = useCrCopy();
@@ -140,7 +146,7 @@ export function CrSituation({
       {ask && (
         <p className="cr-sit-ask">
           <ShapeToken kind="action" size="sm" />
-          <span><b>{t.todo}</b> <span lang="fr">{ask}</span></span>
+          <span><b>{t.todo}</b> <span lang={askLang}>{ask}</span></span>
         </p>
       )}
       {translate && <CrTranslate translate={translate} />}
@@ -487,8 +493,20 @@ export function crSealNumbers(
   return rows;
 }
 
+/** The correspondent's face on the seal: cast members wear their drawn
+ *  portrait in the mood; anyone else (a shop, a clerk) keeps the initial disc. */
+export type CrSealMood = {
+  name: string;
+  /** A cast id (`serial_character_id` / correspondent id) when there is one. */
+  characterId?: string | null;
+  face: 'happy' | 'neutral' | 'cross';
+  /** One short line in the chrome language: «Anaïs is pleased with you». */
+  line: string;
+};
+
 export function CrSeal({
   verdict,
+  mood,
   date,
   sentence,
   sentenceLang,
@@ -504,6 +522,8 @@ export function CrSeal({
   numbers?: CrSealNumber[];
   /** The minted collectible, when the recap says one was minted. */
   token?: React.ReactNode;
+  /** The correspondent in the mood the letter left: a face and one short line. */
+  mood?: CrSealMood | null;
 }) {
   const t = useCrCopy();
   return (
@@ -512,6 +532,16 @@ export function CrSeal({
         <ShapeToken kind="done" size="lg" />
         {verdict}
       </span>
+      {mood && mood.line && (
+        <p className="cr-seal-mood" data-mood={mood.face}>
+          {mood.characterId ? (
+            <CastPortrait characterId={mood.characterId} name={mood.name} mood={mood.face} size="sm" ring />
+          ) : (
+            <Portrait name={mood.name} mood={mood.face} />
+          )}
+          <span>{mood.line}</span>
+        </p>
+      )}
       {date && <span className="cr-seal-date">{date}</span>}
       {sentence && <p className="cr-seal-sub" lang={sentenceLang}>{sentence}</p>}
       {numbers.length > 0 && (
@@ -1173,6 +1203,16 @@ export function CourrierStyles() {
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
       .av2 .cr-desk .av2-chip { flex: none; min-height: 30px; padding: 0 10px; font-size: var(--av2-t-meta); }
+      /* The name wins the line. On a narrow phone a status chip (a word, not a
+         count) folds to its shape — an icon dot — and keeps its words for
+         assistive tech, so «Boutique Anaïs» is never cut to «Bou…». */
+      @media (max-width: 420px) {
+        .av2 .cr-desk .cr-status { position: relative; width: 30px; padding: 0; justify-content: center; }
+        .av2 .cr-desk .cr-status > span:last-child {
+          position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+          overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+        }
+      }
       .av2 .cr-reason { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
 
       /* the situation */
@@ -1300,6 +1340,10 @@ export function CourrierStyles() {
       .av2 .cr-seal-word { display: flex; align-items: center; gap: 10px; font-size: var(--av2-t-title); font-weight: 700; line-height: 1.1; }
       .av2 .cr-seal-word .av2-shape { color: var(--av2-yellow); }
       .av2 .cr-seal-date { font-size: var(--av2-t-meta); opacity: .8; }
+      /* The correspondent's face in the mood the letter left, one line beside it. */
+      .av2 .cr-seal-mood { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: var(--av2-t-label); font-weight: 700; line-height: 1.3; }
+      .av2 .cr-seal-mood > span:last-child { min-width: 0; }
+      .av2 .cr-seal-mood .av2-portrait, .av2 .cr-seal-mood .ob-portrait { flex: none; }
       .av2 .cr-seal-sub { margin: 4px 0 0; font-size: var(--av2-t-body); line-height: 1.45; }
       /* Appendix A: the seal is the whole answer — verdict, one sentence, at
          most three counted numbers — on the same ink surface, no second card. */

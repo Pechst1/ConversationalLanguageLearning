@@ -66,3 +66,16 @@ export function journeyLevel(controller: JourneyLike): string | null {
     null
   );
 }
+
+/**
+ * Server-sent chrome arrives as `{ fr, en, de }` (`app/services/chrome_language.py`).
+ * The entry for `language`, else `fallback` (the server's resolved string).
+ */
+export function pickByLanguage(
+  table: Partial<Record<string, unknown>> | null | undefined,
+  language: ControlLanguage,
+  fallback = '',
+): string {
+  const value = table && typeof table === 'object' ? table[language] : undefined;
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}

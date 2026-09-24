@@ -47,7 +47,58 @@ export type CrCorrespondentView = {
   initials?: string | null;
   /** WP-61's feeling, already written as one French line by the server. */
   mood_line?: string | null;
+  /** The same feeling as a number, −2..+2 (absent on older letters). */
+  mood?: number | null;
 };
+
+/* ---------- the correspondent's mood (−2..+2) ----------
+   The server keeps the feeling as a number (`story_correspondence.mood_value`)
+   and, for the letter writer, as a French sentence. The Courrier says it in the
+   chrome language and draws it as a face: happy (+1, +2), neutral (0), cross
+   (−1 «a little distant», −2 «cross»). A letter from before the number was
+   served is read back from the French sentence's opening words. */
+
+export type CrMoodKey = 'happy' | 'neutral' | 'distant' | 'cross';
+
+const LEGACY_MOOD_LINES: [RegExp, number][] = [
+  [/^toujours fâch/i, -2],
+  [/^un peu distant/i, -1],
+  [/^neutre/i, 0],
+  [/^de bonne humeur/i, 1],
+  [/^ravi/i, 2],
+];
+
+/** The mood as a number, from `mood` or (legacy) from the French line. */
+export function crMoodValue(mood: unknown, legacyLine?: unknown): number | null {
+  if (typeof mood === 'number' && Number.isFinite(mood)) return Math.max(-2, Math.min(2, Math.round(mood)));
+  const line = typeof legacyLine === 'string' ? legacyLine.trim() : '';
+  for (const [pattern, value] of LEGACY_MOOD_LINES) if (pattern.test(line)) return value;
+  return null;
+}
+
+export function crMoodKey(value: number | null): CrMoodKey | null {
+  if (value === null) return null;
+  if (value >= 1) return 'happy';
+  if (value === 0) return 'neutral';
+  return value <= -2 ? 'cross' : 'distant';
+}
+
+/** The face a portrait wears for this mood. */
+export function crMoodFace(key: CrMoodKey | null): 'happy' | 'neutral' | 'cross' {
+  return key === 'happy' ? 'happy' : key === 'cross' || key === 'distant' ? 'cross' : 'neutral';
+}
+
+/** «Anaïs is pleased with you», in the chrome language `t` was built for. */
+export function crMoodSentence(key: CrMoodKey | null, name: string, t: CourrierCopy): string {
+  if (!key || !name) return '';
+  const template = {
+    happy: t.seal_mood_happy,
+    neutral: t.seal_mood_neutral,
+    distant: t.seal_mood_distant,
+    cross: t.seal_mood_cross,
+  }[key];
+  return crFill(template, { name });
+}
 
 export type CrChainView = {
   id?: string | null;
@@ -242,7 +293,13 @@ export function CrCorrespondent({
   const name = String(correspondent?.name || '').trim();
   if (!name) return null;
   const role = String(correspondent?.role || '').trim();
-  const mood = showMood ? String(correspondent?.mood_line || '').trim() : '';
+  // The feeling is the app's own words: said in the chrome language whenever
+  // it can be read as a number; only an unreadable legacy line stays French.
+  const moodLine = showMood ? String(correspondent?.mood_line || '').trim() : '';
+  const moodChrome = showMood
+    ? crMoodSentence(crMoodKey(crMoodValue(correspondent?.mood, moodLine)), name, t)
+    : '';
+  const mood = moodChrome || moodLine;
   const chainLabel = crChainLabel(chain, t.lang);
   const expiry = lapsed ? null : crExpiryLine(expiresAt, now, t.lang);
   const past = (history || []).filter((letter) => String(letter?.summary_fr || letter?.title || '').trim());
@@ -262,7 +319,7 @@ export function CrCorrespondent({
         )}
       </p>
       {mood && (
-        <p className="cr-corr-mood" lang="fr">
+        <p className="cr-corr-mood" lang={moodChrome ? t.lang : 'fr'}>
           <ShapeToken kind="story" size="sm" />
           <span>{mood}</span>
         </p>
@@ -499,9 +556,10 @@ export function CourrierCorrespondanceStyles() {
       .av2 .cr-corr-who b { font-weight: 700; color: var(--av2-ink); }
       .av2 .cr-corr-chain { flex: none; }
       .av2 .cr-corr-mood {
+        /* Chrome now (the chrome language), so sans: the name above is the
+           screen's one Garamond line. */
         margin: 0; display: flex; align-items: flex-start; gap: 8px;
-        font-family: var(--av2-serif); font-style: italic;
-        font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-blue);
+        font-size: var(--av2-t-label); font-weight: 700; line-height: 1.4; color: var(--av2-blue);
       }
       .av2 .cr-corr-mood .av2-shape { margin-top: 5px; flex: none; }
       .av2 .cr-corr-when { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }

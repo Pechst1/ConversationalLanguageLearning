@@ -181,7 +181,8 @@ test('the letter stays French with lang="fr" at every level', () => {
     assert.ok(html.includes(`<span lang="fr">${ASK}</span>`), 'the ask is content');
     assert.match(html, /class="av2-bubble" lang="fr">.*Bonjour ! Vous passez quand \?/);
     assert.match(html, /<span lang="fr">fermer<\/span>/);
-    assert.match(html, /<p class="cr-corr-mood" lang="fr">/);
+    // The correspondent's mood is chrome (2026-09-24): the chrome language.
+    assert.match(html, new RegExp(`<p class="cr-corr-mood" lang="${language}">`));
     assert.match(html, /<span class="cr-corr-past" lang="fr">Le pain mis de côté/);
   }
 });
@@ -287,4 +288,57 @@ test('the page computes the chrome language once and hands it to its root', () =
   for (const phrase of ['Retour à l’Atelier</', 'Nouveau courrier</', 'Courrier passé</', 'Chargement du courrier', '>Bouclé<', 'rédige sa réponse']) {
     assert.ok(!page.includes(phrase), `inline French chrome: ${phrase}`);
   }
+});
+
+// 2026-09-24 — the objective, the correspondent's face on the seal, and the
+// header at 320 px.
+
+test('the objective follows the chrome language when the letter carries it', () => {
+  const html = renderToStaticMarkup(
+    h(AtelierV2Root, { language: 'en' },
+      h(Cr.CrSituation, { frame: FRAME, ask: 'The shop confirms the right size.', askLang: 'en' })),
+  );
+  assert.ok(html.includes('<b>To do ·</b> <span lang="en">The shop confirms the right size.</span>'));
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/missions.tsx'), 'utf8');
+  assert.ok(page.includes('pickByLanguage(slim.ask_by_language, chromeLang)'), 'the page picks the objective by the rule');
+  assert.ok(page.includes('recommendation_reason?.text_by_language'), 'the because-line too');
+});
+
+test('the answered seal wears the correspondent’s face in the mood the letter left', () => {
+  const t = courrierCopy('en');
+  for (const [value, face, line] of [
+    [2, 'happy', 'Anaïs is pleased with you'],
+    [0, 'neutral', 'Anaïs is neutral'],
+    [-1, 'cross', 'Anaïs is a little distant'],
+    [-2, 'cross', 'Anaïs is cross with you'],
+  ]) {
+    const key = Corr.crMoodKey(Corr.crMoodValue(value));
+    assert.equal(Corr.crMoodFace(key), face);
+    assert.equal(Corr.crMoodSentence(key, 'Anaïs', t), line);
+  }
+  // A recap from before the number: read back from the French line.
+  assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'De bonne humeur avec vous.')), 'happy');
+  assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'Quelque chose d’autre')), null);
+  assert.equal(courrierCopy('de').seal_mood_happy, '{name} ist zufrieden mit Ihnen');
+
+  const shop = renderToStaticMarkup(h(AtelierV2Root, { language: 'en' }, h(Cr.CrSeal, {
+    verdict: 'Answered',
+    mood: { name: 'Boutique Anaïs', face: 'happy', line: 'Boutique Anaïs is pleased with you' },
+  })));
+  assert.match(shop, /<p class="cr-seal-mood" data-mood="happy"><span class="av2-portrait"[^>]*>B<\/span><span>Boutique Anaïs is pleased with you<\/span><\/p>/);
+  const cast = renderToStaticMarkup(h(AtelierV2Root, { language: 'fr' }, h(Cr.CrSeal, {
+    verdict: 'Résolu',
+    mood: { name: 'Romy', characterId: 'romy_tremblay', face: 'cross', line: 'Romy vous en veut' },
+  })));
+  assert.match(cast, /class="ob-portrait" data-size="sm" data-mood="cross"/);
+  // One seal, still: no paragraph-long mood, no «Depuis votre lettre».
+  assert.ok(!cast.includes('Depuis votre lettre'));
+});
+
+test('at 320 px the name wins the header line: the status folds to a dot', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'Courrier.tsx'), 'utf8');
+  assert.match(source, /@media \(max-width: 420px\) \{\s*\.av2 \.cr-desk \.cr-status \{[^}]*width: 30px/);
+  assert.match(source, /\.cr-desk \.cr-status > span:last-child \{[^}]*clip-path: inset\(50%\)/);
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/missions.tsx'), 'utf8');
+  assert.equal((page.match(/className="cr-status"/g) || []).length, 2, 'both status chips fold; the count chip stays');
 });

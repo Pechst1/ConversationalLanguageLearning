@@ -6,6 +6,9 @@ import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { pickByLanguage } from '@/lib/language-rule';
+import { castIdFor } from '@/lib/cast-faces';
+import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
 import {
@@ -42,6 +45,10 @@ import {
 import {
   CrCorrespondent,
   CrLapsedNotice,
+  crMoodFace,
+  crMoodKey,
+  crMoodSentence,
+  crMoodValue,
   crOutcomeLabel,
   crOutcomeSentence,
 } from '@/components/courrier/Correspondance';
@@ -163,11 +170,21 @@ function missionTitle(mission: RealWorldMission | null) {
   return String(mission.title || variety.domain_label || 'Mission');
 }
 
-function missionFrame(mission: RealWorldMission | null, messenger: MissionMessenger) {
+function missionFrame(mission: RealWorldMission | null, messenger: MissionMessenger, chromeLang: ControlLanguage = 'fr') {
   const slim = missionSlimPayload(mission);
   const frame = compactText(slim.frame || messenger.scene_anchor || mission?.brief, 210);
-  const ask = compactText(slim.ask || messenger.dispatch_note || messenger.success_signal, 150);
-  return { frame, ask };
+  // The objective is chrome (the one-language rule): the version in the
+  // learner's chrome language when the letter carries it (`ask_by_language`,
+  // app/services/missions.py `success_signal_i18n`). Fallback — a letter with
+  // no version in that language keeps its French objective, marked `fr`.
+  const localized = pickByLanguage(slim.ask_by_language, chromeLang);
+  const french = pickByLanguage(slim.ask_by_language, 'fr');
+  const ask = compactText(
+    localized || french || slim.ask || messenger.dispatch_note || messenger.success_signal,
+    150,
+  );
+  const askLang: string = localized ? chromeLang : 'fr';
+  return { frame, ask, askLang };
 }
 
 function pickMission(today: MissionToday | null) {
@@ -592,7 +609,7 @@ export default function MissionsPage() {
   const seed = useMemo(() => querySeed(router.query as Record<string, string | string[] | undefined>), [router.query]);
   const intakeMode = Boolean(firstQuery(router.query.intake));
   const messenger = useMemo(() => missionMessenger(mission), [mission]);
-  const frame = useMemo(() => missionFrame(mission, messenger), [mission, messenger]);
+  const frame = useMemo(() => missionFrame(mission, messenger, chromeLang), [mission, messenger, chromeLang]);
   const turns = useMemo(() => missionTurns(mission), [mission]);
   const ribbon = useMemo(() => ribbonWords(mission), [mission]);
   const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId);
@@ -879,14 +896,14 @@ export default function MissionsPage() {
   const deskLine = `${cadenceLabel || kicker} · ${missionTitle(mission)}`;
   const placedCount = ribbon.filter((word) => word.used).length;
   const deskChip = completed ? (
-    <Chip icon={<ShapeToken kind="done" size="sm" />}>{t.chip_done}</Chip>
+    <Chip className="cr-status" icon={<ShapeToken kind="done" size="sm" />}>{t.chip_done}</Chip>
   ) : ribbon.length > 0 ? (
     <Chip tone="reward" icon={<ShapeToken kind="done" size="sm" />}>
       {placedCount}/{ribbon.length}
       <span className="av2-sr"> {t.chip_placed_sr}</span>
     </Chip>
   ) : (
-    <Chip tone="quiet" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
+    <Chip tone="quiet" className="cr-status" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
   );
   // The mic stands where the send press would be while there is nothing to
   // send (or while it is busy); with a draft the round red press becomes send.
@@ -919,6 +936,25 @@ export default function MissionsPage() {
   const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang);
   const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
   const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
+  // The correspondent's face on the seal, in the mood the letter left
+  // (`recap.correspondent_mood_value_after`, or the legacy French line).
+  const moodRecap = (mission?.recap || {}) as Record<string, any>;
+  const moodKey = crMoodKey(crMoodValue(moodRecap.correspondent_mood_value_after, moodRecap.correspondent_mood_after));
+  const moodName = String(correspondent?.name || '').trim();
+  const sealMood = moodKey && moodName
+    ? {
+        name: moodName,
+        characterId: castIdFor(mission?.prompt_payload?.serial_character_id, correspondent?.id, moodName),
+        face: crMoodFace(moodKey),
+        line: crMoodSentence(moodKey, moodName, t),
+      }
+    : null;
+  // A because-line is chrome; the server sends it in all three languages.
+  const reasonText = pickByLanguage(
+    mission?.recommendation_reason?.text_by_language,
+    chromeLang,
+    String(mission?.recommendation_reason?.text || ''),
+  );
   // WP-83: the composer opens itself once there is something in it.
   const composerOpen = reply.trim().length > 0 || micState !== 'idle';
 
@@ -1042,9 +1078,7 @@ export default function MissionsPage() {
                 chip={deskChip}
                 onBack={returnToAtelierHome}
               />
-              {mission.recommendation_reason?.text && (
-                <p className="cr-reason">{mission.recommendation_reason.text}</p>
-              )}
+              {reasonText && <p className="cr-reason">{reasonText}</p>}
 
               {/* WP-65 — the correspondent view: who is writing, how they feel,
                   which letter of the affair this is, by when, and the letters
@@ -1065,7 +1099,7 @@ export default function MissionsPage() {
 
               {!completed && !lapsed && (
                 <>
-                  <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
+                  <CrSituation frame={frame.frame} ask={frame.ask} askLang={frame.askLang} translate={translateFrame} />
                   <CrRibbon words={ribbon} />
                 </>
               )}
@@ -1175,8 +1209,9 @@ export default function MissionsPage() {
                   <CrSeal
                     verdict={sealVerdict}
                     date={chromeDate(mission?.completed_at, t.locale)}
-                    sentence={outcomeSentence || messenger.success_signal}
-                    sentenceLang={outcomeSentence ? undefined : 'fr'}
+                    sentence={outcomeSentence || frame.ask}
+                    sentenceLang={outcomeSentence ? undefined : frame.askLang}
+                    mood={sealMood}
                     numbers={sealNumbers}
                     token={mintedToken ? <LogoToken pop /> : undefined}
                   />
