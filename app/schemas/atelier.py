@@ -45,6 +45,9 @@ class AtelierTodayResponse(BaseModel):
     #: WP-80: ``{days, today_done, freeze_available, freeze_used_on}``, checked
     #: against the learner's local date on this read.
     streak: dict[str, Any] | None = None
+    #: WP-L6 §2.2: the auto-throttle («Cette semaine, on consolide.»):
+    #: ``{consolidating, factor, reasons, backlog_days, accuracy, …}``.
+    intake: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):
