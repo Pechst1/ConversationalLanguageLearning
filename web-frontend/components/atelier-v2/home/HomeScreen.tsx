@@ -45,7 +45,7 @@ import {
   dayMarkWords,
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
-import { atelierChrome, atelierCopy } from '@/lib/atelier-v2-copy';
+import { atelierChrome, atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { NNBSP, frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -331,7 +331,7 @@ export function HomeScreen({
 
       {!oneThing && episode && (
         <div className={`av2-home__section${notice || hero ? '' : ' av2-home__section--first'}`}>
-          <EpisodeCard episode={episode} />
+          <EpisodeCard episode={episode} copy={copy} />
         </div>
       )}
 
@@ -348,7 +348,7 @@ export function HomeScreen({
             {action.label}
           </Action>
           {note && <p className="av2-label av2-home__note">{note}</p>}
-          <BecauseLine because={because} />
+          <BecauseLine because={because} copy={copy} />
           {/* 2026-09-24: the «Plus long que les N minutes demandées» clause is
               gone. It compared the edition with the pre-rhythm daily goal (a
               stored 15 that no Réglages control sets any more); the rhythm now
@@ -412,7 +412,7 @@ export function HomeScreen({
       {!day && tiles.length > 0 && (
         <div className="av2-home__tiles">
           {tiles.map((tile) => (
-            <DayTile key={tile.id} tile={dayDone ? settledTile(tile) : tile} />
+            <DayTile key={tile.id} tile={dayDone ? settledTile(tile, copy) : tile} />
           ))}
         </div>
       )}
@@ -463,8 +463,8 @@ export function HomeScreen({
 
       {!oneThing && phrase && (
         <div className="av2-home__section">
-          <Surface as="section" aria-label="La phrase d’hier">
-            <p className="av2-label">La phrase d’hier</p>
+          <Surface as="section" aria-label={copy.home_phrase}>
+            <p className="av2-label">{copy.home_phrase}</p>
             <blockquote className="av2-fr av2-headline av2-headline--rule av2-home__quote" lang="fr">
               {frenchQuote(phrase.text)}
             </blockquote>
@@ -511,29 +511,30 @@ export function HomeScreen({
  * « Cette scène reprend une faute notée : l’accord du participe passé (une
  * homme → un homme). »
  *
- * One sentence, French, sentence case. It names the mistake and — when both
+ * One sentence, sentence case, in Home's chrome language (the label and the
+ * example are the learner's French and stay French). It names the mistake and — when both
  * halves were recorded — shows it, because "you got something wrong" without
  * saying what is the kind of line that makes a learner anxious rather than
  * informed. An unknown `kind` prints nothing: an unexplained scene is better
  * than an invented explanation.
  */
-function BecauseLine({ because }: { because?: HomeBecause | null }) {
+function BecauseLine({ because, copy }: { because?: HomeBecause | null; copy: AtelierCopy }) {
   if (!because || because.kind !== 'erratum') return null;
   const label = (because.label || '').trim();
   if (!label) return null;
   const example = (because.example || '').trim();
   return (
     <p className="av2-body av2-home__note" data-reason={because.reason || undefined}>
-      Cette scène reprend une faute notée&nbsp;: {label}
+      {copy.home_because.replace('{label}', label)}
       {example ? ` (${example})` : ''}.
     </p>
   );
 }
 
-function EpisodeCard({ episode }: { episode: HomeEpisode }) {
+function EpisodeCard({ episode, copy }: { episode: HomeEpisode; copy: AtelierCopy }) {
   const body = (
     <>
-      <EpisodeArt episode={episode} />
+      <EpisodeArt episode={episode} copy={copy} />
       <div className="av2-home__episode-body">
         <p className="av2-label av2-label--story">
           {episode.kicker}
@@ -572,7 +573,7 @@ function EpisodeCard({ episode }: { episode: HomeEpisode }) {
  * server has no image the plate says why — printing, delayed — rather than
  * showing a broken frame, and a text-first beat (a letter) shows no plate.
  */
-function EpisodeArt({ episode }: { episode: HomeEpisode }) {
+function EpisodeArt({ episode, copy }: { episode: HomeEpisode; copy: AtelierCopy }) {
   const [failed, setFailed] = React.useState(false);
   if (episode.artState === 'none') return null;
   if (episode.artState === 'art' && episode.artUrl && !failed) {
@@ -591,10 +592,10 @@ function EpisodeArt({ episode }: { episode: HomeEpisode }) {
   }
   const label =
     episode.artState === 'press'
-      ? 'Illustration sous presse'
+      ? copy.home_art_press
       : episode.artState === 'late'
-        ? 'Illustration retardée — le texte, lui, n’attend pas'
-        : 'Illustration à paraître';
+        ? copy.home_art_late
+        : copy.home_art_soon;
   return (
     <div className="av2-art__fallback" role="img" aria-label={label}>
       <span className="av2-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -609,15 +610,15 @@ function EpisodeArt({ episode }: { episode: HomeEpisode }) {
  * practice («Plus de pratique» under it) reads as a closed day, not as work
  * left. It still opens the drill loop; only its words and marks change.
  */
-function settledTile(tile: HomeTile): HomeTile {
+function settledTile(tile: HomeTile, copy: AtelierCopy): HomeTile {
   if (tile.id !== 'seance' || !tile.secondary) return tile;
   return {
     ...tile,
-    meta: 'Journée bouclée',
+    meta: copy.home_day_settled,
     mark: 'done',
     bars: ['done', 'done', 'done'],
     done: true,
-    ariaLabel: tile.ariaLabel || 'Séance — journée bouclée',
+    ariaLabel: tile.ariaLabel || copy.home_seance_settled_aria,
   };
 }
 

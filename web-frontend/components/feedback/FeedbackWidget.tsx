@@ -22,18 +22,12 @@ import {
   textAnswerField,
 } from '@/components/atelier-v2/ui';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
+import { useChromeLanguage } from '@/lib/learner-language';
 import { resolveProductSection, resolveProductTitle } from '@/lib/product-shell';
 import apiService, { type FeedbackCategory } from '@/services/api';
 
-const FEEDBACK_OPTIONS: Array<{ value: FeedbackCategory; label: string }> = [
-  { value: 'bug', label: 'Bug' },
-  { value: 'broken_link', label: 'Broken link' },
-  { value: 'content', label: 'Text/content' },
-  { value: 'layout', label: 'Layout' },
-  { value: 'slow_loading', label: 'Slow/loading' },
-  { value: 'suggestion', label: 'Suggestion' },
-  { value: 'other', label: 'Other' },
-];
+import { FEEDBACK_CATEGORIES, feedbackCopy } from './feedback-copy';
+
 
 /** The window event that opens the feedback panel from elsewhere (Réglages). */
 export const FEEDBACK_OPEN_EVENT = 'atelier:feedback-open';
@@ -45,6 +39,7 @@ export default function FeedbackWidget() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const immersive = useImmersiveSurface();
+  const copy = feedbackCopy(useChromeLanguage());
   // How far the bottom navigation intrudes into the viewport right now (WP-20 D-17).
   const [navIntrusion, setNavIntrusion] = useState(0);
 
@@ -155,13 +150,13 @@ export default function FeedbackWidget() {
           clientTimestamp,
         },
       });
-      toast.success('Feedback sent.');
+      toast.success(copy.sent);
       setCategory(null);
       setMessage('');
       setOpen(false);
     } catch (error) {
       console.error(error);
-      toast.error('Could not send feedback.');
+      toast.error(copy.failed);
     } finally {
       setSubmitting(false);
     }
@@ -176,35 +171,35 @@ export default function FeedbackWidget() {
       style={{ ['--fb-nav-intrusion' as string]: `${navIntrusion}px` }}
     >
       {open && (
-        <form onSubmit={submitFeedback} role="dialog" aria-label="Send feedback" className="fb-panel">
+        <form onSubmit={submitFeedback} role="dialog" aria-label={copy.dialog} className="fb-panel">
           <div className="fb-panel__head">
             <div>
-              <p className="av2-label">Feedback</p>
-              <p className="fb-panel__title">What is off?</p>
+              <p className="av2-label">{copy.eyebrow}</p>
+              <p className="fb-panel__title">{copy.title}</p>
             </div>
-            <IconAction label="Close feedback" onClick={() => setOpen(false)}>
+            <IconAction label={copy.close} onClick={() => setOpen(false)}>
               <CrossIcon size={16} />
             </IconAction>
           </div>
 
-          <div className="fb-options" role="group" aria-label="What is off?">
-            {FEEDBACK_OPTIONS.map((option) => (
+          <div className="fb-options" role="group" aria-label={copy.title}>
+            {FEEDBACK_CATEGORIES.map((value) => (
               <Chip
-                key={option.value}
-                tone={category === option.value ? 'story' : 'plain'}
-                aria-pressed={category === option.value}
-                onClick={() => setCategory(option.value)}
+                key={value}
+                tone={category === value ? 'story' : 'plain'}
+                aria-pressed={category === value}
+                onClick={() => setCategory(value)}
               >
-                {option.label}
+                {copy.categories[value]}
               </Chip>
             ))}
           </div>
 
           {textAnswerField({
-            label: 'Note',
+            label: copy.note,
             value: message,
             rows: 3,
-            placeholder: 'Optional detail',
+            placeholder: copy.note_placeholder,
             onChange: (next) => setMessage(next.slice(0, 1000)),
           })}
 
@@ -215,10 +210,10 @@ export default function FeedbackWidget() {
               type="submit"
               disabled={!category}
               pending={submitting}
-              pendingLabel="Sending"
+              pendingLabel={copy.sending}
               icon={<SendIcon size={15} />}
             >
-              Send
+              {copy.send}
             </Action>
           </div>
         </form>
@@ -226,7 +221,7 @@ export default function FeedbackWidget() {
 
       <div className="fb-launcher">
         <IconAction
-          label="Send feedback"
+          label={copy.dialog}
           pressable
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}

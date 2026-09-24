@@ -479,10 +479,13 @@ def test_home_renders_the_because_line_in_french() -> None:
     assert "HomeBecause" in source
     assert "because" in source
     assert "function BecauseLine" in source
-    assert "<BecauseLine because={because} />" in source
-    # The sentence itself: French, sentence case, naming the mistake.
-    assert "Cette scène reprend une faute notée" in source
-    assert "{label}" in source
+    assert "<BecauseLine because={because} copy={copy} />" in source
+    # The sentence itself: sentence case, naming the mistake. 2026-09-24: it is
+    # chrome, so it follows Home's chrome language (one-language rule); the
+    # French wording lives in the copy table and the label stays French.
+    assert "copy.home_because.replace('{label}', label)" in source
+    copy = (HOME_SCREEN.parents[3] / "lib" / "atelier-v2-copy.ts").read_text(encoding="utf-8")
+    assert "home_because: 'Cette scène reprend une faute notée\\u00a0: {label}'" in copy
 
 
 def test_the_because_line_prints_nothing_it_was_not_given() -> None:

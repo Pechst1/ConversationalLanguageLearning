@@ -122,7 +122,14 @@ export type AtelierCopyKey =
   | 'home_words_many'
   | 'home_letter_aria'
   | 'home_review_one'
-  | 'home_review_many';
+  | 'home_review_many'
+  | 'home_phrase'
+  | 'home_art_press'
+  | 'home_art_late'
+  | 'home_art_soon'
+  | 'home_day_settled'
+  | 'home_seance_settled_aria'
+  | 'home_because';
 
 type Table = Record<AtelierCopyKey, string>;
 
@@ -204,6 +211,13 @@ const EN: Table = {
   home_words_many: '{n} words',
   home_review_one: 'Review 1 word',
   home_review_many: 'Review {n} words',
+  home_phrase: 'Yesterday’s sentence',
+  home_art_press: 'Illustration at the printer’s',
+  home_art_late: 'Illustration delayed — the text is ready anyway',
+  home_art_soon: 'Illustration to come',
+  home_day_settled: 'Day done',
+  home_seance_settled_aria: 'Séance — day done',
+  home_because: 'This scene picks up a mistake you made: {label}',
 };
 
 const DE: Table = {
@@ -284,6 +298,13 @@ const DE: Table = {
   home_words_many: '{n} Wörter',
   home_review_one: '1 Wort wiederholen',
   home_review_many: '{n} Wörter wiederholen',
+  home_phrase: 'Der Satz von gestern',
+  home_art_press: 'Illustration im Druck',
+  home_art_late: 'Illustration verspätet — der Text ist trotzdem da',
+  home_art_soon: 'Illustration folgt',
+  home_day_settled: 'Tag geschafft',
+  home_seance_settled_aria: 'Séance — Tag geschafft',
+  home_because: 'Diese Szene greift einen notierten Fehler auf: {label}',
 };
 
 const FR: Table = {
@@ -364,6 +385,13 @@ const FR: Table = {
   home_words_many: '{n} mots',
   home_review_one: 'Réviser 1 mot',
   home_review_many: 'Réviser {n} mots',
+  home_phrase: 'La phrase d’hier',
+  home_art_press: 'Illustration sous presse',
+  home_art_late: 'Illustration retardée — le texte, lui, n’attend pas',
+  home_art_soon: 'Illustration à paraître',
+  home_day_settled: 'Journée bouclée',
+  home_seance_settled_aria: 'Séance — journée bouclée',
+  home_because: 'Cette scène reprend une faute notée\u00a0: {label}',
 };
 
 const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };

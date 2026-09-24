@@ -93,7 +93,7 @@ export default function HomePage() {
             <div className="la-une__actions">
               {authed ? (
                 <Link className="av2-btn av2-btn--primary" href="/atelier">
-                  Ouvrir votre édition
+                  {TASTE_NAV[language].open_edition}
                 </Link>
               ) : (
                 <>
