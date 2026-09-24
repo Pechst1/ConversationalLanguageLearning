@@ -1071,6 +1071,15 @@ def journey_letter_facts(db: Session, *, user: User) -> dict[str, str] | None:
         ),
         "",
     ) or _compact(mission.brief, limit=160)
+    # 2026-09-24: `objective_native` is chrome — the letter's own objective in
+    # the learner's chrome language (one-language rule) when the letter carries
+    # it (`slim_payload.ask_by_language`); the French label above is the fallback.
+    from app.services.chrome_language import user_chrome_language
+
+    slim = prompt.get("slim_payload") if isinstance(prompt.get("slim_payload"), dict) else {}
+    by_language = slim.get("ask_by_language") if isinstance(slim.get("ask_by_language"), dict) else {}
+    localized = _compact(by_language.get(user_chrome_language(user)), limit=160)
+    objective = localized or objective
     if not body or not objective:
         return None
     return {

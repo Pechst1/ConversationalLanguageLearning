@@ -63,6 +63,28 @@ def test_every_placement_hint_has_an_english_and_german_version():
     assert hint_by_language("Inconnu.") == {"fr": "Inconnu."}
 
 
+def test_the_journey_letter_objective_is_in_the_chrome_language(monkeypatch):
+    mission = SimpleNamespace(
+        id="m1",
+        correspondent_id="boutique_anais",
+        title="Wrong size",
+        brief="",
+        objectives=[{"required": True, "label": "Écrire un message qu'on pourrait vraiment envoyer"}],
+        prompt_payload={
+            "messenger": {"contact_name": "Boutique Anaïs", "opening_message": "Bonjour, quelle taille ?"},
+            "slim_payload": {"ask_by_language": {"fr": "La boutique confirme.", "en": "The shop confirms."}},
+        },
+    )
+    monkeypatch.setattr(courrier, "awaiting_letter", lambda db, user: mission)
+    a1 = SimpleNamespace(native_language="en", cefr_estimate="A1.1")
+    b1 = SimpleNamespace(native_language="en", cefr_estimate="B1.1")
+    de = SimpleNamespace(native_language="de", cefr_estimate="A2")
+    assert courrier.journey_letter_facts(None, user=a1)["objective_native"] == "The shop confirms."
+    assert courrier.journey_letter_facts(None, user=b1)["objective_native"] == "La boutique confirme."
+    # No German version: the letter's French objective label is the fallback.
+    assert courrier.journey_letter_facts(None, user=de)["objective_native"].startswith("Écrire")
+
+
 def test_mood_value_is_the_clamped_number_behind_the_mood_line():
     thread = SimpleNamespace(state={courrier.STATE_KEY: {"moods": {"anais": {"mood": 5, "trust": 2}}}})
     assert courrier.mood_value(thread, "anais") == 2

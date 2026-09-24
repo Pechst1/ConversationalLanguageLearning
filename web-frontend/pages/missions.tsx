@@ -264,17 +264,22 @@ function formatComposerCopy(
   writing: { title: string; instruction: string; placeholder: string },
   t: CourrierCopy,
 ) {
+  // The server writes `writing_title` / `writing_instruction` in French: they
+  // are chrome, so they are only used when the chrome is French (B1+).
+  const serverChrome = t.lang === 'fr';
+  const title = serverChrome ? writing.title : '';
+  const instruction = serverChrome ? writing.instruction : '';
   switch (format) {
     case 'email_formal':
       return {
-        label: writing.title || t.composer_label_email,
-        instruction: writing.instruction || t.composer_instruction_email,
+        label: title || t.composer_label_email,
+        instruction: instruction || t.composer_instruction_email,
         placeholder: writing.placeholder || 'Objet : ...\n\nMadame, Monsieur,\n...',
       };
     case 'admin_form':
       return {
-        label: writing.title || t.composer_label_form,
-        instruction: writing.instruction || t.composer_instruction_form,
+        label: title || t.composer_label_form,
+        instruction: instruction || t.composer_instruction_form,
         placeholder: writing.placeholder || 'Nom :\nAdresse :\nDemande :',
       };
     case 'voicemail_reply':
