@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class VocabularyWordRead(BaseModel):
@@ -35,6 +35,15 @@ class VocabularyWordRead(BaseModel):
     translation_language: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def _lexicon_grammar(self) -> VocabularyWordRead:
+        # WP-84: a French noun with no stored gender reads it from the core
+        # lexicon, so every Lexique noun and the word sheet show le / la.
+        from app.services.lexicon_grammar import word_grammar
+
+        self.part_of_speech, self.gender = word_grammar(self)
+        return self
 
 
 class VocabularyListResponse(BaseModel):
