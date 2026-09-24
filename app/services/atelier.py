@@ -7384,6 +7384,7 @@ class AtelierSRSService:
         # WP-S3 La Forge: a forge séance wrote its evidence item by item
         # (`app.services.forge`); the end-of-session single evidence would count
         # the same answers twice, so the recap only reads the progress back.
+        from app.core.forge import combo_runs as forge_combo_runs
         from app.core.forge import rung_name as forge_rung_name
         from app.services.forge import forge_state_of
 
@@ -7456,6 +7457,8 @@ class AtelierSRSService:
                 "budget_seconds": plan.get("budget_seconds"),
                 "items": forge_state.position,
                 "evidence_written": forge_state.evidence_written,
+                # WP-S7: the séance's best run of checked right answers.
+                "best_combo": forge_combo_runs(forge_state.history)[1],
                 # WP-S6: the recap draws each rule's progress, not a tally.
                 "rules": [
                     {
@@ -7475,6 +7478,32 @@ class AtelierSRSService:
                     for track in forge_state.tracks
                 ],
             }
+            if forge_state.mode == "seance":
+                # WP-S7 pilot event: the combo length per séance.
+                from app.services.pilot_events import PilotEventService
+
+                current_run, best_run = forge_combo_runs(forge_state.history)
+                PilotEventService(self.db).record(
+                    "forge_combo",
+                    user_id=user.id,
+                    entity_type="atelier_session",
+                    entity_id=session.id,
+                    payload={
+                        "best": best_run,
+                        "final": current_run,
+                        "items": forge_state.position,
+                        "checked": sum(1 for entry in forge_state.history if entry.get("checked")),
+                    },
+                )
+                # WP-S7: Éclair is offered from the recap when one of today's
+                # rules has an introduced contrast partner.
+                from app.services.eclair import eclair_offer_for
+
+                offer = eclair_offer_for(
+                    self.db, user=user, concept_ids=[track.concept_id for track in forge_state.tracks]
+                )
+                if offer is not None:
+                    recap["forge"]["eclair"] = offer
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))

@@ -170,3 +170,64 @@ export function playFeelSound(kind: FeelSound): void {
     }
   });
 }
+
+// ---------------------------------------------------------------------------
+// WP-S7 — the combo's soft tone
+// ---------------------------------------------------------------------------
+
+/**
+ * The combo's tone is **on by default** (owner decision 4, 2026-09-24) on the
+ * web too — unlike the three feel sounds — and it still respects the
+ * Réglages toggle: a learner who switched «Sons» off never hears it.
+ */
+export function comboSoundEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  return readSoundPreference() ?? true;
+}
+
+/** A major pentatonic from C5, one step per combo link, held at the top. */
+const COMBO_STEPS = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51];
+
+export function comboToneFrequency(run: number): number {
+  const index = Math.max(0, Math.min(COMBO_STEPS.length - 1, Math.floor(Number(run) || 0) - 2));
+  return COMBO_STEPS[index];
+}
+
+/** Peak gain of the tone: quiet, under the feel sounds' ≈ −9 dBFS. */
+export const COMBO_TONE_GAIN = 0.08;
+export const COMBO_TONE_SECONDS = 0.16;
+
+/**
+ * Play the combo's short sine blip (synthesised: no asset to fetch), pitched
+ * by the run. Silent when sounds are off, the page is hidden, or the device
+ * cannot play. Returns whether a tone was scheduled (test seam).
+ */
+export function playComboTone(run: number): boolean {
+  if (typeof window === 'undefined' || !comboSoundEnabled()) return false;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  const ctx = ensureContext();
+  if (!ctx) return false;
+  try {
+    if (ctx.state === 'suspended') void ctx.resume();
+    const start = ctx.currentTime + 0.005;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(comboToneFrequency(run), start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(COMBO_TONE_GAIN, start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + COMBO_TONE_SECONDS);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(start);
+    oscillator.stop(start + COMBO_TONE_SECONDS + 0.02);
+    return true;
+  } catch {
+    return false; // a device that cannot play stays quiet
+  }
+}
+
+/** Test seam: forget the audio context so a test can swap `AudioContext`. */
+export function resetSoundContextForTests(): void {
+  context = null;
+}

@@ -3018,6 +3018,34 @@
   }
 }
 
+/* ---- WP-S7: one ring per rule held today (filled annuli, no stroke) ---- */
+.av2 .av2-seal[data-rings] {
+  margin: calc(var(--av2-seal-size) * 0.2);
+}
+.av2 .av2-seal__rings {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--av2-seal-size) * 1.4);
+  height: calc(var(--av2-seal-size) * 1.4);
+  /* the .av2 * max-width cap would squeeze the rings onto the disc */
+  max-width: none;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+  pointer-events: none;
+}
+.av2 .av2-seal__ring {
+  fill: var(--av2-yellow);
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .av2 .av2-seal[data-stamp='true'] .av2-seal__ring {
+    animation: av2-pop 0.35s both;
+  }
+}
+
 /* ---- SealMini: the collection's discs (WP-D5) ---- */
 .av2 .av2-seal-mini {
   display: grid;

@@ -2,6 +2,8 @@ import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import type { RuleCardData } from '@/lib/rule-card';
 import type { ForgeCoach } from '@/lib/forge-coach';
+import type { EclairResult, EclairRound } from '@/lib/eclair';
+import type { GrammarMapPayload } from '@/lib/grammar-map';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -1143,6 +1145,8 @@ export interface AtelierForgeTestOutResult {
   production_correct: boolean;
   placement_rung: number;
   placement_rung_name: string;
+  /** WP-S7: the rare token a pass mints (once per rule). */
+  token?: { id: string; kind: string; source_kind: string; concept_id: number; rare: boolean } | null;
 }
 
 export interface AtelierForgeView {
@@ -1163,6 +1167,10 @@ export interface AtelierForgeView {
     /** WP-S5: the rule's coach. */
     coach?: ForgeCoach | null;
   }>;
+  /** WP-S7: the run of checked right answers, and the best of the séance. */
+  combo?: { run: number; best: number } | null;
+  /** WP-S7: the owner's switches (each on by default). */
+  features?: { combo?: boolean; eclair?: boolean; grammar_map?: boolean; mastery_rewards?: boolean } | null;
 }
 
 export interface AtelierForgeRuleState {
@@ -2563,6 +2571,30 @@ class ApiService {
   async getForgeState(conceptIds?: number[]) {
     const query = (conceptIds || []).map((id) => `concept_id=${encodeURIComponent(String(id))}`).join('&');
     return this.atelierGet<{ rules: AtelierForgeRuleState[] }>(`/atelier/forge/state${query ? `?${query}` : ''}`);
+  }
+
+  /** WP-S7 — the grammar map: every rule's stage, the Éclair pairs, the switches. */
+  async getGrammarMap() {
+    return this.atelierGet<GrammarMapPayload>('/atelier/forge/map');
+  }
+
+  /** WP-S7 — pilot event: the grammar map was opened. Never throws. */
+  async recordGrammarMapOpened() {
+    try {
+      await this.atelierPost<void>('/atelier/forge/map/opened', {});
+    } catch {
+      /* instrumentation never costs the page */
+    }
+  }
+
+  /** WP-S7 — start an Éclair round for a pair (or a rule's first pair). */
+  async startEclair(data: { pair?: string; concept_id?: number }) {
+    return this.atelierPost<EclairRound>('/atelier/forge/eclair', data);
+  }
+
+  /** WP-S7 — file an Éclair round: the server re-grades by its keys. */
+  async finishEclair(eclairId: string, data: { answers: Array<{ id: string; answer: string }>; elapsed_ms?: number }) {
+    return this.atelierPost<EclairResult>(`/atelier/forge/eclair/${encodeURIComponent(eclairId)}/finish`, data);
   }
 
   async submitAtelierAttempt(

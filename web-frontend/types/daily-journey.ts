@@ -406,6 +406,8 @@ export type JourneySnapshot = {
   missed_days?: number;
   /** WP-D4: the edition this day played; its seal composition is fixed by it. */
   edition_no?: number | null;
+  /** WP-S7: rules held on this local day (one Seal ring each). Absent with the flag off. */
+  mastery_today?: { held_concept_ids: number[]; tested_out_concept_ids: number[] } | null;
 };
 
 /**
