@@ -120,6 +120,9 @@ TEST_OUT_PASS_CORRECT = 4
 
 MODE_SEANCE = "seance"
 MODE_TEST_OUT = "test_out"
+#: WP-S7 Éclair: the discriminate rung only, with the forge's evidence caps and
+#: no staircase (an Éclair never moves a rule's rung).
+MODE_ECLAIR = "eclair"
 
 
 def rung_name(rung: int) -> str:
@@ -604,6 +607,38 @@ def evaluate_test_out(results: Sequence[tuple[int, bool]]) -> TestOutResult:
     return TestOutResult(False, correct, total, production_correct, clamp_rung(placement))
 
 
+# ---------------------------------------------------------------------------
+# WP-S7 — the combo
+# ---------------------------------------------------------------------------
+
+
+def _combo_step(entry: dict[str, Any]) -> str:
+    """``extends`` · ``breaks`` · ``skips`` for one answered item (S1 semantics).
+
+    Only a checked verdict settles an answer: a checked right one extends the
+    run, a checked wrong or partial one resets it, an unchecked or provisional
+    one (its relecture still running) does neither.
+    """
+
+    if not entry.get("checked"):
+        return "skips"
+    return "extends" if entry.get("outcome") == OUTCOME_CORRECT else "breaks"
+
+
+def combo_runs(history: Sequence[dict[str, Any]]) -> tuple[int, int]:
+    """``(current, best)``: the run of checked right answers, newest last."""
+
+    current = best = 0
+    for entry in sorted(history, key=lambda item: int(item.get("position", 0))):
+        step = _combo_step(entry)
+        if step == "extends":
+            current += 1
+            best = max(best, current)
+        elif step == "breaks":
+            current = 0
+    return current, best
+
+
 def distinct_rule_runs(concept_ids: Sequence[int]) -> int:
     """How many times one rule is served twice in a row (0 is the rule)."""
 
@@ -634,6 +669,7 @@ __all__ = [
     "DEFAULT_SECONDS_PER_ITEM",
     "MASSED_WEIGHT_DECAY",
     "MAX_NEW_RULES",
+    "MODE_ECLAIR",
     "MODE_SEANCE",
     "MODE_TEST_OUT",
     "OUTCOME_CORRECT",
@@ -658,6 +694,7 @@ __all__ = [
     "TestOutResult",
     "Verdict",
     "clamp_rung",
+    "combo_runs",
     "distinct_rule_runs",
     "evaluate_test_out",
     "evidence_for",

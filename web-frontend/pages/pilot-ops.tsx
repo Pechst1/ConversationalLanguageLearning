@@ -3,6 +3,8 @@ import Link from 'next/link';
 import React from 'react';
 import { AlertTriangle, ArrowLeft, CircleDollarSign, ShieldCheck } from 'lucide-react';
 
+import { ForgeMetricsSection } from '@/components/pilot/ForgeMetricsSection';
+import type { PilotForge } from '@/lib/forge-metrics';
 import apiService from '@/services/api';
 
 type CostRow = {
@@ -109,6 +111,8 @@ export default function PilotOperationsPage() {
   const [journey, setJourney] = React.useState<JourneyLedger | null>(null);
   const [journeyError, setJourneyError] = React.useState('');
   const [error, setError] = React.useState('');
+  const [forge, setForge] = React.useState<PilotForge | null>(null);
+  const [forgeError, setForgeError] = React.useState('');
 
   React.useEffect(() => {
     let alive = true;
@@ -130,6 +134,14 @@ export default function PilotOperationsPage() {
       })
       .catch(() => {
         if (alive) setJourneyError('The daily-journey ledger could not be loaded.');
+      });
+    // WP-S8 «La Forge»: its own report, so a failure leaves the rest standing.
+    apiService.get<PilotForge>('/analytics/pilot-forge')
+      .then((result) => {
+        if (alive) setForge(result ?? null);
+      })
+      .catch(() => {
+        if (alive) setForgeError('The forge metrics could not be loaded.');
       });
     return () => { alive = false; };
   }, []);
@@ -220,6 +232,7 @@ export default function PilotOperationsPage() {
               </section>
 
               <JourneySection ledger={journey} loadError={journeyError} />
+              <ForgeMetricsSection report={forge} loadError={forgeError} />
             </>
           )}
         </div>

@@ -325,6 +325,36 @@ the biggest time saver against Duolingo.
 - The conversation rung moves from the legacy serial to the journey's story engine (Codex).
 - **Done when:** ≥ 80 % of séance items name a cast member, place or story object, and a learner can say
   which character teaches which rule.
+- **Status (2026-09-24): landed** (with the owner-delegated template naturalness review,
+  `FORGE-TEMPLATE-REVIEW-2026-09-24.md`).
+  - **Story-linked slots** — the bank weights cast, bible places and recurring objects 4×, and the
+    learner's recent chronicle 2× more (`app/services/forge_story.py`, read only). Verbs gain story
+    complements; pronoun frames get a vocative twin said to a cast member. **85.6 %** of a seeded
+    sample (40 per A1–A2 unit) is story-linked, every unit ≥ 50 %.
+  - **Coaches** (`app/data/forge_coaches.json`, `app/services/forge_coaches.py`):
+    - Margaux — the counter (articles, amounts, ordering, negation);
+    - Gus — the past, comparing, modals, advice;
+    - Romy — questions, time, places, reasons, reporting;
+    - Lila — être/avoir, describing, demonstratives, possessives, instructions;
+    - Marin — everyday verbs, going and coming, pronouns, the future, relatives;
+    - M. Marchand — il y a, polite requests.
+
+    Every A1–A2 unit has one coach; a v1 concept's rule-card speaker stays its coach. The coach is
+    on the atelier concept, the forge's `next` and `rules`, and on each observed answer
+    (`correction.forge.coach` / `coach_mood`: happy, cross, moved when the rule became held).
+  - **Free use as a two-line scene** — `item_bank.scene_item`:
+    - the coach's line (the item's own question, a frame's `ask`, or a coach opener);
+    - the learner's reply, which needs the rule;
+    - in the page's `conversation_turn` shape, plus `scene.lines`.
+
+    It is graded like any production (S1: local check, then the relecture). A coached scene keeps its
+    coach over the legacy serial character.
+  - **Web (minimal, S6 styles it)** — `lib/forge-coach.ts`:
+    - the rule card shows the coach when it has no speaker;
+    - `EpVerdict` shows the coach's portrait with its mood in the badge's place;
+    - the scene's byline shows the coach's portrait.
+  - The conversation rung's move to the journey's story engine stays with Codex.
+  - Tests: `tests/test_forge_coaches.py`, `tests/test_forge_naturalness.py`, `web-frontend/lib/forge-coach.test.js`.
 
 #### WP-S6 · Beauty and clarity
 - **Layout:**
@@ -354,6 +384,32 @@ the biggest time saver against Duolingo.
   test-out. Confetti stays reserved as it is today.
 - **Done when:** these are behind a flag with pilot events (combo length, Éclair plays, map opens), and
   the owner's design review has passed.
+- **Status (2026-09-24): built, awaiting the owner's design review** (branch `wp-s7-momentum`, no migration).
+  - **Flags** (each on by default): `ATELIER_FORGE_COMBO_ENABLED`, `ATELIER_ECLAIR_ENABLED`,
+    `ATELIER_GRAMMAR_MAP_ENABLED`, `ATELIER_MASTERY_REWARDS_ENABLED`; the page reads them from
+    `forge.features` / the map payload.
+  - **Combo** — `core.combo_runs(history)`: checked right answers extend, a checked error or partial
+    resets, unchecked/provisional ones skip. The forge view carries `combo {run, best}`; the top bar draws
+    five tokens in the rule's shape (`ForgeCombo`, `lib/forge-combo.ts`). From the second link: a double
+    tap and a synthesised pentatonic blip (`playComboTone`, on by default on the web too, silent when
+    Réglages → «Sons» is off). Recap: «Best run: n in a row»; pilot event `forge_combo`.
+  - **Éclair** — `app/services/eclair.py`, `POST /atelier/forge/eclair` and `/eclair/{id}/finish`,
+    page `/eclair`. Unlocked by two introduced contrast partners (the v2 syllabus block is read too);
+    items are the item bank's minimal pairs (read-only), graded on the page and re-graded on filing;
+    discriminate evidence through the forge's caps (a same-day replay of the pair folds); best per pair
+    from the filed rounds (`AtelierSession` status `eclair_done`). Events `eclair_started/finished`.
+  - **Grammar map** — `GET /atelier/forge/map` (+ `POST /map/opened`): stages ghost · introduced ·
+    proficient (rung ≥ produce) · held, by sub-band. Cahier → Règles draws it above the register
+    (`components/cahiers/GrammarMap.tsx`); a tap opens the card, coach slot, «Forge this rule» and
+    «Test out this rule»; Éclair pairs are listed under it.
+  - **Rewards** — `journey.mastery_today` → one filled ring per rule held on the local day around the
+    Seal (capped at four); a passed test-out mints one rare logo token per rule (`source_kind
+    "test_out"`). Events `forge_test_out_started/finished`.
+  - **Staircase fix** (live check at 375 px): steps are 12–14 px on a 17 px pitch, no longer one grey block.
+  - Tests: `tests/test_wp_s7_momentum.py`, `web-frontend/lib/forge-combo.test.js`,
+    `web-frontend/components/cahiers/grammar-map.test.js`.
+  - **Open:** `unified_srs.contrast_partner_refs` does not read the v2 syllabus's `contrast_partners`,
+    so WP-S4's picker seats no contrast rule on v2 (Éclair reads both).
 
 #### WP-S8 · Measure and prove the speed
 - **Metrics per rule:** items-to-proficient, items-to-held, days-to-held, and lapse rate after held.
@@ -364,6 +420,107 @@ the biggest time saver against Duolingo.
   style: measured, never promised).
 - **Done when:** the dashboard shows the metrics for pilot learners, and the simulation report is in
   this document's Status.
+- **Status (2026-09-24): landed** (`app/services/forge_metrics.py`, `tests/test_wp_s8_forge_metrics.py`).
+  - **Per-rule metrics** (one learner × one rule, from `UserGrammarProgress` and `AtelierAttempt` rows):
+    - *items-to-proficient*: Atelier answers on the rule up to and including the first séance answer that
+      set its forge rung to ≥ 4 (`produce`, `correction_payload.forge.new_rung`); test-out answers never count;
+    - *items-to-held*: Atelier answers on the rule up to `held_at`, for rules held **by practice** in the window
+      (a test-out is a placement and has its own rate);
+    - *days-to-held*: `held_at − introduced_at`, same cohort;
+    - *lapse rate after held*: of the held rules that came back on a later day, the share whose first checked
+      answer of some later day was wrong (an unchecked answer is no lapse);
+    - *test-out pass rate*: finished «Épreuves de la règle» that passed.
+    - Journey items (Règle, Rappel) are not Atelier answers and are not in the item counts.
+  - **Per séance** (forge séances started in the window): *active minutes* on the séance's own clock (start →
+    answers → completion, each gap capped at 180 s), *completion*, *abandon*, and *latency* p50/p95 per rung
+    from `forge_verdict` (local, and the relecture's `async_llm_ms` with how often it changed the verdict).
+  - **`forge_abandoned`** (new pilot event, once per séance; payload: reason, answered, length, rules, origin,
+    budget, open seconds): `parked` when a start for another rule parks an unfinished forge séance, `exit`
+    from the séance's close button (`POST /atelier/sessions/{id}/exit`, which leaves the séance resumable), and
+    `expired` for an open séance untouched for 24 h, swept on the learner's next new start. On the dashboard,
+    a séance counts as abandoned when it is not completed and has the event, or is still open with no
+    activity for 24 h (`never_returned`). A parked séance that is later resumed and completed counts as completed.
+  - **Dashboard:** «La Forge» on `/pilot-ops` (owner/admin only, `GET /analytics/pilot-forge`), with the last
+    7 or 30 days, all learners or one band (the learner's current `cefr_estimate`). Every figure shows its n,
+    and nothing measured reads «n/a», never 0. Local p95 over the WP-S1 bar (300 ms keyed, 500 ms free
+    production) is shown in red. It uses the page's own tokens and type only.
+  - **Dossier:** «Your rules: n held, a median of x days to hold one. Measured on your own practice.»
+    (en/de/fr, `dossier-copy.ts`) under the forecast, from three held rules (`level.rules_speed`). The median
+    is over rules held by practice. If every held rule was tested out, the line gives only the count.
+  - **Simulation report:** `scripts/forge_speed_report.py` (≈ 1 s; `--write-doc` rewrites the block below).
+    The old ladder runs with the same intake as the forge (the journey's quota, no padding with new rules).
+    - **What it shows:** with the journey's Rappel (the real day), the forge holds a rule in about a third of
+      the days (Régulier 85 %: 19 days against 55) and holds twice as many rules by day 120 (26 / 34 against
+      13 / 34). It spends more séance items per held rule (29 against 19), because the ladder's items are
+      mostly the Rappel's, one a day over eight weeks.
+    - **The séance alone:** the old ladder never holds a rule, because it writes no spaced item. The forge
+      holds nearly all of them in about 20 items.
+    - **At 70 %,** the ladder leaves half of its rules unheld (∞), and the forge stays under 60 items.
+    - **Open:** on Soutenu and Intensif at 95 %, forge + Rappel holds fewer rules by day 120 than the forge
+      alone, and than the ladder + Rappel. The likely cause (not yet verified): the Rappel's daily item moves
+      the due rules' schedule first, so the forge's own spaced proof comes later. Worth a look when WP-S4's fold is measured on real learners.
+
+<!-- forge-speed-report:begin -->
+_Generated by `scripts/forge_speed_report.py` (1.0 s; 150 simulated days, one séance a day, 25 s per item; rules judged if introduced ≥ 45 days before the end; «held by day N» counts rules held out of rules introduced by then)._
+
+**With the journey's Rappel (the real day), same intake for both engines:**
+
+| Rhythm | Accuracy | Engine | Median items to held | Median days to held | Held / judged | Held by day 60 | Held by day 120 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Léger | 70 % | Old ladder | ∞ | 61 | 7 / 15 | 0 / 8 | 3 / 17 |
+| Léger | 70 % | **Forge** | 44 | 18 | 12 / 15 | 3 / 8 | 10 / 17 |
+| Léger | 85 % | Old ladder | 16 | 59 | 12 / 15 | 1 / 8 | 7 / 17 |
+| Léger | 85 % | **Forge** | 27 | 16 | 13 / 15 | 4 / 8 | 11 / 17 |
+| Léger | 95 % | Old ladder | 14 | 55 | 13 / 15 | 0 / 8 | 8 / 17 |
+| Léger | 95 % | **Forge** | 19 | 23 | 15 / 15 | 5 / 8 | 14 / 17 |
+| Régulier | 70 % | Old ladder | ∞ | 63 | 15 / 30 | 0 / 17 | 8 / 34 |
+| Régulier | 70 % | **Forge** | 59 | 20 | 20 / 30 | 6 / 17 | 15 / 34 |
+| Régulier | 85 % | Old ladder | 19 | 55 | 22 / 30 | 0 / 17 | 13 / 34 |
+| Régulier | 85 % | **Forge** | 29 | 19 | 28 / 30 | 9 / 17 | 26 / 34 |
+| Régulier | 95 % | Old ladder | 14.5 | 55 | 26 / 30 | 1 / 17 | 18 / 34 |
+| Régulier | 95 % | **Forge** | 22 | 24 | 25 / 30 | 4 / 17 | 21 / 34 |
+| Soutenu | 70 % | Old ladder | ∞ | 63 | 21 / 45 | 0 / 25 | 11 / 51 |
+| Soutenu | 70 % | **Forge** | 53 | 32 | 28 / 45 | 6 / 25 | 21 / 51 |
+| Soutenu | 85 % | Old ladder | 19 | 55 | 34 / 45 | 1 / 25 | 23 / 51 |
+| Soutenu | 85 % | **Forge** | 28 | 26 | 34 / 45 | 7 / 25 | 27 / 51 |
+| Soutenu | 95 % | Old ladder | 14 | 55 | 39 / 45 | 2 / 25 | 25 / 51 |
+| Soutenu | 95 % | **Forge** | 22 | 26 | 29 / 45 | 10 / 25 | 24 / 51 |
+| Intensif | 70 % | Old ladder | ∞ | 72 | 30 / 60 | 1 / 34 | 16 / 68 |
+| Intensif | 70 % | **Forge** | 44 | 56 | 38 / 60 | 6 / 34 | 23 / 68 |
+| Intensif | 85 % | Old ladder | 17 | 59 | 46 / 60 | 1 / 34 | 29 / 68 |
+| Intensif | 85 % | **Forge** | 26 | 43 | 48 / 60 | 7 / 34 | 36 / 68 |
+| Intensif | 95 % | Old ladder | 13 | 55 | 54 / 60 | 3 / 34 | 38 / 68 |
+| Intensif | 95 % | **Forge** | 20.5 | 53 | 38 / 60 | 4 / 34 | 32 / 68 |
+
+**Séance only (no Rappel):**
+
+| Rhythm | Accuracy | Engine | Median items to held | Median days to held | Held / judged | Held by day 60 | Held by day 120 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Léger | 70 % | Old ladder | ∞ | 45 | 1 / 15 | 0 / 8 | 0 / 17 |
+| Léger | 70 % | **Forge** | 46 | 19 | 14 / 15 | 5 / 8 | 12 / 17 |
+| Léger | 85 % | Old ladder | ∞ | — | 0 / 15 | 0 / 8 | 0 / 17 |
+| Léger | 85 % | **Forge** | 23 | 17 | 14 / 15 | 6 / 8 | 13 / 17 |
+| Léger | 95 % | Old ladder | ∞ | — | 0 / 15 | 0 / 8 | 0 / 17 |
+| Léger | 95 % | **Forge** | 22 | 17 | 15 / 15 | 6 / 8 | 13 / 17 |
+| Régulier | 70 % | Old ladder | ∞ | 90 | 1 / 30 | 0 / 17 | 1 / 34 |
+| Régulier | 70 % | **Forge** | 54 | 26 | 22 / 30 | 9 / 17 | 19 / 34 |
+| Régulier | 85 % | Old ladder | ∞ | 90 | 1 / 30 | 0 / 17 | 1 / 34 |
+| Régulier | 85 % | **Forge** | 23 | 19 | 30 / 30 | 11 / 17 | 27 / 34 |
+| Régulier | 95 % | Old ladder | ∞ | — | 0 / 30 | 0 / 17 | 0 / 34 |
+| Régulier | 95 % | **Forge** | 20.5 | 21 | 30 / 30 | 9 / 17 | 25 / 34 |
+| Soutenu | 70 % | Old ladder | ∞ | 32 | 3 / 45 | 0 / 25 | 3 / 51 |
+| Soutenu | 70 % | **Forge** | 35 | 23 | 40 / 45 | 15 / 25 | 35 / 51 |
+| Soutenu | 85 % | Old ladder | ∞ | 29 | 2 / 45 | 1 / 25 | 2 / 51 |
+| Soutenu | 85 % | **Forge** | 20 | 23 | 45 / 45 | 13 / 25 | 39 / 51 |
+| Soutenu | 95 % | Old ladder | ∞ | — | 0 / 45 | 0 / 25 | 0 / 51 |
+| Soutenu | 95 % | **Forge** | 18 | 22 | 44 / 45 | 16 / 25 | 38 / 51 |
+| Intensif | 70 % | Old ladder | ∞ | 61 | 2 / 60 | 0 / 34 | 1 / 68 |
+| Intensif | 70 % | **Forge** | 30 | 24 | 58 / 60 | 19 / 34 | 51 / 68 |
+| Intensif | 85 % | Old ladder | ∞ | — | 0 / 60 | 0 / 34 | 0 / 68 |
+| Intensif | 85 % | **Forge** | 21 | 20 | 60 / 60 | 21 / 34 | 55 / 68 |
+| Intensif | 95 % | Old ladder | ∞ | — | 0 / 60 | 0 / 34 | 0 / 68 |
+| Intensif | 95 % | **Forge** | 17.5 | 22 | 60 / 60 | 20 / 34 | 56 / 68 |
+<!-- forge-speed-report:end -->
 
 ## 4. Order
 

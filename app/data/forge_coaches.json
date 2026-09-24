@@ -1,0 +1,85 @@
+{
+ "version": "forge-coaches-1",
+ "_about": "WP-S5 (2026-09-24): La Forge's coaches. One cast member of the world bible (app/prompts/serial/world_bible_paris_v2.json) per family of v2 units; every A1–A2 unit belongs to exactly one family. A v1 concept with an authored rule card keeps its card's speaker (app/data/grammar_rule_cards.json) as its coach, so the face on the card and the face on the feedback are the same. `openers` are the coach's first line of a free-use two-line scene when the item carries no line of its own (tu, or vous for the landlord). Characters: app/services/forge_coaches.py.",
+ "cast": {
+  "margaux_barman": {
+   "name": "Margaux", "lexicon": "margaux", "register": "tu",
+   "openers": [
+    {"fr": "Alors, je t'écoute.", "en": "So, I'm listening."},
+    {"fr": "Qu'est-ce que tu me racontes ?", "en": "What's new with you?"},
+    {"fr": "Vas-y, dis-moi.", "en": "Go on, tell me."}
+   ]
+  },
+  "augustin_de_roncourt": {
+   "name": "Gus", "lexicon": "gus", "register": "tu",
+   "openers": [
+    {"fr": "Raconte-moi tout.", "en": "Tell me everything."},
+    {"fr": "Et alors ? La suite !", "en": "And then? What happened next?"},
+    {"fr": "Je note ça dans mon carnet. Vas-y.", "en": "I'm writing it in my notebook. Go on."}
+   ]
+  },
+  "romy_tremblay": {
+   "name": "Romy", "lexicon": "romy", "register": "tu",
+   "openers": [
+    {"fr": "J'enregistre. Une phrase pour mon reportage ?", "en": "I'm recording. One sentence for my report?"},
+    {"fr": "Question pour l'article : et toi ?", "en": "A question for the article: what about you?"},
+    {"fr": "Vas-y, je t'écoute.", "en": "Go on, I'm listening."}
+   ]
+  },
+  "lila_bonnet": {
+   "name": "Lila", "lexicon": "lila", "register": "tu",
+   "openers": [
+    {"fr": "À toi. Une phrase !", "en": "Your turn. One sentence!"},
+    {"fr": "Dis-le-moi en français.", "en": "Tell me in French."},
+    {"fr": "Allez, je t'écoute.", "en": "Come on, I'm listening."}
+   ]
+  },
+  "marin_leveque": {
+   "name": "Marin", "lexicon": "marin", "register": "tu",
+   "openers": [
+    {"fr": "Et toi, alors ?", "en": "And you?"},
+    {"fr": "Raconte, ça m'intéresse.", "en": "Tell me, I'm interested."},
+    {"fr": "Vas-y, je t'écoute.", "en": "Go on, I'm listening."}
+   ]
+  },
+  "landlord_marchand": {
+   "name": "M. Marchand", "lexicon": "marchand", "register": "vous",
+   "openers": [
+    {"fr": "Oui ? Je vous écoute.", "en": "Yes? I'm listening."},
+    {"fr": "Qu'est-ce qu'il y a ?", "en": "What is it?"}
+   ]
+  }
+ },
+ "families": [
+  {
+   "id": "comptoir", "coach": "margaux_barman",
+   "title": {"en": "At Margaux's counter: articles, amounts, ordering, no and none", "fr": "Au comptoir de Margaux : articles, quantités, commander, la négation", "de": "An Margaux' Theke: Artikel, Mengen, Bestellen, Verneinung"},
+   "units": ["FR2_A11_UN_UNE", "FR2_A11_LE_LA", "FR2_A11_PARTITIVE", "FR2_A11_JE_VOUDRAIS", "FR2_A11_NUMBERS", "FR2_A12_NUMBERS_BIG", "FR2_A12_QUANTITIES", "FR2_A21_EN_QUANTITY", "FR2_A11_NEGATION", "FR2_A21_NEG_WORDS", "FR2_A22_INDEFINITES"]
+  },
+  {
+   "id": "recits", "coach": "augustin_de_roncourt",
+   "title": {"en": "Gus's stories: the past, comparing, advice", "fr": "Les récits de Gus : le passé, comparer, conseiller", "de": "Gus' Geschichten: Vergangenheit, Vergleiche, Ratschläge"},
+   "units": ["FR2_A12_PC_CHUNKS", "FR2_A21_PC_AVOIR", "FR2_A21_PC_ETRE", "FR2_A21_PC_NEGATION", "FR2_A21_PC_PRONOMINAL", "FR2_A22_IMPARFAIT", "FR2_A22_IMP_VS_PC", "FR2_A21_PASSE_RECENT", "FR2_A21_COMPARATIVE", "FR2_A21_SUPERLATIVE", "FR2_A22_MEILLEUR_MIEUX", "FR2_A12_MODALS", "FR2_A22_ADVICE_CONDITIONAL"]
+  },
+  {
+   "id": "interview", "coach": "romy_tremblay",
+   "title": {"en": "Romy's interview: questions, time, places, why and so", "fr": "L'interview de Romy : questions, le temps, les lieux, pourquoi et donc", "de": "Romys Interview: Fragen, Zeit, Orte, warum und also"},
+   "units": ["FR2_A11_QUESTIONS", "FR2_A11_QUESTION_WORDS", "FR2_A21_INVERSION", "FR2_A22_REPORTED_PRESENT", "FR2_A12_TIME", "FR2_A12_DAYS_DATES", "FR2_A21_TIME_PREPOSITIONS", "FR2_A12_FREQUENCY", "FR2_A11_PLACES", "FR2_A12_CONNECTORS", "FR2_A21_CAUSE_CONSEQUENCE", "FR2_A21_EN_TRAIN_DE", "FR2_A21_VERB_PREPOSITIONS"]
+  },
+  {
+   "id": "classe", "coach": "lila_bonnet",
+   "title": {"en": "Lila's class: être and avoir, describing, pointing, instructions", "fr": "La classe de Lila : être et avoir, décrire, montrer, les consignes", "de": "Lilas Klasse: être und avoir, beschreiben, zeigen, Anweisungen"},
+   "units": ["FR2_A11_ETRE", "FR2_A11_AVOIR", "FR2_A11_ADJ_AGREEMENT", "FR2_A22_ADJ_SPECIAL", "FR2_A12_CEST_IL_EST", "FR2_A12_DEMONSTRATIVES", "FR2_A22_DEMONSTRATIVE_PRONOUNS", "FR2_A11_POSSESSIVES", "FR2_A12_IMPERATIVE", "FR2_A22_IMPERATIVE_PRONOUNS", "FR2_A22_ADVERBS_MENT", "FR2_A22_TOUT"]
+  },
+  {
+   "id": "chemins", "coach": "marin_leveque",
+   "title": {"en": "Marin's ways: everyday verbs, going and coming, pronouns, what comes next", "fr": "Les chemins de Marin : verbes du quotidien, aller et venir, pronoms, l'avenir", "de": "Marins Wege: Alltagsverben, gehen und kommen, Pronomen, Zukunft"},
+   "units": ["FR2_A11_ER_VERBS", "FR2_A12_IR_RE_VERBS", "FR2_A11_FAIRE_PRENDRE", "FR2_A12_PRONOMINAL", "FR2_A11_ALLER_VENIR", "FR2_A11_CONTRACTIONS", "FR2_A12_PLACE_PREPOSITIONS", "FR2_A21_Y_PLACE", "FR2_A21_COD", "FR2_A21_COI", "FR2_A22_PRONOUN_POSITION", "FR2_A12_STRESSED_PRONOUNS", "FR2_A12_FUTUR_PROCHE", "FR2_A22_FUTUR_SIMPLE", "FR2_A22_FUTUR_IRREGULAR", "FR2_A22_RELATIVE_QUI_QUE", "FR2_A22_RELATIVE_OU"]
+  },
+  {
+   "id": "proprietaire", "coach": "landlord_marchand",
+   "title": {"en": "M. Marchand's flat: there is, polite requests", "fr": "L'appartement de M. Marchand : il y a, les demandes polies", "de": "Die Wohnung von M. Marchand: il y a, höfliche Bitten"},
+   "units": ["FR2_A11_IL_Y_A", "FR2_A21_POLITE_CONDITIONAL"]
+  }
+ ]
+}

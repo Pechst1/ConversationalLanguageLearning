@@ -80,4 +80,58 @@ def edition_no_for(db: Session, journey: DailyJourney) -> int | None:
         return None
 
 
-__all__ = ["SEAL_CYCLE", "edition_no_for", "edition_numbers", "seal_variant_for"]
+def mastery_today_for(db: Session, journey: DailyJourney) -> dict[str, list[int]] | None:
+    """WP-S7: the rules that became held on the journey's local day.
+
+    The Seal gains a ring for each (``held_concept_ids``); the ones a passed
+    test-out held are listed apart (``tested_out_concept_ids``). ``None`` when
+    the owner switched the mastery rewards off.
+    """
+
+    from datetime import UTC, datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    from app.config import settings
+    from app.db.models.grammar import UserGrammarProgress
+
+    if not getattr(settings, "ATELIER_MASTERY_REWARDS_ENABLED", True):
+        return None
+    try:
+        day = journey.local_date
+        if isinstance(day, str):
+            from datetime import date as _date
+
+            day = _date.fromisoformat(day)
+        try:
+            zone = ZoneInfo(str(journey.timezone or "UTC"))
+        except Exception:
+            zone = ZoneInfo("UTC")
+        start = datetime.combine(day, time.min, tzinfo=zone).astimezone(UTC)
+        end = start + timedelta(days=1)
+        rows = (
+            db.query(UserGrammarProgress.concept_id, UserGrammarProgress.held_at, UserGrammarProgress.tested_out_at)
+            .filter(UserGrammarProgress.user_id == journey.user_id, UserGrammarProgress.held_at.isnot(None))
+            .all()
+        )
+    except Exception:  # pragma: no cover - defensive: never costs the day
+        return None
+
+    def _aware(value: Any) -> datetime | None:
+        if value is None:
+            return None
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+    held: list[int] = []
+    tested: list[int] = []
+    for concept_id, held_at, tested_out_at in rows:
+        stamp = _aware(held_at)
+        if stamp is None or not (start <= stamp < end):
+            continue
+        held.append(int(concept_id))
+        tested_at = _aware(tested_out_at)
+        if tested_at is not None and start <= tested_at < end:
+            tested.append(int(concept_id))
+    return {"held_concept_ids": sorted(held), "tested_out_concept_ids": sorted(tested)}
+
+
+__all__ = ["SEAL_CYCLE", "edition_no_for", "edition_numbers", "mastery_today_for", "seal_variant_for"]

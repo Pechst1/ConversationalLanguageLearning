@@ -1475,6 +1475,10 @@ def item_bank_exercise_set(
         pool_outputs, pool_set, pool_fingerprints = _pool_outputs_for(db, concept, band=band, exclude=exclude)
         seed = f"{user.id}:{session.id}:{concept.id}"
         known = _known_lemmas(target_vocabulary)
+        # WP-S5: the people and places of the learner's own story come first.
+        from app.services.forge_story import story_focus
+
+        story = story_focus(db, user)
 
         def build(with_pool: bool) -> tuple[Any, list[str]]:
             built = build_bank_set(
@@ -1486,6 +1490,7 @@ def item_bank_exercise_set(
                 known=known,
                 rule_examples=rule_examples,
                 pool_outputs=pool_outputs if with_pool else None,
+                story=story,
             )
             problems = AtelierExerciseGenerator._payload_validation_errors(built.payload, concept=concept) if built else ["no bank set"]
             return built, problems
@@ -7379,6 +7384,7 @@ class AtelierSRSService:
         # WP-S3 La Forge: a forge séance wrote its evidence item by item
         # (`app.services.forge`); the end-of-session single evidence would count
         # the same answers twice, so the recap only reads the progress back.
+        from app.core.forge import combo_runs as forge_combo_runs
         from app.core.forge import rung_name as forge_rung_name
         from app.services.forge import forge_state_of
 
@@ -7451,6 +7457,8 @@ class AtelierSRSService:
                 "budget_seconds": plan.get("budget_seconds"),
                 "items": forge_state.position,
                 "evidence_written": forge_state.evidence_written,
+                # WP-S7: the séance's best run of checked right answers.
+                "best_combo": forge_combo_runs(forge_state.history)[1],
                 # WP-S6: the recap draws each rule's progress, not a tally.
                 "rules": [
                     {
@@ -7470,6 +7478,32 @@ class AtelierSRSService:
                     for track in forge_state.tracks
                 ],
             }
+            if forge_state.mode == "seance":
+                # WP-S7 pilot event: the combo length per séance.
+                from app.services.pilot_events import PilotEventService
+
+                current_run, best_run = forge_combo_runs(forge_state.history)
+                PilotEventService(self.db).record(
+                    "forge_combo",
+                    user_id=user.id,
+                    entity_type="atelier_session",
+                    entity_id=session.id,
+                    payload={
+                        "best": best_run,
+                        "final": current_run,
+                        "items": forge_state.position,
+                        "checked": sum(1 for entry in forge_state.history if entry.get("checked")),
+                    },
+                )
+                # WP-S7: Éclair is offered from the recap when one of today's
+                # rules has an introduced contrast partner.
+                from app.services.eclair import eclair_offer_for
+
+                offer = eclair_offer_for(
+                    self.db, user=user, concept_ids=[track.concept_id for track in forge_state.tracks]
+                )
+                if offer is not None:
+                    recap["forge"]["eclair"] = offer
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))
@@ -7522,7 +7556,20 @@ def serialize_concept(
         "is_foundation": concept.is_foundation,
         # WP-L10: the authored rule card (all learner languages), or None.
         "rule_card": rule_card_for(concept.external_id),
+        # WP-S5: the cast member who teaches this rule (card and feedback face).
+        "coach": _coach_for_concept(concept.external_id),
     }
+
+
+def _coach_for_concept(external_id: str | None) -> dict[str, Any] | None:
+    """WP-S5: the rule's coach, or ``None`` (a coach never breaks a concept payload)."""
+
+    from app.services.forge_coaches import coach_for_concept
+
+    try:
+        return coach_for_concept(external_id)
+    except Exception:  # pragma: no cover - defensive: data files are validated by tests
+        return None
 
 
 def fr_localizations_by_concept_id(

@@ -240,6 +240,20 @@ def read_pilot_daily(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid user_id") from exc
 
 
+@router.get("/pilot-forge")
+def read_pilot_forge(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """WP-S8 «La Forge»: per-rule speed, séance health, latency — 7 and 30 days, per band."""
+
+    _require_admin(current_user)
+    from app.services.forge_metrics import forge_dashboard
+
+    return forge_dashboard(db)
+
+
 @router.get("/pilot-ops")
 def read_pilot_operations(
     *,

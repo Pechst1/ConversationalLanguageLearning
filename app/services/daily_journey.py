@@ -134,7 +134,7 @@ from app.services.journey_latency import (
 )
 from app.services.journey_learning import record_daily_practice_streak
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
-from app.services.seals import edition_no_for
+from app.services.seals import edition_no_for, mastery_today_for
 from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
 
 logger = logging.getLogger(__name__)
@@ -1491,6 +1491,8 @@ class DailyJourneyService:
                 # WP-D4: the edition, once, so Home, the recap and the seal
                 # collection print the same Nº and press the same seal.
                 "edition_no": edition_no_for(self.db, journey),
+                # WP-S7: a Seal ring for each rule held on this day.
+                "mastery_today": mastery_today_for(self.db, journey),
             }
         )
 

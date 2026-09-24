@@ -70,6 +70,7 @@ import {
   levelSourceLine,
   noJourneySentence,
   phaseFor,
+  rulesSpeedSentence,
   verdictTone,
   vocabularyCount,
   vocabularyRuleSentence,
@@ -78,6 +79,7 @@ import {
   type DossierPhase,
   type ErrataWithTotals,
   type LevelWithAttempts,
+  type LevelWithRulesSpeed,
 } from './dossier-state';
 
 export type DossierScreenProps = {
@@ -140,6 +142,7 @@ function LevelSection({
   const unavailable = !level || level.available === false || !level.estimate;
   const rows = coverageRows(level, language);
   const forecast = forecastSentence(level, language);
+  const rulesSpeed = rulesSpeedSentence(level as LevelWithRulesSpeed, language);
   return (
     <Surface as="section" className="ds-card" aria-labelledby="ds-level">
       <p className="av2-label" id="ds-level">
@@ -168,6 +171,8 @@ function LevelSection({
         </>
       )}
       {!unavailable && forecast && <p className="av2-body">{forecast}</p>}
+      {/* WP-S8: the learner's own measured speed, from three held rules. */}
+      {rulesSpeed && <p className="av2-body">{rulesSpeed}</p>}
       <p className="av2-body">{levelLadderSentence(level, language)}</p>
       <EvidenceLine>{evidenceSentence(level?.evidence, language)}</EvidenceLine>
       {onOpenPlacement && (

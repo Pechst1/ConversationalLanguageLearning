@@ -1,6 +1,9 @@
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import type { RuleCardData } from '@/lib/rule-card';
+import type { ForgeCoach } from '@/lib/forge-coach';
+import type { EclairResult, EclairRound } from '@/lib/eclair';
+import type { GrammarMapPayload } from '@/lib/grammar-map';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -135,6 +138,8 @@ export interface AtelierConcept {
   is_foundation: boolean;
   /** WP-L10: the authored rule card (every learner language), or null. */
   rule_card?: RuleCardData | null;
+  /** WP-S5: the cast member who teaches this rule (card and feedback face). */
+  coach?: ForgeCoach | null;
   role?: string | null;
   mastery: number;
   next_review?: string | null;
@@ -1137,6 +1142,8 @@ export interface AtelierForgeNext {
   reprise?: boolean;
   /** The item itself (a bank top-up is not in the set the page loaded). */
   item?: Record<string, any> | null;
+  /** WP-S5: the rule's coach. */
+  coach?: ForgeCoach | null;
 }
 
 export interface AtelierForgeTestOutResult {
@@ -1146,6 +1153,8 @@ export interface AtelierForgeTestOutResult {
   production_correct: boolean;
   placement_rung: number;
   placement_rung_name: string;
+  /** WP-S7: the rare token a pass mints (once per rule). */
+  token?: { id: string; kind: string; source_kind: string; concept_id: number; rare: boolean } | null;
 }
 
 export interface AtelierForgeView {
@@ -1156,7 +1165,20 @@ export interface AtelierForgeView {
   finished: boolean;
   next: AtelierForgeNext | null;
   result: AtelierForgeTestOutResult | null;
-  rules: Array<{ concept_id: number; role: string; rung: number; rung_name: string; served: number; topped: boolean }>;
+  rules: Array<{
+    concept_id: number;
+    role: string;
+    rung: number;
+    rung_name: string;
+    served: number;
+    topped: boolean;
+    /** WP-S5: the rule's coach. */
+    coach?: ForgeCoach | null;
+  }>;
+  /** WP-S7: the run of checked right answers, and the best of the séance. */
+  combo?: { run: number; best: number } | null;
+  /** WP-S7: the owner's switches (each on by default). */
+  features?: { combo?: boolean; eclair?: boolean; grammar_map?: boolean; mastery_rewards?: boolean } | null;
 }
 
 export interface AtelierForgeRuleState {
@@ -2559,6 +2581,30 @@ class ApiService {
     return this.atelierGet<{ rules: AtelierForgeRuleState[] }>(`/atelier/forge/state${query ? `?${query}` : ''}`);
   }
 
+  /** WP-S7 — the grammar map: every rule's stage, the Éclair pairs, the switches. */
+  async getGrammarMap() {
+    return this.atelierGet<GrammarMapPayload>('/atelier/forge/map');
+  }
+
+  /** WP-S7 — pilot event: the grammar map was opened. Never throws. */
+  async recordGrammarMapOpened() {
+    try {
+      await this.atelierPost<void>('/atelier/forge/map/opened', {});
+    } catch {
+      /* instrumentation never costs the page */
+    }
+  }
+
+  /** WP-S7 — start an Éclair round for a pair (or a rule's first pair). */
+  async startEclair(data: { pair?: string; concept_id?: number }) {
+    return this.atelierPost<EclairRound>('/atelier/forge/eclair', data);
+  }
+
+  /** WP-S7 — file an Éclair round: the server re-grades by its keys. */
+  async finishEclair(eclairId: string, data: { answers: Array<{ id: string; answer: string }>; elapsed_ms?: number }) {
+    return this.atelierPost<EclairResult>(`/atelier/forge/eclair/${encodeURIComponent(eclairId)}/finish`, data);
+  }
+
   async submitAtelierAttempt(
     sessionId: string,
     data: {
@@ -2610,6 +2656,11 @@ class ApiService {
 
   async completeAtelierSession(sessionId: string) {
     return this.atelierPost<{ session_id: string; recap: Record<string, any>; minted_collectibles?: AtelierCollectible[] }>(`/atelier/sessions/${sessionId}/complete`);
+  }
+
+  /** WP-S8: the learner closed an unfinished forge séance (`forge_abandoned`). */
+  async exitAtelierSession(sessionId: string) {
+    return this.atelierPost<void>(`/atelier/sessions/${sessionId}/exit`);
   }
 
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {

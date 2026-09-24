@@ -70,6 +70,11 @@ export type DossierCopy = {
   forecast_capped: string;
   forecast_prior: string;
   forecast_measured: string;
+  // WP-S8 — the rules held, measured
+  rules_speed: string;
+  rules_speed_count: string;
+  unit_day: string;
+  unit_days: string;
   // evidence
   evref_one: string;
   evref_two: string;
@@ -200,6 +205,10 @@ const FR: DossierCopy = {
   forecast_prior:
     'Estimation avant mesure, d’après votre rythme : {target} dans {span}. Elle sera recalculée sur votre propre rythme après sept jours actifs.',
   forecast_measured: 'Estimation sur vos quatorze derniers jours : {target} dans {span}, épreuve comprise.',
+  rules_speed: 'Vos règles : {n} tenues, {days} en médiane pour en tenir une. Mesuré sur votre propre pratique.',
+  rules_speed_count: 'Vos règles : {n} tenues. Mesuré sur votre propre pratique.',
+  unit_day: '{n} jour',
+  unit_days: '{n} jours',
   evref_one: 'séance du {date}',
   evref_two: 'séances des {first} et {last}',
   errata_total_none: 'Aucune faute notée pour l’instant.',
@@ -330,6 +339,10 @@ const EN: DossierCopy = {
   forecast_prior:
     'Estimate before measuring, from your chosen pace: {target} in {span}. It is recalculated on your own pace after seven active days.',
   forecast_measured: 'Estimate from your last fourteen days: {target} in {span}, level test included.',
+  rules_speed: 'Your rules: {n} held, a median of {days} to hold one. Measured on your own practice.',
+  rules_speed_count: 'Your rules: {n} held. Measured on your own practice.',
+  unit_day: '{n} day',
+  unit_days: '{n} days',
   evref_one: 'session of {date}',
   evref_two: 'sessions of {first} and {last}',
   errata_total_none: 'No mistakes noted yet.',
@@ -460,6 +473,10 @@ const DE: DossierCopy = {
   forecast_prior:
     'Schätzung vor der Messung, nach Ihrem Rhythmus: {target} in {span}. Nach sieben aktiven Tagen wird sie nach Ihrem eigenen Tempo neu berechnet.',
   forecast_measured: 'Schätzung aus Ihren letzten vierzehn Tagen: {target} in {span}, Prüfung inbegriffen.',
+  rules_speed: 'Ihre Regeln: {n} sitzen, im Median {days} bis eine sitzt. Gemessen an Ihrer eigenen Übung.',
+  rules_speed_count: 'Ihre Regeln: {n} sitzen. Gemessen an Ihrer eigenen Übung.',
+  unit_day: '{n} Tag',
+  unit_days: '{n} Tage',
   evref_one: 'Übung vom {date}',
   evref_two: 'Übungen vom {first} und {last}',
   errata_total_none: 'Noch keine Fehler notiert.',

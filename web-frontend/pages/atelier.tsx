@@ -84,12 +84,15 @@ import {
 } from '@/components/epreuve/Epreuve';
 import { AtelierV2Root, Notice, useControlLanguage } from '@/components/atelier-v2/ui';
 import {
+  ForgeBestCombo,
+  ForgeCombo,
   ForgeCount,
   ForgeHead,
+  ForgeRareToken,
   ForgeRecapRules,
   ForgeRuleChange,
   ForgeStyles,
-  type ForgeCoach,
+  type ForgeCoach as ForgeHeadCoach,
 } from '@/components/epreuve/Forge';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -137,10 +140,16 @@ import {
   type SeenItem,
 } from '@/lib/forge-progress';
 import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
+import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
+import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
+import { eclairHref } from '@/lib/grammar-map';
+import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
@@ -1256,6 +1265,15 @@ export default function AtelierPage() {
       }
       applyAttemptResult(attemptKey, result);
       const forgeAfter = forgeViewOf(result.forge);
+      // WP-S7: the combo moves only on a checked verdict (the server's run).
+      let comboHaptic: 'correct' | 'token' | null = null;
+      if (forgeAfter && forgeAfter.mode === 'seance' && comboEnabled(forgeAfter) && forgeAfter.combo) {
+        const before = Math.max(0, Number(forge?.combo?.run) || 0);
+        const after = Math.max(0, Number(forgeAfter.combo.run) || 0);
+        const feltCombo = comboFeel(comboStep(before, after), after);
+        comboHaptic = feltCombo.haptic;
+        if (feltCombo.tone) playComboTone(after);
+      }
       if (forgeAfter) {
         setForge(forgeAfter);
         const upcoming = forgeAfter.next;
@@ -1304,6 +1322,8 @@ export default function AtelierPage() {
         setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
         pulseAtelierHaptic('token');
         say(pageCopy.say_token_won);
+      } else if (comboHaptic) {
+        pulseAtelierHaptic(comboHaptic);
       } else {
         pulseAtelierHaptic(result.verdict === 'correct' ? 'correct' : 'repair');
       }
@@ -2020,7 +2040,14 @@ export default function AtelierPage() {
             onSubmitRepair={submitMicroRepair}
             repairSubmitting={repairSubmitting}
             isRetest={Boolean(activeRetest)}
-            onBack={() => setView('today')}
+            onBack={() => {
+              // WP-S8: leaving an unfinished forge séance is an abandon (the
+              // server writes it once, and ignores finished or legacy séances).
+              if (forge && forge.mode !== 'test_out' && !forge.finished && session?.session_id) {
+                void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
+              }
+              setView('today');
+            }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
             notice={sessionNotice}
@@ -3283,7 +3310,6 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
-  coachFor,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3327,9 +3353,6 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
-  /** WP-S5 seam: a rule's coach (the cast member who teaches it). Without
-   *  one, the rule card's speaker fills the rule-change card's portrait. */
-  coachFor?: (conceptId: number) => ForgeCoach | null;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
@@ -3377,6 +3400,8 @@ function SessionView({
   const learnerLanguage = useLearnerLanguage();
   const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
   const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
+  // WP-S5: the rule's coach — the face on the card and on every answer.
+  const ruleCoach = coachFor(forgeNext, forgeRule, activeConcept);
 
   // ---- L'Épreuve frame mapping (composing stick + assembling motif). ----
   const sessionComplete = String(session.status) === 'completed' || (total > 0 && completedDrills >= total);
@@ -3396,6 +3421,10 @@ function SessionView({
   // or a provisional one (its second check still running) neither extends
   // nor breaks the run.
   const correctRun = correctRunFrom(Object.values(correctionsByKey));
+  // WP-S7: in La Forge the run is the combo — tokens in the rule's shape.
+  const mc = momentumCopy(language);
+  const combo = comboOf(forge, Object.values(correctionsByKey));
+  const showCombo = Boolean(forge && forge.mode === 'seance' && comboEnabled(forge));
 
   // ---- WP-S6 La Forge: one human progress, the rule's head, the rule change. ----
   const forgeShape = ruleShape(activeConcept);
@@ -3415,8 +3444,11 @@ function SessionView({
     seenRef.current = seen;
   }, [servedPosition, servedConcept]);
   const speaker = ruleCard?.speaker ? String(ruleCard.speaker) : '';
-  const forgeCoach: ForgeCoach | null = activeConcept
-    ? coachFor?.(activeConcept.id) ?? (speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null)
+  // WP-S5's coach (served with the item) wins; the rule card's speaker is the fallback.
+  const forgeCoach: ForgeHeadCoach | null = activeConcept
+    ? ruleCoach
+      ? { id: ruleCoach.id, name: ruleCoach.name }
+      : speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null
     : null;
   const showRuleChange = Boolean(
     forge && !forgeTestOut && forgeNext && ruleChangeAt === forgeNext.position && !currentSubmitted && !ruleIntro,
@@ -3442,6 +3474,9 @@ function SessionView({
         finishDisabled={submitting || completedDrills < 1}
         partial={completedDrills < total}
         run={correctRun}
+        runSlot={showCombo
+          ? <ForgeCombo shape={ruleShape(activeConcept)} run={combo.run} label={comboLabel(mc, combo.run)} />
+          : undefined}
       />
       <div className="ep-body av2-screen__body">
       {notice && (
@@ -3464,6 +3499,9 @@ function SessionView({
               rung: forgeRungLabel(fc, forge.result.placement_rung_name),
             })}
           </p>
+          {forge.result.passed && forge.result.token && (
+            <ForgeRareToken title={mc.test_out_token} sub={mc.test_out_token_sub} />
+          )}
           <EpBar onClick={onLeaveTestOut}>{fc.back_to_rule}</EpBar>
         </section>
       )}
@@ -3521,9 +3559,10 @@ function SessionView({
               variant="intro"
               conceptId={activeConcept.id}
               onDone={toggleRule}
+              coach={ruleCoach}
             />
           ) : ruleExpanded && ruleCard ? (
-            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} />
+            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} coach={ruleCoach} />
           ) : ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}
@@ -3639,6 +3678,7 @@ function SessionView({
                 isLabelCompare={round === 'recognize' && mode === 'classify'}
                 onRetryAiReview={requestAiReview}
                 aiReviewSubmitting={aiReviewSubmitting}
+                coach={ruleCoach}
               />
           </>)}
         </section>
@@ -3704,6 +3744,7 @@ function ExerciseFeedbackMoment({
   isLabelCompare,
   onRetryAiReview,
   aiReviewSubmitting,
+  coach,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3721,9 +3762,12 @@ function ExerciseFeedbackMoment({
   isLabelCompare?: boolean;
   onRetryAiReview?: () => void;
   aiReviewSubmitting?: boolean;
+  /** WP-S5: the rule's coach reacts to the answer (happy, cross, moved). */
+  coach?: ForgeCoach | null;
 }) {
   const t = useEpCopy();
   if (!submitted || !feedback) return null;
+  const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
     return (
       <div className="ep-feedback" data-verdict="unscored" role="status">
@@ -3772,7 +3816,7 @@ function ExerciseFeedbackMoment({
         {relecture}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={rule}>{t.verdict_correct}</EpVerdict>
+          <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
           <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
         </EpFoot>
       </div>
@@ -3842,7 +3886,7 @@ function ExerciseFeedbackMoment({
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
       <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule}>{t.verdict_wrong}</EpVerdict>
+        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood}>{t.verdict_wrong}</EpVerdict>
         {repairsComplete
           ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
@@ -4378,6 +4422,10 @@ function OutputLadderPanel({
     <div className={`ep-exercise ep-output ep-output-${round}`}>
       {round === 'conversation' && character.name && (
         <div className="ep-character-byline" aria-label={fill(t.conversation_with, { name: character.name })}>
+          {/* WP-S5: a free-use scene is said by the rule's coach. */}
+          {item.scene && character.id && (
+            <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
+          )}
           <span>{character.name}</span>
           <em lang="fr">{String(character.register || 'vous')}</em>
         </div>
@@ -4495,6 +4543,7 @@ function RecapModal({
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
+  const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
   const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
@@ -4537,7 +4586,26 @@ function RecapModal({
             // One Garamond line (the headline above); each rule: its shape's
             // staircase and the step it reached, what changed today, two
             // proof lines and the next review.
-            <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+            <>
+              <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+              {/* WP-S7: the séance's best run, and Éclair when a pair is open. */}
+              <ForgeBestCombo
+                shape={forgeRows[0]?.shape ?? 'circle'}
+                best={Number(recap.forge?.best_combo) || 0}
+                line={bestComboLine(mc, Number(recap.forge?.best_combo) || 0)}
+              />
+              {recap.forge?.eclair?.pair && (
+                <Link className="av2-btn av2-btn--secondary av2-btn--inline forge-recap__eclair" href={eclairHref(String(recap.forge.eclair.pair))}>
+                  <span>{mc.eclair_action}</span>
+                  <span className="forge-recap__eclair-pair" lang="fr">
+                    {fillMomentum(mc.eclair_pair_label, {
+                      a: String(recap.forge.eclair.rules?.[0]?.title_fr || ''),
+                      b: String(recap.forge.eclair.rules?.[1]?.title_fr || ''),
+                    })}
+                  </span>
+                </Link>
+              )}
+            </>
           ) : (
             <>
               <EpTally items={[
