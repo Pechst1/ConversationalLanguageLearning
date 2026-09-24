@@ -167,6 +167,12 @@ the biggest time saver against Duolingo.
   - free production shows its local verdict in under 500 ms;
   - no séance request waits on an LLM;
   - latency is logged per rung.
+- **Status (2026-09-24): done.** Recognise and transform are graded by the key (`app/services/forge_grading.py`:
+  typography folding, token diff naming the ending / missing word / order); measured p95 ≈ 5 ms per submit in the
+  test client. Free production returns a provisional local check (unit detector + model-answer similarity) and the
+  relecture lands in the background (`second_check`, evidence deferred and written once via `evidence_applied`).
+  The word bank's second check is gone; the combo counts checked verdicts only. Each submit writes a
+  `forge_verdict` pilot event (rung, `local_ms`, then `async_llm_ms`, `verdict_changed`).
 
 #### WP-S2 · The item bank: variety without waiting
 - Generative templates per v2 unit, in the catalogue or `app/data/grammar_templates/`. Each is a slot
