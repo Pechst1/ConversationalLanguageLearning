@@ -696,6 +696,7 @@ class DailyJourneyService:
         if enabled and journey is None:
             available = self._available_descriptor(user)
 
+        forge_anchor = self._forge_anchor_id(user)
         return TodayEnvelope(
             enabled=enabled,
             control_language=control_language,
@@ -704,8 +705,9 @@ class DailyJourneyService:
             journey=self.snapshot(journey) if journey else None,
             available=available,
             legacy_resume=self._legacy_resume(user),
-            practice_href=self._practice_href(user),
-            forge=self._forge_entry(user) if enabled else None,
+            # WP-S4: one forge-picker read serves both entries.
+            practice_href=self._practice_href(user, anchor=forge_anchor),
+            forge=self._forge_entry(user, anchor=forge_anchor) if enabled else None,
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
             **streak_fields,
@@ -1662,7 +1664,7 @@ class DailyJourneyService:
         levels = [AssistanceLevel(value) for value in (step.assistance_used or [])]
         return strongest_assistance(levels)
 
-    def _practice_href(self, user: User) -> str:
+    def _practice_href(self, user: User, *, anchor: Any = ...) -> str:
         """WP-16 / D-0: where «Plus de pratique» opens.
 
         WP-S4: keyed by La Forge's one picker (``forge_picker``) — today's rule,
@@ -1671,7 +1673,8 @@ class DailyJourneyService:
         With nothing to seat, the bare practice entry is returned.
         """
 
-        anchor = self._forge_anchor_id(user)
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
         return practice_href_for(anchor)
 
     def _forge_anchor_id(self, user: User) -> int | None:
@@ -1685,14 +1688,15 @@ class DailyJourneyService:
             log=logger,
         )
 
-    def _forge_entry(self, user: User) -> ForgeEntry | None:
+    def _forge_entry(self, user: User, *, anchor: Any = ...) -> ForgeEntry | None:
         """WP-S4: «Forge today's rule» — its href, length, and whether it is folded."""
 
         from app.services import forge_picker
 
         folded = forge_picker.forge_is_folded(user)
         budget = forge_picker.forge_budget_seconds(user)
-        anchor = self._forge_anchor_id(user)
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
         return ForgeEntry(
             href=forge_href_for(anchor),
             concept_id=anchor,

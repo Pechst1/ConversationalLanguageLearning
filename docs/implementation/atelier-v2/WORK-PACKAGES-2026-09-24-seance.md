@@ -215,6 +215,35 @@ the biggest time saver against Duolingo.
   - one picker module is used everywhere;
   - an end-to-end test goes from introduction in the journey, through the séance, to held;
   - the intake quota holds across both surfaces.
+- **Status (2026-09-24, landed; branch `feat/forge-wp-s4-one-picker`):**
+  - **One picker:** `app/services/forge_picker.forge_plan(db, user, now, *, preferred_concept_id=None,
+    budget_seconds=None) -> ForgePlan(units=(ForgeUnit(concept_id, role, reason), …),
+    budget_seconds, reason, rhythm, new_concept_id)`; `plan.pairs()` is the
+    `[(concept_id, "today" | "due" | "contrast")]` list WP-S3's `Composer` takes. Today's rule, in
+    order: the learner's choice → the rule introduced today → a rule a due erratum points at → the
+    rhythm quota's new rule (`introduction_due` + `next_new_concepts`, the journey's own intake) →
+    the weakest in progress → the most due → a held rule kept warm. Due rules come from
+    `plan_review_items`; contrast partners must already be introduced. No padding.
+    `AtelierScheduler.select_today`, the séance start, the generation context and the journey
+    (`practice_href`, the fold, the envelope) all read it; `select_daily_concepts` and the
+    pad-to-three are gone. A started séance stores `plan.as_payload()` (+ `origin`,
+    `journey_step_id`) in `quote_payload["forge"]`.
+  - **The chosen rule:** a start for a rule the open séance does not lead with parks it
+    (`status="parked"`, resumed by a bare start within 24 h) and seats the rule; the page no longer
+    reopens the old séance.
+  - **The fold (Soutenu, Intensif):** the smallest robust design is a hand-off step,
+    `StepKind.FORGE`, in the Scène movement after the guided items and before the reply. The day
+    keeps 240 s free of quick items and the step takes what the day leaves (120 s … the rhythm's
+    forge length, 420 / 600 s). The step opens `/atelier?mode=forge&concept=…&budget=…&step=…`;
+    the forge block's recap returns to the day, where the step reads «Back to the scene»
+    (`forged`, projected from the séance ledger) and advances. Its time is the step's segment
+    (ceiling twice its plan). The day mark counts it in the yellow square.
+  - **After the day (Léger, Régulier):** the envelope's `forge {href, concept_id, budget_seconds,
+    folded}` drives Home's after-day chip and the recap's quiet button: «Forge today's rule» /
+    «Forger la règle du jour» / «Regel des Tages schmieden». Folded days keep «More practice».
+    After-day forge minutes count towards the day in the rollup (`p50/p90_day_seconds`).
+  - **Progress:** completing a forge block recomputes the CEFR payload (coverage «A1.1 · x %»).
+  - Tests: `tests/test_wp_s4_one_picker.py`, `web-frontend/components/atelier-v2/journey/forge-step.test.js`.
 
 #### WP-S5 · Story-linked content and character coaches
 - Template slots draw from the world bible (cast, places, recurring objects) and the learner's story
