@@ -32,6 +32,8 @@ import {
   type CahierMode,
   type ConceptTone,
 } from '@/components/cahiers/CahierV2';
+import { cahierCopy, countLabel, fill, type CahierCopy } from '@/components/cahiers/cahier-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 
 /* Map the backend grammar state (German keys from determine_state, or already
@@ -104,6 +106,10 @@ function standaloneHref(mode: CahierMode) {
 
 export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurfaceProps) {
   const router = useRouter();
+  // WP-82: the Cahier's chrome is the learner's language up to A2, French from
+  // B1. The rule text, examples, traps and French titles stay French.
+  const language = useChromeLanguage();
+  const t = cahierCopy(language);
   const [level, setLevel] = useState('all');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -212,10 +218,10 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       await mutateSelected(updated, false);
       await mutateNotebook();
       setNotesEditing(false);
-      toast.success('Note classée.');
+      toast.success(t.notes.toast_saved);
     } catch (error) {
       setNotesError(true);
-      toast.error('La note n’a pas pu être classée.');
+      toast.error(t.notes.toast_failed);
     } finally {
       setSavingNotes(false);
     }
@@ -229,8 +235,8 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
   const filtersActive = level !== 'all' || activeSearch.length > 0 || dueOnly;
 
   const chips: CahierChip[] = [
-    { id: 'all', label: 'Tous' },
-    { id: 'due', label: 'À revoir', count: dueCount },
+    { id: 'all', label: t.grammar.chip_all },
+    { id: 'due', label: t.grammar.chip_due, count: dueCount },
     ...GRAMMAR_LEVELS.map((lv): CahierChip => ({ id: lv, label: lv })),
   ];
   const activeChip = dueOnly ? 'due' : level === 'all' ? 'all' : level;
@@ -242,28 +248,31 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
 
   const selectedIndex = selected ? concepts.findIndex((c) => c.id === selected.id) : -1;
   const liveText = isLoading
-    ? 'Classement en cours…'
-    : `${shownConcepts.length} ${shownConcepts.length === 1 ? 'fiche' : 'fiches'}${dueOnly ? ' à revoir' : ''}${totals.recent > 0 ? ` · ${totals.recent} errata ${totals.recent === 1 ? 'récent' : 'récents'}` : ''}`;
+    ? t.grammar.live_loading
+    : [
+        countLabel(t.grammar, dueOnly ? 'sheets_due' : 'sheets', shownConcepts.length),
+        totals.recent > 0 ? countLabel(t.grammar, 'recent_errata', totals.recent) : null,
+      ].filter(Boolean).join(' · ');
 
   const indexView = (
     <>
-      <CahierSearch placeholder="Chercher une règle, un piège…" value={query} onChange={setQuery} />
-      <CahierChips chips={chips} active={activeChip} onSelect={onChip} label="Filtrer les règles" />
+      <CahierSearch placeholder={t.grammar.search} value={query} onChange={setQuery} />
+      <CahierChips chips={chips} active={activeChip} onSelect={onChip} label={t.grammar.filter_label} />
       <CahierLiveLine text={liveText} clearable={filtersActive} onClear={clearFilters} />
       {notebookError ? (
         <StateBlock
           tone="error"
-          title="L’index des règles n’a pas pu être ouvert"
-          body="Vos fiches sont en sûreté ; réessayez dans un instant."
-          action={{ label: 'Réessayer', onSelect: () => void mutateNotebook() }}
+          title={t.grammar.index_failed_title}
+          body={t.grammar.index_failed_body}
+          action={{ label: t.cahier.retry, onSelect: () => void mutateNotebook() }}
         />
       ) : isLoading ? (
         <div className="nb-list" aria-busy="true">
           {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={68} radius={16} />)}
-          <span className="av2-sr" role="status">Classement en cours</span>
+          <span className="av2-sr" role="status">{t.grammar.loading}</span>
         </div>
       ) : shownConcepts.length ? (
-        <div className="nb-list" role="list" aria-label="Index des règles">
+        <div className="nb-list" role="list" aria-label={t.grammar.index_label}>
           {shownConcepts.map((concept) => {
             const mastery = Math.round(concept.mastery || 0);
             const due = (concept.due_errata_count || 0) > 0;
@@ -277,8 +286,8 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
               concept.level,
               cat,
               stateLabel || null,
-              due ? 'à revoir' : null,
-              !due && errata > 0 ? `${errata} errata` : null,
+              due ? t.grammar.meta_due : null,
+              !due && errata > 0 ? fill(t.grammar.meta_errata, { n: errata }) : null,
             ].filter(Boolean).join(' · ');
             return (
               <div key={concept.id} role="listitem">
@@ -288,7 +297,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
                   glyph={conceptGlyph(title, tone)}
                   tone={tone}
                   bars={masteryBars(mastery)}
-                  ariaLabel={`${title}, ${concept.level} ${cat}, maîtrise ${mastery} sur 10${due ? ', à revoir' : ''}`}
+                  ariaLabel={fill(due ? t.grammar.row_aria_due : t.grammar.row_aria, { title, level: concept.level, category: cat, mastery })}
                   onSelect={() => selectConcept(concept.id)}
                 />
               </div>
@@ -298,15 +307,15 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       ) : filtersActive ? (
         <StateBlock
           tone="empty"
-          title="Aucune fiche ne correspond à ce filtre"
-          action={{ label: 'Effacer les filtres', onSelect: clearFilters }}
+          title={t.grammar.empty_filtered}
+          action={{ label: t.cahier.clear_filters, onSelect: clearFilters }}
         />
       ) : (
         <StateBlock
           tone="empty"
-          title="Le cahier s’ouvre à la première séance"
-          body="Vos fiches de grammaire se classent ici dès que l’Atelier compose votre première page."
-          action={{ label: 'Ouvrir l’Atelier', onSelect: () => router.push('/atelier') }}
+          title={t.grammar.empty_title}
+          body={t.grammar.empty_body}
+          action={{ label: t.grammar.open_atelier, onSelect: () => router.push('/atelier') }}
         />
       )}
     </>
@@ -314,6 +323,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
 
   const ficheView = selected ? (
     <GrammarFiche
+      t={t}
       concept={selected}
       index={selectedIndex >= 0 ? selectedIndex + 1 : null}
       onBack={deselectConcept}
@@ -329,21 +339,21 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     />
   ) : selectedError ? (
     <div className="nb-fiche">
-      <NbBack label="Index des règles" onBack={deselectConcept} />
+      <NbBack label={t.grammar.index_label} onBack={deselectConcept} />
       <StateBlock
         tone="error"
-        title="Cette fiche n’a pas pu être ouverte"
-        body="Votre index reste consultable."
-        action={{ label: 'Réessayer', onSelect: () => void mutateSelected() }}
+        title={t.grammar.fiche_failed_title}
+        body={t.grammar.fiche_failed_body}
+        action={{ label: t.cahier.retry, onSelect: () => void mutateSelected() }}
       />
     </div>
   ) : (
     <div className="nb-fiche" aria-busy={detailLoading || undefined}>
-      <NbBack label="Index des règles" onBack={deselectConcept} />
+      <NbBack label={t.grammar.index_label} onBack={deselectConcept} />
       <Skeleton height={96} radius={16} />
       <Skeleton height={140} radius={16} />
       <Skeleton height={140} radius={16} />
-      <span className="av2-sr" role="status">Ouverture de la fiche</span>
+      <span className="av2-sr" role="status">{t.grammar.fiche_loading}</span>
     </div>
   );
 
@@ -356,11 +366,11 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
   return (
     <>
       <Head>
-        <title>Le Cahier · Grammaire · L’Atelier</title>
+        <title>{t.grammar.page_title}</title>
       </Head>
       <CahierStyles />
-      <AtelierV2Root as="main" className="nb-page" aria-label="Le cahier · Règles">
-        <CahierHead kicker={isLoading ? 'Les règles' : `${concepts.length} ${concepts.length === 1 ? 'concept' : 'concepts'} · ${totals.started} ${totals.started === 1 ? 'vu' : 'vus'}`}>
+      <AtelierV2Root as="main" language={language} className="nb-page" aria-label={t.grammar.page_label}>
+        <CahierHead kicker={isLoading ? t.grammar.kicker_loading : `${countLabel(t.cahier, 'concepts', concepts.length)} · ${countLabel(t.cahier, 'seen', totals.started)}`}>
           <NotebookModeTabs active="grammar" hrefFor={standaloneHref} />
         </CahierHead>
         <div className="nb-body">{pageContent}</div>
@@ -385,6 +395,7 @@ function ErratumLine({ erratum }: { erratum: AtelierErratum }) {
 }
 
 function GrammarFiche({
+  t,
   concept,
   index,
   onBack,
@@ -398,6 +409,7 @@ function GrammarFiche({
   onNotesCancel,
   onNotesSave,
 }: {
+  t: CahierCopy;
   concept: GrammarNotebookDetail;
   index: number | null;
   onBack: () => void;
@@ -420,7 +432,7 @@ function GrammarFiche({
   const dueErrata = concept.due_errata || [];
   const recentErrata = concept.recent_errata || [];
   const mastery = Math.round(concept.mastery || 0);
-  const nextReview = formatDate(concept.next_review);
+  const nextReview = formatDate(concept.next_review, t.cahier.locale);
   const due = (concept.due_errata_count || 0) > 0;
   const state = grammarState(concept.state, concept.mastery || 0);
   const tone = conceptTone(state, due);
@@ -428,69 +440,69 @@ function GrammarFiche({
   const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
 
   return (
-    <article className="nb-fiche" aria-label="Fiche de grammaire">
-      <NbBack label={index ? `Index des règles · fiche ${index}` : 'Index des règles'} onBack={onBack} />
+    <article className="nb-fiche" aria-label={t.grammar.fiche_label}>
+      <NbBack label={index ? fill(t.grammar.index_back_n, { n: index }) : t.grammar.index_label} onBack={onBack} />
       <header className="nb-fiche__head">
         <div className="nb-fiche__tags">
           <Chip>{concept.level}</Chip>
           <Chip>{cat}</Chip>
           {due && (
-            <Chip icon={<ShapeToken kind="action" size="sm" />}>À revoir</Chip>
+            <Chip icon={<ShapeToken kind="action" size="sm" />}>{t.grammar.chip_due}</Chip>
           )}
         </div>
         <h2 className="av2-headline av2-headline--title" lang="fr">
           {concept.title_fr || concept.display_title || concept.name}
         </h2>
         <div className="nb-fiche__status">
-          <ProgressRule value={mastery} max={10} label="Maîtrise" caption={`${mastery} / 10`} />
+          <ProgressRule value={mastery} max={10} label={t.grammar.mastery} caption={`${mastery} / 10`} />
           <span className="av2-byline">
             <ShapeToken kind={tokenKind} size="sm" />
             <span className="av2-label">{concept.state_label}</span>
           </span>
-          {nextReview && <span className="av2-label">Prochaine révision · {nextReview}</span>}
+          {nextReview && <span className="av2-label">{fill(t.grammar.next_review, { date: nextReview })}</span>}
         </div>
       </header>
 
       {rule && (
-        <Surface as="section" className="nb-sec" aria-label="La règle">
-          <NbSectionHead t="La règle" />
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_rule}>
+          <NbSectionHead t={t.grammar.sec_rule} />
           <p className="av2-fr nb-rule" lang="fr">{rule}</p>
         </Surface>
       )}
 
       {examples.length > 0 && (
-        <Surface as="section" className="nb-sec" aria-label="Exemples d’ancrage">
-          <NbSectionHead t="Exemples d’ancrage" n={`${examples.length} ${examples.length === 1 ? 'exemple' : 'exemples'}`} />
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_examples}>
+          <NbSectionHead t={t.grammar.sec_examples} n={countLabel(t.grammar, 'examples', examples.length)} />
           {examples.map((ex, i) => <p key={i} className="av2-fr nb-ex" lang="fr">{ex}</p>)}
         </Surface>
       )}
 
       {traps.length > 0 && (
-        <Surface as="section" className="nb-sec" aria-label="Pièges principaux">
-          <NbSectionHead t="Pièges principaux" n={`${traps.length} ${traps.length === 1 ? 'relevé' : 'relevés'}`} />
-          {traps.map((t, i) => (
-            <div className="nb-trap" key={i}><ShapeToken kind="action" size="sm" /><span>{t}</span></div>
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_traps}>
+          <NbSectionHead t={t.grammar.sec_traps} n={countLabel(t.grammar, 'traps', traps.length)} />
+          {traps.map((trap, i) => (
+            <div className="nb-trap" key={i}><ShapeToken kind="action" size="sm" /><span>{trap}</span></div>
           ))}
         </Surface>
       )}
 
       {pattern && (
-        <Surface as="section" className="nb-sec" aria-label="Motif">
-          <NbSectionHead t="Motif" n={null} />
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_pattern}>
+          <NbSectionHead t={t.grammar.sec_pattern} n={null} />
           <p className="nb-motif">{pattern}</p>
         </Surface>
       )}
 
       {dueErrata.length > 0 && (
-        <Surface as="section" className="nb-sec" aria-label="Errata à revoir">
-          <NbSectionHead t="Errata à revoir" n={`${dueErrata.length} ${dueErrata.length === 1 ? 'dû' : 'dus'}`} />
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_due_errata}>
+          <NbSectionHead t={t.grammar.sec_due_errata} n={countLabel(t.grammar, 'due', dueErrata.length)} />
           <div className="nb-err">
             {dueErrata.map((e, i) => (
               <div className="nb-err__row" key={e.id || i}>
                 <ShapeToken kind="action" size="sm" />
                 <span className="nb-err__q" lang="fr"><ErratumLine erratum={e} /></span>
-                {formatDate(e.next_review_date || e.last_review_date) && (
-                  <span className="nb-err__d">{formatDate(e.next_review_date || e.last_review_date)}</span>
+                {formatDate(e.next_review_date || e.last_review_date, t.cahier.locale) && (
+                  <span className="nb-err__d">{formatDate(e.next_review_date || e.last_review_date, t.cahier.locale)}</span>
                 )}
               </div>
             ))}
@@ -499,63 +511,63 @@ function GrammarFiche({
       )}
 
       {recentErrata.length > 0 && (
-        <Surface as="section" className="nb-sec" aria-label="Errata récents">
-          <NbSectionHead t="Errata récents" n={`${recentErrata.length} ${recentErrata.length === 1 ? 'réparé' : 'réparés'}`} />
+        <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_recent_errata}>
+          <NbSectionHead t={t.grammar.sec_recent_errata} n={countLabel(t.grammar, 'repaired', recentErrata.length)} />
           <div className="nb-err">
             {recentErrata.map((e, i) => (
               <div className="nb-err__row" key={e.id || i}>
                 <ShapeToken kind="done" size="sm" />
                 <span className="nb-err__q" lang="fr"><ErratumLine erratum={e} /></span>
-                {formatDate(e.last_review_date) && <span className="nb-err__d">{formatDate(e.last_review_date)}</span>}
+                {formatDate(e.last_review_date, t.cahier.locale) && <span className="nb-err__d">{formatDate(e.last_review_date, t.cahier.locale)}</span>}
               </div>
             ))}
           </div>
         </Surface>
       )}
 
-      <Surface as="section" className="nb-sec" aria-label="Notes en marge">
-        <NbSectionHead t="Notes en marge" />
+      <Surface as="section" className="nb-sec" aria-label={t.notes.title}>
+        <NbSectionHead t={t.notes.title} />
         {notesEditing ? (
           <>
             <textarea
               className="nb-field"
               value={draftNotes}
               onChange={(event) => onNotesChange(event.target.value)}
-              aria-label="Notes en marge"
+              aria-label={t.notes.title}
               readOnly={savingNotes}
             />
             <div className="nb-notes__bar">
-              <Action tone="secondary" inline pending={savingNotes} pendingLabel="Envoi…" onClick={onNotesSave}>
-                Enregistrer
+              <Action tone="secondary" inline pending={savingNotes} pendingLabel={t.notes.sending} onClick={onNotesSave}>
+                {t.notes.save}
               </Action>
               <Action tone="quiet" inline disabled={savingNotes} onClick={onNotesCancel}>
-                Annuler
+                {t.notes.cancel}
               </Action>
               {notesError ? (
-                <span className="nb-notes__state" data-tone="alert">Échec — note conservée ici</span>
+                <span className="nb-notes__state" data-tone="alert">{t.notes.state_failed}</span>
               ) : savingNotes ? (
-                <span className="nb-notes__state" data-tone="story">Classement en cours</span>
+                <span className="nb-notes__state" data-tone="story">{t.notes.state_saving}</span>
               ) : notesDirty ? (
-                <span className="nb-notes__state" data-tone="story">Non enregistrée</span>
+                <span className="nb-notes__state" data-tone="story">{t.notes.state_dirty}</span>
               ) : (
-                <span className="nb-notes__state">Brouillon</span>
+                <span className="nb-notes__state">{t.notes.state_draft}</span>
               )}
             </div>
             {notesError && (
               <Notice tone="alert" live="alert" shape="action">
-                <p>La note n’a pas pu être classée. Elle reste dans la marge.</p>
-                <Action tone="secondary" inline onClick={onNotesSave}>Réessayer</Action>
+                <p>{t.notes.failed}</p>
+                <Action tone="secondary" inline onClick={onNotesSave}>{t.cahier.retry}</Action>
               </Notice>
             )}
           </>
         ) : (
           <>
             <p className="nb-notes__text" data-empty={draftNotes ? undefined : 'true'}>
-              {draftNotes || 'Aucune note pour l’instant — la marge vous attend.'}
+              {draftNotes || t.notes.empty}
             </p>
             <div className="nb-notes__bar">
-              <Action tone="secondary" inline onClick={onNotesEdit}>{draftNotes ? 'Modifier' : 'Annoter'}</Action>
-              {draftNotes && <span className="nb-notes__state">Enregistrée</span>}
+              <Action tone="secondary" inline onClick={onNotesEdit}>{draftNotes ? t.notes.edit : t.notes.annotate}</Action>
+              {draftNotes && <span className="nb-notes__state">{t.notes.saved}</span>}
             </div>
           </>
         )}
@@ -568,7 +580,7 @@ function GrammarFiche({
         * `preferred_concept_id`, which seats the concept as the fragile one.
         * This is the screen's one 3D-press action. */}
       <Link className="av2-btn av2-btn--primary nb-cta" href={`/atelier?concept_id=${concept.id}`}>
-        <span>Travailler cette règle à l’Atelier</span>
+        <span>{t.grammar.cta}</span>
         <ArrowRightIcon size={18} />
       </Link>
       {/* `exercise_tags` are generator keys ("si", "future", "imperative") —
@@ -589,11 +601,11 @@ function arrayFrom(value: any): string[] {
   return [];
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, locale?: string) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 /* Last-resort category label. `category_label_fr` covers the whole live catalog,

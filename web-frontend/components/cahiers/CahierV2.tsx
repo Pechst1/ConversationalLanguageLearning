@@ -29,16 +29,25 @@ import Link from 'next/link';
 
 import { ArrowLeftIcon, Chip } from '@/components/atelier-v2/ui';
 
+import { useCahierCopy, type CahierCopy } from './cahier-copy';
+
 export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library';
 
-export const CAHIER_MODE_LABELS: Record<CahierMode, string> = {
-  grammar: 'Règles',
-  vocabulary: 'Mots',
-  /* WP-30 — «Le journal de bord», the recap the learner writes themselves. */
-  journal: 'Journal',
-  releve: 'Relevé',
-  library: 'Livres',
+/* WP-82 — the pill's labels are chrome, read from the Cahier copy table in the
+   language of the surrounding `AtelierV2Root`. WP-30's «Journal» is the recap
+   the learner writes themselves; «Relevé» is a place name in every column. */
+const CAHIER_MODE_KEYS: Record<CahierMode, keyof CahierCopy['cahier']> = {
+  grammar: 'mode_grammar',
+  vocabulary: 'mode_vocabulary',
+  journal: 'mode_journal',
+  releve: 'mode_releve',
+  library: 'mode_library',
 };
+
+/** The pill label of a Cahier mode, in the copy table's language. */
+export function cahierModeLabel(copy: CahierCopy, mode: CahierMode): string {
+  return copy.cahier[CAHIER_MODE_KEYS[mode]];
+}
 
 /* ---------- head: kicker + the one headline + the segmented pill ---------- */
 export function CahierHead({
@@ -76,10 +85,11 @@ export function NotebookModeTabs({
   onSelect?: (mode: CahierMode) => void;
   hrefFor?: (mode: CahierMode) => string;
 }) {
+  const copy = useCahierCopy();
   const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve'];
   if (library) modes.push('library');
   return (
-    <div className="nb-modes" role="tablist" aria-label="Rubriques du cahier">
+    <div className="nb-modes" role="tablist" aria-label={copy.cahier.modes_label}>
       {modes.map((mode) =>
         hrefFor ? (
           <Link
@@ -90,7 +100,7 @@ export function NotebookModeTabs({
             aria-current={mode === active ? 'page' : undefined}
             href={hrefFor(mode)}
           >
-            {CAHIER_MODE_LABELS[mode]}
+            {cahierModeLabel(copy, mode)}
           </Link>
         ) : (
           <button
@@ -101,7 +111,7 @@ export function NotebookModeTabs({
             aria-selected={mode === active}
             onClick={() => onSelect?.(mode)}
           >
-            {CAHIER_MODE_LABELS[mode]}
+            {cahierModeLabel(copy, mode)}
           </button>
         ),
       )}
@@ -143,15 +153,16 @@ export function CahierChips({
   chips,
   active,
   onSelect,
-  label = 'Filtrer',
+  label,
 }: {
   chips: CahierChip[];
   active: string;
   onSelect: (id: string) => void;
   label?: string;
 }) {
+  const copy = useCahierCopy();
   return (
-    <div className="nb-chips" role="group" aria-label={label}>
+    <div className="nb-chips" role="group" aria-label={label ?? copy.cahier.filter}>
       {chips.map((chip) => (
         <Chip
           key={chip.id}
@@ -177,12 +188,13 @@ export function CahierLiveLine({
   clearable?: boolean;
   onClear?: () => void;
 }) {
+  const copy = useCahierCopy();
   return (
     <div className="nb-live" aria-live="polite">
       <span>{text}</span>
       {clearable && (
         <button type="button" className="av2-btn av2-btn--quiet av2-btn--inline" onClick={onClear}>
-          Effacer les filtres
+          {copy.cahier.clear_filters}
         </button>
       )}
     </div>

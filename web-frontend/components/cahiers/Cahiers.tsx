@@ -9,9 +9,22 @@
  *
  * The pages provide the app chrome (PhoneProductNav) exactly like La Une; the
  * design's own NcTabs/NcShell harness is not ported.
+ *
+ * WP-82: the kit's own words come from `cahier-copy.ts` in the learner's
+ * chrome language (their own up to A2, French from B1). Place names —
+ * Les Cahiers, Relevé, Bibliothèque, Le Feuilleton — stay French.
  */
 import React from 'react';
 import Link from 'next/link';
+
+import { useChromeLanguage } from '@/lib/learner-language';
+
+import { cahierCopy, fill, type CahierCopy } from './cahier-copy';
+
+/** The kit renders outside an `AtelierV2Root`, so it reads the learner's profile. */
+function useKitCopy(): CahierCopy {
+  return cahierCopy(useChromeLanguage());
+}
 
 /* ---------- icons ---------- */
 export function NcIcoGear() {
@@ -49,6 +62,7 @@ export function NcMasthead({
   xlinkHref?: string;
   settingsHref?: string;
 }) {
+  const t = useKitCopy();
   if (slim) {
     return (
       <header className="nc-mast slim">
@@ -61,11 +75,11 @@ export function NcMasthead({
     <header>
       <div className="nc-mast">
         <div className="folio">
-          {cefr ? <b>Cours · {cefr}</b> : <span className="off">Progression indisponible</span>}
+          {cefr ? <b>{fill(t.legacy.course, { level: cefr })}</b> : <span className="off">{t.legacy.progress_unavailable}</span>}
           {/* /notebook renders its own shell, so this gear is the only way to
               reach settings from here — the duplicated brand badge went, the
               control stays. */}
-          <Link className="folio-gear" href={settingsHref} aria-label="Réglages"><NcIcoGear /></Link>
+          <Link className="folio-gear" href={settingsHref} aria-label={t.legacy.settings}><NcIcoGear /></Link>
         </div>
       </div>
     </header>
@@ -87,15 +101,17 @@ export function NcModeTabs({
 }) {
   // The old Progrès tab embedded the pre-journal English Anki dashboard (raw
   // stage table, global word dump) inside the French Cahier. Le Relevé replaces
-  // it: same slot, learner-scoped data only, French throughout.
+  // it: same slot, learner-scoped data only. Relevé and Bibliothèque are place
+  // names; the two registers follow the chrome language (WP-82).
+  const copy = useKitCopy();
   const tabs: Array<{ id: NcMode; label: string; meta: string }> = [
-    { id: 'grammaire', label: 'Grammaire', meta: metas.grammaire || '' },
-    { id: 'vocabulaire', label: 'Vocabulaire', meta: metas.vocabulaire || '' },
+    { id: 'grammaire', label: copy.legacy.tab_grammar, meta: metas.grammaire || '' },
+    { id: 'vocabulaire', label: copy.legacy.tab_vocabulary, meta: metas.vocabulaire || '' },
     { id: 'releve', label: 'Relevé', meta: metas.releve || '' },
   ];
   if (library) tabs.push({ id: 'bibliotheque', label: 'Bibliothèque', meta: metas.bibliotheque || '' });
   return (
-    <div className="nc-modetabs" role="tablist" aria-label="Modes du carnet">
+    <div className="nc-modetabs" role="tablist" aria-label={copy.legacy.modes_label}>
       {tabs.map((t) => (
         <button
           key={t.id}
@@ -131,14 +147,15 @@ export function NcFilingSummary({ lead = '', items = [] }: { lead?: string; item
 
 /* ---------- optional feuilleton file ---------- */
 export function NcFeuilleFile({ ep, title, href = '/graphic-novel' }: { ep?: number | string; title: string; href?: string }) {
+  const t = useKitCopy();
   return (
     <Link className="nc-feuille" href={href}>
       <span className="spine" aria-hidden="true" />
       <span>
-        <span className="k">Le Feuilleton · classé au dossier</span>
-        <span className="t" style={{ display: 'block' }}>{ep != null ? `Épisode ${ep} — ` : ''}{title}</span>
+        <span className="k">{t.cahier.feuilleton_filed}</span>
+        <span className="t" style={{ display: 'block' }}>{ep != null ? fill(t.cahier.episode_prefix, { n: ep }) : ''}{title}</span>
       </span>
-      <span className="go">Reprendre →</span>
+      <span className="go">{t.legacy.resume}</span>
     </Link>
   );
 }
@@ -168,8 +185,9 @@ export function NcSearch({
 }
 export type NcChip = { l: string; n?: number | null };
 export function NcChips({ chips, active = 0, onSelect }: { chips: NcChip[]; active?: number; onSelect?: (index: number) => void }) {
+  const t = useKitCopy();
   return (
-    <div className="nc-chips" role="group" aria-label="Filtres">
+    <div className="nc-chips" role="group" aria-label={t.legacy.filters}>
       {chips.map((c, i) => (
         <button key={c.l} type="button" className="nc-chip" aria-pressed={i === active} onClick={() => onSelect?.(i)}>
           {c.l}{c.n != null && <span className="n">{c.n}</span>}
@@ -179,10 +197,11 @@ export function NcChips({ chips, active = 0, onSelect }: { chips: NcChip[]; acti
   );
 }
 export function NcLiveSum({ text, clearable = false, onClear }: { text: string; clearable?: boolean; onClear?: () => void }) {
+  const t = useKitCopy();
   return (
     <div className="nc-livesum" aria-live="polite">
       <em>{text}</em>
-      {clearable && <button type="button" className="clear" onClick={onClear}>Effacer les filtres</button>}
+      {clearable && <button type="button" className="clear" onClick={onClear}>{t.cahier.clear_filters}</button>}
     </div>
   );
 }
@@ -194,13 +213,16 @@ export function NcLedgerHead({ t, n, tone = '' }: { t: string; n?: string | null
 
 /* ---------- grammar index row ---------- */
 export type NcState = 'new' | 'building' | 'fragile' | 'solid' | 'mastered';
-export function NcDueMark({ label = 'À revoir' }: { label?: string }) { return <span className="nc-due">{label}</span>; }
+export function NcDueMark({ label }: { label?: string }) {
+  const t = useKitCopy();
+  return <span className="nc-due">{label ?? t.legacy.due}</span>;
+}
 export function NcStateStamp({ state = 'new', label }: { state?: NcState; label: string }) {
   const map: Record<NcState, string> = { new: '', building: 'building', fragile: 'fragile', solid: 'solid', mastered: 'mastered' };
   return <span className={'nc-stamp ' + (map[state] || '')}>{label}</span>;
 }
 export function NcIndexRow({
-  no, title, level, cat, mastery = 0, state = 'new', stateLabel = 'Nouveau', due = false, errata = 0, sel = false, onClick,
+  no, title, level, cat, mastery = 0, state = 'new', stateLabel, due = false, errata = 0, sel = false, onClick,
 }: {
   no: number | string;
   title: string;
@@ -214,23 +236,24 @@ export function NcIndexRow({
   sel?: boolean;
   onClick?: () => void;
 }) {
+  const t = useKitCopy();
   return (
     <button
       type="button"
       className={'nc-row' + (sel ? ' sel' : '')}
-      aria-label={title + ', ' + level + ' ' + cat + (due ? ', à revoir' : '')}
+      aria-label={title + ', ' + level + ' ' + cat + (due ? t.legacy.due_suffix : '')}
       onClick={onClick}
     >
       <span className="no">{String(no).padStart(2, '0')}</span>
       <span className="t">{title}</span>
       <span className="marks">
-        {due ? <NcDueMark /> : <NcStateStamp state={state} label={stateLabel} />}
-        {errata > 0 && <span className="nc-errdot"><i />{errata} errata</span>}
+        {due ? <NcDueMark /> : <NcStateStamp state={state} label={stateLabel ?? t.legacy.state_new} />}
+        {errata > 0 && <span className="nc-errdot"><i />{fill(t.legacy.errata, { n: errata })}</span>}
       </span>
       <span className="meta">
         <span>{level} · {cat}</span>
         <span className="lead" aria-hidden="true" />
-        <span className="nc-pips" aria-label={'Maîtrise ' + mastery + ' sur 10'}>
+        <span className="nc-pips" aria-label={fill(t.legacy.mastery, { n: mastery })}>
           {Array.from({ length: 10 }, (_, i) => <i key={i} className={i < mastery ? 'on' : ''} />)}
         </span>
       </span>
@@ -317,13 +340,14 @@ export function NcMarginNotes({
   onCancel?: () => void;
   onRetry?: () => void;
 }) {
+  const t = useKitCopy();
   if (!editing) {
     return (
       <div className="nc-notes">
-        <p className={'txt' + (value ? '' : ' ph')}>{value || 'Aucune note pour l’instant — la marge vous attend.'}</p>
+        <p className={'txt' + (value ? '' : ' ph')}>{value || t.notes.empty}</p>
         <div className="bar">
-          <button type="button" className="act" onClick={onEdit}>{value ? 'Modifier' : 'Annoter'}</button>
-          {value && <span className="st">Enregistrée</span>}
+          <button type="button" className="act" onClick={onEdit}>{value ? t.notes.edit : t.notes.annotate}</button>
+          {value && <span className="st">{t.notes.saved}</span>}
         </div>
       </div>
     );
@@ -333,22 +357,22 @@ export function NcMarginNotes({
       <textarea
         value={value}
         onChange={(e) => onValueChange?.(e.target.value)}
-        aria-label="Notes en marge"
+        aria-label={t.notes.title}
         readOnly={saving}
       />
       <div className="bar">
         <div style={{ display: 'flex', gap: 7 }}>
-          <button type="button" className="act primary" disabled={saving} onClick={onSave}>{saving ? 'Envoi…' : 'Enregistrer'}</button>
-          <button type="button" className="act" disabled={saving} onClick={onCancel}>Annuler</button>
+          <button type="button" className="act primary" disabled={saving} onClick={onSave}>{saving ? t.notes.sending : t.notes.save}</button>
+          <button type="button" className="act" disabled={saving} onClick={onCancel}>{t.notes.cancel}</button>
         </div>
-        {error ? <span className="st bad">Échec — note conservée ici</span>
-          : saving ? <span className="st dirty">Classement en cours</span>
-          : dirty ? <span className="st dirty">Non enregistrée</span> : <span className="st">Brouillon</span>}
+        {error ? <span className="st bad">{t.notes.state_failed}</span>
+          : saving ? <span className="st dirty">{t.notes.state_saving}</span>
+          : dirty ? <span className="st dirty">{t.notes.state_dirty}</span> : <span className="st">{t.notes.state_draft}</span>}
       </div>
       {error && (
         <div className="nc-notice inline" role="alert" style={{ marginTop: 9 }}>
           <span className="sq" />
-          <span className="body"><b>Avis du bureau des archives</b><p>La note n’a pas pu être classée. Elle reste dans la marge. <button type="button" className="retry" style={{ minHeight: 32, marginTop: 6 }} onClick={onRetry}>Réessayer</button></p></span>
+          <span className="body"><b>{t.legacy.notice_label}</b><p>{t.notes.failed} <button type="button" className="retry" style={{ minHeight: 32, marginTop: 6 }} onClick={onRetry}>{t.cahier.retry}</button></p></span>
         </div>
       )}
     </div>
@@ -374,10 +398,11 @@ export function ncMapCells(n = 280, seed = 7): string[] {
 }
 export type NcMapTotal = { id: string; label: string; n: number };
 export function NcMasteryMap({ cells, totals, note }: { cells: string[]; totals: NcMapTotal[]; note?: string | null }) {
+  const copy = useKitCopy();
   return (
     <>
       <div className="nc-map" aria-hidden="true">{cells.map((s, i) => <i key={i} className={s} />)}</div>
-      <div className="nc-maplegend" aria-label="Répartition des états">
+      <div className="nc-maplegend" aria-label={copy.legacy.map_legend}>
         {totals.map((t) => <span key={t.id || t.label}><i className={t.id} />{t.label} {t.n}</span>)}
       </div>
       {note && <p className="nc-mapnote">{note}</p>}
@@ -386,12 +411,13 @@ export function NcMasteryMap({ cells, totals, note }: { cells: string[]; totals:
 }
 
 /* ---------- system: notice / skeleton / empty ---------- */
-export function NcNotice({ tone = 'red', label = 'Avis du bureau des archives', message, retry = true, onRetry }: { tone?: 'red' | 'blue' | 'yellow'; label?: string; message: string; retry?: boolean; onRetry?: () => void }) {
+export function NcNotice({ tone = 'red', label, message, retry = true, onRetry }: { tone?: 'red' | 'blue' | 'yellow'; label?: string; message: string; retry?: boolean; onRetry?: () => void }) {
+  const t = useKitCopy();
   return (
     <div className="nc-notice" role="alert">
       <span className={'sq ' + tone} />
-      <span className="body"><b>{label}</b><p>{message}</p></span>
-      {retry && <button type="button" className="retry" onClick={onRetry}>Réessayer</button>}
+      <span className="body"><b>{label ?? t.legacy.notice_label}</b><p>{message}</p></span>
+      {retry && <button type="button" className="retry" onClick={onRetry}>{t.cahier.retry}</button>}
     </div>
   );
 }
@@ -411,18 +437,20 @@ export function NcSkeleton({ rows = 5, file = true }: { rows?: number; file?: bo
     </div>
   );
 }
-export function NcEmpty({ title = 'Aucune fiche dans ce classement', body, action, onAction }: { title?: string; body?: string | null; action?: string | null; onAction?: () => void }) {
+export function NcEmpty({ title, body, action, onAction }: { title?: string; body?: string | null; action?: string | null; onAction?: () => void }) {
+  const t = useKitCopy();
   return (
     <div className="nc-empty">
       <span className="mark" aria-hidden="true" />
-      <h4>{title}</h4>
+      <h4>{title ?? t.legacy.empty_title}</h4>
       {body && <p>{body}</p>}
       {action && <button type="button" className="act" onClick={onAction}>{action}</button>}
     </div>
   );
 }
-export function NcColophon({ text = 'Les Cahiers · référence de l’édition' }: { text?: string }) {
-  return <div className="nc-colophon">{text}</div>;
+export function NcColophon({ text }: { text?: string }) {
+  const t = useKitCopy();
+  return <div className="nc-colophon">{text ?? t.legacy.colophon}</div>;
 }
 
 /* ---------- crumb / entry head / CTA (fiche detail scaffolding) ---------- */

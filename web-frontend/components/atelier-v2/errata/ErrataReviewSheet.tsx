@@ -7,9 +7,10 @@
  * mono kickers, a 2px ink slab, a red uppercase button. It now uses the same
  * bottom sheet, field, verdict band and pill actions as every journey step.
  *
- * The chrome is publication French (owner decision 2026-09-17: French chrome
- * everywhere except Réglages); the stored erratum halves keep whatever
- * language the corrector filed them in.
+ * WP-82: the chrome follows the one language rule (`errata-copy.ts`) — the
+ * learner's language up to A2, French from B1. The prompt and the learner's
+ * own sentence are content and stay French; the stored erratum halves keep
+ * whatever language the corrector filed them in.
  */
 
 import React from 'react';
@@ -25,22 +26,10 @@ import {
   SendIcon,
   TextAnswer,
 } from '@/components/atelier-v2/ui';
+import { useChromeLanguage } from '@/lib/learner-language';
 import type { AtelierErrataAttemptResult, AtelierErrataReviewTask } from '@/services/api';
 
-const COPY = {
-  task: 'Tâche de reprise',
-  memorised: 'Erreur mémorisée',
-  why: 'Pourquoi',
-  hint: 'À reprendre',
-  answer: 'Votre reprise',
-  send: 'Envoyer la reprise',
-  sending: 'Envoi…',
-  repaired: 'Repris',
-  not_yet: 'Pas encore',
-  target: 'Réponse visée',
-  done: 'Terminé',
-  close: 'Fermer',
-} as const;
+import { errataCopy } from './errata-copy';
 
 /** Backticks in a stored explanation become guillemets: the card prints it verbatim. */
 export function printableWhy(text?: string | null): string {
@@ -66,6 +55,8 @@ export function ErrataReviewSheet({
   onSubmit,
   onClose,
 }: ErrataReviewSheetProps) {
+  const language = useChromeLanguage();
+  const COPY = errataCopy(language);
   const eyebrow = [task.source_label || 'Atelier', task.review_mode_label]
     .filter(Boolean)
     .join(' · ');
@@ -74,7 +65,7 @@ export function ErrataReviewSheet({
   const hint = printableWhy(task.repair_hint);
 
   return (
-    <AtelierV2Root as="div" language="fr" className="errata-review-sheet">
+    <AtelierV2Root as="div" language={language} className="errata-review-sheet">
       <BottomSheet open title={task.display_label} eyebrow={eyebrow} onClose={onClose}>
         <div className="av2-stack">
           <div>
@@ -98,12 +89,12 @@ export function ErrataReviewSheet({
             <div className="av2-body">
               {why && (
                 <p style={{ margin: 0 }}>
-                  <strong>{COPY.why} :</strong> {why}
+                  <strong>{COPY.why}</strong> {why}
                 </p>
               )}
               {hint && (
                 <p style={{ margin: why ? '6px 0 0' : 0 }}>
-                  <strong>{COPY.hint} :</strong> {hint}
+                  <strong>{COPY.hint}</strong> {hint}
                 </p>
               )}
             </div>

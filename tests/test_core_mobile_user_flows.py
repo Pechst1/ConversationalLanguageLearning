@@ -25,7 +25,9 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # visitors get a single "Ouvrir votre édition" action instead of a silent
     # redirect, and the signed-out pair is French.
     assert "const authed = status === 'authenticated';" in home
-    assert "Ouvrir votre édition" in home
+    # 2026-09-24: the button follows the onboarding language (one-language rule).
+    assert "{TASTE_NAV[language].open_edition}" in home
+    assert "open_edition: 'Ouvrir votre édition'" in read(WEB / "lib" / "onboarding-taste.ts")
     # WP-75: «Commencer» plays the taste on this page; the taste's last button
     # opens sign-up, and «J'ai déjà un compte» is the quiet way to sign in.
     assert 'href="/auth/signin"' in home
@@ -104,7 +106,10 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "<VocabularyPage embedded />" in notebook
     assert "api.getCefrProgress()" in notebook
     # CEFR progression now rides in the Cahiers masthead folio, not a dashboard grid.
-    assert "cefr?.estimate ? `${cefr.estimate} en cours`" in notebook
+    # WP-82: the line is chrome, read from the Cahier copy table.
+    assert "cefr?.estimate ? fill(t.notebook.cefr_line, { level: cefr.estimate })" in notebook
+    cahier_copy = read(WEB / "components" / "cahiers" / "cahier-copy.ts")
+    assert "cefr_line: '{level} en cours'" in cahier_copy
 
 
 def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
@@ -197,15 +202,20 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert "apiService.createGraphicNovelScene" in feuilleton
     assert "apiService.submitGraphicNovelAttempt(scene.id" in feuilleton
     assert "apiService.completeGraphicNovelScene(scene.id)" in feuilleton
-    assert 'aria-label="Composer une nouvelle scène du Feuilleton"' in feuilleton
-    assert 'aria-label="Mode Feuilleton"' in feuilleton
+    # WP-82: the aria-labels are chrome and come from the Feuilleton copy table.
+    copy = read(WEB / "components" / "feuilleton" / "feuilleton-copy.ts")
+    assert "aria-label={t.compose_aria}" in feuilleton
+    assert "compose_aria: 'Composer une nouvelle scène du Feuilleton'" in copy
+    assert "aria-label={t.feuilleton}" in feuilleton
     assert "apiService.getSerialToday()" in feuilleton
-    assert 'aria-label="Prochain acte du Feuilleton"' in feuilleton
-    assert 'aria-label="Actions de lecture du Feuilleton"' in feuilleton
+    assert "aria-label={t.mission_aria}" in feuilleton
+    assert "mission_aria: 'Prochain acte du Feuilleton'" in copy
+    assert "aria-label={t.actions_aria}" in feuilleton
     # Reader rebuild: the final task is one inline action, and the end of the
     # episode is one section instead of a completion card + continuation card.
     assert "<FeuilletonReader" in feuilleton  # the final task is the reader's resolution stage
-    assert 'aria-label="Fin de l’épisode"' in feuilleton
+    assert "aria-label={t.end_aria}" in feuilleton
+    assert "end_aria: 'Fin de l’épisode'" in copy
     assert "function FeuilletonEnd" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton
     assert "routeWithQuery('/graphic-novel', readerPairs)" in feuilleton

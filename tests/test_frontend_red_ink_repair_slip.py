@@ -64,8 +64,12 @@ def test_atelier_uses_repair_slip_for_due_errata_and_closure() -> None:
     sheet = read(ROOT / "web-frontend" / "components" / "atelier-v2" / "errata" / "ErrataReviewSheet.tsx")
     assert "<BottomSheet" in sheet
     assert "<AtelierV2Root" in sheet
-    assert "Erreur mémorisée" in sheet
-    assert "Envoyer la reprise" in sheet
+    # WP-82: the card's chrome is in the copy table, in the chrome language.
+    errata_copy = read(ROOT / "web-frontend" / "components" / "atelier-v2" / "errata" / "errata-copy.ts")
+    assert "Erreur mémorisée" in errata_copy
+    assert "Envoyer la reprise" in errata_copy
+    assert "{COPY.send}" in sheet
+    assert "useChromeLanguage()" in sheet
     assert "<TextAnswer" in sheet
     assert "<FeedbackBand" in sheet
     assert "export interface AtelierErrataAttemptResult" in api_types
@@ -80,6 +84,10 @@ def test_grammar_notebook_uses_same_repair_slip() -> None:
     # Claude-design fiche: the same ledger rows on the av2 surface.
     assert "function ErratumLine" in grammar
     assert "<s>{learner}</s>" in grammar
-    assert 't="Errata à revoir"' in grammar
-    assert 't="Errata récents"' in grammar
+    # WP-82: the section heads are chrome, read from the Cahier copy table.
+    cahier_copy = read(ROOT / "web-frontend" / "components" / "cahiers" / "cahier-copy.ts")
+    assert "t={t.grammar.sec_due_errata}" in grammar
+    assert "t={t.grammar.sec_recent_errata}" in grammar
+    assert "sec_due_errata: 'Errata à revoir'" in cahier_copy
+    assert "sec_recent_errata: 'Errata récents'" in cahier_copy
     assert "<ErratumLine" in grammar

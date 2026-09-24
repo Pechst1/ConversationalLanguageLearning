@@ -14,13 +14,14 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import {
-  CAHIER_MODE_LABELS,
   CahierHead,
   CahierStyles,
   NbSectionHead,
   NotebookModeTabs,
+  cahierModeLabel,
   type CahierMode,
 } from '@/components/cahiers/CahierV2';
+import { cahierCopy, countLabel, fill, useCahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
 import JournalTab from '@/components/cahiers/JournalTab';
 import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
 import Releve from '@/components/releve/Releve';
@@ -30,6 +31,7 @@ import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
   type CEFRProgress,
   type GrammarProgressSummary,
@@ -137,16 +139,21 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   return nextQuery;
 }
 
-const MODE_TITLES: Record<NotebookMode, string> = {
-  grammar: 'Le Cahier · Grammaire',
-  vocabulary: 'Le Cahier · Lexique',
-  journal: 'Le Cahier · Le journal de bord',
-  releve: 'Le Cahier · Le Relevé',
-  library: 'Le Cahier · Bibliothèque',
+/* WP-82 — the document title is chrome: read from the Cahier copy table. */
+const MODE_TITLE_KEYS: Record<NotebookMode, keyof CahierCopy['notebook']> = {
+  grammar: 'title_grammar',
+  vocabulary: 'title_vocabulary',
+  journal: 'title_journal',
+  releve: 'title_releve',
+  library: 'title_library',
 };
 
 export default function NotebookEntryPage() {
   const router = useRouter();
+  // WP-82: the Cahier's chrome is the learner's language up to A2, French from
+  // B1; the root hands it to every Cahier primitive below.
+  const language = useChromeLanguage();
+  const t = cahierCopy(language);
   const [mode, setMode] = useState<NotebookMode>('grammar');
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
   const [grammarSummary, setGrammarSummary] = useState<GrammarProgressSummary | null>(null);
@@ -244,29 +251,29 @@ export default function NotebookEntryPage() {
     const ep = typeof scene.episode_index === 'number' ? scene.episode_index + 1 : undefined;
     return {
       ep,
-      title: scene.title || 'Reprendre le feuilleton',
+      title: scene.title || t.notebook.feuilleton_fallback,
       href: `/graphic-novel?scene=${encodeURIComponent(scene.id)}`,
     };
-  }, [feuilletonToday]);
+  }, [feuilletonToday, t]);
 
   // Kicker: real counts in the rules register, the CEFR line elsewhere.
-  const cefrLine = cefr?.estimate ? `${cefr.estimate} en cours` : null;
+  const cefrLine = cefr?.estimate ? fill(t.notebook.cefr_line, { level: cefr.estimate }) : null;
   const total = Number(grammarSummary?.total_concepts || 0);
   const started = Number(grammarSummary?.started || 0);
   const countsLine = total > 0
-    ? `${total} ${total === 1 ? 'concept' : 'concepts'} · ${started} ${started === 1 ? 'vu' : 'vus'}`
+    ? `${countLabel(t.cahier, 'concepts', total)} · ${countLabel(t.cahier, 'seen', started)}`
     : null;
   const kicker = visibleMode === 'grammar' && countsLine
     ? [countsLine, cefrLine].filter(Boolean).join(' · ')
-    : [CAHIER_MODE_LABELS[visibleMode], cefrLine].filter(Boolean).join(' · ');
+    : [cahierModeLabel(t, visibleMode), cefrLine].filter(Boolean).join(' · ');
 
   return (
     <>
       <Head>
-        <title>{`${MODE_TITLES[visibleMode]} · L’Atelier`}</title>
+        <title>{`${t.notebook[MODE_TITLE_KEYS[visibleMode]]} · L’Atelier`}</title>
       </Head>
       <CahierStyles />
-      <AtelierV2Root as="main" className="nb-page" aria-label="Le cahier">
+      <AtelierV2Root as="main" language={language} className="nb-page" aria-label="Le cahier">
         <CahierHead kicker={kicker}>
           <NotebookModeTabs
             active={visibleMode}
@@ -279,9 +286,9 @@ export default function NotebookEntryPage() {
             <Link className="av2-row nb-feuille" href={notebookFeuilleton.href}>
               <ShapeToken kind="story" size="lg" />
               <span className="av2-row__main">
-                <span className="av2-label av2-label--story">Le feuilleton · classé au dossier</span>
+                <span className="av2-label av2-label--story">{t.cahier.feuilleton_filed}</span>
                 <span className="nb-feuille__title" lang="fr">
-                  {notebookFeuilleton.ep != null ? `Épisode ${notebookFeuilleton.ep} — ` : ''}{notebookFeuilleton.title}
+                  {notebookFeuilleton.ep != null ? fill(t.cahier.episode_prefix, { n: notebookFeuilleton.ep }) : ''}{notebookFeuilleton.title}
                 </span>
               </span>
               <ArrowRightIcon size={18} />
@@ -331,7 +338,7 @@ function excerpt(value: unknown, maxLength = 180) {
   return `${text.slice(0, maxLength - 1).trim()}...`;
 }
 
-function libraryExerciseSteps(payload: Record<string, any> | null | undefined): LibraryExerciseStep[] {
+function libraryExerciseSteps(payload: Record<string, any> | null | undefined, t: CahierCopy['library']): LibraryExerciseStep[] {
   const comprehension = Array.isArray(payload?.comprehension) ? payload.comprehension : [];
   const vocabulary = Array.isArray(payload?.vocabulary) ? payload.vocabulary : [];
   const grammar = Array.isArray(payload?.grammar) ? payload.grammar : [];
@@ -340,9 +347,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...comprehension.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `comprehension-${index}`,
       kind: 'comprehension',
-      eyebrow: 'Compréhension',
-      title: `Retrouver la preuve ${index + 1}`,
-      prompt: String(item.question || 'Répondez à partir du passage.'),
+      eyebrow: t.comprehension,
+      title: fill(t.comprehension_title, { n: index + 1 }),
+      prompt: String(item.question || t.comprehension_prompt),
       target: String(item.answer || ''),
       evidence: String(item.evidence || ''),
       inputMode: 'paragraph',
@@ -350,9 +357,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...vocabulary.slice(0, 2).map((item: any, index: number): LibraryExerciseStep => ({
       id: `vocabulary-${index}`,
       kind: 'vocabulary',
-      eyebrow: 'Lexique',
-      title: String(item.word || `Mot ${index + 1}`),
-      prompt: `Quel mot du passage convient ici ? ${item.gloss_hint || 'Appuyez-vous sur la phrase.'}`,
+      eyebrow: t.lexique,
+      title: String(item.word || fill(t.word_title, { n: index + 1 })),
+      prompt: fill(t.vocabulary_prompt, { hint: item.gloss_hint || t.vocabulary_hint }),
       target: String(item.word || ''),
       evidence: String(item.context_sentence || ''),
       inputMode: 'line',
@@ -360,9 +367,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...grammar.slice(0, 1).map((item: any, index: number): LibraryExerciseStep => ({
       id: `grammar-${index}`,
       kind: 'grammar',
-      eyebrow: 'Grammaire dans le passage',
-      title: String(item.pattern || 'Structure'),
-      prompt: String(item.prompt || 'Repérez la structure dans le passage.'),
+      eyebrow: t.grammar,
+      title: String(item.pattern || t.grammar_title),
+      prompt: String(item.prompt || t.grammar_prompt),
       target: String(item.answer || ''),
       explanation: String(item.explanation || ''),
       inputMode: 'paragraph',
@@ -370,9 +377,9 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
     ...(production ? [{
       id: 'production-0',
       kind: 'production' as const,
-      eyebrow: 'Production',
-      title: 'Écrire depuis le passage',
-      prompt: String(production.prompt || 'Écrivez une réponse courte appuyée sur le passage.'),
+      eyebrow: t.production,
+      title: t.production_title,
+      prompt: String(production.prompt || t.production_prompt),
       target: String(production.example_answer || ''),
       criteria: Array.isArray(production.success_criteria) ? production.success_criteria.map((item: any) => String(item || '').trim()).filter(Boolean) : [],
       inputMode: 'paragraph' as const,
@@ -380,7 +387,7 @@ function libraryExerciseSteps(payload: Record<string, any> | null | undefined): 
   ];
 }
 
-function libraryExerciseFeedback(step: LibraryExerciseStep, answer: string): LibraryExerciseFeedback {
+function libraryExerciseFeedback(step: LibraryExerciseStep, answer: string, t: CahierCopy['library']): LibraryExerciseFeedback {
   const normalizedAnswer = normalizeLibraryAnswer(answer);
   const normalizedTarget = normalizeLibraryAnswer(step.target);
   const targetTokens = normalizedTarget.split(' ').filter((token) => token.length > 3);
@@ -393,21 +400,17 @@ function libraryExerciseFeedback(step: LibraryExerciseStep, answer: string): Lib
   if (close || (step.kind === 'production' && enoughWriting)) {
     return {
       status: 'correct',
-      title: step.kind === 'production' ? 'Prêt à classer' : 'Vérifié dans le passage',
-      explanation: step.kind === 'production'
-        ? 'La réponse est assez développée pour faire avancer l’épisode. Gardez un détail du passage visible.'
-        : 'Bien. La réponse s’appuie sur un élément précis du passage.',
-      rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : undefined,
+      title: step.kind === 'production' ? t.ready : t.verified,
+      explanation: step.kind === 'production' ? t.ready_body : t.verified_body,
+      rule: step.evidence ? fill(t.evidence, { text: excerpt(step.evidence) }) : undefined,
     };
   }
   return {
     status: 'wrong',
-    title: 'Le passage fait foi',
-    explanation: step.kind === 'vocabulary'
-      ? 'Relisez la phrase de contexte et reprenez le mot correspondant à l’indice.'
-      : 'Ajoutez un détail concret du passage avant de continuer.',
-    repair: step.target ? `Réponse visée : ${excerpt(step.target)}` : undefined,
-    rule: step.evidence ? `Preuve : ${excerpt(step.evidence)}` : step.explanation || undefined,
+    title: t.wrong_title,
+    explanation: step.kind === 'vocabulary' ? t.wrong_vocabulary : t.wrong_other,
+    repair: step.target ? fill(t.target, { text: excerpt(step.target) }) : undefined,
+    rule: step.evidence ? fill(t.evidence, { text: excerpt(step.evidence) }) : step.explanation || undefined,
   };
 }
 
@@ -427,6 +430,7 @@ function LibraryNotebookSurface({
   const [loading, setLoading] = useState(true);
   const [episodeLoading, setEpisodeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useCahierCopy().library;
 
   async function markEpisodeComplete() {
     if (!selectedBook || !episode) return;
@@ -447,7 +451,7 @@ function LibraryNotebookSurface({
         setBooks(rows || []);
       })
       .catch(() => {
-        if (!cancelled) setError('La bibliothèque n’a pas pu être chargée.');
+        if (!cancelled) setError(t.load_failed);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -498,7 +502,7 @@ function LibraryNotebookSurface({
         <div className="nb-list" aria-busy="true">
           <Skeleton height={68} radius={16} />
           <Skeleton height={68} radius={16} />
-          <span className="av2-sr" role="status">Ouverture de la bibliothèque</span>
+          <span className="av2-sr" role="status">{t.loading}</span>
         </div>
       )}
 
@@ -508,8 +512,8 @@ function LibraryNotebookSurface({
           title="Bibliothèque"
           body={(
             <>
-              Vos livres importés paraîtront ici sous forme d’épisodes de lecture.{' '}
-              <Link href="/bibliotheque">Ouvrir les imports</Link>
+              {t.empty_body}{' '}
+              <Link href="/bibliotheque">{t.open_imports}</Link>
             </>
           )}
         />
@@ -517,7 +521,7 @@ function LibraryNotebookSurface({
 
       {!!books.length && (
         <div className="nb-lib__grid">
-          <section className="nb-list" aria-label="Livres importés">
+          <section className="nb-list" aria-label={t.books_label}>
             {books.map((book) => {
               const active = selectedBook?.id === book.id;
               const pct = Number(book.completion_percentage || 0);
@@ -535,7 +539,7 @@ function LibraryNotebookSurface({
                   <span className="nb-row__main">
                     <span className="nb-row__title">{book.title}</span>
                     <span className="nb-row__meta">
-                      {book.target_level} · {book.author || book.source_filename || 'Texte importé'}{active ? ' · ouvert' : ''}
+                      {book.target_level} · {book.author || book.source_filename || t.imported_text}{active ? ` · ${t.open_marker}` : ''}
                     </span>
                   </span>
                   <span className="nb-row__pct">{pct}%</span>
@@ -544,11 +548,11 @@ function LibraryNotebookSurface({
             })}
           </section>
 
-          <section className="nb-lib__reader" aria-label="Épisode de lecture sélectionné">
+          <section className="nb-lib__reader" aria-label={t.reader_label}>
             {episodeLoading && (
               <div className="nb-list" aria-busy="true">
                 <Skeleton height={120} radius={16} />
-                <span className="av2-sr" role="status">Ouverture de l’épisode</span>
+                <span className="av2-sr" role="status">{t.episode_loading}</span>
               </div>
             )}
             {!episodeLoading && selectedBook && episode && (
@@ -557,7 +561,12 @@ function LibraryNotebookSurface({
                   <p className="av2-label av2-label--story">{selectedBook.title}</p>
                   <h2 className="av2-headline av2-headline--title" lang="fr">{episode.title}</h2>
                   <p className="av2-label" style={{ fontWeight: 400, marginTop: 4 }}>
-                    Épisode {episode.order_index + 1} sur {selectedBook.total_episodes || 1} · {episode.est_reading_minutes} min · {episode.word_count} mots
+                    {fill(t.episode_meta, {
+                      n: episode.order_index + 1,
+                      total: selectedBook.total_episodes || 1,
+                      minutes: episode.est_reading_minutes,
+                      words: episode.word_count,
+                    })}
                   </p>
                 </header>
                 <Surface as="article" className="nb-lib__passage" lang="fr">
@@ -589,7 +598,8 @@ function LibraryEpisodeExerciseRunner({
   completed: boolean;
   onComplete: () => Promise<void>;
 }) {
-  const steps = libraryExerciseSteps(episode.exercise_payload);
+  const t = useCahierCopy().library;
+  const steps = libraryExerciseSteps(episode.exercise_payload, t);
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<LibraryExerciseFeedback | null>(null);
@@ -618,22 +628,22 @@ function LibraryEpisodeExerciseRunner({
 
   if (completed) {
     return (
-      <Surface as="section" className="nb-sec" aria-label="Exercices de l’épisode terminés">
-        <p className="av2-label"><ShapeToken kind="done" size="sm" /> Exercices classés</p>
-        <h3 className="av2-headline av2-headline--rule">L’épisode {episode.order_index + 1} est terminé.</h3>
-        <p className="av2-body">Le passage, le lexique et la consigne de production sont classés dans votre progression.</p>
+      <Surface as="section" className="nb-sec" aria-label={t.done_label}>
+        <p className="av2-label"><ShapeToken kind="done" size="sm" /> {t.done_kicker}</p>
+        <h3 className="av2-headline av2-headline--rule">{fill(t.done_title, { n: episode.order_index + 1 })}</h3>
+        <p className="av2-body">{t.done_body}</p>
       </Surface>
     );
   }
 
   if (allChecked) {
     return (
-      <Surface as="section" className="nb-sec" aria-label="Épisode prêt à être classé">
-        <p className="av2-label av2-label--action">Moment de bilan</p>
-        <h3 className="av2-headline av2-headline--rule">Prêt à continuer {episode.title}</h3>
-        <p className="av2-body">Vous avez lu le passage, vérifié les consignes et écrit depuis l’épisode.</p>
-        <Action tone="primary" pending={finishing} pendingLabel="Classement…" iconAfter={<ArrowRightIcon size={18} />} onClick={finishEpisode}>
-          Terminer l’épisode
+      <Surface as="section" className="nb-sec" aria-label={t.ready_label}>
+        <p className="av2-label av2-label--action">{t.ready_kicker}</p>
+        <h3 className="av2-headline av2-headline--rule">{fill(t.ready_title, { title: episode.title })}</h3>
+        <p className="av2-body">{t.ready_summary}</p>
+        <Action tone="primary" pending={finishing} pendingLabel={t.finishing} iconAfter={<ArrowRightIcon size={18} />} onClick={finishEpisode}>
+          {t.finish}
         </Action>
       </Surface>
     );
@@ -641,7 +651,7 @@ function LibraryEpisodeExerciseRunner({
 
   function checkAnswer() {
     if (!activeStep || !answer.trim()) return;
-    const nextFeedback = libraryExerciseFeedback(activeStep, answer);
+    const nextFeedback = libraryExerciseFeedback(activeStep, answer, t);
     setFeedback(nextFeedback);
     pulseAppHaptic(nextFeedback.status === 'correct' ? 'correct' : 'repair');
   }
@@ -655,9 +665,9 @@ function LibraryEpisodeExerciseRunner({
   return (
     <ExerciseShell
       className="nb-lib__runner"
-      eyebrow={`Exercice ${stepIndex + 1} sur ${steps.length}`}
+      eyebrow={fill(t.exercise_n, { n: stepIndex + 1, total: steps.length })}
       title={activeStep.title}
-      action={<ProgressBar value={stepIndex} max={steps.length} label="Progression des exercices" />}
+      action={<ProgressBar value={stepIndex} max={steps.length} label={t.progress_label} />}
     >
       <div className="nb-lib__stage">
         <p className="av2-label">{activeStep.eyebrow}</p>
@@ -677,7 +687,7 @@ function LibraryEpisodeExerciseRunner({
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Répondez à partir du passage"
+          placeholder={t.line_placeholder}
         />
       ) : (
         <textarea
@@ -687,7 +697,7 @@ function LibraryEpisodeExerciseRunner({
             setAnswers((current) => ({ ...current, [activeStep.id]: event.target.value }));
             setFeedback(null);
           }}
-          placeholder="Écrivez votre réponse en français"
+          placeholder={t.paragraph_placeholder}
         />
       )}
       {feedback && (
@@ -704,7 +714,7 @@ function LibraryEpisodeExerciseRunner({
       {!feedback && (
         <div className="nb-lib__actions">
           <Button disabled={!answer.trim()} onClick={checkAnswer}>
-            Vérifier
+            {t.check}
           </Button>
         </div>
       )}
@@ -716,25 +726,26 @@ function LibraryExercisePreview({ payload }: { payload: Record<string, any> }) {
   const comprehension = Array.isArray(payload?.comprehension) ? payload.comprehension.slice(0, 2) : [];
   const vocabulary = Array.isArray(payload?.vocabulary) ? payload.vocabulary.slice(0, 5) : [];
   const production = payload?.production || null;
+  const t = useCahierCopy().library;
   return (
-    <section className="nb-sec" aria-label="Exercices de l’épisode">
-      <NbSectionHead t="Consignes de l’épisode" />
+    <section className="nb-sec" aria-label={t.preview_label}>
+      <NbSectionHead t={t.preview_title} />
       <div className="nb-lib__consignes">
         {comprehension.map((item: any, index: number) => (
           <Surface as="article" key={`comp-${index}`} shape="tile">
-            <p className="av2-label">Compréhension</p>
+            <p className="av2-label">{t.comprehension}</p>
             <p className="av2-body">{item.question}</p>
           </Surface>
         ))}
         {!!vocabulary.length && (
           <Surface as="article" shape="tile">
-            <p className="av2-label">Lexique</p>
+            <p className="av2-label">{t.lexique}</p>
             <p className="av2-body">{vocabulary.map((item: any) => item.word).filter(Boolean).join(', ')}</p>
           </Surface>
         )}
         {production?.prompt && (
           <Surface as="article" shape="tile">
-            <p className="av2-label">Production</p>
+            <p className="av2-label">{t.production}</p>
             <p className="av2-body">{production.prompt}</p>
           </Surface>
         )}

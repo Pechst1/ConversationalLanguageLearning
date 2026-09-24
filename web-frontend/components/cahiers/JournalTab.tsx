@@ -20,8 +20,14 @@
  *     a French sentence and keeps the learner's own paragraph on screen. It is
  *     never dressed as a verdict, and it never turns into a red mark.
  *
- * Chrome: av2 tokens only, French copy, pill sentence-case actions, dark mode
- * from the tokens. Styles are `.av2 .jn-*` (0,2,0) like the rest of the Cahier.
+ * Chrome: av2 tokens only, pill sentence-case actions, dark mode from the
+ * tokens. Styles are `.av2 .jn-*` (0,2,0) like the rest of the Cahier.
+ *
+ * WP-82: the screen's own words (instructions, verdicts, states, buttons) come
+ * from `cahier-copy.ts` in the chrome language of the surrounding
+ * `AtelierV2Root` — the learner's language up to A2, French from B1. The
+ * prompt, the reaction, the scene reveal, the corrections and the learner's
+ * own paragraph are content and stay French.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -42,6 +48,11 @@ import api, {
   type JournalEnvelope,
 } from '@/services/api';
 
+import { cahierCopy, fill, useCahierCopy, type CahierCopy } from './cahier-copy';
+
+type JournalCopy = CahierCopy['journal'];
+const FRENCH_JOURNAL: JournalCopy = cahierCopy('fr').journal;
+
 /* ---------- pure helpers, exported so they can be pinned ---------- */
 
 /** How the story label reads above the headline. Never any authored scene text.
@@ -49,13 +60,13 @@ import api, {
  *  WP-45 puts it in the artboard's order — «Hier · Le Mistral · avec Augustin»:
  *  when, where, who. The place is a bare name rather than «à …» because it is a
  *  label, not a sentence. */
-export function cueLine(entry: JournalEntryView | null | undefined): string {
+export function cueLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
   if (!entry) return '';
   const who = entry.cue?.character_name?.trim();
   const where = entry.cue?.location_name?.trim();
   const days = entry.cue?.days_ago;
-  const when = days == null ? null : days <= 1 ? 'Hier' : `Il y a ${days} jours`;
-  return [when, where || null, who ? `avec ${who}` : null].filter(Boolean).join(' · ');
+  const when = days == null ? null : days <= 1 ? t.yesterday : fill(t.days_ago, { n: days });
+  return [when, where || null, who ? fill(t.with, { name: who }) : null].filter(Boolean).join(' · ');
 }
 
 /** What the field says before the learner writes, in the artboard's shape
@@ -67,29 +78,29 @@ export function entryPlaceholder(entry: JournalEntryView | null | undefined): st
 }
 
 /** The content-recall sentence. Never a score out of ten, never a grade. */
-export function recallLine(entry: JournalEntryView | null | undefined): string | null {
+export function recallLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string | null {
   const recall = entry?.content_recall;
   if (!recall) return null;
   if (recall.status !== 'scored') {
-    return 'Cette scène n’a rien de noté à retrouver : rien à vérifier ici.';
+    return t.recall_unscored;
   }
   const found = recall.matched?.length || 0;
   const total = recall.facts_total || 0;
   if (total === 0) return null;
-  if (found === total) return `Vous avez retrouvé tout ce que la scène avait retenu (${found}/${total}).`;
-  if (found === 0) return `Rien de ce que la scène avait retenu n’apparaît (0/${total}).`;
-  return `Vous avez retrouvé ${found} élément(s) sur ${total}.`;
+  if (found === total) return fill(t.recall_all, { found, total });
+  if (found === 0) return fill(t.recall_none, { total });
+  return fill(t.recall_some, { found, total });
 }
 
-/** The French verdict line for the writing itself. */
-export function correctionLine(entry: JournalEntryView | null | undefined): string {
+/** The verdict line for the writing itself, in the chrome language. */
+export function correctionLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
   const correction = entry?.correction;
   if (!correction || correction.assessment_status !== 'checked') {
-    return 'La correction n’a pas pu être faite. Votre texte est gardé tel quel.';
+    return t.correction_unavailable;
   }
-  if (!correction.errata?.length) return 'Rien à corriger dans ce texte.';
-  if (correction.errata.length === 1) return 'Une chose à revoir.';
-  return `${correction.errata.length} choses à revoir.`;
+  if (!correction.errata?.length) return t.correction_clean;
+  if (correction.errata.length === 1) return t.correction_one;
+  return fill(t.correction_many, { n: correction.errata.length });
 }
 
 export function wordCount(text: string): number {
@@ -99,6 +110,8 @@ export function wordCount(text: string): number {
 /* ---------- the tab ---------- */
 
 export default function JournalTab() {
+  const copy = useCahierCopy();
+  const t = copy.journal;
   const [state, setState] = useState<JournalEnvelope | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -143,11 +156,11 @@ export default function JournalTab() {
       setDraft('');
       setShowAll(false);
     } catch {
-      setError('L’entrée n’a pas pu être envoyée. Réessayez.');
+      setError(t.send_failed);
     } finally {
       setPending(null);
     }
-  }, [draft, entry]);
+  }, [draft, entry, t]);
 
   const skip = useCallback(async () => {
     if (!entry) return;
@@ -156,11 +169,11 @@ export default function JournalTab() {
     try {
       setState(await api.skipJournalEntry(entry.id));
     } catch {
-      setError('Impossible pour l’instant. Réessayez.');
+      setError(t.busy_failed);
     } finally {
       setPending(null);
     }
-  }, [entry]);
+  }, [entry, t]);
 
   const answerFollowup = useCallback(async () => {
     if (!followup) return;
@@ -170,11 +183,11 @@ export default function JournalTab() {
       setState(await api.answerJournalFollowup(followup.entry_id, followDraft));
       setFollowDraft('');
     } catch {
-      setError('Impossible pour l’instant. Réessayez.');
+      setError(t.busy_failed);
     } finally {
       setPending(null);
     }
-  }, [followDraft, followup]);
+  }, [followDraft, followup, t]);
 
   if (loading) {
     return (
@@ -191,9 +204,9 @@ export default function JournalTab() {
       <div className="jn-wrap">
         <StateBlock
           tone="error"
-          title="Le journal n’a pas pu être ouvert"
-          body="La connexion a échoué. Rien n’est perdu."
-          action={{ label: 'Réessayer', onSelect: () => void load(), tone: 'secondary' }}
+          title={t.load_failed_title}
+          body={t.load_failed_body}
+          action={{ label: copy.cahier.retry, onSelect: () => void load(), tone: 'secondary' }}
         />
         <JournalStyles />
       </div>
@@ -211,14 +224,14 @@ export default function JournalTab() {
       {/* ---- the +7-day line, above the day's entry: it is one question ---- */}
       {followup && !followup.answered && (
         <Surface as="section" tone="paper" shape="card" className="jn-card">
-          <p className="av2-label">Une semaine plus tard</p>
+          <p className="av2-label">{t.followup_kicker}</p>
           <p className="jn-ask" lang="fr">
             {followup.prompt_fr}
           </p>
           {textAnswerField({
-            label: 'Votre réponse, en une phrase',
+            label: t.followup_label,
             value: followDraft,
-            placeholder: 'Une phrase suffit.',
+            placeholder: t.followup_placeholder,
             rows: 2,
             disabled: pending === 'followup',
             onChange: setFollowDraft,
@@ -227,11 +240,11 @@ export default function JournalTab() {
             tone="secondary"
             inline
             pending={pending === 'followup'}
-            pendingLabel="Envoi…"
+            pendingLabel={t.sending}
             disabled={!followDraft.trim()}
             onClick={() => void answerFollowup()}
           >
-            Répondre
+            {t.reply}
           </Action>
         </Surface>
       )}
@@ -239,16 +252,16 @@ export default function JournalTab() {
       {!entry && (
         <StateBlock
           tone="empty"
-          title="Rien à raconter aujourd’hui"
-          body="Le journal s’ouvre le lendemain d’une scène. Revenez demain."
+          title={t.empty_title}
+          body={t.empty_body}
         />
       )}
 
       {entry && entry.status === 'skipped' && (
         <StateBlock
           tone="empty"
-          title="Entrée passée"
-          body="Cette scène ne sera plus proposée. La prochaine arrivera demain."
+          title={t.skipped_title}
+          body={t.skipped_body}
         />
       )}
 
@@ -260,15 +273,15 @@ export default function JournalTab() {
           screen rather than one block on it. */}
       {entry && !written && entry.status !== 'skipped' && (
         <>
-          <section className="jn-write" aria-label="Le journal de bord">
-            <p className="av2-label av2-label--story">{cueLine(entry) || 'La scène d’hier'}</p>
-            <h2 className="av2-headline">Le journal de bord</h2>
+          <section className="jn-write" aria-label={t.headline}>
+            <p className="av2-label av2-label--story">{cueLine(entry, t) || t.cue_fallback}</p>
+            <h2 className="av2-headline">{t.headline}</h2>
             <p className="jn-lead" lang="fr">
               {entry.prompt_fr}
             </p>
             <div className="jn-entry-field">
               {textAnswerField({
-                label: 'Hier, en français',
+                label: t.field_label,
                 value: draft,
                 placeholder: entryPlaceholder(entry),
                 rows: 6,
@@ -277,13 +290,10 @@ export default function JournalTab() {
               })}
             </div>
             <Surface tone="outline">
-              <p className="jn-hint">
-                Une seule correction en avant, la liste complète sur demande. Dans une semaine,
-                une ligne vous redemandera cette scène.
-              </p>
+              <p className="jn-hint">{t.hint}</p>
             </Surface>
             <p className="jn-count" aria-live="polite">
-              {wordCount(draft)} mot(s) · {minWords} au minimum
+              {fill(t.word_count, { n: wordCount(draft), min: minWords })}
             </p>
           </section>
           {/* The screen foot. Last in the flow, so the action is never under the
@@ -292,24 +302,24 @@ export default function JournalTab() {
             <Action
               tone="primary"
               pending={pending === 'write'}
-              pendingLabel="Correction en cours…"
+              pendingLabel={t.correcting}
               disabled={wordCount(draft) < minWords}
               onClick={() => void submit()}
             >
-              Envoyer
+              {t.send}
             </Action>
             {/* A caption, not a control: it says what «Envoyer» does next, and
                 there is nothing to press before the entry is sent. The artboard
                 underlines it; an underline that opens nothing is a false
                 affordance, so it is drawn quiet instead. */}
-            <p className="jn-foot__note">Relire la scène après l’envoi</p>
+            <p className="jn-foot__note">{t.foot_note}</p>
             <Action
               tone="quiet"
               pending={pending === 'skip'}
               pendingLabel="…"
               onClick={() => void skip()}
             >
-              Passer cette scène
+              {t.skip}
             </Action>
           </ScreenFoot>
         </>
@@ -319,7 +329,7 @@ export default function JournalTab() {
       {entry && written && (
         <>
           <Surface as="section" tone="paper" shape="card" className="jn-card">
-            <p className="av2-label">{cueLine(entry) || 'Votre entrée'}</p>
+            <p className="av2-label">{cueLine(entry, t) || t.entry_fallback}</p>
             <p className="jn-entry" lang="fr">
               {entry.entry_text}
             </p>
@@ -335,14 +345,14 @@ export default function JournalTab() {
           )}
 
           <Surface as="section" tone="paper" shape="card" className="jn-card">
-            <p className="av2-label">Le français</p>
+            <p className="av2-label">{t.french_label}</p>
             {entry.correction?.assessment_status === 'unavailable' ? (
               <Notice tone="quiet" live="status">
-                {correctionLine(entry)}
+                {correctionLine(entry, t)}
               </Notice>
             ) : (
               <>
-                <p className="jn-verdict">{correctionLine(entry)}</p>
+                <p className="jn-verdict">{correctionLine(entry, t)}</p>
                 {entry.correction?.foreground && (
                   <Correction
                     label={entry.correction.foreground.label}
@@ -359,7 +369,7 @@ export default function JournalTab() {
                       aria-expanded={showAll}
                       onClick={() => setShowAll((value) => !value)}
                     >
-                      {showAll ? 'Masquer le détail' : 'Tout voir'}
+                      {showAll ? t.hide_detail : t.show_all}
                     </Action>
                     {showAll && (
                       <ul className="jn-list">
@@ -382,8 +392,8 @@ export default function JournalTab() {
                 {entry.errata_recorded > 0 && (
                   <p className="jn-hint">
                     {entry.errata_recorded === 1
-                      ? 'Une faute est notée au Relevé et reviendra dans une scène.'
-                      : `${entry.errata_recorded} fautes sont notées au Relevé et reviendront dans une scène.`}
+                      ? t.errata_one
+                      : fill(t.errata_many, { n: entry.errata_recorded })}
                   </p>
                 )}
               </>
@@ -391,8 +401,8 @@ export default function JournalTab() {
           </Surface>
 
           <Surface as="section" tone="paper" shape="card" className="jn-card">
-            <p className="av2-label">Ce dont vous vous souvenez</p>
-            <p className="jn-verdict">{recallLine(entry) || 'Rien à vérifier ici.'}</p>
+            <p className="av2-label">{t.recall_label}</p>
+            <p className="jn-verdict">{recallLine(entry, t) || t.recall_empty}</p>
             {(entry.content_recall?.missed?.length || 0) > 0 && (
               <ul className="jn-list jn-list--facts">
                 {(entry.content_recall?.missed || []).map((fact, index) => (
@@ -406,7 +416,7 @@ export default function JournalTab() {
 
           {entry.reveal && (
             <Surface as="section" tone="outline" shape="card" className="jn-card">
-              <p className="av2-label">La scène, telle qu’elle était</p>
+              <p className="av2-label">{t.reveal_label}</p>
               {entry.reveal.title_fr && <h2 className="jn-title">{entry.reveal.title_fr}</h2>}
               {entry.reveal.setup_fr && (
                 <p className="jn-scene" lang="fr">
