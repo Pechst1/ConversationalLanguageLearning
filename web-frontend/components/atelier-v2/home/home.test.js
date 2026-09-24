@@ -168,6 +168,16 @@ test('WP-L7: the level is back in the masthead, compact, as a label and never a 
   assert.doesNotMatch(home('en', { level: null }), /av2-home__level/);
 });
 
+test('WP-L6: «Cette semaine, on consolide.» on Home while the throttle is on, in the chrome language', () => {
+  assert.doesNotMatch(home('fr'), /data-consolidating/);
+  assert.match(visibleText(home('fr', { consolidating: true })), /Cette semaine, on consolide\./);
+  assert.match(visibleText(home('en', { consolidating: true })), /This week, we consolidate\./);
+  assert.match(visibleText(home('de', { consolidating: true })), /Diese Woche festigen wir\./);
+  const mast = home('fr', { consolidating: true });
+  const header = mast.slice(mast.indexOf('av2-home__mast"'), mast.indexOf('</header>'));
+  assert.equal((header.match(/av2-headline[ "]/g) || []).length, 1, 'a label, never a second headline');
+});
+
 test('at most two chips, one once the day is done, and never a press', () => {
   const three = home('en', {
     chips: [

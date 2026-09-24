@@ -126,6 +126,18 @@ export function JourneyRecap({
         </dl>
       )}
       {view?.freezeNote && <p className="av2-label">{view.freezeNote}</p>}
+      {/* WP-L8: once a week at the Seal — a measured estimate, never a promise. */}
+      {seal && view?.forecast && (
+        <p className="av2-label" data-forecast-line="">
+          {view.forecast}
+        </p>
+      )}
+      {/* WP-L6 §2.2: new intake is halved until the reviews catch up. */}
+      {view?.consolidating && (
+        <p className="av2-label" data-consolidating="">
+          {view.consolidating}
+        </p>
+      )}
 
       {view && view.words.length > 0 && (
         <ul className="av2-reward__words" aria-label={chrome.words_label}>

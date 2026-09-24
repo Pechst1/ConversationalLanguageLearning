@@ -2785,6 +2785,7 @@ function TodayView({
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       level={homeLevel}
+      consolidating={Boolean(today?.intake?.consolidating)}
       streak={streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
       dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}

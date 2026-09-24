@@ -92,22 +92,36 @@ export const RECAP_CHROME = CHROME.fr;
  */
 export const ENCORE_HREF = '/vocabulary/review?encore=1';
 
-type StatusKey = 'freeze_used' | 'level_evidence' | 'level_evidence_words' | 'level_evidence_rules';
+type StatusKey =
+  | 'freeze_used'
+  | 'level_evidence'
+  | 'level_evidence_words'
+  | 'level_evidence_rules'
+  | 'consolidating'
+  | 'forecast_line';
 
 const STATUS: Record<ControlLanguage, Record<StatusKey, string>> = {
   en: {
+    /** WP-L6 §2.2: the auto-throttle halved new intake until reviews recover. */
+    consolidating: 'This week, we consolidate.',
+    /** WP-L8: once a week at the Seal, measured forecasts only. */
+    forecast_line: 'At this rhythm: {level} around {month}.',
     freeze_used: 'A day off kept your streak.',
     level_evidence: '{w} words and {g} rules mastered.',
     level_evidence_words: '{w} words mastered.',
     level_evidence_rules: '{g} rules mastered.',
   },
   de: {
+    consolidating: 'Diese Woche festigen wir.',
+    forecast_line: 'In diesem Rhythmus: {level} etwa im {month}.',
     freeze_used: 'Ein Ruhetag hat Ihre Serie gehalten.',
     level_evidence: '{w} Wörter und {g} Regeln sicher.',
     level_evidence_words: '{w} Wörter sicher.',
     level_evidence_rules: '{g} Regeln sicher.',
   },
   fr: {
+    consolidating: 'Cette semaine, on consolide.',
+    forecast_line: 'À ce rythme : {level} vers {month}.',
     freeze_used: 'Un jour de relâche a gardé la série.',
     level_evidence: '{w} mots et {g} règles maîtrisés.',
     level_evidence_words: '{w} mots maîtrisés.',
