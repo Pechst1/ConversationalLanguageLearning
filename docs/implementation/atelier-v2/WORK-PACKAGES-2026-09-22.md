@@ -262,6 +262,27 @@ line so an agent can prove it.
   heuristic («frère», «hiver», «notre» tagged as verbs).
 - **Done when:** a lexical-level check on 50 generated A1 letters passes; every Lexique
   noun shows its article.
+- **Status (2026-09-25): landed.**
+  - **Level check** — `lexical_coverage.check_copy_level` (the scene guard's rule for short
+    copy): at most the band's budget (A1: 1) of words two or more bands above the learner
+    (or, up to A2, absent from the core lexicon), and ≥ 90 % known-word coverage once the
+    copy is measurable (≥ 20 words). Targets and names are exempt.
+  - **Generated letters** (`missions._llm_scenario`): every printed French field is checked;
+    a letter too hard, or missing its objective in the learner's language (en/de), is
+    rewritten once with the guard's hint (`rewrite_because`), then replaced by the authored
+    letter. The authored letters' French (12 domains, 5 mission types, all objectives) is
+    rewritten at A1 — «geste commercial», «justificatif de domicile», «créneau» are gone.
+  - `tests/test_wp84_letter_level.py`: 50 letters for an A1.1 learner through a fake writer
+    (17 accepted, 17 repaired, 16 authored) all pass; every authored letter passes at A1.
+  - Scenes were already guarded (WP-29). Still English on authored letters: the frame's
+    `contact_role` / `scene_anchor` and the P.S. `twist` (marked `lang="fr"` in the Courrier).
+  - **Gender and POS** — `app/data/lexical/fr_core_pos.json` (built by
+    `scripts/build_lexicon_pos.py`): all 2,543 unannotated lemmas classified, 1,149 nouns
+    with m/f/mf. `lexicon_grammar.word_grammar` fills what a French card lacks on the Lexique
+    rows, the slate and the word sheet (`VocabularyWordRead`), so the WP-D6 WordToken shows
+    le/la; `inferred_part_of_speech` asks the lexicon before the suffix heuristic (the source
+    of «frère», «hiver», «notre» as verbs). Read-time, no migration
+    (`tests/test_wp84_lexicon_grammar.py`).
 
 ### Wave E — hygiene
 
