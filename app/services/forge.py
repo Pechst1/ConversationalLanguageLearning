@@ -851,6 +851,15 @@ class ForgeService:
         )
         _store_state(session, state)
         self.db.add(session)
+        from app.services.pilot_events import PilotEventService
+
+        PilotEventService(self.db).record(
+            "forge_test_out_started",
+            user_id=user.id,
+            entity_type="grammar_concept",
+            entity_id=concept.id,
+            payload={"concept_id": concept.id, "external_id": concept.external_id},
+        )
         self.db.commit()
         self.db.refresh(session)
         return session
@@ -914,6 +923,7 @@ class ForgeService:
             return {}
         upcoming = self.next_item(user=user, session=session)
         state = forge_state_of(session) or state
+        combo, best_combo = core.combo_runs(state.history)
         return {
             "mode": state.mode,
             "length": state.length,
@@ -922,6 +932,11 @@ class ForgeService:
             "finished": state.finished,
             "next": upcoming,
             "result": state.result,
+            # WP-S7: the run of checked right answers (S1 semantics: an unchecked
+            # or provisional answer neither extends nor breaks it) and the flags
+            # the page reads, so the owner can switch each feature off.
+            "combo": {"run": combo, "best": best_combo},
+            "features": forge_features(),
             "rules": [
                 {
                     "concept_id": track.concept_id,
@@ -1103,9 +1118,31 @@ class ForgeService:
         else:
             progress.forge_rung = int(result.get("placement_rung") or 0)
         self.db.add(progress)
+        if result.get("passed"):
+            # WP-S7: a rare token for a rule tested out (once per rule), tied to
+            # mastery, never to volume.
+            token = mint_test_out_token(self.db, user=user, concept_id=concept_id, now=now)
+            if token is not None:
+                result["token"] = token
+                state.result = dict(result)
         session.status = TEST_OUT_DONE_STATUS
         session.completed_at = now
         session.recap_payload = {"test_out": {**result, "concept_id": concept_id}}
+        from app.services.pilot_events import PilotEventService
+
+        PilotEventService(self.db).record(
+            "forge_test_out_finished",
+            user_id=user.id,
+            entity_type="grammar_concept",
+            entity_id=concept_id,
+            payload={
+                "concept_id": concept_id,
+                "passed": bool(result.get("passed")),
+                "correct": result.get("correct"),
+                "total": result.get("total"),
+                "placement_rung": result.get("placement_rung"),
+            },
+        )
         logger.info("Forge test-out finished", user_id=str(user.id), concept_id=concept_id, passed=result.get("passed"))
 
     # -- reading the forge ------------------------------------------------------
@@ -1141,6 +1178,57 @@ class ForgeService:
                 }
             )
         return rows
+
+
+def forge_features() -> dict[str, bool]:
+    """WP-S7's switches, as the page reads them (each on by default)."""
+
+    from app.config import settings
+
+    return {
+        "combo": bool(getattr(settings, "ATELIER_FORGE_COMBO_ENABLED", True)),
+        "eclair": bool(getattr(settings, "ATELIER_ECLAIR_ENABLED", True)),
+        "grammar_map": bool(getattr(settings, "ATELIER_GRAMMAR_MAP_ENABLED", True)),
+        "mastery_rewards": bool(getattr(settings, "ATELIER_MASTERY_REWARDS_ENABLED", True)),
+    }
+
+
+#: WP-S7: the rare token's source (a new source for the existing logo token,
+#: as the daily journey's keepsake is — not a new collectible kind).
+TEST_OUT_TOKEN_SOURCE_KIND = "test_out"
+
+
+def mint_test_out_token(db: Session, *, user: User, concept_id: int, now: datetime) -> dict[str, Any] | None:
+    """Mint the rare token for a passed test-out, once per rule. Never commits."""
+
+    if not forge_features()["mastery_rewards"]:
+        return None
+    from app.services.atelier_rewards import LOGO_TOKEN, AtelierRewardService
+
+    concept = db.get(GrammarConcept, int(concept_id))
+    item, created = AtelierRewardService(db)._mint(
+        user_id=user.id,
+        kind=LOGO_TOKEN,
+        source_kind=TEST_OUT_TOKEN_SOURCE_KIND,
+        source_ref=str(int(concept_id)),
+        metadata={
+            "name": "Rule token",
+            "rare": True,
+            "concept_id": int(concept_id),
+            "external_id": getattr(concept, "external_id", None),
+            "date": now.date().isoformat(),
+        },
+        commit=False,
+    )
+    if not created:
+        return None
+    return {
+        "id": str(item.id),
+        "kind": item.kind,
+        "source_kind": item.source_kind,
+        "concept_id": int(concept_id),
+        "rare": True,
+    }
 
 
 def _pool_mode(attempt: AtelierAttempt) -> str:
@@ -1191,7 +1279,9 @@ __all__ = [
     "ForgePlanComposer",
     "BankItemProvider",
     "fingerprint_for",
+    "forge_features",
     "forge_state_of",
+    "mint_test_out_token",
     "forge_units",
     "initial_rung",
     "is_forge_session",

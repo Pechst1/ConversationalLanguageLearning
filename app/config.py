@@ -220,6 +220,24 @@ class Settings(BaseSettings):
             "item-level evidence, reprise, interleaving). False keeps the legacy ladder."
         ),
     )
+    # WP-S7 — momentum inside the design language. Each is on by default; the
+    # owner switches one off without touching the others.
+    ATELIER_FORGE_COMBO_ENABLED: bool = Field(
+        True,
+        description="WP-S7: the forge's combo (shape tokens light up on checked right answers, haptic + soft sound).",
+    )
+    ATELIER_ECLAIR_ENABLED: bool = Field(
+        True,
+        description="WP-S7: Éclair, the 60-second minimal-pair sprint between two introduced contrasting rules.",
+    )
+    ATELIER_GRAMMAR_MAP_ENABLED: bool = Field(
+        True,
+        description="WP-S7: the grammar map in Cahier → Règles (the syllabus as the four shapes, ghost → ink).",
+    )
+    ATELIER_MASTERY_REWARDS_ENABLED: bool = Field(
+        True,
+        description="WP-S7: a Seal ring per rule held today and a rare token for a passed test-out.",
+    )
     ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
         True,
         description="Pre-generate the learner's next Atelier session in the background.",
