@@ -354,6 +354,32 @@ the biggest time saver against Duolingo.
   test-out. Confetti stays reserved as it is today.
 - **Done when:** these are behind a flag with pilot events (combo length, Éclair plays, map opens), and
   the owner's design review has passed.
+- **Status (2026-09-24): built, awaiting the owner's design review** (branch `wp-s7-momentum`, no migration).
+  - **Flags** (each on by default): `ATELIER_FORGE_COMBO_ENABLED`, `ATELIER_ECLAIR_ENABLED`,
+    `ATELIER_GRAMMAR_MAP_ENABLED`, `ATELIER_MASTERY_REWARDS_ENABLED`; the page reads them from
+    `forge.features` / the map payload.
+  - **Combo** — `core.combo_runs(history)`: checked right answers extend, a checked error or partial
+    resets, unchecked/provisional ones skip. The forge view carries `combo {run, best}`; the top bar draws
+    five tokens in the rule's shape (`ForgeCombo`, `lib/forge-combo.ts`). From the second link: a double
+    tap and a synthesised pentatonic blip (`playComboTone`, on by default on the web too, silent when
+    Réglages → «Sons» is off). Recap: «Best run: n in a row»; pilot event `forge_combo`.
+  - **Éclair** — `app/services/eclair.py`, `POST /atelier/forge/eclair` and `/eclair/{id}/finish`,
+    page `/eclair`. Unlocked by two introduced contrast partners (the v2 syllabus block is read too);
+    items are the item bank's minimal pairs (read-only), graded on the page and re-graded on filing;
+    discriminate evidence through the forge's caps (a same-day replay of the pair folds); best per pair
+    from the filed rounds (`AtelierSession` status `eclair_done`). Events `eclair_started/finished`.
+  - **Grammar map** — `GET /atelier/forge/map` (+ `POST /map/opened`): stages ghost · introduced ·
+    proficient (rung ≥ produce) · held, by sub-band. Cahier → Règles draws it above the register
+    (`components/cahiers/GrammarMap.tsx`); a tap opens the card, coach slot, «Forge this rule» and
+    «Test out this rule»; Éclair pairs are listed under it.
+  - **Rewards** — `journey.mastery_today` → one filled ring per rule held on the local day around the
+    Seal (capped at four); a passed test-out mints one rare logo token per rule (`source_kind
+    "test_out"`). Events `forge_test_out_started/finished`.
+  - **Staircase fix** (live check at 375 px): steps are 12–14 px on a 17 px pitch, no longer one grey block.
+  - Tests: `tests/test_wp_s7_momentum.py`, `web-frontend/lib/forge-combo.test.js`,
+    `web-frontend/components/cahiers/grammar-map.test.js`.
+  - **Open:** `unified_srs.contrast_partner_refs` does not read the v2 syllabus's `contrast_partners`,
+    so WP-S4's picker seats no contrast rule on v2 (Éclair reads both).
 
 #### WP-S8 · Measure and prove the speed
 - **Metrics per rule:** items-to-proficient, items-to-held, days-to-held, and lapse rate after held.
