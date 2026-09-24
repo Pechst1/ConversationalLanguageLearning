@@ -52,6 +52,31 @@ def practice_href_for(concept_id: object | None = None) -> str:
     return f"{PRACTICE_HREF}&concept={quote(value, safe='')}" if value else PRACTICE_HREF
 
 
+#: WP-S4 — La Forge's one entry: ``/atelier?mode=forge[&concept=<id>]…``. The
+#: after-day chip (Léger, Régulier) and the folded step (Soutenu, Intensif)
+#: both open it; the page starts the séance through the forge picker.
+FORGE_HREF = "/atelier?mode=forge"
+
+
+def forge_href_for(
+    concept_id: object | None = None,
+    *,
+    budget_seconds: int | None = None,
+    step_id: object | None = None,
+) -> str:
+    """`/atelier?mode=forge[&concept=<id>][&budget=<s>][&step=<journey step id>]`."""
+
+    parts = [FORGE_HREF]
+    value = "" if concept_id is None else str(concept_id).strip()
+    if value:
+        parts.append(f"concept={quote(value, safe='')}")
+    if budget_seconds:
+        parts.append(f"budget={int(budget_seconds)}")
+    if step_id:
+        parts.append(f"step={quote(str(step_id), safe='')}")
+    return "&".join(parts)
+
+
 ContractVersion = Literal[1]
 #: WP-L6: the four rhythms — Léger 5, Régulier 10, Soutenu 20, Intensif 30 min.
 BudgetSeconds = Literal[300, 600, 1200, 1800]
@@ -330,6 +355,22 @@ class RulePrompt(JourneyModel):
     rule_card: RuleCardPayload
 
 
+class ForgePrompt(JourneyModel):
+    """WP-S4 «La Forge», folded into the day: a hand-off, not an exercise.
+
+    ``href`` opens the forge block on today's rule; ``forged`` turns true once
+    a forge block started from this step was completed, so the step reads
+    «Continue» when the learner comes back. Both are projected, never stored.
+    """
+
+    concept_id: int | None = None
+    title_native: str = ""
+    title_fr: str = ""
+    budget_seconds: int
+    href: str = FORGE_HREF
+    forged: bool = False
+
+
 class _PublicStepBase(JourneyModel):
     id: str
     ordinal: int
@@ -363,8 +404,13 @@ class RuleStep(_PublicStepBase):
     prompt: RulePrompt
 
 
+class ForgeStep(_PublicStepBase):
+    kind: Literal[StepKind.FORGE] = StepKind.FORGE
+    prompt: ForgePrompt
+
+
 PublicStep = Annotated[
-    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep,
+    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep,
     Field(discriminator="kind"),
 ]
 
@@ -589,6 +635,20 @@ class JourneyBecause(JourneyModel):
     example: str | None = None
 
 
+class ForgeEntry(JourneyModel):
+    """WP-S4 — where «Forge today's rule» opens, and how the day carries it.
+
+    ``folded``: Soutenu and Intensif carry the forge inside the day (a step in
+    the Scène movement); Home then keeps «More practice» after the day.
+    Léger and Régulier (``folded`` false) get the forge as the after-day chip.
+    """
+
+    href: str = FORGE_HREF
+    concept_id: int | None = None
+    budget_seconds: int
+    folded: bool = False
+
+
 class TodayEnvelope(JourneyModel):
     contract_version: ContractVersion = CONTRACT_VERSION
     enabled: bool
@@ -604,6 +664,8 @@ class TodayEnvelope(JourneyModel):
     #: scheduler has one, so the drill loop starts from a concept and never
     #: from "today". Additive: ``contract_version`` is unchanged.
     practice_href: str = PRACTICE_HREF
+    #: WP-S4. La Forge's entry for today (``None`` with the capability off).
+    forge: ForgeEntry | None = None
     #: WP-24 / WP-28. Why today's scene is this scene, when the plan actually
     #: kept a target that exists because of a recorded mistake. ``None`` means
     #: today owes nothing to an erratum and Home prints no line at all. Read

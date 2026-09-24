@@ -27,10 +27,12 @@ from app.db.models.atelier import (
     AtelierAttempt,
     AtelierExerciseSet,
     AtelierGenerationEvent,
+    AtelierServedItem,
     AtelierSession,
 )
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
@@ -49,6 +51,13 @@ from app.services.exercise_generation import (
     ExerciseGenerationUnavailable,
 )
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
+from app.services.forge_grading import (
+    FREE_PRODUCTION_ROUNDS,
+    describe_diff,
+    production_local_check,
+    same_answer,
+    token_diff,
+)
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -59,6 +68,13 @@ from app.services.glosses import (
 from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
+from app.services.item_bank import (
+    ITEM_BANK_VERSION,
+    VARIETY_WINDOW_DAYS,
+    build_bank_set,
+    units_for_external_id,
+)
+from app.services.item_bank import fingerprint as bank_fingerprint
 from app.services.learner_copy import learner_text as _copy
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
@@ -74,6 +90,44 @@ ATELIER_GENERATOR_VERSION = "atelier-v11"
 ATELIER_GENERATION_MAX_ATTEMPTS = 3
 ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v3"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+#: WP-S1 / WP-S8: one pilot row per séance submit — the rung, the local
+#: verdict's latency and, once the relecture lands, its latency and whether it
+#: changed the verdict.
+FORGE_VERDICT_EVENT = "forge_verdict"
+#: Rungs whose relecture may change the verdict: their evidence waits for it.
+ATELIER_EVIDENCE_HOLD_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+
+
+def _verdict_passes(verdict: Any) -> bool:
+    return str(verdict or "") in {"correct", "accepted"}
+
+
+def _test_out_local_grade(local_check: dict[str, Any], text: str) -> dict[str, Any] | None:
+    """A test-out's free production, graded by the local check alone (WP-S3 × WP-S1).
+
+    The rule's detector decides: a sentence that uses the rule is right, one
+    that does not is wrong. Without a detector reading (no rule to read it
+    against), only a near-copy of the model answer is taken as right; anything
+    else stays unchecked, which a test-out scores as a miss.
+    """
+
+    if not str(text or "").strip():
+        return None
+    detector = local_check.get("detector")
+    similarity = local_check.get("model_similarity")
+    if detector == "hit" or (detector == "unknown" and isinstance(similarity, (int, float)) and similarity >= 0.8):
+        verdict, score = "correct", 4.0
+    elif detector == "miss":
+        verdict, score = "incorrect", 1.0
+    else:
+        return None
+    return {
+        "verdict": verdict,
+        "score_0_4": score,
+        "assessment_status": "checked",
+        "checked": True,
+        "graded_by": "local_test_out",
+    }
 ATELIER_QUALITY_MIN_REPORTS = 3
 ATELIER_QUALITY_MIN_ATTEMPTS = 8
 ATELIER_QUALITY_MAX_WRONG_RATE = 0.65
@@ -1203,6 +1257,14 @@ def inject_vocabulary_context(
     return next_payload
 
 
+def forge_appended_item_ids(payload: Any) -> set[str]:
+    """Ids of the items La Forge's bank top-up appended to a session's set."""
+
+    forge = (payload or {}).get("forge") if isinstance(payload, dict) else None
+    appended = (forge or {}).get("appended") if isinstance(forge, dict) else None
+    return {str(entry.get("id")) for entry in appended or [] if isinstance(entry, dict) and entry.get("id")}
+
+
 def _session_exercise_set_ids(session: AtelierSession) -> dict[str, str]:
     quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
     raw = quote.get("exercise_set_ids") if isinstance(quote, dict) else {}
@@ -1232,7 +1294,21 @@ def _session_has_concept_attempt(db: Session, *, session: AtelierSession, concep
     )
 
 
-def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) -> AtelierExerciseSet | None:
+def shared_pool_sets(
+    db: Session,
+    concept: GrammarConcept,
+    *,
+    band: str | None = None,
+    limit: int = 10,
+) -> list[AtelierExerciseSet]:
+    """Vetted shared LLM sets of a concept, the learner's band first (WP-S2).
+
+    ``source == "llm"`` is the shared pool: generated without a learner and
+    gated by the structural guard and the AI critic. ``llm_user`` sets are
+    personalised and never shared. A set generated for another band, or
+    before sets carried a band, is still served after the band's own.
+    """
+
     candidates = (
         db.query(AtelierExerciseSet)
         .filter(
@@ -1242,13 +1318,368 @@ def _latest_valid_shared_llm_exercise_set(db: Session, concept: GrammarConcept) 
             AtelierExerciseSet.retired_at.is_(None),
         )
         .order_by(AtelierExerciseSet.created_at.desc())
-        .limit(5)
+        .limit(max(limit * 3, 15))
         .all()
     )
-    for candidate in candidates:
-        if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept):
-            return candidate
-    return None
+    valid = [candidate for candidate in candidates if AtelierExerciseGenerator.validate_payload(candidate.payload, concept=concept)]
+    if band:
+        valid.sort(key=lambda candidate: 0 if candidate.pool_band == band else (1 if candidate.pool_band is None else 2))
+    return valid[:limit]
+
+
+def _latest_valid_shared_llm_exercise_set(
+    db: Session, concept: GrammarConcept, band: str | None = None
+) -> AtelierExerciseSet | None:
+    pool = shared_pool_sets(db, concept, band=band, limit=1)
+    return pool[0] if pool else None
+
+
+# --------------------------------------------------------------------------- #
+# WP-S2 — La Forge's item bank at séance start
+# --------------------------------------------------------------------------- #
+
+ATELIER_ITEM_BANK_SOURCE = "template"
+_POOL_OUTPUT_ROUNDS = frozenset({"sentence", "speak", "conversation", "produce"})
+
+
+def learner_pool_band(db: Session, user: User | None, concept: GrammarConcept | None = None) -> str:
+    """The coarse band a learner's shared pool sets are drawn from (A1, A2, …)."""
+
+    band = placement_band(db, user) if user is not None else None
+    if not band and user is not None:
+        band = _coarse_band(getattr(user, "cefr_estimate", None))
+    if not band and concept is not None:
+        band = _coarse_band(getattr(concept, "level", None))
+    return band or "A1"
+
+
+def served_fingerprints(db: Session, user: User, *, days: int = VARIETY_WINDOW_DAYS) -> set[str]:
+    """Fingerprints of every exercise sentence the learner was served in the window."""
+
+    since = datetime.now(UTC) - timedelta(days=days)
+    rows = (
+        db.query(AtelierServedItem.fingerprint)
+        .filter(AtelierServedItem.user_id == user.id, AtelierServedItem.served_at >= since)
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
+def _record_served_items(
+    db: Session,
+    *,
+    user: User,
+    session: AtelierSession | None,
+    fingerprints: Iterable[str],
+    unit: str | None,
+) -> None:
+    now = datetime.now(UTC)
+    for value in dict.fromkeys(fingerprints):
+        db.add(
+            AtelierServedItem(
+                user_id=user.id,
+                atelier_session_id=session.id if session is not None else None,
+                fingerprint=value,
+                unit=unit,
+                served_at=now,
+            )
+        )
+
+
+def _pool_output_fingerprints(payload: dict[str, Any]) -> list[str]:
+    sentences: list[str] = []
+    ladder = payload.get("output_ladder") if isinstance(payload.get("output_ladder"), dict) else {}
+    for round_name in ("sentence", "speak", "conversation"):
+        for item in ((ladder.get(round_name) or {}).get("items") or []):
+            if isinstance(item, dict) and item.get("example_answer"):
+                sentences.append(str(item["example_answer"]))
+    produce = payload.get("produce") if isinstance(payload.get("produce"), dict) else {}
+    if produce.get("source_fragment"):
+        sentences.append(str(produce["source_fragment"]))
+    return [bank_fingerprint(sentence) for sentence in sentences]
+
+
+def _pool_outputs_for(
+    db: Session,
+    concept: GrammarConcept,
+    *,
+    band: str,
+    exclude: set[str],
+) -> tuple[dict[str, Any] | None, AtelierExerciseSet | None, list[str]]:
+    """Situations and production prompts from the shared pool — never ones the learner saw this week."""
+
+    for candidate in shared_pool_sets(db, concept, band=band):
+        payload = candidate.payload if isinstance(candidate.payload, dict) else {}
+        fingerprints = _pool_output_fingerprints(payload)
+        if any(value in exclude for value in fingerprints):
+            continue
+        if not payload.get("output_ladder") or not payload.get("produce"):
+            continue
+        return {"output_ladder": payload["output_ladder"], "produce": payload["produce"]}, candidate, fingerprints
+    return None, None, []
+
+
+def _known_lemmas(target_vocabulary: list[dict[str, Any]] | None) -> list[str]:
+    words: list[str] = []
+    for item in target_vocabulary or []:
+        if not isinstance(item, dict):
+            continue
+        for key in ("lemma", "word", "french"):
+            value = str(item.get(key) or "").strip().lower()
+            if value:
+                words.append(value.split()[-1])
+                break
+    return words
+
+
+def item_bank_exercise_set(
+    db: Session,
+    *,
+    user: User,
+    session: AtelierSession,
+    concept: GrammarConcept,
+    target_vocabulary: list[dict[str, Any]] | None = None,
+) -> AtelierExerciseSet | None:
+    """One concept's exercise set for this séance from La Forge's item bank.
+
+    Templates first (rendered in-process, no LLM); their situations and
+    production prompts are replaced by a vetted shared LLM pool set when one
+    exists that the learner has not seen this week. ``None`` when the concept
+    has no templates, so the caller falls back to the shared pool / curated
+    path. Every sentence served is recorded (``atelier_served_items``):
+    nothing repeats within seven days or within the séance, and the rule
+    card's own example is never an exercise.
+    """
+
+    if not getattr(settings, "ATELIER_ITEM_BANK_ENABLED", True):
+        return None
+    external_id = str(concept.external_id or "")
+    units = units_for_external_id(external_id)
+    if not units:
+        return None
+    started = time.perf_counter()
+    try:
+        from app.services.grammar_units import examples as unit_examples
+
+        generator = AtelierExerciseGenerator(db)
+        rule_examples = unit_examples(concept)
+        base = generator._base(concept, sentence=rule_examples[0] if rule_examples else (concept.name or ""), marks=[])
+        requirement = {
+            "concept_id": concept.id,
+            "external_id": concept.external_id,
+            "label": _concept_label(concept),
+            "target_count": 1,
+        }
+        exclude = served_fingerprints(db, user)
+        band = learner_pool_band(db, user, concept)
+        pool_outputs, pool_set, pool_fingerprints = _pool_outputs_for(db, concept, band=band, exclude=exclude)
+        seed = f"{user.id}:{session.id}:{concept.id}"
+        known = _known_lemmas(target_vocabulary)
+
+        def build(with_pool: bool) -> tuple[Any, list[str]]:
+            built = build_bank_set(
+                external_id=external_id,
+                base=base,
+                requirement=requirement,
+                seed=seed,
+                exclude=exclude,
+                known=known,
+                rule_examples=rule_examples,
+                pool_outputs=pool_outputs if with_pool else None,
+            )
+            problems = AtelierExerciseGenerator._payload_validation_errors(built.payload, concept=concept) if built else ["no bank set"]
+            return built, problems
+
+        bank_set, errors = build(True)
+        if bank_set is not None and errors and pool_outputs:
+            # A pool set that clears the gates alone can still clash with this
+            # payload; the templated production prompts never do.
+            pool_outputs, pool_set, pool_fingerprints = None, None, []
+            bank_set, errors = build(False)
+        if bank_set is None or errors:
+            logger.warning(
+                "La Forge item bank could not build a set",
+                concept_id=concept.id,
+                external_id=external_id,
+                errors=errors[:5],
+            )
+            return None
+        payload = bank_set.payload
+        payload["forge"]["pool_set_id"] = str(pool_set.id) if pool_set else None
+        payload["forge"]["band"] = band
+        content_hash = _payload_hash(
+            {"payload_hash": _payload_hash(payload), "session_id": str(session.id), "concept_id": concept.id}
+        )
+        exercise_set = AtelierExerciseSet(
+            concept_id=concept.id,
+            generator_version=ATELIER_GENERATOR_VERSION,
+            model=None,
+            source=ATELIER_ITEM_BANK_SOURCE,
+            content_hash=content_hash,
+            payload=payload,
+            validation_notes=(
+                f"La Forge item bank {ITEM_BANK_VERSION}: units {', '.join(bank_set.units)}"
+                + (f"; production prompts from shared pool set {pool_set.id}" if pool_set else "; templated production prompts")
+                + "."
+            ),
+        )
+        db.add(exercise_set)
+        db.flush([exercise_set])
+        _record_served_items(
+            db,
+            user=user,
+            session=session,
+            fingerprints=[*bank_set.fingerprints, *pool_fingerprints],
+            unit=bank_set.units[0] if len(bank_set.units) == 1 else external_id,
+        )
+        if pool_set is not None:
+            quote = dict(session.quote_payload or {})
+            pool_ids = dict(quote.get("pool_set_ids") or {})
+            pool_ids[str(concept.id)] = str(pool_set.id)
+            quote["pool_set_ids"] = pool_ids
+            session.quote_payload = quote
+            flag_modified(session, "quote_payload")
+            db.add(session)
+        generator._record_generation_event(
+            concept=concept,
+            user=user,
+            session_id=session.id,
+            exercise_set=exercise_set,
+            event_type="exercise_set",
+            source=ATELIER_ITEM_BANK_SOURCE,
+            model=None,
+            passed=True,
+            payload={
+                "content_hash": content_hash,
+                "units": bank_set.units,
+                "items": len(bank_set.fingerprints),
+                "pool_set_id": str(pool_set.id) if pool_set else None,
+                "band": band,
+                "build_ms": round((time.perf_counter() - started) * 1000, 1),
+            },
+        )
+        db.commit()
+        db.refresh(exercise_set)
+        return exercise_set
+    except Exception as exc:  # pragma: no cover - the bank must never break a séance start
+        logger.warning("La Forge item bank failed", concept_id=concept.id, error=str(exc))
+        db.rollback()
+        return None
+
+
+def top_up_shared_pool_background(concept_id: int, band: str) -> None:
+    """Grow a thin shared LLM pool off the request path (never at séance start)."""
+
+    db = SessionLocal()
+    try:
+        concept = db.get(GrammarConcept, concept_id)
+        if not concept:
+            return
+        target = int(getattr(settings, "ATELIER_POOL_SETS_PER_BAND", 3) or 0)
+        have = [item for item in shared_pool_sets(db, concept, band=band, limit=target + 1) if item.pool_band == band]
+        if len(have) >= target:
+            return
+        AtelierExerciseGenerator(db).generate_shared_pool_set(concept, band=band)
+    except Exception as exc:  # pragma: no cover - background work must not affect live sessions
+        logger.warning("Atelier shared pool top-up failed", concept_id=concept_id, band=band, error=str(exc))
+        db.rollback()
+    finally:
+        db.close()
+
+
+class AtelierPoolService:
+    """WP-S2: batched, gated pre-generation of the shared LLM pools (run offline).
+
+    One pool per (concept, learner band): ``ATELIER_POOL_SETS_PER_BAND`` vetted
+    sets generated without a learner (so they are shareable), through the same
+    structural guard and AI critic as every generated set. The quality
+    flywheel (:class:`AtelierExerciseQualityService`) retires a pool set on
+    reports or a high wrong rate and generates its replacement in the same
+    band. Entry point: ``scripts/pregenerate_atelier_pools.py``.
+    """
+
+    def __init__(self, db: Session, llm_service: LLMService | None = None) -> None:
+        self.db = db
+        self.generator = AtelierExerciseGenerator(db, llm_service=llm_service)
+
+    def pool_size(self, concept: GrammarConcept, band: str) -> int:
+        return sum(1 for item in shared_pool_sets(self.db, concept, band=band, limit=50) if item.pool_band == band)
+
+    def pregenerate(
+        self,
+        *,
+        concepts: Iterable[GrammarConcept] | None = None,
+        bands: Iterable[str] = ("A1", "A2"),
+        per_band: int | None = None,
+        max_new: int | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        target = int(per_band if per_band is not None else getattr(settings, "ATELIER_POOL_SETS_PER_BAND", 3))
+        if concepts is None:
+            concepts = (
+                self.db.query(GrammarConcept)
+                .filter(GrammarConcept.active.is_(True))
+                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                .all()
+            )
+        bands = tuple(bands)
+        report: dict[str, Any] = {"created": 0, "failed": 0, "planned": 0, "keys": []}
+        for concept in concepts:
+            if not units_for_external_id(concept.external_id):
+                continue
+            for band in bands:
+                have = self.pool_size(concept, band)
+                missing = max(0, target - have)
+                report["keys"].append({"external_id": concept.external_id, "band": band, "have": have, "missing": missing})
+                report["planned"] += missing
+                if dry_run:
+                    continue
+                for _ in range(missing):
+                    if max_new is not None and report["created"] >= max_new:
+                        return report
+                    created = self.generator.generate_shared_pool_set(concept, band=band)
+                    if created is None:
+                        report["failed"] += 1
+                        break
+                    report["created"] += 1
+        return report
+
+
+def forward_report_to_pool(
+    db: Session,
+    exercise_set: AtelierExerciseSet,
+    *,
+    round_name: str | None,
+    event: AtelierGenerationEvent,
+) -> AtelierExerciseSet | None:
+    """A report on a templated set's production prompt counts against the pool set it came from."""
+
+    if exercise_set.source != ATELIER_ITEM_BANK_SOURCE or (round_name or "") not in _POOL_OUTPUT_ROUNDS:
+        return None
+    forge = (exercise_set.payload or {}).get("forge") if isinstance(exercise_set.payload, dict) else None
+    pool_id = (forge or {}).get("pool_set_id")
+    if not pool_id:
+        return None
+    pool_set = db.get(AtelierExerciseSet, UUID(str(pool_id)))
+    if pool_set is None:
+        return None
+    db.add(
+        AtelierGenerationEvent(
+            user_id=event.user_id,
+            concept_id=pool_set.concept_id,
+            atelier_session_id=event.atelier_session_id,
+            exercise_set_id=pool_set.id,
+            generator_version=pool_set.generator_version,
+            event_type="user_report",
+            source=pool_set.source,
+            model=pool_set.model,
+            passed=False,
+            payload={**(event.payload or {}), "forwarded_from": str(exercise_set.id)},
+        )
+    )
+    db.commit()
+    AtelierExerciseQualityService(db).evaluate_and_retire(pool_set)
+    return pool_set
 
 
 def session_exercise_set(
@@ -1281,6 +1712,29 @@ def session_exercise_set(
                     db.refresh(session)
                     return cached_llm
             return exercise_set
+
+    # WP-S2: La Forge's item bank first — rendered in-process, no LLM, a new
+    # set of sentences per séance. The shared pool and the curated fallback
+    # below stay the last resort for concepts without templates.
+    bank_set = item_bank_exercise_set(
+        db,
+        user=user,
+        session=session,
+        concept=concept,
+        target_vocabulary=target_vocabulary,
+    )
+    if bank_set is not None:
+        _store_session_exercise_set_id(session, concept, bank_set)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        if background_tasks is not None and getattr(settings, "ATELIER_POOL_BACKGROUND_TOPUP_ENABLED", False):
+            background_tasks.add_task(
+                top_up_shared_pool_background,
+                concept.id,
+                str(((bank_set.payload or {}).get("forge") or {}).get("band") or "A1"),
+            )
+        return bank_set
 
     if fast_path:
         # Never block the request on a personalized LLM generation+critique chain:
@@ -1408,7 +1862,13 @@ def pregenerate_next_atelier_session(user_id: UUID | str) -> None:
         db.refresh(session)
 
         for selection in selections:
-            exercise_set = AtelierExerciseGenerator(db).get_or_create(
+            exercise_set = item_bank_exercise_set(
+                db,
+                user=user,
+                session=session,
+                concept=selection.concept,
+                target_vocabulary=target_vocabulary,
+            ) or AtelierExerciseGenerator(db).get_or_create(
                 selection.concept,
                 user=user,
                 session_id=session.id,
@@ -1755,77 +2215,46 @@ class AtelierScheduler:
         AtelierAssetService(self.db).ensure_assets_for_catalog("fr")
 
     def select_today(self, user: User) -> list[ConceptSelection]:
+        """Today's séance rules, through La Forge's one picker (WP-S4).
+
+        ``app.services.forge_picker.forge_plan`` decides — today's rule (the
+        one the day introduced, or today's new rule from the rhythm quota, or
+        the weakest in progress), then due rules, then introduced contrast
+        partners — and this seats the first :meth:`concept_limit` of them. No
+        padding from teaching order: a new rule enters only through the quota.
+        """
+
         self.ensure_catalog()
-        selected: list[ConceptSelection] = []
-        used_ids: set[int] = set()
+        from app.services.forge_picker import forge_plan
 
-        for concept in self._due_errata_concepts(user):
-            if concept.id in used_ids:
+        plan = forge_plan(self.db, user)
+        return self.selections_for_plan(user, plan, limit=self.concept_limit(user))
+
+    def selections_for_plan(self, user: User, plan: Any, *, limit: int | None = None) -> list[ConceptSelection]:
+        """A forge plan as the séance's :class:`ConceptSelection` rows.
+
+        Roles map onto the séance's own words: today's rule is ``new`` when
+        forging it introduces it, else ``fragile``; a due rule is ``fragile``;
+        a contrast partner is ``contrast``.
+        """
+
+        selections: list[ConceptSelection] = []
+        for unit in plan.units:
+            if limit is not None and len(selections) >= max(1, limit):
+                break
+            concept = self.db.get(GrammarConcept, unit.concept_id)
+            if concept is None or not concept.active:
                 continue
-            selected.append(ConceptSelection(concept=concept, role="fragile", progress=self._progress_for(user, concept.id)))
-            used_ids.add(concept.id)
-            if len(selected) == 2:
-                break
-
-        due = GrammarService(self.db).get_due_concepts(user=user, limit=30)
-        for concept, progress in due:
-            if not concept.active or not concept.external_id or concept.id in used_ids or progress is None:
-                continue
-            if progress.score < 7 or self._is_due(progress):
-                selected.append(ConceptSelection(concept=concept, role="fragile", progress=progress))
-                used_ids.add(concept.id)
-            if len(selected) == 2:
-                break
-
-        active_query = self._active_query()
-        ready = self._readiness(user)
-
-        if len(selected) < 2:
-            for concept in self.next_new_concepts(
-                user, limit=2 - len(selected), exclude_ids=used_ids, ready=ready
-            ):
-                selected.append(ConceptSelection(concept=concept, role="new", progress=self._progress_for(user, concept.id)))
-                used_ids.add(concept.id)
-
-        def first_ready(query: Any) -> GrammarConcept | None:
-            return next((concept for concept in query.all() if ready(concept)), None)
-
-        band = placement_band(self.db, user)
-        contrast = first_ready(
-            active_query.filter(
-                GrammarConcept.id.notin_(used_ids),
-                GrammarConcept.level.in_(_cefr_levels_at_or_below(user, placement=band)),
-                GrammarConcept.is_foundation.is_(True),
+            if unit.role == "today":
+                role = "new" if plan.new_concept_id == concept.id else "fragile"
+            elif unit.role == "contrast":
+                role = "contrast"
+            else:
+                role = "fragile"
+            selections.append(
+                ConceptSelection(concept=concept, role=role, progress=self._progress_for(user, concept.id))
             )
-            .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-        )
-        if not contrast:
-            contrast = first_ready(
-                active_query.filter(GrammarConcept.id.notin_(used_ids), GrammarConcept.is_foundation.is_(True))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            )
-        if not contrast:
-            contrast = first_ready(
-                active_query.filter(GrammarConcept.id.notin_(used_ids))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-            )
-        if contrast:
-            selected.append(
-                ConceptSelection(concept=contrast, role="contrast", progress=self._progress_for(user, contrast.id))
-            )
-            used_ids.add(contrast.id)
-
-        for concept in active_query.order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc()).all():
-            if len(selected) >= 3:
-                break
-            if concept.id not in used_ids and ready(concept):
-                selected.append(ConceptSelection(concept=concept, role="contrast", progress=self._progress_for(user, concept.id)))
-                used_ids.add(concept.id)
-
-        # A learner's very first edition is always one short win. Thereafter,
-        # the saved time budget—not a hardcoded three-concept cap—decides how
-        # much grammar appears in today's prescription.
-        return selected[: self.concept_limit(user)]
+        return selections
 
     def _active_query(self, language: str | None = None) -> Any:
         query = self.db.query(GrammarConcept).filter(
@@ -2014,36 +2443,6 @@ class AtelierScheduler:
             .first()
         )
 
-    def _due_errata_concepts(self, user: User, limit: int = 10) -> list[GrammarConcept]:
-        now = datetime.now(UTC)
-        rows = (
-            self.db.query(GrammarConcept)
-            .join(UserError, UserError.concept_id == GrammarConcept.id)
-            .filter(
-                UserError.user_id == user.id,
-                UserError.state != "mastered",
-                GrammarConcept.active.is_(True),
-                GrammarConcept.external_id.isnot(None),
-                GrammarConcept.external_id != "",
-            )
-            .filter((UserError.next_review_date.is_(None)) | (UserError.next_review_date <= now))
-            .order_by(UserError.lapses.desc(), UserError.occurrences.desc(), UserError.next_review_date.asc().nullsfirst())
-            .limit(limit)
-            .all()
-        )
-        concepts: list[GrammarConcept] = []
-        seen: set[int] = set()
-        for concept in rows:
-            if concept.id in seen:
-                continue
-            concepts.append(concept)
-            seen.add(concept.id)
-        return concepts
-
-    @staticmethod
-    def _is_due(progress: UserGrammarProgress) -> bool:
-        return not progress.next_review or progress.next_review <= datetime.now(UTC)
-
 
 class AtelierExerciseGenerator:
     """Generate and cache Atelier exercise payloads."""
@@ -2226,6 +2625,65 @@ class AtelierExerciseGenerator:
         self.db.refresh(exercise_set)
         return exercise_set
 
+    def generate_shared_pool_set(self, concept: GrammarConcept, *, band: str | None = None) -> AtelierExerciseSet | None:
+        """One vetted LLM set for the shared pool of (concept, band), or None (WP-S2).
+
+        Generated without a learner — no personal vocabulary, no session — so
+        it is shareable (``source == "llm"``), through the same structural
+        guard and AI critic as every generated set. Never a curated fallback:
+        a failed generation adds nothing to the pool.
+        """
+
+        generated = self._generate_with_llm(concept)
+        if not generated:
+            return None
+        payload, model, validation_notes = generated
+        content_hash = _payload_hash(payload)
+        existing = (
+            self.db.query(AtelierExerciseSet)
+            .filter(
+                AtelierExerciseSet.concept_id == concept.id,
+                AtelierExerciseSet.generator_version == ATELIER_GENERATOR_VERSION,
+                AtelierExerciseSet.content_hash == content_hash,
+            )
+            .first()
+        )
+        if existing is not None:
+            if existing.retired_at is not None:
+                return None
+            if existing.pool_band is None and band:
+                existing.pool_band = band
+                self.db.add(existing)
+                self.db.commit()
+            return existing
+        exercise_set = AtelierExerciseSet(
+            concept_id=concept.id,
+            generator_version=ATELIER_GENERATOR_VERSION,
+            model=model,
+            source="llm",
+            content_hash=content_hash,
+            payload=payload,
+            validation_notes=validation_notes + (f" Shared pool, band {band}." if band else " Shared pool."),
+            pool_band=band,
+        )
+        self.db.add(exercise_set)
+        self.db.flush([exercise_set])
+        self._record_generation_event(
+            concept=concept,
+            user=None,
+            session_id=None,
+            exercise_set=exercise_set,
+            event_type="exercise_set",
+            source="llm",
+            model=model,
+            passed=True,
+            payload={"content_hash": content_hash, "pool_band": band, "shared_pool": True},
+        )
+        self.db.commit()
+        self.db.refresh(exercise_set)
+        return exercise_set
+
+
     def _record_generation_event(
         self,
         *,
@@ -2270,12 +2728,19 @@ class AtelierExerciseGenerator:
         def item_id(item: Any) -> str:
             return str((item or {}).get("id") or "?")
 
+        # WP-S2 x WP-S3: items La Forge appended to this session's set (a
+        # bank top-up, each gated on its own) do not change the set's shape.
+        appended = forge_appended_item_ids(payload)
+
+        def base_count(items: list[Any]) -> int:
+            return sum(1 for item in items if item_id(item) not in appended)
+
         recognize = payload.get("recognize") or {}
         if set(recognize.keys()) != set(ATELIER_RECOGNIZE_MODES):
             errors.append("recognize must include fill, word_bank, and classify")
             return errors
         if any(
-            len((recognize[mode] or {}).get("items") or []) not in {1, ATELIER_ITEMS_PER_RECOGNIZE_MODE}
+            base_count((recognize[mode] or {}).get("items") or []) not in {1, ATELIER_ITEMS_PER_RECOGNIZE_MODE}
             for mode in recognize
         ):
             errors.append(f"each recognize mode must have 1 or {ATELIER_ITEMS_PER_RECOGNIZE_MODE} items")
@@ -2324,7 +2789,7 @@ class AtelierExerciseGenerator:
                 errors.append(f"classify item {item_id(item)} correct_label is not one of labels")
             errors.extend(AtelierExerciseGenerator._classify_quality_errors(item))
         transform = ((payload.get("transform") or {}).get("items") or [])
-        if len(transform) not in {1, ATELIER_TRANSFORM_ITEMS}:
+        if base_count(transform) not in {1, ATELIER_TRANSFORM_ITEMS}:
             errors.append(f"transform must have 1 or {ATELIER_TRANSFORM_ITEMS} items")
         for item in transform:
             if not (
@@ -2349,7 +2814,7 @@ class AtelierExerciseGenerator:
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
-            if len(items) != 1:
+            if base_count(items) != 1:
                 errors.append(f"output_ladder.{key}.items must contain exactly 1 item")
                 continue
             for item in items:
@@ -3637,9 +4102,15 @@ class AtelierExerciseQualityService:
             .all()
         )
         session_ids: list[UUID] = []
+        pool_session_ids: list[UUID] = []
         for session in self.db.query(AtelierSession).all():
             if _session_exercise_set_ids(session).get(str(exercise_set.concept_id)) == str(exercise_set.id):
                 session_ids.append(session.id)
+            quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
+            if str((quote.get("pool_set_ids") or {}).get(str(exercise_set.concept_id)) or "") == str(exercise_set.id):
+                # WP-S2: a pool set served inside a templated set answers for
+                # the production rounds it supplied.
+                pool_session_ids.append(session.id)
 
         attempts: list[AtelierAttempt] = []
         if session_ids:
@@ -3648,6 +4119,16 @@ class AtelierExerciseQualityService:
                 .filter(
                     AtelierAttempt.atelier_session_id.in_(session_ids),
                     AtelierAttempt.concept_id == exercise_set.concept_id,
+                )
+                .all()
+            )
+        if pool_session_ids:
+            attempts.extend(
+                self.db.query(AtelierAttempt)
+                .filter(
+                    AtelierAttempt.atelier_session_id.in_(pool_session_ids),
+                    AtelierAttempt.concept_id == exercise_set.concept_id,
+                    AtelierAttempt.round.in_(sorted(_POOL_OUTPUT_ROUNDS)),
                 )
                 .all()
             )
@@ -3717,7 +4198,8 @@ class AtelierExerciseQualityService:
         )
         self.db.commit()
 
-        if not regenerate:
+        if not regenerate or exercise_set.source == ATELIER_ITEM_BANK_SOURCE:
+            # A templated set belongs to one séance: nothing to regenerate.
             return None
         self.db.add(
             AtelierGenerationEvent(
@@ -3735,10 +4217,15 @@ class AtelierExerciseQualityService:
         concept = self.db.get(GrammarConcept, exercise_set.concept_id)
         if not concept:
             return None
-        replacement = AtelierExerciseGenerator(self.db).get_or_create(
-            concept,
-            reuse_shared_cache=True,
-        )
+        replacement = None
+        if exercise_set.source == "llm" and exercise_set.pool_band:
+            # WP-S2: a retired pool set is replaced in its own band's pool.
+            replacement = AtelierExerciseGenerator(self.db).generate_shared_pool_set(concept, band=exercise_set.pool_band)
+        if replacement is None:
+            replacement = AtelierExerciseGenerator(self.db).get_or_create(
+                concept,
+                reuse_shared_cache=True,
+            )
         self.db.add(
             AtelierGenerationEvent(
                 concept_id=concept.id,
@@ -3875,10 +4362,20 @@ class AtelierCorrectionService:
             **correction,
             "ai_review": self._initial_ai_review(
                 round_name=round_name,
+                mode=mode,
                 answer_payload=answer_payload,
                 correction=correction,
             ),
+            # WP-S1: what the séance showed at once, kept for the second check.
+            "local_verdict": {
+                "verdict": correction["verdict"],
+                "score_0_4": float(correction["score_0_4"]),
+            },
         }
+        if round_name in ATELIER_EVIDENCE_HOLD_ROUNDS and correction["ai_review"].get("status") == "pending":
+            # The relecture may still change this verdict: the séance's
+            # evidence waits for it (complete_session, _apply_deferred_evidence).
+            correction["evidence_hold"] = True
         attempt = AtelierAttempt(
             atelier_session_id=session.id,
             user_id=user.id,
@@ -4215,6 +4712,7 @@ class AtelierCorrectionService:
         round_name: str,
         answer_payload: dict[str, Any],
         correction: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> dict[str, Any]:
         if (correction or {}).get("assessment_status") == "unavailable":
             return {"status": "failed", "auto_started": False,
@@ -4227,14 +4725,22 @@ class AtelierCorrectionService:
                 "model": correction_debug.get("model") or settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
             }
-        # Recognize submits are answered from the key, so the live response is
-        # deterministic-only; when something was wrong, queue the model in the
-        # background so the relecture upgrades the explanation in place.
-        if (
-            round_name == "recognize"
-            and (correction or {}).get("errata")
-            and self._can_schedule_ai_review()
-        ):
+        # WP-S1: nothing on the request path waits on the model.
+        # * Free production: the local check is provisional, the relecture
+        #   decides (and may change the verdict).
+        # * Transform and recognise (fill / classify): the key decides; the
+        #   relecture only upgrades the explanation of a wrong answer. The word
+        #   bank has no second check: word order is exactly what the key checks.
+        substantive_errata = [
+            item for item in ((correction or {}).get("errata") or [])
+            if isinstance(item, dict) and item.get("task_error_type") != "task_compliance"
+        ]
+        wants_review = (
+            (round_name in FREE_PRODUCTION_ROUNDS and (correction or {}).get("assessment_status") == "provisional")
+            or (round_name == "transform" and bool(substantive_errata))
+            or (round_name == "recognize" and mode != "word_bank" and bool((correction or {}).get("errata")))
+        )
+        if wants_review and self._can_schedule_ai_review():
             return {
                 "status": "pending",
                 "auto_started": True,
@@ -4296,6 +4802,16 @@ class AtelierCorrectionService:
         return attempt, True
 
     def run_ai_review_for_attempt(self, attempt_id: UUID | str) -> AtelierAttempt | None:
+        """The relecture: the model's reading lands on an attempt already graded.
+
+        WP-S1 merge rules. Free production: the model's verdict replaces the
+        provisional local one. Keyed rungs (recognise, transform): the key's
+        verdict, score and target always stand; the model's explanation
+        replaces the key's only when both agree the answer was wrong (a
+        disagreement is kept on the payload for the item-quality review). The
+        evidence an attempt carries is written exactly once
+        (:meth:`_apply_deferred_evidence`), and the change is logged.
+        """
         attempt = self.db.get(AtelierAttempt, UUID(str(attempt_id)))
         if not attempt:
             return None
@@ -4310,6 +4826,7 @@ class AtelierCorrectionService:
             return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
 
         self.explanation_language = normalize_language(user.native_language)
+        started = time.perf_counter()
         try:
             ai_correction = self.correct(
                 concept=concept,
@@ -4321,13 +4838,20 @@ class AtelierCorrectionService:
                 session=session,
                 force_llm=True,
             )
+            llm_ms = round((time.perf_counter() - started) * 1000, 1)
             if (ai_correction.get("correction_debug") or {}).get("fallback_used"):
-                return self._mark_ai_review_failed(attempt, "AI correction did not complete.")
-            # Re-read the row: a micro-repair or confidence tap may have landed
-            # while the model ran, and the merge below must see it.
-            self.db.refresh(attempt)
+                return self._mark_ai_review_failed(attempt, "AI correction did not complete.", llm_ms=llm_ms)
+            # Re-read the row (locked, so a concurrent séance completion and this
+            # landing are ordered): a micro-repair or confidence tap may have
+            # landed while the model ran, and the merge below must see it.
+            self.db.refresh(attempt, with_for_update=True)
             correction = dict(attempt.correction_payload or {})
             review = self.ai_review_from_correction(correction)
+            previous_verdict = str(attempt.verdict or correction.get("verdict") or "")
+            previous_score = float(attempt.score_0_4 or 0)
+            final = self._merge_relecture(attempt.round, correction, ai_correction)
+            if attempt.round in FREE_PRODUCTION_ROUNDS and final.get("lexical_gaps"):
+                final = self._ingest_lexical_gaps(user=user, session=session, correction=final)
             ai_review = {
                 **review,
                 "status": "complete",
@@ -4336,20 +4860,23 @@ class AtelierCorrectionService:
                 "completed_at": self._now_iso(),
                 "error": None,
             }
-            if review.get("started_at") and not ai_review.get("started_at"):
-                ai_review["started_at"] = review["started_at"]
-            if correction.get("vocabulary_credit") and not ai_correction.get("vocabulary_credit"):
-                ai_correction["vocabulary_credit"] = correction["vocabulary_credit"]
-            # The learner may have typed a micro-repair or picked confidence
-            # while this review ran; those live on the same payload and must
-            # survive the swap.
-            for carried_key in ("micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock", "vocabulary_gaps"):
-                if carried_key in correction and carried_key not in ai_correction:
-                    ai_correction[carried_key] = correction[carried_key]
-            ai_correction["ai_review"] = ai_review
-            attempt.correction_payload = ai_correction
-            attempt.verdict = ai_correction["verdict"]
-            attempt.score_0_4 = float(ai_correction["score_0_4"])
+            final["ai_review"] = ai_review
+            final["assessment_status"] = "checked"
+            final.pop("evidence_hold", None)
+            verdict_changed = _verdict_passes(previous_verdict) != _verdict_passes(final.get("verdict"))
+            final["second_check"] = {
+                "status": "complete",
+                "verdict_changed": verdict_changed,
+                "previous_verdict": previous_verdict,
+                "previous_score_0_4": previous_score,
+                "verdict": final.get("verdict"),
+                "score_0_4": float(final.get("score_0_4") or 0),
+                "llm_ms": llm_ms,
+            }
+            final["latency"] = {**dict(correction.get("latency") or {}), "async_llm_ms": llm_ms}
+            attempt.correction_payload = final
+            attempt.verdict = final["verdict"]
+            attempt.score_0_4 = float(final["score_0_4"])
             flag_modified(attempt, "correction_payload")
             self.db.add(attempt)
             self.db.flush([attempt])
@@ -4360,18 +4887,188 @@ class AtelierCorrectionService:
                 merge_same_attempt=True,
             )
             if memory_updates:
-                ai_correction = self._attach_memory_updates(ai_correction, memory_updates)
-                attempt.correction_payload = ai_correction
+                final = self._attach_memory_updates(final, memory_updates)
+                attempt.correction_payload = final
                 flag_modified(attempt, "correction_payload")
                 self.db.add(attempt)
+            self._attach_world_reply(attempt, user=user)
+            self._record_second_check_event(attempt, llm_ms=llm_ms, verdict_changed=verdict_changed, status="complete")
+            if not self._amend_forge_evidence(attempt, user=user, session=session):
+                self._apply_deferred_evidence(attempt, user=user, session=session)
             self.db.commit()
             self.db.refresh(attempt)
             return attempt
         except Exception as exc:  # pragma: no cover - defensive guard around background work
             logger.warning("Atelier background AI review failed", attempt_id=str(attempt_id), error=str(exc))
-            return self._mark_ai_review_failed(attempt, "AI correction failed.")
+            self.db.rollback()
+            return self._mark_ai_review_failed(
+                attempt, "AI correction failed.", llm_ms=round((time.perf_counter() - started) * 1000, 1)
+            )
 
-    def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str) -> AtelierAttempt:
+    #: Keys the learner (or the séance) wrote on the payload that the model's
+    #: correction does not carry and must survive the swap.
+    _CARRIED_CORRECTION_KEYS = (
+        "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
+        "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "latency",
+        "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
+        "forge",
+    )
+
+    def _amend_forge_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
+        """A forge séance's answer whose verdict just landed (WP-S1 → WP-S3).
+
+        The forge wrote item-level evidence for every checked answer as it was
+        given; a provisional one was recorded as unchecked. Its verdict now
+        counts through :meth:`ForgeService.amend_attempt` — once: the forge's
+        ledger marks the entry amended, and ``evidence_applied`` keeps the
+        legacy end-of-séance path (:meth:`_apply_deferred_evidence`) off it.
+        Returns whether the attempt belongs to a forge séance.
+        """
+
+        from app.services.forge import ForgeService, is_forge_session
+
+        if session is None or not is_forge_session(session):
+            return False
+        correction = dict(attempt.correction_payload or {})
+        if correction.get("evidence_applied"):
+            return True
+        outcome = ForgeService(self.db).amend_attempt(user=user, session=session, attempt=attempt, commit=False)
+        if outcome.get("amended"):
+            correction["evidence_applied"] = {"mode": "forge", "at": self._now_iso()}
+            attempt.correction_payload = correction
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+        return True
+
+    def _merge_relecture(self, round_name: str, local: dict[str, Any], ai: dict[str, Any]) -> dict[str, Any]:
+        """The stored correction once the model's reading lands (see run_ai_review_for_attempt)."""
+
+        ai_passes = _verdict_passes(ai.get("verdict")) and not [
+            item for item in (ai.get("errata") or [])
+            if isinstance(item, dict) and item.get("task_error_type") not in {"task_compliance", "length_compliance"}
+        ]
+        local_passes = _verdict_passes(local.get("verdict"))
+        if round_name in FREE_PRODUCTION_ROUNDS:
+            final = dict(ai)
+        else:
+            # The key's verdict, score and target stand.
+            final = dict(local)
+            final.pop("memory_updates", None)
+            if not ai_passes and not local_passes and ai.get("errata"):
+                final["errata"] = list(ai.get("errata") or [])
+            elif ai_passes != local_passes:
+                final["relecture_disagreed"] = {"verdict": ai.get("verdict"), "score_0_4": ai.get("score_0_4")}
+        for carried_key in self._CARRIED_CORRECTION_KEYS:
+            if carried_key in local and carried_key not in final:
+                final[carried_key] = local[carried_key]
+        return final
+
+    def _attach_world_reply(self, attempt: AtelierAttempt, *, user: User) -> None:
+        """The conversation rung's in-character reply, once the turn is accepted.
+
+        It used to be a second synchronous model call on the submit request;
+        it now follows the relecture, off the request path (WP-S1).
+        """
+
+        if attempt.round != "conversation" or attempt.verdict not in {"correct", "accepted"}:
+            return
+        correction = dict(attempt.correction_payload or {})
+        if correction.get("world_reply"):
+            return
+        item = next(
+            (
+                candidate
+                for candidate in (attempt.prompt_payload or {}).get("items") or []
+                if isinstance(candidate, dict) and isinstance(candidate.get("character"), dict)
+            ),
+            None,
+        )
+        if not item:
+            return
+        from app.services.missions import MissionConversationService
+
+        serial_context = item.get("serial_context") or {}
+        character = item.get("character") or {}
+        try:
+            reply = MissionConversationService(self.db).respond_for_atelier(
+                character=character,
+                opener=str(serial_context.get("opener") or item.get("prompt") or ""),
+                scene_context=str(serial_context.get("scene_context") or ""),
+                user_text=str((attempt.answer_payload or {}).get("text") or "").strip(),
+                user_id=user.id,
+            )
+        except Exception as exc:  # pragma: no cover - a reply is decoration, never a grade
+            logger.info("Atelier world reply unavailable", attempt_id=str(attempt.id), error=str(exc))
+            return
+        if reply:
+            correction["world_reply"] = {"text": reply, "character": character}
+            attempt.correction_payload = correction
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
+
+    def _record_second_check_event(
+        self, attempt: AtelierAttempt, *, llm_ms: float | None, verdict_changed: bool, status: str
+    ) -> None:
+        """WP-S8 prep: amend the submit's `forge_verdict` row with the relecture's timing."""
+
+        event = (
+            self.db.query(PilotEvent)
+            .filter(PilotEvent.event_type == FORGE_VERDICT_EVENT, PilotEvent.entity_id == str(attempt.id))
+            .order_by(PilotEvent.occurred_at.desc())
+            .first()
+        )
+        if event is None:
+            return
+        event.payload = {
+            **dict(event.payload or {}),
+            "async_llm_ms": llm_ms,
+            "second_check": status,
+            "verdict_changed": verdict_changed,
+            "final_verdict": attempt.verdict,
+        }
+        flag_modified(event, "payload")
+        self.db.add(event)
+
+    def _apply_deferred_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
+        """Write the evidence of an attempt the séance could not count when it closed.
+
+        `complete_session` skips an attempt whose verdict was still provisional
+        (a pending relecture) or unchecked and marks it `evidence_deferred`.
+        When its verdict lands afterwards, this writes its evidence — once: the
+        `evidence_applied` stamp is written in the same transaction as the
+        review, so a second landing (a manual retry) finds it and does nothing.
+        An unchecked answer never counts. Returns whether evidence was written.
+        """
+
+        correction = dict(attempt.correction_payload or {})
+        if not correction.get("evidence_deferred") or correction.get("evidence_applied"):
+            return False
+        if correction.get("evidence_hold") or correction.get("assessment_status") in {"provisional", "unavailable"}:
+            return False
+        if session is None or session.status != "completed":
+            return False
+        correction["evidence_applied"] = {"mode": "late", "at": self._now_iso()}
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        if not attempt.concept_id:
+            return False
+        raw_score = float(attempt.score_0_4 or 0)
+        confidence = (attempt.answer_payload or {}).get("confidence")
+        adjusted, interval_multiplier = atelier_calibration_adjustment(raw_score, confidence)
+        quality = round(adjusted / 4 * 10, 1)
+        GrammarService(self.db).record_review(
+            user=user,
+            concept_id=int(attempt.concept_id),
+            score=quality,
+            notes=f"Atelier session {session.id}",
+            source_type="atelier",
+            interval_multiplier=interval_multiplier,
+            evidence=atelier_session_evidence([(attempt.round, attempt.mode, adjusted)], passed=quality >= 5.0),
+        )
+        return True
+
+    def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str, *, llm_ms: float | None = None) -> AtelierAttempt:
         correction = dict(attempt.correction_payload or {})
         review = self.ai_review_from_correction(correction)
         correction["ai_review"] = {
@@ -4382,9 +5079,29 @@ class AtelierCorrectionService:
             "completed_at": self._now_iso(),
             "error": error,
         }
+        correction.pop("evidence_hold", None)
+        if attempt.round in FREE_PRODUCTION_ROUNDS:
+            # The local check was a hint, not a grade: an open answer the model
+            # never read is unchecked, and an unchecked answer never counts.
+            correction["assessment_status"] = "unavailable"
+            correction["verdict"] = "needs_review"
+            correction["score_0_4"] = 0
+            attempt.verdict = "needs_review"
+            attempt.score_0_4 = 0.0
+        correction["second_check"] = {"status": "failed", "verdict_changed": False, "llm_ms": llm_ms}
+        if llm_ms is not None:
+            correction["latency"] = {**dict(correction.get("latency") or {}), "async_llm_ms": llm_ms}
         attempt.correction_payload = correction
         flag_modified(attempt, "correction_payload")
         self.db.add(attempt)
+        self._record_second_check_event(attempt, llm_ms=llm_ms, verdict_changed=False, status="failed")
+        user = self.db.get(User, attempt.user_id)
+        session = self.db.get(AtelierSession, attempt.atelier_session_id)
+        if user is not None:
+            # A keyed rung keeps the key's verdict: its deferred evidence lands
+            # now (a forge séance counted it at submit; an unread answer never).
+            if not self._amend_forge_evidence(attempt, user=user, session=session):
+                self._apply_deferred_evidence(attempt, user=user, session=session)
         self.db.commit()
         self.db.refresh(attempt)
         return attempt
@@ -4417,14 +5134,44 @@ class AtelierCorrectionService:
         if dropped:
             correction["errata"] = kept
         # Pattern hits cannot certify arbitrary French or task relevance.
-        if round_name in {"sentence", "speak", "conversation", "produce"} and (
-            correction.get("correction_debug") or {}
-        ).get("fallback_used"):
-            correction.update({
-                "verdict": "needs_review", "score_0_4": 0,
-                "assessment_status": "unavailable", "corrected_answer": "",
-                "concept_hits": [], "errata": [item for item in kept if item.get("task_error_type") == "length_compliance"], "missing_targets": [],
-            })
+        if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
+            local_check: dict[str, Any] | None = None
+            text = self._answer_text(answer_payload)
+            if not force_llm:
+                # WP-S1: the live submit never waits on the model. The local
+                # check (the rule's detector, closeness to a model answer) is
+                # returned now; the relecture replaces it when it lands.
+                item = (prompt_payload.get("items") or [{}])[0] or {}
+                model_answer = item.get("example_answer") or prompt_payload.get("example_answer")
+                local_concept = concept
+                if local_concept is None and session is not None:
+                    local_concept = next(iter(self._session_concepts(session)), None)
+                local_check = production_local_check(local_concept, text, model_answer)
+            test_out_grade = (
+                _test_out_local_grade(local_check, text)
+                if local_check is not None and session is not None and session.status == "test_out"
+                else None
+            )
+            if test_out_grade is not None:
+                # WP-S3 × WP-S1: «Épreuve de la règle» is decided on the spot by
+                # the local check (the rule's detector, closeness to the model
+                # answer) — a test-out can pass with no model configured, and
+                # its verdict is final: no relecture amends a placement.
+                correction.update(test_out_grade)
+                correction["local_check"] = local_check
+                if test_out_grade["verdict"] == "correct":
+                    correction["errata"] = []
+            elif local_check is not None and text.strip() and self._can_schedule_ai_review():
+                correction["local_check"] = local_check
+                correction["assessment_status"] = "provisional"
+            else:
+                correction.update({
+                    "verdict": "needs_review", "score_0_4": 0,
+                    "assessment_status": "unavailable", "corrected_answer": "",
+                    "concept_hits": [], "errata": [item for item in kept if item.get("task_error_type") == "length_compliance"], "missing_targets": [],
+                })
+                if local_check is not None:
+                    correction["local_check"] = local_check
         # The client needs to know which language the explanation prose is in;
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
@@ -4445,12 +5192,12 @@ class AtelierCorrectionService:
         if round_name == "recognize":
             return self._correct_recognize_ai_first(concept, mode, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name == "transform":
-            return self._correct_transform(concept, prompt_payload, answer_payload)
+            return self._correct_transform(concept, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name in {"sentence", "speak", "conversation"}:
-            return self._correct_output_ladder(concept, round_name, prompt_payload, answer_payload)
+            return self._correct_output_ladder(concept, round_name, prompt_payload, answer_payload, force_llm=force_llm)
         if round_name == "produce":
             concepts = self._session_concepts(session) if session else ([concept] if concept else [])
-            return self._correct_produce(concepts, prompt_payload, answer_payload)
+            return self._correct_produce(concepts, prompt_payload, answer_payload, force_llm=force_llm)
         return {
             "verdict": "needs_review",
             "score_0_4": 0,
@@ -4522,7 +5269,9 @@ class AtelierCorrectionService:
             return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
             ladder = (payload.get("output_ladder") or {}).get(round_name) or {}
-            return {**base_payload, **ladder}
+            # La Forge may pose several items of one output rung (a bank
+            # top-up): the exercise id names the one answered.
+            return self._scope_prompt_items({**base_payload, **ladder}, exercise_id)
         if round_name == "produce":
             return {**base_payload, **payload["produce"]}
         return {"id": exercise_id, "round": round_name, "mode": mode}
@@ -5126,9 +5875,13 @@ class AtelierCorrectionService:
         concept: GrammarConcept | None,
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_transform_rule_based(concept, prompt_payload, answer_payload)
-        if not self._should_use_correction_llm():
+        # WP-S1: the key grades a rewrite on the request path; the model only
+        # reads it afterwards, in the background relecture (force_llm=True).
+        if not force_llm or not self._should_use_correction_llm():
             return fallback
         return self._correct_transform_with_llm(concept, prompt_payload, answer_payload, fallback) or fallback
 
@@ -5142,6 +5895,7 @@ class AtelierCorrectionService:
         items = prompt_payload.get("items") or []
         errata: list[dict[str, Any]] = []
         corrected: dict[str, str] = {}
+        accent_notes: list[dict[str, Any]] = []
         correct_count = 0
         for item in items:
             item_id = item["id"]
@@ -5164,10 +5918,25 @@ class AtelierCorrectionService:
                     }
                 )
                 continue
-            if self._close_enough_transform(concept, learner, target):
+            # WP-S1: the key decides, locally. Typography (quotes, case, final
+            # punctuation) never costs a point; an accent slip is forgiven but
+            # noted; any listed alternative rewrite is as good as the key.
+            keys = [target, *[str(value) for value in (item.get("accepted_answers") or []) if str(value or "").strip()]]
+            matches = [same_answer(learner, key) for key in keys]
+            if any(match for match, _slip in matches) or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
+                if any(match and slip for match, slip in matches) and not any(match and not slip for match, slip in matches):
+                    accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
-            errata.append(self._erratum(concept, item, learner, target, severity=3, recurring=True))
+            erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
+            ops = token_diff(learner, target)
+            what = describe_diff(ops, self.explanation_language)
+            if what:
+                # Name the exact difference first (the ending, the missing word),
+                # then the rule that explains it.
+                erratum["why_wrong"] = f"{what} {erratum.get('why_wrong') or ''}".strip()
+                erratum["diff"] = ops
+            errata.append(erratum)
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
             "verdict": "correct" if correct_count == len(items) else ("partial" if correct_count else "incorrect"),
@@ -5176,6 +5945,7 @@ class AtelierCorrectionService:
             "concept_hits": [serialize_concept_hit(concept, correct_count, len(items))] if concept else [],
             "missing_targets": [],
             "errata": errata,
+            **({"accent_notes": accent_notes} if accent_notes else {}),
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
 
@@ -5185,9 +5955,11 @@ class AtelierCorrectionService:
         round_name: str,
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_output_ladder_rule_based(concept, round_name, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
+        if not force_llm or not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return fallback
         return self._correct_output_ladder_with_llm(concept, round_name, prompt_payload, answer_payload, fallback) or fallback
 
@@ -5513,9 +6285,11 @@ class AtelierCorrectionService:
         concepts: list[GrammarConcept | None],
         prompt_payload: dict[str, Any],
         answer_payload: dict[str, Any],
+        *,
+        force_llm: bool = False,
     ) -> dict[str, Any]:
         fallback = self._correct_produce_rule_based(concepts, prompt_payload, answer_payload)
-        if not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
+        if not force_llm or not str(answer_payload.get("text") or "").strip() or not self._should_use_correction_llm():
             return self._apply_produce_length_gate(fallback, prompt_payload=prompt_payload, answer_payload=answer_payload)
         result = self._correct_produce_with_llm(concepts, prompt_payload, answer_payload, fallback) or fallback
         return self._apply_produce_length_gate(result, prompt_payload=prompt_payload, answer_payload=answer_payload)
@@ -6450,6 +7224,10 @@ class AtelierSRSService:
             self.db.query(AtelierAttempt)
             .filter(AtelierAttempt.atelier_session_id == session.id)
             .order_by(AtelierAttempt.created_at.asc())
+            # Ordered against a relecture landing on one of these rows
+            # (run_ai_review_for_attempt locks it too): each attempt's evidence
+            # is written here or, deferred, there — never both.
+            .with_for_update()
             .all()
         )
         scores_by_concept: dict[int, list[float]] = defaultdict(list)
@@ -6460,12 +7238,22 @@ class AtelierSRSService:
         error_memory = ErrorMemoryService(self.db)
         confidence_summary = {"sure": 0, "unsure": 0, "confident_misses": 0, "hesitant_misses": 0}
         phrase_candidates: list[tuple[float, str]] = []
+        deferred_checks = 0
         for attempt in attempts:
-            if (attempt.correction_payload or {}).get("assessment_status") == "unavailable" or (
+            payload = attempt.correction_payload or {}
+            if payload.get("evidence_hold") or payload.get("assessment_status") in {"unavailable", "provisional"} or (
                 attempt.round in ATELIER_AI_AUTO_ROUNDS and
-                ((attempt.correction_payload or {}).get("correction_debug") or {}).get("fallback_used")
+                (payload.get("correction_debug") or {}).get("fallback_used")
             ):
-                continue  # An outage is neither success nor a learner mistake.
+                # An outage is neither success nor a learner mistake, and a
+                # verdict still being read is not yet either (WP-S1). If its
+                # verdict lands later, `_apply_deferred_evidence` counts it then.
+                if not payload.get("evidence_applied") and not payload.get("evidence_deferred"):
+                    attempt.correction_payload = {**payload, "evidence_deferred": True}
+                    flag_modified(attempt, "correction_payload")
+                    self.db.add(attempt)
+                    deferred_checks += 1
+                continue
             if attempt.concept_id:
                 raw_score = float(attempt.score_0_4 or 0)
                 confidence = (attempt.answer_payload or {}).get("confidence")
@@ -6508,8 +7296,26 @@ class AtelierSRSService:
         progress_rows = []
         grammar_service = GrammarService(self.db)
         concept_ids = [int(item) for item in (session.selected_concept_ids or [])]
+        # WP-S3 La Forge: a forge séance wrote its evidence item by item
+        # (`app.services.forge`); the end-of-session single evidence would count
+        # the same answers twice, so the recap only reads the progress back.
+        from app.services.forge import forge_state_of
+
+        forge_state = forge_state_of(session)
         for concept_id in concept_ids:
             if not scores_by_concept.get(concept_id):
+                continue
+            if forge_state is not None:
+                forged = grammar_service.get_or_create_progress(user_id=user.id, concept_id=concept_id)
+                progress_rows.append(
+                    {
+                        "concept_id": concept_id,
+                        "score": forged.score,
+                        "state": forged.state,
+                        "next_review": forged.next_review.isoformat() if forged.next_review else None,
+                        "forge_rung": forged.forge_rung,
+                    }
+                )
                 continue
             values = scores_by_concept.get(concept_id) or [0.0]
             quality = round((sum(values) / len(values)) / 4 * 10, 1)
@@ -6551,7 +7357,24 @@ class AtelierSRSService:
             "errata": errata_rows,
             "confidence": confidence_summary,
             "adaptive_locks": dict((session.quote_payload or {}).get("adaptive_locks") or {}),
+            # WP-S1: answers whose verdict was still being read when the séance
+            # closed; their evidence is written when it lands.
+            "pending_checks": deferred_checks,
         }
+        if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
+            plan = (session.quote_payload or {}).get("forge") or {}
+            recap["forge"] = {
+                # WP-S4: where the block came from; a folded block returns to its step.
+                "origin": plan.get("origin"),
+                "journey_step_id": plan.get("journey_step_id"),
+                "budget_seconds": plan.get("budget_seconds"),
+                "items": forge_state.position,
+                "evidence_written": forge_state.evidence_written,
+                "rules": [
+                    {"concept_id": track.concept_id, "role": track.role, "rung": track.rung, "served": track.served}
+                    for track in forge_state.tracks
+                ],
+            }
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))
@@ -6657,4 +7480,7 @@ __all__ = [
     "serialize_erratum_record",
     "serialize_concept",
     "session_exercise_set",
+    "item_bank_exercise_set",
+    "shared_pool_sets",
+    "AtelierPoolService",
 ]

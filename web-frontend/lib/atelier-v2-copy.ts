@@ -119,6 +119,8 @@ export type AtelierCopyKey =
   | 'home_level_aria'
   | 'home_letter'
   | 'home_words_one'
+  | 'home_practice'
+  | 'home_practice_aria'
   | 'home_words_many'
   | 'home_letter_aria'
   | 'home_review_one'
@@ -208,6 +210,8 @@ const EN: Table = {
   home_letter: 'New letter',
   home_letter_aria: 'A letter is waiting',
   home_words_one: '1 word',
+  home_practice: 'More practice',
+  home_practice_aria: 'More practice on today’s rules',
   home_words_many: '{n} words',
   home_review_one: 'Review 1 word',
   home_review_many: 'Review {n} words',
@@ -295,6 +299,8 @@ const DE: Table = {
   home_letter: 'Neuer Brief',
   home_letter_aria: 'Ein Brief wartet auf Sie',
   home_words_one: '1 Wort',
+  home_practice: 'Mehr üben',
+  home_practice_aria: 'Mehr üben mit den Regeln von heute',
   home_words_many: '{n} Wörter',
   home_review_one: '1 Wort wiederholen',
   home_review_many: '{n} Wörter wiederholen',
@@ -382,6 +388,8 @@ const FR: Table = {
   home_letter: 'Nouvelle lettre',
   home_letter_aria: 'Une lettre vous attend',
   home_words_one: '1 mot',
+  home_practice: 'Plus de pratique',
+  home_practice_aria: 'Plus de pratique sur les règles du jour',
   home_words_many: '{n} mots',
   home_review_one: 'Réviser 1 mot',
   home_review_many: 'Réviser {n} mots',

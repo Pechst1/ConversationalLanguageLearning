@@ -81,6 +81,7 @@ from app.db.models.atelier import (
     AtelierExerciseSet,
     AtelierGenerationEvent,
     AtelierLanguagePack,
+    AtelierServedItem,
     AtelierSession,
 )
 from app.db.models.cefr import UserCEFRProgressHistory, UserLevelCheckpoint
@@ -168,6 +169,7 @@ def db_engine():
             AtelierExerciseSet.__table__,
             AtelierGenerationEvent.__table__,
             AtelierAttempt.__table__,
+            AtelierServedItem.__table__,
             SerialThread.__table__,
             RealWorldMission.__table__,
             RealWorldMissionAttempt.__table__,
@@ -231,6 +233,7 @@ def db_engine():
                 RealWorldMissionAttempt.__table__,
                 RealWorldMission.__table__,
                 SerialThread.__table__,
+                AtelierServedItem.__table__,
                 AtelierAttempt.__table__,
                 AtelierGenerationEvent.__table__,
                 AtelierExerciseSet.__table__,
@@ -271,7 +274,7 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 #: (scene first, at most two recalls) and run with the practice day off; these
 #: modules pin the practice day and run it on, as production does. A module-
 #: scoped fixture (the 126-day harness) sees the production default either way.
-PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence", "test_wp_l4_")
+PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence", "test_wp_l4_", "test_wp_s4_", "test_forge_integration")
 
 
 @pytest.fixture(autouse=True)

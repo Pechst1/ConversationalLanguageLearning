@@ -62,6 +62,7 @@ import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
   ControlLanguage,
+  ForgeStep,
   HelpKind,
   HelpResult,
   RecallStep,
@@ -1021,6 +1022,65 @@ export function RuleStepView({
         conceptId={step.prompt.concept_id}
         onDone={proceed}
       />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Forge — WP-S4 «La Forge», folded into a Soutenu/Intensif day
+// ---------------------------------------------------------------------------
+
+/**
+ * The hand-off to the forge block on today's rule. Before the block: the one
+ * primary opens it (`onOpen(href)`: the page navigates, and the séance's recap
+ * brings the learner back here) and a quiet «Not now» advances the day.
+ * After it (`forged`): one line and «Back to the scene», which advances.
+ *
+ * The step is never answered here; its minutes are the block's, measured
+ * between the step's start and its advance.
+ */
+export function ForgeStepView({
+  step,
+  copy,
+  busy,
+  onContinue,
+  onOpen,
+}: { step: ForgeStep; onOpen: (href: string) => void } & Pick<
+  StepViewCommonProps,
+  'copy' | 'busy' | 'onContinue'
+>) {
+  const prompt = step.prompt;
+  const minutes = Math.max(1, Math.round((prompt.budget_seconds || step.estimated_seconds || 300) / 60));
+  const eyebrow = copy.forge_eyebrow.replace('{n}', String(minutes));
+  const proceed = () => {
+    if (!busy) onContinue();
+  };
+  return (
+    <section className="av2-stack av2-step" data-step="forge" data-forged={prompt.forged ? 'true' : 'false'}>
+      <p className="av2-label av2-label--story">
+        <ShapeToken kind="reward" size="sm" /> {eyebrow}
+      </p>
+      <h2 className="av2-headline">{copy.forge_today}</h2>
+      {prompt.title_fr || prompt.title_native ? (
+        <p className="av2-body av2-body--lg" lang={prompt.title_fr ? 'fr' : undefined}>
+          {prompt.title_fr ? frenchSpacing(prompt.title_fr) : prompt.title_native}
+        </p>
+      ) : null}
+      <p className="av2-body">{prompt.forged ? copy.forge_done : copy.forge_body}</p>
+      {prompt.forged ? (
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.forge_back}
+        </Action>
+      ) : (
+        <>
+          <Action tone="primary" onClick={() => onOpen(prompt.href)}>
+            {copy.forge_today}
+          </Action>
+          <Action tone="quiet" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+            {copy.forge_later}
+          </Action>
+        </>
+      )}
     </section>
   );
 }

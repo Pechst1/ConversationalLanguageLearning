@@ -482,6 +482,32 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schick die Umformung ab, wenn du sie geprüft haben willst; ausgelassene Zeilen werden nicht als Grammatik-Erratum eingeplant.",
         "fr": "Envoyez la réécriture quand vous voulez qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
     },
+    # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
+    "forge.diff.ending": {
+        "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
+        "de": "Die Endung stimmt nicht: Du hast «{learner}» geschrieben, hier steht «{target}».",
+        "fr": "La terminaison ne va pas : vous avez écrit «{learner}», la forme attendue est «{target}».",
+    },
+    "forge.diff.word": {
+        "en": "You wrote «{learner}»; here it is «{target}».",
+        "de": "Du hast «{learner}» geschrieben; hier steht «{target}».",
+        "fr": "Vous avez écrit «{learner}» ; ici, c’est «{target}».",
+    },
+    "forge.diff.missing": {
+        "en": "«{target}» is missing.",
+        "de": "«{target}» fehlt.",
+        "fr": "Il manque «{target}».",
+    },
+    "forge.diff.extra": {
+        "en": "«{learner}» does not belong in this line.",
+        "de": "«{learner}» gehört nicht in diesen Satz.",
+        "fr": "«{learner}» n’a pas sa place dans cette ligne.",
+    },
+    "forge.diff.order": {
+        "en": "The words are right, but not in this order.",
+        "de": "Die Wörter stimmen, aber nicht in dieser Reihenfolge.",
+        "fr": "Les mots sont justes, mais pas dans cet ordre.",
+    },
     "atelier.output.missing_label": {
         "en": "Missing output",
         "de": "Fehlende Ausgabe",
@@ -960,6 +986,37 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Repair the verb: it must agree with the singular subject 'elle'.",
         "de": "Korrigiere das Verb: es richtet sich nach dem Subjekt 'elle' im Singular.",
         "fr": "Corrigez le verbe : il s’accorde avec le sujet singulier « elle ».",
+    },
+    # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
+    "forge.word_bank": {
+        "en": "Build the sentence. One chip is not needed.",
+        "de": "Bau den Satz. Ein Baustein wird nicht gebraucht.",
+        "fr": "Construisez la phrase. Un mot est en trop.",
+    },
+    "forge.word_bank_all": {
+        "en": "Build the sentence with the chips.",
+        "de": "Bau den Satz mit den Bausteinen.",
+        "fr": "Construisez la phrase avec les mots.",
+    },
+    "forge.transform": {
+        "en": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
+        "de": "Korrigiere den Satz: Verbessere die Stelle, die gegen die Regel von heute verstößt. Der Rest bleibt.",
+        "fr": "Corrigez la phrase : réparez ce qui enfreint la règle du jour. Gardez le reste.",
+    },
+    "forge.sentence": {
+        "en": "Write the sentence in French.",
+        "de": "Schreib den Satz auf Französisch.",
+        "fr": "Écrivez la phrase en français.",
+    },
+    "forge.speak": {
+        "en": "Say it aloud in French, then check the transcript.",
+        "de": "Sag es laut auf Französisch und prüfe dann die Transkription.",
+        "fr": "Dites-le à voix haute en français, puis vérifiez la transcription.",
+    },
+    "forge.conversation": {
+        "en": "Answer the message in French, with the rule of the day.",
+        "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
+        "fr": "Répondez au message en français, avec la règle du jour.",
     },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",

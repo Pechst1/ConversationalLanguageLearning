@@ -194,7 +194,7 @@ def test_grammar_fiche_handoff_seats_the_rule_in_the_atelier() -> None:
     """
     page = read_web_code("pages/grammar.tsx")
 
-    assert "/atelier?concept_id=${concept.id}" in page
+    assert "/atelier?mode=practice&concept=${concept.id}" in page
     assert 'NcCta href="/atelier"' not in page
     # Generator keys ("si", "future", "imperative") are internal inventory.
     assert "nc-exercisetags" not in page

@@ -88,7 +88,9 @@ def test_atelier_ai_review_is_polled_without_blocking_next_step() -> None:
     assert "scheduleAiReviewPolling(result.attempt_id, key)" in source
     assert "apiService.getAtelierAttempt(attemptId)" in source
     assert "}, 2000)" in source
-    assert "{t.relecture_done}" in source
+    # WP-S1: the second look is quiet; a note appears only when it changed the verdict.
+    assert "secondCheckChange(correction)" in source
+    assert "t.second_check_better" in source and "t.second_check_worse" in source
     # WP-82/83: the second look is announced inline, in the chrome language.
     assert "say(pageCopy.say_review_started)" in source
     assert "say(pageCopy.say_review_unavailable, 'alert')" in source

@@ -59,6 +59,7 @@ import {
   type JourneyPhase,
 } from './journey-state';
 import {
+  ForgeStepView,
   JourneyFeedbackView,
   RecallStepView,
   RespondStepView,
@@ -86,6 +87,17 @@ export type JourneySessionProps = {
    * builds one, and it never reopens the finished journey.
    */
   onPractice?: (href: string) => void;
+  /**
+   * WP-S4: open La Forge from the day's folded forge step (Soutenu, Intensif).
+   * The séance's recap brings the learner back to the day. Without it the
+   * step falls back to `onPractice`, then to a plain navigation.
+   */
+  onForge?: (href: string) => void;
+  /**
+   * WP-S4: «Forge today's rule» after the day (Léger, Régulier). When given,
+   * the recap's quiet practice button becomes the forge entry.
+   */
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 };
 
 /**
@@ -117,7 +129,19 @@ function segmentsOf(
   }));
 }
 
-export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
+export function JourneySession({
+  controller,
+  onExit,
+  morePractice,
+  onPractice,
+  onForge,
+  forgeAfterDay,
+}: JourneySessionProps) {
+  const openForge = (href: string) => {
+    if (onForge) onForge(href);
+    else if (onPractice) onPractice(href);
+    else if (typeof window !== 'undefined') window.location.assign(href);
+  };
   // WP-27: the respond step owns the microphone itself (`useVoiceAnswer`), so
   // the controller's own voice fields are no longer read here.
   const { phase, feedback, step, busy, help, actions } = controller;
@@ -235,6 +259,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
             onExit={onExit}
             morePractice={morePractice}
             onPractice={onPractice}
+            forgeAfterDay={forgeAfterDay}
           />
 
           {/* A paused journey shows its resume prompt alone, so the learner has
@@ -273,6 +298,16 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   busy={busy}
                   language={chromeLanguage}
                   onContinue={actions.continueJourney}
+                />
+              )}
+              {step.kind === 'forge' && (
+                // WP-S4 «La Forge», folded into the day: open the block, come back.
+                <ForgeStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  onOpen={openForge}
                 />
               )}
               {step.kind === 'recall' && (
@@ -402,6 +437,7 @@ function JourneyPhaseView({
   onExit,
   morePractice,
   onPractice,
+  forgeAfterDay,
 }: {
   phase: JourneyPhase;
   controller: DailyJourneyController;
@@ -409,6 +445,7 @@ function JourneyPhaseView({
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
   onPractice?: (href: string) => void;
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
   const { actions, busy } = controller;
 
@@ -512,6 +549,7 @@ function JourneyPhaseView({
           onExit={onExit}
           morePractice={morePractice}
           onPractice={onPractice}
+          forgeAfterDay={forgeAfterDay}
         />
       );
 
@@ -530,6 +568,7 @@ export function JourneyRecapView({
   onExit,
   morePractice,
   onPractice,
+  forgeAfterDay,
 }: {
   phase: Extract<JourneyPhase, { kind: 'finished' }>;
   controller: DailyJourneyController;
@@ -537,6 +576,8 @@ export function JourneyRecapView({
   morePractice?: { label: string; onSelect: () => void } | null;
   /** WP-16 / D-0: the recap opens the drill loop at the server's own href. */
   onPractice?: (href: string) => void;
+  /** WP-S4: «Forge today's rule» replaces the practice button (Léger, Régulier). */
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
   const speaker = journeySpeaker(phase.journey);
   return (
@@ -547,6 +588,7 @@ export function JourneyRecapView({
       onExit={onExit}
       morePractice={morePractice}
       onPractice={onPractice}
+      forge={forgeAfterDay}
       pushOptIn={
         // WP-80: the push pre-prompt, once, after a finished day. Renders
         // nothing unless this device has something to ask.

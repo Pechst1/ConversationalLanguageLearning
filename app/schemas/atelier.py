@@ -51,6 +51,14 @@ class AtelierSessionStartRequest(BaseModel):
     concept_ids: list[int] | None = None
     preferred_concept_id: int | None = None
     preferred_vocabulary_ids: list[int] | None = None
+    #: WP-S4 — La Forge. How the block was entered: ``journey`` (folded into a
+    #: Soutenu/Intensif day, from its forge step), ``after_day`` (the Léger /
+    #: Régulier chip or the recap), ``practice`` (any other practice link).
+    origin: Literal["journey", "after_day", "practice"] | None = None
+    #: The block's length when the day sized it (the fold); else the rhythm's.
+    budget_seconds: int | None = Field(default=None, ge=60, le=1800)
+    #: The day's forge step this block belongs to (folded days only).
+    journey_step_id: UUID | None = None
 
 
 class AtelierSessionStartResponse(BaseModel):
@@ -67,6 +75,9 @@ class AtelierSessionStartResponse(BaseModel):
     target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
     learning_moments: dict[str, Any] = Field(default_factory=dict)
+    # WP-S3 La Forge: the séance's composition and the item the learner is on
+    # (empty for a legacy-ladder session).
+    forge: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierActiveSessionResponse(BaseModel):
@@ -133,6 +144,16 @@ class AtelierAttemptResponse(BaseModel):
     correction: dict[str, Any]
     ai_review: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+    # WP-S3 La Forge: the staircase after this answer and the next item.
+    forge: dict[str, Any] = Field(default_factory=dict)
+
+
+class AtelierForgeTestOutRequest(BaseModel):
+    concept_id: int
+
+
+class AtelierForgeStateResponse(BaseModel):
+    rules: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AtelierAttemptRepairRequest(BaseModel):

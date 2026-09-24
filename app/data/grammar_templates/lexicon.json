@@ -1,0 +1,12189 @@
+{
+ "version": "forge-lexicon-1",
+ "provenance": "WP-S2 (2026-09-24): hand-authored morphological lexicon for La Forge's item bank. Nouns carry gender and plural; adjectives their four forms and position; verbs their present tables (regular -er computed), participle, auxiliary, future stem and deliberate trap stems. Cast and places come from app/prompts/serial/world_bible_paris_v2.json.",
+ "pronouns": [
+  {
+   "id": "je_m",
+   "fr": "je",
+   "p": 0,
+   "g": "m",
+   "n": "s",
+   "en": "I",
+   "en_p": "1s",
+   "tags": [
+    "1s"
+   ]
+  },
+  {
+   "id": "je_f",
+   "fr": "je",
+   "p": 0,
+   "g": "f",
+   "n": "s",
+   "en": "I",
+   "en_p": "1s",
+   "tags": [
+    "1s"
+   ]
+  },
+  {
+   "id": "tu_m",
+   "fr": "tu",
+   "p": 1,
+   "g": "m",
+   "n": "s",
+   "en": "you",
+   "en_p": "2",
+   "tags": [
+    "2s"
+   ]
+  },
+  {
+   "id": "tu_f",
+   "fr": "tu",
+   "p": 1,
+   "g": "f",
+   "n": "s",
+   "en": "you",
+   "en_p": "2",
+   "tags": [
+    "2s"
+   ]
+  },
+  {
+   "id": "il",
+   "fr": "il",
+   "p": 2,
+   "g": "m",
+   "n": "s",
+   "en": "he",
+   "en_p": "3s",
+   "tags": [
+    "3s"
+   ]
+  },
+  {
+   "id": "elle",
+   "fr": "elle",
+   "p": 2,
+   "g": "f",
+   "n": "s",
+   "en": "she",
+   "en_p": "3s",
+   "tags": [
+    "3s"
+   ]
+  },
+  {
+   "id": "on",
+   "fr": "on",
+   "p": 2,
+   "g": "m",
+   "n": "s",
+   "en": "we",
+   "en_p": "1p",
+   "tags": [
+    "3s",
+    "on"
+   ]
+  },
+  {
+   "id": "nous_m",
+   "fr": "nous",
+   "p": 3,
+   "g": "m",
+   "n": "p",
+   "en": "we",
+   "en_p": "1p",
+   "tags": [
+    "1p"
+   ]
+  },
+  {
+   "id": "nous_f",
+   "fr": "nous",
+   "p": 3,
+   "g": "f",
+   "n": "p",
+   "en": "we",
+   "en_p": "1p",
+   "tags": [
+    "1p"
+   ]
+  },
+  {
+   "id": "vous_m",
+   "fr": "vous",
+   "p": 4,
+   "g": "m",
+   "n": "p",
+   "en": "you",
+   "en_p": "2",
+   "tags": [
+    "2p"
+   ]
+  },
+  {
+   "id": "vous_f",
+   "fr": "vous",
+   "p": 4,
+   "g": "f",
+   "n": "p",
+   "en": "you",
+   "en_p": "2",
+   "tags": [
+    "2p"
+   ]
+  },
+  {
+   "id": "ils",
+   "fr": "ils",
+   "p": 5,
+   "g": "m",
+   "n": "p",
+   "en": "they",
+   "en_p": "3p",
+   "tags": [
+    "3p"
+   ]
+  },
+  {
+   "id": "elles",
+   "fr": "elles",
+   "p": 5,
+   "g": "f",
+   "n": "p",
+   "en": "they",
+   "en_p": "3p",
+   "tags": [
+    "3p"
+   ]
+  }
+ ],
+ "cast": [
+  {
+   "id": "marin",
+   "fr": "Marin",
+   "g": "m",
+   "en": "Marin",
+   "bible": "marin_leveque",
+   "en_p": "3s"
+  },
+  {
+   "id": "lila",
+   "fr": "Lila",
+   "g": "f",
+   "en": "Lila",
+   "bible": "lila_bonnet",
+   "en_p": "3s"
+  },
+  {
+   "id": "gus",
+   "fr": "Gus",
+   "g": "m",
+   "en": "Gus",
+   "bible": "augustin_de_roncourt",
+   "en_p": "3s"
+  },
+  {
+   "id": "romy",
+   "fr": "Romy",
+   "g": "f",
+   "en": "Romy",
+   "bible": "romy_tremblay",
+   "en_p": "3s"
+  },
+  {
+   "id": "margaux",
+   "fr": "Margaux",
+   "g": "f",
+   "en": "Margaux",
+   "bible": "margaux_barman",
+   "en_p": "3s"
+  }
+ ],
+ "cast_pairs": [
+  {
+   "id": "marin_lila",
+   "fr": "Marin et Lila",
+   "g": "m",
+   "en": "Marin and Lila",
+   "en_p": "3p"
+  },
+  {
+   "id": "romy_margaux",
+   "fr": "Romy et Margaux",
+   "g": "f",
+   "en": "Romy and Margaux",
+   "en_p": "3p"
+  },
+  {
+   "id": "lila_romy",
+   "fr": "Lila et Romy",
+   "g": "f",
+   "en": "Lila and Romy",
+   "en_p": "3p"
+  },
+  {
+   "id": "gus_marin",
+   "fr": "Gus et Marin",
+   "g": "m",
+   "en": "Gus and Marin",
+   "en_p": "3p"
+  }
+ ],
+ "nouns": [
+  {
+   "id": "pain",
+   "fr": "pain",
+   "g": "m",
+   "en": "bread",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "pain"
+  },
+  {
+   "id": "fromage",
+   "fr": "fromage",
+   "g": "m",
+   "en": "cheese",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "fromage"
+  },
+  {
+   "id": "eau",
+   "fr": "eau",
+   "g": "f",
+   "en": "water",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink",
+    "vowel"
+   ],
+   "lemma": "eau"
+  },
+  {
+   "id": "café_boisson",
+   "fr": "café",
+   "g": "m",
+   "en": "coffee",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink",
+    "buy"
+   ],
+   "lemma": "café"
+  },
+  {
+   "id": "thé",
+   "fr": "thé",
+   "g": "m",
+   "en": "tea",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink"
+   ],
+   "lemma": "thé"
+  },
+  {
+   "id": "lait",
+   "fr": "lait",
+   "g": "m",
+   "en": "milk",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink",
+    "buy"
+   ],
+   "lemma": "lait"
+  },
+  {
+   "id": "soupe",
+   "fr": "soupe",
+   "g": "f",
+   "en": "soup",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat"
+   ],
+   "lemma": "soupe"
+  },
+  {
+   "id": "viande",
+   "fr": "viande",
+   "g": "f",
+   "en": "meat",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "viande"
+  },
+  {
+   "id": "confiture",
+   "fr": "confiture",
+   "g": "f",
+   "en": "jam",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "confiture"
+  },
+  {
+   "id": "beurre",
+   "fr": "beurre",
+   "g": "m",
+   "en": "butter",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "buy"
+   ],
+   "lemma": "beurre"
+  },
+  {
+   "id": "sucre",
+   "fr": "sucre",
+   "g": "m",
+   "en": "sugar",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "buy"
+   ],
+   "lemma": "sucre"
+  },
+  {
+   "id": "riz",
+   "fr": "riz",
+   "g": "m",
+   "en": "rice",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "riz"
+  },
+  {
+   "id": "chocolat",
+   "fr": "chocolat",
+   "g": "m",
+   "en": "chocolate",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "chocolat"
+  },
+  {
+   "id": "poisson",
+   "fr": "poisson",
+   "g": "m",
+   "en": "fish",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat",
+    "buy"
+   ],
+   "lemma": "poisson"
+  },
+  {
+   "id": "vin",
+   "fr": "vin",
+   "g": "m",
+   "en": "wine",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink",
+    "buy"
+   ],
+   "lemma": "vin"
+  },
+  {
+   "id": "jus d'orange",
+   "fr": "jus d'orange",
+   "g": "m",
+   "en": "orange juice",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink",
+    "buy"
+   ],
+   "pl": "jus d'orange",
+   "lemma": "jus"
+  },
+  {
+   "id": "huile d'olive",
+   "fr": "huile d'olive",
+   "g": "f",
+   "en": "olive oil",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "buy",
+    "vowel"
+   ],
+   "pl": "huiles d'olive",
+   "lemma": "huile"
+  },
+  {
+   "id": "farine",
+   "fr": "farine",
+   "g": "f",
+   "en": "flour",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "buy"
+   ],
+   "lemma": "farine"
+  },
+  {
+   "id": "limonade",
+   "fr": "limonade",
+   "g": "f",
+   "en": "lemonade",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "drink"
+   ],
+   "lemma": "limonade"
+  },
+  {
+   "id": "salade",
+   "fr": "salade",
+   "g": "f",
+   "en": "salad",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "salade"
+  },
+  {
+   "id": "glace",
+   "fr": "glace",
+   "g": "f",
+   "en": "ice cream",
+   "kind": "food",
+   "tags": [
+    "mass",
+    "eat"
+   ],
+   "lemma": "glace"
+  },
+  {
+   "id": "musique",
+   "fr": "musique",
+   "g": "f",
+   "en": "music",
+   "kind": "topic",
+   "tags": [
+    "mass",
+    "listen"
+   ],
+   "lemma": "musique"
+  },
+  {
+   "id": "pomme",
+   "fr": "pomme",
+   "g": "f",
+   "en": "apple",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "pomme"
+  },
+  {
+   "id": "croissant",
+   "fr": "croissant",
+   "g": "m",
+   "en": "croissant",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "croissant"
+  },
+  {
+   "id": "gâteau",
+   "fr": "gâteau",
+   "g": "m",
+   "en": "cake",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "pl": "gâteaux",
+   "lemma": "gâteau"
+  },
+  {
+   "id": "tarte",
+   "fr": "tarte",
+   "g": "f",
+   "en": "tart",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "tarte"
+  },
+  {
+   "id": "orange",
+   "fr": "orange",
+   "g": "f",
+   "en": "orange",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "orange"
+  },
+  {
+   "id": "banane",
+   "fr": "banane",
+   "g": "f",
+   "en": "banana",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "banane"
+  },
+  {
+   "id": "tomate",
+   "fr": "tomate",
+   "g": "f",
+   "en": "tomato",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "en_pl": "tomatoes",
+   "lemma": "tomate"
+  },
+  {
+   "id": "œuf",
+   "fr": "œuf",
+   "g": "m",
+   "en": "egg",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "œuf"
+  },
+  {
+   "id": "baguette",
+   "fr": "baguette",
+   "g": "f",
+   "en": "baguette",
+   "kind": "food",
+   "tags": [
+    "count",
+    "buy"
+   ],
+   "lemma": "baguette"
+  },
+  {
+   "id": "sandwich",
+   "fr": "sandwich",
+   "g": "m",
+   "en": "sandwich",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "en_pl": "sandwiches",
+   "lemma": "sandwich"
+  },
+  {
+   "id": "carotte",
+   "fr": "carotte",
+   "g": "f",
+   "en": "carrot",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "carotte"
+  },
+  {
+   "id": "citron",
+   "fr": "citron",
+   "g": "m",
+   "en": "lemon",
+   "kind": "food",
+   "tags": [
+    "count",
+    "buy"
+   ],
+   "lemma": "citron"
+  },
+  {
+   "id": "fraise",
+   "fr": "fraise",
+   "g": "f",
+   "en": "strawberry",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "en_pl": "strawberries",
+   "lemma": "fraise"
+  },
+  {
+   "id": "biscuit",
+   "fr": "biscuit",
+   "g": "m",
+   "en": "biscuit",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "biscuit"
+  },
+  {
+   "id": "crêpe",
+   "fr": "crêpe",
+   "g": "f",
+   "en": "crêpe",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat"
+   ],
+   "lemma": "crêpe"
+  },
+  {
+   "id": "pizza",
+   "fr": "pizza",
+   "g": "f",
+   "en": "pizza",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat"
+   ],
+   "lemma": "pizza"
+  },
+  {
+   "id": "poire",
+   "fr": "poire",
+   "g": "f",
+   "en": "pear",
+   "kind": "food",
+   "tags": [
+    "count",
+    "eat",
+    "buy"
+   ],
+   "lemma": "poire"
+  },
+  {
+   "id": "oignon",
+   "fr": "oignon",
+   "g": "m",
+   "en": "onion",
+   "kind": "food",
+   "tags": [
+    "count",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "oignon"
+  },
+  {
+   "id": "table",
+   "fr": "table",
+   "g": "f",
+   "en": "table",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "furniture"
+   ],
+   "lemma": "table"
+  },
+  {
+   "id": "chaise",
+   "fr": "chaise",
+   "g": "f",
+   "en": "chair",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "furniture"
+   ],
+   "lemma": "chaise"
+  },
+  {
+   "id": "livre",
+   "fr": "livre",
+   "g": "m",
+   "en": "book",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "read",
+    "lose",
+    "find"
+   ],
+   "lemma": "livre"
+  },
+  {
+   "id": "clé",
+   "fr": "clé",
+   "g": "f",
+   "en": "key",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "lose",
+    "find"
+   ],
+   "lemma": "clé"
+  },
+  {
+   "id": "téléphone",
+   "fr": "téléphone",
+   "g": "m",
+   "en": "phone",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "téléphone"
+  },
+  {
+   "id": "sac",
+   "fr": "sac",
+   "g": "m",
+   "en": "bag",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "sac"
+  },
+  {
+   "id": "parapluie",
+   "fr": "parapluie",
+   "g": "m",
+   "en": "umbrella",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "parapluie"
+  },
+  {
+   "id": "carte",
+   "fr": "carte",
+   "g": "f",
+   "en": "map",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "read"
+   ],
+   "lemma": "carte"
+  },
+  {
+   "id": "lettre",
+   "fr": "lettre",
+   "g": "f",
+   "en": "letter",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "read",
+    "open"
+   ],
+   "lemma": "lettre"
+  },
+  {
+   "id": "vélo",
+   "fr": "vélo",
+   "g": "m",
+   "en": "bike",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "vehicle"
+   ],
+   "lemma": "vélo"
+  },
+  {
+   "id": "voiture",
+   "fr": "voiture",
+   "g": "f",
+   "en": "car",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "vehicle"
+   ],
+   "lemma": "voiture"
+  },
+  {
+   "id": "ordinateur",
+   "fr": "ordinateur",
+   "g": "m",
+   "en": "computer",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "vowel"
+   ],
+   "lemma": "ordinateur"
+  },
+  {
+   "id": "lampe",
+   "fr": "lampe",
+   "g": "f",
+   "en": "lamp",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "furniture"
+   ],
+   "lemma": "lampe"
+  },
+  {
+   "id": "stylo",
+   "fr": "stylo",
+   "g": "m",
+   "en": "pen",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "stylo"
+  },
+  {
+   "id": "carnet",
+   "fr": "carnet",
+   "g": "m",
+   "en": "notebook",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "carnet"
+  },
+  {
+   "id": "journal",
+   "fr": "journal",
+   "g": "m",
+   "en": "newspaper",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "read"
+   ],
+   "pl": "journaux",
+   "lemma": "journal"
+  },
+  {
+   "id": "photo",
+   "fr": "photo",
+   "g": "f",
+   "en": "photo",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "watch"
+   ],
+   "lemma": "photo"
+  },
+  {
+   "id": "veste",
+   "fr": "veste",
+   "g": "f",
+   "en": "jacket",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "wear"
+   ],
+   "lemma": "veste"
+  },
+  {
+   "id": "robe",
+   "fr": "robe",
+   "g": "f",
+   "en": "dress",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "wear"
+   ],
+   "en_pl": "dresses",
+   "lemma": "robe"
+  },
+  {
+   "id": "manteau",
+   "fr": "manteau",
+   "g": "m",
+   "en": "coat",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "wear"
+   ],
+   "pl": "manteaux",
+   "lemma": "manteau"
+  },
+  {
+   "id": "montre",
+   "fr": "montre",
+   "g": "f",
+   "en": "watch",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "en_pl": "watches",
+   "lemma": "montre"
+  },
+  {
+   "id": "billet",
+   "fr": "billet",
+   "g": "m",
+   "en": "ticket",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "billet"
+  },
+  {
+   "id": "bague",
+   "fr": "bague",
+   "g": "f",
+   "en": "ring",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "lose",
+    "find"
+   ],
+   "lemma": "bague"
+  },
+  {
+   "id": "tableau",
+   "fr": "tableau",
+   "g": "m",
+   "en": "painting",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "watch"
+   ],
+   "pl": "tableaux",
+   "lemma": "tableau"
+  },
+  {
+   "id": "fenêtre",
+   "fr": "fenêtre",
+   "g": "f",
+   "en": "window",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "open"
+   ],
+   "lemma": "fenêtre"
+  },
+  {
+   "id": "porte",
+   "fr": "porte",
+   "g": "f",
+   "en": "door",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "open"
+   ],
+   "lemma": "porte"
+  },
+  {
+   "id": "lit",
+   "fr": "lit",
+   "g": "m",
+   "en": "bed",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "furniture"
+   ],
+   "lemma": "lit"
+  },
+  {
+   "id": "affiche",
+   "fr": "affiche",
+   "g": "f",
+   "en": "poster",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "watch",
+    "vowel"
+   ],
+   "lemma": "affiche"
+  },
+  {
+   "id": "valise",
+   "fr": "valise",
+   "g": "f",
+   "en": "suitcase",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "open",
+    "buy"
+   ],
+   "lemma": "valise"
+  },
+  {
+   "id": "assiette",
+   "fr": "assiette",
+   "g": "f",
+   "en": "plate",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "assiette"
+  },
+  {
+   "id": "tasse",
+   "fr": "tasse",
+   "g": "f",
+   "en": "cup",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy"
+   ],
+   "lemma": "tasse"
+  },
+  {
+   "id": "verre",
+   "fr": "verre",
+   "g": "m",
+   "en": "glass",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy"
+   ],
+   "en_pl": "glasses",
+   "lemma": "verre"
+  },
+  {
+   "id": "guitare",
+   "fr": "guitare",
+   "g": "f",
+   "en": "guitar",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell"
+   ],
+   "lemma": "guitare"
+  },
+  {
+   "id": "chapeau",
+   "fr": "chapeau",
+   "g": "m",
+   "en": "hat",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "wear"
+   ],
+   "pl": "chapeaux",
+   "lemma": "chapeau"
+  },
+  {
+   "id": "écharpe",
+   "fr": "écharpe",
+   "g": "f",
+   "en": "scarf",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "wear",
+    "vowel"
+   ],
+   "en_pl": "scarves",
+   "lemma": "écharpe"
+  },
+  {
+   "id": "horloge",
+   "fr": "horloge",
+   "g": "f",
+   "en": "clock",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "horloge"
+  },
+  {
+   "id": "miroir",
+   "fr": "miroir",
+   "g": "m",
+   "en": "mirror",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "furniture"
+   ],
+   "lemma": "miroir"
+  },
+  {
+   "id": "canapé",
+   "fr": "canapé",
+   "g": "m",
+   "en": "sofa",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "furniture"
+   ],
+   "lemma": "canapé"
+  },
+  {
+   "id": "radiateur",
+   "fr": "radiateur",
+   "g": "m",
+   "en": "radiator",
+   "kind": "obj",
+   "tags": [
+    "count"
+   ],
+   "lemma": "radiateur"
+  },
+  {
+   "id": "appareil photo",
+   "fr": "appareil photo",
+   "g": "m",
+   "en": "camera",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "lose",
+    "vowel"
+   ],
+   "pl": "appareils photo",
+   "lemma": "appareil"
+  },
+  {
+   "id": "arbre",
+   "fr": "arbre",
+   "g": "m",
+   "en": "tree",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "vowel"
+   ],
+   "lemma": "arbre"
+  },
+  {
+   "id": "objet",
+   "fr": "objet",
+   "g": "m",
+   "en": "object",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "buy",
+    "sell",
+    "vowel"
+   ],
+   "lemma": "objet"
+  },
+  {
+   "id": "album",
+   "fr": "album",
+   "g": "m",
+   "en": "album",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "listen",
+    "buy",
+    "vowel"
+   ],
+   "lemma": "album"
+  },
+  {
+   "id": "anniversaire",
+   "fr": "anniversaire",
+   "g": "m",
+   "en": "birthday",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "vowel"
+   ],
+   "lemma": "anniversaire"
+  },
+  {
+   "id": "film",
+   "fr": "film",
+   "g": "m",
+   "en": "film",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "watch"
+   ],
+   "lemma": "film"
+  },
+  {
+   "id": "chanson",
+   "fr": "chanson",
+   "g": "f",
+   "en": "song",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "listen"
+   ],
+   "lemma": "chanson"
+  },
+  {
+   "id": "message",
+   "fr": "message",
+   "g": "m",
+   "en": "message",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read"
+   ],
+   "lemma": "message"
+  },
+  {
+   "id": "article",
+   "fr": "article",
+   "g": "m",
+   "en": "article",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read",
+    "vowel"
+   ],
+   "lemma": "article"
+  },
+  {
+   "id": "roman",
+   "fr": "roman",
+   "g": "m",
+   "en": "novel",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read",
+    "buy"
+   ],
+   "lemma": "roman"
+  },
+  {
+   "id": "série",
+   "fr": "série",
+   "g": "f",
+   "en": "series",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "watch"
+   ],
+   "en_pl": "series",
+   "lemma": "série"
+  },
+  {
+   "id": "émission",
+   "fr": "émission",
+   "g": "f",
+   "en": "programme",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "watch",
+    "vowel"
+   ],
+   "lemma": "émission"
+  },
+  {
+   "id": "match",
+   "fr": "match",
+   "g": "m",
+   "en": "match",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "watch"
+   ],
+   "pl": "matchs",
+   "en_pl": "matches",
+   "lemma": "match"
+  },
+  {
+   "id": "concert",
+   "fr": "concert",
+   "g": "m",
+   "en": "concert",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "lemma": "concert"
+  },
+  {
+   "id": "projet",
+   "fr": "projet",
+   "g": "m",
+   "en": "project",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk",
+    "finish"
+   ],
+   "lemma": "projet"
+  },
+  {
+   "id": "voyage",
+   "fr": "voyage",
+   "g": "m",
+   "en": "trip",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "lemma": "voyage"
+  },
+  {
+   "id": "travail",
+   "fr": "travail",
+   "g": "m",
+   "en": "work",
+   "kind": "topic",
+   "tags": [
+    "topic_talk",
+    "finish"
+   ],
+   "pl": "travaux",
+   "lemma": "travail"
+  },
+  {
+   "id": "week-end",
+   "fr": "week-end",
+   "g": "m",
+   "en": "weekend",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "lemma": "week-end"
+  },
+  {
+   "id": "exposition",
+   "fr": "exposition",
+   "g": "f",
+   "en": "exhibition",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk",
+    "watch",
+    "vowel"
+   ],
+   "lemma": "exposition"
+  },
+  {
+   "id": "spectacle",
+   "fr": "spectacle",
+   "g": "m",
+   "en": "show",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk",
+    "watch"
+   ],
+   "lemma": "spectacle"
+  },
+  {
+   "id": "dossier",
+   "fr": "dossier",
+   "g": "m",
+   "en": "file",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read",
+    "finish"
+   ],
+   "lemma": "dossier"
+  },
+  {
+   "id": "réunion",
+   "fr": "réunion",
+   "g": "f",
+   "en": "meeting",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "lemma": "réunion"
+  },
+  {
+   "id": "examen",
+   "fr": "examen",
+   "g": "m",
+   "en": "exam",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk",
+    "finish",
+    "vowel"
+   ],
+   "lemma": "examen"
+  },
+  {
+   "id": "histoire",
+   "fr": "histoire",
+   "g": "f",
+   "en": "story",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read",
+    "topic_talk",
+    "vowel"
+   ],
+   "en_pl": "stories",
+   "lemma": "histoire"
+  },
+  {
+   "id": "radio",
+   "fr": "radio",
+   "g": "f",
+   "en": "radio",
+   "kind": "topic",
+   "tags": [
+    "listen"
+   ],
+   "lemma": "radio"
+  },
+  {
+   "id": "podcast",
+   "fr": "podcast",
+   "g": "m",
+   "en": "podcast",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "listen"
+   ],
+   "lemma": "podcast"
+  },
+  {
+   "id": "rapport",
+   "fr": "rapport",
+   "g": "m",
+   "en": "report",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "read",
+    "finish"
+   ],
+   "lemma": "rapport"
+  },
+  {
+   "id": "problème",
+   "fr": "problème",
+   "g": "m",
+   "en": "problem",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "lemma": "problème"
+  },
+  {
+   "id": "fête",
+   "fr": "fête",
+   "g": "f",
+   "en": "party",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "topic_talk"
+   ],
+   "en_pl": "parties",
+   "lemma": "fête"
+  },
+  {
+   "id": "idée",
+   "fr": "idée",
+   "g": "f",
+   "en": "idea",
+   "kind": "topic",
+   "tags": [
+    "count",
+    "vowel"
+   ],
+   "lemma": "idée"
+  },
+  {
+   "id": "question",
+   "fr": "question",
+   "g": "f",
+   "en": "question",
+   "kind": "topic",
+   "tags": [
+    "count"
+   ],
+   "lemma": "question"
+  },
+  {
+   "id": "marché",
+   "fr": "marché",
+   "g": "m",
+   "en": "market",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "marché"
+  },
+  {
+   "id": "gare",
+   "fr": "gare",
+   "g": "f",
+   "en": "station",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "gare"
+  },
+  {
+   "id": "café_lieu",
+   "fr": "café",
+   "g": "m",
+   "en": "café",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "café"
+  },
+  {
+   "id": "boulangerie",
+   "fr": "boulangerie",
+   "g": "f",
+   "en": "bakery",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "shop"
+   ],
+   "en_pl": "bakeries",
+   "lemma": "boulangerie"
+  },
+  {
+   "id": "bureau",
+   "fr": "bureau",
+   "g": "m",
+   "en": "office",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "pl": "bureaux",
+   "lemma": "bureau"
+  },
+  {
+   "id": "cinéma",
+   "fr": "cinéma",
+   "g": "m",
+   "en": "cinema",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "cinéma"
+  },
+  {
+   "id": "parc",
+   "fr": "parc",
+   "g": "m",
+   "en": "park",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "parc"
+  },
+  {
+   "id": "musée",
+   "fr": "musée",
+   "g": "m",
+   "en": "museum",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "musée"
+  },
+  {
+   "id": "école",
+   "fr": "école",
+   "g": "f",
+   "en": "school",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "vowel"
+   ],
+   "lemma": "école"
+  },
+  {
+   "id": "restaurant",
+   "fr": "restaurant",
+   "g": "m",
+   "en": "restaurant",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "restaurant"
+  },
+  {
+   "id": "pharmacie",
+   "fr": "pharmacie",
+   "g": "f",
+   "en": "chemist's",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "shop"
+   ],
+   "lemma": "pharmacie"
+  },
+  {
+   "id": "poste",
+   "fr": "poste",
+   "g": "f",
+   "en": "post office",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "poste"
+  },
+  {
+   "id": "bibliothèque",
+   "fr": "bibliothèque",
+   "g": "f",
+   "en": "library",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "en_pl": "libraries",
+   "lemma": "bibliothèque"
+  },
+  {
+   "id": "supermarché",
+   "fr": "supermarché",
+   "g": "m",
+   "en": "supermarket",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "shop"
+   ],
+   "lemma": "supermarché"
+  },
+  {
+   "id": "hôpital",
+   "fr": "hôpital",
+   "g": "m",
+   "en": "hospital",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "vowel"
+   ],
+   "pl": "hôpitaux",
+   "lemma": "hôpital"
+  },
+  {
+   "id": "aéroport",
+   "fr": "aéroport",
+   "g": "m",
+   "en": "airport",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "vowel"
+   ],
+   "lemma": "aéroport"
+  },
+  {
+   "id": "banque",
+   "fr": "banque",
+   "g": "f",
+   "en": "bank",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "banque"
+  },
+  {
+   "id": "piscine",
+   "fr": "piscine",
+   "g": "f",
+   "en": "swimming pool",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "piscine"
+  },
+  {
+   "id": "théâtre",
+   "fr": "théâtre",
+   "g": "m",
+   "en": "theatre",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town"
+   ],
+   "lemma": "théâtre"
+  },
+  {
+   "id": "plage",
+   "fr": "plage",
+   "g": "f",
+   "en": "beach",
+   "kind": "place",
+   "tags": [
+    "count"
+   ],
+   "en_pl": "beaches",
+   "lemma": "plage"
+  },
+  {
+   "id": "église",
+   "fr": "église",
+   "g": "f",
+   "en": "church",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "vowel"
+   ],
+   "en_pl": "churches",
+   "lemma": "église"
+  },
+  {
+   "id": "hôtel",
+   "fr": "hôtel",
+   "g": "m",
+   "en": "hotel",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "vowel"
+   ],
+   "lemma": "hôtel"
+  },
+  {
+   "id": "appartement",
+   "fr": "appartement",
+   "g": "m",
+   "en": "flat",
+   "kind": "place",
+   "tags": [
+    "count",
+    "home",
+    "vowel"
+   ],
+   "lemma": "appartement"
+  },
+  {
+   "id": "immeuble",
+   "fr": "immeuble",
+   "g": "m",
+   "en": "building",
+   "kind": "place",
+   "tags": [
+    "count",
+    "home",
+    "vowel"
+   ],
+   "lemma": "immeuble"
+  },
+  {
+   "id": "quartier",
+   "fr": "quartier",
+   "g": "m",
+   "en": "neighbourhood",
+   "kind": "place",
+   "tags": [
+    "count"
+   ],
+   "lemma": "quartier"
+  },
+  {
+   "id": "rue",
+   "fr": "rue",
+   "g": "f",
+   "en": "street",
+   "kind": "place",
+   "tags": [
+    "count"
+   ],
+   "lemma": "rue"
+  },
+  {
+   "id": "ville",
+   "fr": "ville",
+   "g": "f",
+   "en": "town",
+   "kind": "place",
+   "tags": [
+    "count"
+   ],
+   "lemma": "ville"
+  },
+  {
+   "id": "jardin",
+   "fr": "jardin",
+   "g": "m",
+   "en": "garden",
+   "kind": "place",
+   "tags": [
+    "count",
+    "home"
+   ],
+   "lemma": "jardin"
+  },
+  {
+   "id": "cuisine",
+   "fr": "cuisine",
+   "g": "f",
+   "en": "kitchen",
+   "kind": "place",
+   "tags": [
+    "count",
+    "room"
+   ],
+   "lemma": "cuisine"
+  },
+  {
+   "id": "salon",
+   "fr": "salon",
+   "g": "m",
+   "en": "living room",
+   "kind": "place",
+   "tags": [
+    "count",
+    "room"
+   ],
+   "lemma": "salon"
+  },
+  {
+   "id": "chambre",
+   "fr": "chambre",
+   "g": "f",
+   "en": "bedroom",
+   "kind": "place",
+   "tags": [
+    "count",
+    "room"
+   ],
+   "lemma": "chambre"
+  },
+  {
+   "id": "magasin",
+   "fr": "magasin",
+   "g": "m",
+   "en": "shop",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "shop"
+   ],
+   "lemma": "magasin"
+  },
+  {
+   "id": "librairie",
+   "fr": "librairie",
+   "g": "f",
+   "en": "bookshop",
+   "kind": "place",
+   "tags": [
+    "count",
+    "town",
+    "shop"
+   ],
+   "lemma": "librairie"
+  },
+  {
+   "id": "mistral",
+   "fr": "Mistral",
+   "g": "m",
+   "en": "Le Mistral",
+   "kind": "place",
+   "tags": [
+    "bible",
+    "town"
+   ],
+   "en_proper": true,
+   "lemma": "mistral"
+  },
+  {
+   "id": "marche_canal",
+   "fr": "marché du canal",
+   "g": "m",
+   "en": "canal market",
+   "kind": "place",
+   "tags": [
+    "bible",
+    "town"
+   ],
+   "lemma": "marché"
+  },
+  {
+   "id": "redaction",
+   "fr": "rédaction",
+   "g": "f",
+   "en": "newsroom",
+   "kind": "place",
+   "tags": [
+    "bible",
+    "town"
+   ],
+   "lemma": "rédaction"
+  },
+  {
+   "id": "brocante",
+   "fr": "brocante",
+   "g": "f",
+   "en": "flea market",
+   "kind": "place",
+   "tags": [
+    "bible",
+    "town"
+   ],
+   "lemma": "brocante"
+  },
+  {
+   "id": "canal",
+   "fr": "canal",
+   "g": "m",
+   "en": "canal",
+   "kind": "place",
+   "tags": [
+    "bible"
+   ],
+   "pl": "canaux",
+   "lemma": "canal"
+  },
+  {
+   "id": "ngo_office",
+   "fr": "bureau de l'ONG",
+   "g": "m",
+   "en": "NGO office",
+   "kind": "place",
+   "tags": [
+    "bible",
+    "town"
+   ],
+   "pl": "bureaux de l'ONG",
+   "lemma": "bureau"
+  },
+  {
+   "id": "ami",
+   "fr": "ami",
+   "g": "m",
+   "en": "friend",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "vowel"
+   ],
+   "lemma": "ami"
+  },
+  {
+   "id": "amie",
+   "fr": "amie",
+   "g": "f",
+   "en": "friend",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "vowel"
+   ],
+   "lemma": "amie"
+  },
+  {
+   "id": "voisin",
+   "fr": "voisin",
+   "g": "m",
+   "en": "neighbour",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "voisin"
+  },
+  {
+   "id": "voisine",
+   "fr": "voisine",
+   "g": "f",
+   "en": "neighbour",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "voisine"
+  },
+  {
+   "id": "collègue_m",
+   "fr": "collègue",
+   "g": "m",
+   "en": "colleague",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "collègue"
+  },
+  {
+   "id": "collègue_f",
+   "fr": "collègue",
+   "g": "f",
+   "en": "colleague",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "collègue"
+  },
+  {
+   "id": "étudiant",
+   "fr": "étudiant",
+   "g": "m",
+   "en": "student",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "vowel"
+   ],
+   "lemma": "étudiant"
+  },
+  {
+   "id": "étudiante",
+   "fr": "étudiante",
+   "g": "f",
+   "en": "student",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "vowel"
+   ],
+   "lemma": "étudiante"
+  },
+  {
+   "id": "cousin",
+   "fr": "cousin",
+   "g": "m",
+   "en": "cousin",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "family"
+   ],
+   "lemma": "cousin"
+  },
+  {
+   "id": "cousine",
+   "fr": "cousine",
+   "g": "f",
+   "en": "cousin",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "family"
+   ],
+   "lemma": "cousine"
+  },
+  {
+   "id": "frère",
+   "fr": "frère",
+   "g": "m",
+   "en": "brother",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "family"
+   ],
+   "lemma": "frère"
+  },
+  {
+   "id": "sœur",
+   "fr": "sœur",
+   "g": "f",
+   "en": "sister",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "family"
+   ],
+   "lemma": "sœur"
+  },
+  {
+   "id": "serveur",
+   "fr": "serveur",
+   "g": "m",
+   "en": "waiter",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "serveur"
+  },
+  {
+   "id": "serveuse",
+   "fr": "serveuse",
+   "g": "f",
+   "en": "waitress",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "en_pl": "waitresses",
+   "lemma": "serveuse"
+  },
+  {
+   "id": "enfant",
+   "fr": "enfant",
+   "g": "m",
+   "en": "child",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people",
+    "vowel"
+   ],
+   "en_pl": "children",
+   "lemma": "enfant"
+  },
+  {
+   "id": "propriétaire",
+   "fr": "propriétaire",
+   "g": "m",
+   "en": "landlord",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "propriétaire"
+  },
+  {
+   "id": "chat",
+   "fr": "chat",
+   "g": "m",
+   "en": "cat",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "animal"
+   ],
+   "lemma": "chat"
+  },
+  {
+   "id": "chien",
+   "fr": "chien",
+   "g": "m",
+   "en": "dog",
+   "kind": "obj",
+   "tags": [
+    "count",
+    "animal"
+   ],
+   "lemma": "chien"
+  },
+  {
+   "id": "professeur",
+   "fr": "professeur",
+   "g": "m",
+   "en": "teacher",
+   "kind": "person",
+   "tags": [
+    "count",
+    "people"
+   ],
+   "lemma": "professeur"
+  }
+ ],
+ "adjectives": [
+  {
+   "id": "petit",
+   "m": "petit",
+   "fr": "petit",
+   "en": "small",
+   "kinds": [
+    "obj",
+    "place",
+    "food"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "smaller",
+   "en_sup": "the smallest"
+  },
+  {
+   "id": "grand",
+   "m": "grand",
+   "fr": "grand",
+   "en": "big",
+   "kinds": [
+    "obj",
+    "place"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "bigger",
+   "en_sup": "the biggest"
+  },
+  {
+   "id": "grand_p",
+   "m": "grand",
+   "fr": "grand",
+   "en": "tall",
+   "kinds": [
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "taller",
+   "en_sup": "the tallest"
+  },
+  {
+   "id": "joli",
+   "m": "joli",
+   "fr": "joli",
+   "en": "pretty",
+   "kinds": [
+    "obj",
+    "place",
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "prettier",
+   "en_sup": "the prettiest"
+  },
+  {
+   "id": "jeune",
+   "m": "jeune",
+   "fr": "jeune",
+   "en": "young",
+   "kinds": [
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "younger",
+   "en_sup": "the youngest"
+  },
+  {
+   "id": "nouveau",
+   "m": "nouveau",
+   "fr": "nouveau",
+   "en": "new",
+   "kinds": [
+    "obj",
+    "place",
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "f": "nouvelle",
+   "mp": "nouveaux",
+   "fp": "nouvelles",
+   "en_comp": "newer",
+   "en_sup": "the newest",
+   "m_v": "nouvel"
+  },
+  {
+   "id": "vieux",
+   "m": "vieux",
+   "fr": "vieux",
+   "en": "old",
+   "kinds": [
+    "obj",
+    "place",
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "f": "vieille",
+   "mp": "vieux",
+   "fp": "vieilles",
+   "en_comp": "older",
+   "en_sup": "the oldest",
+   "m_v": "vieil"
+  },
+  {
+   "id": "beau",
+   "m": "beau",
+   "fr": "beau",
+   "en": "beautiful",
+   "kinds": [
+    "obj",
+    "place",
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "f": "belle",
+   "mp": "beaux",
+   "fp": "belles",
+   "en_comp": "more beautiful",
+   "en_sup": "the most beautiful",
+   "m_v": "bel"
+  },
+  {
+   "id": "bon",
+   "m": "bon",
+   "fr": "bon",
+   "en": "good",
+   "kinds": [
+    "food"
+   ],
+   "pos": "pre",
+   "tags": [
+    "nocomp",
+    "pre"
+   ],
+   "f": "bonne",
+   "en_comp": "better",
+   "en_sup": "the best"
+  },
+  {
+   "id": "blanc",
+   "m": "blanc",
+   "fr": "blanc",
+   "en": "white",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "f": "blanche",
+   "en_comp": "whiteer",
+   "en_sup": "the whiteest"
+  },
+  {
+   "id": "noir",
+   "m": "noir",
+   "fr": "noir",
+   "en": "black",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "blacker",
+   "en_sup": "the blackest"
+  },
+  {
+   "id": "rouge",
+   "m": "rouge",
+   "fr": "rouge",
+   "en": "red",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "reder",
+   "en_sup": "the redest"
+  },
+  {
+   "id": "bleu",
+   "m": "bleu",
+   "fr": "bleu",
+   "en": "blue",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "blueer",
+   "en_sup": "the blueest"
+  },
+  {
+   "id": "vert",
+   "m": "vert",
+   "fr": "vert",
+   "en": "green",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "greener",
+   "en_sup": "the greenest"
+  },
+  {
+   "id": "gris",
+   "m": "gris",
+   "fr": "gris",
+   "en": "grey",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "mp": "gris",
+   "en_comp": "greyer",
+   "en_sup": "the greyest"
+  },
+  {
+   "id": "jaune",
+   "m": "jaune",
+   "fr": "jaune",
+   "en": "yellow",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "color",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "yellower",
+   "en_sup": "the yellowest"
+  },
+  {
+   "id": "français",
+   "m": "français",
+   "fr": "français",
+   "en": "French",
+   "kinds": [
+    "obj",
+    "food",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "nation",
+    "nocomp",
+    "post"
+   ],
+   "f": "française",
+   "mp": "français",
+   "en_comp": "Frencher",
+   "en_sup": "the Frenchest"
+  },
+  {
+   "id": "italien",
+   "m": "italien",
+   "fr": "italien",
+   "en": "Italian",
+   "kinds": [
+    "obj",
+    "food",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "nation",
+    "nocomp",
+    "post"
+   ],
+   "f": "italienne",
+   "mp": "italiens",
+   "fp": "italiennes",
+   "en_comp": "Italianer",
+   "en_sup": "the Italianest"
+  },
+  {
+   "id": "anglais",
+   "m": "anglais",
+   "fr": "anglais",
+   "en": "English",
+   "kinds": [
+    "obj",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "nation",
+    "nocomp",
+    "post"
+   ],
+   "mp": "anglais",
+   "en_comp": "Englisher",
+   "en_sup": "the Englishest"
+  },
+  {
+   "id": "cher",
+   "m": "cher",
+   "fr": "cher",
+   "en": "expensive",
+   "kinds": [
+    "obj",
+    "place",
+    "food"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "chère",
+   "en_comp": "more expensive",
+   "en_sup": "the most expensive"
+  },
+  {
+   "id": "calme",
+   "m": "calme",
+   "fr": "calme",
+   "en": "calm",
+   "kinds": [
+    "place",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "calmer",
+   "en_sup": "the calmest"
+  },
+  {
+   "id": "drôle",
+   "m": "drôle",
+   "fr": "drôle",
+   "en": "funny",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "funnier",
+   "en_sup": "the funniest"
+  },
+  {
+   "id": "sympa",
+   "m": "sympa",
+   "fr": "sympa",
+   "en": "nice",
+   "kinds": [
+    "person",
+    "place"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "sympa",
+   "mp": "sympas",
+   "fp": "sympas",
+   "en_comp": "nicer",
+   "en_sup": "the nicest"
+  },
+  {
+   "id": "gentil",
+   "m": "gentil",
+   "fr": "gentil",
+   "en": "kind",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "gentille",
+   "en_comp": "kinder",
+   "en_sup": "the kindest",
+   "adv": "gentiment"
+  },
+  {
+   "id": "sérieux",
+   "m": "sérieux",
+   "fr": "sérieux",
+   "en": "serious",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "sérieuse",
+   "mp": "sérieux",
+   "en_comp": "more serious",
+   "en_sup": "the most serious"
+  },
+  {
+   "id": "timide",
+   "m": "timide",
+   "fr": "timide",
+   "en": "shy",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "shyer",
+   "en_sup": "the shyest"
+  },
+  {
+   "id": "bavard",
+   "m": "bavard",
+   "fr": "bavard",
+   "en": "chatty",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "chattier",
+   "en_sup": "the chattiest"
+  },
+  {
+   "id": "patient",
+   "m": "patient",
+   "fr": "patient",
+   "en": "patient",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "more patient",
+   "en_sup": "the most patient"
+  },
+  {
+   "id": "content",
+   "m": "content",
+   "fr": "content",
+   "en": "happy",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "post"
+   ],
+   "en_comp": "happier",
+   "en_sup": "the happiest"
+  },
+  {
+   "id": "fatigué",
+   "m": "fatigué",
+   "fr": "fatigué",
+   "en": "tired",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "post"
+   ],
+   "en_comp": "more tired",
+   "en_sup": "the most tired"
+  },
+  {
+   "id": "heureux",
+   "m": "heureux",
+   "fr": "heureux",
+   "en": "happy",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "post"
+   ],
+   "f": "heureuse",
+   "mp": "heureux",
+   "en_comp": "happier",
+   "en_sup": "the happiest"
+  },
+  {
+   "id": "occupé",
+   "m": "occupé",
+   "fr": "occupé",
+   "en": "busy",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "post"
+   ],
+   "en_comp": "busier",
+   "en_sup": "the busiest"
+  },
+  {
+   "id": "malade",
+   "m": "malade",
+   "fr": "malade",
+   "en": "ill",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "nocomp",
+    "post"
+   ],
+   "en_comp": "iller",
+   "en_sup": "the illest"
+  },
+  {
+   "id": "prêt",
+   "m": "prêt",
+   "fr": "prêt",
+   "en": "ready",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "state",
+    "nocomp",
+    "post"
+   ],
+   "f": "prête",
+   "en_comp": "readyer",
+   "en_sup": "the readyest"
+  },
+  {
+   "id": "intelligent",
+   "m": "intelligent",
+   "fr": "intelligent",
+   "en": "clever",
+   "kinds": [
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "cleverer",
+   "en_sup": "the cleverest"
+  },
+  {
+   "id": "rapide",
+   "m": "rapide",
+   "fr": "rapide",
+   "en": "fast",
+   "kinds": [
+    "vehicle"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "faster",
+   "en_sup": "the fastest"
+  },
+  {
+   "id": "lent",
+   "m": "lent",
+   "fr": "lent",
+   "en": "slow",
+   "kinds": [
+    "vehicle",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "slower",
+   "en_sup": "the slowest"
+  },
+  {
+   "id": "confortable",
+   "m": "confortable",
+   "fr": "confortable",
+   "en": "comfortable",
+   "kinds": [
+    "furniture",
+    "wear"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "more comfortable",
+   "en_sup": "the most comfortable"
+  },
+  {
+   "id": "moderne",
+   "m": "moderne",
+   "fr": "moderne",
+   "en": "modern",
+   "kinds": [
+    "obj",
+    "place"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "more modern",
+   "en_sup": "the most modern"
+  },
+  {
+   "id": "propre",
+   "m": "propre",
+   "fr": "propre",
+   "en": "clean",
+   "kinds": [
+    "obj",
+    "place"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "cleaner",
+   "en_sup": "the cleanest"
+  },
+  {
+   "id": "froid",
+   "m": "froid",
+   "fr": "froid",
+   "en": "cold",
+   "kinds": [
+    "food"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "colder",
+   "en_sup": "the coldest"
+  },
+  {
+   "id": "chaud",
+   "m": "chaud",
+   "fr": "chaud",
+   "en": "hot",
+   "kinds": [
+    "food"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "hotter",
+   "en_sup": "the hottest"
+  },
+  {
+   "id": "délicieux",
+   "m": "délicieux",
+   "fr": "délicieux",
+   "en": "delicious",
+   "kinds": [
+    "food"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "délicieuse",
+   "mp": "délicieux",
+   "en_comp": "more delicious",
+   "en_sup": "the most delicious"
+  },
+  {
+   "id": "frais",
+   "m": "frais",
+   "fr": "frais",
+   "en": "fresh",
+   "kinds": [
+    "food"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "f": "fraîche",
+   "mp": "frais",
+   "fp": "fraîches",
+   "en_comp": "fresher",
+   "en_sup": "the freshest"
+  },
+  {
+   "id": "bruyant",
+   "m": "bruyant",
+   "fr": "bruyant",
+   "en": "noisy",
+   "kinds": [
+    "place",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "noisier",
+   "en_sup": "the noisiest"
+  },
+  {
+   "id": "animé",
+   "m": "animé",
+   "fr": "animé",
+   "en": "lively",
+   "kinds": [
+    "place"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "livelier",
+   "en_sup": "the liveliest"
+  },
+  {
+   "id": "petit_p",
+   "m": "petit",
+   "fr": "petit",
+   "en": "short",
+   "kinds": [
+    "person"
+   ],
+   "pos": "pre",
+   "tags": [
+    "pre"
+   ],
+   "en_comp": "shorter",
+   "en_sup": "the shortest"
+  },
+  {
+   "id": "étrange",
+   "m": "étrange",
+   "fr": "étrange",
+   "en": "strange",
+   "kinds": [
+    "obj",
+    "place"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "stranger",
+   "en_sup": "the strangest"
+  },
+  {
+   "id": "pratique",
+   "m": "pratique",
+   "fr": "pratique",
+   "en": "practical",
+   "kinds": [
+    "obj"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "more practical",
+   "en_sup": "the most practical"
+  },
+  {
+   "id": "tranquille",
+   "m": "tranquille",
+   "fr": "tranquille",
+   "en": "quiet",
+   "kinds": [
+    "place",
+    "person"
+   ],
+   "pos": "post",
+   "tags": [
+    "post"
+   ],
+   "en_comp": "quieter",
+   "en_sup": "the quietest"
+  }
+ ],
+ "verbs": [
+  {
+   "id": "être",
+   "inf": "être",
+   "en": [
+    "be",
+    "is",
+    "was",
+    "been",
+    "being"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular"
+   ],
+   "comps": [],
+   "pres": [
+    "suis",
+    "es",
+    "est",
+    "sommes",
+    "êtes",
+    "sont"
+   ],
+   "pp": "été",
+   "fut": "ser",
+   "fut_x": "êtr",
+   "imp_x": "êt"
+  },
+  {
+   "id": "avoir",
+   "inf": "avoir",
+   "en": [
+    "have",
+    "has",
+    "had",
+    "had",
+    "having"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular"
+   ],
+   "comps": [
+    {
+     "fr": "une voiture",
+     "en": "a car"
+    },
+    {
+     "fr": "un chat",
+     "en": "a cat"
+    },
+    {
+     "fr": "deux frères",
+     "en": "two brothers"
+    },
+    {
+     "fr": "un vélo rouge",
+     "en": "a red bike"
+    },
+    {
+     "fr": "une idée",
+     "en": "an idea"
+    },
+    {
+     "fr": "une question",
+     "en": "a question"
+    },
+    {
+     "fr": "un rendez-vous",
+     "en": "an appointment"
+    },
+    {
+     "fr": "des amis à Paris",
+     "en": "friends in Paris"
+    }
+   ],
+   "pres": [
+    "ai",
+    "as",
+    "a",
+    "avons",
+    "avez",
+    "ont"
+   ],
+   "pp": "eu",
+   "fut": "aur",
+   "fut_x": "avoir"
+  },
+  {
+   "id": "aller",
+   "inf": "aller",
+   "en": [
+    "go",
+    "goes",
+    "went",
+    "gone",
+    "going"
+   ],
+   "aux": "être",
+   "tags": [
+    "irregular",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "au marché",
+     "en": "to the market"
+    },
+    {
+     "fr": "à la gare",
+     "en": "to the station"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "to Le Mistral"
+    },
+    {
+     "fr": "à la brocante",
+     "en": "to the flea market"
+    },
+    {
+     "fr": "au cinéma",
+     "en": "to the cinema"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "to Lila's place"
+    },
+    {
+     "fr": "à la boulangerie",
+     "en": "to the bakery"
+    },
+    {
+     "fr": "au parc",
+     "en": "to the park"
+    }
+   ],
+   "pres": [
+    "vais",
+    "vas",
+    "va",
+    "allons",
+    "allez",
+    "vont"
+   ],
+   "pp": "allé",
+   "fut": "ir",
+   "fut_x": "aller",
+   "imp2": "va",
+   "en_mode": "near",
+   "pres_x": {
+    "5": [
+     "allent"
+    ],
+    "0": [
+     "vas"
+    ]
+   }
+  },
+  {
+   "id": "venir",
+   "inf": "venir",
+   "en": [
+    "come",
+    "comes",
+    "came",
+    "come",
+    "coming"
+   ],
+   "aux": "être",
+   "tags": [
+    "irregular",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "to Le Mistral"
+    },
+    {
+     "fr": "avec nous",
+     "en": "with us"
+    },
+    {
+     "fr": "chez Marin",
+     "en": "to Marin's place"
+    },
+    {
+     "fr": "à la fête",
+     "en": "to the party"
+    },
+    {
+     "fr": "à la brocante",
+     "en": "to the flea market"
+    },
+    {
+     "fr": "en métro",
+     "en": "by metro"
+    }
+   ],
+   "pres": [
+    "viens",
+    "viens",
+    "vient",
+    "venons",
+    "venez",
+    "viennent"
+   ],
+   "pp": "venu",
+   "fut": "viendr",
+   "fut_x": "venir"
+  },
+  {
+   "id": "faire",
+   "inf": "faire",
+   "en": [
+    "do",
+    "does",
+    "did",
+    "done",
+    "doing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular"
+   ],
+   "comps": [
+    {
+     "fr": "la cuisine",
+     "en": "the cooking"
+    },
+    {
+     "fr": "les courses",
+     "en": "the shopping"
+    },
+    {
+     "fr": "du sport",
+     "en": "sport"
+    },
+    {
+     "fr": "du vélo",
+     "en": "",
+     "en_forms": [
+      "cycle",
+      "cycles",
+      "cycled",
+      "cycled",
+      "cycling"
+     ]
+    },
+    {
+     "fr": "de la natation",
+     "en": "",
+     "en_forms": [
+      "swim",
+      "swims",
+      "swam",
+      "swum",
+      "swimming"
+     ]
+    },
+    {
+     "fr": "du yoga",
+     "en": "yoga"
+    },
+    {
+     "fr": "de la musique",
+     "en": "",
+     "en_forms": [
+      "play",
+      "plays",
+      "played",
+      "played",
+      "playing"
+     ],
+     "en_obj": "music"
+    },
+    {
+     "fr": "une promenade",
+     "en": "",
+     "en_forms": [
+      "go for a walk",
+      "goes for a walk",
+      "went for a walk",
+      "gone for a walk",
+      "going for a walk"
+     ]
+    },
+    {
+     "fr": "un gâteau",
+     "en": "",
+     "en_forms": [
+      "bake",
+      "bakes",
+      "baked",
+      "baked",
+      "baking"
+     ],
+     "en_obj": "a cake"
+    }
+   ],
+   "pres": [
+    "fais",
+    "fais",
+    "fait",
+    "faisons",
+    "faites",
+    "font"
+   ],
+   "pp": "fait",
+   "fut": "fer",
+   "fut_x": "fair",
+   "pp_x": [
+    "faisé",
+    "fairé"
+   ],
+   "pres_x": {
+    "4": [
+     "faisez"
+    ],
+    "5": [
+     "faisent"
+    ]
+   }
+  },
+  {
+   "id": "prendre",
+   "inf": "prendre",
+   "en": [
+    "take",
+    "takes",
+    "took",
+    "taken",
+    "taking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "le métro",
+     "en": "the metro"
+    },
+    {
+     "fr": "le bus",
+     "en": "the bus"
+    },
+    {
+     "fr": "un café",
+     "en": "",
+     "en_forms": [
+      "have",
+      "has",
+      "had",
+      "had",
+      "having"
+     ],
+     "en_obj": "a coffee"
+    },
+    {
+     "fr": "le train",
+     "en": "the train"
+    },
+    {
+     "fr": "un taxi",
+     "en": "a taxi"
+    },
+    {
+     "fr": "une photo",
+     "en": "a photo"
+    },
+    {
+     "fr": "le petit-déjeuner",
+     "en": "",
+     "en_forms": [
+      "have",
+      "has",
+      "had",
+      "had",
+      "having"
+     ],
+     "en_obj": "breakfast"
+    },
+    {
+     "fr": "une douche",
+     "en": "a shower"
+    },
+    {
+     "fr": "mon vélo",
+     "en": "my bike"
+    },
+    {
+     "fr": "un thé",
+     "en": "",
+     "en_forms": [
+      "have",
+      "has",
+      "had",
+      "had",
+      "having"
+     ],
+     "en_obj": "a tea"
+    }
+   ],
+   "pres": [
+    "prends",
+    "prends",
+    "prend",
+    "prenons",
+    "prenez",
+    "prennent"
+   ],
+   "pp": "pris",
+   "fut": "prendr",
+   "obj": [
+    "buy",
+    "eat"
+   ],
+   "fut_x": "prendre",
+   "pp_x": [
+    "prendu",
+    "prenu"
+   ],
+   "pres_x": {
+    "3": [
+     "prendons"
+    ],
+    "4": [
+     "prendez"
+    ],
+    "5": [
+     "prendent",
+     "prenent"
+    ]
+   }
+  },
+  {
+   "id": "pouvoir",
+   "inf": "pouvoir",
+   "en": [
+    "can",
+    "can",
+    "could",
+    "been able",
+    "being able"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "modal"
+   ],
+   "comps": [],
+   "pres": [
+    "peux",
+    "peux",
+    "peut",
+    "pouvons",
+    "pouvez",
+    "peuvent"
+   ],
+   "pp": "pu",
+   "fut": "pourr",
+   "fut_x": "pour",
+   "en_mode": "can",
+   "en_fut": "be able to"
+  },
+  {
+   "id": "vouloir",
+   "inf": "vouloir",
+   "en": [
+    "want",
+    "wants",
+    "wanted",
+    "wanted",
+    "wanting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "modal"
+   ],
+   "comps": [],
+   "pres": [
+    "veux",
+    "veux",
+    "veut",
+    "voulons",
+    "voulez",
+    "veulent"
+   ],
+   "pp": "voulu",
+   "fut": "voudr",
+   "fut_x": "vouler",
+   "en_fut": "want to",
+   "en_mode": "want"
+  },
+  {
+   "id": "devoir",
+   "inf": "devoir",
+   "en": [
+    "must",
+    "must",
+    "had to",
+    "had to",
+    "having to"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "modal"
+   ],
+   "comps": [],
+   "pres": [
+    "dois",
+    "dois",
+    "doit",
+    "devons",
+    "devez",
+    "doivent"
+   ],
+   "pp": "dû",
+   "fut": "devr",
+   "fut_x": "dever",
+   "en_fut": "have to",
+   "en_mode": "must"
+  },
+  {
+   "id": "savoir",
+   "inf": "savoir",
+   "en": [
+    "know",
+    "knows",
+    "knew",
+    "known",
+    "knowing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular"
+   ],
+   "comps": [],
+   "pres": [
+    "sais",
+    "sais",
+    "sait",
+    "savons",
+    "savez",
+    "savent"
+   ],
+   "pp": "su",
+   "fut": "saur",
+   "fut_x": "savoir"
+  },
+  {
+   "id": "voir",
+   "inf": "voir",
+   "en": [
+    "see",
+    "sees",
+    "saw",
+    "seen",
+    "seeing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "le film",
+     "en": "the film"
+    },
+    {
+     "fr": "Romy au Mistral",
+     "en": "Romy at Le Mistral"
+    },
+    {
+     "fr": "les photos",
+     "en": "the photos"
+    },
+    {
+     "fr": "la mer",
+     "en": "the sea"
+    },
+    {
+     "fr": "le canal",
+     "en": "the canal"
+    },
+    {
+     "fr": "l'exposition",
+     "en": "the exhibition"
+    }
+   ],
+   "pres": [
+    "vois",
+    "vois",
+    "voit",
+    "voyons",
+    "voyez",
+    "voient"
+   ],
+   "pp": "vu",
+   "fut": "verr",
+   "obj": [
+    "watch",
+    "people"
+   ],
+   "fut_x": "voir",
+   "pp_x": [
+    "voyé"
+   ]
+  },
+  {
+   "id": "boire",
+   "inf": "boire",
+   "en": [
+    "drink",
+    "drinks",
+    "drank",
+    "drunk",
+    "drinking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "un café",
+     "en": "a coffee"
+    },
+    {
+     "fr": "de l'eau",
+     "en": "water"
+    },
+    {
+     "fr": "un thé",
+     "en": "a tea"
+    },
+    {
+     "fr": "un verre de vin",
+     "en": "a glass of wine"
+    },
+    {
+     "fr": "du jus d'orange",
+     "en": "orange juice"
+    },
+    {
+     "fr": "une limonade",
+     "en": "a lemonade"
+    }
+   ],
+   "pres": [
+    "bois",
+    "bois",
+    "boit",
+    "buvons",
+    "buvez",
+    "boivent"
+   ],
+   "pp": "bu",
+   "fut": "boir",
+   "obj": [
+    "drink"
+   ],
+   "pp_x": [
+    "buvé",
+    "boivé"
+   ]
+  },
+  {
+   "id": "lire",
+   "inf": "lire",
+   "en": [
+    "read",
+    "reads",
+    "read",
+    "read",
+    "reading"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "le journal",
+     "en": "the newspaper"
+    },
+    {
+     "fr": "un roman",
+     "en": "a novel"
+    },
+    {
+     "fr": "les messages",
+     "en": "the messages"
+    },
+    {
+     "fr": "l'article de Romy",
+     "en": "Romy's article"
+    },
+    {
+     "fr": "une lettre",
+     "en": "a letter"
+    },
+    {
+     "fr": "la carte",
+     "en": "the menu"
+    }
+   ],
+   "pres": [
+    "lis",
+    "lis",
+    "lit",
+    "lisons",
+    "lisez",
+    "lisent"
+   ],
+   "pp": "lu",
+   "fut": "lir",
+   "obj": [
+    "read"
+   ],
+   "pp_x": [
+    "lisé"
+   ]
+  },
+  {
+   "id": "écrire",
+   "inf": "écrire",
+   "en": [
+    "write",
+    "writes",
+    "wrote",
+    "written",
+    "writing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "une lettre",
+     "en": "a letter"
+    },
+    {
+     "fr": "un message",
+     "en": "a message"
+    },
+    {
+     "fr": "un article",
+     "en": "an article"
+    },
+    {
+     "fr": "un roman",
+     "en": "a novel"
+    },
+    {
+     "fr": "une carte postale",
+     "en": "a postcard"
+    },
+    {
+     "fr": "un e-mail",
+     "en": "an email"
+    }
+   ],
+   "pres": [
+    "écris",
+    "écris",
+    "écrit",
+    "écrivons",
+    "écrivez",
+    "écrivent"
+   ],
+   "pp": "écrit",
+   "fut": "écrir",
+   "pp_x": [
+    "écrivé"
+   ]
+  },
+  {
+   "id": "dire",
+   "inf": "dire",
+   "en": [
+    "say",
+    "says",
+    "said",
+    "said",
+    "saying"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "bonjour",
+     "en": "hello"
+    },
+    {
+     "fr": "la vérité",
+     "en": "the truth"
+    },
+    {
+     "fr": "merci",
+     "en": "thank you"
+    },
+    {
+     "fr": "non",
+     "en": "no"
+    },
+    {
+     "fr": "au revoir",
+     "en": "goodbye"
+    }
+   ],
+   "pres": [
+    "dis",
+    "dis",
+    "dit",
+    "disons",
+    "dites",
+    "disent"
+   ],
+   "pp": "dit",
+   "fut": "dir"
+  },
+  {
+   "id": "mettre",
+   "inf": "mettre",
+   "en": [
+    "put",
+    "puts",
+    "put",
+    "put",
+    "putting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "la table",
+     "en": "",
+     "en_forms": [
+      "set",
+      "sets",
+      "set",
+      "set",
+      "setting"
+     ],
+     "en_obj": "the table"
+    },
+    {
+     "fr": "une veste",
+     "en": "",
+     "en_forms": [
+      "put on",
+      "puts on",
+      "put on",
+      "put on",
+      "putting on"
+     ],
+     "en_obj": "a jacket"
+    },
+    {
+     "fr": "les clés sur la table",
+     "en": "the keys on the table"
+    },
+    {
+     "fr": "du sucre dans le café",
+     "en": "sugar in the coffee"
+    }
+   ],
+   "pres": [
+    "mets",
+    "mets",
+    "met",
+    "mettons",
+    "mettez",
+    "mettent"
+   ],
+   "pp": "mis",
+   "fut": "mettr",
+   "pp_x": [
+    "metté",
+    "mettu"
+   ]
+  },
+  {
+   "id": "connaître",
+   "inf": "connaître",
+   "en": [
+    "know",
+    "knows",
+    "knew",
+    "known",
+    "knowing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "Margaux",
+     "en": "Margaux"
+    },
+    {
+     "fr": "le quartier",
+     "en": "the neighbourhood"
+    },
+    {
+     "fr": "un bon restaurant",
+     "en": "a good restaurant"
+    },
+    {
+     "fr": "cette chanson",
+     "en": "this song"
+    },
+    {
+     "fr": "Paris",
+     "en": "Paris"
+    }
+   ],
+   "pres": [
+    "connais",
+    "connais",
+    "connaît",
+    "connaissons",
+    "connaissez",
+    "connaissent"
+   ],
+   "pp": "connu",
+   "fut": "connaîtr",
+   "obj": [
+    "people"
+   ]
+  },
+  {
+   "id": "ouvrir",
+   "inf": "ouvrir",
+   "en": [
+    "open",
+    "opens",
+    "opened",
+    "opened",
+    "opening"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular"
+   ],
+   "comps": [
+    {
+     "fr": "la fenêtre",
+     "en": "the window"
+    },
+    {
+     "fr": "la porte",
+     "en": "the door"
+    },
+    {
+     "fr": "le café à sept heures",
+     "en": "the café at seven"
+    },
+    {
+     "fr": "une lettre",
+     "en": "a letter"
+    },
+    {
+     "fr": "la valise",
+     "en": "the suitcase"
+    }
+   ],
+   "pres": [
+    "ouvre",
+    "ouvres",
+    "ouvre",
+    "ouvrons",
+    "ouvrez",
+    "ouvrent"
+   ],
+   "pp": "ouvert",
+   "fut": "ouvrir",
+   "obj": [
+    "open"
+   ],
+   "pp_x": [
+    "ouvri",
+    "ouvré"
+   ],
+   "imp2": "ouvre"
+  },
+  {
+   "id": "finir",
+   "inf": "finir",
+   "en": [
+    "finish",
+    "finishes",
+    "finished",
+    "finished",
+    "finishing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "ir"
+   ],
+   "comps": [
+    {
+     "fr": "le travail",
+     "en": "work"
+    },
+    {
+     "fr": "à cinq heures",
+     "en": "at five"
+    },
+    {
+     "fr": "le rapport",
+     "en": "the report"
+    },
+    {
+     "fr": "le livre",
+     "en": "the book"
+    },
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "le dossier",
+     "en": "the file"
+    }
+   ],
+   "pres": [
+    "finis",
+    "finis",
+    "finit",
+    "finissons",
+    "finissez",
+    "finissent"
+   ],
+   "pp": "fini",
+   "fut": "finir",
+   "obj": [
+    "finish"
+   ],
+   "pp_x": [
+    "finé",
+    "finit"
+   ],
+   "pres_x": {
+    "3": [
+     "finons"
+    ],
+    "4": [
+     "finez"
+    ],
+    "5": [
+     "finent"
+    ]
+   }
+  },
+  {
+   "id": "choisir",
+   "inf": "choisir",
+   "en": [
+    "choose",
+    "chooses",
+    "chose",
+    "chosen",
+    "choosing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "ir"
+   ],
+   "comps": [
+    {
+     "fr": "un dessert",
+     "en": "a dessert"
+    },
+    {
+     "fr": "la table près de la fenêtre",
+     "en": "the table by the window"
+    },
+    {
+     "fr": "un film",
+     "en": "a film"
+    },
+    {
+     "fr": "le menu du jour",
+     "en": "the set menu"
+    },
+    {
+     "fr": "une robe",
+     "en": "a dress"
+    }
+   ],
+   "pres": [
+    "choisis",
+    "choisis",
+    "choisit",
+    "choisissons",
+    "choisissez",
+    "choisissent"
+   ],
+   "pp": "choisi",
+   "fut": "choisir",
+   "obj": [
+    "buy"
+   ],
+   "pres_x": {
+    "3": [
+     "choisons"
+    ],
+    "4": [
+     "choisez"
+    ],
+    "5": [
+     "choisent"
+    ]
+   }
+  },
+  {
+   "id": "partir",
+   "inf": "partir",
+   "en": [
+    "leave",
+    "leaves",
+    "left",
+    "left",
+    "leaving"
+   ],
+   "aux": "être",
+   "tags": [
+    "ir",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "à huit heures",
+     "en": "at eight"
+    },
+    {
+     "fr": "en vacances",
+     "en": "on holiday"
+    },
+    {
+     "fr": "tôt",
+     "en": "early"
+    },
+    {
+     "fr": "pour Lyon",
+     "en": "for Lyon"
+    },
+    {
+     "fr": "demain matin",
+     "en": "tomorrow morning"
+    },
+    {
+     "fr": "avant la fin du film",
+     "en": "before the end of the film"
+    }
+   ],
+   "pres": [
+    "pars",
+    "pars",
+    "part",
+    "partons",
+    "partez",
+    "partent"
+   ],
+   "pp": "parti",
+   "fut": "partir",
+   "pres_x": {
+    "0": [
+     "part"
+    ],
+    "1": [
+     "part"
+    ]
+   }
+  },
+  {
+   "id": "sortir",
+   "inf": "sortir",
+   "en": [
+    "go",
+    "goes",
+    "went",
+    "gone",
+    "going"
+   ],
+   "aux": "être",
+   "tags": [
+    "ir",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "avec Lila",
+     "en": "out with Lila"
+    },
+    {
+     "fr": "tard",
+     "en": "out late"
+    },
+    {
+     "fr": "du bureau",
+     "en": "out of the office"
+    },
+    {
+     "fr": "avec des amis",
+     "en": "out with friends"
+    },
+    {
+     "fr": "en ville",
+     "en": "out into town"
+    }
+   ],
+   "pres": [
+    "sors",
+    "sors",
+    "sort",
+    "sortons",
+    "sortez",
+    "sortent"
+   ],
+   "pp": "sorti",
+   "fut": "sortir",
+   "pres_x": {
+    "0": [
+     "sort"
+    ],
+    "1": [
+     "sort"
+    ]
+   }
+  },
+  {
+   "id": "dormir",
+   "inf": "dormir",
+   "en": [
+    "sleep",
+    "sleeps",
+    "slept",
+    "slept",
+    "sleeping"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "ir"
+   ],
+   "comps": [
+    {
+     "fr": "bien",
+     "en": "well"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place"
+    },
+    {
+     "fr": "dans le salon",
+     "en": "in the living room"
+    },
+    {
+     "fr": "huit heures",
+     "en": "eight hours"
+    },
+    {
+     "fr": "jusqu'à midi",
+     "en": "until noon"
+    }
+   ],
+   "pres": [
+    "dors",
+    "dors",
+    "dort",
+    "dormons",
+    "dormez",
+    "dorment"
+   ],
+   "pp": "dormi",
+   "fut": "dormir",
+   "pres_x": {
+    "0": [
+     "dort"
+    ],
+    "1": [
+     "dort"
+    ]
+   }
+  },
+  {
+   "id": "attendre",
+   "inf": "attendre",
+   "en": [
+    "wait for",
+    "waits for",
+    "waited for",
+    "waited for",
+    "waiting for"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "le bus",
+     "en": "the bus"
+    },
+    {
+     "fr": "Margaux",
+     "en": "Margaux"
+    },
+    {
+     "fr": "le train",
+     "en": "the train"
+    },
+    {
+     "fr": "un message",
+     "en": "a message"
+    },
+    {
+     "fr": "la réponse",
+     "en": "the answer"
+    },
+    {
+     "fr": "Romy devant le Mistral",
+     "en": "Romy outside Le Mistral"
+    }
+   ],
+   "pres": [
+    "attends",
+    "attends",
+    "attend",
+    "attendons",
+    "attendez",
+    "attendent"
+   ],
+   "pp": "attendu",
+   "fut": "attendr",
+   "obj": [
+    "people"
+   ],
+   "pp_x": [
+    "attendé"
+   ],
+   "pres_x": {
+    "2": [
+     "attendt"
+    ]
+   }
+  },
+  {
+   "id": "répondre",
+   "inf": "répondre",
+   "en": [
+    "answer",
+    "answers",
+    "answered",
+    "answered",
+    "answering"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "au message",
+     "en": "the message"
+    },
+    {
+     "fr": "à Romy",
+     "en": "Romy"
+    },
+    {
+     "fr": "vite",
+     "en": "quickly",
+     "tags": [
+      "manner"
+     ]
+    },
+    {
+     "fr": "à la question",
+     "en": "the question"
+    },
+    {
+     "fr": "au téléphone",
+     "en": "the phone"
+    }
+   ],
+   "pres": [
+    "réponds",
+    "réponds",
+    "répond",
+    "répondons",
+    "répondez",
+    "répondent"
+   ],
+   "pp": "répondu",
+   "fut": "répondr",
+   "pp_x": [
+    "répondé"
+   ],
+   "pres_x": {
+    "2": [
+     "répondt"
+    ]
+   }
+  },
+  {
+   "id": "vendre",
+   "inf": "vendre",
+   "en": [
+    "sell",
+    "sells",
+    "sold",
+    "sold",
+    "selling"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "des tableaux",
+     "en": "paintings"
+    },
+    {
+     "fr": "un vieux vélo",
+     "en": "an old bike"
+    },
+    {
+     "fr": "des livres à la brocante",
+     "en": "books at the flea market"
+    },
+    {
+     "fr": "la voiture",
+     "en": "the car"
+    },
+    {
+     "fr": "des fleurs",
+     "en": "flowers"
+    }
+   ],
+   "pres": [
+    "vends",
+    "vends",
+    "vend",
+    "vendons",
+    "vendez",
+    "vendent"
+   ],
+   "pp": "vendu",
+   "fut": "vendr",
+   "obj": [
+    "sell"
+   ],
+   "pres_x": {
+    "2": [
+     "vendt"
+    ]
+   }
+  },
+  {
+   "id": "entendre",
+   "inf": "entendre",
+   "en": [
+    "hear",
+    "hears",
+    "heard",
+    "heard",
+    "hearing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "la musique",
+     "en": "the music"
+    },
+    {
+     "fr": "le train",
+     "en": "the train"
+    },
+    {
+     "fr": "Marin",
+     "en": "Marin"
+    },
+    {
+     "fr": "un bruit",
+     "en": "a noise"
+    },
+    {
+     "fr": "la pluie",
+     "en": "the rain"
+    }
+   ],
+   "pres": [
+    "entends",
+    "entends",
+    "entend",
+    "entendons",
+    "entendez",
+    "entendent"
+   ],
+   "pp": "entendu",
+   "fut": "entendr"
+  },
+  {
+   "id": "descendre",
+   "inf": "descendre",
+   "en": [
+    "go down",
+    "goes down",
+    "went down",
+    "gone down",
+    "going down"
+   ],
+   "aux": "être",
+   "tags": [
+    "re",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "dans le métro",
+     "en": "into the metro"
+    },
+    {
+     "fr": "au rez-de-chaussée",
+     "en": "to the ground floor"
+    },
+    {
+     "fr": "vers le canal",
+     "en": "towards the canal"
+    },
+    {
+     "fr": "à la cave",
+     "en": "to the cellar"
+    }
+   ],
+   "pres": [
+    "descends",
+    "descends",
+    "descend",
+    "descendons",
+    "descendez",
+    "descendent"
+   ],
+   "pp": "descendu",
+   "fut": "descendr",
+   "pres_x": {
+    "2": [
+     "descendt"
+    ]
+   }
+  },
+  {
+   "id": "perdre",
+   "inf": "perdre",
+   "en": [
+    "lose",
+    "loses",
+    "lost",
+    "lost",
+    "losing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "les clés",
+     "en": "the keys"
+    },
+    {
+     "fr": "le match",
+     "en": "the match"
+    },
+    {
+     "fr": "du temps",
+     "en": "time"
+    },
+    {
+     "fr": "un gant",
+     "en": "a glove"
+    }
+   ],
+   "pres": [
+    "perds",
+    "perds",
+    "perd",
+    "perdons",
+    "perdez",
+    "perdent"
+   ],
+   "pp": "perdu",
+   "fut": "perdr",
+   "obj": [
+    "lose"
+   ]
+  },
+  {
+   "id": "parler",
+   "inf": "parler",
+   "en": [
+    "speak",
+    "speaks",
+    "spoke",
+    "spoken",
+    "speaking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "français",
+     "en": "French"
+    },
+    {
+     "fr": "anglais",
+     "en": "English"
+    },
+    {
+     "fr": "avec Margaux",
+     "en": "to Margaux"
+    },
+    {
+     "fr": "au téléphone",
+     "en": "on the phone"
+    },
+    {
+     "fr": "doucement",
+     "en": "softly",
+     "tags": [
+      "manner"
+     ]
+    },
+    {
+     "fr": "avec Lila au Mistral",
+     "en": "to Lila at Le Mistral"
+    }
+   ],
+   "pp": "parlé"
+  },
+  {
+   "id": "habiter",
+   "inf": "habiter",
+   "en": [
+    "live",
+    "lives",
+    "lived",
+    "lived",
+    "living"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "à Paris",
+     "en": "in Paris"
+    },
+    {
+     "fr": "près du canal",
+     "en": "near the canal"
+    },
+    {
+     "fr": "dans le dixième",
+     "en": "in the tenth arrondissement"
+    },
+    {
+     "fr": "au sixième étage",
+     "en": "on the sixth floor"
+    },
+    {
+     "fr": "à côté du Mistral",
+     "en": "next to Le Mistral"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
+    }
+   ],
+   "pp": "habité"
+  },
+  {
+   "id": "travailler",
+   "inf": "travailler",
+   "en": [
+    "work",
+    "works",
+    "worked",
+    "worked",
+    "working"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "à la rédaction",
+     "en": "at the newsroom"
+    },
+    {
+     "fr": "le samedi",
+     "en": "on Saturdays"
+    },
+    {
+     "fr": "beaucoup",
+     "en": "a lot"
+    },
+    {
+     "fr": "à la maison",
+     "en": "at home"
+    },
+    {
+     "fr": "avec Gus",
+     "en": "with Gus"
+    }
+   ],
+   "pp": "travaillé"
+  },
+  {
+   "id": "aimer",
+   "inf": "aimer",
+   "en": [
+    "like",
+    "likes",
+    "liked",
+    "liked",
+    "liking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le café",
+     "en": "coffee"
+    },
+    {
+     "fr": "la musique",
+     "en": "music"
+    },
+    {
+     "fr": "les chats",
+     "en": "cats"
+    },
+    {
+     "fr": "le cinéma",
+     "en": "the cinema"
+    },
+    {
+     "fr": "danser",
+     "en": "dancing"
+    },
+    {
+     "fr": "les marchés",
+     "en": "markets"
+    }
+   ],
+   "pp": "aimé",
+   "obj": [
+    "eat",
+    "listen",
+    "watch"
+   ]
+  },
+  {
+   "id": "regarder",
+   "inf": "regarder",
+   "en": [
+    "watch",
+    "watches",
+    "watched",
+    "watched",
+    "watching"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un film",
+     "en": "a film"
+    },
+    {
+     "fr": "la télé",
+     "en": "TV"
+    },
+    {
+     "fr": "le match",
+     "en": "the match"
+    },
+    {
+     "fr": "une série",
+     "en": "a series"
+    },
+    {
+     "fr": "les photos",
+     "en": "",
+     "en_forms": [
+      "look at",
+      "looks at",
+      "looked at",
+      "looked at",
+      "looking at"
+     ],
+     "en_obj": "the photos"
+    },
+    {
+     "fr": "les bateaux",
+     "en": "",
+     "en_forms": [
+      "look at",
+      "looks at",
+      "looked at",
+      "looked at",
+      "looking at"
+     ],
+     "en_obj": "the boats"
+    }
+   ],
+   "pp": "regardé",
+   "obj": [
+    "watch"
+   ]
+  },
+  {
+   "id": "écouter",
+   "inf": "écouter",
+   "en": [
+    "listen to",
+    "listens to",
+    "listened to",
+    "listened to",
+    "listening to"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "la radio",
+     "en": "the radio"
+    },
+    {
+     "fr": "de la musique",
+     "en": "music"
+    },
+    {
+     "fr": "Lila",
+     "en": "Lila"
+    },
+    {
+     "fr": "un podcast",
+     "en": "a podcast"
+    },
+    {
+     "fr": "le prof",
+     "en": "the teacher"
+    }
+   ],
+   "pp": "écouté",
+   "obj": [
+    "listen"
+   ]
+  },
+  {
+   "id": "chercher",
+   "inf": "chercher",
+   "en": [
+    "look for",
+    "looks for",
+    "looked for",
+    "looked for",
+    "looking for"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un appartement",
+     "en": "a flat"
+    },
+    {
+     "fr": "les clés",
+     "en": "the keys"
+    },
+    {
+     "fr": "un travail",
+     "en": "a job"
+    },
+    {
+     "fr": "Gus",
+     "en": "Gus"
+    },
+    {
+     "fr": "la gare",
+     "en": "the station"
+    },
+    {
+     "fr": "une solution",
+     "en": "a solution"
+    }
+   ],
+   "pp": "cherché",
+   "obj": [
+    "find",
+    "people"
+   ]
+  },
+  {
+   "id": "manger",
+   "inf": "manger",
+   "en": [
+    "eat",
+    "eats",
+    "ate",
+    "eaten",
+    "eating"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "une pizza",
+     "en": "a pizza"
+    },
+    {
+     "fr": "trop vite",
+     "en": "too fast"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place"
+    },
+    {
+     "fr": "à midi",
+     "en": "at noon"
+    },
+    {
+     "fr": "des crêpes",
+     "en": "crêpes"
+    }
+   ],
+   "pp": "mangé",
+   "obj": [
+    "eat"
+   ],
+   "imp_x": "mang"
+  },
+  {
+   "id": "jouer",
+   "inf": "jouer",
+   "en": [
+    "play",
+    "plays",
+    "played",
+    "played",
+    "playing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au tennis",
+     "en": "tennis"
+    },
+    {
+     "fr": "aux cartes",
+     "en": "cards"
+    },
+    {
+     "fr": "de la guitare",
+     "en": "the guitar"
+    },
+    {
+     "fr": "avec les enfants",
+     "en": "with the children"
+    },
+    {
+     "fr": "au foot",
+     "en": "football"
+    }
+   ],
+   "pp": "joué"
+  },
+  {
+   "id": "danser",
+   "inf": "danser",
+   "en": [
+    "dance",
+    "dances",
+    "danced",
+    "danced",
+    "dancing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "toute la nuit",
+     "en": "all night"
+    },
+    {
+     "fr": "avec Marin",
+     "en": "with Marin"
+    },
+    {
+     "fr": "le samedi soir",
+     "en": "on Saturday nights"
+    },
+    {
+     "fr": "dans la cuisine",
+     "en": "in the kitchen"
+    }
+   ],
+   "pp": "dansé"
+  },
+  {
+   "id": "chanter",
+   "inf": "chanter",
+   "en": [
+    "sing",
+    "sings",
+    "sang",
+    "sung",
+    "singing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "sous la douche",
+     "en": "in the shower"
+    },
+    {
+     "fr": "une chanson",
+     "en": "a song"
+    },
+    {
+     "fr": "avec Lila",
+     "en": "with Lila"
+    },
+    {
+     "fr": "très fort",
+     "en": "very loudly",
+     "tags": [
+      "manner"
+     ]
+    }
+   ],
+   "pp": "chanté"
+  },
+  {
+   "id": "cuisiner",
+   "inf": "cuisiner",
+   "en": [
+    "cook",
+    "cooks",
+    "cooked",
+    "cooked",
+    "cooking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "pour les amis",
+     "en": "for our friends"
+    },
+    {
+     "fr": "ce soir",
+     "en": "tonight"
+    },
+    {
+     "fr": "le dimanche",
+     "en": "on Sundays"
+    },
+    {
+     "fr": "avec Marin",
+     "en": "with Marin"
+    },
+    {
+     "fr": "des crêpes",
+     "en": "crêpes"
+    }
+   ],
+   "pp": "cuisiné"
+  },
+  {
+   "id": "arriver",
+   "inf": "arriver",
+   "en": [
+    "arrive",
+    "arrives",
+    "arrived",
+    "arrived",
+    "arriving"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "à la gare",
+     "en": "at the station"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "en retard",
+     "en": "late"
+    },
+    {
+     "fr": "à huit heures",
+     "en": "at eight"
+    },
+    {
+     "fr": "à Paris",
+     "en": "in Paris"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place"
+    }
+   ],
+   "pp": "arrivé"
+  },
+  {
+   "id": "rester",
+   "inf": "rester",
+   "en": [
+    "stay",
+    "stays",
+    "stayed",
+    "stayed",
+    "staying"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "à la maison",
+     "en": "at home"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place"
+    },
+    {
+     "fr": "à Paris",
+     "en": "in Paris"
+    },
+    {
+     "fr": "au lit",
+     "en": "in bed"
+    }
+   ],
+   "pp": "resté"
+  },
+  {
+   "id": "entrer",
+   "inf": "entrer",
+   "en": [
+    "go",
+    "goes",
+    "went",
+    "gone",
+    "going"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "dans le café",
+     "en": "into the café"
+    },
+    {
+     "fr": "dans la salle",
+     "en": "into the room"
+    },
+    {
+     "fr": "au musée",
+     "en": "into the museum"
+    },
+    {
+     "fr": "dans le métro",
+     "en": "into the metro"
+    }
+   ],
+   "pp": "entré"
+  },
+  {
+   "id": "rentrer",
+   "inf": "rentrer",
+   "en": [
+    "go home",
+    "goes home",
+    "went home",
+    "gone home",
+    "going home"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "à minuit",
+     "en": "at midnight"
+    },
+    {
+     "fr": "en taxi",
+     "en": "by taxi"
+    },
+    {
+     "fr": "à pied",
+     "en": "on foot"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
+    }
+   ],
+   "pp": "rentré"
+  },
+  {
+   "id": "tomber",
+   "inf": "tomber",
+   "en": [
+    "fall",
+    "falls",
+    "fell",
+    "fallen",
+    "falling"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "dans l'escalier",
+     "en": "down the stairs"
+    },
+    {
+     "fr": "du vélo",
+     "en": "off the bike"
+    },
+    {
+     "fr": "dans la rue",
+     "en": "in the street"
+    }
+   ],
+   "pp": "tombé"
+  },
+  {
+   "id": "monter",
+   "inf": "monter",
+   "en": [
+    "go up",
+    "goes up",
+    "went up",
+    "gone up",
+    "going up"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "au sixième étage",
+     "en": "to the sixth floor"
+    },
+    {
+     "fr": "à Montmartre",
+     "en": "to Montmartre"
+    },
+    {
+     "fr": "sur le toit",
+     "en": "onto the roof"
+    }
+   ],
+   "pp": "monté"
+  },
+  {
+   "id": "passer",
+   "inf": "passer",
+   "en": [
+    "drop by",
+    "drops by",
+    "dropped by",
+    "dropped by",
+    "dropping by"
+   ],
+   "aux": "être",
+   "tags": [
+    "er",
+    "motion",
+    "aux_etre"
+   ],
+   "comps": [
+    {
+     "fr": "chez Lila",
+     "en": "Lila's place"
+    },
+    {
+     "fr": "au Mistral",
+     "en": "Le Mistral"
+    },
+    {
+     "fr": "à la boulangerie",
+     "en": "the bakery"
+    },
+    {
+     "fr": "à la rédaction",
+     "en": "the newsroom"
+    }
+   ],
+   "pp": "passé"
+  },
+  {
+   "id": "donner",
+   "inf": "donner",
+   "en": [
+    "give",
+    "gives",
+    "gave",
+    "given",
+    "giving"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un livre à Romy",
+     "en": "a book to Romy"
+    },
+    {
+     "fr": "des fleurs à Lila",
+     "en": "flowers to Lila"
+    },
+    {
+     "fr": "un conseil à Gus",
+     "en": "advice to Gus"
+    },
+    {
+     "fr": "les clés à Margaux",
+     "en": "the keys to Margaux"
+    }
+   ],
+   "pp": "donné"
+  },
+  {
+   "id": "téléphoner",
+   "inf": "téléphoner",
+   "en": [
+    "phone",
+    "phones",
+    "phoned",
+    "phoned",
+    "phoning"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "à Marin",
+     "en": "Marin"
+    },
+    {
+     "fr": "au propriétaire",
+     "en": "the landlord"
+    },
+    {
+     "fr": "à la banque",
+     "en": "the bank"
+    },
+    {
+     "fr": "à Lila",
+     "en": "Lila"
+    }
+   ],
+   "pp": "téléphoné"
+  },
+  {
+   "id": "visiter",
+   "inf": "visiter",
+   "en": [
+    "visit",
+    "visits",
+    "visited",
+    "visited",
+    "visiting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le musée",
+     "en": "the museum"
+    },
+    {
+     "fr": "Paris",
+     "en": "Paris"
+    },
+    {
+     "fr": "le quartier",
+     "en": "the neighbourhood"
+    },
+    {
+     "fr": "un appartement",
+     "en": "a flat"
+    },
+    {
+     "fr": "la ville",
+     "en": "the town"
+    }
+   ],
+   "pp": "visité"
+  },
+  {
+   "id": "fermer",
+   "inf": "fermer",
+   "en": [
+    "close",
+    "closes",
+    "closed",
+    "closed",
+    "closing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "la fenêtre",
+     "en": "the window"
+    },
+    {
+     "fr": "la porte",
+     "en": "the door"
+    },
+    {
+     "fr": "le café",
+     "en": "the café"
+    },
+    {
+     "fr": "la valise",
+     "en": "the suitcase"
+    }
+   ],
+   "pp": "fermé",
+   "obj": [
+    "open"
+   ]
+  },
+  {
+   "id": "inviter",
+   "inf": "inviter",
+   "en": [
+    "invite",
+    "invites",
+    "invited",
+    "invited",
+    "inviting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "Lila",
+     "en": "Lila"
+    },
+    {
+     "fr": "des amis",
+     "en": "some friends"
+    },
+    {
+     "fr": "les voisins",
+     "en": "the neighbours"
+    },
+    {
+     "fr": "Romy au cinéma",
+     "en": "Romy to the cinema"
+    }
+   ],
+   "pp": "invité",
+   "obj": [
+    "people"
+   ]
+  },
+  {
+   "id": "aider",
+   "inf": "aider",
+   "en": [
+    "help",
+    "helps",
+    "helped",
+    "helped",
+    "helping"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "Marin",
+     "en": "Marin"
+    },
+    {
+     "fr": "les voisins",
+     "en": "the neighbours"
+    },
+    {
+     "fr": "Margaux au bar",
+     "en": "Margaux at the bar"
+    }
+   ],
+   "pp": "aidé",
+   "obj": [
+    "people"
+   ]
+  },
+  {
+   "id": "trouver",
+   "inf": "trouver",
+   "en": [
+    "find",
+    "finds",
+    "found",
+    "found",
+    "finding"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un appartement",
+     "en": "a flat"
+    },
+    {
+     "fr": "les clés",
+     "en": "the keys"
+    },
+    {
+     "fr": "une solution",
+     "en": "a solution"
+    },
+    {
+     "fr": "un bon café",
+     "en": "a good café"
+    },
+    {
+     "fr": "du travail",
+     "en": "work"
+    }
+   ],
+   "pp": "trouvé",
+   "obj": [
+    "find"
+   ]
+  },
+  {
+   "id": "oublier",
+   "inf": "oublier",
+   "en": [
+    "forget",
+    "forgets",
+    "forgot",
+    "forgotten",
+    "forgetting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "les clés",
+     "en": "the keys"
+    },
+    {
+     "fr": "le rendez-vous",
+     "en": "the appointment"
+    },
+    {
+     "fr": "l'adresse",
+     "en": "the address"
+    },
+    {
+     "fr": "le nom de la rue",
+     "en": "the name of the street"
+    }
+   ],
+   "pp": "oublié",
+   "obj": [
+    "lose"
+   ]
+  },
+  {
+   "id": "réserver",
+   "inf": "réserver",
+   "en": [
+    "book",
+    "books",
+    "booked",
+    "booked",
+    "booking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "une table",
+     "en": "a table"
+    },
+    {
+     "fr": "un billet",
+     "en": "a ticket"
+    },
+    {
+     "fr": "une chambre",
+     "en": "a room"
+    },
+    {
+     "fr": "deux places",
+     "en": "two seats"
+    }
+   ],
+   "pp": "réservé"
+  },
+  {
+   "id": "marcher",
+   "inf": "marcher",
+   "en": [
+    "walk",
+    "walks",
+    "walked",
+    "walked",
+    "walking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le long du canal",
+     "en": "along the canal"
+    },
+    {
+     "fr": "jusqu'au Mistral",
+     "en": "to Le Mistral"
+    },
+    {
+     "fr": "vite",
+     "en": "fast",
+     "tags": [
+      "manner"
+     ]
+    },
+    {
+     "fr": "dans le parc",
+     "en": "in the park"
+    }
+   ],
+   "pp": "marché"
+  },
+  {
+   "id": "dîner",
+   "inf": "dîner",
+   "en": [
+    "have dinner",
+    "has dinner",
+    "had dinner",
+    "had dinner",
+    "having dinner"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "chez Lila",
+     "en": "at Lila's place"
+    },
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "avec Gus",
+     "en": "with Gus"
+    }
+   ],
+   "pp": "dîné"
+  },
+  {
+   "id": "déjeuner",
+   "inf": "déjeuner",
+   "en": [
+    "have lunch",
+    "has lunch",
+    "had lunch",
+    "had lunch",
+    "having lunch"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "au bureau",
+     "en": "at the office"
+    },
+    {
+     "fr": "au parc",
+     "en": "in the park"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
+    },
+    {
+     "fr": "vers midi",
+     "en": "around noon"
+    }
+   ],
+   "pp": "déjeuné"
+  },
+  {
+   "id": "étudier",
+   "inf": "étudier",
+   "en": [
+    "study",
+    "studies",
+    "studied",
+    "studied",
+    "studying"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le français",
+     "en": "French"
+    },
+    {
+     "fr": "à la bibliothèque",
+     "en": "at the library"
+    },
+    {
+     "fr": "le soir",
+     "en": "in the evening"
+    },
+    {
+     "fr": "avec Lila",
+     "en": "with Lila"
+    }
+   ],
+   "pp": "étudié"
+  },
+  {
+   "id": "nager",
+   "inf": "nager",
+   "en": [
+    "swim",
+    "swims",
+    "swam",
+    "swum",
+    "swimming"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "à la piscine",
+     "en": "at the pool"
+    },
+    {
+     "fr": "dans la mer",
+     "en": "in the sea"
+    },
+    {
+     "fr": "le matin",
+     "en": "in the morning"
+    },
+    {
+     "fr": "le dimanche",
+     "en": "on Sundays"
+    }
+   ],
+   "pp": "nagé"
+  },
+  {
+   "id": "voyager",
+   "inf": "voyager",
+   "en": [
+    "travel",
+    "travels",
+    "travelled",
+    "travelled",
+    "travelling"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "en train",
+     "en": "by train"
+    },
+    {
+     "fr": "avec Romy",
+     "en": "with Romy"
+    },
+    {
+     "fr": "en Italie",
+     "en": "in Italy"
+    },
+    {
+     "fr": "beaucoup",
+     "en": "a lot"
+    }
+   ],
+   "pp": "voyagé"
+  },
+  {
+   "id": "commander",
+   "inf": "commander",
+   "en": [
+    "order",
+    "orders",
+    "ordered",
+    "ordered",
+    "ordering"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un café",
+     "en": "a coffee"
+    },
+    {
+     "fr": "une pizza",
+     "en": "a pizza"
+    },
+    {
+     "fr": "un taxi",
+     "en": "a taxi"
+    },
+    {
+     "fr": "deux thés",
+     "en": "two teas"
+    },
+    {
+     "fr": "le dessert",
+     "en": "dessert"
+    }
+   ],
+   "pp": "commandé",
+   "obj": [
+    "eat",
+    "drink"
+   ]
+  },
+  {
+   "id": "goûter",
+   "inf": "goûter",
+   "en": [
+    "taste",
+    "tastes",
+    "tasted",
+    "tasted",
+    "tasting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "la soupe",
+     "en": "the soup"
+    },
+    {
+     "fr": "le gâteau",
+     "en": "the cake"
+    },
+    {
+     "fr": "la tarte de Margaux",
+     "en": "Margaux's tart"
+    }
+   ],
+   "pp": "goûté",
+   "obj": [
+    "eat"
+   ]
+  },
+  {
+   "id": "préparer",
+   "inf": "préparer",
+   "en": [
+    "prepare",
+    "prepares",
+    "prepared",
+    "prepared",
+    "preparing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le dîner",
+     "en": "dinner"
+    },
+    {
+     "fr": "un gâteau",
+     "en": "a cake"
+    },
+    {
+     "fr": "la valise",
+     "en": "the suitcase"
+    },
+    {
+     "fr": "l'examen",
+     "en": "for the exam"
+    },
+    {
+     "fr": "une surprise",
+     "en": "a surprise"
+    }
+   ],
+   "pp": "préparé"
+  },
+  {
+   "id": "acheter",
+   "inf": "acheter",
+   "en": [
+    "buy",
+    "buys",
+    "bought",
+    "bought",
+    "buying"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "du pain",
+     "en": "bread"
+    },
+    {
+     "fr": "un billet",
+     "en": "a ticket"
+    },
+    {
+     "fr": "des fleurs",
+     "en": "flowers"
+    },
+    {
+     "fr": "une veste",
+     "en": "a jacket"
+    },
+    {
+     "fr": "le journal",
+     "en": "the newspaper"
+    }
+   ],
+   "pres": [
+    "achète",
+    "achètes",
+    "achète",
+    "achetons",
+    "achetez",
+    "achètent"
+   ],
+   "pp": "acheté",
+   "fut": "achèter",
+   "obj": [
+    "buy"
+   ]
+  },
+  {
+   "id": "préférer",
+   "inf": "préférer",
+   "en": [
+    "prefer",
+    "prefers",
+    "preferred",
+    "preferred",
+    "preferring"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "le thé",
+     "en": "tea"
+    },
+    {
+     "fr": "la mer",
+     "en": "the sea"
+    },
+    {
+     "fr": "le métro",
+     "en": "the metro"
+    },
+    {
+     "fr": "rester ici",
+     "en": "to stay here"
+    }
+   ],
+   "pres": [
+    "préfère",
+    "préfères",
+    "préfère",
+    "préférons",
+    "préférez",
+    "préfèrent"
+   ],
+   "pp": "préféré"
+  },
+  {
+   "id": "appeler",
+   "inf": "appeler",
+   "en": [
+    "call",
+    "calls",
+    "called",
+    "called",
+    "calling"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "Marin",
+     "en": "Marin"
+    },
+    {
+     "fr": "le propriétaire",
+     "en": "the landlord"
+    },
+    {
+     "fr": "un taxi",
+     "en": "a taxi"
+    },
+    {
+     "fr": "la banque",
+     "en": "the bank"
+    }
+   ],
+   "pres": [
+    "appelle",
+    "appelles",
+    "appelle",
+    "appelons",
+    "appelez",
+    "appellent"
+   ],
+   "pp": "appelé",
+   "fut": "appeller",
+   "obj": [
+    "people"
+   ]
+  },
+  {
+   "id": "envoyer",
+   "inf": "envoyer",
+   "en": [
+    "send",
+    "sends",
+    "sent",
+    "sent",
+    "sending"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "un message à Romy",
+     "en": "a message to Romy"
+    },
+    {
+     "fr": "une lettre",
+     "en": "a letter"
+    },
+    {
+     "fr": "des photos",
+     "en": "photos"
+    },
+    {
+     "fr": "un e-mail",
+     "en": "an email"
+    }
+   ],
+   "pres": [
+    "envoie",
+    "envoies",
+    "envoie",
+    "envoyons",
+    "envoyez",
+    "envoient"
+   ],
+   "pp": "envoyé",
+   "fut": "enverr",
+   "fut_x": "envoyer"
+  },
+  {
+   "id": "commencer",
+   "inf": "commencer",
+   "en": [
+    "start",
+    "starts",
+    "started",
+    "started",
+    "starting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "à huit heures",
+     "en": "at eight"
+    },
+    {
+     "fr": "le travail",
+     "en": "work"
+    },
+    {
+     "fr": "un nouveau livre",
+     "en": "a new book"
+    },
+    {
+     "fr": "le cours",
+     "en": "the class"
+    }
+   ],
+   "pp": "commencé",
+   "fut": "commencer",
+   "imp_x": "commenc"
+  },
+  {
+   "id": "porter",
+   "inf": "porter",
+   "en": [
+    "wear",
+    "wears",
+    "wore",
+    "worn",
+    "wearing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "une veste",
+     "en": "a jacket"
+    },
+    {
+     "fr": "un chapeau",
+     "en": "a hat"
+    },
+    {
+     "fr": "une robe rouge",
+     "en": "a red dress"
+    },
+    {
+     "fr": "des lunettes",
+     "en": "glasses"
+    }
+   ],
+   "pp": "porté",
+   "obj": [
+    "wear"
+   ]
+  },
+  {
+   "id": "penser",
+   "inf": "penser",
+   "en": [
+    "think",
+    "thinks",
+    "thought",
+    "thought",
+    "thinking"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [],
+   "pp": "pensé"
+  },
+  {
+   "id": "se_lever",
+   "inf": "lever",
+   "en": [
+    "get up",
+    "gets up",
+    "got up",
+    "got up",
+    "getting up"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "à sept heures",
+     "en": "at seven"
+    },
+    {
+     "fr": "tôt",
+     "en": "early"
+    },
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "à six heures",
+     "en": "at six"
+    }
+   ],
+   "pres": [
+    "lève",
+    "lèves",
+    "lève",
+    "levons",
+    "levez",
+    "lèvent"
+   ],
+   "pp": "levé",
+   "fut": "lèver",
+   "pron": true
+  },
+  {
+   "id": "se_coucher",
+   "inf": "coucher",
+   "en": [
+    "go to bed",
+    "goes to bed",
+    "went to bed",
+    "gone to bed",
+    "going to bed"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "à minuit",
+     "en": "at midnight"
+    },
+    {
+     "fr": "tôt",
+     "en": "early"
+    },
+    {
+     "fr": "après le film",
+     "en": "after the film"
+    }
+   ],
+   "pp": "couché",
+   "pron": true
+  },
+  {
+   "id": "s_habiller",
+   "inf": "habiller",
+   "en": [
+    "get dressed",
+    "gets dressed",
+    "got dressed",
+    "got dressed",
+    "getting dressed"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "vite",
+     "en": "quickly"
+    },
+    {
+     "fr": "en noir",
+     "en": "in black"
+    },
+    {
+     "fr": "pour la fête",
+     "en": "for the party"
+    },
+    {
+     "fr": "avant le petit-déjeuner",
+     "en": "before breakfast"
+    }
+   ],
+   "pp": "habillé",
+   "pron": true
+  },
+  {
+   "id": "se_reposer",
+   "inf": "reposer",
+   "en": [
+    "rest",
+    "rests",
+    "rested",
+    "rested",
+    "resting"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "le dimanche",
+     "en": "on Sundays"
+    },
+    {
+     "fr": "au parc",
+     "en": "in the park"
+    },
+    {
+     "fr": "après le travail",
+     "en": "after work"
+    },
+    {
+     "fr": "un peu",
+     "en": "a little"
+    }
+   ],
+   "pp": "reposé",
+   "pron": true
+  },
+  {
+   "id": "se_depecher",
+   "inf": "dépêcher",
+   "en": [
+    "hurry",
+    "hurries",
+    "hurried",
+    "hurried",
+    "hurrying"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "le matin",
+     "en": "in the morning"
+    },
+    {
+     "fr": "pour arriver à l'heure",
+     "en": "to arrive on time"
+    },
+    {
+     "fr": "vers la gare",
+     "en": "to the station"
+    }
+   ],
+   "pp": "dépêché",
+   "pron": true
+  },
+  {
+   "id": "s_amuser",
+   "inf": "amuser",
+   "en": [
+    "have fun",
+    "has fun",
+    "had fun",
+    "had fun",
+    "having fun"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "au Mistral",
+     "en": "at Le Mistral"
+    },
+    {
+     "fr": "à la fête",
+     "en": "at the party"
+    },
+    {
+     "fr": "avec des amis",
+     "en": "with friends"
+    },
+    {
+     "fr": "beaucoup",
+     "en": "a lot"
+    }
+   ],
+   "pp": "amusé",
+   "pron": true
+  },
+  {
+   "id": "se_reveiller",
+   "inf": "réveiller",
+   "en": [
+    "wake up",
+    "wakes up",
+    "woke up",
+    "woken up",
+    "waking up"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "à sept heures",
+     "en": "at seven"
+    },
+    {
+     "fr": "tôt",
+     "en": "early"
+    },
+    {
+     "fr": "tard",
+     "en": "late"
+    },
+    {
+     "fr": "avant le réveil",
+     "en": "before the alarm"
+    }
+   ],
+   "pp": "réveillé",
+   "pron": true
+  },
+  {
+   "id": "se_promener",
+   "inf": "promener",
+   "en": [
+    "go for a walk",
+    "goes for a walk",
+    "went for a walk",
+    "gone for a walk",
+    "going for a walk"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "le long du canal",
+     "en": "along the canal"
+    },
+    {
+     "fr": "au parc",
+     "en": "in the park"
+    },
+    {
+     "fr": "le dimanche",
+     "en": "on Sundays"
+    },
+    {
+     "fr": "avec Marin",
+     "en": "with Marin"
+    }
+   ],
+   "pres": [
+    "promène",
+    "promènes",
+    "promène",
+    "promenons",
+    "promenez",
+    "promènent"
+   ],
+   "pp": "promené",
+   "fut": "promèner",
+   "pron": true
+  },
+  {
+   "id": "se_preparer",
+   "inf": "préparer",
+   "en": [
+    "get ready",
+    "gets ready",
+    "got ready",
+    "got ready",
+    "getting ready"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "pron"
+   ],
+   "comps": [
+    {
+     "fr": "pour la fête",
+     "en": "for the party"
+    },
+    {
+     "fr": "vite",
+     "en": "quickly"
+    },
+    {
+     "fr": "pour l'examen",
+     "en": "for the exam"
+    }
+   ],
+   "pp": "préparé",
+   "pron": true
+  },
+  {
+   "id": "besoin",
+   "inf": "avoir besoin",
+   "en": [
+    "need",
+    "needs",
+    "needed",
+    "needed",
+    "needing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "en_only"
+   ],
+   "comps": [],
+   "pp": "avoir besoin"
+  },
+  {
+   "id": "parler_a",
+   "inf": "parler",
+   "en": [
+    "talk to",
+    "talks to",
+    "talked to",
+    "talked to",
+    "talking to"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "coi"
+   ],
+   "comps": [],
+   "pp": "parlé",
+   "en_to": "to"
+  },
+  {
+   "id": "telephoner_a",
+   "inf": "téléphoner",
+   "en": [
+    "phone",
+    "phones",
+    "phoned",
+    "phoned",
+    "phoning"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "coi"
+   ],
+   "comps": [],
+   "pp": "téléphoné"
+  },
+  {
+   "id": "repondre_a",
+   "inf": "répondre",
+   "en": [
+    "answer",
+    "answers",
+    "answered",
+    "answered",
+    "answering"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "coi"
+   ],
+   "comps": [],
+   "pres": [
+    "réponds",
+    "réponds",
+    "répond",
+    "répondons",
+    "répondez",
+    "répondent"
+   ],
+   "pp": "répondu",
+   "fut": "répondr"
+  },
+  {
+   "id": "ecrire_a",
+   "inf": "écrire",
+   "en": [
+    "write to",
+    "writes to",
+    "wrote to",
+    "written to",
+    "writing to"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "coi"
+   ],
+   "comps": [],
+   "pres": [
+    "écris",
+    "écris",
+    "écrit",
+    "écrivons",
+    "écrivez",
+    "écrivent"
+   ],
+   "pp": "écrit",
+   "fut": "écrir",
+   "en_to": "to"
+  },
+  {
+   "id": "sonner",
+   "inf": "sonner",
+   "en": [
+    "ring",
+    "rings",
+    "rang",
+    "rung",
+    "ringing"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er",
+    "event"
+   ],
+   "comps": [],
+   "pp": "sonné"
+  },
+  {
+   "id": "conduire",
+   "inf": "conduire",
+   "en": [
+    "drive",
+    "drives",
+    "drove",
+    "driven",
+    "driving"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "irregular",
+    "re"
+   ],
+   "comps": [
+    {
+     "fr": "la voiture de Gus",
+     "en": "Gus's car"
+    },
+    {
+     "fr": "dans Paris",
+     "en": "in Paris"
+    },
+    {
+     "fr": "la nuit",
+     "en": "at night"
+    },
+    {
+     "fr": "jusqu'à Lyon",
+     "en": "to Lyon"
+    }
+   ],
+   "pres": [
+    "conduis",
+    "conduis",
+    "conduit",
+    "conduisons",
+    "conduisez",
+    "conduisent"
+   ],
+   "pp": "conduit",
+   "fut": "conduir"
+  },
+  {
+   "id": "expliquer",
+   "inf": "expliquer",
+   "en": [
+    "explain",
+    "explains",
+    "explained",
+    "explained",
+    "explaining"
+   ],
+   "aux": "avoir",
+   "tags": [
+    "er"
+   ],
+   "comps": [
+    {
+     "fr": "la règle",
+     "en": "the rule"
+    },
+    {
+     "fr": "le problème",
+     "en": "the problem"
+    },
+    {
+     "fr": "le plan",
+     "en": "the plan"
+    },
+    {
+     "fr": "la situation",
+     "en": "the situation"
+    }
+   ],
+   "pp": "expliqué"
+  }
+ ],
+ "pools": {
+  "time_future": [
+   {
+    "fr": "demain",
+    "en": "tomorrow",
+    "tags": []
+   },
+   {
+    "fr": "ce soir",
+    "en": "tonight",
+    "tags": []
+   },
+   {
+    "fr": "samedi",
+    "en": "on Saturday",
+    "tags": []
+   },
+   {
+    "fr": "la semaine prochaine",
+    "en": "next week",
+    "tags": []
+   },
+   {
+    "fr": "ce week-end",
+    "en": "this weekend",
+    "tags": []
+   },
+   {
+    "fr": "après le travail",
+    "en": "after work",
+    "tags": []
+   },
+   {
+    "fr": "cet été",
+    "en": "this summer",
+    "tags": []
+   },
+   {
+    "fr": "lundi prochain",
+    "en": "next Monday",
+    "tags": []
+   }
+  ],
+  "time_past": [
+   {
+    "fr": "Hier",
+    "en": "Yesterday",
+    "tags": []
+   },
+   {
+    "fr": "Hier soir",
+    "en": "Last night",
+    "tags": []
+   },
+   {
+    "fr": "Ce matin",
+    "en": "This morning",
+    "tags": []
+   },
+   {
+    "fr": "Samedi dernier",
+    "en": "Last Saturday",
+    "tags": []
+   },
+   {
+    "fr": "La semaine dernière",
+    "en": "Last week",
+    "tags": []
+   },
+   {
+    "fr": "L'été dernier",
+    "en": "Last summer",
+    "tags": []
+   },
+   {
+    "fr": "Avant-hier",
+    "en": "The day before yesterday",
+    "tags": []
+   }
+  ],
+  "time_habit": [
+   {
+    "fr": "Avant",
+    "en": "Before",
+    "tags": []
+   },
+   {
+    "fr": "Quand j'étais petit",
+    "en": "When I was little",
+    "tags": []
+   },
+   {
+    "fr": "À l'époque",
+    "en": "Back then",
+    "tags": []
+   },
+   {
+    "fr": "Tous les étés",
+    "en": "Every summer",
+    "tags": []
+   },
+   {
+    "fr": "Autrefois",
+    "en": "In the old days",
+    "tags": []
+   },
+   {
+    "fr": "À vingt ans",
+    "en": "At twenty",
+    "tags": []
+   }
+  ],
+  "geo": [
+   {
+    "in": "à Paris",
+    "x": [
+     "en Paris",
+     "au Paris"
+    ],
+    "de": "de Paris",
+    "fr": "Paris",
+    "en": "Paris",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Lyon",
+    "x": [
+     "en Lyon",
+     "au Lyon"
+    ],
+    "de": "de Lyon",
+    "fr": "Lyon",
+    "en": "Lyon",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Marseille",
+    "x": [
+     "en Marseille",
+     "au Marseille"
+    ],
+    "de": "de Marseille",
+    "fr": "Marseille",
+    "en": "Marseille",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Bordeaux",
+    "x": [
+     "en Bordeaux",
+     "au Bordeaux"
+    ],
+    "de": "de Bordeaux",
+    "fr": "Bordeaux",
+    "en": "Bordeaux",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Lille",
+    "x": [
+     "en Lille",
+     "au Lille"
+    ],
+    "de": "de Lille",
+    "fr": "Lille",
+    "en": "Lille",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Nice",
+    "x": [
+     "en Nice",
+     "au Nice"
+    ],
+    "de": "de Nice",
+    "fr": "Nice",
+    "en": "Nice",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Nantes",
+    "x": [
+     "en Nantes",
+     "au Nantes"
+    ],
+    "de": "de Nantes",
+    "fr": "Nantes",
+    "en": "Nantes",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Toulouse",
+    "x": [
+     "en Toulouse",
+     "au Toulouse"
+    ],
+    "de": "de Toulouse",
+    "fr": "Toulouse",
+    "en": "Toulouse",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Berlin",
+    "x": [
+     "en Berlin",
+     "au Berlin"
+    ],
+    "de": "de Berlin",
+    "fr": "Berlin",
+    "en": "Berlin",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Londres",
+    "x": [
+     "en Londres",
+     "au Londres"
+    ],
+    "de": "de Londres",
+    "fr": "Londres",
+    "en": "London",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Rome",
+    "x": [
+     "en Rome",
+     "au Rome"
+    ],
+    "de": "de Rome",
+    "fr": "Rome",
+    "en": "Rome",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Madrid",
+    "x": [
+     "en Madrid",
+     "au Madrid"
+    ],
+    "de": "de Madrid",
+    "fr": "Madrid",
+    "en": "Madrid",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Bruxelles",
+    "x": [
+     "en Bruxelles",
+     "au Bruxelles"
+    ],
+    "de": "de Bruxelles",
+    "fr": "Bruxelles",
+    "en": "Brussels",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Genève",
+    "x": [
+     "en Genève",
+     "au Genève"
+    ],
+    "de": "de Genève",
+    "fr": "Genève",
+    "en": "Geneva",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Montréal",
+    "x": [
+     "en Montréal",
+     "au Montréal"
+    ],
+    "de": "de Montréal",
+    "fr": "Montréal",
+    "en": "Montreal",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Munich",
+    "x": [
+     "en Munich",
+     "au Munich"
+    ],
+    "de": "de Munich",
+    "fr": "Munich",
+    "en": "Munich",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "à Vienne",
+    "x": [
+     "en Vienne",
+     "au Vienne"
+    ],
+    "de": "de Vienne",
+    "fr": "Vienne",
+    "en": "Vienna",
+    "tags": [
+     "city"
+    ]
+   },
+   {
+    "in": "en France",
+    "x": [
+     "au France",
+     "à la France"
+    ],
+    "de": "de France",
+    "fr": "France",
+    "en": "France",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Allemagne",
+    "x": [
+     "au Allemagne",
+     "à Allemagne"
+    ],
+    "de": "d'Allemagne",
+    "fr": "Allemagne",
+    "en": "Germany",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Espagne",
+    "x": [
+     "au Espagne",
+     "à Espagne"
+    ],
+    "de": "d'Espagne",
+    "fr": "Espagne",
+    "en": "Spain",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Italie",
+    "x": [
+     "au Italie",
+     "à Italie"
+    ],
+    "de": "d'Italie",
+    "fr": "Italie",
+    "en": "Italy",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Angleterre",
+    "x": [
+     "au Angleterre",
+     "à Angleterre"
+    ],
+    "de": "d'Angleterre",
+    "fr": "Angleterre",
+    "en": "England",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Suisse",
+    "x": [
+     "au Suisse",
+     "à la Suisse"
+    ],
+    "de": "de Suisse",
+    "fr": "Suisse",
+    "en": "Switzerland",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Belgique",
+    "x": [
+     "au Belgique",
+     "à la Belgique"
+    ],
+    "de": "de Belgique",
+    "fr": "Belgique",
+    "en": "Belgium",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Chine",
+    "x": [
+     "au Chine",
+     "à la Chine"
+    ],
+    "de": "de Chine",
+    "fr": "Chine",
+    "en": "China",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Grèce",
+    "x": [
+     "au Grèce",
+     "à la Grèce"
+    ],
+    "de": "de Grèce",
+    "fr": "Grèce",
+    "en": "Greece",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Autriche",
+    "x": [
+     "au Autriche",
+     "à Autriche"
+    ],
+    "de": "d'Autriche",
+    "fr": "Autriche",
+    "en": "Austria",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Irlande",
+    "x": [
+     "au Irlande",
+     "à Irlande"
+    ],
+    "de": "d'Irlande",
+    "fr": "Irlande",
+    "en": "Ireland",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Inde",
+    "x": [
+     "au Inde",
+     "à Inde"
+    ],
+    "de": "d'Inde",
+    "fr": "Inde",
+    "en": "India",
+    "tags": [
+     "fem"
+    ]
+   },
+   {
+    "in": "en Iran",
+    "x": [
+     "au Iran",
+     "à l'Iran"
+    ],
+    "de": "d'Iran",
+    "fr": "Iran",
+    "en": "Iran",
+    "tags": [
+     "masc_vowel"
+    ]
+   },
+   {
+    "in": "en Israël",
+    "x": [
+     "au Israël",
+     "à l'Israël"
+    ],
+    "de": "d'Israël",
+    "fr": "Israël",
+    "en": "Israel",
+    "tags": [
+     "masc_vowel"
+    ]
+   },
+   {
+    "in": "au Canada",
+    "x": [
+     "en Canada",
+     "à Canada"
+    ],
+    "de": "du Canada",
+    "fr": "Canada",
+    "en": "Canada",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Japon",
+    "x": [
+     "en Japon",
+     "à Japon"
+    ],
+    "de": "du Japon",
+    "fr": "Japon",
+    "en": "Japan",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Portugal",
+    "x": [
+     "en Portugal",
+     "à Portugal"
+    ],
+    "de": "du Portugal",
+    "fr": "Portugal",
+    "en": "Portugal",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Maroc",
+    "x": [
+     "en Maroc",
+     "à Maroc"
+    ],
+    "de": "du Maroc",
+    "fr": "Maroc",
+    "en": "Morocco",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Brésil",
+    "x": [
+     "en Brésil",
+     "à Brésil"
+    ],
+    "de": "du Brésil",
+    "fr": "Brésil",
+    "en": "Brazil",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Mexique",
+    "x": [
+     "en Mexique",
+     "à Mexique"
+    ],
+    "de": "du Mexique",
+    "fr": "Mexique",
+    "en": "Mexico",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Québec",
+    "x": [
+     "en Québec",
+     "à Québec"
+    ],
+    "de": "du Québec",
+    "fr": "Québec",
+    "en": "Quebec",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Luxembourg",
+    "x": [
+     "en Luxembourg",
+     "à Luxembourg"
+    ],
+    "de": "du Luxembourg",
+    "fr": "Luxembourg",
+    "en": "Luxembourg",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Danemark",
+    "x": [
+     "en Danemark",
+     "à Danemark"
+    ],
+    "de": "du Danemark",
+    "fr": "Danemark",
+    "en": "Denmark",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Sénégal",
+    "x": [
+     "en Sénégal",
+     "à Sénégal"
+    ],
+    "de": "du Sénégal",
+    "fr": "Sénégal",
+    "en": "Senegal",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "au Liban",
+    "x": [
+     "en Liban",
+     "à Liban"
+    ],
+    "de": "du Liban",
+    "fr": "Liban",
+    "en": "Lebanon",
+    "tags": [
+     "masc"
+    ]
+   },
+   {
+    "in": "aux États-Unis",
+    "x": [
+     "en États-Unis",
+     "au États-Unis"
+    ],
+    "de": "des États-Unis",
+    "fr": "États-Unis",
+    "en": "the United States",
+    "tags": [
+     "plural"
+    ]
+   },
+   {
+    "in": "aux Pays-Bas",
+    "x": [
+     "en Pays-Bas",
+     "au Pays-Bas"
+    ],
+    "de": "des Pays-Bas",
+    "fr": "Pays-Bas",
+    "en": "the Netherlands",
+    "tags": [
+     "plural"
+    ]
+   }
+  ],
+  "activity": [
+   {
+    "fr": "sport",
+    "g": "m",
+    "en": "sport",
+    "tags": []
+   },
+   {
+    "fr": "natation",
+    "g": "f",
+    "en": "",
+    "en_forms": [
+     "swim",
+     "swims",
+     "swam",
+     "swum",
+     "swimming"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "yoga",
+    "g": "m",
+    "en": "yoga",
+    "tags": []
+   },
+   {
+    "fr": "danse",
+    "g": "f",
+    "en": "",
+    "en_forms": [
+     "dance",
+     "dances",
+     "danced",
+     "danced",
+     "dancing"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "piano",
+    "g": "m",
+    "en": "the piano",
+    "en_forms": [
+     "play",
+     "plays",
+     "played",
+     "played",
+     "playing"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "guitare",
+    "g": "f",
+    "en": "the guitar",
+    "en_forms": [
+     "play",
+     "plays",
+     "played",
+     "played",
+     "playing"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "ski",
+    "g": "m",
+    "en": "skiing",
+    "en_forms": [
+     "go",
+     "goes",
+     "went",
+     "gone",
+     "going"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "randonnée",
+    "g": "f",
+    "en": "hiking",
+    "en_forms": [
+     "go",
+     "goes",
+     "went",
+     "gone",
+     "going"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "escalade",
+    "g": "f",
+    "en": "climbing",
+    "en_forms": [
+     "go",
+     "goes",
+     "went",
+     "gone",
+     "going"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "judo",
+    "g": "m",
+    "en": "judo",
+    "tags": []
+   },
+   {
+    "fr": "théâtre",
+    "g": "m",
+    "en": "drama",
+    "tags": []
+   },
+   {
+    "fr": "photo",
+    "g": "f",
+    "en": "photography",
+    "tags": []
+   },
+   {
+    "fr": "vélo",
+    "g": "m",
+    "en": "",
+    "en_forms": [
+     "cycle",
+     "cycles",
+     "cycled",
+     "cycled",
+     "cycling"
+    ],
+    "tags": []
+   },
+   {
+    "fr": "cuisine",
+    "g": "f",
+    "en": "the cooking",
+    "tags": []
+   }
+  ],
+  "avoir_state": [
+   {
+    "fr": "faim",
+    "en": "hungry",
+    "tags": []
+   },
+   {
+    "fr": "soif",
+    "en": "thirsty",
+    "tags": []
+   },
+   {
+    "fr": "froid",
+    "en": "cold",
+    "tags": []
+   },
+   {
+    "fr": "chaud",
+    "en": "hot",
+    "tags": []
+   },
+   {
+    "fr": "sommeil",
+    "en": "sleepy",
+    "tags": []
+   },
+   {
+    "fr": "peur",
+    "en": "scared",
+    "tags": []
+   },
+   {
+    "fr": "raison",
+    "en": "right",
+    "tags": []
+   },
+   {
+    "fr": "tort",
+    "en": "wrong",
+    "tags": []
+   }
+  ],
+  "job": [
+   {
+    "m": "serveur",
+    "f": "serveuse",
+    "en": "waiter",
+    "en_f": "waitress",
+    "tags": []
+   },
+   {
+    "m": "journaliste",
+    "f": "journaliste",
+    "en": "journalist",
+    "tags": []
+   },
+   {
+    "m": "étudiant",
+    "f": "étudiante",
+    "en": "student",
+    "tags": []
+   },
+   {
+    "m": "médecin",
+    "f": "médecin",
+    "en": "doctor",
+    "tags": []
+   },
+   {
+    "m": "avocat",
+    "f": "avocate",
+    "en": "lawyer",
+    "tags": []
+   },
+   {
+    "m": "boulanger",
+    "f": "boulangère",
+    "en": "baker",
+    "tags": []
+   },
+   {
+    "m": "architecte",
+    "f": "architecte",
+    "en": "architect",
+    "tags": []
+   },
+   {
+    "m": "musicien",
+    "f": "musicienne",
+    "en": "musician",
+    "tags": []
+   },
+   {
+    "m": "acteur",
+    "f": "actrice",
+    "en": "actor",
+    "en_f": "actress",
+    "tags": []
+   },
+   {
+    "m": "infirmier",
+    "f": "infirmière",
+    "en": "nurse",
+    "tags": []
+   },
+   {
+    "m": "vendeur",
+    "f": "vendeuse",
+    "en": "shop assistant",
+    "tags": []
+   },
+   {
+    "m": "peintre",
+    "f": "peintre",
+    "en": "painter",
+    "tags": []
+   },
+   {
+    "m": "professeur",
+    "f": "professeure",
+    "en": "teacher",
+    "tags": []
+   },
+   {
+    "m": "cuisinier",
+    "f": "cuisinière",
+    "en": "cook",
+    "tags": []
+   },
+   {
+    "m": "photographe",
+    "f": "photographe",
+    "en": "photographer",
+    "tags": []
+   },
+   {
+    "m": "ingénieur",
+    "f": "ingénieure",
+    "en": "engineer",
+    "tags": []
+   }
+  ],
+  "clock": [
+   {
+    "fr": "une heure",
+    "x": [
+     "une heures"
+    ],
+    "en": "1:00",
+    "tags": []
+   },
+   {
+    "fr": "une heure et quart",
+    "x": [
+     "une heures et quart",
+     "une heure et un quart"
+    ],
+    "en": "1:15",
+    "tags": []
+   },
+   {
+    "fr": "une heure et demie",
+    "x": [
+     "une heures et demie",
+     "une heure et demi"
+    ],
+    "en": "1:30",
+    "tags": []
+   },
+   {
+    "fr": "une heure moins le quart",
+    "x": [
+     "une heures moins le quart",
+     "une heure moins quart"
+    ],
+    "en": "12:45",
+    "tags": []
+   },
+   {
+    "fr": "une heure dix",
+    "x": [
+     "une heures dix",
+     "une heure et dix"
+    ],
+    "en": "1:10",
+    "tags": []
+   },
+   {
+    "fr": "une heure moins dix",
+    "x": [
+     "une heures moins dix",
+     "une heure moins de dix"
+    ],
+    "en": "12:50",
+    "tags": []
+   },
+   {
+    "fr": "deux heures",
+    "x": [
+     "deux heure"
+    ],
+    "en": "2:00",
+    "tags": []
+   },
+   {
+    "fr": "deux heures et quart",
+    "x": [
+     "deux heure et quart",
+     "deux heures et un quart"
+    ],
+    "en": "2:15",
+    "tags": []
+   },
+   {
+    "fr": "deux heures et demie",
+    "x": [
+     "deux heure et demie",
+     "deux heures et demi"
+    ],
+    "en": "2:30",
+    "tags": []
+   },
+   {
+    "fr": "deux heures moins le quart",
+    "x": [
+     "deux heure moins le quart",
+     "deux heures moins quart"
+    ],
+    "en": "1:45",
+    "tags": []
+   },
+   {
+    "fr": "deux heures dix",
+    "x": [
+     "deux heure dix",
+     "deux heures et dix"
+    ],
+    "en": "2:10",
+    "tags": []
+   },
+   {
+    "fr": "deux heures moins dix",
+    "x": [
+     "deux heure moins dix",
+     "deux heures moins de dix"
+    ],
+    "en": "1:50",
+    "tags": []
+   },
+   {
+    "fr": "trois heures",
+    "x": [
+     "trois heure"
+    ],
+    "en": "3:00",
+    "tags": []
+   },
+   {
+    "fr": "trois heures et quart",
+    "x": [
+     "trois heure et quart",
+     "trois heures et un quart"
+    ],
+    "en": "3:15",
+    "tags": []
+   },
+   {
+    "fr": "trois heures et demie",
+    "x": [
+     "trois heure et demie",
+     "trois heures et demi"
+    ],
+    "en": "3:30",
+    "tags": []
+   },
+   {
+    "fr": "trois heures moins le quart",
+    "x": [
+     "trois heure moins le quart",
+     "trois heures moins quart"
+    ],
+    "en": "2:45",
+    "tags": []
+   },
+   {
+    "fr": "trois heures dix",
+    "x": [
+     "trois heure dix",
+     "trois heures et dix"
+    ],
+    "en": "3:10",
+    "tags": []
+   },
+   {
+    "fr": "trois heures moins dix",
+    "x": [
+     "trois heure moins dix",
+     "trois heures moins de dix"
+    ],
+    "en": "2:50",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures",
+    "x": [
+     "quatre heure"
+    ],
+    "en": "4:00",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures et quart",
+    "x": [
+     "quatre heure et quart",
+     "quatre heures et un quart"
+    ],
+    "en": "4:15",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures et demie",
+    "x": [
+     "quatre heure et demie",
+     "quatre heures et demi"
+    ],
+    "en": "4:30",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures moins le quart",
+    "x": [
+     "quatre heure moins le quart",
+     "quatre heures moins quart"
+    ],
+    "en": "3:45",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures dix",
+    "x": [
+     "quatre heure dix",
+     "quatre heures et dix"
+    ],
+    "en": "4:10",
+    "tags": []
+   },
+   {
+    "fr": "quatre heures moins dix",
+    "x": [
+     "quatre heure moins dix",
+     "quatre heures moins de dix"
+    ],
+    "en": "3:50",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures",
+    "x": [
+     "cinq heure"
+    ],
+    "en": "5:00",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures et quart",
+    "x": [
+     "cinq heure et quart",
+     "cinq heures et un quart"
+    ],
+    "en": "5:15",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures et demie",
+    "x": [
+     "cinq heure et demie",
+     "cinq heures et demi"
+    ],
+    "en": "5:30",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures moins le quart",
+    "x": [
+     "cinq heure moins le quart",
+     "cinq heures moins quart"
+    ],
+    "en": "4:45",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures dix",
+    "x": [
+     "cinq heure dix",
+     "cinq heures et dix"
+    ],
+    "en": "5:10",
+    "tags": []
+   },
+   {
+    "fr": "cinq heures moins dix",
+    "x": [
+     "cinq heure moins dix",
+     "cinq heures moins de dix"
+    ],
+    "en": "4:50",
+    "tags": []
+   },
+   {
+    "fr": "six heures",
+    "x": [
+     "six heure"
+    ],
+    "en": "6:00",
+    "tags": []
+   },
+   {
+    "fr": "six heures et quart",
+    "x": [
+     "six heure et quart",
+     "six heures et un quart"
+    ],
+    "en": "6:15",
+    "tags": []
+   },
+   {
+    "fr": "six heures et demie",
+    "x": [
+     "six heure et demie",
+     "six heures et demi"
+    ],
+    "en": "6:30",
+    "tags": []
+   },
+   {
+    "fr": "six heures moins le quart",
+    "x": [
+     "six heure moins le quart",
+     "six heures moins quart"
+    ],
+    "en": "5:45",
+    "tags": []
+   },
+   {
+    "fr": "six heures dix",
+    "x": [
+     "six heure dix",
+     "six heures et dix"
+    ],
+    "en": "6:10",
+    "tags": []
+   },
+   {
+    "fr": "six heures moins dix",
+    "x": [
+     "six heure moins dix",
+     "six heures moins de dix"
+    ],
+    "en": "5:50",
+    "tags": []
+   },
+   {
+    "fr": "sept heures",
+    "x": [
+     "sept heure"
+    ],
+    "en": "7:00",
+    "tags": []
+   },
+   {
+    "fr": "sept heures et quart",
+    "x": [
+     "sept heure et quart",
+     "sept heures et un quart"
+    ],
+    "en": "7:15",
+    "tags": []
+   },
+   {
+    "fr": "sept heures et demie",
+    "x": [
+     "sept heure et demie",
+     "sept heures et demi"
+    ],
+    "en": "7:30",
+    "tags": []
+   },
+   {
+    "fr": "sept heures moins le quart",
+    "x": [
+     "sept heure moins le quart",
+     "sept heures moins quart"
+    ],
+    "en": "6:45",
+    "tags": []
+   },
+   {
+    "fr": "sept heures dix",
+    "x": [
+     "sept heure dix",
+     "sept heures et dix"
+    ],
+    "en": "7:10",
+    "tags": []
+   },
+   {
+    "fr": "sept heures moins dix",
+    "x": [
+     "sept heure moins dix",
+     "sept heures moins de dix"
+    ],
+    "en": "6:50",
+    "tags": []
+   },
+   {
+    "fr": "huit heures",
+    "x": [
+     "huit heure"
+    ],
+    "en": "8:00",
+    "tags": []
+   },
+   {
+    "fr": "huit heures et quart",
+    "x": [
+     "huit heure et quart",
+     "huit heures et un quart"
+    ],
+    "en": "8:15",
+    "tags": []
+   },
+   {
+    "fr": "huit heures et demie",
+    "x": [
+     "huit heure et demie",
+     "huit heures et demi"
+    ],
+    "en": "8:30",
+    "tags": []
+   },
+   {
+    "fr": "huit heures moins le quart",
+    "x": [
+     "huit heure moins le quart",
+     "huit heures moins quart"
+    ],
+    "en": "7:45",
+    "tags": []
+   },
+   {
+    "fr": "huit heures dix",
+    "x": [
+     "huit heure dix",
+     "huit heures et dix"
+    ],
+    "en": "8:10",
+    "tags": []
+   },
+   {
+    "fr": "huit heures moins dix",
+    "x": [
+     "huit heure moins dix",
+     "huit heures moins de dix"
+    ],
+    "en": "7:50",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures",
+    "x": [
+     "neuf heure"
+    ],
+    "en": "9:00",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures et quart",
+    "x": [
+     "neuf heure et quart",
+     "neuf heures et un quart"
+    ],
+    "en": "9:15",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures et demie",
+    "x": [
+     "neuf heure et demie",
+     "neuf heures et demi"
+    ],
+    "en": "9:30",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures moins le quart",
+    "x": [
+     "neuf heure moins le quart",
+     "neuf heures moins quart"
+    ],
+    "en": "8:45",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures dix",
+    "x": [
+     "neuf heure dix",
+     "neuf heures et dix"
+    ],
+    "en": "9:10",
+    "tags": []
+   },
+   {
+    "fr": "neuf heures moins dix",
+    "x": [
+     "neuf heure moins dix",
+     "neuf heures moins de dix"
+    ],
+    "en": "8:50",
+    "tags": []
+   },
+   {
+    "fr": "dix heures",
+    "x": [
+     "dix heure"
+    ],
+    "en": "10:00",
+    "tags": []
+   },
+   {
+    "fr": "dix heures et quart",
+    "x": [
+     "dix heure et quart",
+     "dix heures et un quart"
+    ],
+    "en": "10:15",
+    "tags": []
+   },
+   {
+    "fr": "dix heures et demie",
+    "x": [
+     "dix heure et demie",
+     "dix heures et demi"
+    ],
+    "en": "10:30",
+    "tags": []
+   },
+   {
+    "fr": "dix heures moins le quart",
+    "x": [
+     "dix heure moins le quart",
+     "dix heures moins quart"
+    ],
+    "en": "9:45",
+    "tags": []
+   },
+   {
+    "fr": "dix heures dix",
+    "x": [
+     "dix heure dix",
+     "dix heures et dix"
+    ],
+    "en": "10:10",
+    "tags": []
+   },
+   {
+    "fr": "dix heures moins dix",
+    "x": [
+     "dix heure moins dix",
+     "dix heures moins de dix"
+    ],
+    "en": "9:50",
+    "tags": []
+   },
+   {
+    "fr": "onze heures",
+    "x": [
+     "onze heure"
+    ],
+    "en": "11:00",
+    "tags": []
+   },
+   {
+    "fr": "onze heures et quart",
+    "x": [
+     "onze heure et quart",
+     "onze heures et un quart"
+    ],
+    "en": "11:15",
+    "tags": []
+   },
+   {
+    "fr": "onze heures et demie",
+    "x": [
+     "onze heure et demie",
+     "onze heures et demi"
+    ],
+    "en": "11:30",
+    "tags": []
+   },
+   {
+    "fr": "onze heures moins le quart",
+    "x": [
+     "onze heure moins le quart",
+     "onze heures moins quart"
+    ],
+    "en": "10:45",
+    "tags": []
+   },
+   {
+    "fr": "onze heures dix",
+    "x": [
+     "onze heure dix",
+     "onze heures et dix"
+    ],
+    "en": "11:10",
+    "tags": []
+   },
+   {
+    "fr": "onze heures moins dix",
+    "x": [
+     "onze heure moins dix",
+     "onze heures moins de dix"
+    ],
+    "en": "10:50",
+    "tags": []
+   },
+   {
+    "fr": "midi",
+    "x": [
+     "midi heures",
+     "le midi"
+    ],
+    "en": "12 noon",
+    "tags": []
+   },
+   {
+    "fr": "midi et demi",
+    "x": [
+     "midi et demie",
+     "midi heures et demie"
+    ],
+    "en": "12:30 pm",
+    "tags": []
+   },
+   {
+    "fr": "minuit",
+    "x": [
+     "minuit heures",
+     "le minuit"
+    ],
+    "en": "midnight",
+    "tags": []
+   },
+   {
+    "fr": "minuit et demi",
+    "x": [
+     "minuit et demie",
+     "minuit heures et demie"
+    ],
+    "en": "half past midnight",
+    "tags": []
+   }
+  ],
+  "date": [
+   {
+    "fr": "le premier janvier",
+    "x": [
+     "le un janvier",
+     "le premier de janvier",
+     "le janvier premier"
+    ],
+    "en": "January 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier février",
+    "x": [
+     "le un février",
+     "le premier de février",
+     "le février premier"
+    ],
+    "en": "February 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier mars",
+    "x": [
+     "le un mars",
+     "le premier de mars",
+     "le mars premier"
+    ],
+    "en": "March 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier avril",
+    "x": [
+     "le un avril",
+     "le premier de avril",
+     "le avril premier"
+    ],
+    "en": "April 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier mai",
+    "x": [
+     "le un mai",
+     "le premier de mai",
+     "le mai premier"
+    ],
+    "en": "May 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier juin",
+    "x": [
+     "le un juin",
+     "le premier de juin",
+     "le juin premier"
+    ],
+    "en": "June 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier juillet",
+    "x": [
+     "le un juillet",
+     "le premier de juillet",
+     "le juillet premier"
+    ],
+    "en": "July 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier août",
+    "x": [
+     "le un août",
+     "le premier de août",
+     "le août premier"
+    ],
+    "en": "August 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier septembre",
+    "x": [
+     "le un septembre",
+     "le premier de septembre",
+     "le septembre premier"
+    ],
+    "en": "September 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier octobre",
+    "x": [
+     "le un octobre",
+     "le premier de octobre",
+     "le octobre premier"
+    ],
+    "en": "October 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier novembre",
+    "x": [
+     "le un novembre",
+     "le premier de novembre",
+     "le novembre premier"
+    ],
+    "en": "November 1",
+    "tags": []
+   },
+   {
+    "fr": "le premier décembre",
+    "x": [
+     "le un décembre",
+     "le premier de décembre",
+     "le décembre premier"
+    ],
+    "en": "December 1",
+    "tags": []
+   },
+   {
+    "fr": "le deux janvier",
+    "x": [
+     "le deux de janvier",
+     "le janvier deux"
+    ],
+    "en": "January 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux février",
+    "x": [
+     "le deux de février",
+     "le février deux"
+    ],
+    "en": "February 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux mars",
+    "x": [
+     "le deux de mars",
+     "le mars deux"
+    ],
+    "en": "March 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux avril",
+    "x": [
+     "le deux de avril",
+     "le avril deux"
+    ],
+    "en": "April 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux mai",
+    "x": [
+     "le deux de mai",
+     "le mai deux"
+    ],
+    "en": "May 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux juin",
+    "x": [
+     "le deux de juin",
+     "le juin deux"
+    ],
+    "en": "June 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux juillet",
+    "x": [
+     "le deux de juillet",
+     "le juillet deux"
+    ],
+    "en": "July 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux août",
+    "x": [
+     "le deux de août",
+     "le août deux"
+    ],
+    "en": "August 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux septembre",
+    "x": [
+     "le deux de septembre",
+     "le septembre deux"
+    ],
+    "en": "September 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux octobre",
+    "x": [
+     "le deux de octobre",
+     "le octobre deux"
+    ],
+    "en": "October 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux novembre",
+    "x": [
+     "le deux de novembre",
+     "le novembre deux"
+    ],
+    "en": "November 2",
+    "tags": []
+   },
+   {
+    "fr": "le deux décembre",
+    "x": [
+     "le deux de décembre",
+     "le décembre deux"
+    ],
+    "en": "December 2",
+    "tags": []
+   },
+   {
+    "fr": "le trois janvier",
+    "x": [
+     "le trois de janvier",
+     "le janvier trois"
+    ],
+    "en": "January 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois février",
+    "x": [
+     "le trois de février",
+     "le février trois"
+    ],
+    "en": "February 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois mars",
+    "x": [
+     "le trois de mars",
+     "le mars trois"
+    ],
+    "en": "March 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois avril",
+    "x": [
+     "le trois de avril",
+     "le avril trois"
+    ],
+    "en": "April 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois mai",
+    "x": [
+     "le trois de mai",
+     "le mai trois"
+    ],
+    "en": "May 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois juin",
+    "x": [
+     "le trois de juin",
+     "le juin trois"
+    ],
+    "en": "June 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois juillet",
+    "x": [
+     "le trois de juillet",
+     "le juillet trois"
+    ],
+    "en": "July 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois août",
+    "x": [
+     "le trois de août",
+     "le août trois"
+    ],
+    "en": "August 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois septembre",
+    "x": [
+     "le trois de septembre",
+     "le septembre trois"
+    ],
+    "en": "September 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois octobre",
+    "x": [
+     "le trois de octobre",
+     "le octobre trois"
+    ],
+    "en": "October 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois novembre",
+    "x": [
+     "le trois de novembre",
+     "le novembre trois"
+    ],
+    "en": "November 3",
+    "tags": []
+   },
+   {
+    "fr": "le trois décembre",
+    "x": [
+     "le trois de décembre",
+     "le décembre trois"
+    ],
+    "en": "December 3",
+    "tags": []
+   },
+   {
+    "fr": "le quatre janvier",
+    "x": [
+     "le quatre de janvier",
+     "le janvier quatre"
+    ],
+    "en": "January 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre février",
+    "x": [
+     "le quatre de février",
+     "le février quatre"
+    ],
+    "en": "February 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre mars",
+    "x": [
+     "le quatre de mars",
+     "le mars quatre"
+    ],
+    "en": "March 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre avril",
+    "x": [
+     "le quatre de avril",
+     "le avril quatre"
+    ],
+    "en": "April 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre mai",
+    "x": [
+     "le quatre de mai",
+     "le mai quatre"
+    ],
+    "en": "May 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre juin",
+    "x": [
+     "le quatre de juin",
+     "le juin quatre"
+    ],
+    "en": "June 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre juillet",
+    "x": [
+     "le quatre de juillet",
+     "le juillet quatre"
+    ],
+    "en": "July 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre août",
+    "x": [
+     "le quatre de août",
+     "le août quatre"
+    ],
+    "en": "August 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre septembre",
+    "x": [
+     "le quatre de septembre",
+     "le septembre quatre"
+    ],
+    "en": "September 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre octobre",
+    "x": [
+     "le quatre de octobre",
+     "le octobre quatre"
+    ],
+    "en": "October 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre novembre",
+    "x": [
+     "le quatre de novembre",
+     "le novembre quatre"
+    ],
+    "en": "November 4",
+    "tags": []
+   },
+   {
+    "fr": "le quatre décembre",
+    "x": [
+     "le quatre de décembre",
+     "le décembre quatre"
+    ],
+    "en": "December 4",
+    "tags": []
+   },
+   {
+    "fr": "le cinq janvier",
+    "x": [
+     "le cinq de janvier",
+     "le janvier cinq"
+    ],
+    "en": "January 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq février",
+    "x": [
+     "le cinq de février",
+     "le février cinq"
+    ],
+    "en": "February 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq mars",
+    "x": [
+     "le cinq de mars",
+     "le mars cinq"
+    ],
+    "en": "March 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq avril",
+    "x": [
+     "le cinq de avril",
+     "le avril cinq"
+    ],
+    "en": "April 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq mai",
+    "x": [
+     "le cinq de mai",
+     "le mai cinq"
+    ],
+    "en": "May 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq juin",
+    "x": [
+     "le cinq de juin",
+     "le juin cinq"
+    ],
+    "en": "June 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq juillet",
+    "x": [
+     "le cinq de juillet",
+     "le juillet cinq"
+    ],
+    "en": "July 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq août",
+    "x": [
+     "le cinq de août",
+     "le août cinq"
+    ],
+    "en": "August 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq septembre",
+    "x": [
+     "le cinq de septembre",
+     "le septembre cinq"
+    ],
+    "en": "September 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq octobre",
+    "x": [
+     "le cinq de octobre",
+     "le octobre cinq"
+    ],
+    "en": "October 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq novembre",
+    "x": [
+     "le cinq de novembre",
+     "le novembre cinq"
+    ],
+    "en": "November 5",
+    "tags": []
+   },
+   {
+    "fr": "le cinq décembre",
+    "x": [
+     "le cinq de décembre",
+     "le décembre cinq"
+    ],
+    "en": "December 5",
+    "tags": []
+   },
+   {
+    "fr": "le six janvier",
+    "x": [
+     "le six de janvier",
+     "le janvier six"
+    ],
+    "en": "January 6",
+    "tags": []
+   },
+   {
+    "fr": "le six février",
+    "x": [
+     "le six de février",
+     "le février six"
+    ],
+    "en": "February 6",
+    "tags": []
+   },
+   {
+    "fr": "le six mars",
+    "x": [
+     "le six de mars",
+     "le mars six"
+    ],
+    "en": "March 6",
+    "tags": []
+   },
+   {
+    "fr": "le six avril",
+    "x": [
+     "le six de avril",
+     "le avril six"
+    ],
+    "en": "April 6",
+    "tags": []
+   },
+   {
+    "fr": "le six mai",
+    "x": [
+     "le six de mai",
+     "le mai six"
+    ],
+    "en": "May 6",
+    "tags": []
+   },
+   {
+    "fr": "le six juin",
+    "x": [
+     "le six de juin",
+     "le juin six"
+    ],
+    "en": "June 6",
+    "tags": []
+   },
+   {
+    "fr": "le six juillet",
+    "x": [
+     "le six de juillet",
+     "le juillet six"
+    ],
+    "en": "July 6",
+    "tags": []
+   },
+   {
+    "fr": "le six août",
+    "x": [
+     "le six de août",
+     "le août six"
+    ],
+    "en": "August 6",
+    "tags": []
+   },
+   {
+    "fr": "le six septembre",
+    "x": [
+     "le six de septembre",
+     "le septembre six"
+    ],
+    "en": "September 6",
+    "tags": []
+   },
+   {
+    "fr": "le six octobre",
+    "x": [
+     "le six de octobre",
+     "le octobre six"
+    ],
+    "en": "October 6",
+    "tags": []
+   },
+   {
+    "fr": "le six novembre",
+    "x": [
+     "le six de novembre",
+     "le novembre six"
+    ],
+    "en": "November 6",
+    "tags": []
+   },
+   {
+    "fr": "le six décembre",
+    "x": [
+     "le six de décembre",
+     "le décembre six"
+    ],
+    "en": "December 6",
+    "tags": []
+   },
+   {
+    "fr": "le sept janvier",
+    "x": [
+     "le sept de janvier",
+     "le janvier sept"
+    ],
+    "en": "January 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept février",
+    "x": [
+     "le sept de février",
+     "le février sept"
+    ],
+    "en": "February 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept mars",
+    "x": [
+     "le sept de mars",
+     "le mars sept"
+    ],
+    "en": "March 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept avril",
+    "x": [
+     "le sept de avril",
+     "le avril sept"
+    ],
+    "en": "April 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept mai",
+    "x": [
+     "le sept de mai",
+     "le mai sept"
+    ],
+    "en": "May 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept juin",
+    "x": [
+     "le sept de juin",
+     "le juin sept"
+    ],
+    "en": "June 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept juillet",
+    "x": [
+     "le sept de juillet",
+     "le juillet sept"
+    ],
+    "en": "July 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept août",
+    "x": [
+     "le sept de août",
+     "le août sept"
+    ],
+    "en": "August 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept septembre",
+    "x": [
+     "le sept de septembre",
+     "le septembre sept"
+    ],
+    "en": "September 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept octobre",
+    "x": [
+     "le sept de octobre",
+     "le octobre sept"
+    ],
+    "en": "October 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept novembre",
+    "x": [
+     "le sept de novembre",
+     "le novembre sept"
+    ],
+    "en": "November 7",
+    "tags": []
+   },
+   {
+    "fr": "le sept décembre",
+    "x": [
+     "le sept de décembre",
+     "le décembre sept"
+    ],
+    "en": "December 7",
+    "tags": []
+   },
+   {
+    "fr": "le huit janvier",
+    "x": [
+     "le huit de janvier",
+     "le janvier huit"
+    ],
+    "en": "January 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit février",
+    "x": [
+     "le huit de février",
+     "le février huit"
+    ],
+    "en": "February 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit mars",
+    "x": [
+     "le huit de mars",
+     "le mars huit"
+    ],
+    "en": "March 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit avril",
+    "x": [
+     "le huit de avril",
+     "le avril huit"
+    ],
+    "en": "April 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit mai",
+    "x": [
+     "le huit de mai",
+     "le mai huit"
+    ],
+    "en": "May 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit juin",
+    "x": [
+     "le huit de juin",
+     "le juin huit"
+    ],
+    "en": "June 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit juillet",
+    "x": [
+     "le huit de juillet",
+     "le juillet huit"
+    ],
+    "en": "July 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit août",
+    "x": [
+     "le huit de août",
+     "le août huit"
+    ],
+    "en": "August 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit septembre",
+    "x": [
+     "le huit de septembre",
+     "le septembre huit"
+    ],
+    "en": "September 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit octobre",
+    "x": [
+     "le huit de octobre",
+     "le octobre huit"
+    ],
+    "en": "October 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit novembre",
+    "x": [
+     "le huit de novembre",
+     "le novembre huit"
+    ],
+    "en": "November 8",
+    "tags": []
+   },
+   {
+    "fr": "le huit décembre",
+    "x": [
+     "le huit de décembre",
+     "le décembre huit"
+    ],
+    "en": "December 8",
+    "tags": []
+   },
+   {
+    "fr": "le neuf janvier",
+    "x": [
+     "le neuf de janvier",
+     "le janvier neuf"
+    ],
+    "en": "January 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf février",
+    "x": [
+     "le neuf de février",
+     "le février neuf"
+    ],
+    "en": "February 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf mars",
+    "x": [
+     "le neuf de mars",
+     "le mars neuf"
+    ],
+    "en": "March 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf avril",
+    "x": [
+     "le neuf de avril",
+     "le avril neuf"
+    ],
+    "en": "April 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf mai",
+    "x": [
+     "le neuf de mai",
+     "le mai neuf"
+    ],
+    "en": "May 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf juin",
+    "x": [
+     "le neuf de juin",
+     "le juin neuf"
+    ],
+    "en": "June 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf juillet",
+    "x": [
+     "le neuf de juillet",
+     "le juillet neuf"
+    ],
+    "en": "July 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf août",
+    "x": [
+     "le neuf de août",
+     "le août neuf"
+    ],
+    "en": "August 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf septembre",
+    "x": [
+     "le neuf de septembre",
+     "le septembre neuf"
+    ],
+    "en": "September 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf octobre",
+    "x": [
+     "le neuf de octobre",
+     "le octobre neuf"
+    ],
+    "en": "October 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf novembre",
+    "x": [
+     "le neuf de novembre",
+     "le novembre neuf"
+    ],
+    "en": "November 9",
+    "tags": []
+   },
+   {
+    "fr": "le neuf décembre",
+    "x": [
+     "le neuf de décembre",
+     "le décembre neuf"
+    ],
+    "en": "December 9",
+    "tags": []
+   },
+   {
+    "fr": "le dix janvier",
+    "x": [
+     "le dix de janvier",
+     "le janvier dix"
+    ],
+    "en": "January 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix février",
+    "x": [
+     "le dix de février",
+     "le février dix"
+    ],
+    "en": "February 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix mars",
+    "x": [
+     "le dix de mars",
+     "le mars dix"
+    ],
+    "en": "March 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix avril",
+    "x": [
+     "le dix de avril",
+     "le avril dix"
+    ],
+    "en": "April 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix mai",
+    "x": [
+     "le dix de mai",
+     "le mai dix"
+    ],
+    "en": "May 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix juin",
+    "x": [
+     "le dix de juin",
+     "le juin dix"
+    ],
+    "en": "June 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix juillet",
+    "x": [
+     "le dix de juillet",
+     "le juillet dix"
+    ],
+    "en": "July 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix août",
+    "x": [
+     "le dix de août",
+     "le août dix"
+    ],
+    "en": "August 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix septembre",
+    "x": [
+     "le dix de septembre",
+     "le septembre dix"
+    ],
+    "en": "September 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix octobre",
+    "x": [
+     "le dix de octobre",
+     "le octobre dix"
+    ],
+    "en": "October 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix novembre",
+    "x": [
+     "le dix de novembre",
+     "le novembre dix"
+    ],
+    "en": "November 10",
+    "tags": []
+   },
+   {
+    "fr": "le dix décembre",
+    "x": [
+     "le dix de décembre",
+     "le décembre dix"
+    ],
+    "en": "December 10",
+    "tags": []
+   },
+   {
+    "fr": "le onze janvier",
+    "x": [
+     "le onze de janvier",
+     "le janvier onze"
+    ],
+    "en": "January 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze février",
+    "x": [
+     "le onze de février",
+     "le février onze"
+    ],
+    "en": "February 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze mars",
+    "x": [
+     "le onze de mars",
+     "le mars onze"
+    ],
+    "en": "March 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze avril",
+    "x": [
+     "le onze de avril",
+     "le avril onze"
+    ],
+    "en": "April 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze mai",
+    "x": [
+     "le onze de mai",
+     "le mai onze"
+    ],
+    "en": "May 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze juin",
+    "x": [
+     "le onze de juin",
+     "le juin onze"
+    ],
+    "en": "June 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze juillet",
+    "x": [
+     "le onze de juillet",
+     "le juillet onze"
+    ],
+    "en": "July 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze août",
+    "x": [
+     "le onze de août",
+     "le août onze"
+    ],
+    "en": "August 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze septembre",
+    "x": [
+     "le onze de septembre",
+     "le septembre onze"
+    ],
+    "en": "September 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze octobre",
+    "x": [
+     "le onze de octobre",
+     "le octobre onze"
+    ],
+    "en": "October 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze novembre",
+    "x": [
+     "le onze de novembre",
+     "le novembre onze"
+    ],
+    "en": "November 11",
+    "tags": []
+   },
+   {
+    "fr": "le onze décembre",
+    "x": [
+     "le onze de décembre",
+     "le décembre onze"
+    ],
+    "en": "December 11",
+    "tags": []
+   },
+   {
+    "fr": "le douze janvier",
+    "x": [
+     "le douze de janvier",
+     "le janvier douze"
+    ],
+    "en": "January 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze février",
+    "x": [
+     "le douze de février",
+     "le février douze"
+    ],
+    "en": "February 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze mars",
+    "x": [
+     "le douze de mars",
+     "le mars douze"
+    ],
+    "en": "March 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze avril",
+    "x": [
+     "le douze de avril",
+     "le avril douze"
+    ],
+    "en": "April 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze mai",
+    "x": [
+     "le douze de mai",
+     "le mai douze"
+    ],
+    "en": "May 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze juin",
+    "x": [
+     "le douze de juin",
+     "le juin douze"
+    ],
+    "en": "June 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze juillet",
+    "x": [
+     "le douze de juillet",
+     "le juillet douze"
+    ],
+    "en": "July 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze août",
+    "x": [
+     "le douze de août",
+     "le août douze"
+    ],
+    "en": "August 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze septembre",
+    "x": [
+     "le douze de septembre",
+     "le septembre douze"
+    ],
+    "en": "September 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze octobre",
+    "x": [
+     "le douze de octobre",
+     "le octobre douze"
+    ],
+    "en": "October 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze novembre",
+    "x": [
+     "le douze de novembre",
+     "le novembre douze"
+    ],
+    "en": "November 12",
+    "tags": []
+   },
+   {
+    "fr": "le douze décembre",
+    "x": [
+     "le douze de décembre",
+     "le décembre douze"
+    ],
+    "en": "December 12",
+    "tags": []
+   },
+   {
+    "fr": "le treize janvier",
+    "x": [
+     "le treize de janvier",
+     "le janvier treize"
+    ],
+    "en": "January 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize février",
+    "x": [
+     "le treize de février",
+     "le février treize"
+    ],
+    "en": "February 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize mars",
+    "x": [
+     "le treize de mars",
+     "le mars treize"
+    ],
+    "en": "March 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize avril",
+    "x": [
+     "le treize de avril",
+     "le avril treize"
+    ],
+    "en": "April 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize mai",
+    "x": [
+     "le treize de mai",
+     "le mai treize"
+    ],
+    "en": "May 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize juin",
+    "x": [
+     "le treize de juin",
+     "le juin treize"
+    ],
+    "en": "June 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize juillet",
+    "x": [
+     "le treize de juillet",
+     "le juillet treize"
+    ],
+    "en": "July 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize août",
+    "x": [
+     "le treize de août",
+     "le août treize"
+    ],
+    "en": "August 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize septembre",
+    "x": [
+     "le treize de septembre",
+     "le septembre treize"
+    ],
+    "en": "September 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize octobre",
+    "x": [
+     "le treize de octobre",
+     "le octobre treize"
+    ],
+    "en": "October 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize novembre",
+    "x": [
+     "le treize de novembre",
+     "le novembre treize"
+    ],
+    "en": "November 13",
+    "tags": []
+   },
+   {
+    "fr": "le treize décembre",
+    "x": [
+     "le treize de décembre",
+     "le décembre treize"
+    ],
+    "en": "December 13",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze janvier",
+    "x": [
+     "le quatorze de janvier",
+     "le janvier quatorze"
+    ],
+    "en": "January 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze février",
+    "x": [
+     "le quatorze de février",
+     "le février quatorze"
+    ],
+    "en": "February 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze mars",
+    "x": [
+     "le quatorze de mars",
+     "le mars quatorze"
+    ],
+    "en": "March 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze avril",
+    "x": [
+     "le quatorze de avril",
+     "le avril quatorze"
+    ],
+    "en": "April 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze mai",
+    "x": [
+     "le quatorze de mai",
+     "le mai quatorze"
+    ],
+    "en": "May 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze juin",
+    "x": [
+     "le quatorze de juin",
+     "le juin quatorze"
+    ],
+    "en": "June 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze juillet",
+    "x": [
+     "le quatorze de juillet",
+     "le juillet quatorze"
+    ],
+    "en": "July 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze août",
+    "x": [
+     "le quatorze de août",
+     "le août quatorze"
+    ],
+    "en": "August 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze septembre",
+    "x": [
+     "le quatorze de septembre",
+     "le septembre quatorze"
+    ],
+    "en": "September 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze octobre",
+    "x": [
+     "le quatorze de octobre",
+     "le octobre quatorze"
+    ],
+    "en": "October 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze novembre",
+    "x": [
+     "le quatorze de novembre",
+     "le novembre quatorze"
+    ],
+    "en": "November 14",
+    "tags": []
+   },
+   {
+    "fr": "le quatorze décembre",
+    "x": [
+     "le quatorze de décembre",
+     "le décembre quatorze"
+    ],
+    "en": "December 14",
+    "tags": []
+   },
+   {
+    "fr": "le quinze janvier",
+    "x": [
+     "le quinze de janvier",
+     "le janvier quinze"
+    ],
+    "en": "January 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze février",
+    "x": [
+     "le quinze de février",
+     "le février quinze"
+    ],
+    "en": "February 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze mars",
+    "x": [
+     "le quinze de mars",
+     "le mars quinze"
+    ],
+    "en": "March 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze avril",
+    "x": [
+     "le quinze de avril",
+     "le avril quinze"
+    ],
+    "en": "April 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze mai",
+    "x": [
+     "le quinze de mai",
+     "le mai quinze"
+    ],
+    "en": "May 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze juin",
+    "x": [
+     "le quinze de juin",
+     "le juin quinze"
+    ],
+    "en": "June 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze juillet",
+    "x": [
+     "le quinze de juillet",
+     "le juillet quinze"
+    ],
+    "en": "July 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze août",
+    "x": [
+     "le quinze de août",
+     "le août quinze"
+    ],
+    "en": "August 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze septembre",
+    "x": [
+     "le quinze de septembre",
+     "le septembre quinze"
+    ],
+    "en": "September 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze octobre",
+    "x": [
+     "le quinze de octobre",
+     "le octobre quinze"
+    ],
+    "en": "October 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze novembre",
+    "x": [
+     "le quinze de novembre",
+     "le novembre quinze"
+    ],
+    "en": "November 15",
+    "tags": []
+   },
+   {
+    "fr": "le quinze décembre",
+    "x": [
+     "le quinze de décembre",
+     "le décembre quinze"
+    ],
+    "en": "December 15",
+    "tags": []
+   },
+   {
+    "fr": "le seize janvier",
+    "x": [
+     "le seize de janvier",
+     "le janvier seize"
+    ],
+    "en": "January 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize février",
+    "x": [
+     "le seize de février",
+     "le février seize"
+    ],
+    "en": "February 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize mars",
+    "x": [
+     "le seize de mars",
+     "le mars seize"
+    ],
+    "en": "March 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize avril",
+    "x": [
+     "le seize de avril",
+     "le avril seize"
+    ],
+    "en": "April 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize mai",
+    "x": [
+     "le seize de mai",
+     "le mai seize"
+    ],
+    "en": "May 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize juin",
+    "x": [
+     "le seize de juin",
+     "le juin seize"
+    ],
+    "en": "June 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize juillet",
+    "x": [
+     "le seize de juillet",
+     "le juillet seize"
+    ],
+    "en": "July 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize août",
+    "x": [
+     "le seize de août",
+     "le août seize"
+    ],
+    "en": "August 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize septembre",
+    "x": [
+     "le seize de septembre",
+     "le septembre seize"
+    ],
+    "en": "September 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize octobre",
+    "x": [
+     "le seize de octobre",
+     "le octobre seize"
+    ],
+    "en": "October 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize novembre",
+    "x": [
+     "le seize de novembre",
+     "le novembre seize"
+    ],
+    "en": "November 16",
+    "tags": []
+   },
+   {
+    "fr": "le seize décembre",
+    "x": [
+     "le seize de décembre",
+     "le décembre seize"
+    ],
+    "en": "December 16",
+    "tags": []
+   },
+   {
+    "fr": "le vingt janvier",
+    "x": [
+     "le vingt de janvier",
+     "le janvier vingt"
+    ],
+    "en": "January 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt février",
+    "x": [
+     "le vingt de février",
+     "le février vingt"
+    ],
+    "en": "February 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt mars",
+    "x": [
+     "le vingt de mars",
+     "le mars vingt"
+    ],
+    "en": "March 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt avril",
+    "x": [
+     "le vingt de avril",
+     "le avril vingt"
+    ],
+    "en": "April 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt mai",
+    "x": [
+     "le vingt de mai",
+     "le mai vingt"
+    ],
+    "en": "May 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt juin",
+    "x": [
+     "le vingt de juin",
+     "le juin vingt"
+    ],
+    "en": "June 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt juillet",
+    "x": [
+     "le vingt de juillet",
+     "le juillet vingt"
+    ],
+    "en": "July 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt août",
+    "x": [
+     "le vingt de août",
+     "le août vingt"
+    ],
+    "en": "August 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt septembre",
+    "x": [
+     "le vingt de septembre",
+     "le septembre vingt"
+    ],
+    "en": "September 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt octobre",
+    "x": [
+     "le vingt de octobre",
+     "le octobre vingt"
+    ],
+    "en": "October 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt novembre",
+    "x": [
+     "le vingt de novembre",
+     "le novembre vingt"
+    ],
+    "en": "November 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt décembre",
+    "x": [
+     "le vingt de décembre",
+     "le décembre vingt"
+    ],
+    "en": "December 20",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux janvier",
+    "x": [
+     "le vingt-deux de janvier",
+     "le janvier vingt-deux"
+    ],
+    "en": "January 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux février",
+    "x": [
+     "le vingt-deux de février",
+     "le février vingt-deux"
+    ],
+    "en": "February 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux mars",
+    "x": [
+     "le vingt-deux de mars",
+     "le mars vingt-deux"
+    ],
+    "en": "March 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux avril",
+    "x": [
+     "le vingt-deux de avril",
+     "le avril vingt-deux"
+    ],
+    "en": "April 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux mai",
+    "x": [
+     "le vingt-deux de mai",
+     "le mai vingt-deux"
+    ],
+    "en": "May 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux juin",
+    "x": [
+     "le vingt-deux de juin",
+     "le juin vingt-deux"
+    ],
+    "en": "June 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux juillet",
+    "x": [
+     "le vingt-deux de juillet",
+     "le juillet vingt-deux"
+    ],
+    "en": "July 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux août",
+    "x": [
+     "le vingt-deux de août",
+     "le août vingt-deux"
+    ],
+    "en": "August 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux septembre",
+    "x": [
+     "le vingt-deux de septembre",
+     "le septembre vingt-deux"
+    ],
+    "en": "September 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux octobre",
+    "x": [
+     "le vingt-deux de octobre",
+     "le octobre vingt-deux"
+    ],
+    "en": "October 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux novembre",
+    "x": [
+     "le vingt-deux de novembre",
+     "le novembre vingt-deux"
+    ],
+    "en": "November 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-deux décembre",
+    "x": [
+     "le vingt-deux de décembre",
+     "le décembre vingt-deux"
+    ],
+    "en": "December 22",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre janvier",
+    "x": [
+     "le vingt-quatre de janvier",
+     "le janvier vingt-quatre"
+    ],
+    "en": "January 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre février",
+    "x": [
+     "le vingt-quatre de février",
+     "le février vingt-quatre"
+    ],
+    "en": "February 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre mars",
+    "x": [
+     "le vingt-quatre de mars",
+     "le mars vingt-quatre"
+    ],
+    "en": "March 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre avril",
+    "x": [
+     "le vingt-quatre de avril",
+     "le avril vingt-quatre"
+    ],
+    "en": "April 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre mai",
+    "x": [
+     "le vingt-quatre de mai",
+     "le mai vingt-quatre"
+    ],
+    "en": "May 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre juin",
+    "x": [
+     "le vingt-quatre de juin",
+     "le juin vingt-quatre"
+    ],
+    "en": "June 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre juillet",
+    "x": [
+     "le vingt-quatre de juillet",
+     "le juillet vingt-quatre"
+    ],
+    "en": "July 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre août",
+    "x": [
+     "le vingt-quatre de août",
+     "le août vingt-quatre"
+    ],
+    "en": "August 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre septembre",
+    "x": [
+     "le vingt-quatre de septembre",
+     "le septembre vingt-quatre"
+    ],
+    "en": "September 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre octobre",
+    "x": [
+     "le vingt-quatre de octobre",
+     "le octobre vingt-quatre"
+    ],
+    "en": "October 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre novembre",
+    "x": [
+     "le vingt-quatre de novembre",
+     "le novembre vingt-quatre"
+    ],
+    "en": "November 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-quatre décembre",
+    "x": [
+     "le vingt-quatre de décembre",
+     "le décembre vingt-quatre"
+    ],
+    "en": "December 24",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq janvier",
+    "x": [
+     "le vingt-cinq de janvier",
+     "le janvier vingt-cinq"
+    ],
+    "en": "January 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq février",
+    "x": [
+     "le vingt-cinq de février",
+     "le février vingt-cinq"
+    ],
+    "en": "February 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq mars",
+    "x": [
+     "le vingt-cinq de mars",
+     "le mars vingt-cinq"
+    ],
+    "en": "March 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq avril",
+    "x": [
+     "le vingt-cinq de avril",
+     "le avril vingt-cinq"
+    ],
+    "en": "April 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq mai",
+    "x": [
+     "le vingt-cinq de mai",
+     "le mai vingt-cinq"
+    ],
+    "en": "May 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq juin",
+    "x": [
+     "le vingt-cinq de juin",
+     "le juin vingt-cinq"
+    ],
+    "en": "June 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq juillet",
+    "x": [
+     "le vingt-cinq de juillet",
+     "le juillet vingt-cinq"
+    ],
+    "en": "July 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq août",
+    "x": [
+     "le vingt-cinq de août",
+     "le août vingt-cinq"
+    ],
+    "en": "August 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq septembre",
+    "x": [
+     "le vingt-cinq de septembre",
+     "le septembre vingt-cinq"
+    ],
+    "en": "September 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq octobre",
+    "x": [
+     "le vingt-cinq de octobre",
+     "le octobre vingt-cinq"
+    ],
+    "en": "October 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq novembre",
+    "x": [
+     "le vingt-cinq de novembre",
+     "le novembre vingt-cinq"
+    ],
+    "en": "November 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-cinq décembre",
+    "x": [
+     "le vingt-cinq de décembre",
+     "le décembre vingt-cinq"
+    ],
+    "en": "December 25",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit janvier",
+    "x": [
+     "le vingt-huit de janvier",
+     "le janvier vingt-huit"
+    ],
+    "en": "January 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit février",
+    "x": [
+     "le vingt-huit de février",
+     "le février vingt-huit"
+    ],
+    "en": "February 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit mars",
+    "x": [
+     "le vingt-huit de mars",
+     "le mars vingt-huit"
+    ],
+    "en": "March 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit avril",
+    "x": [
+     "le vingt-huit de avril",
+     "le avril vingt-huit"
+    ],
+    "en": "April 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit mai",
+    "x": [
+     "le vingt-huit de mai",
+     "le mai vingt-huit"
+    ],
+    "en": "May 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit juin",
+    "x": [
+     "le vingt-huit de juin",
+     "le juin vingt-huit"
+    ],
+    "en": "June 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit juillet",
+    "x": [
+     "le vingt-huit de juillet",
+     "le juillet vingt-huit"
+    ],
+    "en": "July 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit août",
+    "x": [
+     "le vingt-huit de août",
+     "le août vingt-huit"
+    ],
+    "en": "August 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit septembre",
+    "x": [
+     "le vingt-huit de septembre",
+     "le septembre vingt-huit"
+    ],
+    "en": "September 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit octobre",
+    "x": [
+     "le vingt-huit de octobre",
+     "le octobre vingt-huit"
+    ],
+    "en": "October 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit novembre",
+    "x": [
+     "le vingt-huit de novembre",
+     "le novembre vingt-huit"
+    ],
+    "en": "November 28",
+    "tags": []
+   },
+   {
+    "fr": "le vingt-huit décembre",
+    "x": [
+     "le vingt-huit de décembre",
+     "le décembre vingt-huit"
+    ],
+    "en": "December 28",
+    "tags": []
+   },
+   {
+    "fr": "le trente janvier",
+    "x": [
+     "le trente de janvier",
+     "le janvier trente"
+    ],
+    "en": "January 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente février",
+    "x": [
+     "le trente de février",
+     "le février trente"
+    ],
+    "en": "February 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente mars",
+    "x": [
+     "le trente de mars",
+     "le mars trente"
+    ],
+    "en": "March 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente avril",
+    "x": [
+     "le trente de avril",
+     "le avril trente"
+    ],
+    "en": "April 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente mai",
+    "x": [
+     "le trente de mai",
+     "le mai trente"
+    ],
+    "en": "May 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente juin",
+    "x": [
+     "le trente de juin",
+     "le juin trente"
+    ],
+    "en": "June 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente juillet",
+    "x": [
+     "le trente de juillet",
+     "le juillet trente"
+    ],
+    "en": "July 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente août",
+    "x": [
+     "le trente de août",
+     "le août trente"
+    ],
+    "en": "August 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente septembre",
+    "x": [
+     "le trente de septembre",
+     "le septembre trente"
+    ],
+    "en": "September 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente octobre",
+    "x": [
+     "le trente de octobre",
+     "le octobre trente"
+    ],
+    "en": "October 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente novembre",
+    "x": [
+     "le trente de novembre",
+     "le novembre trente"
+    ],
+    "en": "November 30",
+    "tags": []
+   },
+   {
+    "fr": "le trente décembre",
+    "x": [
+     "le trente de décembre",
+     "le décembre trente"
+    ],
+    "en": "December 30",
+    "tags": []
+   }
+  ],
+  "month": [
+   {
+    "fr": "janvier",
+    "en": "January",
+    "tags": []
+   },
+   {
+    "fr": "février",
+    "en": "February",
+    "tags": []
+   },
+   {
+    "fr": "mars",
+    "en": "March",
+    "tags": []
+   },
+   {
+    "fr": "avril",
+    "en": "April",
+    "tags": []
+   },
+   {
+    "fr": "mai",
+    "en": "May",
+    "tags": []
+   },
+   {
+    "fr": "juin",
+    "en": "June",
+    "tags": []
+   },
+   {
+    "fr": "juillet",
+    "en": "July",
+    "tags": []
+   },
+   {
+    "fr": "août",
+    "en": "August",
+    "tags": []
+   },
+   {
+    "fr": "septembre",
+    "en": "September",
+    "tags": []
+   },
+   {
+    "fr": "octobre",
+    "en": "October",
+    "tags": []
+   },
+   {
+    "fr": "novembre",
+    "en": "November",
+    "tags": []
+   },
+   {
+    "fr": "décembre",
+    "en": "December",
+    "tags": []
+   }
+  ],
+  "weekday": [
+   {
+    "fr": "lundi",
+    "en": "Monday",
+    "tags": []
+   },
+   {
+    "fr": "mardi",
+    "en": "Tuesday",
+    "tags": []
+   },
+   {
+    "fr": "mercredi",
+    "en": "Wednesday",
+    "tags": []
+   },
+   {
+    "fr": "jeudi",
+    "en": "Thursday",
+    "tags": []
+   },
+   {
+    "fr": "vendredi",
+    "en": "Friday",
+    "tags": []
+   },
+   {
+    "fr": "samedi",
+    "en": "Saturday",
+    "tags": []
+   },
+   {
+    "fr": "dimanche",
+    "en": "Sunday",
+    "tags": []
+   }
+  ],
+  "freq_adv": [
+   {
+    "fr": "toujours",
+    "en": "always",
+    "tags": []
+   },
+   {
+    "fr": "souvent",
+    "en": "often",
+    "tags": []
+   },
+   {
+    "fr": "parfois",
+    "en": "sometimes",
+    "tags": []
+   },
+   {
+    "fr": "rarement",
+    "en": "rarely",
+    "tags": []
+   }
+  ],
+  "freq_phrase": [
+   {
+    "fr": "tous les jours",
+    "x": [
+     "tout les jours",
+     "tous les jour"
+    ],
+    "en": "every day",
+    "tags": []
+   },
+   {
+    "fr": "toutes les semaines",
+    "x": [
+     "tous les semaines",
+     "toute les semaines"
+    ],
+    "en": "every week",
+    "tags": []
+   },
+   {
+    "fr": "une fois par semaine",
+    "x": [
+     "une fois dans la semaine",
+     "une fois pour semaine"
+    ],
+    "en": "once a week",
+    "tags": []
+   },
+   {
+    "fr": "deux fois par jour",
+    "x": [
+     "deux fois dans le jour",
+     "deux fois pour jour"
+    ],
+    "en": "twice a day",
+    "tags": []
+   },
+   {
+    "fr": "trois fois par mois",
+    "x": [
+     "trois fois dans le mois",
+     "trois fois pour mois"
+    ],
+    "en": "three times a month",
+    "tags": []
+   },
+   {
+    "fr": "deux fois par semaine",
+    "x": [
+     "deux fois dans la semaine",
+     "deux fois pour semaine"
+    ],
+    "en": "twice a week",
+    "tags": []
+   }
+  ],
+  "loc": [
+   {
+    "fr": "à côté",
+    "en": "next to",
+    "tags": []
+   },
+   {
+    "fr": "en face",
+    "en": "opposite",
+    "tags": []
+   },
+   {
+    "fr": "près",
+    "en": "near",
+    "tags": []
+   },
+   {
+    "fr": "loin",
+    "en": "far from",
+    "tags": []
+   }
+  ],
+  "qty": [
+   {
+    "fr": "beaucoup",
+    "en": "a lot of",
+    "tags": [
+     "any"
+    ]
+   },
+   {
+    "fr": "trop",
+    "en": "too much",
+    "en_count": "too many",
+    "tags": [
+     "any"
+    ]
+   },
+   {
+    "fr": "assez",
+    "en": "enough",
+    "tags": [
+     "any"
+    ]
+   },
+   {
+    "fr": "un kilo",
+    "en": "a kilo of",
+    "tags": [
+     "weigh"
+    ]
+   },
+   {
+    "fr": "un peu",
+    "en": "a little",
+    "tags": [
+     "mass_only"
+    ]
+   },
+   {
+    "fr": "cinq cents grammes",
+    "en": "five hundred grams of",
+    "tags": [
+     "weigh"
+    ]
+   }
+  ],
+  "qty_drink": [
+   {
+    "fr": "une bouteille",
+    "en": "a bottle of",
+    "tags": []
+   },
+   {
+    "fr": "un verre",
+    "en": "a glass of",
+    "tags": []
+   },
+   {
+    "fr": "une tasse",
+    "en": "a cup of",
+    "tags": []
+   },
+   {
+    "fr": "un litre",
+    "en": "a litre of",
+    "tags": []
+   }
+  ],
+  "dur": [
+   {
+    "fr": "deux ans",
+    "en": "two years",
+    "tags": []
+   },
+   {
+    "fr": "trois mois",
+    "en": "three months",
+    "tags": []
+   },
+   {
+    "fr": "dix minutes",
+    "en": "ten minutes",
+    "tags": []
+   },
+   {
+    "fr": "une semaine",
+    "en": "a week",
+    "tags": []
+   },
+   {
+    "fr": "cinq jours",
+    "en": "five days",
+    "tags": []
+   },
+   {
+    "fr": "vingt minutes",
+    "en": "twenty minutes",
+    "tags": []
+   },
+   {
+    "fr": "six mois",
+    "en": "six months",
+    "tags": []
+   },
+   {
+    "fr": "un an",
+    "en": "a year",
+    "tags": []
+   },
+   {
+    "fr": "deux heures",
+    "en": "two hours",
+    "tags": []
+   },
+   {
+    "fr": "trois semaines",
+    "en": "three weeks",
+    "tags": []
+   },
+   {
+    "fr": "quarante minutes",
+    "en": "forty minutes",
+    "tags": []
+   },
+   {
+    "fr": "quinze jours",
+    "en": "two weeks",
+    "tags": []
+   }
+  ],
+  "reason_avoir": [
+   {
+    "fr": "un rendez-vous",
+    "en": "an appointment",
+    "tags": []
+   },
+   {
+    "fr": "un examen demain",
+    "en": "an exam tomorrow",
+    "tags": []
+   },
+   {
+    "fr": "du travail",
+    "en": "work to do",
+    "tags": []
+   },
+   {
+    "fr": "un train à prendre",
+    "en": "a train to catch",
+    "tags": []
+   },
+   {
+    "fr": "mal à la tête",
+    "en": "a headache",
+    "tags": []
+   },
+   {
+    "fr": "une réunion à neuf heures",
+    "en": "a meeting at nine",
+    "tags": []
+   }
+  ],
+  "rel_clause": [
+   {
+    "fr": "parle trois langues",
+    "en": "speaks three languages",
+    "tags": []
+   },
+   {
+    "fr": "travaille au Mistral",
+    "en": "works at Le Mistral",
+    "tags": []
+   },
+   {
+    "fr": "habite près du canal",
+    "en": "lives near the canal",
+    "tags": []
+   },
+   {
+    "fr": "cuisine très bien",
+    "en": "cooks very well",
+    "tags": []
+   },
+   {
+    "fr": "adore la musique",
+    "en": "loves music",
+    "tags": []
+   },
+   {
+    "fr": "arrive demain",
+    "en": "is arriving tomorrow",
+    "tags": []
+   },
+   {
+    "fr": "joue de la guitare",
+    "en": "plays the guitar",
+    "tags": []
+   },
+   {
+    "fr": "connaît tout le quartier",
+    "en": "knows the whole neighbourhood",
+    "tags": []
+   }
+  ],
+  "weather": [
+   {
+    "fr": "il pleuvait",
+    "x": [
+     "il a plu"
+    ],
+    "en": "it was raining",
+    "tags": []
+   },
+   {
+    "fr": "il faisait froid",
+    "x": [
+     "il a fait froid"
+    ],
+    "en": "it was cold",
+    "tags": []
+   },
+   {
+    "fr": "il faisait beau",
+    "x": [
+     "il a fait beau"
+    ],
+    "en": "the weather was nice",
+    "tags": []
+   },
+   {
+    "fr": "il neigeait",
+    "x": [
+     "il a neigé"
+    ],
+    "en": "it was snowing",
+    "tags": []
+   },
+   {
+    "fr": "il faisait nuit",
+    "x": [
+     "il a fait nuit"
+    ],
+    "en": "it was dark",
+    "tags": []
+   },
+   {
+    "fr": "il y avait du monde",
+    "x": [
+     "il y a eu du monde"
+    ],
+    "en": "it was crowded",
+    "tags": []
+   }
+  ],
+  "time_noun": [
+   {
+    "fr": "du jour",
+    "en": "the day",
+    "tags": []
+   },
+   {
+    "fr": "du soir",
+    "en": "the evening",
+    "tags": []
+   },
+   {
+    "fr": "du matin",
+    "en": "the morning",
+    "tags": []
+   },
+   {
+    "fr": "du week-end",
+    "en": "the weekend",
+    "tags": []
+   },
+   {
+    "fr": "de la semaine",
+    "en": "the week",
+    "tags": []
+   },
+   {
+    "fr": "du moment",
+    "en": "the moment",
+    "tags": []
+   }
+  ],
+  "adv_ment": [
+   {
+    "fr": "lentement",
+    "x": [
+     "lent",
+     "lentment"
+    ],
+    "en": "slowly",
+    "tags": []
+   },
+   {
+    "fr": "doucement",
+    "x": [
+     "doux",
+     "doucment"
+    ],
+    "en": "softly",
+    "tags": []
+   },
+   {
+    "fr": "rapidement",
+    "x": [
+     "rapide",
+     "rapidment"
+    ],
+    "en": "quickly",
+    "tags": []
+   },
+   {
+    "fr": "sérieusement",
+    "x": [
+     "sérieux",
+     "sérieuxment"
+    ],
+    "en": "seriously",
+    "tags": []
+   },
+   {
+    "fr": "facilement",
+    "x": [
+     "facile",
+     "facilment"
+    ],
+    "en": "easily",
+    "tags": []
+   },
+   {
+    "fr": "simplement",
+    "x": [
+     "simple",
+     "simplment"
+    ],
+    "en": "simply",
+    "tags": []
+   },
+   {
+    "fr": "poliment",
+    "x": [
+     "poli",
+     "poliement"
+    ],
+    "en": "politely",
+    "tags": []
+   },
+   {
+    "fr": "gentiment",
+    "x": [
+     "gentil",
+     "gentillement"
+    ],
+    "en": "kindly",
+    "tags": []
+   },
+   {
+    "fr": "patiemment",
+    "x": [
+     "patient",
+     "patientement"
+    ],
+    "en": "patiently",
+    "tags": []
+   },
+   {
+    "fr": "prudemment",
+    "x": [
+     "prudent",
+     "prudentement"
+    ],
+    "en": "carefully",
+    "tags": []
+   },
+   {
+    "fr": "tranquillement",
+    "x": [
+     "tranquille",
+     "tranquilment"
+    ],
+    "en": "calmly",
+    "tags": []
+   },
+   {
+    "fr": "clairement",
+    "x": [
+     "clair",
+     "clairment"
+    ],
+    "en": "clearly",
+    "tags": []
+   },
+   {
+    "fr": "régulièrement",
+    "x": [
+     "régulier",
+     "régulièrment"
+    ],
+    "en": "regularly",
+    "tags": []
+   },
+   {
+    "fr": "vraiment",
+    "x": [
+     "vrai",
+     "vraiement"
+    ],
+    "en": "really well",
+    "tags": [
+     "pre_only"
+    ]
+   }
+  ],
+  "adj_rien": [
+   {
+    "fr": "prêt",
+    "en": "ready",
+    "tags": []
+   },
+   {
+    "fr": "simple",
+    "en": "simple",
+    "tags": []
+   },
+   {
+    "fr": "facile",
+    "en": "easy",
+    "tags": []
+   },
+   {
+    "fr": "cher",
+    "en": "expensive",
+    "tags": []
+   },
+   {
+    "fr": "fermé",
+    "en": "closed",
+    "tags": []
+   },
+   {
+    "fr": "gratuit",
+    "en": "free",
+    "tags": []
+   },
+   {
+    "fr": "parfait",
+    "en": "perfect",
+    "tags": []
+   },
+   {
+    "fr": "impossible",
+    "en": "impossible",
+    "tags": []
+   }
+  ],
+  "adj_qc": [
+   {
+    "fr": "chaud",
+    "x": [
+     "chaude"
+    ],
+    "en": "hot",
+    "tags": []
+   },
+   {
+    "fr": "froid",
+    "x": [
+     "froide"
+    ],
+    "en": "cold",
+    "tags": []
+   },
+   {
+    "fr": "bon",
+    "x": [
+     "bonne"
+    ],
+    "en": "good",
+    "tags": []
+   },
+   {
+    "fr": "nouveau",
+    "x": [
+     "nouvelle"
+    ],
+    "en": "new",
+    "tags": []
+   },
+   {
+    "fr": "simple",
+    "x": [
+     "simples"
+    ],
+    "en": "simple",
+    "tags": []
+   },
+   {
+    "fr": "sucré",
+    "x": [
+     "sucrée"
+    ],
+    "en": "sweet",
+    "tags": []
+   },
+   {
+    "fr": "léger",
+    "x": [
+     "légère"
+    ],
+    "en": "light",
+    "tags": []
+   },
+   {
+    "fr": "original",
+    "x": [
+     "originale"
+    ],
+    "en": "original",
+    "tags": []
+   },
+   {
+    "fr": "drôle",
+    "x": [
+     "drôles"
+    ],
+    "en": "funny",
+    "tags": []
+   }
+  ],
+  "few": [
+   {
+    "fr": "deux",
+    "en": "two",
+    "tags": []
+   },
+   {
+    "fr": "trois",
+    "en": "three",
+    "tags": []
+   },
+   {
+    "fr": "quatre",
+    "en": "four",
+    "tags": []
+   },
+   {
+    "fr": "cinq",
+    "en": "five",
+    "tags": []
+   },
+   {
+    "fr": "six",
+    "en": "six",
+    "tags": []
+   },
+   {
+    "fr": "dix",
+    "en": "ten",
+    "tags": []
+   },
+   {
+    "fr": "douze",
+    "en": "twelve",
+    "tags": []
+   }
+  ],
+  "prep_tonic": [
+   {
+    "fr": "chez",
+    "en": "at {poss} place",
+    "tags": []
+   },
+   {
+    "fr": "avec",
+    "en": "with {obj}",
+    "tags": []
+   },
+   {
+    "fr": "pour",
+    "en": "for {obj}",
+    "tags": []
+   },
+   {
+    "fr": "sans",
+    "en": "without {obj}",
+    "tags": []
+   },
+   {
+    "fr": "après",
+    "en": "after {obj}",
+    "tags": []
+   },
+   {
+    "fr": "à côté de",
+    "en": "next to {obj}",
+    "tags": []
+   }
+  ],
+  "nobody": [
+   {
+    "fr": "personne",
+    "p": 2,
+    "g": "m",
+    "n": "s",
+    "en": "nobody",
+    "en_p": "3s",
+    "tags": []
+   }
+  ],
+  "someone": [
+   {
+    "fr": "quelqu'un",
+    "p": 2,
+    "g": "m",
+    "n": "s",
+    "en": "someone",
+    "en_p": "3s",
+    "tags": []
+   }
+  ],
+  "cmp": [
+   {
+    "fr": "plus",
+    "id": "plus",
+    "tags": []
+   },
+   {
+    "fr": "moins",
+    "id": "moins",
+    "tags": []
+   },
+   {
+    "fr": "aussi",
+    "id": "aussi",
+    "tags": []
+   }
+  ],
+  "negword": [
+   {
+    "fr": "plus",
+    "en_mode": "no_longer",
+    "tags": []
+   },
+   {
+    "fr": "jamais",
+    "en_mode": "never",
+    "tags": []
+   }
+  ],
+  "play": [
+   {
+    "fr": "tennis",
+    "g": "m",
+    "en": "tennis",
+    "tags": [
+     "sport"
+    ]
+   },
+   {
+    "fr": "foot",
+    "g": "m",
+    "en": "football",
+    "tags": [
+     "sport"
+    ]
+   },
+   {
+    "fr": "cartes",
+    "g": "f",
+    "n": "p",
+    "pl": "cartes",
+    "en": "cards",
+    "tags": [
+     "sport",
+     "plural"
+    ]
+   },
+   {
+    "fr": "échecs",
+    "g": "m",
+    "n": "p",
+    "pl": "échecs",
+    "en": "chess",
+    "tags": [
+     "sport",
+     "plural"
+    ]
+   },
+   {
+    "fr": "basket",
+    "g": "m",
+    "en": "basketball",
+    "tags": [
+     "sport"
+    ]
+   },
+   {
+    "fr": "rugby",
+    "g": "m",
+    "en": "rugby",
+    "tags": [
+     "sport"
+    ]
+   },
+   {
+    "fr": "piano",
+    "g": "m",
+    "en": "the piano",
+    "tags": [
+     "instrument"
+    ]
+   },
+   {
+    "fr": "guitare",
+    "g": "f",
+    "en": "the guitar",
+    "tags": [
+     "instrument"
+    ]
+   },
+   {
+    "fr": "violon",
+    "g": "m",
+    "en": "the violin",
+    "tags": [
+     "instrument"
+    ]
+   },
+   {
+    "fr": "batterie",
+    "g": "f",
+    "en": "the drums",
+    "tags": [
+     "instrument"
+    ]
+   },
+   {
+    "fr": "flûte",
+    "g": "f",
+    "en": "the flute",
+    "tags": [
+     "instrument"
+    ]
+   },
+   {
+    "fr": "accordéon",
+    "g": "m",
+    "en": "the accordion",
+    "tags": [
+     "instrument"
+    ]
+   }
+  ],
+  "time_past_end": [
+   {
+    "fr": "hier",
+    "en": "yesterday",
+    "tags": []
+   },
+   {
+    "fr": "hier soir",
+    "en": "last night",
+    "tags": []
+   },
+   {
+    "fr": "ce matin",
+    "en": "this morning",
+    "tags": []
+   },
+   {
+    "fr": "samedi dernier",
+    "en": "last Saturday",
+    "tags": []
+   },
+   {
+    "fr": "la semaine dernière",
+    "en": "last week",
+    "tags": []
+   }
+  ],
+  "tout_time": [
+   {
+    "fr": "tous les jours",
+    "x": [
+     "tout les jours",
+     "toutes les jours"
+    ],
+    "en": "every day",
+    "tags": []
+   },
+   {
+    "fr": "toute la journée",
+    "x": [
+     "tout la journée",
+     "toutes la journée"
+    ],
+    "en": "all day",
+    "tags": []
+   },
+   {
+    "fr": "tous les lundis",
+    "x": [
+     "tout les lundis",
+     "toutes les lundis"
+    ],
+    "en": "every Monday",
+    "tags": []
+   },
+   {
+    "fr": "toute la nuit",
+    "x": [
+     "tout la nuit",
+     "tous la nuit"
+    ],
+    "en": "all night",
+    "tags": []
+   },
+   {
+    "fr": "tout le week-end",
+    "x": [
+     "toute le week-end",
+     "tous le week-end"
+    ],
+    "en": "all weekend",
+    "tags": []
+   },
+   {
+    "fr": "toutes les semaines",
+    "x": [
+     "tous les semaines",
+     "toute les semaines"
+    ],
+    "en": "every week",
+    "tags": []
+   },
+   {
+    "fr": "toute la soirée",
+    "x": [
+     "tout la soirée",
+     "toutes la soirée"
+    ],
+    "en": "all evening",
+    "tags": []
+   },
+   {
+    "fr": "tous les matins",
+    "x": [
+     "tout les matins",
+     "toutes les matins"
+    ],
+    "en": "every morning",
+    "tags": []
+   },
+   {
+    "fr": "tous les soirs",
+    "x": [
+     "tout les soirs",
+     "toute les soirs"
+    ],
+    "en": "every evening",
+    "tags": []
+   }
+  ],
+  "state_tu": [
+   {
+    "id": "tu_m",
+    "fr": "tu",
+    "p": 1,
+    "g": "m",
+    "n": "s",
+    "en": "you",
+    "en_p": "2",
+    "tags": []
+   },
+   {
+    "id": "tu_f",
+    "fr": "tu",
+    "p": 1,
+    "g": "f",
+    "n": "s",
+    "en": "you",
+    "en_p": "2",
+    "tags": []
+   },
+   {
+    "id": "vous_m",
+    "fr": "vous",
+    "p": 4,
+    "g": "m",
+    "n": "p",
+    "en": "you",
+    "en_p": "2",
+    "tags": []
+   },
+   {
+    "id": "vous_f",
+    "fr": "vous",
+    "p": 4,
+    "g": "f",
+    "n": "p",
+    "en": "you",
+    "en_p": "2",
+    "tags": []
+   }
+  ]
+ }
+}

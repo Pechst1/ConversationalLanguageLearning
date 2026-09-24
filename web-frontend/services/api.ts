@@ -1110,6 +1110,58 @@ export interface AtelierSessionStart {
   learning_moments?: {
     adaptive_locks?: Record<string, Record<string, any>>;
   };
+  /** WP-S3 La Forge: the séance's composition and the item the learner is on. */
+  forge?: AtelierForgeView | Record<string, never>;
+}
+
+/** WP-S3 — the forge's next item: which rule, which rung, which payload item. */
+export interface AtelierForgeNext {
+  position: number;
+  length: number;
+  concept_id: number;
+  role: 'today' | 'due' | 'contrast';
+  rung: number;
+  rung_name: 'recognise' | 'discriminate' | 'build' | 'transform' | 'produce' | 'free_use';
+  round: 'recognize' | 'transform' | 'sentence' | 'speak' | 'conversation';
+  mode: string;
+  item_id: string;
+  item_index: number;
+  reprise?: boolean;
+  /** The item itself (a bank top-up is not in the set the page loaded). */
+  item?: Record<string, any> | null;
+}
+
+export interface AtelierForgeTestOutResult {
+  passed: boolean;
+  correct: number;
+  total: number;
+  production_correct: boolean;
+  placement_rung: number;
+  placement_rung_name: string;
+}
+
+export interface AtelierForgeView {
+  mode: 'seance' | 'test_out';
+  length: number;
+  answered: number;
+  counted: number;
+  finished: boolean;
+  next: AtelierForgeNext | null;
+  result: AtelierForgeTestOutResult | null;
+  rules: Array<{ concept_id: number; role: string; rung: number; rung_name: string; served: number; topped: boolean }>;
+}
+
+export interface AtelierForgeRuleState {
+  concept_id: number;
+  external_id?: string | null;
+  title: string;
+  rung: number;
+  rung_name: string;
+  forged: boolean;
+  stage: 'new' | 'introduced' | 'practising' | 'held';
+  next_due: string | null;
+  held_at: string | null;
+  tested_out_at: string | null;
 }
 
 export interface AtelierAttemptResult {
@@ -1119,6 +1171,7 @@ export interface AtelierAttemptResult {
   correction: Record<string, any>;
   ai_review?: Record<string, any>;
   minted_collectibles?: AtelierCollectible[];
+  forge?: AtelierForgeView | Record<string, never>;
 }
 
 export interface AtelierErrataReviewTask {
@@ -2467,7 +2520,15 @@ class ApiService {
     return this.atelierGet<CEFRProgress>('/progress/cefr');
   }
 
-  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
+  async startAtelierSession(data?: {
+    concept_ids?: number[];
+    preferred_concept_id?: number;
+    preferred_vocabulary_ids?: number[];
+    /** WP-S4 — La Forge: how the block was entered, its length, its day step. */
+    origin?: 'journey' | 'after_day' | 'practice';
+    budget_seconds?: number;
+    journey_step_id?: string;
+  }) {
     return this.atelierPost<AtelierSessionStart>('/atelier/sessions', data || {});
   }
 
@@ -2477,6 +2538,17 @@ class ApiService {
 
   async getAtelierSession(sessionId: string) {
     return this.atelierGet<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
+  }
+
+  /** WP-S3 — «Épreuve de la règle»: five mixed items; a pass holds the rule. */
+  async startForgeTestOut(conceptId: number) {
+    return this.atelierPost<AtelierSessionStart>('/atelier/forge/test-out', { concept_id: conceptId });
+  }
+
+  /** WP-S3 — per rule: the forge rung, the stage, the next due date. */
+  async getForgeState(conceptIds?: number[]) {
+    const query = (conceptIds || []).map((id) => `concept_id=${encodeURIComponent(String(id))}`).join('&');
+    return this.atelierGet<{ rules: AtelierForgeRuleState[] }>(`/atelier/forge/state${query ? `?${query}` : ''}`);
   }
 
   async submitAtelierAttempt(

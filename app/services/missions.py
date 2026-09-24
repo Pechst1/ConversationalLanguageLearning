@@ -1429,6 +1429,12 @@ class MissionGenerator:
                 or matching
                 or list(REAL_WORLD_MISSION_DOMAINS)
             )
+        # The last letter's channel is out whenever anything else is left: the same
+        # channel twice in a row reads as a repeat even when the setup changed.
+        last_channel = str((recent_variety[0] if recent_variety else {}).get("channel") or "")
+        if last_channel:
+            other_channel = [item for item in pool if str(item.get("channel") or "") != last_channel]
+            pool = other_channel or pool
         weighted = [
             (
                 item,

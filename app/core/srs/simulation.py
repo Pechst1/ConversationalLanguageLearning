@@ -20,6 +20,7 @@ Good, wrong → Again), the vocabulary-style baseline.
 from __future__ import annotations
 
 import datetime as dt
+import math
 import random
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -381,7 +382,297 @@ def simulate_band_coverage(
     )
 
 
+# ---------------------------------------------------------------------------
+# WP-S3 — items to «Tenue» per rule: today's ladder versus La Forge
+# ---------------------------------------------------------------------------
+
+#: The legacy ladder, per concept, in serving order: (round, mode, items).
+_LEGACY_LADDER: tuple[tuple[str, str, int], ...] = (
+    ("recognize", "fill", 3),
+    ("recognize", "classify", 3),
+    ("recognize", "word_bank", 3),
+    ("transform", "rewrite", 3),
+    ("sentence", "sentence", 1),
+    ("speak", "speak", 1),
+    ("conversation", "conversation", 1),
+)
+
+
+@dataclass
+class ItemsToHeld:
+    """One simulated learner, one engine: how many items each rule cost."""
+
+    engine: str
+    accuracy: float
+    days: int
+    rappel: bool
+    #: Items a rule had cost when it became held (held rules only).
+    items_to_held: list[int]
+    #: Items spent on rules introduced early enough to be judged, never held.
+    censored: list[int]
+    rules_judged: int
+    #: Brand-new rules in the séance that had the most of them.
+    max_new_rules_per_seance: int
+    #: Every séance item answered, and the evidence entries they wrote.
+    items_answered: int
+    evidence_written: int
+    days_to_held: list[int] = field(default_factory=list)
+
+    @property
+    def held_share(self) -> float:
+        return len(self.items_to_held) / max(1, self.rules_judged)
+
+    @property
+    def median_items_to_held(self) -> float:
+        """Median over judged rules; a never-held rule counts as infinite."""
+
+        values = [float(v) for v in self.items_to_held] + [math.inf] * len(self.censored)
+        if not values:
+            return math.nan
+        values.sort()
+        mid = len(values) // 2
+        if len(values) % 2:
+            return values[mid]
+        return (values[mid - 1] + values[mid]) / 2.0
+
+    @property
+    def median_days_to_held(self) -> float:
+        values = sorted(self.days_to_held)
+        if not values:
+            return math.nan
+        return float(values[len(values) // 2])
+
+
+@dataclass
+class _SimRule:
+    index: int
+    introduced: int | None = None
+    state: MemoryState = field(default_factory=MemoryState)
+    due: int | None = None
+    rung: int = 0
+    items: int = 0
+    held_day: int | None = None
+    held_items: int | None = None
+    life: object = field(default_factory=new_unit_life)
+
+
+def simulate_items_to_held(
+    accuracy: float,
+    *,
+    engine: str = "forge",
+    days: int = 150,
+    units_per_week: float = 2.0,
+    seance_seconds: int = 360,
+    seconds_per_item: float = 25.0,
+    rappel: bool = False,
+    judge_margin_days: int = 45,
+    seed: int = 20260924,
+    ladder_concepts: int = 2,
+    ladder_padding: bool = True,
+) -> ItemsToHeld:
+    """One learner, one séance a day, the journey introducing rules at a rhythm.
+
+    * **journey** — rule *k* is introduced (the Règle: ``introduced_at``, no
+      evidence) on day ``⌊k · 7 / units_per_week⌋``; with ``rappel`` every due
+      rule also gets one journey Rappel item a day, in the WP-L4 format for
+      its stability (counted in its items).
+    * **forge** — :class:`app.core.forge.ForgeState`: today's rule (introduced
+      today, else the weakest rule not yet forged to the top), up to three due
+      rules and the previous rule as contrast partner; length from the budget
+      over the pace; item-level evidence with the forge's caps.
+    * **ladder** — today's séance: up to ``ladder_concepts`` concepts (due
+      first, padded with the next never-studied rules, as ``select_today``
+      does); per concept fill/classify/word bank ×3 with the adaptive lock
+      (three clean recognise items retire the unused modes, two clean
+      rewrites the third), sentence, speak, conversation; one evidence per
+      concept at the end (``atelier_session_evidence``). With
+      ``ladder_padding=False`` the ladder only takes rules the journey
+      introduced (the same intake as the forge) — no padding with new rules.
+
+    Held is WP-L4's «Tenue», kept by the app's own ``note_concept_evidence``.
+    A rule is judged when it was introduced at least ``judge_margin_days``
+    before the horizon.
+    """
+
+    import math
+
+    from app.core import forge as forge_core
+    from app.core.srs.memory import EvidenceGrade, grade_evidence
+
+    rng = random.Random(f"s3:{seed}:{accuracy}:{engine}:{rappel}")  # noqa: S311
+    rules: list[_SimRule] = []
+    stats = {"answered": 0, "evidence": 0, "max_new": 0}
+
+    def rule(index: int) -> _SimRule:
+        while len(rules) <= index:
+            rules.append(_SimRule(index=len(rules)))
+        return rules[index]
+
+    def introduce(item: _SimRule, day: int) -> None:
+        if item.introduced is None:
+            item.introduced = day
+            item.life.introduced_at = SIMULATION_START + dt.timedelta(days=day)
+
+    def apply(item: _SimRule, day: int, evidence: Evidence, *, schedule: bool, weight_scale: float = 1.0) -> None:
+        if schedule:
+            graded: Evidence | EvidenceGrade = evidence
+            if weight_scale != 1.0:
+                grade = grade_evidence(evidence)
+                if grade is not None:
+                    graded = EvidenceGrade(grade.rating, grade.weight * weight_scale, grade.step)
+            decision = review(item.state, graded, now=SIMULATION_START + dt.timedelta(days=day))
+            if decision is not None:
+                item.state = MemoryState(decision.stability, decision.difficulty, decision.reps, decision.lapses)
+                item.due = day + decision.interval_days
+                item.life.reps = decision.reps
+        note_unit_life(item.life, evidence, day=day)
+        if item.held_day is None and getattr(item.life, "held_at", None) is not None:
+            item.held_day = day
+            item.held_items = item.items
+
+    def is_due(item: _SimRule, day: int) -> bool:
+        return item.introduced is not None and (item.due is None or item.due <= day)
+
+    next_intro = 0
+    for day in range(days):
+        introduced_today: _SimRule | None = None
+        quota = math.floor((day + 1) * units_per_week / 7.0 + 1e-9)
+        while next_intro < quota:
+            introduced_today = rule(next_intro)
+            introduce(introduced_today, day)
+            next_intro += 1
+
+        if rappel:
+            for item in list(rules):
+                if item is introduced_today or not is_due(item, day) or item.state.reps == 0:
+                    continue
+                correct = rng.random() < accuracy
+                item.items += 1
+                apply(item, day, Evidence(rappel_format(item.state.stability), correct=correct), schedule=True)
+
+        if engine == "forge":
+            units: list[forge_core.ForgeUnit] = []
+            live = [item for item in rules if item.introduced is not None and item.held_day is None]
+            today = introduced_today
+            if today is None:
+                unforged = [item for item in live if item.rung < forge_core.TOP_RUNG]
+                today = min(unforged, key=lambda item: (item.rung, item.index), default=None)
+            if today is not None:
+                units.append(
+                    forge_core.ForgeUnit(
+                        today.index, forge_core.Role.TODAY.value, today.rung, is_new=today.state.reps == 0
+                    )
+                )
+            due = sorted(
+                (item for item in rules if item is not today and is_due(item, day) and item.state.reps > 0),
+                key=lambda item: (item.due or 0, item.index),
+            )[:3]
+            for item in due:
+                needs_spaced = (
+                    item.held_day is None
+                    and item.introduced is not None
+                    and day - item.introduced >= 14
+                    and getattr(item.life, "spaced_success_at", None) is None
+                )
+                units.append(
+                    forge_core.ForgeUnit(
+                        item.index, forge_core.Role.DUE.value, max(0, item.rung - 1), needs_spaced=needs_spaced
+                    )
+                )
+            if today is not None and today.index > 0:
+                partner = rules[today.index - 1]
+                if partner.introduced is not None and all(unit.concept_id != partner.index for unit in units):
+                    units.append(
+                        forge_core.ForgeUnit(
+                            partner.index,
+                            forge_core.Role.CONTRAST.value,
+                            min(partner.rung, int(forge_core.Rung.DISCRIMINATE)),
+                        )
+                    )
+            if not units:
+                continue
+            state = forge_core.ForgeState.seance(
+                units, length=forge_core.seance_length(seance_seconds, seconds_per_item)
+            )
+            stats["max_new"] = max(
+                stats["max_new"],
+                sum(1 for unit in units if unit.is_new and state.track(unit.concept_id) is not None),
+            )
+            while (slot := state.next_slot()) is not None:
+                item = rules[slot.concept_id]
+                verdict = forge_core.Verdict.right() if rng.random() < accuracy else forge_core.Verdict.wrong()
+                decision = state.record(concept_id=slot.concept_id, rung=slot.rung, verdict=verdict)
+                item.items += 1
+                stats["answered"] += 1
+                if decision.evidence is not None:
+                    stats["evidence"] += 1
+                    apply(item, day, decision.evidence, schedule=decision.schedule, weight_scale=decision.weight_scale)
+            for track in state.tracks:
+                rules[track.concept_id].rung = track.rung
+            continue
+
+        # engine == "ladder": today's séance.
+        from app.services.atelier import atelier_session_evidence
+
+        picked = sorted(
+            (item for item in rules if is_due(item, day)),
+            key=lambda item: (item.due if item.due is not None else -1, item.index),
+        )[:ladder_concepts]
+        new_count = sum(1 for item in picked if item.state.reps == 0)
+        while ladder_padding and len(picked) < ladder_concepts:
+            fresh = rule(next_intro)
+            next_intro += 1
+            introduce(fresh, day)
+            picked.append(fresh)
+            new_count += 1
+        stats["max_new"] = max(stats["max_new"], new_count)
+        for item in picked:
+            observations: list[tuple[str, str, float]] = []
+            recognise_clean = 0
+            recognise_dirty = False
+            transform_clean = 0
+            transform_dirty = False
+            for round_name, mode, count in _LEGACY_LADDER:
+                if round_name == "recognize" and recognise_clean >= 3 and not recognise_dirty:
+                    continue  # the adaptive lock retired the unused modes
+                for index in range(count):
+                    if round_name == "transform" and index == 2 and transform_clean >= 2 and not transform_dirty:
+                        break  # two clean rewrites retire the third
+                    correct = rng.random() < accuracy
+                    item.items += 1
+                    stats["answered"] += 1
+                    observations.append((round_name, mode, 4.0 if correct else 0.0))
+                    if round_name == "recognize":
+                        recognise_clean += 1 if correct else 0
+                        recognise_dirty = recognise_dirty or not correct
+                    if round_name == "transform":
+                        transform_clean += 1 if correct else 0
+                        transform_dirty = transform_dirty or not correct
+            quality = sum(score for _r, _m, score in observations) / max(1, len(observations)) / 4 * 10
+            evidence = atelier_session_evidence(observations, passed=quality >= 5.0)
+            stats["evidence"] += 1
+            apply(item, day, evidence, schedule=True)
+
+    judged = [item for item in rules if item.introduced is not None and item.introduced <= days - judge_margin_days]
+    held = [item for item in judged if item.held_day is not None]
+    return ItemsToHeld(
+        engine=engine,
+        accuracy=accuracy,
+        days=days,
+        rappel=rappel,
+        items_to_held=[int(item.held_items or 0) for item in held],
+        censored=[item.items for item in judged if item.held_day is None],
+        rules_judged=len(judged),
+        max_new_rules_per_seance=stats["max_new"],
+        items_answered=stats["answered"],
+        evidence_written=stats["evidence"],
+        days_to_held=[int(item.held_day - (item.introduced or 0)) for item in held],
+    )
+
+
 __all__ = [
+    "ItemsToHeld",
+    "simulate_items_to_held",
     "BandDay",
     "BandSimulation",
     "new_unit_life",

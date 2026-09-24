@@ -99,6 +99,8 @@ IDLE_CEILING_MIN_SECONDS = 60
 IDLE_CEILING_MAX_SECONDS = 240
 #: How much slower than the plan a genuinely engaged learner may be.
 IDLE_CEILING_FACTOR = 3
+#: WP-S4: how much longer than planned a folded forge block may take.
+FORGE_CEILING_FACTOR = 2
 
 
 # --------------------------------------------------------------------------
@@ -743,6 +745,15 @@ def _aware(value: datetime | None) -> datetime | None:
 
 def _segment_ceiling(payload: dict[str, Any]) -> int:
     estimate = payload.get("estimated_seconds")
+    if (
+        payload.get("step_kind") == str(StepKind.FORGE)
+        and isinstance(estimate, (int, float))
+        and not isinstance(estimate, bool)
+        and estimate > 0
+    ):
+        # WP-S4: a folded forge block is minutes of work away from the journey
+        # screen; its segment may run to twice the block before it is idle.
+        return max(IDLE_CEILING_MIN_SECONDS, int(estimate) * FORGE_CEILING_FACTOR)
     if isinstance(estimate, (int, float)) and not isinstance(estimate, bool) and estimate > 0:
         scaled = int(estimate) * IDLE_CEILING_FACTOR
         return max(IDLE_CEILING_MIN_SECONDS, min(IDLE_CEILING_MAX_SECONDS, scaled))
@@ -935,6 +946,59 @@ def measure_journey_duration(
         skewed_segments=skewed,
         client_reported=client_reported,
     )
+
+
+def forge_after_day_seconds(db: Session, *, journey_id: UUID | str) -> int:
+    """WP-S4: the after-day forge minutes that belong to this journey's day.
+
+    Léger and Régulier forge after the day (the Home chip or the recap), so
+    that time never passes through the journey's events. It is read from the
+    séance ledger instead: forge blocks (``quote_payload.forge``) not folded
+    into a step, completed on the journey's local date after the journey was
+    finished. Each is its wall time, capped at :data:`FORGE_CEILING_FACTOR`
+    times its planned length — the same «slower than planned is still work,
+    much slower is away» rule the journey's own segments follow. A folded
+    block (Soutenu, Intensif) is already inside the journey's forge step.
+    """
+
+    from app.db.models.atelier import AtelierSession
+    from app.db.models.daily_journey import DailyJourney
+
+    try:
+        identifier = UUID(str(journey_id))
+    except (TypeError, ValueError):
+        return 0
+    journey = db.get(DailyJourney, identifier)
+    finished_at = _aware(getattr(journey, "completed_at", None)) if journey is not None else None
+    if journey is None or finished_at is None:
+        return 0
+    try:
+        zone = ZoneInfo(str(journey.timezone or FALLBACK_TIMEZONE))
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = ZoneInfo(FALLBACK_TIMEZONE)
+    rows = (
+        db.query(AtelierSession)
+        .filter(
+            AtelierSession.user_id == journey.user_id,
+            AtelierSession.status == "completed",
+            AtelierSession.completed_at.isnot(None),
+            AtelierSession.completed_at >= finished_at,
+        )
+        .all()
+    )
+    total = 0
+    for session in rows:
+        forge = (session.quote_payload or {}).get("forge") if isinstance(session.quote_payload, dict) else None
+        if not isinstance(forge, dict) or forge.get("journey_step_id"):
+            continue
+        started = _aware(session.started_at)
+        completed = _aware(session.completed_at)
+        if started is None or completed is None or completed.astimezone(zone).date() != journey.local_date:
+            continue
+        budget = forge.get("budget_seconds")
+        ceiling = int(budget) * FORGE_CEILING_FACTOR if isinstance(budget, int) and budget > 0 else IDLE_CEILING_DEFAULT_SECONDS
+        total += int(min(max(0.0, (completed - max(started, finished_at)).total_seconds()), ceiling))
+    return total
 
 
 def measure_journey_active_seconds(
@@ -1264,6 +1328,8 @@ def journey_daily_rollup(
     )
     rhythm_by_journey = _rhythms_for(db, finished_ids)
     durations_by_rhythm: dict[str, list[int]] = defaultdict(list)
+    #: WP-S4: the day's measured time — the journey plus its after-day forge.
+    day_durations_by_rhythm: dict[str, list[int]] = defaultdict(list)
     unmeasurable_by_rhythm: Counter[str] = Counter()
     for journey_id in finished_ids:
         measurement = measure_journey_duration(db, journey_id=journey_id)
@@ -1274,6 +1340,9 @@ def journey_daily_rollup(
         else:
             durations.append(measurement.active_seconds)
             durations_by_rhythm[rhythm].append(measurement.active_seconds)
+            day_durations_by_rhythm[rhythm].append(
+                measurement.active_seconds + forge_after_day_seconds(db, journey_id=journey_id)
+            )
         idle_total += measurement.idle_excluded_seconds
         away_total += measurement.away_excluded_seconds
         preparation_total += measurement.preparation_wait_seconds
@@ -1352,6 +1421,10 @@ def journey_daily_rollup(
                     "unmeasurable": unmeasurable_by_rhythm.get(rhythm, 0),
                     "p50_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.5),
                     "p90_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.9),
+                    # WP-S4: with the after-day forge (Léger, Régulier); a
+                    # folded forge is already inside the journey's own time.
+                    "p50_day_seconds": _percentile(day_durations_by_rhythm.get(rhythm, []), 0.5),
+                    "p90_day_seconds": _percentile(day_durations_by_rhythm.get(rhythm, []), 0.9),
                 }
                 for rhythm in sorted(
                     set(durations_by_rhythm) | set(unmeasurable_by_rhythm),
