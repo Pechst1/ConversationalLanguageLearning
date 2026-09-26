@@ -369,6 +369,9 @@ class SelectedTarget:
     candidate: LearningCandidate
     fit: float
     demonstrated: bool
+    #: How well the target fits the reply itself, when that differs from ``fit``
+    #: (which also ranks the day). ``None`` reads ``fit``.
+    reply_fit: float | None = None
 
     @property
     def target(self) -> TargetRef:
@@ -378,7 +381,8 @@ class SelectedTarget:
     def is_elicitable(self) -> bool:
         """May this target be *required* in the spoken/written reply?"""
 
-        return self.fit >= ELICITATION_FIT_THRESHOLD
+        fit = self.fit if self.reply_fit is None else self.reply_fit
+        return fit >= ELICITATION_FIT_THRESHOLD
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,14 +540,13 @@ def select_plan_targets(
             duplicates.append(candidate)
             continue
         seen.add(identity)
-        fit = max(
-            scenario_fit(candidate.target, affordances, scenario),
-            round(min(max(float(candidate.relevance or 0.0), 0.0), 1.0), 4),
-        )
+        on_scene = scenario_fit(candidate.target, affordances, scenario)
+        fit = max(on_scene, round(min(max(float(candidate.relevance or 0.0), 0.0), 1.0), 4))
         entry = SelectedTarget(
             candidate=candidate,
             fit=fit,
             demonstrated=candidate_is_demonstrated(candidate),
+            reply_fit=_erratum_reply_fit(candidate, scenario, on_scene),
         )
         ranked.append(
             (
@@ -582,6 +585,21 @@ def select_plan_targets(
         omitted.append(candidate)
         reasons.setdefault(target_identity(candidate.target), "duplicate_candidate")
     return TargetSelection(selected=selected, omitted=omitted, omission_reasons=reasons)
+
+
+def _erratum_reply_fit(
+    candidate: LearningCandidate, scenario: ScenarioBrief, on_scene: float
+) -> float | None:
+    """An erratum's importance ranks the day, but only a story-engine scene was
+    written with the learner's errata in hand (WP-24): in an authored scene a
+    mistake is asked for in the reply only when the scene's own words afford it.
+    Otherwise the learner was handed "Elle attendait quand j'ai répondu." as a
+    word to use while ordering a coffee (owner screenshot, 2026-09-25). The
+    erratum is still practised in the day's recall steps."""
+
+    if candidate.target.kind is not TargetKind.ERROR or scenario.story_context:
+        return None
+    return on_scene
 
 
 def _affordances_for(scenario: ScenarioBrief) -> list[str]:

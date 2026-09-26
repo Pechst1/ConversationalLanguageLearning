@@ -51,3 +51,49 @@ def test_a_panel_without_its_drawing_shows_the_plate():
     [panel] = jc.authored_panels(variant, fallback_image_url="/assets/serial/locations/le_mistral-counter.webp")
     assert panel["image_url"] == "/assets/serial/locations/le_mistral-counter.webp"
     assert panel["image_status"] == "setting_reference"
+
+
+def _erratum():
+    from app.services.journey_contracts import LearningCandidate, TargetKind, TargetRef
+
+    return LearningCandidate(
+        target=TargetRef(
+            kind=TargetKind.ERROR,
+            id="err-1",
+            label_fr="Elle attendait quand j'ai répondu.",
+            label_native="Background vs event.",
+        ),
+        priority_score=9.0,
+        due_since_days=2,
+        estimated_seconds=45,
+        is_new=False,
+        relevance=0.95,
+        source_item_type="user_error",
+        metadata={
+            "target_reason": "erratum:err-1",
+            "erratum_id": "err-1",
+            "erratum_learner": "Elle attendait quand soudain j'ai répondu.",
+        },
+    )
+
+
+def _reply_targets(plan) -> list[str]:
+    respond = next(step for step in plan.steps if str(step.kind) == "respond")
+    return [target["id"] for target in respond.public_prompt["targets"]]
+
+
+def test_an_erratum_the_scene_cannot_afford_is_not_a_reply_chip(db_session):
+    """Owner screenshot 2026-09-25: a grammar erratum offered as a word to use while
+    ordering a coffee. It stays in the day; it is not required in the reply."""
+
+    from dataclasses import replace
+
+    _, _, brief = next(_briefs(db_session))
+    plan = plan_journey(scenario=brief, candidates=[_erratum()])
+    assert "err-1" not in _reply_targets(plan)
+    assert any(
+        (step.target and step.target.id == "err-1") for step in plan.steps
+    ), "the erratum is still practised"
+
+    written_for_it = replace(brief, story_context={"draft": {}})
+    assert "err-1" in _reply_targets(plan_journey(scenario=written_for_it, candidates=[_erratum()]))
