@@ -1338,3 +1338,49 @@ def test_a_model_cannot_reverse_a_choice_made_on_an_earlier_turn(
     assert result.consequence is not None
     assert result.consequence.outcome_key == "meeting_saturday_market"
     assert jc.reply_source(result) == "authored"
+
+
+# --------------------------------------------------------------------------
+# A semantic second opinion (2026-09-25): the keywords only know their list
+# --------------------------------------------------------------------------
+
+_UNLISTED = "Je voudrais un grand crème, je m'assois près de la porte."
+
+
+def test_a_model_raises_a_keyword_miss_on_the_learners_own_words(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    stub = _model_enabled(
+        [
+            '{"outcome": "met", "evidence_quotes": ["un grand crème", "près de la porte"]}',
+            '{"reply_fr": "Un grand crème, je vous l\'apporte."}',
+        ]
+    )
+
+    result = _evaluate(db_session, user, brief, _UNLISTED)
+
+    assert stub.calls == 2, "one grade, one reply"
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None, "a success ending, not the neutral one"
+
+
+def test_a_model_success_without_the_learners_words_is_ignored(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    invented = '{"outcome": "met", "evidence_quotes": ["un café en terrasse"]}'
+    _model_enabled([invented, RuntimeError("no reply"), RuntimeError("no reply")])
+
+    result = _evaluate(db_session, user, brief, _UNLISTED)
+
+    assert result.outcome is not TaskOutcome.MET
+
+
+def test_a_keyword_pass_asks_no_second_opinion(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    stub = _model_enabled(['{"reply_fr": "Un thé en terrasse, tout de suite.", "outcome_key": "served_at_terrace"}'])
+
+    result = _evaluate(db_session, user, brief, "Un thé en terrasse.")
+
+    assert stub.calls == 1, "a met turn is never re-graded: the model may only raise"
+    assert result.outcome is TaskOutcome.MET
