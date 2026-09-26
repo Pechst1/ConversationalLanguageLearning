@@ -293,6 +293,12 @@ _CAFE_PLACE_CUES: dict[str, str | None] = {
     "interieur": "counter",
     "dedans": "counter",
     "ici": "counter",
+    "la bas": "counter",
+    "labas": "counter",
+    "a une table": "counter",
+    "a table": "counter",
+    "pres de la fenetre": "counter",
+    "a cote de la fenetre": "counter",
 }
 _CAFE_PLACE_LABEL = {
     "terrace": "en terrasse",
@@ -1704,7 +1710,12 @@ def _model_reply(
                 [{"role": "user", "content": prompt}],
                 system_prompt=_MODEL_SYSTEM_PROMPT,
                 temperature=0.5,
-                max_tokens=300,
+                # A gpt-5 model spends a 300-token budget on reasoning and
+                # returns no content; every live reply then fell back.
+                max_tokens=2000,
+                reasoning_effort=(
+                    "minimal" if str(settings.OPENAI_MODEL).startswith("gpt-5") else None
+                ),
             )
         except Exception as exc:  # noqa: BLE001 - a provider failure falls back, never raises
             _record_event(
