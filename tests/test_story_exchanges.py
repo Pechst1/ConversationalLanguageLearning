@@ -60,6 +60,9 @@ def test_a_met_first_reply_keeps_the_conversation_open(
     assert result["next_turn"] is not None, "the scene goes on after a good first reply"
     assert result["next_turn"]["prompt"]["turn_index"] == 1
     assert not jobs, "no ending is written while the conversation is open"
+    assert "On se dit bonjour" not in (result["character_reply_fr"] or ""), (
+        "no etiquette question stacked on the character's own next question"
+    )
     voice = [data for schema, data in provider.calls if schema == "VoiceReply"]
     assert voice[-1]["turn_plan"]["keep_talking"] is True
 

@@ -233,6 +233,8 @@ _DURATION_RE = re.compile(
 )
 
 _DRINK_CUES: dict[str, str | None] = {
+    "un grand creme": "un grand crème",
+    "grand creme": "un grand crème",
     "un cafe creme": "un café crème",
     "cafe creme": "un café crème",
     "un cafe au lait": "un café au lait",
@@ -294,13 +296,19 @@ _CAFE_PLACE_CUES: dict[str, str | None] = {
     "interieur": "counter",
     "dedans": "counter",
     "ici": "counter",
-    "la bas": "counter",
-    "labas": "counter",
-    "a une table": "counter",
-    "a table": "counter",
-    "pres de la fenetre": "counter",
-    "a cote de la fenetre": "counter",
+    # Not places the scene offers (its facts: the counter, the covered terrace,
+    # takeaway). A table means the full room; "là-bas" names no place at all.
+    # Either way Margaux says so and asks, rather than serving at the counter.
+    "une table": "room",
+    "a table": "room",
+    "pres de la fenetre": "room",
+    "a cote de la fenetre": "room",
+    "pres de la porte": "room",
+    "la bas": "vague",
+    "labas": "vague",
 }
+#: Place cues that are not an offered place: they block the ending and ask.
+_CAFE_UNOFFERED = ("room", "vague")
 _CAFE_PLACE_LABEL = {
     "terrace": "en terrasse",
     "takeaway": "à emporter",
@@ -1117,7 +1125,10 @@ class _OutcomeChoice:
 
 
 def _cafe_outcome(signals: _Signals) -> _OutcomeChoice:
-    categories = tuple(dict.fromkeys(signals.cafe_places))
+    named = tuple(dict.fromkeys(signals.cafe_places))
+    categories = tuple(cat for cat in named if cat not in _CAFE_UNOFFERED)
+    if not categories and named and not signals.explicit_refusal:
+        return _OutcomeChoice(key=None, categories=named, conflict="place_not_offered")
     if len(categories) >= 2 or len(dict.fromkeys(signals.drinks)) >= 2:
         return _OutcomeChoice(key=None, categories=categories, conflict="ambiguous_choice")
     if signals.explicit_refusal:
@@ -1284,6 +1295,11 @@ def _cafe_rejection_head(signals: _Signals) -> str | None:
 
 def _cafe_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
     drink = _capitalize(signals.drinks[0]) if signals.drinks else None
+    if choice.conflict == "place_not_offered":
+        head = f"{drink}, très bien. " if drink else ""
+        if "room" in choice.categories:
+            return f"{head}La salle est pleine ce soir. Au comptoir ou en terrasse ?"
+        return f"{head}Là-bas ? Vous préférez le comptoir ou la terrasse ?"
     if choice.conflict == "ambiguous_choice":
         if len(dict.fromkeys(signals.drinks)) >= 2:
             options = list(dict.fromkeys(signals.drinks))[:2]
@@ -3100,7 +3116,7 @@ def _evaluate_response(
     """
 
     if scenario.story_context:
-        from app.services.living_story import evaluate_turn
+        from app.services.living_story import evaluate_turn, keeps_talking
         # WP-36: decided *before* the paid turn, so the actor can be told that
         # the scene does not end here and keep its own state coherent. What the
         # learner reads is still this module's question, appended to whatever
@@ -3142,7 +3158,12 @@ def _evaluate_response(
             answer=answer,
             history=history,
         )
-        if decision.is_empty and not evaluation.pending:
+        # A turn the conversation continues past already ends on the character's
+        # next question; a greeting nudge stacked on it is a second question
+        # (e2e walk 2026-09-26: « … Tu restes avec moi ? Bonjour ! On se dit
+        # bonjour d'abord ? »), and mid-scene the greeting moment has passed.
+        continuing = keeps_talking(task, turn_index, self_repair=decision.prompt)
+        if decision.is_empty and not evaluation.pending and not continuing:
             # The pragmatic finding only gets a say when the self-repair policy
             # had nothing to say, so its reason is the one that describes the
             # turn.
@@ -3283,7 +3304,9 @@ def _evaluate_response(
     )
     if generated is not None:
         generated_reply, proposed = generated
-        if proposed is None or proposed == resolved_key:
+        # While the conversation is still open no ending is settled, so a proposed
+        # key decides nothing; only a closing reply must agree with its ending.
+        if needs_repair or proposed is None or proposed == resolved_key:
             reply = generated_reply
             provenance = REPLY_SOURCE_MODEL
 

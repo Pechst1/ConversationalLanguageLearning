@@ -1344,7 +1344,7 @@ def test_a_model_cannot_reverse_a_choice_made_on_an_earlier_turn(
 # A semantic second opinion (2026-09-25): the keywords only know their list
 # --------------------------------------------------------------------------
 
-_UNLISTED = "Je voudrais un grand crème, je m'assois près de la porte."
+_UNLISTED = "Je prendrais bien une boisson chaude, dehors sous l'auvent."
 
 
 def test_a_model_raises_a_keyword_miss_on_the_learners_own_words(db_session, _model_enabled):
@@ -1352,8 +1352,8 @@ def test_a_model_raises_a_keyword_miss_on_the_learners_own_words(db_session, _mo
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
     stub = _model_enabled(
         [
-            '{"outcome": "met", "evidence_quotes": ["un grand crème", "près de la porte"]}',
-            '{"reply_fr": "Un grand crème, je vous l\'apporte."}',
+            '{"outcome": "met", "evidence_quotes": ["une boisson chaude", "dehors sous l\'auvent"]}',
+            '{"reply_fr": "Une boisson chaude en terrasse, je vous apporte ça."}',
         ]
     )
 
@@ -1384,3 +1384,25 @@ def test_a_keyword_pass_asks_no_second_opinion(db_session, _model_enabled):
 
     assert stub.calls == 1, "a met turn is never re-graded: the model may only raise"
     assert result.outcome is TaskOutcome.MET
+
+
+def test_a_table_the_scene_does_not_offer_is_asked_about_not_served(db_session):
+    """E2E walk 2026-09-26: "près de la fenêtre" came back as "D'accord, au comptoir"."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, "Je voudrais un grand crème, près de la fenêtre.")
+
+    assert result.needs_repair and result.consequence is None
+    assert "comptoir" not in result.character_reply_fr.split("?")[0].split(".")[0]
+    assert "La salle est pleine" in result.character_reply_fr
+    assert result.character_reply_fr.startswith("Un grand crème")
+
+
+def test_la_bas_names_no_place(db_session):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, "Un café, là-bas s'il vous plaît.")
+
+    assert result.needs_repair and result.consequence is None
+    assert "Là-bas ?" in result.character_reply_fr
