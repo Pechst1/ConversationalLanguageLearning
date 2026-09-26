@@ -57,6 +57,17 @@ LABEL = "Le genre des noms"
 
 
 @pytest.fixture(autouse=True)
+def one_exchange(monkeypatch):
+    """These tests pin what happens when one reply ends the scene. The scene's
+    later exchanges (``turn_plan.keep_talking``) are pinned in
+    tests/test_story_exchanges.py."""
+
+    from app.services import living_story
+
+    monkeypatch.setattr(living_story, "keeps_talking", lambda *a, **k: False)
+
+
+@pytest.fixture(autouse=True)
 def _clear_content_cache():
     jc_content.reset_content_cache()
     yield

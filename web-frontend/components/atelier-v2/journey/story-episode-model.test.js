@@ -256,3 +256,36 @@ test('the «Décor de référence» banner is gone, and the fact is kept for tel
     'the provenance still reaches the DOM for telemetry',
   );
 });
+
+test("a panel's own drawing is shown, and a panel still being drawn shows its plate", () => {
+  const drawn = {
+    ...episode,
+    panels: [
+      { ...episode.panels[1], image_url: '/media/graphic-novel/scenes/s/panel-0.webp', image_status: 'panel_art' },
+      { ...episode.panels[0], image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'rendering' },
+    ],
+  };
+  const stages = model.buildStoryStages(drawn);
+  assert.deepEqual(stages.map((s) => s.artStatus), ['ready', 'ready']);
+  assert.equal(stages[0].imageUrl, '/media/graphic-novel/scenes/s/panel-0.webp');
+  assert.equal(stages[1].imageUrl, '/assets/serial/locations/le_mistral-counter.webp');
+  assert.equal(model.storyArtRendering(drawn), true, 'the step polls while a panel is rendering');
+  assert.equal(model.storyUsesSettingArt(drawn), true, 'the plate on a rendering panel is still a plate');
+
+  const done = { ...drawn, panels: drawn.panels.map((p) => ({ ...p, image_status: 'panel_art' })) };
+  assert.equal(model.storyArtRendering(done), false);
+  assert.equal(model.storyUsesSettingArt(done), false, 'drawn panels are not setting art');
+});
+
+test("an authored scene's page reads like an episode and saves nothing", () => {
+  assert.equal(model.authoredPageEpisode('j', 's', null), null);
+  assert.equal(model.authoredPageEpisode('j', 's', []), null);
+  const page = model.authoredPageEpisode('j', 's', [
+    { id: 'a0', index: 0, narration_fr: 'Il pleut.', dialogue: [], image_url: '/assets/serial/scenes/order_at_cafe/panel-1.webp', image_status: 'panel_art' },
+  ]);
+  assert.equal(page.id, 'authored:s');
+  assert.equal(page.resolution, null);
+  const [stage] = model.buildStoryStages(page);
+  assert.equal(stage.artStatus, 'ready');
+  assert.equal(stage.caption, 'Il pleut.');
+});

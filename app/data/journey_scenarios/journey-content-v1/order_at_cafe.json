@@ -47,6 +47,51 @@
         "fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le comptoir en zinc."
       },
       "opening_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
+      "panels": [
+        {
+          "narration_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral.",
+          "dialogue": [],
+          "visual_direction": "Wide shot from the doorway into Le Mistral at night: rain on the glass, warm amber light, Margaux behind the worn zinc counter wiping it; in the back booth Marin and Lila sit close together. The learner stands in the doorway seen from behind, coat wet.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-1.webp"
+        },
+        {
+          "narration_fr": "Au fond, Marin et Lila partagent un croissant.",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Marin ! C'est mon croissant !"
+            },
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "On partage, non ?"
+            }
+          ],
+          "visual_direction": "Medium shot of the back booth: Lila, laughing, pulls a croissant away from Marin; big bearded Marin in his green sweater looks mock-innocent, crumbs in his beard. Two cups of coffee on the table.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-2.webp"
+        },
+        {
+          "narration_fr": "Margaux essuie un verre.",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Ces deux-là… tous les soirs."
+            }
+          ],
+          "visual_direction": "Close-up of Margaux at the counter, drying a wine glass with a cloth, one eyebrow raised, a dry half-smile, glancing sideways toward the booth.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-3.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?"
+            }
+          ],
+          "visual_direction": "Medium shot over the learner's shoulder (the learner cropped at the left edge, seen from behind): Margaux faces us across the zinc counter, glass in hand, a welcoming look. Rain streaks the window behind her.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Margaux tient le comptoir du Mistral ; le service continue, rien n'est fermé.",
         "Il pleut, mais la terrasse est couverte et chauffée.",
@@ -159,6 +204,51 @@
         "fr": "C'est la fin du service au Mistral. Il reste deux clients et une place libre au comptoir. Margaux range les tasses tranquillement."
       },
       "opening_line_fr": "Vous avez de la chance, je ferme dans vingt minutes. Qu'est-ce qui vous ferait plaisir ?",
+      "panels": [
+        {
+          "narration_fr": "Fin de service au Mistral. Il reste deux clients : Marin et Lila.",
+          "dialogue": [],
+          "visual_direction": "Wide shot from the doorway into Le Mistral at night: rain on the glass, warm amber light, Margaux behind the worn zinc counter wiping it; in the back booth Marin and Lila sit close together. The learner stands in the doorway seen from behind, coat wet.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Tu as mangé la moitié de mon croissant !"
+            },
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "C'était un signe : il était trop grand pour toi."
+            }
+          ],
+          "visual_direction": "Medium shot of the back booth: Lila, laughing, pulls a croissant away from Marin; big bearded Marin in his green sweater looks mock-innocent, crumbs in his beard. Two cups of coffee on the table.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-2.webp"
+        },
+        {
+          "narration_fr": "Margaux range les tasses sans se presser.",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Dernière tournée, les amoureux."
+            }
+          ],
+          "visual_direction": "Close-up of Margaux at the counter, drying a wine glass with a cloth, one eyebrow raised, a dry half-smile, glancing sideways toward the booth.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-3.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Vous avez de la chance, je ferme dans vingt minutes. Qu'est-ce qui vous ferait plaisir ?"
+            }
+          ],
+          "visual_direction": "Medium shot over the learner's shoulder (the learner cropped at the left edge, seen from behind): Margaux faces us across the zinc counter, glass in hand, a welcoming look. Rain streaks the window behind her.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Le Mistral ferme dans vingt minutes ; Margaux sert encore.",
         "Il reste une place au comptoir et la terrasse couverte est libre.",

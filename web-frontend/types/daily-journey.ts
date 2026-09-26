@@ -87,6 +87,11 @@ export type ScenePrompt = {
    * so the client never opens a player that will never play.
    */
   listen_first?: boolean;
+  /**
+   * An authored scene's graphic-novel page (2026-09-25). Story-engine scenes publish
+   * theirs as an episode instead. Absent on older scenes: the plain scene renders.
+   */
+  panels?: StoryPanel[] | null;
 };
 
 /**
@@ -636,7 +641,11 @@ export interface StoryPanel {
   narration_fr: string;
   dialogue: Array<{ character_id: string; character_name?: string | null; text_fr: string }>;
   image_url: string | null;
-  image_status: 'setting_reference' | 'unavailable';
+  /**
+   * `panel_art`: the panel's own drawing. `rendering`: the location plate while that
+   * drawing is on its way (poll the episode). `setting_reference`: the plate.
+   */
+  image_status: 'panel_art' | 'rendering' | 'setting_reference' | 'unavailable';
 }
 export interface StoryEpisode {
   /** The immutable scene id used by /story-engine/episodes/{id}. */

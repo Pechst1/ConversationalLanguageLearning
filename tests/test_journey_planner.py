@@ -63,7 +63,7 @@ def _response_task(**overrides) -> ResponseTask:
         "character_id": "margaux_barman",
         "character_name": "Margaux",
         "opening_line_fr": "Alors, qu'est-ce que je vous sers ?",
-        "max_turns": MAX_RESPOND_TURNS,
+        "max_turns": 2,  # an authored scene keeps its two turns
         "repair_allowed": True,
         "targets": [],
         "required_intents": ["name_a_hot_drink", "state_where_you_will_drink_it"],

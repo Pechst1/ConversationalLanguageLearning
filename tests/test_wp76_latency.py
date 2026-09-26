@@ -46,6 +46,17 @@ from app.services.journey_latency import (
 from tests import test_journey_end_to_end as support
 from tests.test_living_story import FakeProvider, driver
 
+
+@pytest.fixture(autouse=True)
+def one_exchange(monkeypatch):
+    """These tests measure one graded turn that ends the scene. The scene's later
+    exchanges are pinned in tests/test_story_exchanges.py."""
+
+    from app.services import living_story
+
+    monkeypatch.setattr(living_story, "keeps_talking", lambda *a, **k: False)
+
+
 assembled_client = support.assembled_client
 journey_enabled = support.journey_enabled
 

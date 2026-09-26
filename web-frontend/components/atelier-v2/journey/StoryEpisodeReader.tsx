@@ -71,6 +71,8 @@ export type StoryEpisodeReaderProps = {
   footLink?: React.ReactNode;
   /** WP-82: the reader's chrome language — the journey screen's. Absent keeps French. */
   language?: ControlLanguage | null;
+  /** False for a page with no server episode (an authored scene): nowhere to save. */
+  savePosition?: boolean;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -86,6 +88,7 @@ export function StoryEpisodeReader({
   nextLabel,
   footLink = null,
   language = null,
+  savePosition = true,
 }: StoryEpisodeReaderProps) {
   const stages = useMemo(() => buildStoryStages(episode), [episode]);
   const panelCount = episode.panels?.length ?? 0;
@@ -94,11 +97,14 @@ export function StoryEpisodeReader({
   const [furthest, setFurthest] = useState(start);
   const timer = useRef<number | null>(null);
 
-  // A different episode is a different place.
+  // A different episode is a different place. The same episode re-read (its panel
+  // art arriving) keeps the learner where they are, not the last saved position.
+  const startRef = useRef(start);
+  startRef.current = start;
   useEffect(() => {
-    setIndex(start);
-    setFurthest(start);
-  }, [episode.id, start]);
+    setIndex(startRef.current);
+    setFurthest(startRef.current);
+  }, [episode.id]);
 
   useEffect(
     () => () => {
@@ -113,7 +119,7 @@ export function StoryEpisodeReader({
       setFurthest((current) => Math.max(current, next));
       // Only a real panel index is a valid position: the server rejects an
       // index past its panels, and the resolution stage is not a panel.
-      if (next < 0 || next >= panelCount) return;
+      if (!savePosition || next < 0 || next >= panelCount) return;
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
         void saveStoryReadingPosition(episode.id, next).catch(() => {
@@ -121,7 +127,7 @@ export function StoryEpisodeReader({
         });
       }, POSITION_DEBOUNCE_MS);
     },
-    [episode.id, panelCount],
+    [episode.id, panelCount, savePosition],
   );
 
   const noop = useCallback(() => {}, []);

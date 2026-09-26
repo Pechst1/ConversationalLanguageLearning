@@ -27,8 +27,10 @@ import type { JourneySpeaker } from './journey-faces';
 import { SceneStepView } from './JourneySteps';
 import { EpisodeRadio, StoryEpisodeReader } from './StoryEpisodeReader';
 import {
+  authoredPageEpisode,
   listenFirstPlacement,
   readListenFirst,
+  storyArtRendering,
   writeListenFirst,
   type EpisodeGuessId,
   type EpisodeVerification,
@@ -36,6 +38,10 @@ import {
 import { useEpisodeAudio } from './useEpisodeAudio';
 
 type Lookup = { kind: 'loading' } | { kind: 'none' } | { kind: 'episode'; episode: StoryEpisode };
+
+/** Panel art takes about a minute a scene; poll for up to five. */
+const ART_POLL_MS = 6000;
+const ART_POLL_LIMIT = 50;
 
 export function StoryEpisodeStep({
   journeyId,
@@ -88,6 +94,31 @@ export function StoryEpisodeStep({
       alive = false;
     };
   }, [journeyId, step.id]);
+
+  // The panels open on the location plate and their own drawings arrive one by
+  // one (panel_art.py): re-read the episode until none is still rendering.
+  const rendering = lookup.kind === 'episode' && storyArtRendering(lookup.episode);
+  useEffect(() => {
+    if (!rendering) return;
+    let alive = true;
+    let polls = 0;
+    const timer = window.setInterval(() => {
+      polls += 1;
+      if (polls > ART_POLL_LIMIT) {
+        window.clearInterval(timer);
+        return;
+      }
+      getStoryEpisodeForJourney(journeyId)
+        .then((episode) => {
+          if (alive && episode && episode.panels?.length) setLookup({ kind: 'episode', episode });
+        })
+        .catch(() => {});
+    }, ART_POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [journeyId, rendering]);
 
   const sceneId = lookup.kind === 'episode' ? lookup.episode.id : null;
   // WP-49: the server says whether it can honour the listening-first cycle.
@@ -179,6 +210,24 @@ export function StoryEpisodeStep({
           footLink={null}
         />
       </>
+    );
+  }
+
+  // An authored scene (the first day, the engine's stand-in) carries its own page.
+  const page = authoredPageEpisode(journeyId, step.id, step.prompt.panels);
+  if (page) {
+    return (
+      <StoryEpisodeReader
+        episode={page}
+        mode="continue"
+        onExit={onExit ?? (() => {})}
+        onContinue={onContinue}
+        continuing={busy}
+        continueLabel={copy.scene_continue}
+        language={language}
+        footLink={null}
+        savePosition={false}
+      />
     );
   }
 

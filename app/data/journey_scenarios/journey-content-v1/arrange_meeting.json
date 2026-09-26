@@ -39,6 +39,46 @@
         "fr": "Lila t'écrit. Elle veut te faire découvrir le marché du Canal."
       },
       "opening_line_fr": "Salut ! Tu es libre quel jour ?",
+      "panels": [
+        {
+          "narration_fr": "Samedi matin, au marché du Canal.",
+          "dialogue": [],
+          "visual_direction": "Wide shot of the Canal Saint-Martin market on a bright morning: stalls with crates of fruit and flowers, an iron footbridge behind. Lila, ochre scarf in her hair, walks between the stalls with Marin, who carries a big wicker basket.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "Lila, le panier est plein !"
+            },
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Encore des fleurs. S'il te plaît !"
+            }
+          ],
+          "visual_direction": "Medium shot: Marin holds up an overflowing basket of vegetables, pretending to collapse under its weight; Lila adds a large bouquet of yellow flowers on top, grinning.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-2.webp"
+        },
+        {
+          "narration_fr": "Lila prend son téléphone. Elle pense à toi.",
+          "dialogue": [],
+          "visual_direction": "Close-up of Lila leaning on a flower stall, typing on her phone with a mischievous smile, the bouquet under her arm.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-3.webp"
+        },
+        {
+          "narration_fr": "Lila t'écrit.",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Salut ! Tu es libre quel jour ?"
+            }
+          ],
+          "visual_direction": "Close-up: Lila holds her phone up near her face and winks, as if sending a message to the viewer; blurred market stalls behind her.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Lila propose le marché du Canal, ouvert le samedi et le dimanche matin.",
         "Le Mistral reste possible en semaine, le soir.",
@@ -131,6 +171,46 @@
         "fr": "Lila t'envoie un message : elle veut te faire découvrir le marché du Canal."
       },
       "opening_line_fr": "On se voit cette semaine ? Dis-moi quand tu peux.",
+      "panels": [
+        {
+          "narration_fr": "Dimanche matin, au marché du Canal. Lila fait les courses avec Marin.",
+          "dialogue": [],
+          "visual_direction": "Wide shot of the Canal Saint-Martin market on a bright morning: stalls with crates of fruit and flowers, an iron footbridge behind. Lila, ochre scarf in her hair, walks between the stalls with Marin, who carries a big wicker basket.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "Tu as acheté trois bouquets. On a un seul vase !"
+            },
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Alors on achètera un vase."
+            }
+          ],
+          "visual_direction": "Medium shot: Marin holds up an overflowing basket of vegetables, pretending to collapse under its weight; Lila adds a large bouquet of yellow flowers on top, grinning.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-2.webp"
+        },
+        {
+          "narration_fr": "Lila sourit : ce marché, elle veut te le montrer.",
+          "dialogue": [],
+          "visual_direction": "Close-up of Lila leaning on a flower stall, typing on her phone with a mischievous smile, the bouquet under her arm.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-3.webp"
+        },
+        {
+          "narration_fr": "Lila t'envoie un message.",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "On se voit cette semaine ? Dis-moi quand tu peux."
+            }
+          ],
+          "visual_direction": "Close-up: Lila holds her phone up near her face and winks, as if sending a message to the viewer; blurred market stalls behind her.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Le marché du Canal n'ouvre que le samedi et le dimanche matin.",
         "Lila travaille à l'école jusqu'à seize heures trente en semaine.",

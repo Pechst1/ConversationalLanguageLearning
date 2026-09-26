@@ -35,7 +35,9 @@ PLAN_CONTRACT_VERSION = 3
 DEFAULT_BUDGET_SECONDS = 300
 MAX_PLANNED_STEPS = 5
 MAX_RECALL_STEPS = 2
-MAX_RESPOND_TURNS = 2
+#: The ceiling on a reply's normal turns. The rhythm decides how many a day
+#: actually plans (``RhythmCaps.max_turns``); authored scenes keep their own two.
+MAX_RESPOND_TURNS = 4
 #: A short day still has to be a day: scene, response, ending.
 MIN_PLANNED_STEPS = 3
 #: WP-78 — «une vraie journée de pratique». Plan contract version 3 adds the
@@ -70,7 +72,7 @@ class RhythmCaps:
     the Rappel (warm-ups before the scene, ≈ 35 % of the budget), the Scène's
     guided items (between the scene and the reply, ≈ 30 % with the scene
     itself) and the Bouclé retrieval after the reply (≈ 10 % with the ending);
-    the Réponse keeps its two turns (≈ 25 %). The counts are ceilings — the
+    the Réponse grows by exchanges (≈ 25 %). The counts are ceilings — the
     planner still fills only what the budget's seconds and today's pool allow.
     """
 
@@ -86,8 +88,9 @@ class RhythmCaps:
     candidate_limit: int
     #: How often one target may come back in one day (never in the same format).
     uses_per_target: int
-    #: The reply's turns. Two on every rhythm for now: a third turn for
-    #: Soutenu/Intensif needs the conversation engine (WP-L5), not the planner.
+    #: The reply's exchanges. A story-engine scene keeps the conversation going
+    #: until the last one (``turn_plan.keep_talking``): two on Léger, three on
+    #: Régulier, four on Soutenu and Intensif. Authored scenes stay at their two.
     max_turns: int
     #: How many of the learner's daily new words the word drill leaves for the
     #: day until the day is planned (§5: one intake pool, the journey first).
@@ -97,9 +100,9 @@ class RhythmCaps:
 RHYTHM_CAPS: dict[int, RhythmCaps] = {
     300: RhythmCaps(300, MAX_PRACTICE_STEPS, MAX_PRACTICE_RECALL_STEPS,
                     MAX_WARMUP_RECALL_STEPS, 2, 1, 5, 8, 2, 2, 2),
-    600: RhythmCaps(600, 30, 26, 14, 10, 2, 20, 16, 2, 2, 4),
-    1200: RhythmCaps(1200, 62, 58, 28, 26, 4, 44, 32, 3, 2, 8),
-    1800: RhythmCaps(1800, 92, 88, 42, 40, 6, 70, 48, 3, 2, 12),
+    600: RhythmCaps(600, 30, 26, 14, 10, 2, 20, 16, 2, 3, 4),
+    1200: RhythmCaps(1200, 62, 58, 28, 26, 4, 44, 32, 3, 4, 8),
+    1800: RhythmCaps(1800, 92, 88, 42, 40, 6, 70, 48, 3, 4, 12),
 }
 
 
@@ -571,6 +574,11 @@ class ScenarioBrief:
     control_language: ControlLanguage = FALLBACK_CONTROL_LANGUAGE
 
     story_context: dict[str, Any] = field(default_factory=dict)
+    #: 2026-09-25. An authored scene's graphic-novel page, as the scene step shows
+    #: it: ``[{index, narration_fr, dialogue: [{character_id, character_name,
+    #: text_fr}], image_url}]``. Empty for a story-engine scene, whose panels are
+    #: published as an episode (``/story-engine/episodes``), and for older content.
+    panels: list[dict[str, Any]] = field(default_factory=list)
 
     def public_descriptor(self) -> dict[str, Any]:
         return {

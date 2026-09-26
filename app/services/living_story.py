@@ -375,7 +375,7 @@ class SceneDraft(StrictModel):
     season_thread: str | None = Field(default=None, max_length=80)
     thread_shift: Literal["developing", "closed"] | None = None
     escalates_ref: str | None = Field(default=None, max_length=160)
-    panels: list[Panel] = Field(min_length=2, max_length=5)
+    panels: list[Panel] = Field(min_length=2, max_length=6)
     opening_line_fr: str = Field(min_length=1, max_length=320)
     suggested_response_fr: str = Field(min_length=1, max_length=400)
     hint_native: str = Field(min_length=1, max_length=400)
@@ -476,13 +476,21 @@ learner could actually say, never a list of alternatives with slashes or bracket
 An invitation can be declined; do not railroad the learner. character_id
 is the cast member who addresses the learner and must be an id from world.cast; every
 dialogue character_id likewise; the learner is never a character_id. location_id must
-be an id from world.locations. Keep the scene short: premise plus all panel narration
-and dialogue under about 100 words for A1 and 150 for A2. Preserve
+be an id from world.locations. Premise plus all panel narration and dialogue stay
+under about 160 words for A1, 240 for A2, 300 for B1, 350 for B2 and 400 for C1. Preserve
 character knowledge: a character only knows witnessed events or facts explicitly
 shared with them. The current scene can introduce a new complication, not a fake memory.
 Use the established cast and locations. No external news or user biography inference.
-Stay inside the learner's French level and five-minute envelope. Prefer 2-3 concise
-panels, not exposition. Each panel is a cinematic beat: setting, gesture, dialogue.
+Stay inside the learner's French level. The scene is a graphic-novel page of 4-6
+panels, not exposition. Each panel is a cinematic beat: setting, gesture, dialogue,
+with a visual_direction an illustrator can draw (who is in frame, what they do, the
+shot: wide, medium or close-up; vary it). Let the cast live in front of the learner:
+before the addressed character turns to the learner, at least one other cast member is
+in the scene and they talk to EACH OTHER — a disagreement, a joke, news, a look — so the
+learner walks into a moment already in motion. EXCEPTION: when chapter.shape is
+two_hander, NO other cast member has a dialogue line — the addressed character alone
+speaks, and the page gets its movement from gesture, place and narration instead.
+Change the camera from panel to panel.
 Create a communicative need absent from recent premises; reusing a skill is fine.
 Panels end at a real opportunity to respond. Never show the suggested learner answer
 in a panel. The private suggestion must actually satisfy the objective. Do not
@@ -648,8 +656,11 @@ auxiliary, agreement, word order) before an article, preposition or spelling sli
 correction_span_fr must be verbatim from the learner's text.
 demonstrated_target_ids only for ids listed in targets that were truly used correctly
 in context; an empty targets list means an empty demonstrated_target_ids.
-Each scene is ONE exchange: unless needs_clarification is true, this reply ends the
-scene, so always write resolution_fr and summary_native from what actually happened
+When turn_plan.keep_talking is true the conversation goes on after this reply: react,
+then move the scene forward with ONE new question or need that follows from what the
+learner just said (a detail, a choice, a reason, a feeling), still inside the scene's
+situation; write no ending yet. Otherwise, unless needs_clarification is true, this
+reply ends the scene, so always write resolution_fr and summary_native from what actually happened
 (a refusal or a partial result still gets an honest ending, not invented success);
 callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome list.
 Commitments require exact learner source_quote; only resolve known commitment IDs when
@@ -783,7 +794,8 @@ def _json_call(
             [{"role": "user", "content": _cache_friendly_content(payload, schema)}],
             system_prompt=system,
             temperature=0.55 if schema is SceneDraft else 0.2,
-            max_tokens=max_tokens or (2500 if schema is SceneDraft else 1600),
+            # A 4-6 panel page (2026-09-25) is ~2× the old 2-3 panel draft.
+            max_tokens=max_tokens or (5000 if schema is SceneDraft else 1600),
             response_format={"type": "json_object"},
             # Live measurement 2026-09-06 (gpt-5-mini, SceneDraft): default reasoning
             # effort spends the whole completion budget on reasoning and returns no
@@ -3208,7 +3220,9 @@ def _check_address(texts: list[str], address: str | None) -> None:
 
 
 _REPLY_WORD_LIMITS = {"A1": 40, "A2": 60, "B1": 90, "B2": 120, "C1": 150}
-_SCENE_WORD_LIMITS = {"A1": 110, "A2": 170, "B1": 210, "B2": 250, "C1": 290}
+# A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
+_SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
+MIN_SCENE_PANELS = 4
 
 _TU_MARKERS = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
@@ -3799,7 +3813,16 @@ def _validate_scene(draft: SceneDraft, context: dict):
                 f"this objective repeats \"{twin.get('objective_native')}\"",
             ),
         )
-    # Keep the total reading portion inside the existing five-minute planner.
+    if len(draft.panels) < MIN_SCENE_PANELS:
+        raise StoryUnavailable(
+            "too_few_panels",
+            hint=(
+                f"The scene has {len(draft.panels)} panels; write {MIN_SCENE_PANELS} to 6. "
+                "Open on the place and the cast talking among themselves, then turn to "
+                "the learner — each panel one beat, a new shot."
+            ),
+        )
+    # Keep the total reading portion inside the planner's reading budget.
     words = (
         draft.premise_fr.split()
         + [w for p in draft.panels for w in p.narration_fr.split()]
@@ -4151,6 +4174,11 @@ def bind_journey(
                 },
             )
         )
+    # Every panel opens on the location plate; its own drawing replaces it once the
+    # scene is committed (app/services/panel_art.py). The reader never waits for art.
+    from app.services.panel_art import request_scene_art
+
+    request_scene_art(db, scene)
     if owns_episode:
         episode.scene_id = scene.id
         episode.scene = scene
@@ -4375,8 +4403,21 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         "turn_plan": {
             "closing_turn": turns_left <= 0,
             "clarify_form_fr": self_repair.question_fr if self_repair is not None else None,
+            # A scene is a conversation of `max_turns` exchanges, not one line: until
+            # the last one the character answers and moves the scene on.
+            "keep_talking": keeps_talking(task, turn_index, self_repair=self_repair),
         },
     }
+
+
+def keeps_talking(task: ResponseTask, turn_index: int, *, self_repair=None) -> bool:
+    """True while the scene's conversation has exchanges left after this turn.
+
+    A wording question from the app (WP-36) takes the turn instead: the scene
+    stays open for it anyway, and a follow-up question would bury it.
+    """
+
+    return self_repair is None and int(turn_index) + 1 < int(task.max_turns or 1)
 
 
 def _folded(text: str) -> str:
@@ -4571,6 +4612,8 @@ def evaluate_turn(
             # this reply cannot be the ending — whatever the actor decided. The
             # ending is written on the turn that answers the question.
             needs_repair = True
+        if payload["turn_plan"]["keep_talking"]:
+            needs_repair = True  # the conversation has exchanges left
         # An exhausted clarification must still have an honest AI-written ending.
         if not needs_repair and (not turn.resolution_fr or not turn.summary_native):
             raise StoryUnavailable(

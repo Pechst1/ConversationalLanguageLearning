@@ -38,6 +38,7 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.services import living_story as engine
 from tests import test_journey_end_to_end as support
+from tests.test_living_story import EXTRA_PANELS
 
 Driver = support.Driver
 register = support.register
@@ -365,6 +366,7 @@ class ScriptedProvider:
                     "dialogue": dialogue,
                     "visual_direction": "The speaker leans on the zinc counter.",
                 },
+                *EXTRA_PANELS,
             ],
             "opening_line_fr": "Vous pouvez nous aider ?",
             "suggested_response_fr": "Je peux apporter les affiches samedi.",
@@ -398,6 +400,17 @@ class ScriptedProvider:
             "demonstrated_target_ids": [],
             **script.extra,
         }
+
+
+@pytest.fixture(autouse=True)
+def one_exchange(monkeypatch):
+    """These tests pin what happens when one reply ends the scene. The scene's
+    later exchanges (``turn_plan.keep_talking``) are pinned in
+    tests/test_story_exchanges.py."""
+
+    from app.services import living_story
+
+    monkeypatch.setattr(living_story, "keeps_talking", lambda *a, **k: False)
 
 
 @pytest.fixture

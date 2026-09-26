@@ -1941,6 +1941,8 @@ def plan_journey(
                 # `audio_available` is read at plan time and re-read at
                 # projection time, so a flag flipped off later still wins.
                 "listen_first": bool(shape is DayShape.LISTENING and audio_available),
+                # An authored scene's graphic-novel page; absent when it has none.
+                **({"panels": [dict(panel) for panel in scenario.panels]} if scenario.panels else {}),
             },
             private_task=None,
             target=None,
@@ -2897,6 +2899,8 @@ def _plan_practice_day(
                 "character_line_audio_url": None,
                 "image_url": scenario.image_url,
                 "listen_first": bool(shape is DayShape.LISTENING and audio_available),
+                # An authored scene's graphic-novel page; absent when it has none.
+                **({"panels": [dict(panel) for panel in scenario.panels]} if scenario.panels else {}),
             },
         )
     )

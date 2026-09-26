@@ -118,6 +118,22 @@ def _shaped(context, n):
     return speaker, location
 
 
+# A scene is a page of at least MIN_SCENE_PANELS panels (2026-09-25). The beats the
+# tests poke at stay at indexes 0 and 1; these two only make up the page.
+EXTRA_PANELS = (
+    {
+        "narration_fr": "Une affiche vide attend sur le comptoir.",
+        "dialogue": [],
+        "visual_direction": "Close-up of a blank poster and a box of markers.",
+    },
+    {
+        "narration_fr": "La pluie redouble.",
+        "dialogue": [],
+        "visual_direction": "Wide shot of the street through the wet window.",
+    },
+)
+
+
 def draft(context, n=0):
     chapter = context.get("chapter") or {}
     speaker, location = _shaped(context, n)
@@ -168,6 +184,7 @@ def draft(context, n=0):
                 "dialogue": [{"character_id": speaker, "text_fr": "Vous avez une idée ?"}],
                 "visual_direction": "Romy unfolds a blank poster at the counter.",
             },
+            *EXTRA_PANELS,
         ],
         "opening_line_fr": "Vous pouvez nous aider ?",
         "suggested_response_fr": "Je peux apporter les affiches samedi.",
@@ -237,6 +254,17 @@ class FakeProvider:
         )
 
 
+@pytest.fixture(autouse=True)
+def one_exchange(monkeypatch):
+    """These tests pin what happens when one reply ends the scene. The scene's
+    later exchanges (``turn_plan.keep_talking``) are pinned in
+    tests/test_story_exchanges.py."""
+
+    from app.services import living_story
+
+    monkeypatch.setattr(living_story, "keeps_talking", lambda *a, **k: False)
+
+
 @pytest.fixture
 def provider(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True)
@@ -288,7 +316,7 @@ def test_real_journey_publishes_same_scene_for_reader(
         ).json()["episodes"]
         == []
     )
-    assert len(scene["panels"]) == 2
+    assert len(scene["panels"]) == 2 + len(EXTRA_PANELS)
     assert scene["resolution"] is None
     assert "rubric" not in json.dumps(scene) and "suggested_response" not in json.dumps(scene)
     thread = db_session.get(SerialThread, UUID(d.journey["scenario"]["serial_thread_id"]))
@@ -434,7 +462,7 @@ def test_reader_is_owned_and_position_validated(
         ).status_code
         == 404
     )
-    for index in (-1, 2, 500, True):
+    for index in (-1, len(scene["panels"]), 500, True):
         assert (
             assembled_client.put(
                 route + "/position", json={"panel_index": index}, headers=d.headers

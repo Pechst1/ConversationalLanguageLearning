@@ -116,6 +116,17 @@ class LaneProvider(FakeProvider):
         return [schema for schema, _ in self.calls]
 
 
+@pytest.fixture(autouse=True)
+def one_exchange(monkeypatch):
+    """These tests pin what happens when one reply ends the scene. The scene's
+    later exchanges (``turn_plan.keep_talking``) are pinned in
+    tests/test_story_exchanges.py."""
+
+    from app.services import living_story
+
+    monkeypatch.setattr(living_story, "keeps_talking", lambda *a, **k: False)
+
+
 @pytest.fixture
 def provider(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True)

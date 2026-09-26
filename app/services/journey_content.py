@@ -86,6 +86,10 @@ JOURNEY_PROMPT_ROOT = APP_ROOT / "prompts" / "journey"
 #: absent the declared asset path is trusted, when it is present it is verified.
 MEDIA_PUBLIC_ROOT = REPO_ROOT / "web-frontend" / "public"
 
+#: An authored scene's page, when it has one, is as long as a story-engine page.
+MIN_AUTHORED_PANELS = 4
+MAX_AUTHORED_PANELS = 6
+
 JOURNEY_PROMPT_VERSION = "journey-prompt-v1"
 VARIATION_PROMPT_FILE = "scenario_variation_v1.json"
 CURRENT_CONTENT_VERSION = JOURNEY_CONTENT_VERSION
@@ -571,7 +575,26 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
         character_lines.append(
             (f"resolution_lines[{outcome_key}]", render_authored_text(line))
         )
-    for label, line in character_lines:
+    # The page (2026-09-25): the addressed character's panel lines are held to the
+    # scene's register like any of their lines; everyone's are held to the length.
+    panel_lines: list[tuple[str, str]] = []
+    if brief.panels and not MIN_AUTHORED_PANELS <= len(brief.panels) <= MAX_AUTHORED_PANELS:
+        problems.append(
+            f"the page has {len(brief.panels)} panels, outside "
+            f"{MIN_AUTHORED_PANELS}..{MAX_AUTHORED_PANELS}"
+        )
+    known_cast = _cast_names()
+    for panel in brief.panels:
+        for line in panel.get("dialogue") or []:
+            speaker = str(line.get("character_id") or "")
+            label = f"panels[{panel.get('index')}] {speaker}"
+            if known_cast and speaker not in known_cast:
+                problems.append(f"{label} is not in the world cast")
+            if speaker == brief.character_id:
+                character_lines.append((label, str(line.get("text_fr") or "")))
+            else:
+                panel_lines.append((label, str(line.get("text_fr") or "")))
+    for label, line in [*character_lines, *panel_lines]:
         if _words(line) > limits["line_words"]:
             problems.append(
                 f"{label} is {_words(line)} words, over the {brief.level_band} "
@@ -630,6 +653,8 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
         task.hint_native or "",
         *(render_authored_text(line) for line in brief.resolution_lines.values()),
         *(render_authored_text(text) for text in brief.resolution_summaries.values()),
+        *(str(panel.get("narration_fr") or "") for panel in brief.panels),
+        *(str(line.get("text_fr") or "") for panel in brief.panels for line in panel.get("dialogue") or []),
     ]
     for term in rules.forbidden_terms:
         for text in guarded:
@@ -1178,7 +1203,51 @@ def _build_authored_brief(
         estimated_seconds=int(variant.get("estimated_seconds") or DEFAULT_BUDGET_SECONDS),
         is_authored_fallback=bool(serial.is_fallback) if serial else True,
         control_language=control_language,
+        panels=authored_panels(variant, fallback_image_url=image_url),
     )
+
+
+@lru_cache(maxsize=1)
+def _cast_names() -> dict[str, str]:
+    from app.services.serial import SerialThreadService
+
+    world = SerialThreadService._load_world_bible()
+    return {
+        str(member.get("id")): str(member.get("name") or member.get("id"))
+        for member in world.get("cast") or []
+        if member.get("id")
+    }
+
+
+def authored_panels(variant: dict[str, Any], *, fallback_image_url: str | None) -> list[dict[str, Any]]:
+    """The variant's graphic-novel page, public shape. A panel whose drawing is not
+    on disk shows the scene's location plate instead — never a broken image."""
+
+    names = _cast_names()
+    panels: list[dict[str, Any]] = []
+    for index, raw in enumerate(variant.get("panels") or []):
+        if not isinstance(raw, dict):
+            continue
+        drawn = resolve_media_url(raw.get("image_asset"))
+        panels.append(
+            {
+                "id": f"authored-{index}",
+                "index": index,
+                "narration_fr": str(raw.get("narration_fr") or ""),
+                "dialogue": [
+                    {
+                        "character_id": str(line.get("character_id") or ""),
+                        "character_name": names.get(str(line.get("character_id") or "")),
+                        "text_fr": str(line.get("text_fr") or ""),
+                    }
+                    for line in raw.get("dialogue") or []
+                    if isinstance(line, dict) and line.get("text_fr")
+                ],
+                "image_url": drawn or fallback_image_url,
+                "image_status": "panel_art" if drawn else ("setting_reference" if fallback_image_url else "unavailable"),
+            }
+        )
+    return panels
 
 
 # --------------------------------------------------------------------------

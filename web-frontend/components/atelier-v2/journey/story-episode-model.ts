@@ -11,6 +11,8 @@
  *   * a panel with no art is `missing`, never a placeholder illustration;
  *   * reused location art is `setting_reference` and is labelled as such —
  *     it is not claimed to be a newly generated illustration;
+ *   * a panel's own drawing is `panel_art`; while it is on its way the panel
+ *     shows the plate (`rendering`) and the step polls (`storyArtRendering`);
  *   * the generated ending is exposed only when the server exposes it
  *     (`resolution` is null until the exchange actually settles).
  */
@@ -143,8 +145,8 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       panelIndex: panel.index,
       title: '',
       beat: '',
-      imageUrl: panel.image_status === 'setting_reference' && panel.image_url ? panel.image_url : '',
-      artStatus: panel.image_status === 'setting_reference' && panel.image_url ? 'ready' : 'missing',
+      imageUrl: panelShowsArt(panel) ? panel.image_url || '' : '',
+      artStatus: panelShowsArt(panel) ? 'ready' : 'missing',
       character,
       lines,
       caption: stripPanelPrefix(panel.narration_fr),
@@ -167,9 +169,27 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
   return stages;
 }
 
+const SHOWN_ART = new Set(['panel_art', 'rendering', 'setting_reference']);
+
+/** A panel with art to show: its own drawing, or the plate (also while drawing). */
+function panelShowsArt(panel: StoryPanel): boolean {
+  return Boolean(panel.image_url) && SHOWN_ART.has(panel.image_status);
+}
+
 /** Which panels reuse setting art, so the reader can say so. */
 export function storyUsesSettingArt(episode: StoryEpisode | null | undefined): boolean {
-  return Boolean(episode?.panels?.some((panel) => panel.image_status === 'setting_reference' && panel.image_url));
+  return Boolean(
+    episode?.panels?.some(
+      (panel) =>
+        (panel.image_status === 'setting_reference' || panel.image_status === 'rendering') &&
+        panel.image_url,
+    ),
+  );
+}
+
+/** True while any panel's own drawing is still on its way. */
+export function storyArtRendering(episode: StoryEpisode | null | undefined): boolean {
+  return Boolean(episode?.panels?.some((panel) => panel.image_status === 'rendering'));
 }
 
 /** The saved server position, clamped to the panels the episode actually has. */
@@ -614,4 +634,29 @@ export function listenFirstPlacement({
 }): ListenFirstPlacement {
   if (!audioAvailable) return 'none';
   return preferred || dealt ? 'cycle' : 'before_first_panel';
+}
+
+/**
+ * An authored scene's page as an episode the reader can show. Local only: it has no
+ * server episode, so nothing is saved against its id.
+ */
+export function authoredPageEpisode(
+  journeyId: string,
+  stepId: string,
+  panels: StoryPanel[] | null | undefined,
+): StoryEpisode | null {
+  if (!panels || !panels.length) return null;
+  return {
+    id: `authored:${stepId}`,
+    scene_id: `authored:${stepId}`,
+    serial_thread_id: '',
+    serial_episode_id: null,
+    journey_id: journeyId,
+    title_fr: '',
+    status: 'available',
+    chapter: null,
+    panel_index: 0,
+    panels,
+    resolution: null,
+  };
 }

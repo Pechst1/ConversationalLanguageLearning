@@ -58,6 +58,20 @@ def cast_names(db, scenes) -> dict[str, str]:
     return names
 
 
+def panel_image_status(panel) -> str:
+    """``panel_art`` (the panel's own drawing), ``rendering`` (the plate, while the
+    drawing is on its way), ``setting_reference`` (the plate) or ``unavailable``."""
+
+    if not panel.image_url:
+        return "unavailable"
+    meta = panel.generation_metadata or {}
+    if meta.get("image_source") == "panel_art":
+        return "panel_art"
+    if meta.get("image_status") == "rendering":
+        return "rendering"
+    return "setting_reference"
+
+
 def public_scene(scene, names: dict[str, str] | None = None):
     source = scene.source_snapshot or {}
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
@@ -82,7 +96,7 @@ def public_scene(scene, names: dict[str, str] | None = None):
                     for line in (p.overlay_payload or {}).get("dialogue", [])
                 ],
                 "image_url": p.image_url,
-                "image_status": "setting_reference" if p.image_url else "unavailable",
+                "image_status": panel_image_status(p),
             }
             for p in panels
         ],

@@ -307,6 +307,18 @@ class Settings(BaseSettings):
         False,
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
     )
+    ATELIER_PANEL_ART_ENABLED: bool = Field(
+        False,
+        description=(
+            "Draw every story-engine panel from its own visual direction with the approved cast "
+            "references (app/services/panel_art.py). Off: every panel shows the location plate."
+        ),
+    )
+    ATELIER_PANEL_ART_CONCURRENCY: int = Field(3, description="Panels of one scene drawn at once")
+    ATELIER_PANEL_ART_SCENES_IN_FLIGHT: int = Field(2, description="Scenes drawn at once per process")
+    ATELIER_PANEL_ART_REFERENCES_PER_MINUTE: int = Field(
+        5, description="The image API's limit on reference images per minute (edits endpoint)"
+    )
     # "local" by default: inlining base64 panels made every episode payload ~64 MB.
     # Production sets "s3"; "data_uri" remains available for tests/one-off tooling.
     GRAPHIC_NOVEL_IMAGE_STORAGE: str = Field(

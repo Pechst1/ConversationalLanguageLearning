@@ -480,6 +480,7 @@ def _brief_to_json(brief: ScenarioBrief) -> dict[str, Any]:
         "is_authored_fallback": brief.is_authored_fallback,
         "control_language": brief.control_language,
         "story_context": dict(brief.story_context),
+        "panels": [dict(panel) for panel in brief.panels],
     }
 
 
@@ -508,6 +509,7 @@ def _brief_from_json(payload: dict[str, Any]) -> ScenarioBrief:
         estimated_seconds=int(payload.get("estimated_seconds", 264)),
         is_authored_fallback=bool(payload.get("is_authored_fallback", False)),
         control_language=payload.get("control_language", "en"),
+        panels=[dict(panel) for panel in payload.get("panels") or []],
     )
 
 

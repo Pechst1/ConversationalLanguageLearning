@@ -131,6 +131,23 @@ class ScenarioDescriptor(JourneyModel):
 # ---------------------------------------------------------------------------
 
 
+class ScenePanelLine(JourneyModel):
+    character_id: str
+    character_name: str | None = None
+    text_fr: str
+
+
+class ScenePanel(JourneyModel):
+    """One panel of an authored scene's page (2026-09-25)."""
+
+    id: str
+    index: int
+    narration_fr: str = ""
+    dialogue: list[ScenePanelLine] = Field(default_factory=list)
+    image_url: str | None = None
+    image_status: Literal["panel_art", "setting_reference", "unavailable"] = "unavailable"
+
+
 class ScenePrompt(JourneyModel):
     setup_fr: str
     setup_native: str
@@ -148,6 +165,9 @@ class ScenePrompt(JourneyModel):
     #: ``audio_available``: a listening day on a deployment whose audio has
     #: since been switched off is read aloud by nobody and must not claim to be.
     listen_first: bool = False
+    #: An authored scene's graphic-novel page (story-engine scenes publish theirs as
+    #: an episode). Additive: absent on every scene planned before 2026-09-25.
+    panels: list[ScenePanel] | None = None
 
 
 class RecallOption(JourneyModel):
