@@ -147,7 +147,7 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     assert '{showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}' in reader
     assert "{open ? t.hide_translation : t.translate}" in reader
     reader_copy = read_web("components/feuilleton/reader/reader-copy.ts")
-    assert "translate_panel: 'Traduire la planche'" in reader_copy
+    assert "translate_panel: 'Traduire la case'" in reader_copy  # a case is one panel; the planche is the page
     assert "hide_translation: 'Masquer la traduction'" in reader_copy
 
 
