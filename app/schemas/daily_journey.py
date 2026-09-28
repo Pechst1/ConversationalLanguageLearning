@@ -273,6 +273,25 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class JourneyCorrection(JourneyModel):
+    span_fr: str
+    corrected_fr: str
+    note_native: str
+
+
+class ThreadExchange(JourneyModel):
+    """WP-89 «Le fil»: one exchange of the reply conversation, as it happened.
+
+    ``character_fr`` is the character's answer to ``learner_fr``; ``correction``
+    is the one public correction that turn earned, if any. Additive to contract
+    v1: a reloaded client redraws the conversation from it.
+    """
+
+    learner_fr: str
+    character_fr: str
+    correction: JourneyCorrection | None = None
+
+
 class RespondPrompt(JourneyModel):
     turn_index: int
     max_turns: int
@@ -288,6 +307,9 @@ class RespondPrompt(JourneyModel):
     #: WP-66. Present only on a «jour de lettre»; ``None`` is the shipping
     #: value until WP-64 registers a letter provider.
     letter: RespondLetter | None = None
+    #: WP-89. The exchanges so far, oldest first; empty on turn 0. The last
+    #: entry's ``character_fr`` is the ``character_line_fr`` above.
+    thread: list[ThreadExchange] = Field(default_factory=list)
 
 
 class ResolutionPrompt(JourneyModel):
@@ -735,12 +757,6 @@ class TodayEnvelope(JourneyModel):
 # ---------------------------------------------------------------------------
 
 
-class JourneyCorrection(JourneyModel):
-    span_fr: str
-    corrected_fr: str
-    note_native: str
-
-
 class NextTurn(JourneyModel):
     step_id: str
     prompt: RespondPrompt
@@ -937,6 +953,7 @@ __all__ = [
     "StoryOutcome",
     "TargetRef",
     "TextAttemptInput",
+    "ThreadExchange",
     "TilesAttemptInput",
     "TodayEnvelope",
     "VoiceAttemptInput",

@@ -62,6 +62,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 from uuid import UUID
@@ -1308,10 +1309,12 @@ def _cafe_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
         return f"Alors, c'est {labels[0]} ou {labels[1]} ?"
     place = _CAFE_PLACE_LABEL.get(choice.categories[0]) if choice.categories else None
     if met and drink and place:
+        # WP-89: an A1 line is at most twelve words; these tails keep the
+        # closing line inside that cap for every drink on the menu.
         tail = {
-            "en terrasse": "Je vous apporte ça, la terrasse est couverte.",
-            "à emporter": "Je vous mets ça dans un gobelet.",
-            "au comptoir": "Je vous prépare ça tout de suite.",
+            "en terrasse": "La terrasse est couverte.",
+            "à emporter": "Je vous mets ça en gobelet.",
+            "au comptoir": "Je vous prépare ça.",
         }[place]
         extra = " Et je note votre demande." if signals.cafe_extra else ""
         return f"{drink} {place}, très bien. {tail}{extra}"
@@ -1322,12 +1325,12 @@ def _cafe_reply(signals: _Signals, choice: _OutcomeChoice, met: bool) -> str:
         options = _remaining(_CAFE_PLACE_MENU, _rejected_place_labels(signals))
         if head and len(options) >= 2:
             return f"{drink}, très bien. {head} C'est {options[0]} ou {options[1]} ?"
-        return f"{drink}, très bien. Vous vous installez au comptoir, en terrasse, ou c'est à emporter ?"
+        return f"{drink}, très bien. Au comptoir, en terrasse ou à emporter ?"
     if place:
         options = _remaining(_CAFE_DRINK_MENU, signals.rejected_drinks)
         if head and len(options) >= 2:
             return f"{head} {_capitalize(place)}, donc. {_capitalize(options[0])} ou {options[1]} ?"
-        return f"D'accord, {place}. Et je vous sers quoi ? Un café, un thé, un chocolat chaud ?"
+        return f"D'accord, {place}. Un café, un thé ou un chocolat chaud ?"
     if head:
         # The learner said no to something specific. Offering it back would be
         # contradicting them; offer what is left instead.
@@ -1598,25 +1601,419 @@ def build_callback_fact(*, scenario_key: str, signals: _Signals, outcome_key: st
 
 _MODEL_SYSTEM_PROMPT = (
     "You voice one character in a short French practice scene for a beginner. "
-    "Reply in French, in character, in at most two short sentences. "
+    "Reply in French, in character, in ONE short line at the learner's level: the "
+    "message states a word cap, and a longer reply is refused. "
+    "You remember the whole conversation: what the learner already said is settled, and "
+    "you never ask for it again. "
     "Never break character, never teach, never correct the learner in the reply. "
     "Return only JSON."
 )
 
 _MODEL_USER_TEMPLATE = """Character: {character_name} ({character_id}) at {location_name}.
 Register with the learner: {register} (never switch).
+Learner level: {band}. Your reply is at most {word_cap} words{clause_rule}, with everyday words.
 Practical objective: {objective_native}
 Scene facts that must stay true:
 {required_facts}
+The conversation so far (oldest first):
+{thread}
+Settled — the learner already said this; build on it and never ask for it again:
+{settled}
 Allowed outcome keys (choose exactly one, copy it verbatim):
 {allowed_outcomes}
 The deterministic grader already decided:
   task_outcome = {task_outcome}
   outcome_key = {outcome_key}
 Learner's latest message: {learner_text}
+Your next move: {next_move}
 
 Return JSON: {{"reply_fr": "...", "outcome_key": "..."}}
 Do not invent an outcome key. Do not add any other field."""
+
+
+# --------------------------------------------------------------------------
+# WP-89 «Le fil» — the conversation is one conversation
+#
+# Live walk 2026-09-28 (W7/W8): the authored-scene model saw only the learner's
+# latest line and had no level. Margaux answered an A1.1 learner in 35 words of
+# B1, and one turn later asked what they would like to drink — after they had
+# ordered a coffee. Three deterministic guards close that: the prompt carries
+# the thread and the facts the learner's own words settled; a reply longer than
+# the band's cap, or one that re-asks a settled fact, or one full of words the
+# learner has never met, is refused (one retry with the reason, then the
+# authored line for the same state).
+# --------------------------------------------------------------------------
+
+#: Words in one authored-scene character line, by band. The story engine's ACTOR
+#: caps (``living_story._REPLY_WORD_LIMITS``: A1 40 …) bound a whole reply *and*
+#: its ending; a line said across a café counter to an A1 learner is one clause.
+REPLY_WORD_CAPS: dict[str, int] = {"A1": 12, "A2": 18, "B1": 28, "B2": 40, "C1": 50, "C2": 50}
+#: At A1 a line asks at most one question and never chains clauses with « ; ».
+_ONE_QUESTION_BANDS = frozenset({"A1"})
+_NO_SEMICOLON_BANDS = frozenset({"A1", "A2"})
+
+
+def _band(scenario: ScenarioBrief) -> str:
+    from app.services.lexical_coverage import band_of
+
+    return band_of(scenario.level_band)
+
+
+_WORD_TOKEN_RE = re.compile(r"\w", re.UNICODE)
+
+
+def word_count(text: str | None) -> int:
+    """Running words, the way a reader counts them: « ? » and « ! » are not words."""
+
+    return len([token for token in str(text or "").split() if _WORD_TOKEN_RE.search(token)])
+
+
+def reply_level_issue(reply: str, *, band: str) -> str | None:
+    """A retry hint when ``reply`` is above the band's line, else ``None``."""
+
+    cap = REPLY_WORD_CAPS.get(band, REPLY_WORD_CAPS["B1"])
+    words = word_count(reply)
+    if words > cap:
+        return (
+            f"The reply runs to {words} words; a {band} learner reads at most {cap} in one "
+            "line. Say the same thing in one short clause."
+        )
+    if band in _NO_SEMICOLON_BANDS and ";" in reply:
+        return f"A {band} line is one clause: no « ; ». Keep only the part that answers the learner."
+    if band in _ONE_QUESTION_BANDS and reply.count("?") > 1:
+        return f"A {band} line asks one question at most. Keep the one that moves the scene on."
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class SettledFact:
+    """Something the learner's own words settled in this conversation."""
+
+    #: ``drink`` · ``seat`` · ``extra`` · ``day`` · ``meeting_place`` · ``time`` ·
+    #: ``late`` · ``reason`` · ``plan`` · ``refused``.
+    slot: str
+    value: str
+    #: The line the model reads, in English (the prompt's language).
+    label: str
+
+
+def _unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(value for value in values if value))
+
+
+def settled_facts(scenario_key: str, signals: _Signals, choice: _OutcomeChoice) -> list[SettledFact]:
+    """What the learner has settled so far, read deterministically from their turns.
+
+    Only unambiguous facts: two drinks named at once settle neither, and a place
+    the scene does not offer settles nothing. Refusals are listed too, so the
+    character never offers back what the learner turned down.
+    """
+
+    key = str(scenario_key)
+    facts: list[SettledFact] = []
+    if key == CapabilityKey.ORDER_AT_CAFE.value:
+        drinks = _unique(signals.drinks)
+        if len(drinks) == 1:
+            facts.append(SettledFact("drink", drinks[0], f"the learner ordered {drinks[0]}"))
+        places = _unique([cat for cat in signals.cafe_places if cat in _CAFE_PLACE_LABEL])
+        if len(places) == 1:
+            label = _CAFE_PLACE_LABEL[places[0]]
+            facts.append(SettledFact("seat", label, f"the learner will have it {label}"))
+        if signals.cafe_extra:
+            facts.append(SettledFact("extra", "", "the learner already asked for something extra"))
+        for drink in _unique(signals.rejected_drinks):
+            facts.append(SettledFact("refused", drink, f"the learner does not want {drink}"))
+        for label in _rejected_place_labels(signals):
+            facts.append(SettledFact("refused", label, f"the learner does not want it {label}"))
+    elif key == CapabilityKey.ARRANGE_MEETING.value:
+        days = _unique(signals.days)
+        if len(days) == 1:
+            facts.append(SettledFact("day", days[0], f"the learner proposed {days[0]}"))
+        places = _unique(list(choice.categories))
+        if len(places) == 1 and places[0] in _MEETING_PLACE_LABEL:
+            label = _MEETING_PLACE_LABEL[places[0]]
+            facts.append(SettledFact("meeting_place", label, f"the learner proposed to meet {label}"))
+        if signals.time_phrase:
+            facts.append(SettledFact("time", signals.time_phrase, f"the learner proposed {signals.time_phrase}"))
+        for day in _unique(signals.rejected_days):
+            facts.append(SettledFact("refused", day, f"the learner cannot do {day}"))
+    elif key == CapabilityKey.EXPLAIN_DELAY.value:
+        if signals.late:
+            facts.append(SettledFact("late", "", "the learner said they are late"))
+        reasons = _unique(signals.reasons)
+        if reasons:
+            facts.append(SettledFact("reason", reasons[0], f"the learner gave the reason: {reasons[0]}"))
+        if signals.time_phrase:
+            facts.append(SettledFact("time", signals.time_phrase, f"the learner arrives {signals.time_phrase}"))
+        if choice.key and choice.conflict is None:
+            facts.append(SettledFact("plan", choice.key, "the learner said what Romy should do"))
+    return facts
+
+
+#: Question cues that ask for a fact again, folded (no accents, no apostrophes).
+#: Only *questions* are read: « Un café au comptoir, très bien. » restates a
+#: settled fact, which is how a character confirms it; « Vous buvez quoi ? »
+#: asks for it, which is how W8 forgot the coffee.
+_REASK_CUES: dict[str, tuple[str, ...]] = {
+    "drink": (
+        "boire", "je vous sers", "vous sers quoi", "quelle boisson", "vous prenez quoi",
+        "que prenez vous", "qu est ce que vous prenez", "que desirez vous", "vous desirez",
+        "vous buvez", "un cafe un the", "cafe ou un the", "cafe ou the", "the ou un cafe",
+        "the ou cafe", "chocolat chaud ou",
+    ),
+    "seat": (
+        "asseoir", "vous installez", "sur place ou", "ou a emporter", "ou c est a emporter",
+        "comptoir ou", "ou en terrasse", "ou sur la terrasse", "ou la terrasse",
+        "ou au comptoir", "quelle place", "ou voulez vous",
+    ),
+    "extra": ("avec ca", "autre chose", "ce sera tout"),
+    "day": ("quel jour", "on se voit quand", "c est quand", "quand est ce qu on", "tu peux quand"),
+    "meeting_place": (
+        "on se retrouve ou", "ou est ce qu on", "ou ca", "quel endroit", "ou on se voit",
+        "ou on se retrouve",
+    ),
+    "time": ("quelle heure", "tu arrives quand", "vous arrivez quand", "dans combien de temps"),
+    "reason": ("qu est ce qui se passe", "qu est ce qui s est passe", "pourquoi"),
+    "plan": ("je t attends ou", "je fais quoi", "je viens te chercher ou"),
+}
+
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?…])\s+")
+
+
+def _questions(reply: str) -> list[str]:
+    return [part for part in _SENTENCE_END_RE.split(str(reply or "")) if "?" in part]
+
+
+def reasked_fact(reply: str, facts: list[SettledFact]) -> SettledFact | None:
+    """The settled fact ``reply`` asks for again, if any (the W8 guard)."""
+
+    questions = [_padded(fold_for_comparison(part)) for part in _questions(reply)]
+    if not questions:
+        return None
+    for fact in facts:
+        cues = _REASK_CUES.get(fact.slot, ())
+        if any(f" {cue} " in question for cue in cues for question in questions):
+            return fact
+    return None
+
+
+def _scene_seen_texts(
+    *, scenario: ScenarioBrief, task: ResponseTask, history: list[dict] | None
+) -> list[str]:
+    """Every French line the learner has read or written in this scene."""
+
+    seen = [scenario.setup_fr or "", *_character_lines(scenario=scenario, task=task, history=history)]
+    for panel in scenario.panels or []:
+        if not isinstance(panel, dict):
+            continue
+        seen.append(str(panel.get("narration_fr") or ""))
+        for line in panel.get("dialogue") or []:
+            if isinstance(line, dict):
+                seen.append(str(line.get("text_fr") or ""))
+    seen.extend(_learner_history_texts(history))
+    seen.extend(str(target.label_fr or "") for target in task.targets)
+    return [text for text in seen if text.strip()]
+
+
+def reply_lexical_issue(
+    db: Session,
+    *,
+    user: User,
+    reply: str,
+    seen: list[str],
+    names: list[str],
+) -> str | None:
+    """WP-29's word budget applied to one line (WP-89).
+
+    A line is far below the 20 running words a coverage percentage needs, so the
+    per-band *accidental unknown* budget is what binds (A1: one word nobody chose).
+    Words the learner has already read or written in this scene are not new, and
+    names are not words. Abstains, never rejects, when the known set is missing.
+    """
+
+    try:
+        from app.services.lexical_coverage import (
+            MAX_HINT_WORDS,
+            SUPPORTED_COVERAGE_FLOOR,
+            accidental_budget,
+            known_word_set,
+            text_coverage,
+        )
+
+        known = known_word_set(db, user=user)
+        if not known.is_assessable:
+            return None
+        result = text_coverage(reply, known, targets=seen, proper_nouns=names)
+    except Exception as exc:  # noqa: BLE001 - a level check never costs a turn
+        logger.warning("journey_conversation_lexical_check_skipped: {}", exc.__class__.__name__)
+        return None
+    budget = accidental_budget(result.band)
+    accidental = result.accidental
+    low = result.is_assessable and result.coverage < SUPPORTED_COVERAGE_FLOOR
+    if len(accidental) <= budget and not low:
+        return None
+    words = ", ".join(f"« {word.surface} »" for word in accidental[:MAX_HINT_WORDS])
+    return (
+        f"Too many words a {result.band} learner has not met: {words}. Say it with the "
+        "everyday words of this scene."
+    )
+
+
+# --------------------------------------------------------------------------
+# WP-89 «Relance» — pushed output within the exchange budget
+# --------------------------------------------------------------------------
+
+RELANCE_REASON = "relance"
+
+#: A correct answer shorter than this, in content words, is minimal for the band.
+RELANCE_MIN_CONTENT_WORDS: dict[str, int] = {"A1": 3, "A2": 5}
+RELANCE_DEFAULT_MIN_CONTENT_WORDS = 8
+
+#: Greetings and politeness are the frame of an answer, not its content.
+_FRAME_TOKENS = frozenset(
+    {
+        "bonjour", "bonsoir", "salut", "coucou", "merci", "beaucoup", "il", "vous", "te",
+        "plait", "svp", "stp", "madame", "monsieur", "oui", "non", "ok", "okay", "bien",
+        "sur", "accord", "alors", "euh", "bon", "voila",
+    }
+)
+
+#: One more clause, asked the way the scene would ask it.
+RELANCE_FR: dict[str, dict[str, str]] = {
+    CapabilityKey.ORDER_AT_CAFE.value: {"vous": "Et avec ça ?", "tu": "Et avec ça ?"},
+    CapabilityKey.ARRANGE_MEETING.value: {
+        "vous": "Et on y fait quoi ?",
+        "tu": "Et on y fait quoi ?",
+    },
+    CapabilityKey.EXPLAIN_DELAY.value: {"vous": "Et vous êtes où, là ?", "tu": "Et tu es où, là ?"},
+}
+_RELANCE_DEFAULT_FR = {"vous": "Ah bon ? Pourquoi ?", "tu": "Ah bon ? Pourquoi ?"}
+#: The slot a relance asks for: once settled, it is not asked for.
+_RELANCE_SLOT = {CapabilityKey.ORDER_AT_CAFE.value: "extra"}
+
+
+def content_word_count(text: str | None) -> int:
+    """Words that carry the answer: greetings and politeness excluded."""
+
+    return len(
+        [
+            token
+            for token in fold_for_comparison(text).split()
+            if len(token) >= 2 and token not in _FRAME_TOKENS
+        ]
+    )
+
+
+def is_minimal_answer(text: str | None, *, band: str) -> bool:
+    floor = RELANCE_MIN_CONTENT_WORDS.get(band, RELANCE_DEFAULT_MIN_CONTENT_WORDS)
+    return content_word_count(text) < floor
+
+
+def _relance_lines() -> set[str]:
+    lines = {line for table in RELANCE_FR.values() for line in table.values()}
+    return lines | set(_RELANCE_DEFAULT_FR.values())
+
+
+def _already_relanced(history: list[dict] | None) -> bool:
+    lines = {fold_for_comparison(line) for line in _relance_lines()}
+    return any(
+        any(fold_for_comparison(text).endswith(line) for line in lines)
+        for text in _character_history_texts(history)
+    )
+
+
+def relance_line(
+    *,
+    scenario_key: str,
+    register: str,
+    text: str,
+    band: str,
+    outcome: TaskOutcome,
+    closing: bool,
+    task: ResponseTask,
+    turn_index: int,
+    history: list[dict] | None,
+    settled: list[SettledFact],
+) -> str | None:
+    """The one more clause a correct-but-minimal answer earns, or ``None``.
+
+    Only on a turn that would otherwise close the scene (a turn still asking for
+    a missing fact already asks something), only while a *planned* exchange is
+    left (``max_turns``: never the repair slot, never a turn beyond the plan),
+    and once per scene.
+    """
+
+    if not closing or outcome not in (TaskOutcome.MET, TaskOutcome.PARTIALLY_MET):
+        return None
+    if int(turn_index) + 1 >= normal_turns(task):
+        return None
+    if not is_minimal_answer(text, band=band) or _already_relanced(history):
+        return None
+    slot = _RELANCE_SLOT.get(str(scenario_key))
+    if slot and any(fact.slot == slot for fact in settled):
+        return None
+    table = RELANCE_FR.get(str(scenario_key), _RELANCE_DEFAULT_FR)
+    return table["tu" if str(register) == "tu" else "vous"]
+
+
+def _first_sentence(reply: str) -> str:
+    parts = _SENTENCE_END_RE.split(str(reply or "").strip(), maxsplit=1)
+    return parts[0] if parts else ""
+
+
+def _thread_prompt_lines(
+    *, scenario: ScenarioBrief, task: ResponseTask, history: list[dict] | None
+) -> list[str]:
+    """The conversation so far, oldest first, as the model reads it."""
+
+    name = task.character_name or scenario.character_name or "Character"
+    lines = [
+        f"{name}: {opening.strip()}"
+        for opening in dict.fromkeys([scenario.opening_line_fr or "", task.opening_line_fr or ""])
+        if opening.strip()
+    ]
+    for entry in history or []:
+        if not isinstance(entry, dict):
+            continue
+        learner = entry.get("learner") or entry.get("learner_text")
+        character = entry.get("character")
+        if learner is None and character is None:
+            role = str(entry.get("role") or "learner").lower()
+            if role in {"character", "assistant"}:
+                character = entry.get("text")
+            elif role in {"learner", "user"}:
+                learner = entry.get("text")
+        if isinstance(learner, str) and learner.strip():
+            lines.append(f"Learner: {learner.strip()}")
+        if isinstance(character, str) and character.strip():
+            lines.append(f"{name}: {character.strip()}")
+    return lines
+
+
+def _next_move(
+    *,
+    relance: str | None,
+    needs_repair: bool,
+    blocked: bool,
+    missing: list[str],
+) -> str:
+    if relance:
+        return (
+            "the conversation goes on. React in a few words to what the learner said, then "
+            f"ask exactly: « {relance} »"
+        )
+    if needs_repair:
+        if blocked:
+            return (
+                "the conversation goes on. Ask ONE short question to clear up which option "
+                "the learner means."
+            )
+        wanted = ", ".join(item.replace("_", " ") for item in missing) or "what is still missing"
+        return (
+            "the conversation goes on. React in a few words, then ask ONE short question "
+            f"about what is still missing ({wanted})."
+        )
+    return "this reply closes the scene: confirm what the learner settled, in a few words. Ask nothing."
 
 
 _OUTCOME_RANK = {TaskOutcome.NOT_YET: 0, TaskOutcome.PARTIALLY_MET: 1, TaskOutcome.MET: 2}
@@ -1817,26 +2214,44 @@ def _model_reply(
     learner_text: str,
     task_outcome: TaskOutcome,
     outcome_key: str | None,
+    band: str = "B1",
+    thread: list[str] | None = None,
+    settled: list[SettledFact] | None = None,
+    next_move: str = "",
+    validate: Callable[[str], tuple[str, str] | None] | None = None,
 ) -> tuple[str, str | None] | None:
     llm = _conversation_llm()
     if llm is None:
         return None
+    cap = REPLY_WORD_CAPS.get(band, REPLY_WORD_CAPS["B1"])
     prompt = _MODEL_USER_TEMPLATE.format(
         character_name=task.character_name,
         character_id=task.character_id,
         location_name=scenario.location_name,
         register=register,
+        band=band,
+        word_cap=cap,
+        clause_rule=", one clause, one question at most" if band in _ONE_QUESTION_BANDS else "",
         objective_native=task.objective_native,
         required_facts="\n".join(f"- {fact}" for fact in required_facts) or "- (none)",
+        thread="\n".join(f"- {line}" for line in thread or []) or "- (nothing yet)",
+        settled="\n".join(f"- {fact.label}" for fact in settled or []) or "- (nothing yet)",
         allowed_outcomes="\n".join(f"- {key}" for key in task.allowed_outcomes) or "- (none)",
         task_outcome=str(task_outcome),
         outcome_key=outcome_key or "(none yet)",
         learner_text=learner_text,
+        next_move=next_move or "answer the learner in character.",
     )
+    hint: str | None = None
     for attempt in range(1, MAX_MODEL_ATTEMPTS + 1):
+        content = prompt
+        if hint:
+            # One retry, told why: a guard that refuses without saying what to
+            # change buys the same reply twice (STATUS 2026-09-07, defect 1).
+            content = f"{prompt}\n\nYour previous reply was refused: {hint}"
         try:
             result = llm.generate_chat_completion(
-                [{"role": "user", "content": prompt}],
+                [{"role": "user", "content": content}],
                 system_prompt=_MODEL_SYSTEM_PROMPT,
                 temperature=0.5,
                 # A gpt-5 model spends a 300-token budget on reasoning and
@@ -1861,6 +2276,22 @@ def _model_reply(
         if parsed is None:
             continue
         _reply, proposed = parsed
+        issue = validate(_reply) if validate is not None else None
+        if issue is not None:
+            reason, hint = issue
+            _record_event(
+                db,
+                JourneyEventName.GENERATION_FALLBACK,
+                user_id=user.id,
+                scenario_key=str(scenario.scenario_key),
+                payload={"attempt": attempt, "stage": "conversation_reply", "reason": reason},
+            )
+            logger.info(
+                "journey_conversation_model_reply_refused",
+                scenario_key=str(scenario.scenario_key),
+                reason=reason,
+            )
+            continue
         if proposed is not None and outcome_key is not None and proposed != outcome_key:
             # R-2: the key is declared, but it is not the one the learner's own
             # words grounded. Reply and consequence are validated *together* —
@@ -2515,6 +2946,21 @@ class FeedbackDecision:
         return self.pragmatic_code in _PRAGMATIC_MAY_EXTEND
 
     @property
+    def replaces_reply(self) -> bool:
+        """WP-89: a greeting or softener nudge *is* the character's line.
+
+        Live walk 2026-09-28 (W7): « …voulez-vous vous asseoir au comptoir… ?
+        Bonjour ! On se dit bonjour d'abord ? » — Margaux served, asked where to
+        sit, and only then asked for the hello. On the opening turn the nudge
+        replaces the line (she greets and waits for the greeting); on a later
+        turn :func:`pragmatic_decision` drops it. Only the closing nudge still
+        rides after the reply: there is no later turn for it, and the line it
+        follows closes the scene rather than moving it on.
+        """
+
+        return self.pragmatic_fr is not None and self.pragmatic_code not in _PRAGMATIC_MAY_EXTEND
+
+    @property
     def elicitation_fr(self) -> str | None:
         """The line the character adds to its reply, if any."""
 
@@ -2957,6 +3403,12 @@ def pragmatic_decision(
     if line is None:
         return EMPTY_DECISION
     sentence, code = line
+    if code not in _PRAGMATIC_MAY_EXTEND and _learner_history_texts(history):
+        # WP-89: past the opening turn the moment for « bonjour » has gone, and a
+        # softener question stacked on the character's own next line is a second
+        # question. A register *slip* still reaches the learner, through the
+        # correction slot.
+        return EMPTY_DECISION
     return FeedbackDecision(
         pragmatic_fr=sentence, pragmatic_code=code, reason="pragmatic_move_missing"
     )
@@ -3030,7 +3482,13 @@ def apply_feedback_policy(
         # The scene was about to end and this line is not worth stopping it.
         return replace(evaluation, **updates) if updates else evaluation
     if line and remaining_turns(task, turn_index) > 0:
-        updates["character_reply_fr"] = _joined_reply(evaluation.character_reply_fr, line)
+        if decision.replaces_reply:
+            updates["character_reply_fr"] = line
+            if evaluation.failure_reason == REPLY_SOURCE_MODEL:
+                # The line the learner reads is now the authored nudge.
+                updates["failure_reason"] = REPLY_SOURCE_AUTHORED
+        else:
+            updates["character_reply_fr"] = _joined_reply(evaluation.character_reply_fr, line)
         updates["needs_repair"] = True
         if decision.prompt is not None:
             # The scene has *not* ended: what the learner meant is still in
@@ -3291,24 +3749,113 @@ def _evaluate_response(
                 success_outcome_key(task, scenario_key), task=task, scenario_key=scenario_key
             )
 
-    generated = _model_reply(
+    # WP-36, taken before any paid call: both decisions are pure (the learner's
+    # text and their stored errata), and one of them may make the model line
+    # moot. The policy may add a question, credit a repair or make a correction
+    # explicit; it may never change what the turn was worth.
+    decision = feedback_decision(
         db,
         user=user,
         scenario=scenario,
         task=task,
-        register=register,
-        required_facts=_scene_required_facts(scenario),
-        learner_text=text,
-        task_outcome=outcome,
-        outcome_key=resolved_key,
+        text=text,
+        turn_index=turn_index,
+        history=history,
     )
-    if generated is not None:
-        generated_reply, proposed = generated
-        # While the conversation is still open no ending is settled, so a proposed
-        # key decides nothing; only a closing reply must agree with its ending.
-        if needs_repair or proposed is None or proposed == resolved_key:
-            reply = generated_reply
-            provenance = REPLY_SOURCE_MODEL
+    band = _band(scenario)
+    settled = settled_facts(scenario_key, combined, choice)
+    # WP-89 «Relance»: a correct but minimal answer on a turn that would close
+    # the scene, with a planned exchange left, earns one more question.
+    relance: str | None = None
+    if decision.is_empty:
+        relance = relance_line(
+            scenario_key=scenario_key,
+            register=register,
+            text=text,
+            band=band,
+            outcome=outcome,
+            closing=not needs_repair and not blocked,
+            task=task,
+            turn_index=turn_index,
+            history=history,
+            settled=settled,
+        )
+    if relance:
+        decision = FeedbackDecision(reason=RELANCE_REASON)
+        reply = _joined_reply(_first_sentence(reply), relance) or relance
+    elif decision.is_empty:
+        decision = pragmatic_decision(
+            user=user,
+            scenario=scenario,
+            task=task,
+            text=text,
+            turn_index=turn_index,
+            outcome=outcome,
+            correction=correction,
+            history=history,
+            assessment=_register_assessment,
+        )
+    # WP-89 (W7): an opening-turn greeting nudge on a turn that goes on *is*
+    # the line; paying for a model line that would be thrown away is waste.
+    nudge_replaces = decision.replaces_reply and needs_repair
+
+    if not nudge_replaces:
+        seen = [*_scene_seen_texts(scenario=scenario, task=task, history=history), text, reply]
+        names = [
+            task.character_name or "",
+            scenario.character_name or "",
+            scenario.location_name or "",
+        ]
+
+        def _validate(candidate: str) -> tuple[str, str] | None:
+            issue = reply_level_issue(candidate, band=band)
+            if issue:
+                return "reply_above_level", issue
+            fact = reasked_fact(candidate, settled)
+            if fact is not None:
+                return (
+                    "reply_reasks_settled_fact",
+                    f"The reply asks again for something already settled ({fact.label}). "
+                    "Build on it instead: confirm it or move to what is still missing.",
+                )
+            lexical = reply_lexical_issue(
+                db, user=user, reply=candidate, seen=seen, names=[n for n in names if n]
+            )
+            if lexical:
+                return "reply_lexical_level", lexical
+            return None
+
+        missing = [name for name in required if name not in hit]
+        generated = _model_reply(
+            db,
+            user=user,
+            scenario=scenario,
+            task=task,
+            register=register,
+            required_facts=_scene_required_facts(scenario),
+            learner_text=text,
+            task_outcome=outcome,
+            outcome_key=resolved_key,
+            band=band,
+            thread=_thread_prompt_lines(scenario=scenario, task=task, history=history),
+            settled=settled,
+            next_move=_next_move(
+                relance=relance, needs_repair=needs_repair, blocked=blocked, missing=missing
+            ),
+            validate=_validate,
+        )
+        if generated is not None:
+            generated_reply, proposed = generated
+            # While the conversation is still open no ending is settled, so a
+            # proposed key decides nothing; only a closing reply must agree with
+            # its ending.
+            if needs_repair or proposed is None or proposed == resolved_key:
+                if relance and "?" not in generated_reply:
+                    # The model acknowledged and stopped: the question it was
+                    # asked to put is the whole point of the turn.
+                    generated_reply = _joined_reply(generated_reply, relance) or relance
+                reply = generated_reply
+                provenance = REPLY_SOURCE_MODEL
 
     consequence: StoryOutcomeProposal | None = None
     if resolved_key is not None:
@@ -3331,35 +3878,13 @@ def _evaluate_response(
         character_reply_fr=reply,
         correction=correction,
         consequence=consequence,
-        needs_repair=needs_repair,
+        # A relance keeps the ending the learner earned (like a pragmatic
+        # nudge) and spends one of the exchanges the plan already had.
+        needs_repair=needs_repair or bool(relance),
         turn_consumed=not over_budget,
         pending=False,
         failure_reason=provenance,
     )
-    # WP-36. Taken last, and applied to the finished grading: the policy may
-    # add a question, credit a repair or make a correction explicit, and it may
-    # never change what the turn was worth.
-    decision = feedback_decision(
-        db,
-        user=user,
-        scenario=scenario,
-        task=task,
-        text=text,
-        turn_index=turn_index,
-        history=history,
-    )
-    if decision.is_empty:
-        decision = pragmatic_decision(
-            user=user,
-            scenario=scenario,
-            task=task,
-            text=text,
-            turn_index=turn_index,
-            outcome=outcome,
-            correction=correction,
-            history=history,
-            assessment=_register_assessment,
-        )
     return _stamped(
         apply_feedback_policy(
             evaluation,

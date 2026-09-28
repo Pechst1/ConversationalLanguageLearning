@@ -529,6 +529,39 @@ def _scenario_view(snapshot: Any) -> Any:
     return {**snapshot, "location_name": french}
 
 
+def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
+    """WP-89: the respond step's exchanges as the public ``ThreadExchange`` shape.
+
+    Built from ``private_task["turns"]`` and nothing else in it: the learner's
+    own line, the character's line and the public correction that turn showed.
+    Oldest first.
+    """
+
+    thread: list[dict[str, Any]] = []
+    for turn in turns or []:
+        if not isinstance(turn, dict):
+            continue
+        learner = str(turn.get("learner") or "").strip()
+        if not learner:
+            continue
+        correction = turn.get("correction")
+        if isinstance(correction, dict):
+            try:
+                correction = JourneyCorrection.model_validate(correction).model_dump(mode="json")
+            except ValueError:
+                correction = None
+        else:
+            correction = None
+        thread.append(
+            {
+                "learner_fr": learner,
+                "character_fr": str(turn.get("character") or ""),
+                "correction": correction,
+            }
+        )
+    return thread
+
+
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
     """The stored public prompt, plus what the client must know about this
     deployment before it offers a mode (WP-49). Read at projection time, never
@@ -3451,10 +3484,16 @@ class DailyJourneyService:
         step.evidence_ref = applied.evidence_ref
         if evaluation.turn_consumed:
             step.turns_used += 1
+        public_correction = self._public_correction(evaluation.correction, answer.text)
         history.append(
             {
                 "learner": answer.text,
                 "character": evaluation.character_reply_fr or "",
+                # WP-89: kept with the turn so the thread can be redrawn —
+                # exactly the correction the learner was shown, never a second.
+                "correction": (
+                    public_correction.model_dump(mode="json") if public_correction else None
+                ),
             }
         )
         private["turns"] = history
@@ -3474,6 +3513,9 @@ class DailyJourneyService:
             if evaluation.character_reply_fr:
                 prompt["character_line_fr"] = evaluation.character_reply_fr
             prompt["repair_allowed"] = False
+            # WP-89 «Le fil»: the conversation so far, so a reloaded client can
+            # redraw it. Public by construction: what was said and shown.
+            prompt["thread"] = _public_thread(history)
             step.public_prompt = prompt
             next_turn = NextTurn(
                 step_id=str(step.id), prompt=RespondPrompt.model_validate(prompt)
@@ -3502,7 +3544,7 @@ class DailyJourneyService:
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
             assistance_level=assistance,
-            correction=self._public_correction(evaluation.correction, answer.text),
+            correction=public_correction,
             character_reply_fr=evaluation.character_reply_fr,
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,

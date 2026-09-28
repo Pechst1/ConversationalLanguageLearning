@@ -149,7 +149,9 @@ def test_a_turn_past_the_budget_is_not_consumed_and_asks_for_no_repair(db_sessio
 def test_a_partial_first_turn_asks_for_another_turn(db_session):
     user = _user(db_session)
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
-    result = _evaluate(db_session, user, brief, "Un café, s'il vous plaît.")
+    # WP-89: with « bonjour » said, so the opening greeting nudge (which now
+    # *replaces* the line) is not what this test is about.
+    result = _evaluate(db_session, user, brief, "Bonjour, un café, s'il vous plaît.")
     assert result.outcome is TaskOutcome.PARTIALLY_MET
     assert result.needs_repair is True
     assert result.consequence is None
@@ -1047,8 +1049,9 @@ def test_a_refusal_of_one_drink_promotes_the_drink_that_was_asked_for(db_session
 
     user = _user(db_session)
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    # « Bonjour » said: WP-89's opening greeting nudge replaces the line otherwise.
     result = _evaluate(
-        db_session, user, brief, "Non merci, pas de café. Un thé, s'il vous plaît."
+        db_session, user, brief, "Bonjour. Non merci, pas de café. Un thé, s'il vous plaît."
     )
 
     # One of the two required intents (the place) is still missing, so this is
@@ -1062,7 +1065,7 @@ def test_a_refusal_of_one_drink_promotes_the_drink_that_was_asked_for(db_session
         brief,
         "Au comptoir.",
         turn_index=1,
-        history=[{"learner": "Non merci, pas de café. Un thé, s'il vous plaît."}],
+        history=[{"learner": "Bonjour. Non merci, pas de café. Un thé, s'il vous plaît."}],
     )
     assert follow_up.outcome is TaskOutcome.MET
     assert follow_up.consequence is not None
@@ -1402,7 +1405,7 @@ def test_a_table_the_scene_does_not_offer_is_asked_about_not_served(db_session):
 def test_la_bas_names_no_place(db_session):
     user = _user(db_session)
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
-    result = _evaluate(db_session, user, brief, "Un café, là-bas s'il vous plaît.")
+    result = _evaluate(db_session, user, brief, "Bonjour, un café, là-bas s'il vous plaît.")
 
     assert result.needs_repair and result.consequence is None
     assert "Là-bas ?" in result.character_reply_fr
