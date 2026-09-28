@@ -91,6 +91,8 @@ def public_scene(scene, names: dict[str, str] | None = None):
                 "id": str(p.id),
                 "index": p.panel_index,
                 "narration_fr": (p.overlay_payload or {}).get("narration_fr", ""),
+                # WP-90: one sentence describing the picture, for VoiceOver.
+                "alt_native": (p.overlay_payload or {}).get("alt_native"),
                 "dialogue": [
                     {**line, "character_name": names.get(str(line.get("character_id")))}
                     for line in (p.overlay_payload or {}).get("dialogue", [])

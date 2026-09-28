@@ -235,7 +235,11 @@ def test_dialogue_is_printed_once_with_canonical_short_names():
     # One dialogue system: lines under the art. No on-art bubble layer plus a
     # transcript repeating the same lines (audit §9).
     assert "export function panelLines" in model
-    assert component.count('<div className="fr-speech"') == 1
+    # WP-90: one speech component with two forms — the full line and the compact
+    # caption of the story reader — plus the ending's single line in the case
+    # finale. Alternatives, never the same line printed twice.
+    assert component.count('<div className="fr-speech" data-char') == 1
+    assert component.count('data-compact="true"') == 2
     assert "fe-bubble" not in reader and "fe-bubble" not in component
     assert "FeTranscript" not in reader and "FeTranscript" not in component
     # Canonical short display names (checklist #13).
@@ -341,7 +345,7 @@ def test_option_translations_stay_hidden_until_requested():
 def test_sticky_bar_carries_one_action_and_no_counters():
     reader = _component()
 
-    bar = reader[reader.index('<div className="fr-bar">') : reader.index('<div className="fr-head">')]
+    bar = reader[reader.index('<div className="fr-bar"') : reader.index('<div className="fr-head">')]
     assert "aria-label={t.exit}" in bar  # WP-82: «Quitter la lecture» lives in reader-copy.ts
     nav = reader[reader.index('<nav className="fr-nav"') : reader.index("</nav>")]
     for dead in ("planches", "tâches", "submittedCount", "taskCount"):
