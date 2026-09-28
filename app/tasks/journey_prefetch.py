@@ -196,3 +196,22 @@ def schedule_next_day_warmup(
         logger.info("Day-2 warm-up not queued", user_id=str(user.id), error=str(exc))
         return None
     return eta
+
+
+# ---------------------------------------------------------------------------
+# WP-90 — the prefetched draft's panels, drawn ahead of the tap
+# ---------------------------------------------------------------------------
+
+
+@celery_app.task(name="app.tasks.journey_prefetch.draw_prefetched_panel_art")
+def draw_prefetched_panel_art(prefetch_id: str) -> dict[str, str]:
+    """Draw one prefetch's panels. Every rule (flag, allowance, ledger) is ``panel_art``'s."""
+
+    from app.db.session import engine
+    from app.services.panel_art import PrefetchArtJob, render_prefetch_art
+
+    try:
+        return {"status": render_prefetch_art(PrefetchArtJob(str(prefetch_id), engine))}
+    except Exception as exc:  # pragma: no cover - the bound scene draws what is missing
+        logger.warning("Prefetch panel art failed", prefetch_id=str(prefetch_id), error=str(exc))
+        return {"status": "error"}

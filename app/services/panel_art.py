@@ -95,6 +95,26 @@ class PanelJob:
 class SceneArtJob:
     scene_id: str
     bind: Any
+    #: The panels this job draws; ``None`` is every panel still ``rendering`` (WP-90:
+    #: a scene whose other panels wait on its prefetch's drawings names its own).
+    indices: tuple[int, ...] | None = None
+
+
+@dataclass(frozen=True)
+class PrefetchArtJob:
+    """WP-90: draw a prefetched draft's panels, keyed to its prefetch row."""
+
+    prefetch_id: str
+    bind: Any
+
+
+@dataclass(frozen=True)
+class AdoptArtJob:
+    """WP-90: a bound scene whose panels are still being drawn by its prefetch."""
+
+    scene_id: str
+    prefetch_id: str
+    bind: Any
 
 
 # ---------------------------------------------------------------------------
@@ -177,8 +197,18 @@ def affordable_panels(db: Session, user: Any, wanted: int) -> int:
     return max(0, min(wanted, int((left + 1e-9) // cost)))
 
 
-def request_scene_art(db: Session, scene, *, level_band: str | None = None, user: Any = None) -> bool:
-    """Mark the panels today's allowance covers ``rendering``; draw them once ``db`` commits."""
+def request_scene_art(
+    db: Session,
+    scene,
+    *,
+    level_band: str | None = None,
+    user: Any = None,
+    panels: list | None = None,
+) -> bool:
+    """Mark the panels today's allowance covers ``rendering``; draw them once ``db`` commits.
+
+    ``panels`` limits the request to some of the scene's panels (WP-90: the ones its
+    prefetch did not draw)."""
 
     if not enabled() or not _band_allowed(level_band):
         return False
@@ -186,7 +216,8 @@ def request_scene_art(db: Session, scene, *, level_band: str | None = None, user
         from app.db.models.user import User
 
         user = db.get(User, scene.user_id)
-    panels = sorted(scene.panels, key=lambda p: p.panel_index)
+    subset = panels is not None
+    panels = sorted(scene.panels if panels is None else panels, key=lambda p: p.panel_index)
     count = affordable_panels(db, user, len(panels))
     if count <= 0:
         return False
@@ -195,7 +226,8 @@ def request_scene_art(db: Session, scene, *, level_band: str | None = None, user
             **(panel.generation_metadata or {}),
             "image_status": RENDERING,
         }
-    db.info.setdefault(PENDING_KEY, []).append(SceneArtJob(str(scene.id), db.get_bind()))
+    indices = tuple(int(panel.panel_index) for panel in panels[:count]) if subset else None
+    db.info.setdefault(PENDING_KEY, []).append(SceneArtJob(str(scene.id), db.get_bind(), indices))
     return True
 
 
@@ -210,16 +242,47 @@ def _executor() -> ThreadPoolExecutor:
         return _EXECUTOR
 
 
+_ADOPT_EXECUTOR: ThreadPoolExecutor | None = None
+
+
+def _adopt_executor() -> ThreadPoolExecutor:
+    """Adoption mostly waits; it gets its own threads so it never holds up drawing."""
+
+    global _ADOPT_EXECUTOR
+    with _EXECUTOR_LOCK:
+        if _ADOPT_EXECUTOR is None:
+            _ADOPT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="panel-adopt")
+        return _ADOPT_EXECUTOR
+
+
+def _dispatch_prefetch(job: PrefetchArtJob) -> None:
+    """On the Celery worker, where the prefetch itself runs (see the WP-90 note below);
+    in this process when no broker takes it."""
+
+    try:
+        from app.tasks.journey_prefetch import draw_prefetched_panel_art
+
+        draw_prefetched_panel_art.apply_async(args=[job.prefetch_id])
+        return
+    except Exception as exc:  # pragma: no cover - broker-less dev fallback
+        logger.info("panel_art: prefetch {} drawn in process ({})", job.prefetch_id, exc)
+    _executor().submit(render_prefetch_art, job)
+
+
 @event.listens_for(Session, "after_commit")
 def _dispatch_after_commit(session: Session) -> None:
     for job in session.info.pop(PENDING_KEY, []):
         try:
             if dispatcher is not None:
                 dispatcher(job)
+            elif isinstance(job, PrefetchArtJob):
+                _dispatch_prefetch(job)
+            elif isinstance(job, AdoptArtJob):
+                _adopt_executor().submit(adopt_prefetched_art, job)
             else:
                 _executor().submit(render_scene_art, job)
         except Exception:  # pragma: no cover - the panels keep their plates
-            logger.exception("panel_art: could not dispatch scene {}", job.scene_id)
+            logger.exception("panel_art: could not dispatch {}", job)
 
 
 @event.listens_for(Session, "after_rollback")
@@ -407,10 +470,19 @@ def draw(job: PanelJob) -> bytes:
 
 
 def _world_for(db: Session, scene) -> dict:
+    return _world_for_thread(db, scene.serial_thread_id)
+
+
+def _world_for_thread(db: Session, thread_id: Any) -> dict:
     from app.db.models.serial import SerialThread
     from app.services.serial import SerialThreadService
 
-    thread = db.get(SerialThread, scene.serial_thread_id) if scene.serial_thread_id else None
+    thread = None
+    if thread_id:
+        try:
+            thread = db.get(SerialThread, thread_id if isinstance(thread_id, UUID) else UUID(str(thread_id)))
+        except ValueError:
+            thread = None
     world = thread.world_bible if thread is not None else None
     return world if isinstance(world, dict) and world.get("cast") else SerialThreadService._load_world_bible()
 
@@ -497,6 +569,9 @@ def render_scene_art(job: SceneArtJob) -> str:
             panel_job(scene, panel, world)
             for panel in sorted(scene.panels, key=lambda p: p.panel_index)
             if (panel.generation_metadata or {}).get("image_status") == RENDERING
+            # WP-90: a panel waiting on its prefetch's drawing is not this job's.
+            and not (panel.generation_metadata or {}).get(AWAITING_KEY)
+            and (job.indices is None or panel.panel_index in job.indices)
         ]
     started = time.monotonic()
 
@@ -518,3 +593,374 @@ def render_scene_art(job: SceneArtJob) -> str:
         job.scene_id, drawn, len(jobs), time.monotonic() - started,
     )
     return "done" if drawn == len(jobs) else "partial"
+
+
+# ---------------------------------------------------------------------------
+# WP-90 «La planche» — art ready before the tap
+# ---------------------------------------------------------------------------
+#
+# A scene drawn after it is bound opens on the location plate: the drawing arrives about
+# a minute after the learner does. A *prefetched* scene (WP-26, the warm draft for the
+# next day) is known hours ahead, so its panels are drawn then:
+#
+# * ``prefetch_scene_for`` calls :func:`request_prefetch_art` in the prefetch's own
+#   transaction. It checks the flag, the band and the art allowance of the day it runs
+#   (the allowance is per learner-local day, and the drawing is charged to the day it
+#   is drawn), writes a zero-cost ``journey_prefetch_art_requested`` row naming the
+#   panels, and queues the drawing for after the commit.
+# * The drawing runs as its own Celery task (``draw_prefetched_panel_art``) because the
+#   prefetch already runs on the worker: a task there is queued durably and survives the
+#   beat's child process, where threads left behind by a finished task would not be
+#   (``worker_max_tasks_per_child``, a deploy). With no broker it runs in this process.
+# * Each drawn panel writes the usual ``journey_panel_art_cost`` row — keyed to the
+#   prefetch row (``entity_type = journey_scene_prefetch``) and carrying the stored
+#   image — so the ledger is both the bill and the store. A failed one writes a
+#   zero-cost ``journey_prefetch_art_failed`` row.
+# * ``bind_journey`` calls :func:`attach_prefetched_art`: drawn panels are attached
+#   (``ready``), panels whose drawing is still in flight wait for it (an
+#   :class:`AdoptArtJob` after the commit, which draws them itself if the prefetch's
+#   drawing fails or never comes), and only the rest are requested as usual.
+# * A discarded prefetch leaves its drawings unused; their cost rows stay, honestly.
+
+PREFETCH_ART_REQUESTED_EVENT = "journey_prefetch_art_requested"
+PREFETCH_ART_FAILED_EVENT = "journey_prefetch_art_failed"
+#: On a bound panel's ``generation_metadata``: the prefetch whose drawing it waits for.
+AWAITING_KEY = "awaiting_prefetch"
+#: A prefetch drawing requested longer ago than this is not waited for at bind time.
+PREFETCH_IN_FLIGHT_SECONDS = 20 * 60
+#: How long a bound scene waits for drawings still in flight before drawing them itself.
+ADOPT_WAIT_SECONDS = 150.0
+ADOPT_POLL_SECONDS = 3.0
+
+
+def _prefetch_vocabulary() -> tuple[str, str, str]:
+    from app.services.journey_latency import (
+        PREFETCH_DISCARDED_EVENT,
+        PREFETCH_ENTITY_TYPE,
+        PREFETCH_EVENT,
+    )
+
+    return PREFETCH_ENTITY_TYPE, PREFETCH_EVENT, PREFETCH_DISCARDED_EVENT
+
+
+@dataclass
+class PrefetchLedger:
+    requested: set[int]
+    requested_at: Any
+    ready: dict[int, dict]
+    failed: set[int]
+    discarded: bool
+
+    def in_flight(self) -> bool:
+        from datetime import UTC, datetime
+
+        if not self.requested or self.requested_at is None:
+            return False
+        at = self.requested_at if self.requested_at.tzinfo else self.requested_at.replace(tzinfo=UTC)
+        return (datetime.now(UTC) - at).total_seconds() < PREFETCH_IN_FLIGHT_SECONDS
+
+    def pending(self) -> set[int]:
+        return self.requested - set(self.ready) - self.failed
+
+
+def prefetch_ledger(db: Session, prefetch_id: str) -> PrefetchLedger:
+    """What the ledger says about one prefetch's drawings."""
+
+    from sqlalchemy import select
+
+    from app.db.models.pilot_event import PilotEvent
+    from app.services.spend_guard import PANEL_ART_EVENT_TYPE
+
+    entity_type, _, discarded_event = _prefetch_vocabulary()
+    rows = db.scalars(
+        select(PilotEvent)
+        .where(
+            PilotEvent.entity_type == entity_type,
+            PilotEvent.entity_id == str(prefetch_id),
+            PilotEvent.event_type.in_(
+                [
+                    PANEL_ART_EVENT_TYPE,
+                    PREFETCH_ART_REQUESTED_EVENT,
+                    PREFETCH_ART_FAILED_EVENT,
+                    discarded_event,
+                ]
+            ),
+        )
+        .order_by(PilotEvent.occurred_at.asc())
+    ).all()
+    ledger = PrefetchLedger(set(), None, {}, set(), False)
+    for row in rows:
+        payload = row.payload or {}
+        if row.event_type == discarded_event:
+            ledger.discarded = True
+        elif row.event_type == PREFETCH_ART_REQUESTED_EVENT:
+            ledger.requested |= {int(i) for i in payload.get("panel_indices") or []}
+            ledger.requested_at = row.occurred_at
+        elif row.event_type == PREFETCH_ART_FAILED_EVENT:
+            ledger.failed.add(int(payload.get("panel_index", -1)))
+        elif payload.get("image_url"):
+            ledger.ready.setdefault(int(payload.get("panel_index", -1)), payload)
+    ledger.failed -= set(ledger.ready)
+    return ledger
+
+
+def _draft_stand_ins(prefetch_id: str, brief: dict) -> tuple[Any, list[Any]]:
+    """The scene and panels ``panel_job`` would see once the draft is bound."""
+
+    from types import SimpleNamespace
+
+    context = brief.get("story_context") or {}
+    draft = context.get("draft") or {}
+    scene = SimpleNamespace(
+        id=f"prefetch-{prefetch_id}",
+        script_payload={"location_id": draft.get("location_id") or brief.get("location_id")},
+    )
+    panels = [
+        SimpleNamespace(
+            panel_index=index,
+            image_prompt=str(panel.get("visual_direction") or ""),
+            overlay_payload={"dialogue": list(panel.get("dialogue") or [])},
+        )
+        for index, panel in enumerate(draft.get("panels") or [])
+    ]
+    return scene, panels
+
+
+def request_prefetch_art(db: Session, user: Any, prefetch_row, brief) -> int:
+    """Queue a prefetched draft's panels for drawing; how many were requested."""
+
+    if not enabled() or not _band_allowed(getattr(brief, "level_band", None)):
+        return 0
+    draft = (getattr(brief, "story_context", None) or {}).get("draft") or {}
+    wanted = len(draft.get("panels") or [])
+    count = affordable_panels(db, user, wanted)
+    if count <= 0:
+        return 0
+    from app.services.pilot_events import PilotEventService
+
+    entity_type, _, _ = _prefetch_vocabulary()
+    PilotEventService(db).record(
+        PREFETCH_ART_REQUESTED_EVENT,
+        user_id=getattr(user, "id", None),
+        entity_type=entity_type,
+        entity_id=prefetch_row.id,
+        payload={"panel_indices": list(range(count)), "panels": wanted},
+        cost_usd=0.0,
+    )
+    db.info.setdefault(PENDING_KEY, []).append(PrefetchArtJob(str(prefetch_row.id), db.get_bind()))
+    return count
+
+
+def _scene_for_prefetch(db: Session, prefetch_id: str):
+    from sqlalchemy import select
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+
+    return db.scalars(
+        select(GraphicNovelScene).where(
+            GraphicNovelScene.source_snapshot["prefetch_id"].as_string() == str(prefetch_id)
+        )
+    ).first()
+
+
+def _taken_over(factory, prefetch_id: str, panel_index: int) -> bool:
+    """Is this drawing no longer wanted? The prefetch was discarded, or its scene is
+    bound and that panel is not waiting for it (drawn already, or drawn by the scene)."""
+
+    with factory() as db:
+        if prefetch_ledger(db, prefetch_id).discarded:
+            return True
+        scene = _scene_for_prefetch(db, prefetch_id)
+        if scene is None:
+            return False
+        panel = next((p for p in scene.panels if p.panel_index == panel_index), None)
+        return panel is None or (panel.generation_metadata or {}).get(AWAITING_KEY) != str(prefetch_id)
+
+
+def _record_prefetch_panel(factory, user_id, prefetch_id: str, job: PanelJob, stored, error) -> bool:
+    from app.services.pilot_events import PilotEventService
+    from app.services.spend_guard import PANEL_ART_EVENT_TYPE
+
+    entity_type, _, _ = _prefetch_vocabulary()
+    ok = stored is not None and str(stored.get("url") or "").startswith(("/", "http"))
+    with factory() as db:
+        if ok:
+            PilotEventService(db).record(
+                PANEL_ART_EVENT_TYPE,
+                user_id=user_id,
+                entity_type=entity_type,
+                entity_id=prefetch_id,
+                payload={
+                    "panel_index": job.panel_index,
+                    "model": settings.OPENAI_IMAGE_MODEL,
+                    "quality": settings.OPENAI_IMAGE_QUALITY,
+                    "size": PANEL_SIZE,
+                    "estimated": True,
+                    "basis": "ATELIER_PANEL_ART_COST_USD_PER_PANEL",
+                    "prefetch": True,
+                    "image_url": stored["url"],
+                    "image_payload": {k: v for k, v in stored.items() if k != "prompt"},
+                    "prompt_sent": job.prompt,
+                },
+                cost_usd=panel_cost_usd(),
+            )
+        else:
+            PilotEventService(db).record(
+                PREFETCH_ART_FAILED_EVENT,
+                user_id=user_id,
+                entity_type=entity_type,
+                entity_id=prefetch_id,
+                payload={"panel_index": job.panel_index, "error": (error or "not stored")[:300]},
+                cost_usd=0.0,
+            )
+        db.commit()
+    return ok
+
+
+def render_prefetch_art(job: PrefetchArtJob) -> str:
+    """Draw the requested panels of a prefetched draft; one ledger row each."""
+
+    from app.db.models.pilot_event import PilotEvent
+
+    _, prefetch_event, _ = _prefetch_vocabulary()
+    factory = sessionmaker(bind=job.bind, autoflush=False, expire_on_commit=False)
+    with factory() as db:
+        row = db.get(PilotEvent, UUID(job.prefetch_id))
+        if row is None or row.event_type != prefetch_event:
+            return "missing"
+        ledger = prefetch_ledger(db, job.prefetch_id)
+        if ledger.discarded:
+            return "discarded"
+        brief = (row.payload or {}).get("brief") or {}
+        scene, panels = _draft_stand_ins(job.prefetch_id, brief)
+        world = _world_for_thread(db, brief.get("serial_thread_id"))
+        user_id = row.user_id
+        todo = ledger.pending()
+        jobs = [panel_job(scene, panel, world) for panel in panels if panel.panel_index in todo]
+    started = time.monotonic()
+
+    def one(panel: PanelJob) -> bool:
+        if _taken_over(factory, job.prefetch_id, panel.panel_index):
+            return False
+        try:
+            stored = _store(panel, draw(panel))
+            return _record_prefetch_panel(factory, user_id, job.prefetch_id, panel, stored, None)
+        except Exception as exc:  # noqa: BLE001 - the bound scene draws it instead
+            logger.warning("panel_art: prefetch {} panel {} failed: {}", job.prefetch_id, panel.panel_index, exc)
+            _record_prefetch_panel(factory, user_id, job.prefetch_id, panel, None, f"{exc.__class__.__name__}: {exc}")
+            return False
+
+    workers = max(1, int(settings.ATELIER_PANEL_ART_CONCURRENCY))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="panel-prefetch") as pool:
+        drawn = sum(pool.map(one, jobs))
+    logger.info(
+        "panel_art: prefetch {} drew {}/{} panels in {:.0f}s",
+        job.prefetch_id, drawn, len(jobs), time.monotonic() - started,
+    )
+    return "done" if drawn == len(jobs) else "partial"
+
+
+def _attach(panel, ready: dict, prefetch_id: str) -> None:
+    meta = {k: v for k, v in (panel.generation_metadata or {}).items() if k != AWAITING_KEY}
+    panel.image_url = ready["image_url"]
+    panel.image_payload = dict(ready.get("image_payload") or {"url": ready["image_url"]})
+    meta.update(
+        image_source=ART_SOURCE,
+        image_status=READY,
+        image_prompt_sent=ready.get("prompt_sent"),
+        prefetch_id=str(prefetch_id),
+    )
+    panel.generation_metadata = meta
+
+
+def attach_prefetched_art(
+    db: Session, scene, prefetch_id: str, *, level_band: str | None = None, user: Any = None
+) -> dict[str, int]:
+    """At bind time: attach what the prefetch drew, wait for what it is still drawing,
+    and request only the rest. No panel is drawn twice while its drawing is on the way."""
+
+    prefetch_id = str(prefetch_id)
+    ledger = prefetch_ledger(db, prefetch_id)
+    in_flight = ledger.in_flight()
+    attached, awaiting, missing = 0, [], []
+    for panel in sorted(scene.panels, key=lambda p: p.panel_index):
+        ready = ledger.ready.get(int(panel.panel_index))
+        if ready is not None:
+            _attach(panel, ready, prefetch_id)
+            attached += 1
+        elif in_flight and int(panel.panel_index) in ledger.pending():
+            panel.generation_metadata = {
+                **(panel.generation_metadata or {}),
+                "image_status": RENDERING,
+                AWAITING_KEY: prefetch_id,
+            }
+            awaiting.append(panel)
+        else:
+            missing.append(panel)
+    if attached:
+        scene.image_model = settings.OPENAI_IMAGE_MODEL
+        scene.image_quality = settings.OPENAI_IMAGE_QUALITY
+    if awaiting:
+        db.info.setdefault(PENDING_KEY, []).append(AdoptArtJob(str(scene.id), prefetch_id, db.get_bind()))
+    requested = 0
+    if missing and request_scene_art(db, scene, level_band=level_band, user=user, panels=missing):
+        requested = sum(
+            1 for p in missing if (p.generation_metadata or {}).get("image_status") == RENDERING
+        )
+    return {"attached": attached, "awaiting": len(awaiting), "requested": requested}
+
+
+def adopt_prefetched_art(job: AdoptArtJob, *, wait_seconds: float | None = None) -> str:
+    """Fill a bound scene's waiting panels as its prefetch draws them.
+
+    A drawing that fails, or has not come within ``ADOPT_WAIT_SECONDS``, is drawn by
+    the scene itself, inside today's allowance; a panel the allowance does not cover
+    keeps its plate."""
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+    from app.db.models.user import User
+
+    factory = sessionmaker(bind=job.bind, autoflush=False, expire_on_commit=False)
+    deadline = time.monotonic() + (ADOPT_WAIT_SECONDS if wait_seconds is None else wait_seconds)
+    to_draw: list[int] = []
+    while True:
+        with factory() as db:
+            scene = db.get(GraphicNovelScene, UUID(job.scene_id))
+            if scene is None:
+                return "missing"
+            ledger = prefetch_ledger(db, job.prefetch_id)
+            waiting = [
+                p for p in scene.panels if (p.generation_metadata or {}).get(AWAITING_KEY) == job.prefetch_id
+            ]
+            expired = time.monotonic() >= deadline
+            released = []
+            for panel in waiting:
+                ready = ledger.ready.get(int(panel.panel_index))
+                if ready is not None:
+                    _attach(panel, ready, job.prefetch_id)
+                    scene.image_model = settings.OPENAI_IMAGE_MODEL
+                    scene.image_quality = settings.OPENAI_IMAGE_QUALITY
+                elif expired or int(panel.panel_index) in ledger.failed or ledger.discarded:
+                    released.append(panel)
+            if released:
+                user = db.get(User, scene.user_id) if scene.user_id else None
+                count = affordable_panels(db, user, len(released)) if enabled() else 0
+                for position, panel in enumerate(sorted(released, key=lambda p: p.panel_index)):
+                    meta = {k: v for k, v in (panel.generation_metadata or {}).items() if k != AWAITING_KEY}
+                    if position < count:
+                        meta["image_status"] = RENDERING
+                        to_draw.append(int(panel.panel_index))
+                    else:
+                        meta.pop("image_status", None)
+                    panel.generation_metadata = meta
+            left = len(waiting) - len(released) - sum(
+                1 for p in waiting if int(p.panel_index) in ledger.ready
+            )
+            db.commit()
+        if left <= 0:
+            break
+        time.sleep(ADOPT_POLL_SECONDS)
+    if to_draw:
+        render_scene_art(SceneArtJob(job.scene_id, job.bind, tuple(to_draw)))
+        return "drew_missing"
+    return "adopted"

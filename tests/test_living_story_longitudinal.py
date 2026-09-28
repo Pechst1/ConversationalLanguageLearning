@@ -38,7 +38,7 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.services import living_story as engine
 from tests import test_journey_end_to_end as support
-from tests.test_living_story import EXTRA_PANELS
+from tests.test_living_story import EXTRA_PANELS, with_reading_aids
 
 Driver = support.Driver
 register = support.register
@@ -243,7 +243,7 @@ class ScriptedProvider:
         source = data["data"]
         self.calls.append((schema, deepcopy(source)))
         if schema == "SceneDraft":
-            value = self._draft(source)
+            value = with_reading_aids(self._draft(source), source)
             self.drafts.append(deepcopy(value))
             self.scene_index += 1
         elif schema == "SemanticTurn":

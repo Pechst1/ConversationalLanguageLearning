@@ -134,7 +134,25 @@ EXTRA_PANELS = (
 )
 
 
+def with_reading_aids(value, context):
+    """WP-90: a compliant director gives every panel its alt text and, for an A1/A2
+    learner who is not French, every line its translation."""
+
+    value = deepcopy(value)
+    language = engine.line_translation_language(context)
+    for panel in value.get("panels") or []:
+        panel.setdefault("alt_native", "The scene at the café, drawn in flat colours.")
+        for line in panel.get("dialogue") or []:
+            if language:
+                line.setdefault("text_native", f"[{language}] {line['text_fr']}")
+    return value
+
+
 def draft(context, n=0):
+    return with_reading_aids(_draft(context, n), context)
+
+
+def _draft(context, n=0):
     chapter = context.get("chapter") or {}
     speaker, location = _shaped(context, n)
     return {

@@ -31,6 +31,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -330,26 +331,36 @@ def prefetch_scene_for(
     # thread moved under a long generation, this row is born stale and the serve
     # path will never match it.
     produced_key = scene_cache_key(db, user, input_mode=input_mode)
-    db.add(
-        PilotEvent(
-            user_id=user.id,
-            event_type=PREFETCH_EVENT,
-            entity_type=PREFETCH_ENTITY_TYPE,
-            entity_id=produced_key or key,
-            payload={
-                "cache_key": produced_key or key,
-                "requested_key": key,
-                "prompt_version": str(result.content_version),
-                "input_mode": str(input_mode),
-                "generated_seconds": round(elapsed, 3),
-                "brief": _brief_codec()[0](result),
-            },
-            # Spend is billed once, by ``bind_journey``, when the scene is
-            # actually served. A prefetch nobody uses is billed on its discard
-            # row instead, so no engine money ever escapes the guardrail.
-            cost_usd=0.0,
-        )
+    row = PilotEvent(
+        user_id=user.id,
+        event_type=PREFETCH_EVENT,
+        entity_type=PREFETCH_ENTITY_TYPE,
+        entity_id=produced_key or key,
+        payload={
+            "cache_key": produced_key or key,
+            "requested_key": key,
+            "prompt_version": str(result.content_version),
+            "input_mode": str(input_mode),
+            "generated_seconds": round(elapsed, 3),
+            "brief": _brief_codec()[0](result),
+        },
+        # Spend is billed once, by ``bind_journey``, when the scene is
+        # actually served. A prefetch nobody uses is billed on its discard
+        # row instead, so no engine money ever escapes the guardrail.
+        cost_usd=0.0,
     )
+    db.add(row)
+    db.flush()
+    # WP-90: the panels are drawn now, keyed to this row, so the day opens on its own
+    # pictures. Queued for after the commit (a rolled-back prefetch draws nothing),
+    # inside the art allowance of the day the drawing happens; art never costs the scene.
+    try:
+        from app.services.panel_art import request_prefetch_art
+
+        with db.begin_nested():
+            request_prefetch_art(db, user, row, result)
+    except Exception:  # pragma: no cover - defensive: the scene is kept without art
+        logger.exception("journey_latency: prefetch art not requested")
     db.commit()
     return "prefetched"
 
@@ -452,6 +463,11 @@ def take_prefetched_scene(
             )
             continue
         _mark(db, row, PREFETCH_CONSUMED_EVENT, reason="served")
+        # WP-90: the scene remembers which prefetch it was, so ``bind_journey`` can
+        # attach the panels drawn for it ahead of time.
+        served = replace(
+            served, story_context={**dict(served.story_context or {}), "prefetch_id": str(row.id)}
+        )
     return served
 
 

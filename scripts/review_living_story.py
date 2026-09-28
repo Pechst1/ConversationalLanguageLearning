@@ -247,6 +247,8 @@ def main():
         "letter_beat": None,
     }
     context["escalated_problems"] = []
+    # WP-90: whether the director translates every line (A1/A2, not French).
+    context[engine.LINE_TRANSLATION_KEY] = engine.line_translation_language(context)
     try:
         for day in range(args.days):
             scene, _ = engine._approved(
