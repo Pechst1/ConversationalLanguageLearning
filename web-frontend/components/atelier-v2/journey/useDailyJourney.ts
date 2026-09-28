@@ -34,6 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import dailyJourneyService, {
+  getStoryEpisodeForJourney,
   isJourneyDisabled,
   journeyErrorDetail,
   resolveTimezone,
@@ -49,6 +50,7 @@ import type {
   JourneySnapshot,
   PublicStep,
   RespondPrompt,
+  StoryEpisode,
   TodayEnvelope,
 } from '@/types/daily-journey';
 import useJourneyRecovery, {
@@ -88,6 +90,12 @@ import {
   WARM_WAIT_HINT_DELAY_MS,
   type MutationOutcome,
 } from './journey-requests';
+import { loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import {
+  shouldPollStoryArt,
+  STORY_ART_POLL_MS,
+  stepReadsStoryEpisode,
+} from './story-episode-model';
 
 /** Bounded auto-poll of a `preparing` journey before a manual "check again". */
 const PREPARING_POLL_LIMIT = 8;
@@ -143,6 +151,13 @@ export type DailyJourneyController = {
   warm: boolean;
   /** The most recent revealed help for the current step, or `null`. */
   help: HelpResult | null;
+  /**
+   * WP-90: the day's story episode (the engine's panels), read when the scene
+   * or the resolution is current and re-read while a panel is still being
+   * drawn — here, not in the step, so the poll survives leaving it. `null`
+   * when the engine published none (an authored day) or before it is read.
+   */
+  storyEpisode: StoryEpisode | null;
   /**
    * Interruption recovery (WP-10): the honest connection state, the learner's
    * persisted drafts, and the reading position. Presentation reads it; it never
@@ -477,6 +492,42 @@ export function useDailyJourney(
     }, STORY_POLL_MS);
     return () => clearTimeout(timer);
   }, [storyTarget, journey, applySnapshot]);
+
+  // WP-90: the day's story episode. Read when the scene or the resolution
+  // becomes current (the reader and the «case finale» both draw it), then
+  // re-read every few seconds while a panel's drawing is still on the press —
+  // for at most five minutes, and whatever step the learner has moved on to,
+  // so the drawings are there when they look back.
+  const storyJourneyId = journey?.id ?? null;
+  const storyStep = currentStepOf(journey);
+  const storyStepKey =
+    storyJourneyId && storyStep && stepReadsStoryEpisode(storyStep.kind)
+      ? `${storyJourneyId}:${storyStep.id}`
+      : null;
+  useEffect(() => {
+    if (!storyStepKey || !storyJourneyId) return;
+    void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney);
+  }, [storyStepKey, storyJourneyId]);
+
+  const storyEntry = useStoryEpisodeEntry(storyJourneyId);
+  const storyEpisode = storyEntry?.kind === 'episode' ? storyEntry.episode : null;
+  const artPollsRef = useRef(0);
+  // Bumped after every re-read, so a read that failed (and kept the episode
+  // as it was) still schedules the next one.
+  const [artTick, setArtTick] = useState(0);
+  useEffect(() => {
+    artPollsRef.current = 0;
+  }, [storyJourneyId]);
+  useEffect(() => {
+    if (!storyJourneyId || !shouldPollStoryArt(storyEpisode, artPollsRef.current)) return undefined;
+    const timer = setTimeout(() => {
+      artPollsRef.current += 1;
+      void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney).finally(() => {
+        if (mountedRef.current) setArtTick((tick) => tick + 1);
+      });
+    }, STORY_ART_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [storyJourneyId, storyEpisode, artTick]);
 
   useEffect(() => {
     if (phase.kind !== 'finished') return;
@@ -960,6 +1011,7 @@ export function useDailyJourney(
     waiting,
     warm,
     help,
+    storyEpisode,
     recovery,
     actions,
   };

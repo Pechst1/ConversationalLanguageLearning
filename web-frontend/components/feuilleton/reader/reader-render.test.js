@@ -206,7 +206,10 @@ test('every French line is tappable for help, and the panel is announced', () =>
   assert.ok(/aria-label="Planche 1 sur 5"/.test(markup));
   assert.ok(/class="fr-word"/.test(markup));
   assert.ok(/aria-label="Aide pour « /.test(markup));
-  assert.ok(/role="progressbar"/.test(markup));
+  // WP-90 (W4): one progress indicator — the dots — and no rail or counter.
+  assert.ok(!/role="progressbar"/.test(markup), 'no second progress bar');
+  assert.ok(!/fr-rail|fr-count/.test(markup));
+  assert.ok(/<ol class="fr-dots" aria-label="Avancement dans l’épisode"/.test(markup));
 });
 
 // ---------------------------------------------------------------------------
@@ -348,4 +351,104 @@ test('the last panel closes in the learner language too', () => {
   assert.ok(/aria-label="End of the episode, /.test(en));
   assert.ok(/Finish the episode/.test(en), 'the default closing label is English');
   assert.ok(!/Terminer l’épisode/.test(en));
+});
+
+// ---------------------------------------------------------------------------
+// WP-90 «La planche» — a page that is ready, fits, and acts
+// ---------------------------------------------------------------------------
+
+const planche = [
+  {
+    ...storyStages[0],
+    imageAlt: 'Augustin smiles at the counter.',
+    lines: [{ ...storyStages[0].lines[0], faceId: 'augustin_de_roncourt', faceMood: 'happy', en: 'I can help.', audioKey: 'p1:l0' }],
+  },
+  { ...storyStages[1], artPending: true, imageAlt: '' },
+  {
+    kind: 'resolution',
+    key: 'finale:r1',
+    ordinal: 3,
+    character: 'gus',
+    hookQuestion: '',
+    hookBeat: '',
+    tasks: [],
+    finale: {
+      imageUrl: '/assets/serial/scenes/order_at_cafe/panel-4.webp',
+      imageAlt: 'You ordered politely.',
+      line: { key: 'f-l0', who: 'Augustin', fr: 'À demain !', en: '', character: 'gus', faceId: 'augustin_de_roncourt', faceMood: 'moved' },
+      summary: 'You ordered politely, and he remembered you.',
+      waiting: false,
+    },
+  },
+];
+
+function renderPlanche(overrides = {}) {
+  return renderStory({
+    stages: planche,
+    title: 'Le Mistral',
+    episodeLabel: 'Le Mistral',
+    panelVariant: () => 'line',
+    ...overrides,
+  });
+}
+
+test('WP-90: the headline folds into a running head after the first panel', () => {
+  const first = renderPlanche({ index: 0 });
+  assert.ok(/class="fr-title"/.test(first), 'panel 1 has its headline');
+  assert.equal((first.match(/Le Mistral/g) || []).length, 1, 'no kicker repeating the title');
+  const later = renderPlanche({ index: 1, furthest: 1 });
+  assert.ok(!/class="fr-title"/.test(later), 'the headline has folded');
+  assert.ok(/<p class="fr-running" lang="fr">Le Mistral · 2\/3<\/p>/.test(later), later.slice(0, 600));
+  assert.ok(!/role="progressbar"/.test(later), 'the dots are the one progress indicator');
+});
+
+test('WP-90: a plate on the press is a duotone with a folio ribbon, in a frame that holds its size', () => {
+  const markup = renderPlanche({ index: 1, furthest: 1, language: 'en' });
+  assert.ok(/<figure class="fr-plate" data-variant="line" data-pending="true">/.test(markup));
+  assert.ok(/class="fr-ink" aria-hidden="true" data-on="true"/.test(markup));
+  assert.ok(/<figcaption class="fr-folio">Panel 2 · on the press<\/figcaption>/.test(markup));
+  const drawn = renderPlanche({ index: 0, language: 'fr' });
+  assert.ok(!/fr-folio/.test(drawn), 'a drawn panel has no ribbon');
+  assert.ok(/alt="Augustin smiles at the counter\."/.test(drawn), 'the picture says what it shows');
+});
+
+test('WP-90: captions — a face that acts, a line read as one sentence, words that rove', () => {
+  const markup = renderPlanche({ index: 0, language: 'en' });
+  assert.ok(/class="fr-speech" data-compact="true"/.test(markup));
+  assert.ok(/data-mood="happy"/.test(markup), 'the face wears the line’s mood');
+  assert.ok(/alt="Augustin, pleased"/.test(markup), 'the portrait says who and how');
+  assert.ok(/role="group" tabindex="0" aria-label="Je peux aider\." data-roving-line=""/.test(markup));
+  assert.ok(/aria-label="Help with “aider”"/.test(markup), 'the word labels are the learner’s language');
+  assert.ok(/<button type="button" class="fr-word" data-word="" tabindex="-1"/.test(markup), 'words leave the Tab order');
+});
+
+test('WP-90: a translated line brings «Translate» into the bar', () => {
+  const markup = renderPlanche({ index: 0, language: 'en' });
+  const bar = markup.slice(markup.indexOf('class="fr-bar"'), markup.indexOf('class="fr-head"'));
+  assert.ok(/aria-label="Translate the panel"/.test(bar), 'the chip sits in the bar, fixed');
+  assert.ok(!/fr-tools/.test(markup), 'and not under the panel, where it would move things');
+});
+
+test('WP-90: the ending is the last panel — the case finale', () => {
+  const markup = renderPlanche({ index: 2, furthest: 2, onComplete: () => {}, completeLabel: 'Continue', language: 'en' });
+  assert.ok(/class="fr-finale"/.test(markup));
+  assert.ok(/The last panel/.test(markup));
+  assert.ok(/À demain/.test(markup));
+  assert.ok(/You ordered politely, and he remembered you\./.test(markup));
+  assert.ok(/alt="You ordered politely\."/.test(markup));
+  assert.ok(/data-kind="resolution"/.test(markup), 'the red triangle is its dot');
+  assert.ok(/data-press="3d"[^>]*>.*Continue/.test(markup), 'one primary closes the day');
+
+  const waiting = planche.map((stage) =>
+    stage.kind === 'resolution' ? { ...stage, finale: { ...stage.finale, waiting: true } } : stage,
+  );
+  const wait = renderPlanche({
+    stages: waiting,
+    index: 2,
+    furthest: 2,
+    onComplete: () => {},
+    finaleWait: React.createElement('p', { className: 'wait-face' }, 'Augustin écrit…'),
+  });
+  assert.ok(/wait-face/.test(wait), 'the wait has a face');
+  assert.ok(!/fr-next/.test(wait), 'and no dead primary');
 });

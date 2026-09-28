@@ -13,6 +13,10 @@
  * wraps the reader in `<AtelierV2Root>`, which supplies `.av2`.
  */
 
+// The node suites compile JSX to the classic runtime; the journey's tests
+// render this through the «case finale», so React must be in scope here.
+import React from 'react';
+
 export function FeuilletonReaderStyles() {
   return (
     <style jsx global>{`
@@ -107,17 +111,22 @@ export function FeuilletonReaderStyles() {
         overflow-x: clip;
       }
 
-      /* ---- top bar: quit · story progress rail · counter ---- */
+      /* ---- top bar: quit · running head (after panel 1) · translate ----
+         WP-90 (W4): the dots are the one progress indicator; the bar carries
+         no rail and no counter. Once the learner is past the first panel the
+         headline folds into the running head here, which is the only place
+         the position is printed. */
       .av2 .fr-bar {
         display: flex;
         align-items: center;
         gap: 12px;
+        min-height: 44px;
         /* The reader owns the top of the screen — inside the journey the
            session header stands down (WP-20 D-4), so this bar is what meets the
            notch. Without the inset the exit control and the progress rail draw
            under the status bar and collide with the clock; proven on an
            iPhone 16, 2026-09-08. Matches .av2-session__head and .ep-top. */
-        padding: calc(10px + env(safe-area-inset-top, 0px)) 0 14px;
+        padding: calc(10px + env(safe-area-inset-top, 0px)) 0 10px;
       }
       .av2 .fr-icon-btn {
         width: 44px;
@@ -134,28 +143,22 @@ export function FeuilletonReaderStyles() {
         transition: transform var(--fr-press);
       }
       .av2 .fr-icon-btn:active { transform: scale(0.94); }
-      .av2 .fr-rail {
+      .av2 .fr-running {
         flex: 1 1 auto;
         min-width: 0;
-        height: 14px;
-        border-radius: 7px;
-        background: var(--fr-line);
+        margin: 0;
+        font-family: var(--fr-serif);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 1.125rem;
+        line-height: 1.2;
+        color: var(--fr-ink);
+        white-space: nowrap;
         overflow: hidden;
-      }
-      .av2 .fr-rail i {
-        display: block;
-        height: 100%;
-        border-radius: 7px;
-        background: var(--fr-blue);
-        transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-      }
-      .av2 .fr-count {
-        flex: none;
-        font-size: 0.8125rem;
-        font-weight: 700;
-        color: var(--fr-muted);
+        text-overflow: ellipsis;
         font-variant-numeric: tabular-nums;
       }
+      .av2 .fr-bar .fr-chip { flex: none; }
 
       /* ---- running head: eyebrow + the ONE Garamond italic headline ---- */
       .av2 .fr-head { padding: 2px 0 14px; }
@@ -552,19 +555,80 @@ export function FeuilletonReaderStyles() {
         font-size: var(--av2-t-screen);
         line-height: 1;
       }
-      /* the art sits in a 16 px frame, not the 24 px hero card: the bubble's
-         own corner is 16 px and two radii on one edge read as a mistake */
+      .av2 .fr-reader[data-story] .fr-head { padding: 0 0 12px; }
+      .av2 .fr-reader[data-story] .fr-stage { gap: 10px; }
+      /* WP-90: the plate is a 4:3 frame that never changes size — full-bleed
+         on a phone, a 16 px frame on anything wider. The pictures sit inside
+         it absolutely, so a drawing arriving over its plate moves nothing. */
       .av2 .fr-reader[data-story] .fr-plate {
         border-radius: 16px;
         background: var(--fr-card);
-        aspect-ratio: auto;
+        aspect-ratio: 4 / 3;
+        width: 100%;
         max-block-size: none;
+        flex: none;
       }
-      .av2 .fr-reader[data-story] .fr-plate img {
-        height: 300px;
-        max-height: 40vh;
+      .av2 .fr-reader[data-story] .fr-plate .fr-art {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: opacity 0.3s ease, filter 0.3s ease;
       }
-      .av2 .fr-reader[data-story] .fr-plate[data-variant='line'] img { height: 240px; }
+      .av2 .fr-reader[data-story] .fr-plate .fr-art[data-arriving='true'] { opacity: 0; }
+      /* The plate while the drawing is on the press: a blue-ink duotone — the
+         picture in greys, the story blue printed over its darks. */
+      .av2 .fr-reader[data-story] .fr-plate .fr-art[data-pending='true'] {
+        filter: grayscale(1) contrast(1.08) brightness(1.06);
+      }
+      .av2 .fr-reader[data-story] .fr-plate .fr-ink {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: color-mix(in srgb, var(--av2-blue) 88%, var(--av2-blue-deep));
+        mix-blend-mode: screen;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .av2 .fr-reader[data-story] .fr-plate .fr-ink[data-on='true'] { opacity: 1; }
+      /* the folio ribbon: «Planche 3 · sous presse» */
+      .av2 .fr-reader[data-story] .fr-plate .fr-folio {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        max-width: calc(100% - 24px);
+        padding: 5px 11px 5px 9px;
+        border-radius: 999px;
+        background: var(--fr-paper);
+        color: var(--fr-ink);
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.3;
+        box-shadow: 0 2px 0 color-mix(in srgb, var(--av2-blue-deep) 40%, transparent);
+      }
+      .av2 .fr-reader[data-story] .fr-plate .fr-folio::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        flex: none;
+        border-radius: 999px;
+        background: var(--fr-blue);
+      }
+      @media (max-width: 599px) {
+        /* full-bleed: the frame spans the phone, edge to edge */
+        .av2 .fr-reader[data-story] { overflow-x: visible; }
+        .av2 .fr-reader[data-story] .fr-stage > .fr-plate,
+        .av2 .fr-reader[data-story] .fr-finale > .fr-plate {
+          width: 100vw;
+          max-width: none;
+          margin-inline: calc(50% - 50vw);
+          border-radius: 0;
+        }
+      }
 
       /* variant A — the reply as a bubble over the art. Card ground, the
          tail corner pointing down-left at the speaker, one 3 px press. */
@@ -598,14 +662,47 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-ink);
       }
 
-      /* variant B — the reply in a card under the art */
+      /* variant B — the replies under the art. WP-90: compact captions — the
+         speaker's face (xs, the play button) beside the name and the line —
+         so a three-line panel fits a phone without scrolling. */
+      .av2 .fr-reader[data-story] .fr-captions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
       .av2 .fr-reader[data-story] .fr-speech {
         border-left: 0;
         border-radius: 16px;
         padding: 16px 18px;
       }
-      .av2 .fr-reader[data-story] .fr-speech .fr-speaker {
-        margin: 0 0 6px;
+      .av2 .fr-speech[data-compact='true'] {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 14px;
+        border-left: 0;
+      }
+      .av2 .fr-speech[data-compact='true'] > .ob-portrait,
+      .av2 .fr-speech[data-compact='true'] > .av2-speaking-portrait { margin-top: 2px; }
+      .av2 .fr-speech[data-compact='true'] .fr-speech__bare {
+        width: 30px;
+        height: 30px;
+        flex: none;
+        display: grid;
+        place-items: center;
+      }
+      .av2 .fr-speech[data-compact='true'] .fr-speech__bare::after {
+        content: '';
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--fr-accent);
+      }
+      .av2 .fr-speech__text { min-width: 0; flex: 1 1 auto; }
+      .av2 .fr-reader[data-story] .fr-speech .fr-speaker,
+      .av2 .fr-speech[data-compact='true'] .fr-speaker {
+        margin: 0 0 1px;
         font-size: 0.75rem;
         font-weight: 700;
         line-height: 1.3;
@@ -616,13 +713,49 @@ export function FeuilletonReaderStyles() {
         font-style: italic;
         font-weight: 500;
         font-size: 1.1875rem;
-        line-height: 1.35;
+        line-height: 1.3;
       }
+      .av2 .fr-speech[data-compact='true'] .fr-line-en { margin-top: 2px; }
       /* narration is body copy under the art, never a caption of a plate */
       .av2 .fr-reader[data-story] .fr-caption {
         font-size: 0.9375rem;
         line-height: 1.45;
         color: var(--fr-ink-2);
+      }
+      /* WP-90: a line is one focus stop; its words rove by arrow */
+      .av2 .fr-reader [data-roving-line]:focus-visible {
+        outline: 2px solid var(--fr-focus);
+        outline-offset: 3px;
+        border-radius: 6px;
+      }
+
+      /* ---- WP-90: the «case finale» — the day's ending, the last panel ---- */
+      .av2 .fr-finale {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .av2 .fr-finale__label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--fr-red);
+      }
+      .av2 .fr-finale__label .tri {
+        width: 12px;
+        height: 11px;
+        flex: none;
+        background: var(--fr-red);
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      }
+      .av2 .fr-finale__summary {
+        margin: 0;
+        font-size: var(--av2-t-body-lg);
+        line-height: 1.45;
+        color: var(--fr-ink);
       }
 
       /* «Écouter d'abord», quiet, under the nav row */
@@ -657,6 +790,23 @@ export function FeuilletonReaderStyles() {
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+      /* WP-90 (W4): in the story reader the nav is pinned to the bottom of the
+         screen — the same place on every panel, whatever the panel holds — and
+         the page keeps its height clear underneath it. */
+      .av2 .fr-reader[data-story] {
+        padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+      }
+      .av2 .fr-reader[data-story] .fr-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 3;
+        margin: 0;
+        gap: 2px;
+        padding: 14px max(16px, calc((100vw - 560px) / 2 + 16px)) max(12px, env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(to bottom, color-mix(in srgb, var(--fr-paper) 0%, transparent), var(--fr-paper) 16px);
       }
       .av2 .fr-nav-row .fr-btn { flex: 0 0 auto; }
       .av2 .fr-nav-row .fr-prev { width: 3rem; padding: 0; }
@@ -1029,6 +1179,9 @@ export function FeuilletonReaderStyles() {
       }
 
       @media (prefers-reduced-motion: reduce) {
+        /* WP-90: the drawing simply appears; the ink simply lifts */
+        .av2 .fr-reader .fr-plate .fr-art,
+        .av2 .fr-reader .fr-plate .fr-ink { transition: none; }
         .av2 .fr-reader .fr-btn:active,
         .av2 .fr-reader .fr-option:active,
         .av2 .fr-page .fr-row:active,

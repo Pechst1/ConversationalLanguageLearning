@@ -17,6 +17,7 @@
 
 import React, { useState } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 import {
   Action,
@@ -56,7 +57,12 @@ import {
   CrLetterRow,
 } from '@/components/courrier/Correspondance';
 import type { AtelierErrataAttemptResult } from '@/services/api';
-import { atelierCopy, CONTROL_LANGUAGES } from '@/lib/atelier-v2-copy';
+import { atelierCopy, CONTROL_LANGUAGES, normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import {
+  isReaderGalleryState,
+  ReaderGalleryFrames,
+  ReaderGalleryScreen,
+} from '@/components/feuilleton/reader/__fixtures__/ReaderGallery';
 import { JourneyFeedbackView, RespondStepView } from '@/components/atelier-v2/journey/JourneySteps';
 import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
 import type {
@@ -262,6 +268,24 @@ export default function AtelierV2Gallery() {
     wrong: copy.status_wrong,
   };
 
+  // WP-90: one story-reader state, full-screen, for the frames below.
+  const router = useRouter();
+  const readerState = router.query.reader;
+  if (isReaderGalleryState(readerState)) {
+    return (
+      <>
+        <Head>
+          <title>{`Reader · ${readerState} (dev)`}</title>
+          <meta name="robots" content="noindex" />
+        </Head>
+        <ReaderGalleryScreen
+          state={readerState}
+          language={normalizeControlLanguage(router.query.lang ?? 'en')}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -429,6 +453,15 @@ export default function AtelierV2Gallery() {
               <FeedbackBand tone="wrong" title={copy.wrong} />
             </div>
             <FeedbackBand tone="neutral" title={copy.still_grading} />
+          </Section>
+
+          <Section title="La planche — the story reader (WP-90)">
+            <p className="av2-body">
+              The plate on the press (duotone and folio ribbon), a drawing arriving, drawn, the
+              running head with three lines at 375×812, a translated line, and the ending as the
+              last panel — settled and still being written.
+            </p>
+            <ReaderGalleryFrames language={language} />
           </Section>
 
           <Section title="Le fil — the conversation (WP-89)">

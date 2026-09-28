@@ -68,6 +68,25 @@ export type ReaderCopy = {
   help_in_panel: string;
   help_note: string;
   roledescription: string;
+  // WP-90 «La planche»
+  /** The folio ribbon on a plate whose drawing is still on the press: «Planche {n} · sous presse». */
+  art_on_press: string;
+  /** The face is the play button: «Écouter {name}». */
+  listen_to: string;
+  /** A tappable word's label, in the learner's language: «Aide pour « {word} »». */
+  word_help: string;
+  /** The running head once the headline has folded: «{title} · {n}/{count}». */
+  running_head: string;
+  /** The finale's eyebrow — the red-triangle last panel. */
+  finale_label: string;
+  /** Portrait alt text: «{name}, {mood}». Moods follow. */
+  portrait_alt: string;
+  mood_happy: string;
+  mood_happy_f: string;
+  mood_cross: string;
+  mood_cross_f: string;
+  mood_moved: string;
+  mood_moved_f: string;
 };
 
 const FR: ReaderCopy = {
@@ -79,7 +98,7 @@ const FR: ReaderCopy = {
   previously: 'Précédemment',
   already_read: 'Déjà lu · vous relisez cette planche',
   your_turn: 'À vous de répondre sur cette planche',
-  translate_panel: 'Traduire la planche',
+  translate_panel: 'Traduire la case',
   hide_translation: 'Masquer la traduction',
   translate: 'Traduire',
   translating: 'Traduction…',
@@ -119,6 +138,18 @@ const FR: ReaderCopy = {
   help_in_panel: 'Dans la planche',
   help_note: 'Consulter l’aide ne compte pas comme une réponse et ne fait pas avancer l’épisode.',
   roledescription: 'planche',
+  art_on_press: 'Planche {n} · sous presse',
+  listen_to: 'Écouter {name}',
+  word_help: 'Aide pour « {word} »',
+  running_head: '{title} · {n}/{count}',
+  finale_label: 'Case finale',
+  portrait_alt: '{name}, {mood}',
+  mood_happy: 'ravi',
+  mood_happy_f: 'ravie',
+  mood_cross: 'fâché',
+  mood_cross_f: 'fâchée',
+  mood_moved: 'ému',
+  mood_moved_f: 'émue',
 };
 
 const EN: ReaderCopy = {
@@ -170,6 +201,18 @@ const EN: ReaderCopy = {
   help_in_panel: 'In the panel',
   help_note: 'Looking a word up is not an answer and does not move the episode on.',
   roledescription: 'panel',
+  art_on_press: 'Panel {n} · on the press',
+  listen_to: 'Listen to {name}',
+  word_help: 'Help with “{word}”',
+  running_head: '{title} · {n}/{count}',
+  finale_label: 'The last panel',
+  portrait_alt: '{name}, {mood}',
+  mood_happy: 'pleased',
+  mood_happy_f: 'pleased',
+  mood_cross: 'cross',
+  mood_cross_f: 'cross',
+  mood_moved: 'moved',
+  mood_moved_f: 'moved',
 };
 
 const DE: ReaderCopy = {
@@ -221,6 +264,18 @@ const DE: ReaderCopy = {
   help_in_panel: 'Im Bild',
   help_note: 'Nachschlagen zählt nicht als Antwort und bringt die Folge nicht weiter.',
   roledescription: 'Bild',
+  art_on_press: 'Bild {n} · in Druck',
+  listen_to: '{name} anhören',
+  word_help: 'Hilfe zu „{word}“',
+  running_head: '{title} · {n}/{count}',
+  finale_label: 'Das letzte Bild',
+  portrait_alt: '{name}, {mood}',
+  mood_happy: 'froh',
+  mood_happy_f: 'froh',
+  mood_cross: 'verärgert',
+  mood_cross_f: 'verärgert',
+  mood_moved: 'gerührt',
+  mood_moved_f: 'gerührt',
 };
 
 const TABLES: Record<ControlLanguage, ReaderCopy> = { en: EN, de: DE, fr: FR };
@@ -235,4 +290,33 @@ export function fillReaderCopy(template: string, values: Record<string, string |
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
     key in values ? String(values[key]) : match,
   );
+}
+
+/** The drawn cast members written in the feminine (French adjectives agree). */
+const FEMININE_CAST = new Set(['romy_tremblay', 'lila_bonnet', 'margaux_barman']);
+
+/**
+ * WP-90: a portrait's alt text — «Margaux, ravie», «Gus, fâché», or the bare
+ * name for a neutral face. In the reader's chrome language; French agrees with
+ * the drawn cast member's gender and falls back to the masculine form for
+ * anyone else.
+ */
+export function portraitAlt(
+  t: ReaderCopy,
+  name: string,
+  mood: string | null | undefined,
+  castId?: string | null,
+): string {
+  const who = String(name || '').trim();
+  if (!who) return '';
+  const feminine = Boolean(castId && FEMININE_CAST.has(castId));
+  const word =
+    mood === 'happy'
+      ? feminine ? t.mood_happy_f : t.mood_happy
+      : mood === 'cross'
+        ? feminine ? t.mood_cross_f : t.mood_cross
+        : mood === 'moved'
+          ? feminine ? t.mood_moved_f : t.mood_moved
+          : '';
+  return word ? fillReaderCopy(t.portrait_alt, { name: who, mood: word }) : who;
 }

@@ -12,7 +12,8 @@
  *   * reused location art is `setting_reference` and is labelled as such —
  *     it is not claimed to be a newly generated illustration;
  *   * a panel's own drawing is `panel_art`; while it is on its way the panel
- *     shows the plate (`rendering`) and the step polls (`storyArtRendering`);
+ *     shows the plate (`rendering`, `artPending`) and the journey controller
+ *     polls (`shouldPollStoryArt`, WP-90) — so the poll survives the step;
  *   * the generated ending is exposed only when the server exposes it
  *     (`resolution` is null until the exchange actually settles).
  */
@@ -21,6 +22,7 @@ import type { StoryEpisode, StoryPanel } from '@/types/daily-journey';
 import {
   readerCharacterKey,
   type ReaderLine,
+  type ReaderResolutionStage,
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
 import { castIdFor, expressionForMood } from '@/lib/cast-faces';
@@ -38,6 +40,21 @@ import type { PortraitMood } from '@/lib/onboarding-portraits';
  */
 type StoryDialogueLine = StoryPanel['dialogue'][number] & {
   character_name?: string | null;
+  /** WP-90: the director's face for this line — neutral | happy | cross | moved. */
+  mood?: string | null;
+  /** WP-90: the line in the learner's language, sent for learners up to A2. */
+  text_native?: string | null;
+};
+
+/**
+ * WP-90: a panel as the engine sends it now, read structurally — an older
+ * server sends none of these, and the shared type (owned by the engine side)
+ * need not know them for the reader to use them.
+ */
+type StoryPanelSource = StoryPanel & {
+  /** One sentence describing the picture, in the learner's language. */
+  alt_native?: string | null;
+  overlay_payload?: { alt_native?: string | null } | null;
 };
 
 const CHARACTER_NAMES: Record<string, string> = {
@@ -115,12 +132,18 @@ export function storyMoodFor(
 
 function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLine[] {
   return ((panel.dialogue || []) as StoryDialogueLine[])
-    .filter((line) => line && String(line.text_fr || '').trim())
-    .map((line, index) => ({
+    // The raw index is kept before filtering: it is the line's audio key.
+    .map((line, rawIndex) => ({ line, rawIndex }))
+    .filter(({ line }) => line && String(line.text_fr || '').trim())
+    .map(({ line, rawIndex }, index) => ({
       key: `${panel.id}-l${index}`,
       who: storyCharacterName(line.character_id, line.character_name),
       fr: String(line.text_fr).trim(),
-      en: '',
+      // WP-90: the director's translation for ≤A2 learners brings back
+      // «Traduire la case»; a line without one stays French-only.
+      en: storyLineNative(line),
+      audioKey: `${panel.id}:l${rawIndex}`,
+      speakerId: line.character_id ? String(line.character_id) : null,
       // The visual accent stays keyed to the canonical id, so a renamed
       // character keeps its colour; the display name is only a fallback seed.
       character: readerCharacterKey(line.character_id) || readerCharacterKey(line.character_name) || '',
@@ -128,6 +151,28 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
       faceId: castIdFor(line.character_id, line.character_name),
       faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
     }));
+}
+
+/** WP-90: a line's translation for the learner, when the director sent one. */
+export function storyLineNative(line: Record<string, unknown> | null | undefined): string {
+  const native = line ? line.text_native : null;
+  return typeof native === 'string' ? native.trim() : '';
+}
+
+/**
+ * WP-90: what the panel's picture shows, for its `alt`.
+ *
+ * The director's one-sentence description in the learner's language, read
+ * from the panel or from its payload; failing that the narration, which at
+ * least says where we are. Empty only when the panel has neither.
+ */
+export function storyPanelAlt(panel: StoryPanel | null | undefined): string {
+  if (!panel) return '';
+  const source = panel as StoryPanelSource;
+  for (const value of [source.alt_native, source.overlay_payload?.alt_native]) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return stripPanelPrefix(panel.narration_fr);
 }
 
 /** The reader's stage list for one story-engine episode, in panel order. */
@@ -147,6 +192,9 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       beat: '',
       imageUrl: panelShowsArt(panel) ? panel.image_url || '' : '',
       artStatus: panelShowsArt(panel) ? 'ready' : 'missing',
+      // WP-90: the plate is standing in while the drawing is on the press.
+      artPending: panelShowsArt(panel) && panel.image_status === 'rendering',
+      imageAlt: storyPanelAlt(panel),
       character,
       lines,
       caption: stripPanelPrefix(panel.narration_fr),
@@ -190,6 +238,36 @@ export function storyUsesSettingArt(episode: StoryEpisode | null | undefined): b
 /** True while any panel's own drawing is still on its way. */
 export function storyArtRendering(episode: StoryEpisode | null | undefined): boolean {
   return Boolean(episode?.panels?.some((panel) => panel.image_status === 'rendering'));
+}
+
+// ---------------------------------------------------------------------------
+// WP-90 — the panel-art poll, owned by the journey controller
+// ---------------------------------------------------------------------------
+
+/** Panel art takes about a minute a scene; re-read the episode every 6 s… */
+export const STORY_ART_POLL_MS = 6000;
+/** …for at most five minutes. A panel still rendering after that keeps its plate. */
+export const STORY_ART_POLL_LIMIT = 50;
+
+/**
+ * Should the controller re-read the episode once more? Only while a panel is
+ * still drawing, and never past the ceiling — a drawing that never lands is a
+ * plate, not a reason to poll for the rest of the day.
+ */
+export function shouldPollStoryArt(
+  episode: StoryEpisode | null | undefined,
+  polls: number,
+): boolean {
+  return storyArtRendering(episode) && polls < STORY_ART_POLL_LIMIT;
+}
+
+/**
+ * WP-90: whether the controller should look the episode up for this step.
+ * The scene reads it; the resolution draws the ending as the page's last
+ * panel. Every other step leaves the cache as it is.
+ */
+export function stepReadsStoryEpisode(kind: string | null | undefined): boolean {
+  return kind === 'scene' || kind === 'resolution';
 }
 
 /** The saved server position, clamped to the panels the episode actually has. */
@@ -657,6 +735,124 @@ export function authoredPageEpisode(
     chapter: null,
     panel_index: 0,
     panels,
+    resolution: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// WP-90 — the ending is the last panel («case finale»)
+// ---------------------------------------------------------------------------
+
+/**
+ * The resolution step's ending as the reader draws it. Read structurally: the
+ * step's prompt is the server's `ResolutionPrompt`, plus what a newer server
+ * may add (`mood`, `alt_native`).
+ */
+export type StoryFinaleSource = {
+  character_line_fr?: string | null;
+  summary_native?: string | null;
+  image_url?: string | null;
+  story_pending?: boolean | null;
+  mood?: unknown;
+  alt_native?: string | null;
+};
+
+/**
+ * The resolution step as the reader's last stage: the red-triangle «case
+ * finale». The speaker is the day's counterpart (`journeySpeaker`); without
+ * one the line prints without a face, never with somebody else's.
+ */
+export function storyFinaleStage(
+  stepId: string,
+  prompt: StoryFinaleSource | null | undefined,
+  speaker: { id: string | null; name: string } | null | undefined,
+  ordinal = 1,
+): ReaderResolutionStage {
+  const lineFr = String(prompt?.character_line_fr || '').trim();
+  const summary = String(prompt?.summary_native || '').trim();
+  const name = String(speaker?.name || '').trim();
+  const line: ReaderLine | null = lineFr
+    ? {
+        key: `finale-${stepId}-l0`,
+        who: name,
+        fr: lineFr,
+        en: '',
+        character: readerCharacterKey(speaker?.id) || readerCharacterKey(name) || '',
+        faceId: castIdFor(speaker?.id, name),
+        faceMood: expressionForMood(prompt?.mood),
+        audioKey: `finale:${stepId}`,
+        speakerId: speaker?.id ?? null,
+      }
+    : null;
+  const alt = typeof prompt?.alt_native === 'string' ? prompt.alt_native.trim() : '';
+  return {
+    kind: 'resolution',
+    key: `finale:${stepId}`,
+    ordinal,
+    character: line?.character || 'toi',
+    hookQuestion: '',
+    hookBeat: '',
+    tasks: [],
+    finale: {
+      imageUrl: String(prompt?.image_url || '').trim(),
+      imageAlt: alt || summary,
+      line,
+      summary,
+      waiting: prompt?.story_pending === true,
+    },
+  };
+}
+
+/**
+ * The page's panels followed by the finale. The episode's own resolution
+ * stage (the replay's «À suivre») gives way to it: one ending, not two.
+ */
+export function storyStagesWithFinale(
+  episode: StoryEpisode | null | undefined,
+  finale: ReaderResolutionStage,
+): ReaderStage[] {
+  const panels = buildStoryStages(episode).filter((stage) => stage.kind === 'panel');
+  return [...panels, { ...finale, ordinal: panels.length + 1 }];
+}
+
+type JourneyLike = {
+  id?: string | null;
+  steps?: Array<{ id: string; kind: string; prompt?: unknown }> | null;
+} | null | undefined;
+
+/**
+ * The page the finale closes: the engine's episode when it published one for
+ * this journey, else the authored scene's own page, else nothing (the finale
+ * then stands alone).
+ */
+export function journeyStoryPage(
+  journey: JourneyLike,
+  episode: StoryEpisode | null | undefined,
+): StoryEpisode | null {
+  if (episode && episode.panels?.length) return episode;
+  if (!journey?.id) return null;
+  const scenes = (journey.steps || []).filter((step) => step && step.kind === 'scene');
+  for (let i = scenes.length - 1; i >= 0; i -= 1) {
+    const panels = (scenes[i].prompt as { panels?: StoryPanel[] | null } | undefined)?.panels;
+    const page = authoredPageEpisode(journey.id, scenes[i].id, panels);
+    if (page) return page;
+  }
+  return null;
+}
+
+/** The frame a finale stands in when there is no page before it: no panels, nothing saved. */
+export function finaleOnlyEpisode(journeyId: string, stepId: string): StoryEpisode {
+  return {
+    id: `finale:${stepId}`,
+    scene_id: `finale:${stepId}`,
+    serial_thread_id: '',
+    serial_episode_id: null,
+    journey_id: journeyId,
+    title_fr: '',
+    status: 'available',
+    chapter: null,
+    panel_index: 0,
+    panels: [],
     resolution: null,
   };
 }

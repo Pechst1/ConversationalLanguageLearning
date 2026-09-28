@@ -17,7 +17,7 @@
  * Garamond italic headline per screen, one 3D-press primary, blue = story,
  * red = action, ink = done, plus the world-bible character accents. */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -27,19 +27,21 @@ import {
   CrossIcon,
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
+import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { frenchSpacing } from '@/lib/french-typography';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
 import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
-import { fillReaderCopy, readerCopy, type ReaderCopy } from './reader-copy';
-import { TappableFrench } from './TappableFrench';
+import { fillReaderCopy, portraitAlt, readerCopy, type ReaderCopy } from './reader-copy';
+import { FrenchLine, TappableFrench } from './TappableFrench';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
 import {
   choiceOptions,
   correctionIsBranch,
+  readerHeadParts,
   correctionIsPositive,
   correctionLine,
   stageReadState,
@@ -76,7 +78,8 @@ export type FeuilletonReaderProps = {
   /** the one task that currently accepts a submission, chosen in reading order */
   liveTaskId: string | null;
 
-  onExit: () => void;
+  /** The ✕. Absent draws none (the caller owns the way out). */
+  onExit?: (() => void) | null;
   /** absent while the episode is still being generated, or when already filed */
   onComplete?: (() => void) | null;
   completing?: boolean;
@@ -110,6 +113,14 @@ export type FeuilletonReaderProps = {
       to A2, French from B1. Absent keeps the French chrome. The story is
       content and stays French either way. */
   language?: ControlLanguage | null;
+  /** WP-90/91: speaks a line when its speaker's face is tapped. Absent: plain faces. */
+  lineVoice?: LineVoice | null;
+  /** The face button's label («Écouter Margaux»); the reader's own copy when absent. */
+  listenLabel?: ((name: string) => string) | null;
+  /** WP-90: under the «case finale» — the register note, the chapter recap. */
+  finaleExtra?: React.ReactNode;
+  /** WP-90: shown in the finale while its ending is still being written. */
+  finaleWait?: React.ReactNode;
 };
 
 function prefersReducedMotion(): boolean {
@@ -150,8 +161,15 @@ export function FeuilletonReader({
   footLink = null,
   artProvenance = null,
   language = null,
+  lineVoice = null,
+  listenLabel = null,
+  finaleExtra = null,
+  finaleWait = null,
 }: FeuilletonReaderProps) {
-  const t = readerCopy(language);
+  const base = readerCopy(language);
+  /* WP-91: the face's label comes from the journey's own table when it hands
+     one over, so every «Écouter …» on the screen is the same words. */
+  const t: ReaderCopy = listenLabel ? { ...base, listen_to: listenLabel('{name}') } : base;
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
 
@@ -188,6 +206,8 @@ export function FeuilletonReader({
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) return;
+      // WP-90: inside a French line the arrows walk its words, not the pages.
+      if (target?.closest?.('[data-roving-line]')) return;
       if (event.key === 'ArrowRight') {
         event.preventDefault();
         go(safeIndex + 1);
@@ -283,16 +303,43 @@ export function FeuilletonReader({
     stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
 
   const stageTools = renderStageTools ? renderStageTools(stage) : null;
-  const railPct = count > 1 ? Math.round(((safeIndex + 1) / count) * 100) : 100;
   const positionLabel =
     stage.kind === 'resolution'
       ? fillReaderCopy(t.position_end, { n: safeIndex + 1, count })
       : fillReaderCopy(t.position_panel, { n: safeIndex + 1, count });
+  /* WP-90 (W4): one kicker, one title — never «Le feuilleton» twice — and
+     after the first panel the headline folds into a running head in the bar,
+     which is also the only place the position is printed. The dots are the
+     one progress indicator. */
+  const head = readerHeadParts({ episodeLabel, location, title });
+  const folded = safeIndex > 0;
+  const runningHead = fillReaderCopy(t.running_head, {
+    title: frenchSpacing(head.title),
+    n: safeIndex + 1,
+    count,
+  });
+  const finale = stage.kind === 'resolution' ? stage.finale ?? null : null;
+  /* The story reader keeps the chip in the bar: a fixed place, so a panel with
+     a translation and one without are the same height — and there it is the
+     short word, pressed or not, with the whole phrase as its name. */
+  const chipInBar = Boolean(panelVariant);
+  const translateChip = stage.kind === 'panel' && hasEnglish ? (
+    <button
+      type="button"
+      className="fr-chip"
+      aria-pressed={showTranslation}
+      aria-label={chipInBar ? t.translate_panel : undefined}
+      onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
+    >
+      <span className="sq" aria-hidden="true" />
+      {chipInBar ? t.translate : showTranslation ? t.hide_translation : t.translate_panel}
+    </button>
+  ) : null;
 
   return (
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
        rule is written against; the reader itself stays the section. */
-    <AtelierV2Root as="div" className="fr-scope">
+    <AtelierV2Root as="div" className="fr-scope" language={language ?? undefined}>
     <section
       className="fr-reader"
       aria-label={t.reader_label}
@@ -300,33 +347,30 @@ export function FeuilletonReader({
       data-art={artProvenance || undefined}
       ref={rootRef}
     >
-      <div className="fr-bar">
-        <button type="button" className="fr-icon-btn" onClick={onExit} aria-label={t.exit}>
-          <CrossIcon size={16} />
-        </button>
-        <div
-          className="fr-rail"
-          role="progressbar"
-          aria-valuemin={1}
-          aria-valuemax={count}
-          aria-valuenow={safeIndex + 1}
-          aria-label={t.progress}
-        >
-          <i style={{ width: `${railPct}%` }} />
-        </div>
-        <span className="fr-count" aria-hidden="true">
-          {safeIndex + 1} / {count}
-        </span>
+      <div className="fr-bar" data-folded={folded ? 'true' : undefined}>
+        {onExit && (
+          <button type="button" className="fr-icon-btn" onClick={onExit} aria-label={t.exit}>
+            <CrossIcon size={16} />
+          </button>
+        )}
+        {folded ? (
+          <p className="fr-running" lang="fr">
+            {runningHead}
+          </p>
+        ) : (
+          <span className="fr-running" aria-hidden="true" />
+        )}
+        {chipInBar && translateChip}
       </div>
 
-      <div className="fr-head">
-        <p className="fr-eyebrow">
-          {[episodeLabel, location].filter(Boolean).join(' · ')}
-        </p>
-        {/* the one Garamond italic headline on this screen */}
-        <h1 className="fr-title">{frenchSpacing(title)}</h1>
-        {previously && safeIndex === 0 && <p className="fr-previously">{t.previously} — {frenchSpacing(previously)}</p>}
-      </div>
+      {!folded && (
+        <div className="fr-head">
+          {head.eyebrow && <p className="fr-eyebrow">{head.eyebrow}</p>}
+          {/* the one Garamond italic headline on this screen */}
+          <h1 className="fr-title">{frenchSpacing(head.title)}</h1>
+          {previously && <p className="fr-previously">{t.previously} — {frenchSpacing(previously)}</p>}
+        </div>
+      )}
 
       {banner}
 
@@ -364,30 +408,33 @@ export function FeuilletonReader({
 
         {stage.kind === 'panel' ? (
           <PanelBody
+            /* a new panel is a new plate: no crossfade between panels, only
+               between a panel's plate and its own drawing */
+            key={stage.key}
             stage={stage}
             showTranslation={showTranslation}
             onWord={openHelp}
             pageArt={pageArt}
             variant={panelVariant ? panelVariant(stage) : null}
+            voice={lineVoice}
+            t={t}
+          />
+        ) : finale ? (
+          <FinaleBody
+            stage={stage}
+            finale={finale}
+            voice={lineVoice}
+            wait={finaleWait}
+            extra={finaleExtra}
             t={t}
           />
         ) : (
           <ResolutionBody stage={stage} t={t} />
         )}
 
-        {stage.kind === 'panel' && (hasEnglish || stageTools) && (
+        {stage.kind === 'panel' && ((!chipInBar && hasEnglish) || stageTools) && (
           <div className="fr-tools">
-            {hasEnglish && (
-              <button
-                type="button"
-                className="fr-chip"
-                aria-pressed={showTranslation}
-                onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
-              >
-                <span className="sq" aria-hidden="true" />
-                {showTranslation ? t.hide_translation : t.translate_panel}
-              </button>
-            )}
+            {!chipInBar && translateChip}
             {stageTools}
           </div>
         )}
@@ -435,7 +482,7 @@ export function FeuilletonReader({
       </div>
 
       <nav className="fr-nav" aria-label={t.nav_label}>
-        <ol className="fr-dots">
+        <ol className="fr-dots" aria-label={t.progress}>
           {stages.map((entry, entryIndex) => {
             const state =
               entryIndex === safeIndex ? 'current' : entryIndex <= furthest ? 'read' : 'ahead';
@@ -473,7 +520,11 @@ export function FeuilletonReader({
             <span className="fr-sr">{t.prev}</span>
           </button>
 
-          {isLast ? (
+          {isLast && finale?.waiting && !filed ? (
+            /* WP-90: the ending is still being written — its face says so;
+               there is no dead primary to stare at. */
+            null
+          ) : isLast ? (
           filed && nextHref ? (
             <Link className="fr-btn fr-next is-action" data-press="3d" href={nextHref}>
               {nextLabel || t.read_on} <ArrowRightIcon size={18} />
@@ -515,59 +566,190 @@ export function FeuilletonReader({
   );
 }
 
-/* WP-77: a drawn cast member's face, small, beside the name. */
-function SpeakerFace({ line }: { line: ReaderLine }) {
+type WordHandler = (
+  word: { surface: string; term: string },
+  context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
+) => void;
+
+/* WP-77: a drawn cast member's face, small, beside the name. WP-90/91: the
+   face acts (the line's mood) and is the play button when a voice is given;
+   its alt says who and how — «Margaux, ravie». */
+function SpeakerFace({ line, voice, t }: { line: ReaderLine; voice?: LineVoice | null; t: ReaderCopy }) {
   if (!line.faceId) return null;
-  return <CastPortrait characterId={line.faceId} name={line.who} mood={line.faceMood ?? 'neutral'} size="xs" />;
+  const mood = line.faceMood ?? 'neutral';
+  return (
+    <SpeakingPortrait
+      characterId={line.faceId}
+      name={line.who}
+      mood={mood}
+      size="xs"
+      alt={portraitAlt(t, line.who, mood, line.faceId)}
+      line={{ key: line.audioKey || line.key, text_fr: line.fr, character_id: line.speakerId ?? line.faceId }}
+      voice={voice}
+      label={fillReaderCopy(t.listen_to, { name: line.who || '' })}
+    />
+  );
 }
 
 /* One reply, as a card. The legacy layout keeps its accent dot; the WP-44
-   artboards print the name alone in the story blue. */
+   artboards print the name alone in the story blue. WP-90: in the story
+   reader it is a compact caption — the face, then the name over the line. */
 function SpeechBody({
   line,
   stage,
   showTranslation,
   onWord,
   glyph = false,
+  compact = false,
+  voice = null,
+  t,
 }: {
   line: ReaderLine;
   stage: Extract<ReaderStage, { kind: 'panel' }>;
   showTranslation: boolean;
-  onWord: (
-    word: { surface: string; term: string },
-    context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
-  ) => void;
+  onWord: WordHandler;
   glyph?: boolean;
+  compact?: boolean;
+  voice?: LineVoice | null;
+  t: ReaderCopy;
 }) {
+  const french = (
+    <FrenchLine
+      text={line.fr}
+      idPrefix={line.key}
+      wordLabel={t.word_help}
+      onWord={(word) =>
+        onWord(word, {
+          sentence: line.fr,
+          sentenceEn: line.en,
+          character: line.character || stage.character,
+          speaker: line.who,
+        })
+      }
+    />
+  );
+  if (compact) {
+    return (
+      <div
+        className="fr-speech"
+        data-compact="true"
+        data-char={line.character || stage.character || undefined}
+      >
+        {line.faceId ? (
+          <SpeakerFace line={line} voice={voice} t={t} />
+        ) : (
+          <span className="fr-speech__bare" aria-hidden="true" />
+        )}
+        <div className="fr-speech__text">
+          {line.who && <p className="fr-speaker">{line.who}</p>}
+          {french}
+          {showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="fr-speech" data-char={line.character || stage.character || undefined}>
       {line.who && (
         <p className="fr-speaker" data-face={line.faceId ? 'true' : undefined}>
           {/* WP-77: the speaker's face beside their line; the narrator has none. */}
           {line.faceId ? (
-            <SpeakerFace line={line} />
+            <SpeakerFace line={line} voice={voice} t={t} />
           ) : (
             glyph && <span className="glyph" aria-hidden="true" />
           )}
           {line.who}
         </p>
       )}
-      <p className="fr-line" lang="fr">
-        <TappableFrench
-          text={line.fr}
-          idPrefix={line.key}
-          onWord={(word) =>
-            onWord(word, {
-              sentence: line.fr,
-              sentenceEn: line.en,
-              character: line.character || stage.character,
-              speaker: line.who,
-            })
-          }
-        />
-      </p>
+      {french}
       {showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}
     </div>
+  );
+}
+
+function reducedMotionNow(): boolean {
+  return prefersReducedMotion();
+}
+
+/**
+ * WP-90: the panel's picture, in a frame that never changes size.
+ *
+ * While the panel's own drawing is on the press the location plate stands in,
+ * drawn as a blue-ink duotone with a folio ribbon («Planche 3 · sous presse»).
+ * When the drawing lands it fades in over the plate in 300 ms — or simply
+ * appears under Reduce Motion — and the frame's ratio holds, so nothing below
+ * it moves.
+ */
+function PlateArt({
+  src,
+  alt,
+  pending,
+  ribbon,
+  variant,
+  children,
+}: {
+  src: string;
+  alt: string;
+  pending: boolean;
+  ribbon: string;
+  variant?: 'bubble' | 'line' | null;
+  children?: React.ReactNode;
+}) {
+  const [shown, setShown] = useState<{ src: string; pending: boolean }>({ src, pending });
+  const [previous, setPrevious] = useState<{ src: string; pending: boolean } | null>(null);
+  const [arrived, setArrived] = useState(true);
+
+  useEffect(() => {
+    setShown((current) => {
+      if (current.src === src && current.pending === pending) return current;
+      if (current.src !== src) {
+        // The drawing replaces the plate: keep the plate underneath until the
+        // drawing has loaded and faded in.
+        setPrevious(current);
+        setArrived(false);
+      }
+      return { src, pending };
+    });
+  }, [src, pending]);
+
+  useEffect(() => {
+    if (!arrived || !previous) return undefined;
+    const timer = window.setTimeout(() => setPrevious(null), reducedMotionNow() ? 0 : 320);
+    return () => window.clearTimeout(timer);
+  }, [arrived, previous]);
+
+  return (
+    <figure
+      className="fr-plate"
+      data-variant={variant || undefined}
+      data-pending={shown.pending ? 'true' : undefined}
+    >
+      {previous && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="fr-art is-previous"
+          src={previous.src}
+          alt=""
+          aria-hidden="true"
+          data-pending={previous.pending ? 'true' : undefined}
+        />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        key={shown.src}
+        className="fr-art"
+        src={shown.src}
+        alt={alt}
+        data-pending={shown.pending ? 'true' : undefined}
+        data-arriving={!arrived ? 'true' : undefined}
+        onLoad={() => setArrived(true)}
+        onError={() => setArrived(true)}
+      />
+      {/* the blue ink over the plate; it lifts as the drawing arrives */}
+      <span className="fr-ink" aria-hidden="true" data-on={shown.pending ? 'true' : undefined} />
+      {shown.pending && <figcaption className="fr-folio">{ribbon}</figcaption>}
+      {children}
+    </figure>
   );
 }
 
@@ -577,91 +759,88 @@ function PanelBody({
   onWord,
   pageArt,
   variant = null,
+  voice = null,
   t,
 }: {
   t: ReaderCopy;
   stage: Extract<ReaderStage, { kind: 'panel' }>;
   showTranslation: boolean;
-  onWord: (
-    word: { surface: string; term: string },
-    context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
-  ) => void;
+  onWord: WordHandler;
   pageArt?: string | null;
   variant?: 'bubble' | 'line' | null;
+  voice?: LineVoice | null;
 }) {
   const src = resolveMediaUrl(stage.imageUrl);
   const page = pageArt ? resolveMediaUrl(pageArt) : null;
+  const alt = stage.imageAlt
+    || (stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : '');
 
   /* WP-44, artboards A and B. The story reader reads in the order a reader
      reads: the picture, then what happened, then who said what. The bubble
      variant moves the single reply onto the picture it belongs to; nothing
      else about the panel changes, and the words are the same words. */
   if (variant) {
-    const speech = stage.lines.map((line) => (
+    const bubbleLine = variant === 'bubble' ? stage.lines[0] : null;
+    const speech = (variant === 'bubble' ? stage.lines.slice(1) : stage.lines).map((line) => (
       <SpeechBody
         key={line.key}
         line={line}
         stage={stage}
         showTranslation={showTranslation}
         onWord={onWord}
+        compact
+        voice={voice}
+        t={t}
       />
     ));
-    const bubbleLine = variant === 'bubble' ? stage.lines[0] : null;
     return (
       <>
         {stage.artStatus === 'ready' && src ? (
-          <figure className="fr-plate" data-variant={variant}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : ''} />
+          <PlateArt
+            src={src}
+            alt={alt}
+            pending={Boolean(stage.artPending)}
+            ribbon={fillReaderCopy(t.art_on_press, { n: stage.ordinal })}
+            variant={variant}
+          >
             {bubbleLine && (
               <div
                 className="fr-bubble"
                 data-char={bubbleLine.character || stage.character || undefined}
               >
                 <p className="fr-speaker" data-face={bubbleLine.faceId ? 'true' : undefined}>
-                  {bubbleLine.faceId && <SpeakerFace line={bubbleLine} />}
+                  {bubbleLine.faceId && <SpeakerFace line={bubbleLine} voice={voice} t={t} />}
                   {bubbleLine.who}
                 </p>
-                <p className="fr-line" lang="fr">
-                  <TappableFrench
-                    text={bubbleLine.fr}
-                    idPrefix={bubbleLine.key}
-                    onWord={(word) =>
-                      onWord(word, {
-                        sentence: bubbleLine.fr,
-                        sentenceEn: bubbleLine.en,
-                        character: bubbleLine.character || stage.character,
-                        speaker: bubbleLine.who,
-                      })
-                    }
-                  />
-                </p>
+                <FrenchLine
+                  text={bubbleLine.fr}
+                  idPrefix={bubbleLine.key}
+                  wordLabel={t.word_help}
+                  onWord={(word) =>
+                    onWord(word, {
+                      sentence: bubbleLine.fr,
+                      sentenceEn: bubbleLine.en,
+                      character: bubbleLine.character || stage.character,
+                      speaker: bubbleLine.who,
+                    })
+                  }
+                />
               </div>
             )}
-          </figure>
+          </PlateArt>
         ) : null}
 
         {stage.caption && (
-          <p className="fr-caption">
-            <TappableFrench
-              text={stage.caption}
-              idPrefix={`${stage.key}-cap`}
-              onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
-            />
-          </p>
+          <FrenchLine
+            className="fr-caption"
+            text={stage.caption}
+            idPrefix={`${stage.key}-cap`}
+            wordLabel={t.word_help}
+            onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
+          />
         )}
 
-        {variant === 'bubble'
-          ? stage.lines.slice(1).map((line) => (
-              <SpeechBody
-                key={line.key}
-                line={line}
-                stage={stage}
-                showTranslation={showTranslation}
-                onWord={onWord}
-              />
-            ))
-          : speech}
+        {speech.length > 0 && <div className="fr-captions">{speech}</div>}
       </>
     );
   }
@@ -671,7 +850,7 @@ function PanelBody({
       {stage.artStatus === 'ready' && src ? (
         <figure className="fr-plate">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : ''} />
+          <img src={src} alt={alt} />
         </figure>
       ) : page ? (
         /* the illustrated-page edition: one composed page is the plate */
@@ -697,19 +876,82 @@ function PanelBody({
           showTranslation={showTranslation}
           onWord={onWord}
           glyph
+          voice={voice}
+          t={t}
         />
       ))}
 
       {stage.caption && (
-        <p className="fr-caption">
-          <TappableFrench
-            text={stage.caption}
-            idPrefix={`${stage.key}-cap`}
-            onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
-          />
-        </p>
+        <FrenchLine
+          className="fr-caption"
+          text={stage.caption}
+          idPrefix={`${stage.key}-cap`}
+          wordLabel={t.word_help}
+          onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
+        />
       )}
     </>
+  );
+}
+
+/**
+ * WP-90: the «case finale» — the day's ending as the reader's last panel.
+ * Its picture, the character's line with their face, what happened in the
+ * learner's language, then whatever the caller adds (the register note, the
+ * chapter recap). While the ending is being written, the speaker's face waits
+ * in its place.
+ */
+function FinaleBody({
+  stage,
+  finale,
+  voice,
+  wait,
+  extra,
+  t,
+}: {
+  stage: Extract<ReaderStage, { kind: 'resolution' }>;
+  finale: NonNullable<Extract<ReaderStage, { kind: 'resolution' }>['finale']>;
+  voice?: LineVoice | null;
+  wait?: React.ReactNode;
+  extra?: React.ReactNode;
+  t: ReaderCopy;
+}) {
+  const src = finale.imageUrl ? resolveMediaUrl(finale.imageUrl) : '';
+  const line = finale.line;
+  return (
+    <div className="fr-finale" data-char={stage.character || undefined}>
+      <p className="fr-finale__label">
+        <span className="tri" aria-hidden="true" />
+        {t.finale_label}
+      </p>
+      {finale.waiting ? (
+        wait
+      ) : (
+        <>
+          {src && (
+            <PlateArt src={src} alt={finale.imageAlt} pending={false} ribbon="" variant="line" />
+          )}
+          {line && (
+            <div className="fr-speech" data-compact="true" data-char={line.character || undefined}>
+              {line.faceId ? (
+                <SpeakerFace line={line} voice={voice} t={t} />
+              ) : (
+                <span className="fr-speech__bare" aria-hidden="true" />
+              )}
+              <div className="fr-speech__text">
+                {line.who && <p className="fr-speaker">{line.who}</p>}
+                {/* the ending's line reads as one sentence, the day's last word */}
+                <p className="fr-line" lang="fr">
+                  {frenchSpacing(line.fr)}
+                </p>
+              </div>
+            </div>
+          )}
+          {finale.summary && <p className="fr-finale__summary">{finale.summary}</p>}
+          {extra}
+        </>
+      )}
+    </div>
   );
 }
 

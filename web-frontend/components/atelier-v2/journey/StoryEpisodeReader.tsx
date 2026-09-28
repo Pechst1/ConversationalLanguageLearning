@@ -33,6 +33,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
 import { saveStoryReadingPosition } from '@/services/daily-journey';
+import type { ReaderResolutionStage } from '@/components/feuilleton/reader/panel-model';
 import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
@@ -48,6 +49,7 @@ import {
   radioStageOrdinal,
   storyEpisodeLabel,
   storyStartIndex,
+  storyStagesWithFinale,
   storyUsesSettingArt,
   verifyEpisodeGuess,
   type EpisodeGuessId,
@@ -55,12 +57,14 @@ import {
   type RadioStage,
 } from './story-episode-model';
 import type { UseEpisodeAudio } from './useEpisodeAudio';
+import type { LineVoice } from './useLineVoice';
 
 export type StoryEpisodeReaderProps = {
   episode: StoryEpisode;
   /** `continue` hands the end of the panels to the daily journey; `replay` reads only. */
   mode: 'continue' | 'replay';
-  onExit: () => void;
+  /** The ✕. Absent: the reader draws none (the caller owns the way out). */
+  onExit?: (() => void) | null;
   onContinue?: () => void;
   continuing?: boolean;
   continueLabel?: string;
@@ -73,6 +77,27 @@ export type StoryEpisodeReaderProps = {
   language?: ControlLanguage | null;
   /** False for a page with no server episode (an authored scene): nowhere to save. */
   savePosition?: boolean;
+  /**
+   * WP-90/91 — the voice seam. Speaks a caption's line when its speaker's face
+   * is tapped. The journey creates it (`useLineVoice` in StoryEpisodeStep and
+   * ResolutionStepView); a server-backed `resolve` goes there. Absent: the
+   * faces are plain portraits.
+   */
+  lineVoice?: LineVoice | null;
+  /** «Écouter Margaux» for a face's button, in the learner's language. */
+  listenLabel?: ((name: string) => string) | null;
+  /**
+   * WP-90 — the «case finale»: the day's ending drawn as the page's last panel
+   * (it replaces the episode's own «À suivre» stage), and the reader opens on
+   * it. The panels before it stay one swipe back.
+   */
+  finale?: ReaderResolutionStage | null;
+  /** Under the finale: the register note, the chapter recap. */
+  finaleExtra?: React.ReactNode;
+  /** In the finale while the ending is being written: the speaker's face. */
+  finaleWait?: React.ReactNode;
+  /** The headline, when the caller knows better than the episode (the scenario's). */
+  title?: string | null;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -89,10 +114,20 @@ export function StoryEpisodeReader({
   footLink = null,
   language = null,
   savePosition = true,
+  lineVoice = null,
+  listenLabel = null,
+  finale = null,
+  finaleExtra = null,
+  finaleWait = null,
+  title = null,
 }: StoryEpisodeReaderProps) {
-  const stages = useMemo(() => buildStoryStages(episode), [episode]);
+  const stages = useMemo(
+    () => (finale ? storyStagesWithFinale(episode, finale) : buildStoryStages(episode)),
+    [episode, finale],
+  );
   const panelCount = episode.panels?.length ?? 0;
-  const start = storyStartIndex(episode, stages.length);
+  // The finale opens on itself: the ending is what the learner came back for.
+  const start = finale ? Math.max(0, stages.length - 1) : storyStartIndex(episode, stages.length);
   const [index, setIndex] = useState(start);
   const [furthest, setFurthest] = useState(start);
   const timer = useRef<number | null>(null);
@@ -104,7 +139,7 @@ export function StoryEpisodeReader({
   useEffect(() => {
     setIndex(startRef.current);
     setFurthest(startRef.current);
-  }, [episode.id]);
+  }, [episode.id, finale?.key]);
 
   useEffect(
     () => () => {
@@ -131,7 +166,9 @@ export function StoryEpisodeReader({
   );
 
   const noop = useCallback(() => {}, []);
-  const replay = mode === 'replay' || episode.status !== 'available';
+  // The finale belongs to the day, not to the episode: a scene the server has
+  // already filed still closes with the day's own «Continuer».
+  const replay = mode === 'replay' || (!finale && episode.status !== 'available');
 
   if (!stages.length) return null;
 
@@ -140,7 +177,7 @@ export function StoryEpisodeReader({
       <FeuilletonReaderStyles />
       <FeuilletonReader
         episodeLabel={storyEpisodeLabel(episode)}
-        title={episode.title_fr || 'Le feuilleton'}
+        title={title || episode.title_fr || 'Le feuilleton'}
         stages={stages}
         index={index}
         furthest={furthest}
@@ -162,6 +199,10 @@ export function StoryEpisodeReader({
         panelVariant={panelReaderVariant}
         footLink={footLink}
         language={language}
+        lineVoice={lineVoice}
+        listenLabel={listenLabel}
+        finaleExtra={finaleExtra}
+        finaleWait={finaleWait}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
           location's art is a production fact, not a thing the learner has done

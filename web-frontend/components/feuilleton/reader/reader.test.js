@@ -316,3 +316,65 @@ test('the quoted context is the clause the word came from', () => {
   assert.equal(sentenceAround(line, 'viens'), 'Tu viens quand même ?');
   assert.equal(sentenceAround(line, 'pleut'), 'Il pleut.');
 });
+
+// ---------------------------------------------------------------------------
+// WP-90 «La planche» — the pure helpers
+// ---------------------------------------------------------------------------
+
+test('WP-90: one kicker, one title — «Le feuilleton» is never printed twice', () => {
+  const { readerHeadParts } = require('./panel-model.ts');
+  assert.deepEqual(
+    readerHeadParts({ episodeLabel: 'Le feuilleton', title: 'Le feuilleton' }),
+    { eyebrow: '', title: 'Le feuilleton' },
+  );
+  assert.deepEqual(
+    readerHeadParts({ episodeLabel: 'Chapitre 1 · Premier café', location: 'Le Mistral', title: 'Le Mistral' }),
+    { eyebrow: 'Chapitre 1 · Premier café', title: 'Le Mistral' },
+    'a place that is the title is not repeated either',
+  );
+  assert.deepEqual(readerHeadParts({ episodeLabel: 'Épisode 2', title: '' }), { eyebrow: '', title: 'Épisode 2' });
+});
+
+test('WP-90: a line is one Tab stop; the arrows walk its words', () => {
+  const { rovingWordTarget } = require('./french-text.ts');
+  // from the line itself
+  assert.equal(rovingWordTarget('ArrowRight', -1, 4), 0);
+  assert.equal(rovingWordTarget('Enter', -1, 4), 0);
+  assert.equal(rovingWordTarget('End', -1, 4), 3);
+  assert.equal(rovingWordTarget('Tab', -1, 4), null, 'Tab leaves the line');
+  assert.equal(rovingWordTarget('ArrowLeft', -1, 4), null, 'nothing before the first word');
+  // among the words
+  assert.equal(rovingWordTarget('ArrowRight', 1, 4), 2);
+  assert.equal(rovingWordTarget('ArrowRight', 3, 4), 3, 'stops at the last word');
+  assert.equal(rovingWordTarget('ArrowLeft', 0, 4), 0);
+  assert.equal(rovingWordTarget('Home', 2, 4), 0);
+  assert.equal(rovingWordTarget('Escape', 2, 4), -1, 'Escape returns to the line');
+  assert.equal(rovingWordTarget('a', 2, 4), null);
+  assert.equal(rovingWordTarget('ArrowRight', -1, 0), null, 'a line with no words keeps its keys');
+});
+
+test('WP-90: portraits say who and how, in the chrome language', () => {
+  const { portraitAlt, readerCopy } = require('./reader-copy.ts');
+  const fr = readerCopy('fr');
+  assert.equal(portraitAlt(fr, 'Margaux', 'happy', 'margaux_barman'), 'Margaux, ravie');
+  assert.equal(portraitAlt(fr, 'Gus', 'cross', 'augustin_de_roncourt'), 'Gus, fâché');
+  assert.equal(portraitAlt(fr, 'Lila', 'moved', 'lila_bonnet'), 'Lila, émue');
+  assert.equal(portraitAlt(fr, 'Marin', 'neutral', 'marin_leveque'), 'Marin', 'a neutral face is just the name');
+  assert.equal(portraitAlt(readerCopy('en'), 'Margaux', 'happy', 'margaux_barman'), 'Margaux, pleased');
+  assert.equal(portraitAlt(readerCopy('de'), 'Gus', 'cross', null), 'Gus, verärgert');
+  assert.equal(portraitAlt(fr, '', 'happy', null), '');
+});
+
+test('WP-90: the new reader words exist in all three chrome languages', () => {
+  const { readerCopy, fillReaderCopy } = require('./reader-copy.ts');
+  for (const lang of ['fr', 'en', 'de']) {
+    const t = readerCopy(lang);
+    for (const key of ['art_on_press', 'listen_to', 'word_help', 'running_head', 'finale_label', 'portrait_alt']) {
+      assert.ok(String(t[key] || '').trim(), `${lang}.${key}`);
+    }
+  }
+  assert.equal(fillReaderCopy(readerCopy('fr').art_on_press, { n: 3 }), 'Planche 3 · sous presse');
+  assert.equal(fillReaderCopy(readerCopy('en').art_on_press, { n: 3 }), 'Panel 3 · on the press');
+  assert.equal(fillReaderCopy(readerCopy('de').art_on_press, { n: 3 }), 'Bild 3 · in Druck');
+  assert.equal(readerCopy('fr').translate_panel, 'Traduire la case');
+});

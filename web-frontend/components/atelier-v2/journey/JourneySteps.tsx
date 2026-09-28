@@ -41,6 +41,7 @@ import {
   Surface,
   WordTiles,
   textAnswerField,
+  useControlLanguage,
   type ChoiceOption,
 } from '@/components/atelier-v2/ui';
 import { crLetterHeadline } from '@/components/courrier/courrier-copy';
@@ -66,6 +67,7 @@ import type {
   ForgeStep,
   HelpKind,
   HelpResult,
+  JourneySnapshot,
   RecallStep,
   RespondStep,
   ResolutionStep,
@@ -114,6 +116,10 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
+import { StoryEpisodeReader } from './StoryEpisodeReader';
+import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
+import { useStoryEpisodeEntry } from './story-episode-store';
+import { listenLabel, useStepVoice } from './useStepVoice';
 import {
   closesConversation,
   continuesConversation,
@@ -1233,77 +1239,98 @@ export function ForgeStepView({
   );
 }
 
+/**
+ * WP-90 «La planche»: the ending is the page's last panel. The resolution
+ * renders inside the reader as the «case finale» (the red-triangle stage): its
+ * picture, the character's line with their face, what happened in the
+ * learner's language, then the chapter recap and the register note. The panels
+ * the learner just read are one swipe back.
+ *
+ * While the story lane is still writing the ending (WP-87), the finale shows
+ * the speaker's face writing it — and no primary at all, rather than a
+ * disabled one to stare at. The controller polls meanwhile.
+ */
 export function ResolutionStepView({
   step,
   copy,
   busy,
   onContinue,
-}: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  speaker = null,
+  journey = null,
+  onExit = null,
+}: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'> & {
+  /** WP-77/90: whose face says the ending (and waits while it is written). */
+  speaker?: JourneySpeaker | null;
+  /** WP-90: the day, so the finale closes the page the learner just read. */
+  journey?: Pick<JourneySnapshot, 'id' | 'steps' | 'scenario'> | null;
+  /** The reader's ✕ (pause). */
+  onExit?: (() => void) | null;
+}) {
   const wide = widenCopy(copy);
   const register = registerNoteOf(step.prompt);
   const chapterRecap = chapterRecapOf(step.prompt);
-  if (resolutionAwaitsStory(step)) {
-    // WP-87: the story lane is still writing the ending; the hook polls meanwhile.
-    return (
-      <StepFrame label={copy.today_eyebrow} headline={null}>
-        <StoryWriting speaker={null} />
-        <Action tone="primary" disabled onClick={onContinue}>
-          {copy.continue}
-        </Action>
-      </StepFrame>
-    );
-  }
+  const language = useControlLanguage();
+  const entry = useStoryEpisodeEntry(journey?.id ?? null);
+  // WP-91: the ending's line is a line of this step: its clip, or the device voice.
+  const lineVoice = useStepVoice(journey?.id ?? null, step.id);
+  const pending = resolutionAwaitsStory(step);
+  const page = journeyStoryPage(journey, entry?.kind === 'episode' ? entry.episode : null);
+  const finale = useMemo(
+    () => storyFinaleStage(step.id, step.prompt, speaker),
+    [step.id, step.prompt, speaker],
+  );
+  const episode = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+
+  const extra =
+    chapterRecap || register ? (
+      <>
+        {/* WP-66 «jour de reprise»: the chapter that just closed. French, because
+            it is story, and absent rather than empty when there is none. */}
+        {chapterRecap && (
+          <Surface shape="episode">
+            <p className="av2-label">{wide.chapter_recap_label}</p>
+            <p className="av2-fr av2-body" lang="fr">
+              {frenchSpacing(chapterRecap)}
+            </p>
+          </Surface>
+        )}
+
+        {/* WP-33 / WP-66: the register the learner has been graded on since
+            WP-33 and shown since never. One French line, and why it matters in
+            their own language. Nothing at all when it was not evaluated — which
+            is neither a pass nor a failure, and so is not a line. */}
+        {register && (
+          <Notice shape="story">
+            <p className="av2-label" data-state="register">
+              {wide.register_label}
+            </p>
+            <p className="av2-fr av2-body" lang="fr">
+              {frenchSpacing(register.lineFr)}
+            </p>
+            {register.reasonNative && <p className="av2-body">{register.reasonNative}</p>}
+          </Notice>
+        )}
+      </>
+    ) : null;
+
   return (
-    <StepFrame
-      label={copy.today_eyebrow}
-      headline={step.prompt.character_line_fr}
-      headlineLang="fr"
-    >
-      {step.prompt.image_url && (
-        <Surface shape="hero">
-          <Artwork
-            url={step.prompt.image_url}
-            alt={step.prompt.summary_native}
-            fallbackLabel={wide.artwork_unavailable}
-          />
-        </Surface>
-      )}
-
-      <p className="av2-body av2-body--lg">{step.prompt.summary_native}</p>
-
-      {/* WP-66 «jour de reprise»: the chapter that just closed. French, because
-          it is story, and absent rather than empty when there is none. */}
-      {chapterRecap && (
-        <Surface shape="episode">
-          <p className="av2-label">{wide.chapter_recap_label}</p>
-          <p className="av2-fr av2-body" lang="fr">
-            {frenchSpacing(chapterRecap)}
-          </p>
-        </Surface>
-      )}
-
-      {/* WP-33 / WP-66: the register the learner has been graded on since
-          WP-33 and shown since never. One French line, and why it matters in
-          their own language. Nothing at all when it was not evaluated — which
-          is neither a pass nor a failure, and so is not a line. */}
-      {register && (
-        <Notice shape="story">
-          <p className="av2-label" data-state="register">
-            {wide.register_label}
-          </p>
-          <p className="av2-fr av2-body" lang="fr">
-            {frenchSpacing(register.lineFr)}
-          </p>
-          {register.reasonNative && (
-            <p className="av2-body">{register.reasonNative}</p>
-          )}
-        </Notice>
-      )}
-
-      <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onContinue}>
-        {copy.continue}
-      </Action>
-    </StepFrame>
+    <StoryEpisodeReader
+      episode={episode}
+      mode="continue"
+      onExit={onExit ?? null}
+      onContinue={onContinue}
+      continuing={busy}
+      continueLabel={copy.continue}
+      language={language}
+      savePosition={false}
+      footLink={null}
+      lineVoice={lineVoice}
+      listenLabel={(name) => listenLabel(copy, name)}
+      finale={finale}
+      finaleExtra={extra}
+      finaleWait={pending ? <StoryWriting speaker={speaker} /> : null}
+      title={journey?.scenario?.title_fr || null}
+    />
   );
 }
 

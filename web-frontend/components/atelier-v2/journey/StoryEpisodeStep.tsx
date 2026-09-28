@@ -8,6 +8,12 @@
  * journey never loses its scene because the projection is missing. The
  * lookup is a GET — it neither generates nor completes anything.
  *
+ * WP-90: the lookup and the panel-art poll live in the journey controller
+ * (`useDailyJourney` → `story-episode-store.ts`), so drawings that land after
+ * the learner has moved on are still fetched, and a scene the controller has
+ * already read opens at once. This step reads the cache, and asks for the
+ * episode itself only when nobody has yet.
+ *
  * WP-32's addition is deliberately narrow. «Écouter d'abord» is opt-in and
  * remembered per learner; with it off this file behaves exactly as it did, and
  * *nothing* about the audio path is reached — no manifest read, no synthesis,
@@ -30,18 +36,15 @@ import {
   authoredPageEpisode,
   listenFirstPlacement,
   readListenFirst,
-  storyArtRendering,
   writeListenFirst,
   type EpisodeGuessId,
   type EpisodeVerification,
 } from './story-episode-model';
+import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
 import { useEpisodeAudio } from './useEpisodeAudio';
+import { listenLabel, useStepVoice } from './useStepVoice';
 
 type Lookup = { kind: 'loading' } | { kind: 'none' } | { kind: 'episode'; episode: StoryEpisode };
-
-/** Panel art takes about a minute a scene; poll for up to five. */
-const ART_POLL_MS = 6000;
-const ART_POLL_LIMIT = 50;
 
 export function StoryEpisodeStep({
   journeyId,
@@ -64,11 +67,17 @@ export function StoryEpisodeStep({
   /** WP-82: the screen's chrome language, so the reader's buttons match `copy`. */
   language?: ControlLanguage | null;
 }) {
-  // Server rendering (and the node test harness) has no effects: render the
-  // scene prompt straight away rather than a loading state that never ends.
-  const [lookup, setLookup] = useState<Lookup>(() =>
-    typeof window === 'undefined' ? { kind: 'none' } : { kind: 'loading' },
-  );
+  // Server rendering (and the node test harness) has no effects and no cache:
+  // render the scene prompt straight away rather than a loading state that
+  // never ends.
+  const entry = useStoryEpisodeEntry(journeyId);
+  const lookup: Lookup =
+    typeof window === 'undefined' ? { kind: 'none' } : entry ?? { kind: 'loading' };
+  // WP-90/91: the face beside a caption is the play button — the scene step's
+  // own server clips (the server refuses a text that is not a line of this
+  // step), the device's French voice when there are none.
+  const lineVoice = useStepVoice(journeyId, step.id);
+  const speakLabel = useCallback((name: string) => listenLabel(copy, name), [copy]);
   // The remembered choice is read once, on the client. It defaults to off:
   // listening first is the harder way to meet a scene, and handing the hardest
   // condition to someone who never asked for it is how a good idea gets
@@ -78,47 +87,12 @@ export function StoryEpisodeStep({
     setListenFirst(readListenFirst());
   }, []);
 
+  // The controller normally asked already (and polls the drawings). A step
+  // mounted without it — or before it asked — reads the episode once itself.
   useEffect(() => {
-    let alive = true;
-    setLookup({ kind: 'loading' });
-    getStoryEpisodeForJourney(journeyId)
-      .then((episode) => {
-        if (!alive) return;
-        setLookup(episode && episode.panels?.length ? { kind: 'episode', episode } : { kind: 'none' });
-      })
-      .catch(() => {
-        // The projection is optional. A failed lookup is not a failed scene.
-        if (alive) setLookup({ kind: 'none' });
-      });
-    return () => {
-      alive = false;
-    };
+    if (!journeyId || getStoryEpisodeEntry(journeyId)) return;
+    void loadStoryEpisode(journeyId, getStoryEpisodeForJourney);
   }, [journeyId, step.id]);
-
-  // The panels open on the location plate and their own drawings arrive one by
-  // one (panel_art.py): re-read the episode until none is still rendering.
-  const rendering = lookup.kind === 'episode' && storyArtRendering(lookup.episode);
-  useEffect(() => {
-    if (!rendering) return;
-    let alive = true;
-    let polls = 0;
-    const timer = window.setInterval(() => {
-      polls += 1;
-      if (polls > ART_POLL_LIMIT) {
-        window.clearInterval(timer);
-        return;
-      }
-      getStoryEpisodeForJourney(journeyId)
-        .then((episode) => {
-          if (alive && episode && episode.panels?.length) setLookup({ kind: 'episode', episode });
-        })
-        .catch(() => {});
-    }, ART_POLL_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [journeyId, rendering]);
 
   const sceneId = lookup.kind === 'episode' ? lookup.episode.id : null;
   // WP-49: the server says whether it can honour the listening-first cycle.
@@ -205,6 +179,8 @@ export function StoryEpisodeStep({
           continuing={busy}
           continueLabel={copy.scene_continue}
           language={language}
+          lineVoice={lineVoice}
+          listenLabel={speakLabel}
           /* The foot keeps «Lire plutôt»'s counterpart nowhere: the offer is
              made once, above, and never a second time under the last panel. */
           footLink={null}
@@ -225,6 +201,8 @@ export function StoryEpisodeStep({
         continuing={busy}
         continueLabel={copy.scene_continue}
         language={language}
+        lineVoice={lineVoice}
+        listenLabel={speakLabel}
         footLink={null}
         savePosition={false}
       />

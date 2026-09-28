@@ -52,6 +52,14 @@ export type ReaderLine = {
   faceId?: string | null;
   /** WP-77: which face, from the story's live mood when sent (WP-D8 adds `moved`). */
   faceMood?: PortraitMood;
+  /**
+   * WP-90/91: the line's audio key — `${panelId}:l${rawIndex}`, computed from the
+   * raw dialogue array exactly as `app/services/episode_audio.py` does — so a
+   * server clip and this line meet without negotiating an index.
+   */
+  audioKey?: string;
+  /** WP-91: the speaker's canonical id as the payload sent it (voice lookup). */
+  speakerId?: string | null;
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';
@@ -66,10 +74,32 @@ export type ReaderPanelStage = {
   beat: string;
   imageUrl: string;
   artStatus: ReaderArtStatus;
+  /**
+   * WP-90: the picture shown is the location plate standing in while the
+   * panel's own drawing is still on the press. Drawn as a blue-ink duotone with
+   * a folio ribbon; the drawing crossfades in when it lands.
+   */
+  artPending?: boolean;
+  /** WP-90: what the picture shows, one sentence (the learner's language when sent). */
+  imageAlt?: string;
   character: string;
   lines: ReaderLine[];
   caption: string;
   tasks: ReaderTask[];
+};
+
+/**
+ * WP-90: the «case finale» — the day's ending drawn as the reader's last panel
+ * (the red-triangle stage): its picture, the character's line with their face,
+ * and what happened, in the learner's language.
+ */
+export type ReaderFinale = {
+  imageUrl: string;
+  imageAlt: string;
+  line: ReaderLine | null;
+  summary: string;
+  /** The story lane is still writing the ending: the stage waits with a face. */
+  waiting: boolean;
 };
 
 export type ReaderResolutionStage = {
@@ -80,6 +110,7 @@ export type ReaderResolutionStage = {
   hookQuestion: string;
   hookBeat: string;
   tasks: ReaderTask[];
+  finale?: ReaderFinale | null;
 };
 
 export type ReaderStage = ReaderPanelStage | ReaderResolutionStage;
@@ -470,4 +501,24 @@ export function taskIsChoice(task: ReaderTask): boolean {
 
 export function taskIsClosed(task: ReaderTask): boolean {
   return task?.task_type === 'cloze' || taskIsChoice(task);
+}
+
+/* WP-90 (W4): the reader's head — one kicker, one title. The kicker is the
+   episode label (and place); when it says what the title says («Le feuilleton»
+   over «Le feuilleton») it is dropped rather than printed twice. */
+export function readerHeadParts({
+  episodeLabel,
+  location,
+  title,
+}: {
+  episodeLabel?: string | null;
+  location?: string | null;
+  title?: string | null;
+}): { eyebrow: string; title: string } {
+  const heading = String(title || '').trim() || String(episodeLabel || '').trim();
+  const same = (value: string) => normalizeReaderText(value) === normalizeReaderText(heading);
+  const parts = [episodeLabel, location]
+    .map((value) => String(value || '').trim())
+    .filter((value) => value && !same(value));
+  return { eyebrow: parts.join(' · '), title: heading };
 }

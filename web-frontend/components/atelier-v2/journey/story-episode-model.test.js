@@ -289,3 +289,142 @@ test("an authored scene's page reads like an episode and saves nothing", () => {
   assert.equal(stage.artStatus, 'ready');
   assert.equal(stage.caption, 'Il pleut.');
 });
+
+// ---------------------------------------------------------------------------
+// WP-90 «La planche»
+// ---------------------------------------------------------------------------
+
+const planche = {
+  ...episode,
+  panels: [
+    {
+      id: 'q1', index: 0, narration_fr: 'Au Mistral.',
+      alt_native: 'Margaux behind the counter.',
+      dialogue: [
+        { character_id: 'toi', text_fr: '' },
+        { character_id: 'margaux_barman', character_name: 'Margaux', text_fr: 'Bonjour !', mood: 'happy', text_native: 'Hello!' },
+        { character_id: 'marin_leveque', text_fr: 'Pardon !', mood: 'cross', text_native: null },
+      ],
+      image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'rendering',
+    },
+    {
+      id: 'q2', index: 1, narration_fr: 'Panneau 2 : Il pleut.',
+      overlay_payload: { alt_native: 'Rain on the terrace.' },
+      dialogue: [], image_url: '/media/p2.webp', image_status: 'panel_art',
+    },
+    {
+      id: 'q3', index: 2, narration_fr: 'La nuit tombe.',
+      dialogue: [], image_url: '/assets/serial/locations/le_mistral-booth.webp', image_status: 'setting_reference',
+    },
+  ],
+};
+
+test('WP-90: faces act — each line wears its own mood', () => {
+  const [first] = model.buildStoryStages(planche);
+  assert.deepEqual(first.lines.map((line) => line.faceMood), ['happy', 'cross']);
+  assert.equal(first.lines[0].faceId, 'margaux_barman');
+});
+
+test('WP-90: text_native brings back «Traduire la case»; a line without one stays French-only', () => {
+  const [first] = model.buildStoryStages(planche);
+  assert.equal(first.lines[0].en, 'Hello!');
+  assert.equal(first.lines[1].en, '');
+  assert.equal(model.storyLineNative({ text_native: '  Hi  ' }), 'Hi');
+  assert.equal(model.storyLineNative({}), '', 'an older payload has no translation');
+});
+
+test('WP-90: a line keeps its raw-index audio key and its speaker id', () => {
+  const [first] = model.buildStoryStages(planche);
+  // The empty learner line at index 0 is dropped, but the keys still count it —
+  // exactly as app/services/episode_audio.py does.
+  assert.deepEqual(first.lines.map((line) => line.audioKey), ['q1:l1', 'q1:l2']);
+  assert.deepEqual(first.lines.map((line) => line.key), ['q1-l0', 'q1-l1']);
+  assert.equal(first.lines[1].speakerId, 'marin_leveque');
+});
+
+test('WP-90: a plate standing in for a drawing is marked pending; alt comes from alt_native, then narration', () => {
+  const stages = model.buildStoryStages(planche);
+  assert.deepEqual(stages.map((stage) => stage.artPending), [true, false, false],
+    'a setting_reference plate is simply the plate — it never renders');
+  assert.deepEqual(stages.map((stage) => stage.imageAlt), [
+    'Margaux behind the counter.',
+    'Rain on the terrace.',
+    'La nuit tombe.',
+  ]);
+  assert.equal(model.storyPanelAlt({ narration_fr: 'Panneau 3 : Il pleut.' }), 'Il pleut.');
+  assert.equal(model.storyPanelAlt(null), '');
+});
+
+test('WP-90: the art poll runs only while a panel renders, and stops at a ceiling', () => {
+  assert.equal(model.shouldPollStoryArt(planche, 0), true);
+  assert.equal(model.shouldPollStoryArt(planche, model.STORY_ART_POLL_LIMIT), false);
+  const drawn = { ...planche, panels: planche.panels.map((p) => ({ ...p, image_status: 'panel_art' })) };
+  assert.equal(model.shouldPollStoryArt(drawn, 0), false);
+  assert.equal(model.shouldPollStoryArt(null, 0), false);
+  assert.ok(model.STORY_ART_POLL_MS * model.STORY_ART_POLL_LIMIT >= 4 * 60_000, 'minutes, not seconds');
+  assert.equal(model.stepReadsStoryEpisode('scene'), true);
+  assert.equal(model.stepReadsStoryEpisode('resolution'), true);
+  assert.equal(model.stepReadsStoryEpisode('recall'), false);
+});
+
+test('WP-90: the ending is the page’s last panel', () => {
+  const finale = model.storyFinaleStage(
+    'res-1',
+    { character_line_fr: 'À demain !', summary_native: 'She remembered you.', image_url: '/r.webp', mood: 'moved' },
+    { id: 'margaux_barman', name: 'Margaux' },
+  );
+  assert.equal(finale.kind, 'resolution');
+  assert.equal(finale.finale.line.fr, 'À demain !');
+  assert.equal(finale.finale.line.faceId, 'margaux_barman');
+  assert.equal(finale.finale.line.faceMood, 'moved');
+  assert.equal(finale.finale.imageAlt, 'She remembered you.', 'the summary describes the picture when nothing else does');
+  assert.equal(finale.finale.waiting, false);
+
+  const stages = model.storyStagesWithFinale({ ...planche, resolution: { text_fr: 'Fin.', summary_native: 'End.' } }, finale);
+  assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
+  assert.equal(stages[3].key, 'finale:res-1', 'the episode’s own «À suivre» gives way to the finale');
+  assert.equal(stages[3].ordinal, 4);
+
+  const waiting = model.storyFinaleStage('res-1', { story_pending: true }, null);
+  assert.equal(waiting.finale.waiting, true);
+  assert.equal(waiting.finale.line, null, 'no line, no face invented');
+});
+
+test('WP-90: the finale closes the page the learner read — the engine’s, else the authored one', () => {
+  const journey = {
+    id: 'j',
+    steps: [
+      { id: 's1', kind: 'scene', prompt: { panels: [{ id: 'a0', index: 0, narration_fr: 'Il pleut.', dialogue: [], image_url: '/x.webp', image_status: 'panel_art' }] } },
+      { id: 'r1', kind: 'resolution', prompt: {} },
+    ],
+  };
+  assert.equal(model.journeyStoryPage(journey, planche), planche);
+  assert.equal(model.journeyStoryPage(journey, null).id, 'authored:s1');
+  assert.equal(model.journeyStoryPage({ id: 'j', steps: [] }, null), null);
+  assert.equal(model.journeyStoryPage(null, null), null);
+  const alone = model.finaleOnlyEpisode('j', 'r1');
+  assert.deepEqual(alone.panels, []);
+});
+
+test('WP-90: the episode cache — one request at a time, and a failed re-read keeps the page', async () => {
+  const store = require('./story-episode-store.ts');
+  store.clearStoryEpisodes();
+  let calls = 0;
+  let fail = false;
+  const fetcher = async () => {
+    calls += 1;
+    if (fail) throw new Error('offline');
+    return planche;
+  };
+  const [a, b] = await Promise.all([store.loadStoryEpisode('j1', fetcher), store.loadStoryEpisode('j1', fetcher)]);
+  assert.equal(calls, 1, 'a second caller awaits the first request');
+  assert.equal(a, b);
+  assert.equal(store.getStoryEpisodeEntry('j1').kind, 'episode');
+  fail = true;
+  const again = await store.loadStoryEpisode('j1', fetcher);
+  assert.equal(again.kind, 'episode', 'a poll that fails does not blank the reader');
+  assert.equal((await store.loadStoryEpisode('j2', fetcher)).kind, 'none', 'no page: the plain scene');
+  assert.equal((await store.loadStoryEpisode('j3', async () => null)).kind, 'none');
+  store.clearStoryEpisodes();
+  assert.equal(store.getStoryEpisodeEntry('j1'), undefined);
+});

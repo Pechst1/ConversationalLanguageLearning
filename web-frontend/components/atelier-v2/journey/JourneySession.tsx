@@ -350,11 +350,16 @@ export function JourneySession({
                 />
               )}
               {step.kind === 'resolution' && (
+                // WP-90: the ending is the page's last panel, said by the
+                // day's counterpart, closing the page the learner just read.
                 <ResolutionStepView
                   step={step}
                   copy={copy}
                   busy={busy}
                   onContinue={actions.continueJourney}
+                  speaker={speaker}
+                  journey={journey}
+                  onExit={onExit}
                 />
               )}
 
