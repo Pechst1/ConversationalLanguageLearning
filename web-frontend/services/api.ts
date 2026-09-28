@@ -22,6 +22,8 @@ import type {
   HelpResult,
   JourneyHttpResult,
   JourneySnapshot,
+  LineAudioBody,
+  LineAudioResult,
   RetryBody,
   RevisionBody,
   TodayEnvelope,
@@ -3056,6 +3058,32 @@ class ApiService {
   async getEpisodeAudioClip(sceneId: string, clipId: string): Promise<Blob> {
     const response = await this.api.get<Blob>(
       `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio/${encodeURIComponent(clipId)}`,
+      { ...this.journeyConfig(), responseType: 'blob' },
+    );
+    return response.data;
+  }
+
+  /**
+   * WP-91 «Les voix»: one line of a journey step in its character's voice.
+   * `disabled` means the device voice reads it; 404, not a line of the step.
+   */
+  async requestDailyJourneyLineAudio(
+    journeyId: string,
+    stepId: string,
+    body: LineAudioBody,
+  ): Promise<LineAudioResult> {
+    const response = await this.api.post<LineAudioResult>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/line-audio`,
+      body,
+      this.journeyConfig(),
+    );
+    return response.data;
+  }
+
+  /** WP-91: a line clip's bytes (authenticated, so never an `<audio src>`). */
+  async getDailyJourneyLineAudio(clipId: string): Promise<Blob> {
+    const response = await this.api.get<Blob>(
+      `/daily-journeys/line-audio/${encodeURIComponent(clipId)}`,
       { ...this.journeyConfig(), responseType: 'blob' },
     );
     return response.data;

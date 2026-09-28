@@ -58,6 +58,7 @@ import {
     type RhythmPrior,
 } from '@/lib/rhythm';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
+import { setVoicesAloud, voicesAloud } from '@/lib/voice-preference';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
 import { apiService as api, type AddressPreference } from '@/services/api';
@@ -460,6 +461,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // On in the app (the ringer switch still silences it), off on the web.
     const [sounds, setSounds] = useState(false);
     useEffect(() => { setSounds(soundsEnabled()); }, []);
+    // WP-91 «Les personnages parlent à voix haute»: stored like «Sons», on this
+    // device only; on in the app, off on the web.
+    const [voicesOn, setVoicesOn] = useState(false);
+    useEffect(() => { setVoicesOn(voicesAloud()); }, []);
     // WP-49: the row exists only where the server can read an episode aloud.
     const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
@@ -1483,6 +1488,21 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         setSounds(next);
                                         // Turning it on answers with the sound itself.
                                         if (next) playFeelSound('correct');
+                                    }}
+                                />
+                            </Row>
+                            <Row
+                                id="st-voices-label"
+                                label={copy.row_voices_aloud}
+                                hint={copy.row_voices_aloud_hint}
+                            >
+                                <Switch
+                                    copy={copy}
+                                    labelledBy="st-voices-label"
+                                    checked={voicesOn}
+                                    onChange={(next) => {
+                                        setVoicesAloud(next);
+                                        setVoicesOn(next);
                                     }}
                                 />
                             </Row>

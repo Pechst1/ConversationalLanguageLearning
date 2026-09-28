@@ -199,6 +199,9 @@ export type SettingsCopyKey =
   | 'row_listen_first_hint'
   | 'row_sounds'
   | 'row_sounds_hint'
+  // WP-91 «Les voix»
+  | 'row_voices_aloud'
+  | 'row_voices_aloud_hint'
   | 'row_tts_speed'
   | 'speed_slow'
   | 'speed_fast'
@@ -402,6 +405,8 @@ const EN: SettingsCopy = {
   row_listen_first_hint: 'Guess, listen, check, then read.',
   row_sounds: 'Sounds',
   row_sounds_hint: 'Tones for right, wrong, done.',
+  row_voices_aloud: 'Characters speak aloud',
+  row_voices_aloud_hint: 'Each reply is read out once as it arrives. Tap a face to hear it again.',
   row_tts_speed: 'Reading speed',
   speed_slow: 'Slow',
   speed_fast: 'Fast',
@@ -605,6 +610,8 @@ const DE: SettingsCopy = {
   row_listen_first_hint: 'Raten, hören, prüfen, dann lesen.',
   row_sounds: 'Töne',
   row_sounds_hint: 'Töne für richtig, falsch, geschafft.',
+  row_voices_aloud: 'Figuren sprechen laut',
+  row_voices_aloud_hint: 'Jede Antwort wird einmal vorgelesen. Tippen Sie auf ein Gesicht, um sie noch einmal zu hören.',
   row_tts_speed: 'Lesegeschwindigkeit',
   speed_slow: 'Langsam',
   speed_fast: 'Schnell',
@@ -813,6 +820,8 @@ const FR: SettingsCopy = {
   row_listen_first_hint: 'Deviner, écouter, vérifier, puis lire.',
   row_sounds: 'Sons',
   row_sounds_hint: 'Un son : juste, faux, terminé.',
+  row_voices_aloud: 'Les personnages parlent à voix haute',
+  row_voices_aloud_hint: 'Chaque réplique est lue une fois à son arrivée. Touchez un visage pour la réentendre.',
   row_tts_speed: 'Vitesse de lecture',
   speed_slow: 'Lente',
   speed_fast: 'Rapide',

@@ -184,7 +184,20 @@ export type JourneyCopyKey =
   | 'exchange_of'
   | 'thread_label'
   | 'thread_you'
-  | 'thread_note_open';
+  | 'thread_note_open'
+  // WP-91 «Les voix»: the face is the play button; words, dictation and
+  // listen-and-tap speak. `voice_listen_to` takes {name}.
+  | 'voice_listen_to'
+  | 'voice_listen_line'
+  | 'word_listen'
+  | 'dictation_play'
+  | 'dictation_replay'
+  | 'dictation_stop'
+  | 'dictation_loading'
+  | 'dictation_unavailable'
+  | 'dictation_label'
+  | 'dictation_placeholder'
+  | 'listen_unavailable_read';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -342,6 +355,17 @@ const EN: CopyTable = {
   thread_label: 'The conversation',
   thread_you: 'You',
   thread_note_open: 'Show the correction',
+  voice_listen_to: 'Listen to {name}',
+  voice_listen_line: 'Listen to this line',
+  word_listen: 'Hear the word',
+  dictation_play: 'Listen',
+  dictation_replay: 'Listen again',
+  dictation_stop: 'Stop',
+  dictation_loading: 'Getting the recording…',
+  dictation_unavailable: 'The recording can’t be played right now.',
+  dictation_label: 'What you hear',
+  dictation_placeholder: 'Write what you hear, in French',
+  listen_unavailable_read: 'No sound right now — read the line instead.',
 };
 
 const DE: CopyTable = {
@@ -498,6 +522,17 @@ const DE: CopyTable = {
   thread_label: 'Das Gespräch',
   thread_you: 'Du',
   thread_note_open: 'Korrektur zeigen',
+  voice_listen_to: '{name} anhören',
+  voice_listen_line: 'Diesen Satz anhören',
+  word_listen: 'Wort anhören',
+  dictation_play: 'Anhören',
+  dictation_replay: 'Noch einmal anhören',
+  dictation_stop: 'Stopp',
+  dictation_loading: 'Die Aufnahme wird geladen…',
+  dictation_unavailable: 'Die Aufnahme lässt sich gerade nicht abspielen.',
+  dictation_label: 'Was du hörst',
+  dictation_placeholder: 'Schreib auf Französisch, was du hörst',
+  listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
 };
 
 const FR: CopyTable = {
@@ -654,6 +689,17 @@ const FR: CopyTable = {
   thread_label: 'La conversation',
   thread_you: 'Vous',
   thread_note_open: 'Voir la correction',
+  voice_listen_to: 'Écouter {name}',
+  voice_listen_line: 'Écouter la réplique',
+  word_listen: 'Écouter le mot',
+  dictation_play: 'Écouter',
+  dictation_replay: 'Réécouter',
+  dictation_stop: 'Arrêter',
+  dictation_loading: 'L’enregistrement arrive…',
+  dictation_unavailable: 'L’enregistrement ne peut pas être lu pour l’instant.',
+  dictation_label: 'Ce que vous entendez',
+  dictation_placeholder: 'Écrivez ce que vous entendez',
+  listen_unavailable_read: 'Pas de son pour l’instant : lisez la phrase.',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };

@@ -145,7 +145,12 @@ export type RecallFormat =
   /** WP-78: rebuild a sentence from the scene (sent as tiles). */
   | 'unscramble'
   /** WP-86: «Qui a dit ça ?» — a line of the scene, tap the face (sent as a pick). */
-  | 'who_said';
+  | 'who_said'
+  /**
+   * WP-91: a line of today's scene is heard (never printed); the learner
+   * types what they hear. Sent as text, graded like `short_answer`.
+   */
+  | 'dictation';
 
 export type RecallPrompt = {
   task_type: RecallFormat;
@@ -164,9 +169,28 @@ export type RecallPrompt = {
    * server's verdict stays authoritative.
    */
   answer_key?: RecallAnswerKey | null;
-  /** WP-78. A listen-and-tap clip; `null`/absent means read-and-tap. */
+  /**
+   * WP-78. A listen-and-tap clip; `null`/absent means read-and-tap. WP-91: a
+   * listen_tap or dictation clip is the authenticated path
+   * `/api/v1/daily-journeys/line-audio/{clip_id}` — fetched with the session,
+   * never handed to `<audio src>`.
+   */
   audio_url?: string | null;
 };
+
+/** WP-91 «Les voix»: ask for one line of a step, spoken in its character's voice. */
+export type LineAudioBody = {
+  text_fr: string;
+  character_id: string | null;
+};
+
+/**
+ * `disabled` when the server speaks nothing (audio off, cap near): the device
+ * voice reads the line instead. A 404 means the text is not a line of the step.
+ */
+export type LineAudioResult =
+  | { status: 'ready'; clip_id: string; content_type: string; voice: string; cached: boolean }
+  | { status: 'disabled' };
 
 export type RecallAnswerKey = { version: number; salt: string; digests: string[] };
 

@@ -11,17 +11,25 @@
  * Under the character's name, one small red triangle per planned exchange —
  * the respond part of the mark — filled as each exchange passes. A sequence,
  * never a ring.
+ *
+ * WP-91 «Les voix»: every character face in the column is the play button for
+ * its own line (the step's server clip when `journeyId`/`stepId` are given,
+ * the device's French voice otherwise), and the reply that just typed in says
+ * itself once when «Les personnages parlent à voix haute» is on.
  */
 
 import React from 'react';
 
 import { Correction, ShapeToken } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { frenchSpacing } from '@/lib/french-typography';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import type { JourneyCopy } from './journey-copy';
 import { CharacterTyping, type ReplySpeaker } from './ReplyStage';
+import { SpeakingPortrait } from './SpeakingPortrait';
+import { useAutoSpeak, type LineVoice, type VoiceLine } from './useLineVoice';
+import { listenLabel, useStepVoice } from './useStepVoice';
+import { replyFinishedTyping } from './voice-autoplay';
 import {
   exchangeLabel,
   markSpan,
@@ -121,6 +129,9 @@ export function RespondThread({
   waiting,
   openNote,
   onToggleNote,
+  journeyId = null,
+  stepId = null,
+  voice: sharedVoice = null,
 }: {
   bubbles: ThreadBubble[];
   speaker: ReplySpeaker;
@@ -134,8 +145,30 @@ export function RespondThread({
   waiting: boolean;
   openNote: string | null;
   onToggleNote: (key: string) => void;
+  /** WP-91: the day and the step, so a face speaks with the server's clip. */
+  journeyId?: string | null;
+  stepId?: string | null;
+  /** WP-91: a voice the screen already holds (otherwise the thread makes one). */
+  voice?: LineVoice | null;
 }) {
   const name = speaker?.name ?? '';
+  const voice = useStepVoice(journeyId, stepId, sharedVoice);
+  const lineFor = (bubble: { key: string; text: string }): VoiceLine => ({
+    key: `${stepId ?? ''}:${bubble.key}`,
+    text_fr: bubble.text,
+    character_id: speaker?.id ?? null,
+  });
+  // The reply that just arrived speaks once, when its words have typed in.
+  const typingBubble = typingKey
+    ? bubbles.find((bubble) => bubble.kind === 'character' && bubble.key === typingKey) ?? null
+    : null;
+  useAutoSpeak(
+    voice,
+    typingBubble ? lineFor(typingBubble) : null,
+    Boolean(typingBubble && replyFinishedTyping(typingBubble.text, typedText)),
+    stepId,
+  );
+  const label = listenLabel(copy, name);
   return (
     <ol className="av2-thread" aria-label={copy.thread_label}>
       {bubbles.map((bubble) => {
@@ -175,7 +208,10 @@ export function RespondThread({
                 {speaker && (
                   /* Keyed on the mood, so the closing verdict's face pops in (at-pop). */
                   <span key={mood} className="av2-speech__face">
-                    <CastPortrait
+                    <SpeakingPortrait
+                      line={lineFor(bubble)}
+                      voice={voice}
+                      label={label}
                       characterId={speaker.id || ''}
                       name={speaker.name}
                       mood={mood}
@@ -197,7 +233,14 @@ export function RespondThread({
               <div className="av2-speech av2-speech--past" data-mood="neutral">
                 {speaker && (
                   <span className="av2-speech__face">
-                    <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="xs" />
+                    <SpeakingPortrait
+                      line={lineFor(bubble)}
+                      voice={voice}
+                      label={label}
+                      characterId={speaker.id || ''}
+                      name={speaker.name}
+                      size="xs"
+                    />
                   </span>
                 )}
                 <div className="av2-speech__bubble">

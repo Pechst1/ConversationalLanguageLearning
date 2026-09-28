@@ -6,9 +6,11 @@
  * `TypedReply`: the reply arrives as the character's speech and types in,
  * whole words at a time; the verdict card waits for it (`journey-requests`
  * `stageAttemptFeedback`). Reduced Motion shows the reply whole at once.
+ * WP-91: the face is the play button, and a reply that has typed in says
+ * itself once when «Les personnages parlent à voix haute» is on.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { useControlLanguage } from '@/components/atelier-v2/ui';
@@ -19,6 +21,12 @@ import {
   typingLine,
 } from '@/lib/journey-reply-reveal';
 import type { RespondPrompt } from '@/types/daily-journey';
+
+import { journeyCopy } from './journey-copy';
+import { SpeakingPortrait } from './SpeakingPortrait';
+import { useAutoSpeak, type LineVoice, type VoiceLine } from './useLineVoice';
+import { listenLabel, useStepVoice } from './useStepVoice';
+import { replyFinishedTyping } from './voice-autoplay';
 
 export type ReplySpeaker = { id: string | null; name: string } | null;
 
@@ -83,17 +91,42 @@ export function TypedReply({
   speaker,
   reply,
   animate,
+  journeyId = null,
+  stepId = null,
+  voice: sharedVoice = null,
 }: {
   speaker: ReplySpeaker;
   reply: string;
   /** `true` while the verdict is held back; a settled turn shows it whole. */
   animate: boolean;
+  /** WP-91: the day and the step, so the face speaks with the server's clip. */
+  journeyId?: string | null;
+  stepId?: string | null;
+  voice?: LineVoice | null;
 }) {
   const shown = useTypedText(reply, animate);
+  const language = useControlLanguage();
+  const voice = useStepVoice(journeyId, stepId, sharedVoice);
+  const line: VoiceLine = { key: `${stepId ?? ''}:reply`, text_fr: reply, character_id: speaker?.id ?? null };
+  // Only a reply that arrived on this screen (it typed in) speaks by itself; a
+  // settled one, repainted after a reload, waits for a tap. Remembered, because
+  // the verdict can land in the same frame the last word does.
+  const arrived = useRef(false);
+  if (animate) arrived.current = true;
+  useAutoSpeak(voice, arrived.current ? line : null, replyFinishedTyping(reply, shown), stepId);
 
   return (
     <div className="av2-reply" data-typing={shown.length < reply.trim().length ? 'true' : undefined}>
-      {speaker && <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="sm" />}
+      {speaker && (
+        <SpeakingPortrait
+          line={line}
+          voice={voice}
+          label={listenLabel(journeyCopy(language), speaker.name)}
+          characterId={speaker.id || ''}
+          name={speaker.name}
+          size="sm"
+        />
+      )}
       <div className="av2-reply__body">
         {speaker && <p className="av2-label">{speaker.name}</p>}
         <p className="av2-fr av2-body av2-body--lg av2-reply__text" lang="fr">

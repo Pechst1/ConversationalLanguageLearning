@@ -24,6 +24,7 @@ import '@/styles/globals.css';
 // use it. Everything in the file is scoped under `.av2` or is an @font-face, so
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
+import '@/styles/atelier-v2-voices.css';
 
 // Create a client
 const queryClient = new QueryClient({

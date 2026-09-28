@@ -9,6 +9,11 @@
  */
 
 import apiService from '@/services/api';
+import {
+  createClipLoader,
+  createLineAudioResolver,
+  recallClipId,
+} from '@/components/atelier-v2/journey/line-audio';
 import type {
   AdvanceBody,
   AttemptBody,
@@ -25,6 +30,7 @@ import type {
   JourneyErrorDetail,
   JourneyHttpResult,
   JourneySnapshot,
+  LineAudioBody,
   PublicStep,
   RespondStep,
   TodayEnvelope,
@@ -298,3 +304,35 @@ export const getStoryEpisode = (sceneId: string) => apiService.getStoryEpisode(s
 export const getStoryEpisodeForJourney = (journeyId: string) => apiService.getStoryEpisodeForJourney(journeyId);
 export const saveStoryReadingPosition = (sceneId: string, panelIndex: number) =>
   apiService.saveStoryReadingPosition(sceneId, panelIndex);
+
+/**
+ * WP-91 «Les voix» — a character's line of a journey step, in their voice.
+ *
+ * `journeyLineResolver(journeyId, stepId)` is what `useLineVoice({ resolve })`
+ * takes: it asks for the line (`POST …/line-audio`), fetches the clip with the
+ * session, and keeps the bytes for the session per character and text, so a
+ * second play costs nothing. `disabled`, a 404 or no network → `null`, and the
+ * device's French voice reads the line (`line-audio.ts`).
+ */
+export const requestLineAudio = (journeyId: string, stepId: string, body: LineAudioBody) =>
+  apiService.requestDailyJourneyLineAudio(journeyId, stepId, body);
+export const getLineAudioClip = (clipId: string) => apiService.getDailyJourneyLineAudio(clipId);
+
+export function journeyLineResolver(journeyId: string, stepId: string) {
+  return createLineAudioResolver({
+    request: (body) => requestLineAudio(journeyId, stepId, body),
+    fetchClip: getLineAudioClip,
+  });
+}
+
+const recallClips = createClipLoader(getLineAudioClip);
+
+/**
+ * WP-91: the bytes behind a listen_tap or dictation prompt's `audio_url`
+ * (`/api/v1/daily-journeys/line-audio/{clip_id}`), cached for the session.
+ * `null` when the path is not a line clip or cannot be fetched.
+ */
+export function loadRecallClip(audioUrl: string | null | undefined): Promise<Blob | null> {
+  const clipId = recallClipId(audioUrl);
+  return clipId ? recallClips(clipId) : Promise.resolve(null);
+}

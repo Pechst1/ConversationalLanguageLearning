@@ -29,6 +29,10 @@ import {
   ShapeToken,
 } from '@/components/atelier-v2/ui';
 
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
+import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
+import { listenLabel } from '@/components/atelier-v2/journey/useStepVoice';
 import { pickByLanguage } from '@/lib/language-rule';
 
 import { courrierCopy, crFill, crPlural, useCrCopy } from './courrier-copy';
@@ -99,6 +103,8 @@ export function CrDesk({
   onBack,
   backHref = '/atelier',
   backLabel,
+  letterFr,
+  senderId,
 }: {
   name: string;
   line?: string;
@@ -106,15 +112,35 @@ export function CrDesk({
   onBack?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   backHref?: string;
   backLabel?: string;
+  /**
+   * WP-91 «Les voix»: the letter's French body. When given, the sender's face
+   * is the play button and reads it aloud (the device's French voice).
+   */
+  letterFr?: string | null;
+  /** The sender's cast id, so the voice and the face are theirs. */
+  senderId?: string | null;
 }) {
   const t = useCrCopy();
   const back = backLabel || t.back_home;
+  const voice = useLineVoice();
+  const letter = String(letterFr || '').trim();
   return (
     <header className="cr-desk">
       <Link className="av2-icon-btn cr-back" href={backHref} onClick={onBack} aria-label={back} title={back}>
         <ArrowLeftIcon size={20} />
       </Link>
-      <Portrait name={name} />
+      {letter ? (
+        <SpeakingPortrait
+          line={{ key: 'courrier-letter', text_fr: letter, character_id: senderId || name }}
+          voice={voice}
+          label={listenLabel(journeyCopy(t.lang as 'en' | 'de' | 'fr'), name)}
+          characterId={senderId || name}
+          name={name}
+          size="sm"
+        />
+      ) : (
+        <Portrait name={name} />
+      )}
       <div className="cr-desk-main">
         <h1 className="cr-name" lang="fr">{name}</h1>
         {line && <p className="av2-sr">{line}</p>}

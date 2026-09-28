@@ -9,6 +9,8 @@
 
 import type { JourneySnapshot, RecallOption, RecallPrompt } from '@/types/daily-journey';
 
+import { heardSource } from './dictation-model';
+
 /** The two columns of a matching item, in the order the server laid them out. */
 export function matchCards(options: readonly RecallOption[]): {
   fr: RecallOption[];
@@ -28,9 +30,11 @@ export function pairsComplete(settled: readonly string[], frCount: number): bool
 /**
  * A listen-and-tap item is heard only when the server sent a clip. Without
  * one it is read-and-tap: the phrase is printed and nothing speaks of audio.
+ * WP-91: the clip is usually the journey's authenticated line audio
+ * (`HeardLine` fetches it); a path the app cannot play counts as no clip.
  */
 export function listenTapHasAudio(prompt: Pick<RecallPrompt, 'task_type' | 'audio_url'>): boolean {
-  return prompt.task_type === 'listen_tap' && Boolean(prompt.audio_url);
+  return prompt.task_type === 'listen_tap' && heardSource(prompt.audio_url).kind !== 'none';
 }
 
 /** Cards whose text is in the learner's language are not marked `lang="fr"`. */

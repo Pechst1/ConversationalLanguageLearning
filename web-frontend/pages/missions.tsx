@@ -1114,6 +1114,9 @@ export default function MissionsPage() {
                 line={deskLine}
                 chip={deskChip}
                 onBack={returnToAtelierHome}
+                // WP-91: the sender's face reads the letter (French only).
+                letterFr={opening.lang === 'fr' ? openingMessage : null}
+                senderId={mission?.prompt_payload?.serial_character_id || correspondent?.id || null}
               />
               {reasonText && <p className="cr-reason">{reasonText}</p>}
 

@@ -6,10 +6,15 @@
    episode. Closing it returns focus to the word that was tapped.
 
    Honest about what it knows: a word with no dictionary entry says so, and
-   offers the line's translation instead of inventing a gloss. */
+   offers the line's translation instead of inventing a gloss.
+
+   WP-91 «Les voix»: the word says itself — a small «Écouter le mot» beside it,
+   in the device's French voice (no server needed, works offline). */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { learnerGloss } from '@/lib/glosses';
 import { canKeep, keepCopy, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
 import apiService from '@/services/api';
@@ -60,6 +65,8 @@ export function WordHelpSheet({
   const [gloss, setGloss] = useState<GlossState>({ kind: 'loading' });
   const [sentenceEn, setSentenceEn] = useState('');
   const [keep, setKeep] = useState<KeepState>({ kind: 'idle' });
+  const voice = useLineVoice();
+  const sayLabel = journeyCopy(language ?? 'fr').word_listen;
 
   const open = Boolean(request);
 
@@ -202,8 +209,19 @@ export function WordHelpSheet({
         <div className="fr-sheet-head">
           <div className="lede">
             <div className="k">{t.help_kicker}</div>
-            <h2 id="fr-word-title">{request.surface}</h2>
+            <h2 id="fr-word-title" lang="fr">{request.surface}</h2>
           </div>
+          {voice.supported && (
+            <button
+              type="button"
+              className="av2-say"
+              aria-pressed={voice.speakingKey === `word:${request.surface}`}
+              onClick={() => voice.speak({ key: `word:${request.surface}`, text_fr: request.surface })}
+            >
+              <span className="av2-say__glyph" aria-hidden="true" />
+              {sayLabel}
+            </button>
+          )}
           <button type="button" className="fr-sheet-close" onClick={onClose} ref={closeRef}>
             {t.help_close}
           </button>
