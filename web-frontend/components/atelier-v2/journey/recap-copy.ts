@@ -56,7 +56,7 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     step_value: '1 Schritt',
     teaser_label: 'Morgen',
     level_label: 'Niveau',
-    mood_warmer: '{name} lächelt Sie an',
+    mood_warmer: '{name} lächelt dich an',
     mood_colder: '{name} ist etwas verstimmt',
     encore: 'Noch 5 Minuten',
   },

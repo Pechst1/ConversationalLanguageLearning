@@ -205,7 +205,7 @@ test('a correct verdict adds «Marin vous sourit ↑»; a wrong one does not', (
   assert.ok(!band('wrong').includes('av2-smiles'));
   assert.ok(!band('supported').includes('av2-smiles'), 'only a clean correct');
   assert.equal(replyStage.smileLine('Marin', 'fr'), 'Marin vous sourit');
-  assert.equal(replyStage.smileLine('Marin', 'de'), 'Marin lächelt Sie an');
+  assert.equal(replyStage.smileLine('Marin', 'de'), 'Marin lächelt dich an');
   assert.equal(replyStage.smileLine('', 'fr'), null);
 });
 

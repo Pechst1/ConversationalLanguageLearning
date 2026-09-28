@@ -141,7 +141,7 @@ export function TypedReply({
 const SMILES: Record<'fr' | 'en' | 'de', string> = {
   fr: '{name} vous sourit',
   en: '{name} smiles at you',
-  de: '{name} lächelt Sie an',
+  de: '{name} lächelt dich an',
 };
 
 /** WP-D2: the line under a correct verdict, in the learner's chrome language. */

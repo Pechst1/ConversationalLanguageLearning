@@ -173,7 +173,7 @@ test('WP-82: one chrome language on the recap — English, German or French, nev
   const de = textOf(render(day(), { language: 'de' }));
   assert.match(de, /Szene 4 Schritte Wörter \+2 Serie 4 Tage/);
   assert.match(de, /Siegel behalten/);
-  assert.match(de, /Margaux lächelt Sie an/);
+  assert.match(de, /Margaux lächelt dich an/);
   assert.doesNotMatch(de, /Keep the seal|Ranger|Série/);
   const fr = textOf(render(day(), { language: 'fr' }));
   assert.match(fr, /Scène 4 étapes Mots \+2 Série 4 jours/);
