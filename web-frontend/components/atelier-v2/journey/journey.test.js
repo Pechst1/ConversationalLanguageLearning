@@ -737,7 +737,20 @@ const noSleep = () => Promise.resolve();
   // verdict card no longer repeats it.
   assert.ok(!htmlHas(correctHtml, clean.character_reply_fr));
 
-  const supportedHtml = renderFeedback(supportedFeedback);
+  // WP-89 — verdict only at the close. The fixture's supported turn carries a
+  // `next_turn`: the conversation goes on, so there is no band, no «Continue»,
+  // no face and no correction card — nothing between two exchanges.
+  assert.ok(supported.next_turn, 'the fixture is a continuing turn');
+  const continuingHtml = renderFeedback(supportedFeedback);
+  assert.equal(continuingHtml, '', 'no band on next_turn');
+  assert.equal(
+    renderFeedback(state.feedbackFromAttempt({ ...supported, task_outcome: 'not_yet', assistance_level: 'none' })),
+    '',
+    'and no not_yet band either: a slip mid-conversation is a mark, not a verdict',
+  );
+  assert.equal(renderFeedback({ ...supportedFeedback, kind: 'replying' }), '');
+  // The same result as the closing turn is judged, once.
+  const supportedHtml = renderFeedback(state.feedbackFromAttempt({ ...supported, next_turn: null }));
   assert.ok(supportedHtml.includes('data-state="supported"') && htmlHas(supportedHtml, EN.supported));
   assert.ok(htmlHas(supportedHtml, supported.correction.corrected_fr));
   assert.ok(htmlHas(supportedHtml, EN.correction));
@@ -1377,6 +1390,18 @@ const noSleep = () => Promise.resolve();
     }
   }
 
+  // W6 (WP-89): the notice lives in the header's own slot — inside the head,
+  // before the step — so it can never push the field or Send down.
+  const pendingShell = shellHtml(connectionOf('pending_sync'), sessionPhase, activeJourney);
+  const headClose = pendingShell.indexOf('</header>');
+  const noticeAt = pendingShell.indexOf('class="av2-session__notice"');
+  assert.ok(noticeAt !== -1 && noticeAt < headClose, 'the connection notice is in the session header');
+  assert.equal(
+    pendingShell.split('journey-connection').length - 1,
+    1,
+    'and said once, not repeated above the step',
+  );
+
   // Connected, settled and current: no banner at all.
   const liveHtml = shellHtml(connectionOf('live'), sessionPhase, activeJourney);
   for (const line of [EN.offline_cached, EN.offline_empty, EN.pending_sync, EN.syncing]) {
@@ -1534,10 +1559,12 @@ const noSleep = () => Promise.resolve();
   );
   assert.equal(live.recovery.replayPlan, null, 'the plan is offered once, not on every render');
   // The step the learner was answering is still open, so their words are still
-  // held on the device — and the connection state says exactly that rather than
-  // claiming everything is synced.
+  // held on the device (`unsent`). W6 (WP-89): a draft while online is not a
+  // sync problem — the mutation settled, so the session is simply live and no
+  // «has not reached the server» banner pushes the field down.
   assert.equal(live.recovery.draftFor(interruptedStep.id), interruptedBody.text);
-  assert.equal(live.recovery.connection.state, 'pending_sync');
+  assert.equal(live.recovery.connection.state, 'live');
+  assert.equal(live.recovery.connection.unsent, true, 'the held draft is still a known fact');
   assert.equal(live.recovery.connection.online, true);
   assert.equal(live.recovery.connection.readingCache, false, 'a served snapshot is not a cached one');
 

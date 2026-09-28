@@ -5,6 +5,8 @@
  *   correct  → a medium tap      + the rising third
  *   wrong    → a warning buzz    + the soft falling step
  *   step     → a light tap       (no sound: moving on is not news)
+ *   reply    → a light tick      (WP-89: a reply arrives mid-conversation;
+ *                                 no verdict yet, so no sound and no buzz)
  *   complete → a success pattern + the arpeggio
  *
  * Haptics already stand down under Reduce Motion (`lib/haptics.ts`); sounds
@@ -14,7 +16,7 @@
 import { pulseAppHaptic } from '@/lib/haptics';
 import { playFeelSound } from '@/lib/sound';
 
-export type FeelMoment = 'correct' | 'wrong' | 'step' | 'complete';
+export type FeelMoment = 'correct' | 'wrong' | 'step' | 'reply' | 'complete';
 
 export function feel(moment: FeelMoment): void {
   switch (moment) {
@@ -27,6 +29,7 @@ export function feel(moment: FeelMoment): void {
       playFeelSound('wrong');
       return;
     case 'step':
+    case 'reply':
       pulseAppHaptic('selection');
       return;
     case 'complete':

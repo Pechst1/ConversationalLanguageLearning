@@ -176,7 +176,13 @@ export type JourneyCopyKey =
   | 'letter_from'
   | 'letter_reply_label'
   // WP-82: the cast intro's heading, in the chrome language.
-  | 'cast_title';
+  | 'cast_title'
+  // WP-89 «Le fil»: the respond step as one conversation. `exchange_of` is the
+  // screen-reader text of the exchange tokens ({n}, {total}).
+  | 'exchange_of'
+  | 'thread_label'
+  | 'thread_you'
+  | 'thread_note_open';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -329,6 +335,10 @@ const EN: CopyTable = {
   letter_from: 'Letter from {name}',
   letter_reply_label: 'Your reply',
   cast_title: 'The characters',
+  exchange_of: 'Exchange {n} of {total}',
+  thread_label: 'The conversation',
+  thread_you: 'You',
+  thread_note_open: 'Show the correction',
 };
 
 const DE: CopyTable = {
@@ -480,6 +490,10 @@ const DE: CopyTable = {
   letter_from: 'Brief von {name}',
   letter_reply_label: 'Deine Antwort',
   cast_title: 'Die Figuren',
+  exchange_of: 'Austausch {n} von {total}',
+  thread_label: 'Das Gespräch',
+  thread_you: 'Du',
+  thread_note_open: 'Korrektur zeigen',
 };
 
 const FR: CopyTable = {
@@ -631,6 +645,10 @@ const FR: CopyTable = {
   letter_from: 'Lettre de {name}',
   letter_reply_label: 'Votre réponse',
   cast_title: 'Les personnages',
+  exchange_of: 'Échange {n} sur {total}',
+  thread_label: 'La conversation',
+  thread_you: 'Vous',
+  thread_note_open: 'Voir la correction',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };

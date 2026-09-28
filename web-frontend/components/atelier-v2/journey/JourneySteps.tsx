@@ -61,6 +61,7 @@ import { usableCard } from '@/lib/rule-card';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
+  AttemptResult,
   ControlLanguage,
   ForgeStep,
   HelpKind,
@@ -111,6 +112,21 @@ import {
   respondSpeaker,
   useTypedText,
 } from './ReplyStage';
+import { ExchangeTokens, RespondThread } from './RespondThread';
+import {
+  closesConversation,
+  continuesConversation,
+  exchangeFromResult,
+  exchangeProgress,
+  parseLocalThread,
+  recordExchange,
+  serializeLocalThread,
+  threadBubbles,
+  threadDraftKey,
+  type InFlightExchange,
+  type LocalThread,
+  type SentTurn,
+} from './respond-thread';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -692,13 +708,22 @@ export function RespondStepView({
   help,
   onHelp,
   onSubmit,
+  onContinue,
   draft,
 }: { step: RespondStep } & StepViewCommonProps) {
   // A respond step can hold more than one turn, and each turn is its own
   // answer, so the turn is part of the key: a new turn starts clean rather
   // than reopening with the sentence the learner already sent.
   const draftKey = `${step.id}:${step.prompt.turn_index}`;
+  // WP-89: the conversation so far is kept beside the drafts, so a reload
+  // repaints the column (servers that send `prompt.thread` make it redundant).
+  const threadKey = threadDraftKey(step.id);
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
+  const [local, setLocal] = useState<LocalThread>(() => parseLocalThread(draft?.get(threadKey)));
+  const [openNote, setOpenNote] = useState<string | null>(null);
+  // What was sent, captured at the tap: the snapshot moves to the next turn
+  // (and the field empties) the moment the reply lands.
+  const sentRef = useRef<SentTurn | null>(null);
   const canSpeak = voiceOffered(step.prompt);
   const canType = textOffered(step.prompt);
   // WP-27: speaking is the default output. The first render agrees with the
@@ -710,17 +735,20 @@ export function RespondStepView({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const voice = useVoiceAnswer();
   const voiceState = voice.state;
-  // A graded turn is closed until the learner continues: re-submitting into a
-  // completed step would only earn a 409 `step_not_active`. WP-76: a turn whose
-  // reply is still typing in (`replying`) is already graded.
-  const graded = feedback.kind === 'graded' || feedback.kind === 'replying';
+  // WP-89 — verdict only at the close. A turn the server answered with another
+  // turn (`next_turn`) is the conversation going on: its reply types in and the
+  // field reopens by itself. Only the closing turn is judged, and a judged turn
+  // is closed until the learner continues (re-submitting would earn a 409).
+  const continuing = continuesConversation(feedback);
+  const closing = closesConversation(feedback);
+  const graded = closing || (continuing && feedback.kind === 'replying');
   const busyVoice = voiceIsBusy(voiceState);
   const locked = busy || feedback.kind === 'submitting' || graded || busyVoice;
   // WP-76: the one who answers — typing while the answer is read, then speaking.
   const replier = respondSpeaker(step.prompt);
   const waitingForReply = feedback.kind === 'submitting' || feedback.kind === 'retrying';
-  const reply =
-    graded && feedback.result.character_reply_fr ? feedback.result.character_reply_fr : null;
+  const result = continuing || closing ? (feedback as { result: AttemptResult }).result : null;
+  const reply = result?.character_reply_fr ? result.character_reply_fr : null;
 
   useEffect(() => {
     // A new turn starts empty but keeps the same mounted field, so focus and
@@ -728,6 +756,52 @@ export function RespondStepView({
     // with exactly what the learner had typed.
     setText(draft?.get(draftKey) ?? '');
   }, [draft, draftKey]);
+
+  useEffect(() => {
+    setLocal(parseLocalThread(draft?.get(threadKey)));
+    setOpenNote(null);
+  }, [draft, threadKey]);
+
+  useEffect(() => {
+    // Keep the exchange the server just settled (idempotent per turn: the
+    // staged `replying` → `graded` pair and a replayed receipt keep it once).
+    if (!result) return;
+    const exchange = exchangeFromResult({
+      result,
+      prompt: step.prompt,
+      sent: sentRef.current,
+      fallbackText: text,
+    });
+    if (!exchange) return;
+    const next = recordExchange(local, exchange);
+    if (next === local) return;
+    setLocal(next);
+    draft?.set(threadKey, serializeLocalThread(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  // The field reopens for the next exchange once the reply has typed in: the
+  // continuing turn is acknowledged on the learner's behalf — there is nothing
+  // to read in between, so there is nothing to tap.
+  const continuedRef = useRef<unknown>(null);
+  const refocusRef = useRef(false);
+  useEffect(() => {
+    if (feedback.kind !== 'graded' || !continuing) return;
+    if (continuedRef.current === feedback.result) return;
+    continuedRef.current = feedback.result;
+    refocusRef.current = true;
+    onContinue();
+  }, [continuing, feedback, onContinue]);
+
+  useEffect(() => {
+    if (locked || !refocusRef.current) return;
+    refocusRef.current = false;
+    try {
+      inputRef.current?.focus({ preventScroll: true });
+    } catch {
+      /* an engine without the options bag keeps the field open anyway */
+    }
+  }, [locked]);
 
   useEffect(() => {
     if (!canSpeak) {
@@ -779,7 +853,15 @@ export function RespondStepView({
       ? (copy as Record<string, string>)[FAILURE_COPY_KEY[voiceState.reason]] || copy.voice_failed
       : null;
 
-  const submit = () => onSubmit({ mode: submittedMode(voiceState, text), text });
+  const submit = () => {
+    sentRef.current = {
+      turn: step.prompt.turn_index,
+      text,
+      prompt_fr: step.prompt.character_line_fr || null,
+    };
+    setOpenNote(null);
+    onSubmit({ mode: submittedMode(voiceState, text), text });
+  };
 
   const sendAction = (
     <Action
@@ -805,36 +887,127 @@ export function RespondStepView({
     ? crLetterHeadline({ summary_fr: letter.subject_fr }, copyLanguage(copy))
     : null;
   const wide = widenCopy(copy);
-  // WP-D2: the character's line is said beside their face, which reacts to
-  // the verdict. A letter day keeps its subject headline and byline.
-  const saying = !letter && replier ? replier : null;
+  // WP-D2 / WP-89: the latest line is said beside the face, which reacts only
+  // to the closing verdict — mid-conversation it never frowns.
   const sayingMood: PortraitMood =
-    feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
-  // Beside a face, the reply is said in the bubble (typing in), never a second
-  // time in a row below it; without a face it keeps its own row.
-  const spoken = useTypedText(saying && reply ? reply : '', feedback.kind === 'replying');
+    closing && feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
 
-  return (
-    <StepFrame
-      label={
-        saying ? saying.name : <Byline name={letter?.correspondent_name || step.prompt.character_name} />
-      }
-      headline={letterHeadline ? letterHeadline.text : spoken || step.prompt.character_line_fr}
-      headlineLang={letterHeadline ? letterHeadline.lang : 'fr'}
-      speaker={saying}
-      speakerMood={sayingMood}
-    >
-      {letter && (
-        <Surface shape="episode">
-          <p className="av2-label">
-            {wide.letter_from.replace('{name}', letter.correspondent_name)}
-          </p>
-          <p className="av2-fr av2-body av2-body--lg" lang="fr">
-            {frenchSpacing(letter.body_fr)}
-          </p>
-        </Surface>
+  // --- the thread (WP-89) ---------------------------------------------------
+  const sent = sentRef.current;
+  const nextIndex = result?.next_turn?.prompt?.turn_index;
+  const inFlight: InFlightExchange | null =
+    waitingForReply || result
+      ? {
+          turn:
+            sent?.turn ??
+            (typeof nextIndex === 'number' ? Math.max(0, nextIndex - 1) : step.prompt.turn_index),
+          prompt_fr: sent?.prompt_fr ?? null,
+          learner_fr: sent?.text ?? text,
+          character_fr: reply,
+          // The closing turn's correction is in the verdict band; said once.
+          correction: continuing ? result?.correction ?? null : null,
+        }
+      : null;
+  let bubbles = letter ? [] : threadBubbles({ prompt: step.prompt, local, inFlight });
+  if (closing && inFlight) {
+    bubbles = bubbles.map((bubble) =>
+      bubble.kind === 'learner' && bubble.turn === inFlight.turn ? { ...bubble, correction: null } : bubble,
+    );
+  }
+  // The reply that just arrived types in; whatever follows it waits for it.
+  const typingIndex =
+    reply && inFlight
+      ? bubbles.findIndex(
+          (bubble) => bubble.kind === 'character' && bubble.reply && bubble.turn === inFlight.turn,
+        )
+      : -1;
+  if (feedback.kind === 'replying' && typingIndex !== -1) {
+    bubbles = bubbles.slice(0, typingIndex + 1).map((bubble, index) =>
+      bubble.kind === 'character' ? { ...bubble, latest: index === typingIndex } : bubble,
+    );
+  }
+  const typingKey = typingIndex !== -1 ? bubbles[typingIndex]?.key ?? null : null;
+  const typedText = useTypedText(
+    typingKey && reply ? reply : '',
+    feedback.kind === 'replying',
+  );
+  const progress = exchangeProgress(step.prompt, closing);
+
+  const answerArea = graded ? (
+    // A letter keeps the sent answer in the field's block; in the thread the
+    // learner's line is already on the page, on the right.
+    letter ? <SentAnswer label={copy.answer_label} text={text} /> : null
+  ) : mode === 'voice' && canSpeak ? (
+    <>
+      {voiceState.kind === 'transcript' ? (
+        <>
+          {textAnswerField({
+            label: copy.voice_transcript_label,
+            value: text,
+            rows: 3,
+            disabled: locked,
+            placeholder: copy.answer_placeholder,
+            invalid: feedback.kind === 'empty',
+            inputRef,
+            onChange: setAnswer,
+          })}
+          <p className="av2-body">{copy.voice_transcript_hint}</p>
+          <div className="av2-respond__actions">
+            {sendAction}
+            <Action tone="quiet" disabled={locked} onClick={() => void voice.start()}>
+              {copy.voice_retry}
+            </Action>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* WP-82 (appendix A): no «say it out loud…» line — the mic says it. */}
+          <div className="av2-respond__actions">
+            <Action
+              tone="primary"
+              disabled={busy || feedback.kind === 'submitting'}
+              pending={voiceState.kind === 'transcribing'}
+              pendingLabel={copy.transcribing}
+              icon={voiceState.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+              onClick={() => (voiceState.kind === 'recording' ? voice.stop() : void voice.start())}
+            >
+              {voiceState.kind === 'recording' ? copy.stop_recording : copy.speak}
+            </Action>
+            {canType && (
+              <Action tone="quiet" disabled={busyVoice} onClick={() => chooseMode('text')}>
+                {copy.use_text}
+              </Action>
+            )}
+          </div>
+        </>
       )}
+    </>
+  ) : (
+    <>
+      {textAnswerField({
+        label: copy.answer_label,
+        value: text,
+        rows: 3,
+        disabled: locked,
+        placeholder: copy.answer_placeholder,
+        invalid: feedback.kind === 'empty',
+        inputRef,
+        onChange: setAnswer,
+      })}
 
+      <div className="av2-respond__actions">
+        {sendAction}
+        {canSpeak && (
+          <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
+            {copy.use_voice}
+          </Action>
+        )}
+      </div>
+    </>
+  );
+
+  const brief = (
+    <>
       <p className="av2-body av2-body--lg">
         {letter ? letter.objective_native : step.prompt.objective_native}
       </p>
@@ -848,87 +1021,11 @@ export function RespondStepView({
           ))}
         </div>
       )}
+    </>
+  );
 
-      {/* Until the turn is graded, when the field, the send button, the
-          microphone and the help row all stop offering themselves and the
-          verdict's Continue is the only action left (WP-20 D-6). */}
-      {graded ? (
-        <SentAnswer label={copy.answer_label} text={text} />
-      ) : mode === 'voice' && canSpeak ? (
-        <>
-          {voiceState.kind === 'transcript' ? (
-            <>
-              {textAnswerField({
-                label: copy.voice_transcript_label,
-                value: text,
-                rows: 3,
-                disabled: locked,
-                placeholder: copy.answer_placeholder,
-                invalid: feedback.kind === 'empty',
-                inputRef,
-                onChange: setAnswer,
-              })}
-              <p className="av2-body">{copy.voice_transcript_hint}</p>
-              <div className="av2-respond__actions">
-                {sendAction}
-                <Action tone="quiet" disabled={locked} onClick={() => void voice.start()}>
-                  {copy.voice_retry}
-                </Action>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* WP-82 (appendix A): no «say it out loud…» line — the mic says it. */}
-              <div className="av2-respond__actions">
-                <Action
-                  tone="primary"
-                  disabled={busy || feedback.kind === 'submitting'}
-                  pending={voiceState.kind === 'transcribing'}
-                  pendingLabel={copy.transcribing}
-                  icon={voiceState.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
-                  onClick={() => (voiceState.kind === 'recording' ? voice.stop() : void voice.start())}
-                >
-                  {voiceState.kind === 'recording' ? copy.stop_recording : copy.speak}
-                </Action>
-                {canType && (
-                  <Action tone="quiet" disabled={busyVoice} onClick={() => chooseMode('text')}>
-                    {copy.use_text}
-                  </Action>
-                )}
-              </div>
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          {textAnswerField({
-            label: copy.answer_label,
-            value: text,
-            rows: 3,
-            disabled: locked,
-            placeholder: copy.answer_placeholder,
-            invalid: feedback.kind === 'empty',
-            inputRef,
-            onChange: setAnswer,
-          })}
-
-          <div className="av2-respond__actions">
-            {sendAction}
-            {canSpeak && (
-              <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
-                {copy.use_voice}
-              </Action>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* WP-76: the wait has a face, and the reply is read before it is judged. */}
-      {waitingForReply && <CharacterTyping speaker={replier} />}
-      {reply && !saying && (
-        <TypedReply speaker={replier} reply={reply} animate={feedback.kind === 'replying'} />
-      )}
-
+  const aside = (
+    <>
       {!graded && voiceState.kind === 'recording' && (
         <Notice shape="action">
           <p>{copy.record}</p>
@@ -963,7 +1060,57 @@ export function RespondStepView({
           onHelp={onHelp}
         />
       )}
-    </StepFrame>
+    </>
+  );
+
+  if (letter) {
+    return (
+      <StepFrame
+        label={<Byline name={letter.correspondent_name || step.prompt.character_name} />}
+        headline={letterHeadline ? letterHeadline.text : step.prompt.character_line_fr}
+        headlineLang={letterHeadline ? letterHeadline.lang : 'fr'}
+      >
+        <Surface shape="episode">
+          <p className="av2-label">{wide.letter_from.replace('{name}', letter.correspondent_name)}</p>
+          <p className="av2-fr av2-body av2-body--lg" lang="fr">
+            {frenchSpacing(letter.body_fr)}
+          </p>
+        </Surface>
+        {brief}
+        {answerArea}
+        {/* WP-76: the wait has a face, and the reply is read before it is judged. */}
+        {waitingForReply && <CharacterTyping speaker={replier} />}
+        {reply && <TypedReply speaker={replier} reply={reply} animate={feedback.kind === 'replying'} />}
+        {aside}
+      </StepFrame>
+    );
+  }
+
+  // WP-89 «Le fil»: the name and the exchange tokens, the brief, the
+  // conversation with the current line last, and the field right under it.
+  return (
+    <section className="av2-stack av2-step av2-step--thread">
+      <div className="av2-thread__head">
+        <p className="av2-label av2-label--story">
+          {replier ? replier.name : <Byline name={step.prompt.character_name} />}
+        </p>
+        <ExchangeTokens progress={progress} copy={copy} />
+      </div>
+      {brief}
+      <RespondThread
+        bubbles={bubbles}
+        speaker={replier}
+        mood={sayingMood}
+        copy={copy}
+        typingKey={typingKey}
+        typedText={typedText}
+        waiting={waitingForReply}
+        openNote={openNote}
+        onToggleNote={(key) => setOpenNote((current) => (current === key ? null : key))}
+      />
+      {answerArea}
+      {aside}
+    </section>
   );
 }
 
@@ -1209,6 +1356,11 @@ export function JourneyFeedbackView({
       /* an old engine without the options bag still shows the band */
     }
   }, [gradedResult]);
+
+  // WP-89 — verdict only at the close. A turn the conversation continues past
+  // gets no band, no face, no «Continue»: the reply is the answer, and a slip
+  // is a proofreader's mark on the learner's own line in the thread.
+  if (continuesConversation(feedback)) return null;
 
   switch (feedback.kind) {
     case 'idle':

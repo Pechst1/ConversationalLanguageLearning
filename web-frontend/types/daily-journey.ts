@@ -173,7 +173,10 @@ export type RecallAnswerKey = { version: number; salt: string; digests: string[]
 export type RespondPrompt = {
   /** 0-based. */
   turn_index: number;
-  /** At most two normal turns. */
+  /**
+   * The exchanges this conversation is planned to hold. The day's rhythm plans
+   * 2, 3, 4 or 4 (WP-89); the client draws one token per planned exchange.
+   */
   max_turns: number;
   repair_allowed: boolean;
   character_id: string;
@@ -191,6 +194,19 @@ export type RespondPrompt = {
    * letter provider.
    */
   letter?: RespondLetter | null;
+  /**
+   * WP-89 «Le fil»: the exchanges of THIS respond step already played, oldest
+   * first — `thread[i]` is turn `i`. Empty or absent on turn 0 and on servers
+   * that predate WP-89 (the client then keeps its own copy of the thread).
+   */
+  thread?: ThreadExchange[];
+};
+
+/** WP-89: one played exchange — what the learner said and what came back. */
+export type ThreadExchange = {
+  learner_fr: string;
+  character_fr: string;
+  correction: JourneyCorrection | null;
 };
 
 /** The public half of a Courrier letter. Never carries a rubric. */

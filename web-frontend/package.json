@@ -47,6 +47,7 @@
     "test:practice-day": "node --test components/atelier-v2/journey/practice-day.test.js",
     "test:recap": "node --test components/atelier-v2/journey/journey-recap.test.js",
     "test:story-lane": "node --test components/atelier-v2/journey/journey-story-lane.test.js",
+    "test:respond-thread": "node --test components/atelier-v2/journey/respond-thread.test.js",
     "test:home": "node --test components/atelier-v2/home/home.test.js",
     "test:french-typography": "node --test lib/french-typography.test.js"
   },

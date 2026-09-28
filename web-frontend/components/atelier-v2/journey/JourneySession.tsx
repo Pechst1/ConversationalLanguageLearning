@@ -69,6 +69,7 @@ import {
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
+import { continuesConversation } from './respond-thread';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
@@ -180,8 +181,10 @@ export function JourneySession({
 
   // WP-D3: the active token grins or frowns once the verdict is on screen —
   // not while the reply is still typing in (WP-76: words first).
+  // WP-89: a turn the conversation continues past is not a verdict, so the
+  // token keeps its face until the closing turn.
   const tokenFace: StepSegment['face'] =
-    feedback.kind === 'graded'
+    feedback.kind === 'graded' && !continuesConversation(feedback)
       ? feedback.verdict === 'correct'
         ? 'grin'
         : feedback.verdict === 'wrong'
@@ -237,11 +240,21 @@ export function JourneySession({
               <span className="av2-label">{copy.progress_none}</span>
             )}
             {dayMark && <AtelierMark size={28} progress={dayMark.groups} title={dayMark.label} />}
+            {/* W6 (WP-89): the connection lives in the header's own slot. It
+                hangs under the head out of the flow, so it can never push the
+                step — or the Send button — down under the thumb. */}
+            <div className="av2-session__notice">
+              <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+            </div>
           </header>
         )}
 
         <div className="av2-screen__body">
-          <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+          {/* No header (nothing loaded yet, or the immersive reader): the
+              notice is then the only thing to read, so it keeps its row. */}
+          {(!journey || immersive) && (
+            <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+          )}
 
           {journey && phase.kind === 'session' && !immersive && (
             /* One separator between two real parts. The story engine ships an

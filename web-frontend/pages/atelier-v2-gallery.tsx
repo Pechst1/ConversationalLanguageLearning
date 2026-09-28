@@ -57,7 +57,15 @@ import {
 } from '@/components/courrier/Correspondance';
 import type { AtelierErrataAttemptResult } from '@/services/api';
 import { atelierCopy, CONTROL_LANGUAGES } from '@/lib/atelier-v2-copy';
-import type { ControlLanguage } from '@/types/daily-journey';
+import { JourneyFeedbackView, RespondStepView } from '@/components/atelier-v2/journey/JourneySteps';
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import type {
+  AttemptResult,
+  ControlLanguage,
+  JourneyCorrection,
+  RespondPrompt,
+  RespondStep,
+} from '@/types/daily-journey';
 
 export async function getStaticProps() {
   if (process.env.NODE_ENV === 'production') {
@@ -103,6 +111,125 @@ const ERRATA_TASK = {
   next_review_date: null,
 };
 
+/* WP-89 «Le fil» specimens: Margaux at the counter, a three-exchange
+   conversation. The learner lines are the walk's own (W7/W8). */
+const FIL_OPENING = 'Bonjour ! Qu’est-ce que je vous sers ?';
+const FIL_SLIP: JourneyCorrection = {
+  span_fr: 'un café noire',
+  corrected_fr: 'un café noir',
+  note_native: '«Café» is masculine, so «noir» takes no -e.',
+};
+
+function filPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
+  return {
+    turn_index: 0,
+    max_turns: 3,
+    repair_allowed: true,
+    character_id: 'margaux_barman',
+    character_name: 'Margaux',
+    character_line_fr: FIL_OPENING,
+    character_line_audio_url: null,
+    objective_native: 'Order a drink and choose where to sit.',
+    input_modes: ['text'],
+    targets: [],
+    help_available: ['hint'],
+    ...extra,
+  };
+}
+
+function filStep(id: string, extra: Partial<RespondPrompt>): RespondStep {
+  return {
+    id,
+    ordinal: 3,
+    kind: 'respond',
+    status: 'active',
+    estimated_seconds: 120,
+    assistance_used: [],
+    prompt: filPrompt(extra),
+  };
+}
+
+const FIL_TURN_ONE = filStep('gallery-fil-1', {
+  turn_index: 1,
+  character_line_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour ! Un café, s’il vous plaît.',
+      character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+      correction: null,
+    },
+  ],
+});
+
+const FIL_MARKED = filStep('gallery-fil-2', {
+  turn_index: 1,
+  character_line_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour, un café noire, s’il vous plaît.',
+      character_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
+      correction: FIL_SLIP,
+    },
+  ],
+});
+
+const FIL_CLOSING = filStep('gallery-fil-3', {
+  turn_index: 2,
+  character_line_fr: 'Et avec ça ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour ! Un café, s’il vous plaît.',
+      character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+      correction: null,
+    },
+    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null },
+  ],
+});
+
+/* The device's own copy of the thread (what a reload repaints): it is where
+   the opening line lives, which the server's thread does not repeat. */
+function filDraft(step: RespondStep, extra: Record<string, string> = {}) {
+  const local = JSON.stringify({
+    v: 1,
+    exchanges: (step.prompt.thread ?? []).map((exchange, turn) => ({
+      ...exchange,
+      turn,
+      prompt_fr: turn === 0 ? FIL_OPENING : null,
+    })),
+  });
+  return {
+    get: (key: string) => (key === `${step.id}:thread` ? local : extra[key] ?? ''),
+    set: () => {},
+  };
+}
+
+/* Only the fields the respond view reads; a gallery never holds a snapshot. */
+const FIL_CLOSING_RESULT = {
+  contract_version: 1,
+  evidence_ref: 'gallery',
+  task_outcome: 'met',
+  assistance_level: 'none',
+  correction: null,
+  character_reply_fr: 'Un croissant, avec plaisir. Installez-vous.',
+  reply_source: 'model',
+  next_turn: null,
+  pending: false,
+  journey: null,
+} as unknown as AttemptResult;
+
+const FIL_CLOSING_FEEDBACK = {
+  kind: 'graded' as const,
+  verdict: 'correct' as const,
+  result: FIL_CLOSING_RESULT,
+  replySource: 'model' as const,
+};
+
+const FIL_CLOSING_DRAFT = filDraft(FIL_CLOSING, {
+  [`${FIL_CLOSING.id}:2`]: 'Un croissant aussi, s’il vous plaît.',
+});
+const FIL_TURN_ONE_DRAFT = filDraft(FIL_TURN_ONE);
+const FIL_MARKED_DRAFT = filDraft(FIL_MARKED);
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="gal-section">
@@ -127,6 +254,8 @@ export default function AtelierV2Gallery() {
   const [tab, setTab] = useState<TabKey>('atelier');
 
   const copy = atelierCopy(language);
+  // The journey renderers take the merged table, as JourneySession hands it.
+  const filCopy = { ...copy, ...journeyCopy(language) };
   const statusLabels = {
     selected: copy.status_selected,
     correct: copy.status_correct,
@@ -300,6 +429,53 @@ export default function AtelierV2Gallery() {
               <FeedbackBand tone="wrong" title={copy.wrong} />
             </div>
             <FeedbackBand tone="neutral" title={copy.still_grading} />
+          </Section>
+
+          <Section title="Le fil — the conversation (WP-89)">
+            <p className="av2-label">Turn 1 of 3 — the field under the current line</p>
+            <RespondStepView
+              step={FIL_TURN_ONE}
+              copy={filCopy}
+              busy={false}
+              feedback={{ kind: 'idle' }}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_TURN_ONE_DRAFT}
+            />
+            <p className="av2-label">A slip mid-conversation — a proofreader’s mark, tap it</p>
+            <RespondStepView
+              step={FIL_MARKED}
+              copy={filCopy}
+              busy={false}
+              feedback={{ kind: 'idle' }}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_MARKED_DRAFT}
+            />
+            <p className="av2-label">The closing turn — the one verdict</p>
+            <RespondStepView
+              step={FIL_CLOSING}
+              copy={filCopy}
+              busy={false}
+              feedback={FIL_CLOSING_FEEDBACK}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_CLOSING_DRAFT}
+            />
+            <JourneyFeedbackView
+              feedback={FIL_CLOSING_FEEDBACK}
+              copy={filCopy}
+              onContinue={() => {}}
+              onRetry={() => {}}
+              onDismiss={() => {}}
+              speaker={{ id: 'margaux_barman', name: 'Margaux' }}
+            />
           </Section>
 
           <Section title="Notices — never a verdict">

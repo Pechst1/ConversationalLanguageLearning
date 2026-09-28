@@ -514,6 +514,31 @@ const NOW = Date.parse('2026-09-05T09:00:00.000Z');
     }).state,
     'live',
   );
+  // W6 (WP-89): typing while online is typing, not a sync problem. A draft on
+  // its own never raises `pending_sync`; it stays a fact (`unsent`) for the
+  // offline notice.
+  const typing = recovery.connectionView({
+    online: true,
+    source: 'server',
+    pending: null,
+    unsentDraft: true,
+    stale: false,
+    lastSyncedAt: new Date(NOW).toISOString(),
+  });
+  assert.equal(typing.state, 'live', 'a local draft while online is not pending_sync');
+  assert.equal(typing.unsent, true, 'the draft is still known to be held on the device');
+  assert.equal(
+    recovery.connectionView({
+      online: true,
+      source: 'server',
+      pending,
+      unsentDraft: true,
+      stale: false,
+      lastSyncedAt: null,
+    }).state,
+    'pending_sync',
+    'a queued mutation still is, draft or not',
+  );
 }
 
 // ===========================================================================
