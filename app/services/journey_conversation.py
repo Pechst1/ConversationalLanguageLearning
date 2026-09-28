@@ -3881,7 +3881,10 @@ def _evaluate_response(
         # A relance keeps the ending the learner earned (like a pragmatic
         # nudge) and spends one of the exchanges the plan already had.
         needs_repair=needs_repair or bool(relance),
-        turn_consumed=not over_budget,
+        # WP-89 walk (2026-09-28): the opening greeting nudge is a courtesy, not
+        # an exchange. Counting it cost «Un café» its reply on a one-exchange
+        # day: the order landed on the repair turn and the seat was never asked.
+        turn_consumed=not over_budget and not nudge_replaces,
         pending=False,
         failure_reason=provenance,
     )

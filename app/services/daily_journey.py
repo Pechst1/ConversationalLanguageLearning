@@ -3463,6 +3463,9 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
+        # WP-89: a turn that cost no exchange (the opening greeting nudge) does
+        # not move the conversation's own clock either.
+        free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))
 
         evaluation = self.adapters.conversation.evaluate_response(
             self.db,
@@ -3470,7 +3473,7 @@ class DailyJourneyService:
             scenario=brief,
             task=task,
             answer=answer,
-            turn_index=step.turn_index,
+            turn_index=max(0, step.turn_index - free_turns),
             assistance=assistance,
             history=history,
         )
@@ -3494,6 +3497,7 @@ class DailyJourneyService:
                 "correction": (
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
+                "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
             }
         )
         private["turns"] = history
@@ -3513,6 +3517,9 @@ class DailyJourneyService:
             if evaluation.character_reply_fr:
                 prompt["character_line_fr"] = evaluation.character_reply_fr
             prompt["repair_allowed"] = False
+            if history[-1].get("free"):
+                # The exchange the nudge did not use is still owed: one more token.
+                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)

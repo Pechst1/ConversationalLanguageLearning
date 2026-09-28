@@ -415,3 +415,58 @@ def test_the_thread_is_on_the_next_turn_and_on_the_snapshot(db_session, monkeypa
     ]
     wire = first.model_dump(mode="json")
     assert wire["next_turn"]["prompt"]["thread"][0]["correction"]["span_fr"] == "Je prend"
+
+
+def test_the_opening_greeting_nudge_costs_no_exchange(db_session, monkeypatch):
+    """Walk 2026-09-28: «Un café s'il vous plaît» without «bonjour» got the nudge,
+    and the nudge used the day's one normal exchange — the order then landed on
+    the repair turn, the scene closed, and the seat was never asked."""
+
+    from app.schemas.daily_journey import JourneyAttemptRequest
+    from app.services import daily_journey as journey_module
+    from app.services.daily_journey import DailyJourneyService
+    from app.services.daily_journey_adapters import build_default_adapters
+    from tests.test_daily_journey_state import advance_to_respond, create_request, make_user
+
+    monkeypatch.setattr(journey_module.settings, "ATELIER_DAILY_JOURNEY_ENABLED", True, raising=False)
+    monkeypatch.setattr(journey_module.settings, "ATELIER_DAILY_JOURNEY_COHORT", "", raising=False)
+
+    user = make_user(db_session, f"wp89-free-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, _ = service.create_journey(user, create_request())
+    state, respond = advance_to_respond(service, user, created)
+    planned = respond.prompt.max_turns
+    revision = state.revision
+
+    def attempt(text: str):
+        nonlocal revision
+        result = service.submit_attempt(
+            user,
+            uuid.UUID(created.id),
+            uuid.UUID(respond.id),
+            JourneyAttemptRequest.model_validate(
+                {
+                    "mutation_id": uuid.uuid4().hex,
+                    "expected_revision": revision,
+                    "input": {"mode": "text", "text": text},
+                }
+            ),
+        )
+        revision = result.journey.revision
+        return result
+
+    nudged = attempt("Un café, s'il vous plaît.")
+    assert nudged.character_reply_fr == GREETING_NUDGE
+    assert nudged.next_turn is not None
+    assert nudged.next_turn.prompt.max_turns == planned + 1, "the owed exchange is one more token"
+
+    ordered = attempt("Bonjour ! Un café, s'il vous plaît.")
+    assert ordered.next_turn is not None, "the order is the normal exchange, not the repair"
+    assert ordered.next_turn.prompt.max_turns == planned + 1
+    assert [t.learner_fr for t in ordered.next_turn.prompt.thread] == [
+        "Un café, s'il vous plaît.",
+        "Bonjour ! Un café, s'il vous plaît.",
+    ]
+
+    closing = attempt("Au comptoir, merci.")
+    assert closing.next_turn is None
