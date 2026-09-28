@@ -35,6 +35,16 @@
       "port": 8010
     },
     {
+      "name": "web-frontend-e2e",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "API_URL=http://localhost:8011 NEXT_PUBLIC_API_URL=http://localhost:8011/api/v1 npm run dev --prefix web-frontend"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
       "name": "backend-e2e",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
