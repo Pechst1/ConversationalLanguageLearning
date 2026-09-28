@@ -39,6 +39,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise RuntimeError("PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE must be false in production.")
         if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
             raise RuntimeError("SMTP_HOST and SMTP_FROM_EMAIL are required for password reset in production.")
+        # WP-88: an empty cohort in production silently serves the daily journey to
+        # nobody. Blank must never be how a pilot is paused, so it is refused here.
+        if settings.ATELIER_DAILY_JOURNEY_ENABLED and not (settings.ATELIER_DAILY_JOURNEY_COHORT or "").strip():
+            raise RuntimeError(
+                "ATELIER_DAILY_JOURNEY_COHORT is empty: in production that serves the daily journey "
+                "to nobody. Set '*' (everyone), a comma-separated list of emails or user ids, or "
+                "'none' (nobody, on purpose)."
+            )
+
+    # WP-88: panel art switched on but unable to run says why, once, loudly.
+    if settings.ATELIER_PANEL_ART_ENABLED:
+        from app.services.panel_art import unavailable_reason
+
+        reason = unavailable_reason()
+        if reason:
+            logger.error("Panel art is enabled but stays off: {}. Panels show the location plate.", reason)
 
     if settings.SERIAL_WORLD_ENABLED and (
         not settings.ATELIER_LLM_ENABLED or not settings.OPENAI_API_KEY

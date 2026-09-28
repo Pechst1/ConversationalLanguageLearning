@@ -23,6 +23,22 @@ image API's limit of input images per minute is respected.
 
 Off unless ``ATELIER_PANEL_ART_ENABLED``: each panel is a paid image call
 (≈ US$0.05 at medium quality).
+
+WP-88 — production-safe:
+
+* **References must ship.** Without ``docs/design-reference/cast/*/reference.webp``
+  faces drift from panel to panel, so art stays off rather than draw strangers.
+* **Durable storage.** In production a drawing written to the container's disk is
+  lost at the next deploy (and invisible to a second instance), so art stays off
+  unless ``GRAPHIC_NOVEL_IMAGE_STORAGE=s3`` with a bucket.
+* **It is paid for in the open.** Every drawn panel writes a
+  ``journey_panel_art_cost`` row. Art has its own per-learner daily allowance
+  (``ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD``), apart from the text cap, and a day
+  whose text spend is already past ``ATELIER_PANEL_ART_TEXT_PRESSURE`` of the cap
+  draws nothing. A panel the allowance does not cover keeps its plate: art
+  degrades, the day never does.
+* ``ATELIER_PANEL_ART_BANDS`` limits drawing to the bands where pictures carry
+  the most meaning (A1–A2 first).
 """
 
 from __future__ import annotations
@@ -91,16 +107,90 @@ _EXECUTOR: ThreadPoolExecutor | None = None
 _EXECUTOR_LOCK = threading.Lock()
 
 
+def references_available() -> bool:
+    return CAST_REFERENCES.is_dir() and any(CAST_REFERENCES.glob("*/reference.webp"))
+
+
+def durable_storage() -> bool:
+    """Outside production a local disk is fine; in production only S3 keeps a drawing."""
+
+    if str(settings.APP_ENV or "").strip().lower() != "production":
+        return True
+    return (
+        str(settings.GRAPHIC_NOVEL_IMAGE_STORAGE or "").strip().lower() == "s3"
+        and bool(settings.GRAPHIC_NOVEL_IMAGE_S3_BUCKET)
+    )
+
+
+def unavailable_reason() -> str | None:
+    """Why art is off, in one line for the startup log; ``None`` when it is on."""
+
+    if not settings.ATELIER_PANEL_ART_ENABLED:
+        return "ATELIER_PANEL_ART_ENABLED is false"
+    if not settings.OPENAI_API_KEY:
+        return "no OPENAI_API_KEY"
+    if not references_available():
+        return f"no cast references under {CAST_REFERENCES}"
+    if not durable_storage():
+        return "production needs GRAPHIC_NOVEL_IMAGE_STORAGE=s3 and a bucket"
+    return None
+
+
 def enabled() -> bool:
-    return bool(settings.ATELIER_PANEL_ART_ENABLED and settings.OPENAI_API_KEY)
+    return unavailable_reason() is None
 
 
-def request_scene_art(db: Session, scene) -> bool:
-    """Mark the scene's panels ``rendering`` and draw them once ``db`` commits."""
+def panel_cost_usd() -> float:
+    return max(0.0, float(settings.ATELIER_PANEL_ART_COST_USD_PER_PANEL))
 
-    if not enabled():
+
+def _band_allowed(level_band: str | None) -> bool:
+    bands = {b.strip().upper() for b in str(settings.ATELIER_PANEL_ART_BANDS or "").split(",") if b.strip()}
+    if not bands or not level_band:
+        return True
+    return str(level_band).strip().upper()[:2] in bands
+
+
+def affordable_panels(db: Session, user: Any, wanted: int) -> int:
+    """How many of ``wanted`` panels today's art allowance still covers (WP-88)."""
+
+    from app.services import spend_guard
+
+    cost = panel_cost_usd()
+    if wanted <= 0:
+        return 0
+    zone = spend_guard.learner_zone(user)
+    user_id = getattr(user, "id", None)
+    try:
+        cap = spend_guard.daily_cap_usd()
+        pressure = float(settings.ATELIER_PANEL_ART_TEXT_PRESSURE)
+        if cap > 0 and spend_guard.spend_today_usd(db, user_id, zone=zone) >= cap * pressure:
+            return 0
+        if cost <= 0:
+            return wanted
+        left = float(settings.ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD) - spend_guard.art_spend_today_usd(
+            db, user_id, zone=zone
+        )
+    except Exception as exc:  # noqa: BLE001 - a ledger read never costs the day; no art
+        logger.warning("panel_art: allowance check failed, keeping plates: {}", exc)
+        return 0
+    return max(0, min(wanted, int((left + 1e-9) // cost)))
+
+
+def request_scene_art(db: Session, scene, *, level_band: str | None = None, user: Any = None) -> bool:
+    """Mark the panels today's allowance covers ``rendering``; draw them once ``db`` commits."""
+
+    if not enabled() or not _band_allowed(level_band):
         return False
-    for panel in scene.panels:
+    if user is None and getattr(scene, "user_id", None) is not None:
+        from app.db.models.user import User
+
+        user = db.get(User, scene.user_id)
+    panels = sorted(scene.panels, key=lambda p: p.panel_index)
+    count = affordable_panels(db, user, len(panels))
+    if count <= 0:
+        return False
+    for panel in panels[:count]:
         panel.generation_metadata = {
             **(panel.generation_metadata or {}),
             "image_status": RENDERING,
@@ -361,11 +451,35 @@ def _write_back(factory, job: PanelJob, stored: dict | None, error: str | None) 
             meta.update(image_source=ART_SOURCE, image_status=READY, image_prompt_sent=job.prompt)
             scene.image_model = settings.OPENAI_IMAGE_MODEL
             scene.image_quality = settings.OPENAI_IMAGE_QUALITY
+            _record_cost(db, scene, job)
         else:
             # The plate stays: a failed drawing is a panel without new art, never a gap.
             meta.update(image_status=FAILED, image_error=(error or "not stored")[:300])
         panel.generation_metadata = meta
         db.commit()
+
+
+def _record_cost(db: Session, scene, job: PanelJob) -> None:
+    """One ledger row per drawn panel: art is never free in the books (WP-88)."""
+
+    from app.services.pilot_events import PilotEventService
+    from app.services.spend_guard import PANEL_ART_EVENT_TYPE
+
+    PilotEventService(db).record(
+        PANEL_ART_EVENT_TYPE,
+        user_id=scene.user_id,
+        entity_type="graphic_novel_scene",
+        entity_id=scene.id,
+        payload={
+            "panel_index": job.panel_index,
+            "model": settings.OPENAI_IMAGE_MODEL,
+            "quality": settings.OPENAI_IMAGE_QUALITY,
+            "size": PANEL_SIZE,
+            "estimated": True,
+            "basis": "ATELIER_PANEL_ART_COST_USD_PER_PANEL",
+        },
+        cost_usd=panel_cost_usd(),
+    )
 
 
 def render_scene_art(job: SceneArtJob) -> str:

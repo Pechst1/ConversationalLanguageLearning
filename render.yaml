@@ -132,11 +132,40 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. With APP_ENV=production an
-      # empty cohort means NOBODY gets the journey and '*' means EVERYONE
-      # (journey_enabled_for); which of the two the pilot runs is the owner's
-      # call, entered in the dashboard.
+      # study accounts appended to the same list. '*' means EVERYONE and 'none'
+      # means nobody on purpose. WP-88: the API refuses to start in production
+      # with this blank, because blank used to mean "nobody" silently.
       - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
+      # WP-88 (owner decision D-2): the characters speak. Clips are cached per
+      # scene revision and priced on the pilot ledger (≈ US$0.04 a scene).
+      - key: ATELIER_EPISODE_AUDIO_ENABLED
+        value: "true"
+      # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
+      # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
+      # (panels show the location plate, and startup logs why) until durable
+      # storage is set below: a drawing on the container's disk dies at deploy.
+      - key: ATELIER_PANEL_ART_ENABLED
+        value: "true"
+      - key: ATELIER_PANEL_ART_BANDS
+        value: "A1,A2"
+      - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
+        value: "0.25"
+      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
+      # dashboard to switch panel art on.
+      - key: GRAPHIC_NOVEL_IMAGE_STORAGE
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_REGION
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         value: "2.00"
@@ -243,11 +272,40 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. With APP_ENV=production an
-      # empty cohort means NOBODY gets the journey and '*' means EVERYONE
-      # (journey_enabled_for); which of the two the pilot runs is the owner's
-      # call, entered in the dashboard.
+      # study accounts appended to the same list. '*' means EVERYONE and 'none'
+      # means nobody on purpose. WP-88: the API refuses to start in production
+      # with this blank, because blank used to mean "nobody" silently.
       - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
+      # WP-88 (owner decision D-2): the characters speak. Clips are cached per
+      # scene revision and priced on the pilot ledger (≈ US$0.04 a scene).
+      - key: ATELIER_EPISODE_AUDIO_ENABLED
+        value: "true"
+      # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
+      # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
+      # (panels show the location plate, and startup logs why) until durable
+      # storage is set below: a drawing on the container's disk dies at deploy.
+      - key: ATELIER_PANEL_ART_ENABLED
+        value: "true"
+      - key: ATELIER_PANEL_ART_BANDS
+        value: "A1,A2"
+      - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
+        value: "0.25"
+      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
+      # dashboard to switch panel art on.
+      - key: GRAPHIC_NOVEL_IMAGE_STORAGE
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_REGION
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
       - key: APNS_TEAM_ID
         fromService:

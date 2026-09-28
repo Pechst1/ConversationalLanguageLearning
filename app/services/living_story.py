@@ -4178,7 +4178,7 @@ def bind_journey(
     # scene is committed (app/services/panel_art.py). The reader never waits for art.
     from app.services.panel_art import request_scene_art
 
-    request_scene_art(db, scene)
+    request_scene_art(db, scene, level_band=getattr(brief, "level_band", None), user=user)
     if owns_episode:
         episode.scene_id = scene.id
         episode.scene = scene

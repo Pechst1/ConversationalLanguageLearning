@@ -327,8 +327,24 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
 )
 
 
+#: WP-88. Paid routes that finish a day already started: held to the open-day
+#: ceiling, never the plain cap, so a learner is not stopped half-way through.
+OPEN_DAY_ROUTES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/attempts"),
+        ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/help"),
+        ("POST", "/daily-journeys/{journey_id}/retry"),
+        ("POST", "/story-engine/episodes/{scene_id}/audio"),
+    }
+)
+
+
 def is_paid_route(request: Request) -> bool:
     return (request.method.upper(), _route_path(request)) in PAID_ROUTES
+
+
+def is_open_day_route(request: Request) -> bool:
+    return (request.method.upper(), _route_path(request)) in OPEN_DAY_ROUTES
 
 
 def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., None]:
@@ -357,13 +373,14 @@ def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., None]
         )
         from app.services.spend_guard import enforce_daily_budget
 
-        enforce_daily_budget(db, current_user)
+        enforce_daily_budget(db, current_user, open_day=is_open_day_route(request))
 
     guard.__name__ = f"paid_route_guard_{getattr(user_dependency, '__name__', 'user')}"
     return guard
 
 
 __all__ = [
+    "OPEN_DAY_ROUTES",
     "PAID_ROUTES",
     "RATE_LIMITED_CODE",
     "MemoryRateLimitBackend",
@@ -371,6 +388,7 @@ __all__ = [
     "RedisRateLimitBackend",
     "auth_rate_limit",
     "client_ip",
+    "is_open_day_route",
     "is_paid_route",
     "limiter",
     "paid_route_guard",

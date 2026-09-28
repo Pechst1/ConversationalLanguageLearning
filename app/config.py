@@ -125,7 +125,16 @@ class Settings(BaseSettings):
     USER_DAILY_SPEND_CAP_USD: float = Field(
         0.50,
         ge=0,
-        description="Per-learner spend per UTC day across the cost ledgers; paid routes answer 429 daily_budget_reached beyond it. 0 = off. A normal day costs ~US$0.05.",
+        description="Per-learner spend per local day across the cost ledgers (panel art excluded: it has its own allowance); paid routes answer 429 daily_budget_reached beyond it. 0 = off. A normal day costs ~US$0.05.",
+    )
+    USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER: float = Field(
+        2.0,
+        ge=1.0,
+        description=(
+            "WP-88: a day already started is never cut off at the cap. Its own routes "
+            "(attempts, help, retry, scene audio) are refused only past cap × this ceiling, "
+            "which still stops a loop."
+        ),
     )
     # ---- WP-70 (end) -------------------------------------------------------
     FRENCH_NLP_MODEL: str = Field(
@@ -314,6 +323,31 @@ class Settings(BaseSettings):
             "references (app/services/panel_art.py). Off: every panel shows the location plate."
         ),
     )
+    # ---- WP-88: panel art made production-safe (begin) -------------------
+    ATELIER_PANEL_ART_COST_USD_PER_PANEL: float = Field(
+        0.06,
+        ge=0,
+        description="Estimated price of one 1536x1024 medium panel; written to the ledger per drawing.",
+    )
+    ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD: float = Field(
+        0.25,
+        ge=0,
+        description=(
+            "Per-learner art budget per local day, kept apart from USER_DAILY_SPEND_CAP_USD. "
+            "Panels beyond it keep the location plate. 0 = no allowance (no art)."
+        ),
+    )
+    ATELIER_PANEL_ART_BANDS: str = Field(
+        "",
+        description="Comma-separated CEFR bands that get drawn panels (e.g. 'A1,A2'); empty = every band.",
+    )
+    ATELIER_PANEL_ART_TEXT_PRESSURE: float = Field(
+        0.7,
+        ge=0,
+        le=1,
+        description="Above this share of the daily text cap already spent, today's panels keep their plates.",
+    )
+    # ---- WP-88 (end) --------------------------------------------------------
     ATELIER_PANEL_ART_CONCURRENCY: int = Field(3, description="Panels of one scene drawn at once")
     ATELIER_PANEL_ART_SCENES_IN_FLIGHT: int = Field(2, description="Scenes drawn at once per process")
     ATELIER_PANEL_ART_REFERENCES_PER_MINUTE: int = Field(

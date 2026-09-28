@@ -43,6 +43,8 @@ def art(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_DIR", str(tmp_path))
     # The test harness shares one connection; production draws on separate ones.
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_CONCURRENCY", 1)
+    # WP-88's allowance is pinned in tests/test_wp88_switch_on.py; here every panel draws.
+    monkeypatch.setattr(settings, "ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD", 10.0)
     queued: list = []
     monkeypatch.setattr(panel_art, "dispatcher", queued.append)
     drawn: list = []
@@ -101,7 +103,11 @@ def test_a_rolled_back_scene_is_never_drawn(db_session, monkeypatch):
     queued: list = []
     monkeypatch.setattr(panel_art, "dispatcher", queued.append)
     nested = db_session.begin_nested()
-    scene = SimpleNamespace(id="00000000-0000-0000-0000-000000000000", panels=[])
+    # WP-88: a scene with nothing to draw queues nothing, so give it one panel.
+    scene = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000000",
+        panels=[SimpleNamespace(panel_index=0, generation_metadata={})],
+    )
     assert panel_art.request_scene_art(db_session, scene)
     nested.rollback()
     db_session.rollback()
