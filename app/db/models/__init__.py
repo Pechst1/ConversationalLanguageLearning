@@ -36,6 +36,7 @@ from app.db.models.graphic_novel import (
 from app.db.models.intake import LearnerArtefact
 from app.db.models.journal import JournalEntry
 from app.db.models.library import BookEpisode, UserBook
+from app.db.models.line_audio import LineAudioClip
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
 from app.db.models.pilot_event import PilotEvent
@@ -84,6 +85,7 @@ __all__ = [
     "RealWorldMissionTurn",
     "BookEpisode",
     "EpisodeAudioClip",
+    "LineAudioClip",
     "LearnerArtefact",
     "JournalEntry",
     "UserBook",

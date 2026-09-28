@@ -33,6 +33,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
 from app.services import grammar_items, pragmatics
+from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
     line_spoils_reply,
@@ -43,6 +44,7 @@ from app.services.journey_contracts import (
     CLASSIC_RECALL_FORMATS,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
+    LISTENING_RECALL_FORMATS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
@@ -176,7 +178,23 @@ QUICK_ANSWER_SECONDS: dict[str, int] = {
     "transform": 12,
     # WP-86: «Qui a dit ça ?» — read one line, tap a face.
     "who_said": 4,
+    # WP-91: «Dictée» — the fixed part; hearing the line twice and typing it
+    # are priced per word (`DICTATION_SECONDS_PER_WORD`).
+    "dictation": 8,
 }
+#: WP-91. What each word of a dictated line costs: heard twice at
+#: :data:`AUDIO_PLAYBACK_SECONDS_PER_TOKEN`, then typed.
+DICTATION_TYPING_SECONDS_PER_WORD = 1.5
+#: WP-91. The longest line a dictation may ask for, by band: a short line from
+#: today's scene, never a paragraph. Bands above A2 share the last cap.
+DICTATION_MAX_WORDS: dict[str, int] = {"A1": 8, "A2": 12}
+DICTATION_MAX_WORDS_DEFAULT = 16
+DICTATION_MIN_WORDS = 2
+#: WP-91. With audio on the deployment, how many listen-and-tap items a day
+#: carries at least, by rhythm (budget seconds) — plus one dictation. Régulier
+#: therefore holds three real listening items a day.
+LISTEN_TAP_ITEMS_BY_BUDGET: dict[int, int] = {300: 1, 600: 2, 1200: 3, 1800: 4}
+DICTATION_ITEMS_PER_DAY = 1
 #: Seeing the colour and tapping «Continuer».
 QUICK_FEEDBACK_SECONDS = 2
 #: A practice day aims for this many quick items: with the reply that is six
@@ -294,6 +312,17 @@ _UNSCRAMBLE_INSTRUCTION: dict[str, str] = {
     "en": "Put the sentence from the scene back in order.",
     "de": "Bring den Satz aus der Szene wieder in die richtige Reihenfolge.",
     "fr": "Remettez dans l'ordre la phrase de la scène.",
+}
+#: WP-91. The dictation's only public text: the line itself is heard, never shown.
+_DICTATION_INSTRUCTION: dict[str, str] = {
+    "en": "Listen and write what you hear.",
+    "de": "Hör zu und schreib, was du hörst.",
+    "fr": "Écoutez et écrivez ce que vous entendez.",
+}
+_DICTATION_HINT: dict[str, str] = {
+    "en": "It is {count} word(s) long.",
+    "de": "Es sind {count} Wort/Wörter.",
+    "fr": "C'est {count} mot(s).",
 }
 #: A scene sentence is rebuilt only when it is short enough to be a quick item
 #: and long enough to be a puzzle.
@@ -1279,6 +1308,133 @@ def build_unscramble_task(
     )
 
 
+# -- WP-91: what is heard ------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class HeardLine:
+    """One line of today's scene as it is spoken: who, and exactly what."""
+
+    character_id: str
+    text_fr: str
+
+    @property
+    def voice(self) -> str:
+        return voice_for_character(self.character_id)
+
+
+def _speakable(text: str | None) -> str:
+    clean = " ".join(str(text or "").split()).strip(_QUOTE_MARKS + " ")
+    # An authored template that was never rendered is not a line to speak.
+    return "" if "{" in clean or "}" in clean else clean
+
+
+def scene_heard_lines(scenario: ScenarioBrief) -> list[HeardLine]:
+    """Every line today's scene speaks, in reading order, without repeats.
+
+    The characters' own lines first (a story-engine draft's dialogue and the
+    opening line, :func:`scene_items.scene_lines`; an authored page's panels),
+    then the narration. The same set the line-audio route accepts for the scene
+    step, so a clip a listening item carries is always a line the learner met.
+    """
+
+    lines: list[HeardLine] = []
+    for line in scene_lines(scenario):
+        lines.append(HeardLine(line.character_id, _speakable(line.text_fr)))
+    narration: list[HeardLine] = []
+    for panel in scenario.panels or []:
+        if not isinstance(panel, dict):
+            continue
+        for entry in panel.get("dialogue") or []:
+            if isinstance(entry, dict) and entry.get("character_id"):
+                lines.append(
+                    HeardLine(str(entry["character_id"]), _speakable(entry.get("text_fr")))
+                )
+        narration.append(HeardLine(NARRATOR_ID, _speakable(panel.get("narration_fr"))))
+    story = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
+    for panel in draft.get("panels") or []:
+        if isinstance(panel, dict):
+            narration.append(HeardLine(NARRATOR_ID, _speakable(panel.get("narration_fr"))))
+    seen: set[str] = set()
+    unique: list[HeardLine] = []
+    for line in [*lines, *narration]:
+        key = _fold(line.text_fr)
+        if not line.text_fr or key in seen:
+            continue
+        seen.add(key)
+        unique.append(line)
+    return unique
+
+
+def dictation_lines(scenario: ScenarioBrief) -> list[HeardLine]:
+    """What a dictation may ask for: each sentence of each line of today's
+    scene, with its speaker — a long line still offers its short sentences.
+    The scene's setup comes last, in the narrator's voice."""
+
+    lines = [*scene_heard_lines(scenario), HeardLine(NARRATOR_ID, _speakable(scenario.setup_fr))]
+    sentences: list[HeardLine] = []
+    seen: set[str] = set()
+    for line in lines:
+        for sentence in scene_sentences(line.text_fr):
+            clean = _speakable(sentence)
+            if clean and _fold(clean) not in seen:
+                seen.add(_fold(clean))
+                sentences.append(HeardLine(line.character_id, clean))
+    return sentences
+
+
+def dictation_word_cap(level_band: str | None) -> int:
+    """≤ 8 words at A1, ≤ 12 at A2, ≤ 16 from B1."""
+
+    band = str(level_band or "").strip().upper()[:2]
+    return DICTATION_MAX_WORDS.get(band, DICTATION_MAX_WORDS_DEFAULT)
+
+
+def build_dictation_task(
+    *,
+    target: TargetRef,
+    line: HeardLine,
+    optional: bool,
+    control_language: ControlLanguage,
+) -> RecallTask:
+    """«Dictée»: hear one line of today's scene, type it.
+
+    The public side is the instruction and the clip, nothing else: no
+    ``prompt_fr``, no options, and the target's label is withheld as for every
+    recall item. The line is the answer key (``accepted_answers``) and the paid
+    reveal (``solution_fr``). Optional: a bonus of listening, so a day whose
+    audio went dark after it was planned can still be finished.
+    """
+
+    words = len(line.text_fr.split())
+    return RecallTask(
+        task_type="dictation",
+        instruction_native=_localized(_DICTATION_INSTRUCTION, control_language),
+        prompt_fr=None,
+        options=[],
+        target=target,
+        optional=optional,
+        accepted_answers=[line.text_fr],
+        hint_native=_localized(_DICTATION_HINT, control_language).format(count=words),
+        translation_native=None,
+        solution_fr=line.text_fr,
+        estimated_seconds=0,
+    )
+
+
+def listen_tap_line(scenario: ScenarioBrief, target: TargetRef) -> HeardLine:
+    """Who speaks a listen-and-tap phrase: the character whose line holds it
+    today, else the scene's own character, else the narrator. The phrase is the
+    target's own words — the meaning the three cards gloss."""
+
+    phrase = _speakable(target.label_fr)
+    for line in scene_heard_lines(scenario):
+        if line.character_id != NARRATOR_ID and _contains_label(line.text_fr, phrase):
+            return HeardLine(line.character_id, phrase)
+    return HeardLine(str(scenario.character_id or NARRATOR_ID), phrase)
+
+
 def build_recall_task_in_format(
     task_type: str,
     *,
@@ -1463,6 +1619,10 @@ def quick_recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> 
 
     fixed = QUICK_ANSWER_SECONDS.get(task.task_type, 10) + QUICK_FEEDBACK_SECONDS
     reading = _reading_seconds(spt, task.instruction_native, task.prompt_fr)
+    if task.task_type == str(RecallFormat.DICTATION):
+        # WP-91: heard twice, then typed — priced per word of the line.
+        words = _tokens(task.solution_fr)
+        fixed += words * (2 * AUDIO_PLAYBACK_SECONDS_PER_TOKEN + DICTATION_TYPING_SECONDS_PER_WORD)
     return max(1, round(fixed * multiplier + reading))
 
 
@@ -2197,6 +2357,9 @@ class PracticeItem:
     entry: SelectedTarget
     task: RecallTask
     cost: int
+    #: WP-91. The clip a listening item carries (``RecallPrompt.audio_url``);
+    #: ``None`` when the deployment does not speak.
+    audio_url: str | None = None
 
 
 def _kept(candidate: LearningCandidate) -> bool:
@@ -2670,6 +2833,188 @@ def top_up_from_scene(
     return placed
 
 
+def _next_position(items: list[PracticeItem], slot: str) -> int:
+    return 1 + max((item.position for item in items if item.slot == slot), default=-1)
+
+
+def add_listening_items(
+    *,
+    scenario: ScenarioBrief,
+    shape: DayShape,
+    entries: list[SelectedTarget],
+    items: list[PracticeItem],
+    expected_reply: str | None,
+    headroom: int,
+    spt: float,
+    multiplier: float,
+    caps: RhythmCaps,
+    max_items: int | None = None,
+    partners: list[TargetRef] | tuple[TargetRef, ...] = (),
+) -> list[PracticeItem]:
+    """WP-91 — with audio on, the day *hears* its words: listen-and-tap items
+    carry a clip of the phrase, and one dictation asks for a line of the scene.
+
+    Called only when the deployment speaks (``audio_available``); a day planned
+    without audio never reaches this and is exactly what it was. Budget-scaled
+    and inside the day's caps: every listen-and-tap item already placed gets
+    its clip; the day then holds at least :data:`LISTEN_TAP_ITEMS_BY_BUDGET`
+    of them — added while the cap and the seconds allow, otherwise by re-posing
+    a placed word as listen-and-tap — and one dictation, added or (at the cap)
+    in place of the last item that is not already heard. Deterministic, like
+    the fill it follows.
+    """
+
+    placed = list(items)
+    rule = practice_day_shape_rule(shape, caps.budget_seconds)
+    cap = min(caps.max_recall, rule.max_recall)
+    if max_items is not None:
+        cap = min(cap, max_items)
+    room = headroom - sum(item.cost for item in placed)
+    pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
+    pool.extend(target for target in partners if _glossed(target) is not None)
+
+    def heard(item: PracticeItem) -> PracticeItem:
+        if item.task.task_type != str(RecallFormat.LISTEN_TAP):
+            return item
+        line = listen_tap_line(scenario, item.task.target)
+        if not line.text_fr:
+            return item
+        return replace(item, audio_url=line_audio_url(line.voice, line.text_fr))
+
+    placed = [heard(item) for item in placed]
+
+    def listen_tap_for(entry: SelectedTarget) -> RecallTask | None:
+        return build_listen_tap_task(
+            target=entry.target,
+            pool=pool,
+            optional=bool(entry.candidate.is_new),
+            control_language=scenario.control_language,
+        )
+
+    # -- listen-and-tap: the day's floor of heard words ------------------------
+    wanted = LISTEN_TAP_ITEMS_BY_BUDGET.get(caps.budget_seconds, 1)
+    if shape_allows_format(shape, str(RecallFormat.LISTEN_TAP)):
+        tapped = {
+            target_identity(item.entry.target)
+            for item in placed
+            if item.task.task_type == str(RecallFormat.LISTEN_TAP)
+        }
+        uses: dict[str, int] = {}
+        for item in placed:
+            identity = target_identity(item.entry.target)
+            uses[identity] = uses.get(identity, 0) + 1
+        for entry in entries:
+            count = sum(1 for item in placed if item.task.task_type == str(RecallFormat.LISTEN_TAP))
+            if count >= wanted or len(placed) >= cap:
+                break
+            identity = target_identity(entry.target)
+            if identity in tapped or uses.get(identity, 0) >= caps.uses_per_target:
+                continue
+            task = listen_tap_for(entry)
+            if task is None:
+                continue
+            cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+            if cost > room:
+                continue
+            # After the scene: the word is heard in the voice that said it.
+            slot = "mid" if shape is DayShape.LISTENING or len(placed) % 2 == 0 else "post"
+            placed.append(
+                heard(
+                    PracticeItem(
+                        slot=slot, position=_next_position(placed, slot), entry=entry,
+                        task=task, cost=cost,
+                    )
+                )
+            )
+            tapped.add(identity)
+            uses[identity] = uses.get(identity, 0) + 1
+            room -= cost
+        # At the cap (or out of new words): re-pose placed words by ear.
+        for index, item in enumerate(list(placed)):
+            count = sum(1 for other in placed if other.task.task_type == str(RecallFormat.LISTEN_TAP))
+            if count >= wanted:
+                break
+            identity = target_identity(item.entry.target)
+            if (
+                identity in tapped
+                or item.entry.target.kind is TargetKind.GRAMMAR
+                or item.task.task_type in (*LISTENING_RECALL_FORMATS, str(RecallFormat.WHO_SAID))
+            ):
+                continue
+            task = listen_tap_for(item.entry)
+            if task is None:
+                continue
+            cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+            if cost - item.cost > room:
+                continue
+            room -= cost - item.cost
+            placed[index] = heard(replace(item, task=task, cost=cost))
+            tapped.add(identity)
+
+    # -- one dictation: a short line of today's scene ---------------------------
+    if not shape_allows_format(shape, str(RecallFormat.DICTATION)) or not entries:
+        return placed
+    limit = dictation_word_cap(scenario.level_band)
+    candidates = [
+        line
+        for line in dictation_lines(scenario)
+        if DICTATION_MIN_WORDS <= len(line.text_fr.split()) <= limit
+    ]
+    if not candidates:
+        return placed
+
+    def owner(line: HeardLine) -> SelectedTarget | None:
+        from app.services.scene_items import contains_surface, target_surfaces
+
+        for entry in entries:
+            for surface in target_surfaces(entry.target, entry.candidate.metadata or {}):
+                if contains_surface(line.text_fr, surface):
+                    return entry
+        return None
+
+    # A line holding one of today's words first (its evidence lands on that
+    # word); the characters before the narrator; reading order breaks ties.
+    ranked = sorted(
+        candidates,
+        key=lambda line: (
+            0 if owner(line) is not None else 1,
+            1 if line.character_id == NARRATOR_ID else 0,
+            candidates.index(line),
+        ),
+    )
+    for line in ranked[:DICTATION_ITEMS_PER_DAY]:
+        entry = owner(line) or entries[0]
+        task = build_dictation_task(
+            target=entry.target, line=line, optional=True,
+            control_language=scenario.control_language,
+        )
+        cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+        # A line said before the reply must not be the reply.
+        slot = "post" if line_spoils_reply(line.text_fr, expected_reply) else "mid"
+        dictation = PracticeItem(
+            slot=slot, position=_next_position(placed, slot), entry=entry, task=task,
+            cost=cost, audio_url=line_audio_url(line.voice, line.text_fr),
+        )
+        if len(placed) < cap and cost <= room:
+            placed.append(dictation)
+            room -= cost
+            continue
+        # At the cap or out of seconds: in place of the last item not heard.
+        for index in range(len(placed) - 1, -1, -1):
+            other = placed[index]
+            if other.task.task_type in LISTENING_RECALL_FORMATS or other.slot == "warmup":
+                continue
+            if cost - other.cost > room:
+                continue
+            room -= cost - other.cost
+            placed[index] = replace(
+                dictation, slot=slot,
+                position=other.position if other.slot == slot else _next_position(placed, slot),
+            )
+            break
+    return placed
+
+
 def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
     recall = item.task
     prompt: dict[str, Any] = {
@@ -2681,11 +3026,13 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         "optional": recall.optional,
         "help_available": _recall_help(recall),
     }
-    if recall.task_type == str(RecallFormat.LISTEN_TAP):
-        # No clip is synthesised for a single phrase yet, so the item is
-        # read-and-tap: the phrase is printed and the renderer says nothing
-        # about listening. A deployment that speaks fills this in.
-        prompt["audio_url"] = None
+    if recall.task_type in LISTENING_RECALL_FORMATS:
+        # WP-91: with a clip the phrase (or the dictated line) is heard, not
+        # read — the prompt prints nothing French. Without one a listen-and-tap
+        # item is read-and-tap, exactly as before; a dictation always has one.
+        prompt["audio_url"] = item.audio_url
+        if item.audio_url:
+            prompt["prompt_fr"] = None
     return PlannedStep(
         ordinal=ordinal,
         kind=StepKind.RECALL,
@@ -2821,7 +3168,7 @@ def _plan_practice_day(
             max_items=max_items,
         )
         # WP-86: a thin day is topped up from the scene's own lines.
-        return cost, top_up_from_scene(
+        topped = top_up_from_scene(
             scenario=scenario,
             shape=shape,
             entries=floor_entries,
@@ -2832,6 +3179,22 @@ def _plan_practice_day(
             multiplier=multiplier,
             caps=caps,
             target_items=target_items,
+        )
+        if not audio_available:
+            return cost, topped
+        # WP-91: a deployment that speaks makes the day's listening real.
+        return cost, add_listening_items(
+            scenario=scenario,
+            shape=shape,
+            entries=entries,
+            items=topped,
+            expected_reply=expected,
+            headroom=max(0, headroom),
+            spt=spt,
+            multiplier=multiplier,
+            caps=caps,
+            max_items=max_items,
+            partners=partners or [],
         )
 
     respond_cost, items = attempt(turns)

@@ -92,6 +92,7 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.episode_audio import EpisodeAudioClip
+from app.db.models.line_audio import LineAudioClip
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -177,6 +178,7 @@ def db_engine():
             RealWorldMissionTurn.__table__,
             LearnerArtefact.__table__,
             EpisodeAudioClip.__table__,
+            LineAudioClip.__table__,
             UserBook.__table__,
             BookEpisode.__table__,
             PersonalInputItem.__table__,
@@ -222,6 +224,7 @@ def db_engine():
                 UserErrorConcept.__table__,
                 UserError.__table__,
                 SerialEpisode.__table__,
+                LineAudioClip.__table__,
                 EpisodeAudioClip.__table__,
                 GraphicNovelAttempt.__table__,
                 GraphicNovelPanel.__table__,

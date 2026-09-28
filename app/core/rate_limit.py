@@ -285,6 +285,10 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/attempts"),
         ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/help"),
         ("POST", "/daily-journeys/{journey_id}/retry"),
+        # WP-91: a character's line spoken, and a listening item's clip (which
+        # is synthesized on its first request).
+        ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/line-audio"),
+        ("GET", "/daily-journeys/line-audio/{clip_id}"),
         ("POST", "/placement/{session_id}/respond"),
         # Atelier practice and correction
         ("POST", "/atelier/sessions"),
@@ -335,6 +339,8 @@ OPEN_DAY_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/help"),
         ("POST", "/daily-journeys/{journey_id}/retry"),
         ("POST", "/story-engine/episodes/{scene_id}/audio"),
+        ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/line-audio"),
+        ("GET", "/daily-journeys/line-audio/{clip_id}"),
     }
 )
 

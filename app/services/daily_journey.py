@@ -585,6 +585,17 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
         key = answer_key_for(str(step.id), private.get("recall_task"))
         if key is not None:
             prompt["answer_key"] = key
+        if (
+            prompt.get("task_type") == "listen_tap"
+            and prompt.get("audio_url")
+            and not settings.ATELIER_EPISODE_AUDIO_ENABLED
+        ):
+            # WP-91: planned with a clip, projected after audio was switched
+            # off — the phrase is printed again and the item is read-and-tap,
+            # exactly as a day planned without audio.
+            task = private.get("recall_task") if isinstance(private.get("recall_task"), dict) else {}
+            prompt["prompt_fr"] = task.get("prompt_fr")
+            prompt["audio_url"] = None
     return prompt
 
 
@@ -2988,6 +2999,8 @@ class DailyJourneyService:
             chapter_beat=str(beat) if beat else None,
             chapter_shape=chapter_shape,
             audio_available=bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
+            # WP-91: Soutenu/Intensif hear every third day first.
+            budget_seconds=int(journey.budget_seconds or 0) or None,
             errata_count=int(errata_count),
             # The WP-64 seam, wired: the letter the Courrier is already showing
             # this learner, read inside this transaction. `None` — no letter

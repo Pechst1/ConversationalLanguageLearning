@@ -1440,6 +1440,9 @@ def evaluate_recall(
     # WP-78: `listen_tap` is a pick, `unscramble` a tile order, and a
     # `match_pairs` item is graded on the day's target alone (see
     # `match_pairs_target_correct`). All three are recognition.
+    if task.task_type == "dictation":
+        # WP-91: its own verdict ladder (met / accents / not yet).
+        return evaluate_dictation(task=task, answer=answer, assistance=assistance)
     if task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
         selected = _selected_option_id(task, answer)
         is_correct = bool(selected) and selected == task.correct_option_id
@@ -1486,6 +1489,133 @@ def evaluate_recall(
         )
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
+        assistance=assistance,
+        observations=[observation] if observation is not None else [],
+        correction=correction,
+        pending=False,
+        failure_reason=None,
+    )
+
+
+# --------------------------------------------------------------------------
+# WP-91 — «Dictée»: what was heard, written down
+# --------------------------------------------------------------------------
+
+#: Every apostrophe and quote a keyboard (iOS above all) may insert.
+_DICTATION_APOSTROPHES = str.maketrans({
+    "\u2019": "'", "\u2018": "'", "\u201b": "'", "\u2032": "'", "\u00b4": "'", "`": "'",
+})
+#: The correction's margin note, in the learner's language.
+_DICTATION_NOTE: dict[str, dict[str, str]] = {
+    "accents": {
+        "en": "Almost: only the accents are missing.",
+        "de": "Fast: nur die Akzente fehlen.",
+        "fr": "Presque : il ne manque que les accents.",
+    },
+    "words": {
+        "en": "Listen again: this is what was said.",
+        "de": "Hör noch einmal hin: Das wurde gesagt.",
+        "fr": "Réécoutez : voici ce qui a été dit.",
+    },
+}
+
+
+def _dictation_language(task: RecallTask) -> str:
+    """The learner's language, read off the instruction the planner wrote."""
+
+    from app.services.journey_planner import _DICTATION_INSTRUCTION
+
+    for language, text in _DICTATION_INSTRUCTION.items():
+        if text == task.instruction_native:
+            return language
+    return "en"
+
+
+def dictation_form(value: str | None, *, keep_accents: bool = True) -> str:
+    """The form a dictation is compared in.
+
+    Case, punctuation (guillemets and the typographer's quotes included),
+    apostrophe variants — ``’`` ``‘`` fold to ``'`` — hyphens and whitespace
+    never count. ``keep_accents=False`` also strips diacritics: the second rung
+    of the ladder.
+    """
+
+    text = normalize_answer_text(value).translate(_DICTATION_APOSTROPHES).lower()
+    text = unicodedata.normalize("NFC", text)
+    if not keep_accents:
+        text = "".join(
+            char for char in unicodedata.normalize("NFKD", text) if not unicodedata.combining(char)
+        )
+    # Words and apostrophes survive; «», “”, ?!.,;: and hyphens become spaces.
+    text = re.sub(r"[^\w']+", " ", text)
+    # «j' ai», «j 'ai» and «j'ai» are the same thing typed three ways.
+    text = re.sub(r"\s*'\s*", "' ", text)
+    return " ".join(text.replace("_", " ").split())
+
+
+def _dictation_credits_target(task: RecallTask) -> bool:
+    """Does the dictated line hold the item's word? Only then is it evidence."""
+
+    label = dictation_form(task.target.label_fr, keep_accents=False)
+    line = dictation_form(task.solution_fr, keep_accents=False)
+    if not label or not line:
+        return False
+    return f" {label} " in f" {line} " or f" {re.sub(r'^(le|la|les|un|une|des|du) ', '', label)} " in f" {line} "
+
+
+def evaluate_dictation(
+    *, task: RecallTask, answer: AttemptAnswer, assistance: AssistanceLevel
+) -> RecallEvaluation:
+    """Grade one dictation.
+
+    * the same words (case, punctuation, quotes and spacing aside) — **met**;
+    * the same words with a missing or wrong accent — **partially met**, with
+      the line as the correction;
+    * anything else — **not yet**, with the line as the correction.
+
+    Listening, then transcribing, is recognition of the word the line holds —
+    never production. A line that does not hold the item's word is graded and
+    schedules nothing (as «Qui a dit ça ?»).
+    """
+
+    expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else "")
+    learner = normalize_answer_text(answer.text)
+    if dictation_form(learner) and dictation_form(learner) == dictation_form(expected):
+        outcome = TaskOutcome.MET
+    elif dictation_form(learner, keep_accents=False) and dictation_form(
+        learner, keep_accents=False
+    ) == dictation_form(expected, keep_accents=False):
+        outcome = TaskOutcome.PARTIALLY_MET
+    else:
+        outcome = TaskOutcome.NOT_YET
+    heard = outcome is not TaskOutcome.NOT_YET
+    observation = None
+    if _dictation_credits_target(task):
+        observation = classify_observation(
+            target=task.target,
+            opportunity="tiles",
+            is_correct=heard,
+            assistance=assistance,
+            modality=answer.mode,
+            elicited=True,
+            learner_text=learner,
+            corrected_text=None if outcome is TaskOutcome.MET else expected,
+        )
+        if observation is not None:
+            observation = replace(observation, task_format=task.task_type)
+    correction = None
+    if outcome is not TaskOutcome.MET and learner and expected:
+        # Built directly: `build_correction` folds accents away, and an accent
+        # is exactly what the partial verdict is about.
+        correction = Correction(
+            span_fr=learner,
+            corrected_fr=normalize_answer_text(expected),
+            note_native=_DICTATION_NOTE[
+                "accents" if outcome is TaskOutcome.PARTIALLY_MET else "words"
+            ][_dictation_language(task)],
+        )
+    return RecallEvaluation(
+        outcome=outcome,
         assistance=assistance,
         observations=[observation] if observation is not None else [],
         correction=correction,

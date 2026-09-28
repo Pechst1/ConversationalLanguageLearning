@@ -231,6 +231,10 @@ class RecallPrompt(JourneyModel):
         "unscramble",
         # WP-86: «Qui a dit ça ?», answered with `ChoiceAttemptInput`.
         "who_said",
+        # WP-91: «Dictée» — a line of today's scene is heard and typed,
+        # answered with `TextAttemptInput`. Its prompt carries the instruction
+        # and `audio_url` only: never the line.
+        "dictation",
     ]
     instruction_native: str
     prompt_fr: str | None = None
@@ -243,16 +247,23 @@ class RecallPrompt(JourneyModel):
     #: WP-78: listen-and-tap and unscramble too, and one digest *per pair* for
     #: a matching item, so each pair is coloured the moment it is made.
     answer_key: RecallAnswerKey | None = None
-    #: WP-78. A listen-and-tap item's clip. ``None`` while no clip is
-    #: synthesised for single phrases: the phrase is then printed and the item
-    #: is read-and-tap.
+    #: WP-78. A listen-and-tap item's clip. ``None`` when the deployment does
+    #: not speak: the phrase is then printed and the item is read-and-tap.
+    #: WP-91: with audio on, a listen-and-tap or dictation item carries
+    #: ``/api/v1/daily-journeys/line-audio/{clip_id}`` — an authenticated path,
+    #: synthesised on its first request and cached — and a listen-and-tap
+    #: item's ``prompt_fr`` is then ``None`` (the phrase is heard, not read).
     audio_url: str | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any) -> Any:
-        # WP-78: only a listen-and-tap item speaks of audio at all.
+        # WP-78: only a listening item speaks of audio at all.
         data = handler(self)
-        if isinstance(data, dict) and data.get("audio_url") is None and self.task_type != "listen_tap":
+        if (
+            isinstance(data, dict)
+            and data.get("audio_url") is None
+            and self.task_type not in ("listen_tap", "dictation")
+        ):
             data.pop("audio_url", None)
         return data
 
@@ -908,7 +919,47 @@ class JourneyRetryRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
 
 
+# ---------------------------------------------------------------------------
+# WP-91 «Les voix»: one line of a step, spoken in its character's voice
+# ---------------------------------------------------------------------------
+
+
+class LineAudioRequest(JourneyRequest):
+    """``POST /daily-journeys/{journey_id}/steps/{step_id}/line-audio``.
+
+    ``text_fr`` must be a line that actually appears in that step for this
+    learner (404 otherwise): the route never speaks arbitrary text.
+    ``character_id`` is a hint for which speaker is meant when two say the same
+    words; the voice is always the server's, from the line it matched.
+    """
+
+    text_fr: str = Field(min_length=1, max_length=600)
+    character_id: str | None = Field(default=None, max_length=80)
+
+
+class LineAudioResult(JourneyModel):
+    """``ready`` carries the clip to fetch; ``disabled`` means "use the device
+    voice" (audio off on this deployment, the provider unavailable, or the
+    learner's daily cap near). The four other fields are present only when
+    ``ready``."""
+
+    status: Literal["ready", "disabled"]
+    clip_id: str | None = None
+    content_type: str | None = None
+    voice: str | None = None
+    cached: bool | None = None
+
+    @model_serializer(mode="wrap")
+    def _only_what_the_status_carries(self, handler: Any) -> Any:
+        data = handler(self)
+        if isinstance(data, dict) and self.status != "ready":
+            return {"status": self.status}
+        return data
+
+
 __all__ = [
+    "LineAudioRequest",
+    "LineAudioResult",
     "CastIntroEntry",
     "AttemptInput",
     "AttemptResult",

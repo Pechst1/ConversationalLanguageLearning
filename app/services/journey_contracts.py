@@ -234,6 +234,12 @@ class RecallFormat(StrEnum):
     #: WP-86. «Qui a dit ça ?» — a line of today's scene and the cast's faces;
     #: tap who said it. A pick graded by option id, posed only after the scene.
     WHO_SAID = "who_said"
+    #: WP-91. «Dictée» — one short line of today's scene is *heard* (never
+    #: printed: the public prompt carries only the instruction and the clip)
+    #: and typed. Answered with ``TextAttemptInput``; case, punctuation,
+    #: apostrophes and quotes never count, a missing accent is partly met.
+    #: Posed only when the deployment can speak (``audio_available``).
+    DICTATION = "dictation"
 
 
 #: Wire-order tuple. Extending it is additive; reordering it is not, because
@@ -248,6 +254,14 @@ QUICK_RECALL_FORMATS: tuple[str, ...] = (
     str(RecallFormat.LISTEN_TAP),
     str(RecallFormat.UNSCRAMBLE),
     str(RecallFormat.WHO_SAID),
+    str(RecallFormat.DICTATION),
+)
+#: WP-91. The formats that are *heard*: with audio on the deployment each
+#: carries a clip (``RecallPrompt.audio_url``); a dictation is never posed
+#: without one.
+LISTENING_RECALL_FORMATS: tuple[str, ...] = (
+    str(RecallFormat.LISTEN_TAP),
+    str(RecallFormat.DICTATION),
 )
 #: The three the daily loop had before WP-66. A plan persisted at plan contract
 #: version 1 can only contain these.
@@ -258,10 +272,14 @@ LEGACY_RECALL_FORMATS: tuple[str, ...] = (
 )
 #: Formats a learner can answer with their voice on a listening day. A choice
 #: is excluded on purpose: reading four options is not taking dictation.
+#: WP-91: a listening day now poses what is actually *heard* too — the
+#: listen-and-tap item with its clip, and the dictation itself.
 DICTATION_RECALL_FORMATS: tuple[str, ...] = (
     str(RecallFormat.SHORT_ANSWER),
     str(RecallFormat.TRANSFORM),
     str(RecallFormat.WORD_BANK),
+    str(RecallFormat.LISTEN_TAP),
+    str(RecallFormat.DICTATION),
 )
 
 
@@ -510,6 +528,7 @@ class RecallTask:
         "listen_tap",
         "unscramble",
         "who_said",
+        "dictation",
     ]
     instruction_native: str
     prompt_fr: str | None
@@ -846,7 +865,11 @@ class PlannedJourney:
             task_type = str(getattr(step.private_task, "task_type", "") or "")
             if rule.allowed_formats and task_type and task_type not in rule.allowed_formats:
                 raise ValueError(f"a {shape} day cannot pose a {task_type} recall")
-            if task_type in (str(RecallFormat.UNSCRAMBLE), str(RecallFormat.WHO_SAID)) and index < scene_at:
+            if task_type in (
+                str(RecallFormat.UNSCRAMBLE),
+                str(RecallFormat.WHO_SAID),
+                str(RecallFormat.DICTATION),
+            ) and index < scene_at:
                 # The sentence is the scene's: it cannot be rebuilt before it is read.
                 raise ValueError("an unscramble cannot come before the scene")
         total = sum(step.estimated_seconds for step in self.steps)

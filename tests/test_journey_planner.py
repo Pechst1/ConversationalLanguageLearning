@@ -832,6 +832,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # `unified_srs` — the scheduler this whole assertion exists to keep out.
         "app.services",
         "app.services.journey_day_shapes",
+        # WP-91: who speaks with which voice, and a line's clip id — a table
+        # and a hash, no I/O, so a listening item names its clip at plan time.
+        "app.services.cast_voices",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

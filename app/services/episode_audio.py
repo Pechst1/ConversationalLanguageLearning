@@ -45,6 +45,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.episode_audio import EpisodeAudioClip
 from app.db.models.graphic_novel import GraphicNovelScene
+from app.services import cast_voices
 from app.services.pilot_events import PilotEventService
 
 #: The pilot-ledger event type. `scripts/pilot_digest.py` reads it by name.
@@ -60,37 +61,20 @@ EPISODE_AUDIO_EVENT_TYPE = "episode_audio_synthesis"
 #: this constant only says which path this feature was tested on.
 TTS_PROVIDER = "openai"
 
-#: OpenAI's speech voices. ``fable`` is reserved for narration so the narrator
-#: is never mistaken for a character.
-NARRATOR_VOICE = "fable"
-CHARACTER_VOICES: tuple[str, ...] = ("alloy", "echo", "nova", "onyx", "shimmer")
+#: WP-91: one voice per cast member, from :mod:`app.services.cast_voices` — the
+#: single source of truth every speaking surface shares. Re-exported here under
+#: the names this module has always published.
+NARRATOR_VOICE = cast_voices.NARRATOR_VOICE
+CHARACTER_VOICES: tuple[str, ...] = cast_voices.CHARACTER_VOICES
 
 #: The id used for narration lines, in the manifest and in the cache.
-NARRATOR_ID = "narrator"
+NARRATOR_ID = cast_voices.NARRATOR_ID
 
 #: The recurring cast, pinned so a character keeps their voice across days —
 #: recognising who is speaking before understanding what they said is half of
 #: what the listen stage trains. Matching is on the id's first token, so
 #: ``marin_leveque`` and ``marin`` are the same person.
-#:
-#: There are five character voices and the cast can grow past five, so two
-#: characters may end up sharing one. That is why the écouter stage shows the
-#: speaker's *name* while hiding their words: the voice is a cue, never the
-#: only carrier of who is talking.
-PINNED_VOICES: dict[str, str] = {
-    "romy": "shimmer",
-    "lila": "nova",
-    "marin": "onyx",
-    "marchand": "echo",
-    "landlord": "echo",
-    "margaux": "alloy",
-    "augustin": "alloy",
-    "gus": "alloy",
-    # The learner's own line in the script.
-    "toi": "nova",
-    "learner": "nova",
-    "you": "nova",
-}
+PINNED_VOICES: dict[str, str] = cast_voices.PINNED_VOICES
 
 #: Nothing shorter than this is worth a request: a stage direction fragment or
 #: an empty string costs a round trip and teaches nothing.
@@ -157,23 +141,10 @@ class EpisodeAudioResult:
 
 
 def voice_for_character(character_id: str | None) -> str:
-    """The voice a speaker keeps, for the life of the cast.
+    """The voice a speaker keeps, for the life of the cast (WP-91: one table,
+    :func:`app.services.cast_voices.voice_for_character`)."""
 
-    Deterministic in both branches: a pinned id maps by its first token, and
-    anything else — a generated cast member — hashes into the same five voices.
-    A generated character therefore also keeps one voice across days, which a
-    round-robin over the scene's speakers would not.
-    """
-
-    raw = str(character_id or "").strip().lower()
-    if not raw or raw == NARRATOR_ID:
-        return NARRATOR_VOICE
-    head = raw.split("_", 1)[0]
-    pinned = PINNED_VOICES.get(raw) or PINNED_VOICES.get(head)
-    if pinned:
-        return pinned
-    digest = hashlib.sha256(raw.encode("utf-8")).digest()
-    return CHARACTER_VOICES[digest[0] % len(CHARACTER_VOICES)]
+    return cast_voices.voice_for_character(character_id)
 
 
 def episode_lines(scene: GraphicNovelScene) -> list[EpisodeLine]:

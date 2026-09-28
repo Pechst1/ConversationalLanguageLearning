@@ -576,7 +576,9 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
     sentences = ["Je voudrais un café au comptoir."]
     # WP-86: «Qui a dit ça ?» is posed from a scene line and the cast, never
     # from a target alone — it is covered below, from `scene_items`.
-    assert set(targets) | {"who_said"} == set(RECALL_FORMATS), "a format with no parity coverage"
+    assert set(targets) | {"who_said", "dictation"} == set(RECALL_FORMATS), (
+        "a format with no parity coverage"
+    )
 
     posed = 0
     for task_type, (target, affordances) in targets.items():
@@ -632,6 +634,31 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
     serialized = json.dumps(dumped, ensure_ascii=False)
     for marker in PROMPT_LEAK_MARKERS:
         assert marker not in serialized, f"who_said leaks {marker}"
+    posed += 1
+    # WP-91: «Dictée» is posed from a line of the scene, heard through its clip.
+    from app.services.cast_voices import line_audio_url
+    from app.services.journey_planner import HeardLine, build_dictation_task
+
+    heard = HeardLine("romy_tremblay", "Vous prenez un café ?")
+    dictation = build_dictation_task(
+        target=quick, line=heard, optional=True, control_language=brief.control_language
+    )
+    prompt = RecallPrompt.model_validate(
+        {
+            "task_type": dictation.task_type,
+            "instruction_native": dictation.instruction_native,
+            "prompt_fr": dictation.prompt_fr,
+            "options": [dict(option) for option in dictation.options],
+            "target": public_recall_target(dictation.target),
+            "optional": dictation.optional,
+            "help_available": [],
+            "audio_url": line_audio_url(heard.voice, heard.text_fr),
+        }
+    )
+    serialized = json.dumps(prompt.model_dump(mode="json"), ensure_ascii=False)
+    assert "Vous prenez un café" not in serialized, "a dictation prints its line"
+    for marker in PROMPT_LEAK_MARKERS:
+        assert marker not in serialized, f"dictation leaks {marker}"
     posed += 1
     assert posed == len(RECALL_FORMATS)
 

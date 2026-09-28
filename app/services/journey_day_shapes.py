@@ -264,6 +264,10 @@ class DayShapeInputs:
     #: build it and served a standard day instead (``None`` otherwise). Not
     #: part of the seed: it only removes a shape that just failed to build.
     previous_dealt_shape: DayShape | None = None
+    #: WP-91. The day's budget (the learner's rhythm). Soutenu and Intensif
+    #: (≥ :data:`LISTEN_FIRST_MIN_BUDGET_SECONDS`) hear every third day first.
+    #: ``None`` — an older caller — deals no cadence at all.
+    budget_seconds: int | None = None
 
     @property
     def seed_parts(self) -> tuple[str, ...]:
@@ -287,6 +291,31 @@ class DayShapeDecision:
         """Did the story or a missed day decide this before the dice did?"""
 
         return self.reason in {"missed_previous_day", "chapter_resolution_beat"}
+
+
+#: WP-91. Soutenu (20 min) and Intensif (30 min): every third day is
+#: «Écouter d'abord» — a listening day — when the deployment can speak.
+LISTEN_FIRST_MIN_BUDGET_SECONDS = 1200
+LISTEN_FIRST_EVERY_DAYS = 3
+
+
+def is_listen_first_day(inputs: DayShapeInputs) -> bool:
+    """Is today one of this learner's every-third listening days?
+
+    The phase is per learner (seeded on the user id alone, so it does not jump
+    at a week boundary), the rhythm is the calendar: three consecutive days
+    always hold exactly one. Only on the long rhythms, and only when audio is on.
+    """
+
+    if not inputs.audio_available:
+        return False
+    if int(inputs.budget_seconds or 0) < LISTEN_FIRST_MIN_BUDGET_SECONDS:
+        return False
+    phase = roll(
+        DAY_SHAPE_DICE_VERSION, str(inputs.user_id), "listen-first-phase",
+        faces=LISTEN_FIRST_EVERY_DAYS,
+    )
+    return (inputs.local_date.toordinal() + phase) % LISTEN_FIRST_EVERY_DAYS == 0
 
 
 def eligible_shapes(inputs: DayShapeInputs) -> tuple[DayShape, ...]:
@@ -355,6 +384,17 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
             return DayShapeDecision(
                 shape=DayShape.REPRISE, reason="chapter_resolution_beat", eligible=pool
             )
+
+    if (
+        is_listen_first_day(inputs)
+        and DayShape.LISTENING in pool
+        and previous is not DayShape.LISTENING
+    ):
+        # WP-91: the long rhythms' cadence. After the story's own overrides
+        # (a missed day, a letter chapter, a resolution beat), before the dice.
+        return DayShapeDecision(
+            shape=DayShape.LISTENING, reason="listen_first_cadence", eligible=pool
+        )
 
     unrepeated = tuple(shape for shape in pool if shape is not previous)
     # WP-78 (the WP-68 finding): a shape dealt yesterday that could not be
@@ -448,8 +488,11 @@ __all__ = [
     "DayShapeInputs",
     "LetterOffer",
     "LetterProvider",
+    "LISTEN_FIRST_EVERY_DAYS",
+    "LISTEN_FIRST_MIN_BUDGET_SECONDS",
     "choose_day_shape",
     "eligible_shapes",
+    "is_listen_first_day",
     "iso_week_key",
     "letter_offer_for",
     "roll",
