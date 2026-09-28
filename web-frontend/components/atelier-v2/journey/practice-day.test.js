@@ -180,14 +180,15 @@ test('listen-and-tap without a clip is read-and-tap: the phrase is printed, mean
   assert.equal(formats.listenTapHasAudio(step.prompt), false);
   const html = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(step)));
   assert.ok(html.includes('brouillard'), 'the phrase is the headline');
-  assert.ok(!html.includes('<audio'), 'nothing speaks of audio');
+  assert.ok(!html.includes('av2-heard'), 'nothing speaks of audio');
   assert.ok(html.includes('role="radiogroup"'));
   assert.ok(!html.includes('<span lang="fr">fog</span>'), 'a meaning is spoken in the learner language');
   assert.ok(html.includes('<span>fog</span>'));
 
-  const heard = recallStep({ ...step.prompt, audio_url: '/media/clip.mp3' });
+  // WP-91: a real clip is the journey's authenticated line-audio route.
+  const heard = recallStep({ ...step.prompt, audio_url: '/api/v1/daily-journeys/line-audio/clip-1' });
   const heardHtml = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(heard)));
-  assert.ok(heardHtml.includes('<audio'), 'a clip is played when one exists');
+  assert.ok(heardHtml.includes('av2-heard__play'), 'a clip is played when one exists');
   assert.ok(!heardHtml.includes('brouillard'), 'and the phrase waits until the answer');
 });
 

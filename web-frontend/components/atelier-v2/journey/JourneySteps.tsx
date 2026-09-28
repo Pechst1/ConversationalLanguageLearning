@@ -107,6 +107,9 @@ import { useVoiceAnswer } from './useVoiceAnswer';
 import { MatchPairs } from './MatchPairs';
 import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
+import { Dictation } from './Dictation';
+import { isDictation } from './dictation-model';
+import { HeardLine } from './HeardLine';
 import {
   CharacterSmiles,
   CharacterTyping,
@@ -193,6 +196,8 @@ export type StepViewCommonProps = {
    * and it never carries a grade.
    */
   draft?: { get: (key: string) => string; set: (key: string, text: string) => void };
+  /** WP-91: the journey whose lines the server may speak (line-audio route). */
+  journeyId?: string | null;
 };
 
 const HELP_LABEL: Record<HelpKind, keyof JourneyCopy> = {
@@ -439,6 +444,8 @@ export function RecallStepView({
   // A recall draft is keyed by the step: one step, one written answer.
   const draftKey = step.id;
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
+  // WP-91: a clip that cannot play turns a listening item back into reading.
+  const [clipFailed, setClipFailed] = useState(false);
   // WP-76: the verdict the hashed key gave on the device, before the server's.
   const [local, setLocal] = useState<{
     stepId: string;
@@ -458,6 +465,7 @@ export function RecallStepView({
     setChoice(null);
     setTiles([]);
     setLocal(null);
+    setClipFailed(false);
     setText(draft?.get(draftKey) ?? '');
   }, [draft, draftKey, step.id]);
 
@@ -540,7 +548,8 @@ export function RecallStepView({
   );
   // WP-78. Read-and-tap until a clip exists: the phrase is the headline. With
   // a clip, the phrase stays unprinted until the answer is graded.
-  const heard = listenTapHasAudio(step.prompt);
+  const dictating = isDictation(step.prompt);
+  const heard = !dictating && listenTapHasAudio(step.prompt) && !clipFailed;
   const headline =
     heard && !graded
       ? step.prompt.instruction_native
@@ -558,8 +567,22 @@ export function RecallStepView({
       {!step.prompt.prompt_fr && isMatch && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
       )}
-      {heard && step.prompt.audio_url && (
-        <audio className="av2-listen" controls preload="auto" src={step.prompt.audio_url} />
+      {heard && (
+        <HeardLine audioUrl={step.prompt.audio_url} copy={copy} onUnavailable={() => setClipFailed(true)} />
+      )}
+      {clipFailed && !dictating && !graded && <p className="av2-label">{copy.listen_unavailable_read}</p>}
+      {dictating && !graded && (
+        <Dictation
+          prompt={step.prompt}
+          copy={copy}
+          value={text}
+          disabled={locked}
+          invalid={feedback.kind === 'empty'}
+          onChange={(next) => {
+            setText(next);
+            draft?.set(draftKey, next);
+          }}
+        />
       )}
 
       {/* A transform prints the sentence being rewritten, so the learner knows
@@ -647,6 +670,7 @@ export function RecallStepView({
       {/* Anything that is not picked is written: short answer, transform, and
           whatever a newer server deals that this build has not met yet. */}
       {!picks &&
+        !(dictating && !graded) &&
         (graded ? (
           <SentAnswer label={copy.answer_label} text={text} />
         ) : (
@@ -717,7 +741,10 @@ export function RespondStepView({
   onSubmit,
   onContinue,
   draft,
+  journeyId = null,
 }: { step: RespondStep } & StepViewCommonProps) {
+  // WP-91: one voice for the whole conversation, backed by the server's clips.
+  const lineVoice = useStepVoice(journeyId, step.id);
   // A respond step can hold more than one turn, and each turn is its own
   // answer, so the turn is part of the key: a new turn starts clean rather
   // than reopening with the sentence the learner already sent.
@@ -1087,7 +1114,16 @@ export function RespondStepView({
         {answerArea}
         {/* WP-76: the wait has a face, and the reply is read before it is judged. */}
         {waitingForReply && <CharacterTyping speaker={replier} />}
-        {reply && <TypedReply speaker={replier} reply={reply} animate={feedback.kind === 'replying'} />}
+        {reply && (
+          <TypedReply
+            speaker={replier}
+            reply={reply}
+            animate={feedback.kind === 'replying'}
+            journeyId={journeyId}
+            stepId={step.id}
+            voice={lineVoice}
+          />
+        )}
         {aside}
       </StepFrame>
     );
@@ -1105,6 +1141,9 @@ export function RespondStepView({
       </div>
       {brief}
       <RespondThread
+        journeyId={journeyId}
+        stepId={step.id}
+        voice={lineVoice}
         bubbles={bubbles}
         speaker={replier}
         mood={sayingMood}

@@ -334,6 +334,7 @@ export function JourneySession({
                   onSubmit={actions.submitAnswer}
                   onContinue={actions.continueJourney}
                   draft={draft}
+                  journeyId={journey?.id ?? null}
                 />
               )}
               {step.kind === 'respond' && (
@@ -347,6 +348,7 @@ export function JourneySession({
                   onSubmit={actions.submitAnswer}
                   onContinue={actions.continueJourney}
                   draft={draft}
+                  journeyId={journey?.id ?? null}
                 />
               )}
               {step.kind === 'resolution' && (
