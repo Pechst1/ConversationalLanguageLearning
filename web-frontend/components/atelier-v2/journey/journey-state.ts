@@ -311,6 +311,24 @@ export function attemptVerdict(
 }
 
 /**
+ * WP-89 (W7): which verdict line the band says. «Correct, with help» only when
+ * help was really used; a `partially_met` answer given without help is a
+ * partial result («Nearly…»), never credited to help the learner never asked
+ * for. The tone stays the verdict's; only the words are chosen here.
+ */
+export type VerdictTitleKey = 'correct' | 'supported' | 'nearly' | 'wrong';
+
+export function verdictTitleKey(
+  verdict: Exclude<AttemptVerdict, 'unscored'>,
+  assistance: AssistanceLevel | null | undefined,
+): VerdictTitleKey {
+  if (verdict === 'supported') {
+    return assistance && assistance !== 'none' ? 'supported' : 'nearly';
+  }
+  return verdict;
+}
+
+/**
  * `AttemptResult.reply_source` was ratified additively as contract revision 2 on
  * 2026-09-05. It is read structurally rather than off the type, because a server
  * built before that revision omits the field entirely — that case must resolve to

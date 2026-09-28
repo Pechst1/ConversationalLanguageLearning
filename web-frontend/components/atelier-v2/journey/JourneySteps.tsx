@@ -86,6 +86,7 @@ import {
   resolutionAwaitsStory,
   sceneOpensOnAudio,
   textOffered,
+  verdictTitleKey,
   voiceOffered,
   wordBankHasSpareChips,
   type JourneyFeedback,
@@ -1429,8 +1430,8 @@ export function JourneyFeedbackView({
       // the verdict — «Written reply from the script» told the learner nothing
       // they could act on. The payload still carries `reply_source`.
       const { result, verdict } = feedback;
-      const title =
-        verdict === 'correct' ? copy.correct : verdict === 'supported' ? copy.supported : copy.wrong;
+      // W7: «with help» only when help was really used.
+      const title = copy[verdictTitleKey(verdict, result.assistance_level)];
       // WP-77: the character reacts to *your* answer — pleased or cross, small.
       const face =
         speaker && castIdFor(speaker.id, speaker.name) ? (

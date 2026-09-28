@@ -71,6 +71,8 @@ export type JourneyCopyKey =
   | 'stale_from_earlier_day'
   | 'correct'
   | 'supported'
+  // WP-89 (W7): a partial answer given WITHOUT help — never «with help».
+  | 'nearly'
   | 'wrong'
   | 'correction'
   | 'reply_authored_note'
@@ -243,6 +245,7 @@ const EN: CopyTable = {
   stale_from_earlier_day: 'This was saved on an earlier day.',
   correct: 'Correct',
   supported: 'Correct, with help',
+  nearly: 'Nearly — one more thing next time',
   wrong: 'Not yet',
   correction: 'One thing to fix',
   reply_authored_note: 'Written reply from the script',
@@ -398,6 +401,7 @@ const DE: CopyTable = {
   stale_from_earlier_day: 'Das wurde an einem früheren Tag gespeichert.',
   correct: 'Richtig',
   supported: 'Richtig, mit Hilfe',
+  nearly: 'Fast — beim nächsten Mal noch eine Sache',
   wrong: 'Noch nicht',
   correction: 'Eine Sache zum Korrigieren',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
@@ -553,6 +557,7 @@ const FR: CopyTable = {
   stale_from_earlier_day: 'Ceci a été enregistré un jour précédent.',
   correct: 'Correct',
   supported: 'Correct, avec aide',
+  nearly: 'Presque — encore un détail la prochaine fois',
   wrong: 'Pas encore',
   correction: 'Une chose à corriger',
   reply_authored_note: 'Réponse écrite, tirée du scénario',

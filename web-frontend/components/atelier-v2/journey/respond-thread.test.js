@@ -437,3 +437,42 @@ test('a continuing turn: no band, no frown, the field reopens; a closing one is 
   assert.ok(!closeHtml.includes('<textarea'));
   assert.ok(closeHtml.includes('Au comptoir, merci.'), 'the learner’s last line stays on the page');
 });
+
+// ===========================================================================
+// 5. W7 — «with help» only when help was really used
+// ===========================================================================
+
+test('a partial answer without help reads as partial, never «with help»', () => {
+  const state = require('./journey-state.ts');
+  const band = (res, copy = EN) =>
+    renderToStaticMarkup(
+      h(steps.JourneyFeedbackView, {
+        feedback: state.feedbackFromAttempt(res),
+        copy,
+        onContinue() {},
+        onRetry() {},
+        onDismiss() {},
+      }),
+    );
+  // The walk's W7: partially_met, no help used, on the closing turn.
+  const unaided = result({ task_outcome: 'partially_met', assistance_level: 'none' });
+  assert.equal(state.verdictTitleKey('supported', 'none'), 'nearly');
+  for (const copy of [EN, DE, FR]) {
+    const html = band(unaided, copy);
+    assert.ok(html.includes(copy.nearly), `partial is said as partial (${copy.nearly})`);
+    assert.ok(!html.includes(copy.supported), 'and never credited to help nobody asked for');
+  }
+  // Help really used: then, and only then, «with help».
+  for (const assistance of ['hint', 'translation', 'solution']) {
+    assert.equal(state.verdictTitleKey('supported', assistance), 'supported');
+  }
+  const helped = band(result({ task_outcome: 'partially_met', assistance_level: 'hint' }));
+  assert.ok(helped.includes(EN.supported));
+  assert.ok(band(result({ task_outcome: 'met', assistance_level: 'hint' })).includes(EN.supported));
+  assert.ok(band(result({ task_outcome: 'met', assistance_level: 'none' })).includes(EN.correct));
+  // Mid-conversation there is no band to say it in at all.
+  assert.equal(
+    band(result({ task_outcome: 'partially_met', assistance_level: 'none', next_turn: { step_id: 's', prompt: prompt({ turn_index: 1 }) } })),
+    '',
+  );
+});
