@@ -954,6 +954,8 @@ def story_letter_candidate(
         "event_id": str(event.get("id")),
         "character_id": str(character_id),
         "character_name": _cast_name(thread, str(character_id)),
+        # WP-97: the letter is written in the register the two of them agreed on.
+        "register": learner_register(thread, str(character_id)),
         "summary_fr": _compact(event.get("summary_fr"), limit=240),
         "source_quotes": [str(item) for item in (event.get("source_quotes") or [])][:2],
         "week": week,
@@ -983,6 +985,25 @@ def note_story_letter(db: Session, *, user: User, candidate: dict[str, Any], mis
     db.add(thread)
 
 
+def learner_register(thread: SerialThread | None, character_id: str | None) -> str:
+    """``tu`` once the learner and this character have switched (WP-97), else ``vous``.
+
+    The register lives in ``state.relationships[id].register``; the story engine writes
+    ``tu`` there when the learner accepts «On se tutoie ?».
+    """
+
+    if thread is None or not character_id or character_id == "landlord_marchand":
+        return "vous"
+    relationships = (thread.state or {}).get("relationships") if isinstance(thread.state, dict) else None
+    entry = (relationships or {}).get(str(character_id)) if isinstance(relationships, dict) else None
+    register = str((entry or {}).get("register") or "").lower() if isinstance(entry, dict) else ""
+    return "tu" if register.startswith("tu") else "vous"
+
+
+#: The register phrase the letter writer is given (``missions`` reads ``register``).
+LETTER_REGISTERS = {"tu": "tu / warm informal", "vous": "vous / warm but polite"}
+
+
 def _cast_name(thread: SerialThread, character_id: str) -> str:
     world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     for member in world.get("cast") or []:
@@ -1001,13 +1022,26 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
 
     name = candidate.get("character_name") or "Un personnage"
     summary = candidate.get("summary_fr") or "ce qui vient de se passer"
-    return {
-        "scenario": (
+    register = "tu" if candidate.get("register") == "tu" else "vous"
+    if register == "tu":
+        scenario = (
+            f"{name} t'écrit après ce qui vient de se passer dans le feuilleton : {summary} "
+            f"Vous vous tutoyez : {name} te dit « tu », et tu lui réponds en « tu », en français. "
+            f"N'invente aucun fait nouveau : parle de cet épisode-là."
+        )
+        outcome = f"{name} sait ce que tu en penses et ce que tu comptes faire ensuite."
+    else:
+        scenario = (
             f"{name} vous écrit après ce qui vient de se passer dans le feuilleton : {summary} "
             f"Répondez-lui en français. N'inventez aucun fait nouveau : parlez de cet épisode-là."
-        ),
-        "desired_outcome": f"{name} sait ce que vous en pensez et ce que vous comptez faire ensuite.",
+        )
+        outcome = f"{name} sait ce que vous en pensez et ce que vous comptez faire ensuite."
+    return {
+        "scenario": scenario,
+        "desired_outcome": outcome,
         "relationship": str(candidate.get("character_id") or ""),
+        # «vous» keeps the letter writer's own inference (``None``); «tu» is binding.
+        "register": LETTER_REGISTERS["tu"] if register == "tu" else None,
         "source": "story_born",
     }
 
@@ -1361,6 +1395,7 @@ __all__ = [
     "slug",
     "story_letter_candidate",
     "story_letter_context",
+    "learner_register",
     "summarise_letter",
     "thread_history",
     "weighted_pick",

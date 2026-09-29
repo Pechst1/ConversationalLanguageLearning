@@ -145,6 +145,33 @@ MORNING_LINES: dict[str, dict[str, str]] = {
 }
 DEFAULT_MORNING_LINE = {"A": "La suite vous attend.", "B": "La suite vous attend. Vous venez ?"}
 
+#: WP-97: the same lines once the learner and that character have agreed on «tu»
+#: (``state.relationships[id].register == "tu"``, written when «On se tutoie ?» was
+#: accepted). A character who says «tu» in the story does not say «vous» in a push.
+MORNING_LINES_TU: dict[str, dict[str, str]] = {
+    "marin_leveque": {
+        "A": "Je te garde une place au Mistral. Tu viens ?",
+        "B": "Je te garde une place au Mistral. Passe quand tu peux, la suite t’attend.",
+    },
+    "romy_tremblay": {
+        "A": "J’ai une question pour toi. Tu passes ?",
+        "B": "J’ai une question pour toi, et je crois que tu as la réponse.",
+    },
+    "lila_bonnet": {
+        "A": "Salut ! J’ai besoin de toi aujourd’hui.",
+        "B": "J’ai une idée, et elle a besoin de toi. Tu viens ?",
+    },
+    "margaux_barman": {
+        "A": "Le café est prêt. Et toi ?",
+        "B": "Ta table est libre. Viens voir ce qui se passe ici.",
+    },
+    "augustin_de_roncourt": {
+        "A": "Salut. Tu as un moment pour moi ?",
+        "B": "J’aurais besoin de ton avis, si tu as un instant.",
+    },
+}
+DEFAULT_MORNING_LINE_TU = {"A": "La suite t’attend.", "B": "La suite t’attend. Tu viens ?"}
+
 #: A scene started and left: the character picks it up where it stopped.
 RESUME_LINES: dict[str, str] = {
     "A": "On s’est arrêtés au milieu. On continue ?",
@@ -181,6 +208,30 @@ STREAK_LINES: dict[str, dict[str, str]] = {
 DEFAULT_STREAK_LINE = {
     "A": "{days} jours de suite. Une scène ce soir ?",
     "B": "{days} jours de suite. Une scène ce soir, et la série continue.",
+}
+
+#: WP-97: the streak push in «tu», for a character the learner now tutoies.
+STREAK_LINES_TU: dict[str, dict[str, str]] = {
+    "marin_leveque": {
+        "A": "Tu viens ce soir ? {days} jours de suite, déjà !",
+        "B": "Tu passes ce soir ? {days} jours de suite, ce serait dommage d’arrêter là.",
+    },
+    "romy_tremblay": {
+        "A": "{days} jours de suite ! On se voit ce soir ?",
+        "B": "{days} jours de suite. Je note tout, alors ne me fais pas faux bond ce soir.",
+    },
+    "lila_bonnet": {
+        "A": "{days} jours de suite. Bravo ! Et ce soir ?",
+        "B": "{days} jours de suite : je suis fière de toi. Une scène ce soir ?",
+    },
+    "margaux_barman": {
+        "A": "Ta table t’attend ce soir. {days} jours de suite !",
+        "B": "Ta table t’attend ce soir. {days} jours de suite, on ne s’arrête pas maintenant.",
+    },
+    "augustin_de_roncourt": {
+        "A": "{days} jours de suite. Tu viens ce soir ?",
+        "B": "{days} jours de suite. Ce soir encore, si tu le veux bien.",
+    },
 }
 
 
@@ -232,6 +283,35 @@ def portrait_character(character_id: Any) -> str | None:
 def portrait_path(character_id: Any) -> str | None:
     key = portrait_character(character_id)
     return f"/assets/serial/characters/{key}/portrait-neutral.webp" if key else None
+
+
+def _active_thread(db: Session, user: User):
+    from app.db.models.serial import SerialThread
+
+    return db.scalar(
+        select(SerialThread)
+        .where(SerialThread.user_id == user.id, SerialThread.status == "active")
+        .order_by(SerialThread.created_at.desc())
+        .limit(1)
+    )
+
+
+def character_register(db: Session, user: User, character_id: Any) -> str:
+    """``tu`` when the learner and this character have switched, else ``vous`` (WP-97).
+
+    Read where the register lives, ``state.relationships[id].register`` — the story
+    engine writes ``tu`` there when «On se tutoie ?» is accepted. The landlord stays
+    «vous» whatever a legacy row says.
+    """
+
+    key = portrait_character(character_id) or str(character_id or "")
+    if not key or key == "landlord_marchand":
+        return "vous"
+    thread = _active_thread(db, user)
+    relationships = (getattr(thread, "state", None) or {}).get("relationships") if thread else None
+    entry = (relationships or {}).get(key) if isinstance(relationships, dict) else None
+    register = str((entry or {}).get("register") or "").lower() if isinstance(entry, dict) else ""
+    return "tu" if register.startswith("tu") else "vous"
 
 
 def _latest_journey(db: Session, user: User) -> DailyJourney | None:
@@ -353,6 +433,8 @@ def daily_journey_morning_push(
     character_id, name = _speaker(db, user)
     if resumable is not None:
         message = RESUME_LINES[group]
+    elif character_register(db, user, character_id) == "tu":
+        message = MORNING_LINES_TU.get(character_id, DEFAULT_MORNING_LINE_TU)[group]
     else:
         message = MORNING_LINES.get(character_id, DEFAULT_MORNING_LINE)[group]
     return CharacterPush(
@@ -380,7 +462,8 @@ def streak_at_risk_push(db: Session, user: User, *, days: int) -> CharacterPush:
     """The evening push for a live streak (≥ 2) whose day is not yet practised."""
 
     character_id, name = _speaker(db, user)
-    line = STREAK_LINES.get(character_id, DEFAULT_STREAK_LINE)[band_group(user)]
+    lines = STREAK_LINES_TU if character_register(db, user, character_id) == "tu" else STREAK_LINES
+    line = lines.get(character_id, DEFAULT_STREAK_LINE)[band_group(user)]
     return CharacterPush(
         title=name,
         message=line.format(days=int(days)),
@@ -439,6 +522,7 @@ __all__ = [
     "JOURNEY_DEEP_LINK",
     "REHEARSAL_READY_TITLE",
     "CharacterPush",
+    "character_register",
     "daily_journey_morning_copy",
     "daily_journey_morning_push",
     "engine_teaser",

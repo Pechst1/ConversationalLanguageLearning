@@ -3798,6 +3798,8 @@ class MissionScheduler:
             custom_scenario = story_context["scenario"]
             desired_outcome = desired_outcome or story_context["desired_outcome"]
             relationship = relationship or story_context["relationship"]
+            # WP-97: a character the learner now tutoies writes in «tu».
+            register = register or story_context.get("register")
         custom_context = {
             "scenario": custom_scenario,
             "desired_outcome": desired_outcome,

@@ -14,6 +14,7 @@ import re
 import time
 from dataclasses import replace
 from datetime import UTC, datetime
+from datetime import date as _date
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -735,6 +736,11 @@ epreuve_fail_line_fr is the kind line if not yet, in the spirit of «on se revoi
 semaine prochaine» — never shaming, never saying failed. On every other day both are
 null. The chapter goes on around it: keep chapter.required_beat and the chapter's
 question, and whatever chapter.shape says about voices, today everybody comes.
+«ON SE TUTOIE ?». tutoiement, when present, names the one character who has come to
+trust the learner enough to offer «tu» — until now they say «vous» to each other. Make
+that character the addressed character today and let them ask it in opening_line_fr,
+warmly and in their own voice, with the words «On se tutoie ?»; the scene still speaks
+vous. Never presume the learner's answer. When tutoiement is absent, nobody raises it.
 FACES AND READING AIDS. Every dialogue line has mood: how the speaker feels saying it —
 neutral, happy, cross or moved (the reader's portrait plays it, so vary it with the
 scene). When line_translation names a language, every dialogue line also has
@@ -806,7 +812,10 @@ story.consequences is what this learner's earlier choices left behind with this
 character; story.secrets gives the state of this character's own secret (hidden,
 hinted or revealed). Set secret_shift to hinted if this exchange lets it show, to
 revealed if it genuinely comes out in your reply, and to null otherwise — never back.
-Match the character's register to the scene: answer tu with tu, vous with vous. Below
+Match the character's register to the scene: answer tu with tu, vous with vous. When
+story.tutoiement is present, this scene's character has just asked «On se tutoie ?»: if
+the learner accepts, reply_fr already says tu; if they decline or hesitate, keep vous,
+graciously and without reproach. Below
 B1 (story.level A1 or A2) use no coarse or vulgar word (putain, merde, bordel, con...) in
 reply_fr or resolution_fr, whatever the character's speech pattern says.
 All address, agreement and endearments aimed at the learner follow story.learner.address:
@@ -2029,7 +2038,17 @@ def _one_line(text: Any, limit: int = CHRONICLE_LINE_CHARS) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
 
-def chapter_digest(chapter: dict, draft: SceneDraft, turn: SemanticTurn, *, event_id: str, day: int, season: int = 1) -> dict:
+def chapter_digest(
+    chapter: dict,
+    draft: SceneDraft,
+    turn: SemanticTurn,
+    *,
+    event_id: str,
+    day: int,
+    season: int = 1,
+    scene_id: str | None = None,
+    date: str | None = None,
+) -> dict:
     """One resolved chapter, folded into the row the chronicle keeps forever.
 
     Title, the question it asked, how it actually resolved, the development the
@@ -2060,6 +2079,10 @@ def chapter_digest(chapter: dict, draft: SceneDraft, turn: SemanticTurn, *, even
         "shape": str(chapter.get("shape") or DEFAULT_SHAPE),
         "side_story": bool(chapter.get("side_story", not chapter.get("stage_reached"))),
         "event_id": event_id,
+        # WP-96: where and when it closed, so a margin note can point at the page.
+        "scene_id": scene_id,
+        "date": date,
+        "index_in_season": chapter.get("index_in_season"),
     }
 
 
@@ -2136,6 +2159,8 @@ def chronicle_after_chapter(
     event_id: str,
     day: int,
     season: int = 1,
+    scene_id: str | None = None,
+    date: str | None = None,
 ) -> list[dict]:
     """The chronicle once this exchange is settled: unchanged unless a chapter closed."""
 
@@ -2144,7 +2169,11 @@ def chronicle_after_chapter(
         return rows
     if any(row.get("event_id") == event_id for row in rows):
         return rows
-    rows.append(chapter_digest(chapter, draft, turn, event_id=event_id, day=day, season=season))
+    rows.append(
+        chapter_digest(
+            chapter, draft, turn, event_id=event_id, day=day, season=season, scene_id=scene_id, date=date
+        )
+    )
     return fold_chronicle(rows)
 
 
@@ -2192,6 +2221,8 @@ def consequences_after_turn(
     moods_before: dict,
     moods_after: dict,
     commitments: list[dict],
+    scene_id: str | None = None,
+    date: str | None = None,
 ) -> list[dict]:
     """The durable ledger after one settled exchange.
 
@@ -2226,6 +2257,10 @@ def consequences_after_turn(
                 "event_id": event_id,
                 "chapter_id": chapter.get("id"),
                 "last_referenced": None,
+                # WP-96/97: the page and the day that minted it (margin notes, «Ce
+                # qu'ils savent de vous»).
+                "scene_id": scene_id,
+                "date": date,
             }
         )
         minted += 1
@@ -2389,6 +2424,8 @@ def plants_after_scene(
     event_id: str,
     day: int,
     chapter_index: int,
+    scene_id: str | None = None,
+    date: str | None = None,
 ) -> list[dict]:
     """The foreshadow ledger after one settled scene: pay first, then plant."""
 
@@ -2408,6 +2445,8 @@ def plants_after_scene(
                 "day": int(day),
                 "status": "open",
                 "event_id": event_id,
+                "scene_id": scene_id,
+                "date": date,
             }
         )
     unpaid = [row for row in rows if row.get("status") != "paid"][-PLANT_LEDGER_LIMIT:]
@@ -2479,6 +2518,644 @@ def secrets_after_turn(
     if best != current:
         states[character_id] = best
     return states
+
+
+# ---------------------------------------------------------------------------
+# WP-96 «Les Cahiers du feuilleton» / WP-97 «Les suites»
+#
+# What the archive prints comes from here, and only from stored rows: the chapter a
+# scene belongs to, the «Précédemment» lines (chronicle and this chapter's own settled
+# scenes), the margin notes (written at the moment a scene pays a stored row back), and
+# «On se tutoie ?» — the one relationship step that is a scene rather than a counter.
+# No model call, no invented fact: a line with no ledger row behind it is never written.
+# ---------------------------------------------------------------------------
+
+PREVIOUSLY_LINES = 3
+PREVIOUSLY_LINE_CHARS = 150
+MARGIN_QUOTE_CHARS = 70
+TUTOIEMENT_KEY = "tutoiement"
+TRUST_STREAK_KEY = "trust_streak"
+#: The engine's trust (0..5) a character must hold, for this many settled scenes in a
+#: row, before they offer «tu». Declined: not asked again for this many days.
+TUTOIEMENT_TRUST = 4
+TUTOIEMENT_STREAK = 3
+TUTOIEMENT_REASK_DAYS = 14
+#: The landlord and the administration stay «vous» — the register map says so.
+TUTOIEMENT_EXCLUDED = frozenset({"landlord_marchand"})
+_TUTOIE_ASK = re.compile(r"\b(?:on\s+se\s+tutoie|se\s+tutoyer|on\s+peut\s+se\s+dire\s+tu)\b", re.IGNORECASE)
+_TU_YES = re.compile(
+    r"\b(?:oui|ouais|d'accord|avec\s+plaisir|ok|okay|volontiers|bien\s+sûr|carrément|"
+    r"pourquoi\s+pas|avec\s+joie|évidemment|bonne\s+idée|on\s+se\s+tutoie)\b",
+    re.IGNORECASE,
+)
+_TU_NO = re.compile(
+    r"\b(?:non|je\s+préfère|pas\s+encore|plutôt\s+pas|pas\s+tout\s+de\s+suite|"
+    r"restons\s+au\s+vous|gardons\s+le\s+vous)\b",
+    re.IGNORECASE,
+)
+
+
+def _live_of(live_state: dict | None) -> dict:
+    """The living-story dict, whether given the thread state or the ledger itself."""
+
+    value = dict(live_state or {})
+    inner = value.get(STATE_KEY)
+    return dict(inner) if isinstance(inner, dict) else value
+
+
+def trust_of(live_state: dict | None, character_id: str | None) -> int | None:
+    """The engine's trust (``TRUST_RANGE``, 0..5) of one character, or None if unmet.
+
+    Unlike the serial's closeness, this number falls: a colder exchange, an ignored
+    letter and a broken promise each take one off. ``live_state`` may be the thread's
+    whole ``state`` or its ``living_story`` entry.
+    """
+
+    entry = (_live_of(live_state).get("moods") or {}).get(str(character_id or ""))
+    if not isinstance(entry, dict) or "trust" not in entry:
+        return None
+    return max(TRUST_RANGE[0], min(TRUST_RANGE[1], _int_or(entry.get("trust"), 2)))
+
+
+def _events_by_id(live: dict) -> dict[str, dict]:
+    return {
+        str(event.get("id")): event
+        for event in live.get("events") or []
+        if isinstance(event, dict) and event.get("id")
+    }
+
+
+def _date_of(value: Any) -> str | None:
+    text = str(value or "")[:10]
+    return text if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text) else None
+
+
+_CONSEQUENCE_LEAD = {
+    "commitment_kept": "Vous avez tenu parole : ",
+    "commitment_broken": "Vous aviez promis : ",
+}
+
+
+def known_about_learner(live_state: dict | None, character_id: str | None) -> list[dict]:
+    """«Ce qu'ils savent de vous»: the consequences this character witnessed.
+
+    Oldest first. ``date`` and ``scene_id`` are the row's own stamps (WP-96) or, for a
+    row written before them, those of the event that minted it while it is still in
+    the rolling event tail — never guessed.
+    """
+
+    live = _live_of(live_state)
+    cid = str(character_id or "")
+    if not cid:
+        return []
+    events = _events_by_id(live)
+    rows = []
+    for row in live.get("consequences") or []:
+        if not isinstance(row, dict):
+            continue
+        witnesses = {str(item) for item in row.get("witnesses") or []}
+        if str(row.get("character_id") or "") != cid and cid not in witnesses:
+            continue
+        event = events.get(str(row.get("event_id") or "")) or {}
+        text = _one_line(row.get("text_fr"), CONSEQUENCE_TEXT_CHARS)
+        if not text:
+            continue
+        rows.append(
+            {
+                "text_fr": _CONSEQUENCE_LEAD.get(str(row.get("kind")), "") + text,
+                "date": _date_of(row.get("date")) or _date_of(event.get("at")),
+                "scene_id": row.get("scene_id") or event.get("scene_id"),
+                "kind": row.get("kind"),
+                "day": row.get("day"),
+                "event_id": row.get("event_id"),
+            }
+        )
+    return sorted(rows, key=lambda row: int(row.get("day") or 0))
+
+
+def ledger_row(live: dict, ref: str | None) -> dict | None:
+    """The stored row an id names, with its provenance — or None when nobody holds it.
+
+    Looks in every ledger a scene can pay back: consequences, plants, the chronicle
+    (chapters and folded season facts), events and commitments.
+    """
+
+    if not ref:
+        return None
+    ref = str(ref)
+    events = _events_by_id(live)
+
+    def origin(event_id: Any) -> dict:
+        return events.get(str(event_id or "")) or {}
+
+    for row in live.get("consequences") or []:
+        if isinstance(row, dict) and str(row.get("id")) == ref:
+            event = origin(row.get("event_id"))
+            return {
+                "kind": row.get("kind"),
+                "text_fr": row.get("text_fr"),
+                "quote": row.get("quote"),
+                "character_id": row.get("character_id"),
+                "scene_id": row.get("scene_id") or event.get("scene_id"),
+                "date": _date_of(row.get("date")) or _date_of(event.get("at")),
+                "day": row.get("day"),
+            }
+    for row in live.get("planted") or []:
+        if isinstance(row, dict) and str(row.get("id")) == ref:
+            event = origin(row.get("event_id"))
+            return {
+                "kind": "plant",
+                "text_fr": row.get("text_fr"),
+                "quote": "",
+                "character_id": row.get("character_id"),
+                "scene_id": row.get("scene_id") or event.get("scene_id"),
+                "date": _date_of(row.get("date")) or _date_of(event.get("at")),
+                "day": row.get("day"),
+                "status": row.get("status"),
+            }
+    for row in live.get("chronicle") or []:
+        if not isinstance(row, dict):
+            continue
+        if row.get("kind") == "season":
+            for index, fact in enumerate(row.get("facts") or []):
+                if f"season:{row.get('season')}:{index}" == ref:
+                    return {
+                        "kind": "chronicle",
+                        "text_fr": re.sub(r"^j\d+\s*·\s*", "", str(fact)),
+                        "quote": "",
+                        "character_id": None,
+                        "scene_id": None,
+                        "date": None,
+                        "day": row.get("from_day"),
+                    }
+            continue
+        if str(row.get("id")) == ref:
+            event = origin(row.get("event_id"))
+            return {
+                "kind": "chronicle",
+                "text_fr": row.get("resolved_fr") or row.get("question"),
+                "quote": row.get("quote"),
+                "character_id": next(iter(row.get("characters") or []), None),
+                "scene_id": row.get("scene_id") or event.get("scene_id"),
+                "date": _date_of(row.get("date")) or _date_of(event.get("at")),
+                "day": row.get("day"),
+            }
+    event = events.get(ref)
+    if event:
+        return {
+            "kind": "event",
+            "text_fr": event.get("summary_fr"),
+            "quote": next(iter(event.get("source_quotes") or []), ""),
+            "character_id": next(iter(event.get("witnesses") or []), None),
+            "scene_id": event.get("scene_id"),
+            "date": _date_of(event.get("at")),
+            "day": None,
+        }
+    for row in live.get("commitments") or []:
+        if isinstance(row, dict) and str(row.get("id")) == ref:
+            source = origin(row.get("source_event_id"))
+            return {
+                "kind": "commitment",
+                "text_fr": row.get("text_fr"),
+                "quote": row.get("source_quote"),
+                "character_id": next(iter(row.get("witnesses") or []), None),
+                "scene_id": source.get("scene_id"),
+                "date": _date_of(source.get("at")),
+                "day": row.get("day"),
+            }
+    return None
+
+
+def _cast_names(world: dict | None) -> dict[str, str]:
+    names = {}
+    for member in (world or {}).get("cast") or []:
+        if isinstance(member, dict) and member.get("id"):
+            name = str(member.get("name") or member["id"])
+            # «Augustin « Gus » de Roncourt» is «Gus» in a margin, «Lila Bonnet» is «Lila».
+            nickname = re.search(r"«\s*([^»]+?)\s*»", name)
+            names[str(member["id"])] = (
+                nickname.group(1) if nickname else (name.split()[0] if name.split() else name)
+            )
+    return names
+
+
+def margin_note(row: dict, *, names: dict[str, str]) -> dict | None:
+    """One margin note for a stored row a scene has just paid back, or None."""
+
+    text = _one_line(row.get("text_fr"), 110)
+    quote = _one_line(row.get("quote"), MARGIN_QUOTE_CHARS).strip("«» \"")
+    cid = row.get("character_id")
+    name = names.get(str(cid or ""))
+    if quote and name:
+        line = f"Parce que vous avez dit à {name} « {quote} »"
+    elif quote:
+        line = f"Parce que vous avez dit « {quote} »"
+    elif row.get("kind") == "plant" and text:
+        line = f"Un détail revient : {text}"
+    elif text:
+        line = f"Suite de : {text}"
+    else:
+        return None
+    return {
+        "text_fr": line,
+        "cause_scene_id": str(row["scene_id"]) if row.get("scene_id") else None,
+        "cause_date": _date_of(row.get("date")),
+        "character_id": str(cid) if cid else None,
+    }
+
+
+def margin_notes_for(draft: SceneDraft, live: dict, *, world: dict | None = None) -> list[dict]:
+    """The margin notes a published scene earns: one per stored row it pays back.
+
+    Three ways a scene pays: the callback it built on (``callback_ref``, already
+    checked against the ledgers by ``_validate_scene``), the unpaid plant it pays
+    (``pays_plant_id`` — only a plant that exists and is still open) and the ledger row
+    that entitled an escalation (``escalates_ref``). An id no ledger holds earns
+    nothing: a margin note is provenance, never decoration.
+    """
+
+    names = _cast_names(world)
+    notes: list[dict] = []
+    seen: set[str] = set()
+    refs: list[str | None] = [
+        draft.callback_ref if draft.callback_fr else None,
+        draft.pays_plant_id,
+        draft.escalates_ref,
+    ]
+    for ref in refs:
+        if not ref or str(ref) in seen:
+            continue
+        seen.add(str(ref))
+        row = ledger_row(live, ref)
+        if row is None:
+            continue
+        if ref == draft.pays_plant_id and row.get("kind") == "plant" and row.get("status") == "paid":
+            continue
+        note = margin_note(row, names=names)
+        if note and note["text_fr"] not in {item["text_fr"] for item in notes}:
+            cues = [str(row.get("text_fr") or ""), str(row.get("quote") or "")]
+            if ref == draft.callback_ref:
+                cues.append(draft.callback_fr)
+            panel = payback_panel(draft, cues)
+            if panel is not None:
+                note["panel_index"] = panel
+            notes.append(note)
+    return notes
+
+
+def payback_panel(draft: SceneDraft, cues: list[str]) -> int | None:
+    """The 0-based panel where the paid-back past is played, when one clearly is.
+
+    The panel whose narration and dialogue share the most content words with the paid
+    row (or the callback line); None below ``CALLBACK_OVERLAP`` — a note pinned to the
+    wrong panel would be worse than a note in the page margin.
+    """
+
+    best, best_score = None, 0.0
+    for index, panel in enumerate(draft.panels):
+        body = " ".join([panel.narration_fr or "", *[line.text_fr for line in panel.dialogue]])
+        score = max((_premise_overlap(cue, body) for cue in cues if cue), default=0.0)
+        if score > best_score:
+            best, best_score = index, score
+    return best if best_score >= CALLBACK_OVERLAP else None
+
+
+def previously_lines(
+    live: dict,
+    *,
+    chapter_id: str | None = None,
+    callback_ref: str | None = None,
+    limit: int = PREVIOUSLY_LINES,
+) -> list[str]:
+    """«Précédemment»: at most three lines the learner needs before this scene.
+
+    Deterministic and drawn only from what happened: the scenes already settled in the
+    chapter this scene continues (their stored event), the past this scene calls back
+    to, then the most recently closed chapters of the chronicle. Printed oldest first.
+    """
+
+    seen: set[str] = set()
+
+    def line_of(text: Any) -> str:
+        line = _one_line(re.sub(r"^j\d+\s*·\s*", "", str(text or "")), PREVIOUSLY_LINE_CHARS)
+        if not line or _folded(line) in seen:
+            return ""
+        seen.add(_folded(line))
+        return line
+
+    in_chapter = []
+    if chapter_id:
+        events = [
+            event
+            for event in live.get("events") or []
+            if isinstance(event, dict) and event.get("chapter_id") == chapter_id
+        ]
+        in_chapter = [line for line in (line_of(e.get("summary_fr")) for e in events[-2:]) if line]
+    callback = []
+    row = ledger_row(live, callback_ref) if callback_ref else None
+    if row:
+        callback = [line for line in [line_of(row.get("text_fr"))] if line]
+    budget = max(0, limit - len(in_chapter) - len(callback))
+    past: list[str] = []
+    chapters = [r for r in live.get("chronicle") or [] if isinstance(r, dict) and r.get("kind") != "season"]
+    for entry in reversed(chapters):
+        if len(past) >= budget:
+            break
+        resolved = entry.get("resolved_fr") or entry.get("development") or entry.get("question")
+        line = line_of(f"{entry.get('title_fr')} : {resolved}" if entry.get("title_fr") else resolved)
+        if line:
+            past.append(line)
+    seasons = [r for r in live.get("chronicle") or [] if isinstance(r, dict) and r.get("kind") == "season"]
+    for entry in reversed(seasons):
+        for fact in reversed(entry.get("facts") or []):
+            if len(past) >= budget:
+                break
+            line = line_of(fact)
+            if line:
+                past.append(line)
+    # Gathered newest first; printed the way a reader lived them — the older past,
+    # the fact this scene calls back to, then this chapter's own last scenes.
+    return (list(reversed(past)) + callback + in_chapter)[-limit:]
+
+
+def margin_note_weeks(
+    dated_payloads: list[tuple[Any, dict]],
+    *,
+    start: Any,
+    after_day: int = 10,
+    days: int | None = None,
+) -> dict[int, int]:
+    """Margin notes per week of a life, from day ``after_day + 1`` on (WP-97's gauge).
+
+    ``dated_payloads`` is ``[(local_date, script_payload), ...]`` for the bound scenes;
+    ``start`` is day 1. Week 0 is days ``after_day+1 .. after_day+7``; every week up to
+    the last played scene is present, with 0 where no page paid anything back; with
+    ``days`` (the life's length) a trailing partial week is left out. The long-horizon
+    harness asserts ``min(weeks.values()) >= 1``.
+    """
+
+    weeks: dict[int, int] = {}
+    last = -1
+    for when, payload in dated_payloads:
+        day = (when - start).days + 1
+        if day <= after_day:
+            continue
+        week = (day - after_day - 1) // 7
+        last = max(last, week)
+        weeks[week] = weeks.get(week, 0) + len((payload or {}).get("margin_notes") or [])
+    if days is not None:
+        last = min(last, (int(days) - after_day) // 7 - 1)
+    return {week: weeks.get(week, 0) for week in range(last + 1)}
+
+
+def chapter_payload(chapter: dict, live: dict, *, season: int) -> dict:
+    """The ``chapter`` block a bound scene carries (WP-96)."""
+
+    index = _int_or(chapter.get("index_in_season"), 0) or max(1, _int_or(live.get("season_chapters"), 1))
+    return {
+        "index": int(index),
+        "title_fr": _one_line(chapter.get("title_fr"), 100),
+        "closes": False,
+        "digest_fr": None,
+        "season": int(season),
+    }
+
+
+def chapter_digest_line(row: dict | None) -> str | None:
+    """«question → résolution», the one line a closed chapter is filed under."""
+
+    if not row:
+        return None
+    question = _one_line(row.get("question"), 110)
+    resolved = _one_line(row.get("resolved_fr") or row.get("development"), 110)
+    if question and resolved:
+        return f"{question} → {resolved}"
+    return question or resolved or None
+
+
+def trust_streaks_after(streaks: dict, moods: dict) -> dict:
+    """Per character, how many settled scenes in a row their trust has held ≥ 4."""
+
+    result = {}
+    for cid, entry in (moods or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        high = _int_or(entry.get("trust"), 0) >= TUTOIEMENT_TRUST
+        result[str(cid)] = (_int_or((streaks or {}).get(cid), 0) + 1) if high else 0
+    return result
+
+
+def trust_after_broken_promises(moods: dict, consequences: list[dict], event_id: str) -> dict:
+    """A promise nobody kept costs its witness one point of trust, once (WP-97)."""
+
+    moods = {key: dict(value) for key, value in (moods or {}).items() if isinstance(value, dict)}
+    for row in consequences or []:
+        if row.get("event_id") != event_id or row.get("kind") != "commitment_broken":
+            continue
+        cid = str(row.get("character_id") or "")
+        if not cid:
+            continue
+        entry = moods.get(cid) or {"mood": 0, "trust": 2}
+        fell = [str(item) for item in entry.get("trust_fell_for") or []]
+        if str(row.get("id")) in fell:
+            continue
+        entry["trust"] = max(TRUST_RANGE[0], _int_or(entry.get("trust"), 2) - 1)
+        entry["trust_fell_for"] = [*fell, str(row.get("id"))][-10:]
+        moods[cid] = entry
+    return moods
+
+
+def _register_of(relationships: dict | None, character_id: str) -> str:
+    entry = (relationships or {}).get(character_id) or {}
+    return "tu" if str(entry.get("register") or "").lower().startswith("tu") else "vous"
+
+
+def tutoiement_candidate(
+    live: dict,
+    relationships: dict | None,
+    *,
+    cast_ids: list[str],
+    today: Any = None,
+) -> str | None:
+    """The character who asks «On se tutoie ?» next, or None (WP-97).
+
+    Trust ≥ ``TUTOIEMENT_TRUST`` for ``TUTOIEMENT_STREAK`` settled scenes running, the
+    learner still «vous» with them, never the landlord, and not within
+    ``TUTOIEMENT_REASK_DAYS`` of a refusal. The highest streak asks first.
+    """
+
+    ledger = live.get(TUTOIEMENT_KEY) or {}
+    streaks = live.get(TRUST_STREAK_KEY) or {}
+    ranked = sorted(
+        (str(cid) for cid in cast_ids if cid),
+        key=lambda cid: (-_int_or(streaks.get(cid), 0), cid),
+    )
+    for cid in ranked:
+        if cid in TUTOIEMENT_EXCLUDED or cid.startswith("office_"):
+            continue
+        if _register_of(relationships, cid) == "tu":
+            continue
+        entry = ledger.get(cid) or {}
+        state = entry.get("state")
+        if state == "accepted":
+            continue
+        if state == "declined":
+            declined = _date_of(entry.get("declined_on"))
+            if declined and today is not None:
+                if (today - _date.fromisoformat(declined)).days < TUTOIEMENT_REASK_DAYS:
+                    continue
+            elif _int_or(live.get("day_index"), 0) - _int_or(entry.get("declined_day"), 0) < TUTOIEMENT_REASK_DAYS:
+                continue
+        if (trust_of(live, cid) or 0) >= TUTOIEMENT_TRUST and _int_or(streaks.get(cid), 0) >= TUTOIEMENT_STREAK:
+            return cid
+    return None
+
+
+def tutoiement_staged(draft: SceneDraft, character_id: str | None) -> bool:
+    """True when the accepted draft has ``character_id`` actually ask «On se tutoie ?»."""
+
+    if not character_id:
+        return False
+    spoken = [line.text_fr for panel in draft.panels for line in panel.dialogue if line.character_id == character_id]
+    if draft.character_id == character_id:
+        spoken.append(draft.opening_line_fr)
+    return any(_TUTOIE_ASK.search(str(text or "").replace("’", "'")) for text in spoken)
+
+
+def tutoiement_decision(learner_lines: list[str], *, reply_fr: str | None = None) -> str | None:
+    """«accepted», «declined» or None, from the learner's own reply (deterministic).
+
+    Yes-words (oui, d'accord, avec plaisir, ok, volontiers…) against no-words (non, je
+    préfère…). When the words are mixed or absent, the learner's own register decides
+    (answering in «tu» is accepting it), then the character's reply as the actor
+    wrote it — the actor's judgement, when it is the only signal left.
+    """
+
+    for raw in learner_lines:
+        text = " ".join(str(raw or "").replace("’", "'").split())
+        if not text:
+            continue
+        yes, no = bool(_TU_YES.search(text)), bool(_TU_NO.search(text))
+        if yes and not no:
+            return "accepted"
+        if no and not yes:
+            return "declined"
+        register = _address_register([text])
+        if register == "tu":
+            return "accepted"
+        if register == "vous" and no:
+            return "declined"
+    if reply_fr:
+        register = _address_register([reply_fr])
+        if register == "tu":
+            return "accepted"
+    return None
+
+
+def settle_tutoiement(
+    state: dict,
+    live: dict,
+    *,
+    character_id: str,
+    scene_id: str,
+    learner_lines: list[str],
+    reply_fr: str | None,
+    registers_before: dict[str, str],
+    episode_index: int,
+    name: str | None = None,
+    date: str | None = None,
+) -> dict | None:
+    """Write the «tu» where the register lives (``state.relationships``), or keep «vous».
+
+    Two things, in order. First, the serial's closeness rule may no longer switch a
+    living-story character to «tu» by itself: whatever it switched in this settle is put
+    back, because in this story the «tu» is a scene the learner answers (WP-97). Then,
+    when this scene is the one that asked «On se tutoie ?», the learner's reply decides:
+    accepted → «tu» from the next episode on, persisted with its episode (the page says
+    «tu depuis l'épisode N»); declined → «vous», not asked again for
+    ``TUTOIEMENT_REASK_DAYS`` days; no clear answer → asked again another day.
+
+    Returns the scene's ``tutoiement`` block, or None when this scene asked nothing.
+    """
+
+    relationships = {
+        str(key): dict(value) if isinstance(value, dict) else value
+        for key, value in (state.get("relationships") or {}).items()
+    }
+    ledger = {str(key): dict(value) for key, value in (live.get(TUTOIEMENT_KEY) or {}).items() if isinstance(value, dict)}
+    for cid, entry in relationships.items():
+        if not isinstance(entry, dict):
+            continue
+        if (
+            _register_of(relationships, cid) == "tu"
+            and registers_before.get(cid, "vous") != "tu"
+            and (ledger.get(cid) or {}).get("state") != "accepted"
+        ):
+            entry["register"] = "vous"
+            entry.pop("register_switch_episode", None)
+            pending = state.get("pending_register_switch")
+            if isinstance(pending, dict) and pending.get("character_id") == cid:
+                state.pop("pending_register_switch", None)
+    state["relationships"] = relationships
+    entry = ledger.get(character_id) or {}
+    if entry.get("state") != "asked" or entry.get("scene_id") != scene_id:
+        return None
+    decision = tutoiement_decision(learner_lines, reply_fr=reply_fr)
+    day = int(live.get("day_index") or 0)
+    if decision == "accepted":
+        entry.update(state="accepted", accepted_on=date, accepted_day=day, accepted_scene_id=scene_id)
+        relation = dict(relationships.get(character_id) or {})
+        relation["register"] = "tu"
+        relation["register_switch_episode"] = int(episode_index) + 1
+        relation["register_switch_source"] = "tutoiement"
+        relationships[character_id] = relation
+        state["pending_register_switch"] = {
+            "character_id": character_id,
+            "name": name or character_id,
+            "episode_index": int(episode_index) + 1,
+        }
+    elif decision == "declined":
+        entry.update(state="declined", declined_on=date, declined_day=day)
+    else:
+        entry.update(state="unanswered")
+    ledger[character_id] = entry
+    live[TUTOIEMENT_KEY] = ledger
+    state["relationships"] = relationships
+    return {"character_id": character_id, "state": decision or "asked"}
+
+
+def _learner_lines(journey: Any) -> list[str]:
+    """The learner's own replies in today's scene, in order (the respond step's turns)."""
+
+    lines: list[str] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond":
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
+                lines.append(str(turn["learner"]))
+    return lines
+
+
+def _journey_date(journey: Any) -> str | None:
+    value = getattr(journey, "local_date", None)
+    return value.isoformat() if hasattr(value, "isoformat") else _date_of(value)
+
+
+def _today():
+    """The calendar day the re-ask window is measured against.
+
+    The journey's own clock seam (``daily_journey._utcnow``) — the same clock that
+    stamped the refusal's ``local_date`` — so a frozen or simulated day is one day to
+    both sides of the comparison.
+    """
+
+    try:
+        from app.services import daily_journey
+
+        return daily_journey._utcnow().date()
+    except Exception:  # pragma: no cover - an import cycle during startup
+        return datetime.now(UTC).date()
 
 
 # ---------------------------------------------------------------------------
@@ -3041,7 +3718,23 @@ def story_context(db: Session, user: User) -> dict:
     )
     if chapter:
         shape = str(chapter.get("shape") or shape)
+    # WP-97: the one character, if any, whose trust has earned «On se tutoie ?» today.
+    asking = tutoiement_candidate(
+        live,
+        state.get("relationships") or {},
+        cast_ids=[str(member["id"]) for member in cast if member.get("id")],
+        today=_today(),
+    )
+    tutoiement = None
+    if asking:
+        entry = (live.get(TUTOIEMENT_KEY) or {}).get(asking) or {}
+        tutoiement = {
+            "character_id": asking,
+            "name": _cast_names(world).get(asking, asking),
+            "asked_scene_id": entry.get("scene_id") if entry.get("state") == "asked" else None,
+        }
     return {
+        **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
         "thread_id": str(thread.id) if thread else None,
         "revision": _fingerprint(thread),
         "control_language": normalize_control_language(user.native_language),
@@ -5331,7 +6024,11 @@ def bind_journey(
         }
     state = dict(thread.state or {})
     live = dict(state.get(STATE_KEY) or {})
+    # WP-96/97: the ledgers as they stood when this scene was written — what it pays
+    # back and what «Précédemment» may say are read from these, never from the page.
+    ledgers_before = dict(live)
     chapter = chapter_state(live) or {}
+    continues_chapter = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
     if not chapter or chapter.get("resolved") or chapter.get("exhausted"):
         # WP-63: the new chapter's hand is dealt from state as it is *now*, which is
         # the same state the director was given — so the shape the director wrote for
@@ -5360,6 +6057,8 @@ def bind_journey(
         chapter = open_chapter(draft, shape=shape, **extra)
         live["chapters_total"] = chapters_total(live) + 1
         live["season_chapters"] = int(live.get("season_chapters") or 0) + 1
+        # WP-96: «Chapitre N» of this season, fixed when the chapter opens.
+        chapter["index_in_season"] = live["season_chapters"]
         # An escalation is spent when the chapter that escalates is published: the
         # same problem may not come back a third time (`stale_problem` reads this).
         if draft.escalates_ref and draft.problem_key:
@@ -5460,6 +6159,43 @@ def bind_journey(
         "special": "epreuve" if special else None,
         **({EPREUVE_KEY: special} if special else {}),
     }
+    # WP-96 «Les Cahiers» / WP-97 «Les suites»: the chapter this page belongs to, the
+    # «Précédemment» box, and a margin note for every stored row the page pays back.
+    world_now = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+    season_number = int(live.get("season_index") or _int_or(world_now.get("season_number"), 1))
+    scene.script_payload = {
+        **scene.script_payload,
+        "chapter": chapter_payload(chapter, live, season=season_number),
+        "previously_fr": previously_lines(
+            ledgers_before,
+            chapter_id=str(chapter.get("id")) if continues_chapter else None,
+            callback_ref=draft.callback_ref if draft.callback_fr else None,
+        ),
+        "margin_notes": margin_notes_for(draft, ledgers_before, world=world_now),
+    }
+    # WP-97 «On se tutoie ?»: staged only when the accepted draft really has the
+    # trusted character ask it; the learner's reply decides at settle.
+    asking = (context.get(TUTOIEMENT_KEY) or {}).get("character_id")
+    if (
+        asking
+        and _register_of(state.get("relationships"), str(asking)) != "tu"
+        and tutoiement_staged(draft, str(asking))
+    ):
+        ledger = dict(live.get(TUTOIEMENT_KEY) or {})
+        ledger[str(asking)] = {
+            **dict(ledger.get(str(asking)) or {}),
+            "state": "asked",
+            "scene_id": str(scene.id),
+            "asked_day": int(live.get("day_index") or 0),
+            "asked_on": _journey_date(journey),
+        }
+        live[TUTOIEMENT_KEY] = ledger
+        state[STATE_KEY] = live
+        thread.state = state
+        scene.script_payload = {
+            **scene.script_payload,
+            TUTOIEMENT_KEY: {"character_id": str(asking), "state": "asked"},
+        }
     _record_cost(
         db,
         user,
@@ -5527,6 +6263,14 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         c for c in context["commitments"] if scenario.character_id in c.get("witnesses", [])
     ]
     context["legacy_beat"] = None
+    # WP-97: the actor hears about «On se tutoie ?» only in the scene that asked it.
+    tutoiement = context.get(TUTOIEMENT_KEY) or {}
+    if not (
+        tutoiement.get("character_id") == scenario.character_id
+        and tutoiement.get("asked_scene_id")
+        and tutoiement.get("asked_scene_id") == (scenario.story_context or {}).get("scene_id")
+    ):
+        context.pop(TUTOIEMENT_KEY, None)
     # Director-only plans and unseen situations are not character knowledge.
     context["recent_situations"] = []
     # WP-62: the chronicle, the unpaid plants and today's callback candidate are the
@@ -6039,6 +6783,10 @@ def settle_resolution(
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
+        # WP-96: the chapter this exchange belongs to («Précédemment» reads it) and
+        # the learner's own calendar day (a margin note is dated with it).
+        "chapter_id": (live.get("chapter") or {}).get("id"),
+        "date": _journey_date(journey),
     }
     live["events"] = [*live.get("events", []), event][-MAX_HISTORY:]
     # WP-62: the day this life is on. `events` is a rolling tail of forty, so it cannot
@@ -6094,6 +6842,7 @@ def settle_resolution(
     live["chapter"] = chapter
     moods_before = live.get("moods") or {}
     live["moods"] = moods_after_turn(moods_before, brief.character_id, turn, event_id)
+    stamp = {"scene_id": str(scene.id), "date": _journey_date(journey)}
     # WP-62 — the four durable ledgers, written from output the guards and the critic
     # already accepted. `consequences_after_turn` marks a lapsed promise on the
     # commitment rows in place, which is why it runs before they are stored.
@@ -6107,7 +6856,11 @@ def settle_resolution(
         moods_before=moods_before,
         moods_after=live["moods"],
         commitments=commitments,
+        **stamp,
     )
+    # WP-97: a promise nobody kept costs its witness a point of trust, once.
+    live["moods"] = trust_after_broken_promises(live["moods"], live["consequences"], event_id)
+    live[TRUST_STREAK_KEY] = trust_streaks_after(live.get(TRUST_STREAK_KEY) or {}, live["moods"])
     if draft.callback_ref:
         live["consequences"] = mark_consequence_referenced(
             live["consequences"], draft.callback_ref, day
@@ -6124,6 +6877,7 @@ def settle_resolution(
         event_id=event_id,
         day=day,
         season=int(live.get("season_index") or 1),
+        **stamp,
     )
     live["planted"] = plants_after_scene(
         live.get("planted") or [],
@@ -6132,6 +6886,7 @@ def settle_resolution(
         event_id=event_id,
         day=day,
         chapter_index=chapters_opened(live),
+        **stamp,
     )
     world_cast = [
         str(member.get("id"))
@@ -6198,6 +6953,10 @@ def settle_resolution(
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
     from app.services.serial import SerialThreadService
 
+    registers_before = {
+        str(key): _register_of(state.get("relationships"), str(key))
+        for key in (state.get("relationships") or {})
+    }
     SerialThreadService(db)._update_relationship_state(
         state=state,
         thread=thread,
@@ -6207,6 +6966,21 @@ def settle_resolution(
         summary_override=turn.summary_native,
         callback_override=turn.callback_fr,
     )
+    tutoiement = settle_tutoiement(
+        state,
+        live,
+        character_id=brief.character_id,
+        scene_id=str(scene.id),
+        learner_lines=_learner_lines(journey),
+        reply_fr=turn.reply_fr,
+        registers_before=registers_before,
+        episode_index=thread.current_episode_index,
+        name=_cast_names(thread.world_bible if isinstance(thread.world_bible, dict) else {}).get(
+            brief.character_id
+        ),
+        date=_journey_date(journey),
+    )
+    state[STATE_KEY] = live
     thread.state = state
     scene.recap_payload = {
         "source_key": event_id,
@@ -6220,8 +6994,25 @@ def settle_resolution(
     turn_usage = proposal.details.get("usage") or []
     turn_usd = usage_cost_usd(turn_usage)
     cost = dict((scene.script_payload or {}).get("estimated_cost") or {})
+    # WP-96: whether this page closed its chapter, and the line it is filed under.
+    closing_row = next(
+        (
+            row
+            for row in live.get("chronicle") or []
+            if isinstance(row, dict) and row.get("event_id") == event_id
+        ),
+        None,
+    )
+    chapter_block = dict((scene.script_payload or {}).get("chapter") or {})
+    if chapter_block:
+        chapter_block.update(
+            closes=bool(chapter_closing(chapter)),
+            digest_fr=chapter_digest_line(closing_row) if chapter_closing(chapter) else None,
+        )
     scene.script_payload = {
         **(scene.script_payload or {}),
+        **({"chapter": chapter_block} if chapter_block else {}),
+        **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
         "estimated_cost": {
             **cost,
             "story_generation_usd": round(
