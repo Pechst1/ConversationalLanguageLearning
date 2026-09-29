@@ -78,4 +78,41 @@ class UserLevelCheckpoint(Base):
     )
 
 
-__all__ = ["UserCEFRProgressHistory", "UserLevelCheckpoint"]
+
+
+class UserCanDoStamp(Base):
+    """WP-95 «Le Carnet» — the first time story evidence showed one can-do.
+
+    One row per (learner, can-do), written once and never removed: the Seal
+    the Carnet presses. ``quote_fr`` keeps the learner's own words that did it
+    (≤160 chars); ``source`` is ``scene`` (an engine scene whose objective was
+    met), ``epreuve`` (a passed «Numéro spécial») or ``authored`` (an authored
+    scenario mapped to a can-do). Writer: :mod:`app.services.can_do`.
+    """
+
+    __tablename__ = "user_can_do_stamps"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    can_do_id: Mapped[str] = mapped_column(String(60), nullable=False)
+    band: Mapped[str] = mapped_column(String(10), nullable=False)
+    stamped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    journey_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("daily_journeys.id", ondelete="SET NULL"), nullable=True
+    )
+    scene_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    scene_title_fr: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    character_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    quote_fr: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    #: scene | epreuve | authored
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="scene")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "can_do_id", name="uq_user_can_do_stamps_user_can_do"),
+    )
+
+
+__all__ = ["UserCEFRProgressHistory", "UserCanDoStamp", "UserLevelCheckpoint"]

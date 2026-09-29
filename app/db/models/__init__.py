@@ -12,7 +12,7 @@ from app.db.models.atelier import (
     AtelierServedItem,
     AtelierSession,
 )
-from app.db.models.cefr import UserCEFRProgressHistory, UserLevelCheckpoint
+from app.db.models.cefr import UserCanDoStamp, UserCEFRProgressHistory, UserLevelCheckpoint
 from app.db.models.daily_journey import (
     DailyJourney,
     DailyJourneyMutation,
@@ -106,6 +106,7 @@ __all__ = [
     "UserGrammarProgress",
     "UserCEFRProgressHistory",
     "UserLevelCheckpoint",
+    "UserCanDoStamp",
     # Story RPG models
     "Story",
     "Chapter",
