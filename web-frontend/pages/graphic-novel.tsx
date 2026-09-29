@@ -54,12 +54,8 @@ import {
   resolveStartIndex,
   type ReaderStage,
 } from '@/components/feuilleton/reader';
-import {
-  SeasonPage,
-  getFeuilletonSeason,
-  seasonHasStory,
-  type SeasonPayload,
-} from '@/components/feuilleton/season';
+import { ArchiveNav, FeuilletonArchive, type ArchiveView } from '@/components/feuilleton/archive/FeuilletonArchive';
+import { archiveCopy } from '@/components/feuilleton/archive/archive-copy';
 import { CrStoryLetterRow } from '@/components/courrier/courrier-waiting';
 import {
   fbFill,
@@ -159,7 +155,35 @@ function routeForSerialBeat(serial: SerialToday | null | undefined): string | nu
   return null;
 }
 
+/**
+ * WP-96: the Feuilleton tab is ONE surface. With no scene and no story context
+ * in the route it is «Archives du journal» (and `?view=cast`, «Le
+ * trombinoscope»; `?day=…`, one planche reread) — the season page, `/serial`
+ * and `/serial/cast` are gone into it. A reader deep link (`?scene=`), a
+ * serial/mission context and `?view=episode` (the legacy composer) keep the
+ * edition page below, unchanged.
+ */
 export default function GraphicNovelPage() {
+  const router = useRouter();
+  const query = useMemo(
+    () => (router.isReady ? mergedRouteQuery(router.query, router.asPath) : null),
+    [router.asPath, router.isReady, router.query],
+  );
+  if (!query) return null;
+  const view = typeof query.view === 'string' ? query.view : '';
+  const dayQuery = {
+    date: typeof query.day === 'string' ? query.day : null,
+    journeyId: typeof query.journey === 'string' ? query.journey : null,
+    sceneId: typeof query.cause === 'string' ? query.cause : null,
+  };
+  const edition = typeof query.scene === 'string' || Boolean(graphicNovelContextKey(query)) || view === 'episode';
+  if (edition) return <GraphicNovelEditionPage />;
+  const archiveView: ArchiveView =
+    view === 'cast' ? 'cast' : dayQuery.date || dayQuery.journeyId || dayQuery.sceneId ? 'day' : 'archive';
+  return <FeuilletonArchive view={archiveView} dayQuery={dayQuery} />;
+}
+
+function GraphicNovelEditionPage() {
   const router = useRouter();
   const language = useChromeLanguage();
   const t = feuilletonCopy(language);
@@ -169,9 +193,6 @@ export default function GraphicNovelPage() {
   // A story-engine episode opened by its scene id. Replay-only here: reading
   // never completes it, and responding goes through the daily journey.
   const [storyEpisode, setStoryEpisode] = useState<StoryEpisode | null>(null);
-  // WP-44. The season, read once per visit. A failed read leaves it null and
-  // the tab falls back to the face it had; it never invents a season.
-  const [season, setSeason] = useState<SeasonPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submittingTask, setSubmittingTask] = useState<string | null>(null);
@@ -228,16 +249,6 @@ export default function GraphicNovelPage() {
   const pageArt = scene?.script_payload?.render_mode === 'page'
     ? resolveMediaUrl(scene.script_payload?.page_image?.url)
     : null;
-
-  useEffect(() => {
-    let alive = true;
-    void getFeuilletonSeason().then((payload) => {
-      if (alive) setSeason(payload);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
@@ -709,15 +720,10 @@ export default function GraphicNovelPage() {
     scene && !scene.serial_thread_id && !['writing', 'generating'].includes(scene.status),
   );
   const head = pageHead({ loading, generationFailure, scene, scenePressing, canonicalBeat, t });
-  /* WP-44. With no episode open, the Feuilleton tab *is* the season page — for
-     every learner whose story the engine manages, including the one who has
-     read nothing yet and gets the honest empty line. The legacy composer face
-     stays for the learners the engine does not manage. */
-  const engineManaged = Boolean(
-    (canonicalBeat as Record<string, any> | null)?.story_engine
-      || canonicalBeat?.status === 'journey_required',
-  );
-  const showSeason = Boolean(season && (seasonHasStory(season) || engineManaged));
+  /* WP-96: with no episode open, the Feuilleton tab is the archive
+     (`FeuilletonArchive`); this page only draws a scene, a story context or
+     the legacy composer (`?view=episode`). */
+  const archiveT = archiveCopy(language);
 
   return (
     <>
@@ -735,30 +741,17 @@ export default function GraphicNovelPage() {
         <header className="fr-page-head gn-head">
           {/* the one Garamond italic headline on this screen — the reader
               carries its own once it is mounted */}
-          {!readerMounted && !showSeason && (
+          {!readerMounted && (
             <div>
               <div className="k">{head.kicker}</div>
               <h1>{head.title}</h1>
             </div>
           )}
-          <nav className="gn-seg wp44-season__seg" aria-label="Le Feuilleton">
-            {showSeason ? (
-              <>
-                <Link href="/graphic-novel" aria-current="page">La saison</Link>
-                <Link href="/serial/cast">Les personnages</Link>
-              </>
-            ) : (
-              <>
-                <Link href="/graphic-novel" aria-current="page">L’épisode</Link>
-                <Link href="/serial">La saison</Link>
-                <Link href="/serial/cast">Les personnages</Link>
-              </>
-            )}
-          </nav>
+          <ArchiveNav view="day" language={language} />
           {(showEditionTools || (!scene && !loading)) && (
             <div className="gn-actions" aria-label={t.actions_aria}>
               <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">
-                {scene ? t.back_atelier : t.back_home}
+                {t.back_atelier}
               </Link>
               {scene && showEditionTools && (
                 <Action
@@ -803,9 +796,9 @@ export default function GraphicNovelPage() {
             <StoryEpisodeReader
               episode={storyEpisode}
               mode="replay"
-              onExit={() => { void router.push('/serial'); }}
-              nextHref="/serial"
-              nextLabel={t.back_season}
+              onExit={() => { void router.push('/graphic-novel'); }}
+              nextHref="/graphic-novel"
+              nextLabel={archiveT.back_archive}
               language={language}
             />
           </div>
@@ -877,8 +870,6 @@ export default function GraphicNovelPage() {
           </>
         ) : scene ? (
           <EditionWithoutPlates scene={scene} completing={completing} onComplete={completeScene} />
-        ) : showSeason && season ? (
-          <SeasonPage season={season} language={language} onOpenSeance={() => { void router.push('/atelier'); }} />
         ) : (
           <EpisodeTabSurface
             canonicalBeat={canonicalBeat}
@@ -1022,7 +1013,7 @@ function ReaderCastLink({ scene }: { scene: GraphicNovelScene }) {
     <div className="fr-tools">
       <Link
         className="fr-chip"
-        href="/serial/cast"
+        href="/graphic-novel?view=cast"
         aria-label={fbFill(t.cast_link_aria, { name: member.name, register, closeness })}
       >
         <Portrait name={member.name} size="sm" />
@@ -1254,8 +1245,8 @@ function SerialEpisodeDelayed({
         </Action>
       </Notice>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">{t.reread_season}</Link>
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">{t.back_home}</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/graphic-novel">{t.reread_season}</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/atelier">{t.back_atelier}</Link>
       </div>
     </section>
   );
@@ -1269,7 +1260,7 @@ function SerialEpisodeFiled({ beat, onOpenSerial }: { beat: SerialToday; onOpenS
   return (
     <section className="gn-stack" aria-label={t.filed_aria}>
       <div className="fr-rows">
-        <Link className="fr-row" href="/serial">
+        <Link className="fr-row" href="/graphic-novel">
           <span className="thumb" aria-hidden="true" />
           <span className="meta">
             <span className="k">{fbFill(t.episode_n, { n: number })} · {t.kicker_filed}</span>
@@ -1285,7 +1276,7 @@ function SerialEpisodeFiled({ beat, onOpenSerial }: { beat: SerialToday; onOpenS
         </Action>
       </div>
       <div className="gn-links">
-        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/serial">{t.open_bound_season}</Link>
+        <Link className="av2-btn av2-btn--quiet av2-btn--inline" href="/graphic-novel">{t.open_bound_season}</Link>
       </div>
     </section>
   );

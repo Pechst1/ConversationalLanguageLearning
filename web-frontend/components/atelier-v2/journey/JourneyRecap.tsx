@@ -22,6 +22,10 @@ import React from 'react';
 
 import { Action, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
 import { Seal } from '@/components/ui/Seal';
+import { ChapterColophon, MarginNotes, TomeSeal } from '@/components/feuilleton/archive/ArchiveMarks';
+import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
+import { archiveCopy, faFill } from '@/components/feuilleton/archive/archive-copy';
+import { marginNotes } from '@/components/feuilleton/archive/archive-model';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { castName, epreuveRecapView } from '@/lib/can-dos';
 import { canDoCopy } from '@/lib/can-do-copy';
@@ -76,6 +80,11 @@ export function JourneyRecap({
   const passed = epreuve?.result === 'passed' ? epreuve : null;
   const failed = epreuve?.result === 'failed' ? epreuve : null;
   const specialCopy = canDoCopy(language);
+  // WP-96/97: the page's margin notes, the chapter it closed, the season it bound.
+  const notes = marginNotes(recap?.margin_notes);
+  const chapterClosed = !partial && recap?.chapter_closed ? recap.chapter_closed : null;
+  const seasonFinished = !partial && recap?.season_finished ? recap.season_finished : null;
+  const archiveT = archiveCopy(language);
 
   // «Plus de pratique» opens the drill loop on what today practised when the
   // server named a place for it; otherwise the general entry.
@@ -257,6 +266,30 @@ export function JourneyRecap({
               </p>
             )}
           </div>
+        </Surface>
+      )}
+
+      {(notes.length > 0 || chapterClosed || seasonFinished) && <ArchiveStyles />}
+      {notes.length > 0 && <MarginNotes notes={notes} language={language} />}
+
+      {(chapterClosed || seasonFinished) && (
+        <Surface tone="outline" className="av2-recap__volume" data-chapter-closed={chapterClosed ? chapterClosed.index : undefined}>
+          {chapterClosed && (
+            <>
+              {chapterClosed.title_fr && (
+                <p className="av2-label" lang="fr">
+                  {frenchSpacing(chapterClosed.title_fr)}
+                </p>
+              )}
+              <ChapterColophon digest={chapterClosed.digest_fr} />
+            </>
+          )}
+          {seasonFinished && (
+            <figure className="fa-tome" data-season-finished={seasonFinished.number}>
+              <TomeSeal number={seasonFinished.number} title={seasonFinished.title_fr} language={language} stamp />
+              <figcaption className="av2-body">{faFill(archiveT.tome_finished, { n: seasonFinished.number })}</figcaption>
+            </figure>
+          )}
         </Surface>
       )}
 

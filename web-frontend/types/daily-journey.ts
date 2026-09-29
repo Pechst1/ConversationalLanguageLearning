@@ -93,6 +93,23 @@ export type ScenePrompt = {
    * theirs as an episode instead. Absent on older scenes: the plain scene renders.
    */
   panels?: StoryPanel[] | null;
+  /** WP-96 «Précédemment»: up to three chronicle lines (French). Absent on authored days. */
+  previously_fr?: string[] | null;
+  /** WP-97: the consequences this page pays back, printed in its margin. */
+  margin_notes?: StoryMarginNote[] | null;
+};
+
+/**
+ * WP-97 «Les suites»: a consequence or callback paid back on a page, printed as
+ * a dated margin note («Parce que vous avez dit à Marin « vas-y » — Nº 4»).
+ */
+export type StoryMarginNote = {
+  text_fr: string;
+  cause_scene_id: string | null;
+  cause_date: string | null;
+  character_id: string | null;
+  cause_edition_no?: number | null;
+  panel_id?: string | null;
 };
 
 /**
@@ -418,6 +435,12 @@ export type JourneyRecap = {
   epreuve_result?: 'passed' | 'failed' | null;
   /** WP-94: the host's line on the result (French content). */
   epreuve_line_fr?: string | null;
+  /** WP-97: the margin notes today's page printed. */
+  margin_notes?: StoryMarginNote[] | null;
+  /** WP-96: today closed a chapter — «Fin du chapitre». */
+  chapter_closed?: { index: number; title_fr: string; digest_fr: string | null } | null;
+  /** WP-96: today closed the season — «Tome N». */
+  season_finished?: { number: number; title_fr: string } | null;
 };
 
 /** WP-L8 — «At this rhythm: A1.2 around <month>»; the client writes the words. */

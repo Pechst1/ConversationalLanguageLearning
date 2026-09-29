@@ -309,6 +309,8 @@ test('«Lire et répondre» carries minutes only when the server gave them', () 
   assert.equal(courrier.crReadAndReplyLabel(8), 'Lire et répondre · 8 min');
   assert.equal(courrier.crReadAndReplyLabel(null), 'Lire et répondre');
   assert.equal(courrier.crReadAndReplyLabel(0), 'Lire et répondre');
+  // WP-96: `/serial` (and its letter hero) folded into «Archives du journal»;
+  // the route only forwards. A waiting letter lives in the Courrier.
   const page = read('pages/serial/index.tsx');
-  assert.match(page, /heroIsLetter \? \(\s*<CrEnvelope/, 'the Feuilleton hero draws a waiting letter as the envelope');
+  assert.match(page, /router\.replace\('\/graphic-novel'\)/);
 });

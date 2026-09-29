@@ -98,6 +98,8 @@ export type FeuilletonReaderProps = {
   pageArt?: string | null;
   /** Extra per-panel tools (e.g. a panel's narration) rendered in the tools row. */
   renderStageTools?: (stage: ReaderStage) => React.ReactNode;
+  /** WP-97: what a stage prints in its margin — the notes paid back on this panel. */
+  renderStageMargin?: (stage: ReaderStage) => React.ReactNode;
   /** One small note under a task's prompt — the server's "because" line. */
   taskNote?: (task: ReaderTask) => string;
   /** WP-44. How each panel is drawn: `bubble` = the reply over the art
@@ -168,6 +170,7 @@ export function FeuilletonReader({
   banner,
   pageArt,
   renderStageTools,
+  renderStageMargin,
   taskNote,
   panelVariant = null,
   footLink = null,
@@ -324,6 +327,7 @@ export function FeuilletonReader({
     stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
 
   const stageTools = renderStageTools ? renderStageTools(stage) : null;
+  const stageMargin = renderStageMargin ? renderStageMargin(stage) : null;
   const positionLabel =
     stage.kind === 'resolution'
       ? fillReaderCopy(t.position_end, { n: safeIndex + 1, count })
@@ -496,6 +500,8 @@ export function FeuilletonReader({
             {stageTools}
           </div>
         )}
+
+        {stageMargin}
 
         {stage.tasks.map((task) => {
           const taskId = String(task.id || '');

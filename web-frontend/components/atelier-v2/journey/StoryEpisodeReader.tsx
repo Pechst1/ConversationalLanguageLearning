@@ -22,6 +22,9 @@ import React, {
 } from 'react';
 
 import { FeuilletonReader, FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+import { MarginNotes } from '@/components/feuilleton/archive/ArchiveMarks';
+import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
+import { placeMarginNotes, type ArchiveMarginNote } from '@/components/feuilleton/archive/archive-model';
 
 import { useSpecialKicker } from './special-edition';
 import {
@@ -108,6 +111,12 @@ export type StoryEpisodeReaderProps = {
   title?: string | null;
   /** WP-93: the kicker, when the caller knows better («Relecture · la page d'hier»). */
   eyebrow?: string | null;
+  /**
+   * WP-97 «Les suites»: the consequences this page pays back. Each is printed
+   * in the margin of the panel where it happens (its `panel_id`, else the
+   * first panel its character speaks in), else at the page's end.
+   */
+  marginNotes?: ArchiveMarginNote[] | null;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -131,6 +140,7 @@ export function StoryEpisodeReader({
   finaleWait = null,
   title = null,
   eyebrow = null,
+  marginNotes = null,
 }: StoryEpisodeReaderProps) {
   // WP-94: a «Numéro spécial» day names itself in the reader's kicker too.
   const specialKicker = useSpecialKicker();
@@ -191,12 +201,27 @@ export function StoryEpisodeReader({
   const replay = mode === 'replay' || (!reread && !finale && episode.status !== 'available');
   // WP-92: «Rayons X» — the day's rule, named in the reader's chrome language.
   const rayonsTitle = storyRayonsTitle(episode, language);
+  const margins = useMemo(
+    () => (marginNotes && marginNotes.length ? placeMarginNotes(episode.panels, marginNotes) : null),
+    [episode.panels, marginNotes],
+  );
+  const lastStageKey = stages.length ? stages[stages.length - 1].key : null;
+  const renderStageMargin = useCallback(
+    (stage: (typeof stages)[number]) => {
+      if (!margins) return null;
+      const here = stage.kind === 'panel' ? margins.byPanel[String(stage.panelId)] || [] : [];
+      const notes = stage.key === lastStageKey ? [...here, ...margins.end] : here;
+      return notes.length ? <MarginNotes notes={notes} language={language} /> : null;
+    },
+    [language, lastStageKey, margins],
+  );
 
   if (!stages.length) return null;
 
   return (
     <>
       <FeuilletonReaderStyles />
+      {margins && <ArchiveStyles />}
       <FeuilletonReader
         episodeLabel={specialKicker ? `${specialKicker} · ${eyebrow || storyEpisodeLabel(episode)}` : eyebrow || storyEpisodeLabel(episode)}
         title={title || episode.title_fr || 'Le feuilleton'}
@@ -228,6 +253,7 @@ export function StoryEpisodeReader({
         rayonsTitle={rayonsTitle}
         rayonsReplay={reread}
         rayonsPast={reread}
+        renderStageMargin={margins ? renderStageMargin : undefined}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
           location's art is a production fact, not a thing the learner has done

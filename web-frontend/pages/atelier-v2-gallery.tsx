@@ -50,6 +50,7 @@ import {
   type TabKey,
 } from '@/components/atelier-v2/ui';
 import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
+import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import {
   CrCorrespondent,
@@ -660,6 +661,9 @@ export default function AtelierV2Gallery() {
 
           {/* WP-94 «Numéro spécial» + WP-95 «Le Carnet». */}
           <CanDoGallerySections language={language} Section={Section} />
+
+          {/* WP-96 «Archives du journal» + WP-97 «Les suites». */}
+          <ArchiveGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar

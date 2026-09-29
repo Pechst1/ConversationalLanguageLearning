@@ -1695,9 +1695,20 @@ export interface SerialCastMember {
   dynamic_with_user?: string | null;
   model_sheet_url?: string | null;
   accent_colour?: string | null;
+  /** WP-97: the engine's trust, 0..5 — it can fall. `null` before any exchange. */
+  trust?: number | null;
+  /** WP-97: what this character witnessed about the learner (dated, French). */
+  known_about_you?: Array<{ text_fr: string; date: string | null; scene_id: string | null }>;
+  register?: 'tu' | 'vous' | string;
+  /** WP-97: when the «tu» was accepted. */
+  tu_since?: { date: string; scene_id: string | null } | null;
   relationship: {
-    closeness: number;
+    /** Deprecated (WP-97): only ever went up; no longer shown. */
+    closeness?: number;
     register: string;
+    trust?: number | null;
+    known_about_you?: Array<{ text_fr: string; date: string | null; scene_id: string | null }>;
+    tu_since?: { date: string; scene_id: string | null } | null;
     register_switch_episode?: number | null;
     last_summary?: string;
     callbacks?: string[];

@@ -122,8 +122,8 @@ test('the season labels keep French when no language is given (legacy callers)',
 test('the Feuilleton pages resolve the chrome language once and hand it on', () => {
   const pages = {
     'pages/graphic-novel.tsx': read('pages/graphic-novel.tsx'),
-    'pages/serial/index.tsx': read('pages/serial/index.tsx'),
-    'pages/serial/cast.tsx': read('pages/serial/cast.tsx'),
+    // WP-96: /serial and /serial/cast forward into the archive, which is one surface.
+    'components/feuilleton/archive/FeuilletonArchive.tsx': read('components/feuilleton/archive/FeuilletonArchive.tsx'),
     'pages/serial/episode/[index].tsx': read('pages/serial/episode/[index].tsx'),
   };
   const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -135,7 +135,13 @@ test('the Feuilleton pages resolve the chrome language once and hand it on', () 
   // both readers get the chrome language
   assert.match(gn, /<StoryEpisodeReader[\s\S]*?language=\{language\}/);
   assert.match(gn, /<FeuilletonReader[\s\S]*?language=\{language\}/);
-  assert.ok(gn.includes('<SeasonPage season={season} language={language}'));
+  // WP-96: with no scene open the tab is the archive, not the season page
+  assert.ok(gn.includes('<FeuilletonArchive view={archiveView}'));
+  assert.ok(!gn.includes('<SeasonPage'));
+  // W14: «Back to La Une» is gone from the Feuilleton's own copy
+  for (const lang of ['en', 'de', 'fr']) {
+    assert.ok(!/La Une/.test(feuilletonCopy(lang).back_home), `${lang}.back_home still names La Une`);
+  }
   // the «why» note is re-picked from the server's three versions
   assert.ok(gn.includes('task.recommendation_reason?.text_by_language'));
 

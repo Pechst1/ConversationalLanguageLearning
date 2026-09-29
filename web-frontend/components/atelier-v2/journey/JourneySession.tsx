@@ -317,6 +317,8 @@ export function JourneySession({
                   onExit={onExit}
                   speaker={speaker}
                   language={chromeLanguage}
+                  // WP-96: the first journey (the cast is introduced) has no «Précédemment».
+                  firstDay={castIntro.length > 0}
                 />
               )}
               {step.kind === 'rule' && (

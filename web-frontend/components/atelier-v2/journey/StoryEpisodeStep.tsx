@@ -25,6 +25,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { Action, StateBlock } from '@/components/atelier-v2/ui';
+import { Precedemment } from '@/components/feuilleton/archive/ArchiveMarks';
+import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
+import { marginNotes as readMarginNotes } from '@/components/feuilleton/archive/archive-model';
+import {
+  precedemmentView,
+  readPrecedemmentDismissed,
+  writePrecedemmentDismissed,
+} from '@/components/feuilleton/archive/precedemment-model';
 import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/daily-journey';
 import type { ControlLanguage, SceneStep, StoryEpisode } from '@/types/daily-journey';
 
@@ -55,6 +63,7 @@ export function StoryEpisodeStep({
   onExit,
   speaker = null,
   language = null,
+  firstDay = false,
 }: {
   journeyId: string;
   step: SceneStep;
@@ -66,6 +75,8 @@ export function StoryEpisodeStep({
   speaker?: JourneySpeaker | null;
   /** WP-82: the screen's chrome language, so the reader's buttons match `copy`. */
   language?: ControlLanguage | null;
+  /** WP-96: the learner's first day — there is no «Précédemment» yet. */
+  firstDay?: boolean;
 }) {
   // Server rendering (and the node test harness) has no effects and no cache:
   // render the scene prompt straight away rather than a loading state that
@@ -86,6 +97,25 @@ export function StoryEpisodeStep({
   useEffect(() => {
     setListenFirst(readListenFirst());
   }, []);
+
+  // WP-96 «Précédemment»: the chronicle's last lines before the first panel,
+  // read once per scene. Before the client has read its memory the box is not
+  // drawn — a reminder must never flash and vanish.
+  const [previouslyRead, setPreviouslyRead] = useState<boolean | null>(null);
+  useEffect(() => {
+    setPreviouslyRead(readPrecedemmentDismissed(journeyId, step.id));
+  }, [journeyId, step.id]);
+  const previously = precedemmentView({
+    lines: step.prompt.previously_fr,
+    firstDay,
+    dismissed: previouslyRead !== false,
+  });
+  const readOn = useCallback(() => {
+    writePrecedemmentDismissed(journeyId, step.id);
+    setPreviouslyRead(true);
+  }, [journeyId, step.id]);
+  // WP-97: the consequences this page pays back, in its margin.
+  const margins = readMarginNotes(step.prompt.margin_notes);
 
   // The controller normally asked already (and polls the drawings). A step
   // mounted without it — or before it asked — reads the episode once itself.
@@ -131,6 +161,15 @@ export function StoryEpisodeStep({
 
   if (lookup.kind === 'loading') {
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
+  }
+
+  if (previously) {
+    return (
+      <>
+        <ArchiveStyles />
+        <Precedemment lines={previously} language={language} onRead={readOn} journeyId={journeyId} />
+      </>
+    );
   }
 
   if (lookup.kind === 'episode') {
@@ -181,6 +220,7 @@ export function StoryEpisodeStep({
           language={language}
           lineVoice={lineVoice}
           listenLabel={speakLabel}
+          marginNotes={margins}
           /* The foot keeps «Lire plutôt»'s counterpart nowhere: the offer is
              made once, above, and never a second time under the last panel. */
           footLink={null}

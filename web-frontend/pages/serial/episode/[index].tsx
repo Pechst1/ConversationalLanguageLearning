@@ -123,7 +123,7 @@ export default function SerialEpisodeReplayPage() {
       <FeuilletonReaderStyles />
       <AtelierV2Root as="main" language={language} className="fr-page replay-page" aria-label={t.replay_aria}>
         <div className="replay-back">
-          <Link className="av2-btn av2-btn--secondary av2-btn--inline" href="/serial">
+          <Link className="av2-btn av2-btn--secondary av2-btn--inline" href="/graphic-novel">
             <ArrowLeftIcon size={18} /> {fbFill(t.season_n, { n: seasonNumber })}
           </Link>
         </div>
