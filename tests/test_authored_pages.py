@@ -89,7 +89,10 @@ def test_an_erratum_the_scene_cannot_afford_is_not_a_reply_chip(db_session):
     from dataclasses import replace
 
     _, _, brief = next(_briefs(db_session))
-    plan = plan_journey(scenario=brief, candidates=[_erratum()])
+    # WP-93 prices the authored page by what is on it (125 s, not 39 s): the
+    # pre-WP-78 five-minute day no longer has room for a drill, so the pin is
+    # held on the practice day production plans.
+    plan = plan_journey(scenario=brief, candidates=[_erratum()], practice=True)
     assert "err-1" not in _reply_targets(plan)
     assert any(
         (step.target and step.target.id == "err-1") for step in plan.steps
