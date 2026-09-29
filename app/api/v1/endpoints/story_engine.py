@@ -6,7 +6,7 @@ Reading does not complete an episode. No private rubric or future ending is expo
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.schemas.story_archive import StoryArchive
 from app.services.living_story import ENGINE_VERSION_PREFIX
 
 router = APIRouter(prefix="/story-engine", tags=["story-engine"])
@@ -207,3 +208,19 @@ def position(
     scene.source_snapshot = {**(scene.source_snapshot or {}), "panel_index": payload.panel_index}
     db.commit()
     return {"scene_id": str(scene.id), "panel_index": payload.panel_index}
+
+
+@router.get("/archive", response_model=StoryArchive)
+def archive(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    season: int | None = Query(default=None, ge=1),
+):
+    """WP-96 «Archives du journal»: every day the learner lived, as seasons of
+    chapters of planches — the authored first day and fallback days included.
+    Newest chapter first, days oldest first; one season's days per call
+    (``?season=N``, default the newest)."""
+
+    from app.services.story_archive import build_archive
+
+    return build_archive(db, user, season=season)

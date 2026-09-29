@@ -1885,6 +1885,7 @@ class DailyJourneyService:
         ``private_task``, so evaluator material cannot leak by construction."""
 
         read_views = self._read_views(journey)
+        scene_story = self._scene_story_fields(journey)
         steps = [
             {
                 "id": str(step.id),
@@ -1897,6 +1898,8 @@ class DailyJourneyService:
                 if StepKind(step.kind) is StepKind.FORGE
                 else read_views.get(step.id) or _public_prompt_view(step)
                 if StepKind(step.kind) is StepKind.READ
+                else {**_public_prompt_view(step), **scene_story}
+                if StepKind(step.kind) is StepKind.SCENE
                 else _public_prompt_view(step),
             }
             for step in sorted(journey.steps, key=lambda item: item.ordinal)
@@ -1933,6 +1936,24 @@ class DailyJourneyService:
                 # WP-94: «Numéro spécial» — the épreuve day, and what it asks.
                 **self._epreuve_snapshot_fields(journey),
             }
+        )
+
+    def _scene_story_fields(self, journey: DailyJourney) -> dict[str, Any]:
+        """WP-96/97: «Précédemment» and the margin notes of the bound engine
+        scene, read at projection time (the story lane may write them after the
+        plan was stored). ``None`` for both on an authored day."""
+
+        context = _journey_story_context(journey)
+        if not context.get("scene_id"):
+            return {"previously_fr": None, "margin_notes": None}
+        from app.services.story_archive import scene_step_story_fields
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: précédemment and margin notes",
+            lambda: scene_step_story_fields(self.db, journey),
+            default={"previously_fr": [], "margin_notes": []},
+            log=logger,
         )
 
     def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
@@ -4798,6 +4819,7 @@ class DailyJourneyService:
                 if isinstance(value, dict):
                     can_do_result = value
         epreuve_result = can_do_result.get("epreuve_result")
+        story_fields = self._recap_story_fields(journey, finish_kind)
         extras = self._recap_extras(
             user,
             journey,
@@ -4825,6 +4847,30 @@ class DailyJourneyService:
             epreuve_line_fr=can_do_result.get("epreuve_line_fr") if epreuve_result else None,
             # WP-95: the can-dos this day pressed into the Carnet.
             can_dos_stamped=list(can_do_result.get("can_do_stamped") or []),
+            # WP-96/97: margin notes, «Fin du chapitre», «Tome N».
+            **story_fields,
+        )
+
+    def _recap_story_fields(self, journey: DailyJourney, finish_kind: str) -> dict[str, Any]:
+        """WP-96/97 on the recap, and the «tu» Seal pressed when today's scene
+        says it was accepted. Neither may ever cost the learner the day."""
+
+        from app.services.story_archive import mint_tutoiement_seal, recap_story_fields
+
+        if finish_kind == "complete":
+            run_best_effort(
+                self.db,
+                "daily_journey: tutoiement seal",
+                lambda: mint_tutoiement_seal(self.db, journey),
+                default=None,
+                log=logger,
+            )
+        return run_best_effort(
+            self.db,
+            "daily_journey: recap story fields",
+            lambda: recap_story_fields(self.db, journey),
+            default={"margin_notes": [], "chapter_closed": None, "season_finished": None},
+            log=logger,
         )
 
     def _recap_extras(

@@ -1036,6 +1036,17 @@ class SerialThreadService:
         # same thread; the cast page is where the learner gets to read it.
         living = (thread.state or {}).get("living_story")
         moods = living.get("moods") if isinstance(living, dict) and isinstance(living.get("moods"), dict) else {}
+        # WP-97 «Les suites»: the engine's trust (which can fall), what each one
+        # knows about the learner, and the «tu» as the scene where it happened.
+        try:
+            from app.services.story_archive import cast_memory
+
+            memory = cast_memory(self.db, thread)
+        except Exception:  # pragma: no cover - the trombinoscope still renders
+            import logging
+
+            logging.getLogger(__name__).exception("serial: cast memory unreadable")
+            memory = {}
         rows: list[dict[str, Any]] = []
         for member in world.get("cast") or []:
             if not isinstance(member, dict) or not member.get("id"):
@@ -1058,9 +1069,26 @@ class SerialThreadService:
                         else f"/assets/serial/characters/{character_id}/portrait-neutral.webp"
                     ),
                     "accent_colour": visual.get("accent_colour"),
+                    # WP-97. `trust` 0..5 (None until the engine has met them);
+                    # `known_about_you` [{text_fr, date, scene_id}], newest first;
+                    # `register` "tu"|"vous"; `tu_since` {date, scene_id}|None.
+                    "trust": (memory.get(character_id) or {}).get("trust"),
+                    "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
+                    "register": (memory.get(character_id) or {}).get("register")
+                    or ((relationship or {}).get("register") or "vous"),
+                    "tu_since": (memory.get(character_id) or {}).get("tu_since"),
                     "relationship": {
+                        # WP-97: DEPRECATED. The only-rising count is kept for old
+                        # clients (and still gates the legacy tu-switch); the one
+                        # relationship meter is now `trust` above.
                         "closeness": int((relationship or {}).get("closeness") or 0),
-                        "register": (relationship or {}).get("register") or "vous",
+                        "closeness_deprecated": True,
+                        # WP-97: the same four facts, where older clients look.
+                        "trust": (memory.get(character_id) or {}).get("trust"),
+                        "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
+                        "tu_since": (memory.get(character_id) or {}).get("tu_since"),
+                        "register": (memory.get(character_id) or {}).get("register")
+                        or ((relationship or {}).get("register") or "vous"),
                         "register_switch_episode": (relationship or {}).get("register_switch_episode"),
                         "last_summary": (relationship or {}).get("last_summary") or "",
                         "callbacks": (relationship or {}).get("callbacks") or [],

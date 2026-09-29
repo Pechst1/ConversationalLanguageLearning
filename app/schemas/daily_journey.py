@@ -166,6 +166,23 @@ class ScenePanel(JourneyModel):
     image_status: Literal["panel_art", "setting_reference", "unavailable"] = "unavailable"
 
 
+class MarginNote(JourneyModel):
+    """WP-97 «Les suites»: a consequence or callback paid back on this page,
+    printed as a dated note in the margin («Parce que vous avez dit … — Nº 4»).
+    Read from the scene's ``script_payload.margin_notes`` (the story lane)."""
+
+    text_fr: str
+    cause_scene_id: str | None = None
+    cause_date: str | None = None
+    character_id: str | None = None
+    #: The edition the cause was played in, when its day is known.
+    cause_edition_no: int | None = None
+    #: The panel of *this* page the note sits beside (0-based index, and the
+    #: reader's public panel id), when the story lane placed it.
+    panel_index: int | None = None
+    panel_id: str | None = None
+
+
 class ScenePrompt(JourneyModel):
     setup_fr: str
     setup_native: str
@@ -186,6 +203,11 @@ class ScenePrompt(JourneyModel):
     #: An authored scene's graphic-novel page (story-engine scenes publish theirs as
     #: an episode). Additive: absent on every scene planned before 2026-09-25.
     panels: list[ScenePanel] | None = None
+    #: WP-96 «Précédemment»: up to three chronicle lines above an engine scene,
+    #: read at projection time from the bound scene. ``None`` on authored days.
+    previously_fr: list[str] | None = None
+    #: WP-97: the margin notes this page prints. ``None`` on authored days.
+    margin_notes: list[MarginNote] | None = None
 
 
 class RecallOption(JourneyModel):
@@ -632,6 +654,21 @@ class RecapForecastLine(JourneyModel):
 # --- WP-79 (end) -------------------------------------------------------------
 
 
+class RecapChapterClosed(JourneyModel):
+    """WP-96: the chapter today closed, for the «Fin du chapitre» colophon."""
+
+    index: int
+    title_fr: str = ""
+    digest_fr: str | None = None
+
+
+class RecapSeasonFinished(JourneyModel):
+    """WP-96: the season today finished — it becomes «Tome N»."""
+
+    number: int
+    title_fr: str = ""
+
+
 class JourneyRecap(JourneyModel):
     completion_kind: Literal["complete", "early"]
     objective_outcome: TaskOutcome
@@ -667,6 +704,12 @@ class JourneyRecap(JourneyModel):
     epreuve_line_fr: str | None = None
     #: WP-95: can-do ids this day pressed into the Carnet (first stamps only).
     can_dos_stamped: list[str] = Field(default_factory=list)
+    #: WP-97: the margin notes today's page printed (a consequence paid back).
+    margin_notes: list[MarginNote] = Field(default_factory=list)
+    #: WP-96: «Fin du chapitre» — today closed a chapter.
+    chapter_closed: RecapChapterClosed | None = None
+    #: WP-96: «Tome N» — today closed the season.
+    season_finished: RecapSeasonFinished | None = None
 
 
 class RetryHint(JourneyModel):
@@ -1062,6 +1105,9 @@ __all__ = [
     "RespondPrompt",
     "RespondStep",
     "RetryHint",
+    "MarginNote",
+    "RecapChapterClosed",
+    "RecapSeasonFinished",
     "ScenePrompt",
     "SceneStep",
     "ScenarioDescriptor",
