@@ -424,6 +424,8 @@ export type JourneyRecap = {
   teaser?: RecapTeaser | null;
   /** The story-written teaser only (engine or resolution). */
   teaser_fr?: string | null;
+  /** WP-99: the engine's guarded teaser for tomorrow; preferred over `teaser`. */
+  next_teaser_fr?: string | null;
   /** The CEFR estimate when the recap was written. */
   level?: string | null;
   level_up?: RecapLevelUp | null;
@@ -535,6 +537,37 @@ export type JourneySnapshot = {
   special?: 'epreuve' | null;
   /** WP-94: the band the épreuve closes and the can-dos it asks for. */
   epreuve?: JourneyEpreuve | null;
+  /** WP-99: «Pendant votre absence» — a returning learner's «Entre-temps». Absent on older servers. */
+  absence?: JourneyAbsence | null;
+  /** WP-98: today opens a new season — its front page. Absent on older servers. */
+  season_premiere?: SeasonPremiere | null;
+  /** WP-98: between two seasons (read from the envelope first). */
+  interlude?: JourneyInterlude | null;
+};
+
+/** WP-99: what happened while the learner was away (no model call on the server). */
+export type JourneyAbsence = {
+  /** Whole local days away. */
+  days: number;
+  /** The character's greeting, fitted to the length of the absence (French). */
+  greeting_fr: string | null;
+  /** Optional: whose greeting it is; the day's counterpart otherwise. */
+  character_id?: string | null;
+  character_name?: string | null;
+  /** «meanwhile» events, French, dated. The client prints at most five. */
+  entre_temps: Array<{ text_fr: string; date: string | null; character_id: string | null }>;
+  /** Letters whose answer window closed while away — «courrier en souffrance». */
+  lapsed_letters: Array<{ mission_id: string; correspondent_name: string | null }>;
+};
+
+/** WP-98: a season's front page. */
+export type SeasonPremiere = { number: number; title_fr: string; logline_fr: string | null };
+
+/** WP-98: no new season is ready — named honestly, with a return date. */
+export type JourneyInterlude = {
+  /** YYYY-MM-DD, learner-local; `null` when no return date is known yet. */
+  returns_on: string | null;
+  reason_fr: string | null;
 };
 
 /** WP-94: what a special edition asks the learner to show. */
@@ -605,6 +638,10 @@ export type TodayEnvelope = {
   streak?: StreakView | null;
   /** WP-80: whole local days with no practice before today. */
   missed_days?: number;
+  /** WP-98: between two seasons — no scene today, or a quiet authored interlude. */
+  interlude?: JourneyInterlude | null;
+  /** WP-98: today's offer opens a new season (before the journey exists). */
+  season_premiere?: SeasonPremiere | null;
 };
 
 /** The because-line payload. `kind` is the only field a renderer may branch on. */

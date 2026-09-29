@@ -226,6 +226,12 @@ export type HomeScreenProps = {
    * (journey off), Home is exactly what it was.
    */
   day?: DayMarkState | null;
+  /**
+   * WP-98: between two seasons there is no scene, so the plan row (Scène ·
+   * Mots · Réponse · Bouclé) would promise four things that are not there.
+   * Home keeps its one-thing mode; the mark stays the plain house mark.
+   */
+  planHidden?: boolean;
   colophon: { lead: string; focus: string; focusHref: string; tail?: string } | null;
   /**
    * WP-81: the day's scene card (the journey's entry), directly under the masthead —
@@ -272,6 +278,7 @@ export function HomeScreen({
   entries,
   tiles,
   day,
+  planHidden = false,
   colophon,
   hero,
   chips,
@@ -288,7 +295,7 @@ export function HomeScreen({
     <AtelierV2Root as="main" language={language} className="av2-home" aria-label={copy.home_label}>
       <header className="av2-home__mast" data-special={special && oneThing ? '' : undefined}>
         <div className="av2-home__mast-main">
-          {day ? (
+          {day && !planHidden ? (
             // WP-D1: the mark is the day's only gauge — no goal ring.
             <AtelierMark size={44} progress={day.groups} title={day.label} />
           ) : (
@@ -410,7 +417,7 @@ export function HomeScreen({
         </div>
       ) : null}
 
-      {day && (
+      {day && !planHidden && (
         <div className="av2-home__section">
           <DayPlanRow day={day} language={language} />
         </div>

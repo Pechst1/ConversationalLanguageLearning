@@ -63,6 +63,20 @@ export function ArchiveStyles() {
         color: var(--av2-ink);
       }
 
+      /* ---- WP-98: a new season opens a new volume ---- */
+      .av2 .fa-volume-new { display: flex; flex-direction: column; gap: 14px; }
+      .av2 .fa-volume-new__head {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 18px 0 14px;
+        border-top: 2px solid var(--av2-ink);
+        border-bottom: 1px solid var(--av2-line-2);
+      }
+      .av2 .fa-volume-new__head > * { margin: 0; }
+      .av2 .fa-volume-new__title { font-style: italic; }
+      .av2 .fa-volume-new__logline { color: var(--av2-ink-2); }
+
       /* ---- a chapter: a fold ---- */
       .av2 .fa-chapter { border-top: 1px solid var(--av2-line-2); padding-top: 4px; }
       .av2 .fa-chapter__head {

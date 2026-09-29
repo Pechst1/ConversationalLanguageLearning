@@ -74,6 +74,17 @@ import { continuesConversation } from './respond-thread';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
+import { EntreTemps, SeasonPremiere } from './SeasonPages';
+import {
+  absenceOf,
+  dayPreludes,
+  premierePoster,
+  preludeSeen,
+  rememberPreludeSeen,
+  seasonPremiereOf,
+  type DayPrelude,
+} from './season-return-model';
+import { useStoryEpisodeEntry } from './story-episode-store';
 import { JourneyRecap } from './JourneyRecap';
 import { SpecialKickerContext } from './special-edition';
 import { canDoCopy } from '@/lib/can-do-copy';
@@ -225,6 +236,34 @@ export function JourneySession({
     // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
     firstSceneStepId(journey) === step.id;
 
+  /* WP-98 / WP-99: before the day's first step, a returning learner reads
+     «Pendant votre absence», and a new season opens on its front page. Each
+     once per journey (device memory); never on day 1; a resume goes on. Until
+     the device memory is read, nothing is shown (as for the cast intro). */
+  const [preludeMemory, setPreludeMemory] = React.useState<Record<DayPrelude, boolean> | null>(null);
+  React.useEffect(() => {
+    if (!journeyId) {
+      setPreludeMemory(null);
+      return;
+    }
+    const storage = preludeStorage();
+    setPreludeMemory({
+      entre_temps: preludeSeen(storage, 'entre_temps', journeyId),
+      premiere: preludeSeen(storage, 'premiere', journeyId),
+    });
+  }, [journeyId]);
+  const prelude: DayPrelude | null =
+    preludeMemory && phase.kind === 'session' && !showCastIntro
+      ? dayPreludes(journey, (kind) => preludeMemory[kind])[0] ?? null
+      : null;
+  const finishPrelude = (kind: DayPrelude) => {
+    rememberPreludeSeen(preludeStorage(), kind, journeyId);
+    setPreludeMemory((memory) => ({ entre_temps: false, premiere: false, ...memory, [kind]: true }));
+  };
+  const episodeEntry = useStoryEpisodeEntry(prelude === 'premiere' ? journeyId : null);
+  const absence = prelude === 'entre_temps' ? absenceOf(journey) : null;
+  const premiere = prelude === 'premiere' ? seasonPremiereOf(journey) : null;
+
   // WP-94: a «Numéro spécial» — the session and the reader carry the kicker.
   const specialKicker = epreuveOf(journey) ? canDoCopy(chromeLanguage).special_kicker : null;
 
@@ -305,6 +344,27 @@ export function JourneySession({
                   }}
                 />
               )}
+              {absence && (
+                <EntreTemps
+                  absence={absence}
+                  language={chromeLanguage}
+                  journeyId={journeyId || null}
+                  onContinue={() => finishPrelude('entre_temps')}
+                />
+              )}
+              {premiere && (
+                <SeasonPremiere
+                  premiere={premiere}
+                  posterUrl={premierePoster(
+                    journey,
+                    episodeEntry?.kind === 'episode' ? episodeEntry.episode.panels : null,
+                  )}
+                  language={chromeLanguage}
+                  onContinue={() => finishPrelude('premiere')}
+                />
+              )}
+              {!prelude && (
+              <>
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
                 // journey; the plain scene prompt otherwise (WP-14E).
@@ -422,6 +482,8 @@ export function JourneySession({
                   </Action>
                 </div>
               )}
+              </>
+              )}
             </>
           )}
         </div>
@@ -429,6 +491,15 @@ export function JourneySession({
     </AtelierV2Root>
     </SpecialKickerContext.Provider>
   );
+}
+
+/** The device memory for the day's preludes; `null` when storage is unreachable. */
+function preludeStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

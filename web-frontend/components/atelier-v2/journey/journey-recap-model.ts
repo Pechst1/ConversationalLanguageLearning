@@ -34,6 +34,7 @@ import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
 
 import { formatDuration } from './journey-state';
 import { fill, recapChrome, recapStatusCopy } from './recap-copy';
+import { recapTeaserOf } from './season-return-model';
 
 export type RecapFact = { id: 'streak' | 'words' | 'scene'; label: string; value: string };
 
@@ -190,7 +191,8 @@ export function rewardView(
 
   const freezeUsed = Boolean(journey.streak?.freeze_used_on) && streakDays > 0;
   const firstPractice = (recap.practiced_targets || []).find((item) => item.practice_href);
-  const teaser = recap.teaser && recap.teaser.text_fr?.trim() ? recap.teaser : null;
+  // WP-99: the engine's guarded `next_teaser_fr` first, then the structured teaser.
+  const teaser = recapTeaserOf(recap);
 
   const completed = !partial && journey.status === 'completed';
   const editionNo =

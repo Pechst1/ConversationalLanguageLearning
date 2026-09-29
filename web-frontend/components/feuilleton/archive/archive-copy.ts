@@ -70,6 +70,9 @@ const FR = {
   read: 'Lire',
   // ---- the recap
   tome_finished: 'La saison {n} est terminée : elle est reliée en tome.',
+  // ---- WP-98: a new season is a new volume
+  volume_new: 'Nouveau volume',
+  volume_first_pages: 'Les premières planches arrivent.',
 };
 
 export type ArchiveCopy = { [K in keyof typeof FR]: string };
@@ -121,6 +124,8 @@ const EN: ArchiveCopy = {
   previously_aria: 'Previously in the story',
   read: 'Read',
   tome_finished: 'Season {n} is finished: it is bound as a volume.',
+  volume_new: 'New volume',
+  volume_first_pages: 'The first pages are on their way.',
 };
 
 const DE: ArchiveCopy = {
@@ -170,6 +175,8 @@ const DE: ArchiveCopy = {
   previously_aria: 'Bisher in der Geschichte',
   read: 'Lesen',
   tome_finished: 'Staffel {n} ist abgeschlossen: Sie ist als Band gebunden.',
+  volume_new: 'Neuer Band',
+  volume_first_pages: 'Die ersten Seiten sind unterwegs.',
 };
 
 const TABLES: Record<ControlLanguage, ArchiveCopy> = { en: EN, de: DE, fr: FR as ArchiveCopy };

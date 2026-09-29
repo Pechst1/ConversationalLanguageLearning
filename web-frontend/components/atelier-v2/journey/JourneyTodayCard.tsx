@@ -37,13 +37,25 @@ import {
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf, specialListLine } from '@/lib/can-dos';
-import { frenchSpacing } from '@/lib/french-typography';
+import { frenchQuote, frenchSpacing } from '@/lib/french-typography';
 import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
 
 import { journeyChromeLanguage } from '@/lib/language-rule';
 
 import { journeyCopy } from './journey-copy';
+import { InterludeCard, SeasonPremiereCard } from './SeasonPages';
+import { seasonReturnCopy } from './season-return-copy';
+import {
+  interludeHeadline,
+  journeyAtFirstStep,
+  premierePoster,
+  recapTeaserOf,
+  todayInterlude,
+  todayPremiere,
+  type InterludeView,
+  type SeasonPremiereView,
+} from './season-return-model';
 import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -84,10 +96,19 @@ export function JourneyTodayCard({
       }
     : null;
 
+  // WP-98: a new season opens on its front page; between two seasons, Home
+  // says so with the return date instead of pretending there is a scene.
+  const premiere = todayPremiere(controller.envelope, controller.journey);
+  const interlude = todayInterlude(controller.envelope, controller.journey);
+  const forgeHref = controller.envelope?.forge?.href ?? null;
+
   return (
     <AtelierV2Root language={chromeLanguage} className="journey-today">
       <div className="av2-stack">
         <JourneyTodayBody
+          premiere={premiere}
+          interlude={interlude}
+          forgeHref={forgeHref}
           phase={phase}
           copy={copy}
           statusCopy={statusCopy}
@@ -110,6 +131,7 @@ export function JourneyTodayCard({
             red action sits *under* it, at the same width as the rows below,
             never inside the card. Exactly one primary per composition. */}
         <JourneyPrimary
+          premiere={premiere}
           phase={phase}
           copy={copy}
           busy={busy}
@@ -135,6 +157,7 @@ export function JourneyTodayCard({
 type SpecialEdition = { kicker: string; line: string | null };
 
 function JourneyPrimary({
+  premiere = null,
   phase,
   copy,
   busy,
@@ -143,6 +166,7 @@ function JourneyPrimary({
   onStart,
   onResume,
 }: {
+  premiere?: SeasonPremiereView | null;
   phase: JourneyPhase;
   copy: AtelierCopy;
   busy: boolean;
@@ -167,7 +191,7 @@ function JourneyPrimary({
           )}
           onClick={onStart}
         >
-          {copy.start}
+          {premiere ? seasonReturnCopy(controlLanguage).premiere_open : copy.start}
         </Action>
       );
     case 'session':
@@ -204,8 +228,14 @@ function JourneyTodayBody({
   onRefresh,
   onRetryGeneration,
   special = null,
+  premiere = null,
+  interlude = null,
+  forgeHref = null,
 }: {
   special?: SpecialEdition | null;
+  premiere?: SeasonPremiereView | null;
+  interlude?: InterludeView | null;
+  forgeHref?: string | null;
   phase: JourneyPhase;
   copy: AtelierCopy;
   statusCopy: AtelierCopy;
@@ -220,6 +250,15 @@ function JourneyTodayBody({
   switch (phase.kind) {
     case 'offer': {
       const scenario = phase.scenario;
+      // WP-98: no scene between two seasons — said, with the return date.
+      if (!scenario && interlude) {
+        return <InterludeCard interlude={interlude} language={controlLanguage} forgeHref={forgeHref} />;
+      }
+      if (scenario && premiere) {
+        return (
+          <SeasonPremiereCard premiere={premiere} posterUrl={scenario.image_url} language={controlLanguage} />
+        );
+      }
       if (!scenario) {
         return (
           <Card copy={copy} eyebrow={copy.today_eyebrow} title={copy.nothing_offered}>
@@ -232,18 +271,27 @@ function JourneyTodayBody({
       // WP-82: the estimate is status («5 min»), in the card's chrome language.
       // WP-80: after an absence the day is short, so the standard estimate is
       // not printed beside «Reprise en douceur».
-      const gentle = gentleReturnLabel({
-        missedDays: phase.envelope.missed_days,
-        dayShape: null,
-        estimatedSeconds: null,
-        language: controlLanguage,
-      });
+      // WP-98: days between two seasons are not an absence — no «Reprise».
+      const gentle = interlude
+        ? null
+        : gentleReturnLabel({
+            missedDays: phase.envelope.missed_days,
+            dayShape: null,
+            estimatedSeconds: null,
+            language: controlLanguage,
+          });
       const estimate = gentle ? null : formatDuration(scenario.estimated_seconds, controlLanguage);
       return (
         <Card
           copy={copy}
           // WP-81: Home's date says «today»; the card's label is the place.
-          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
+          // WP-98: a quiet authored interlude scene says it is one.
+          eyebrow={
+            joinMeta(
+              interlude ? seasonReturnCopy(controlLanguage).interlude_kicker : gentle,
+              scenario.location_name,
+            ) || copy.today_eyebrow
+          }
           title={scenario.title_fr}
           lang="fr"
           imageUrl={scenario.image_url}
@@ -266,6 +314,7 @@ function JourneyTodayBody({
           {estimate && !scenario.character_name && (
             <p className="av2-label">{estimate}</p>
           )}
+          <InterludeReturn interlude={interlude} language={controlLanguage} />
         </Card>
       );
     }
@@ -273,7 +322,17 @@ function JourneyTodayBody({
     case 'session':
     case 'paused': {
       const scenario = phase.journey.scenario;
-      const gentle = gentleReturnLabel({
+      // WP-98: the premiere's front page until the day has moved.
+      if (premiere && (phase.kind === 'paused' || journeyAtFirstStep(phase.journey))) {
+        return (
+          <SeasonPremiereCard
+            premiere={premiere}
+            posterUrl={premierePoster(phase.journey)}
+            language={controlLanguage}
+          />
+        );
+      }
+      const gentle = interlude ? null : gentleReturnLabel({
         missedDays: phase.journey.missed_days,
         dayShape: phase.journey.day_shape ?? 'standard',
         estimatedSeconds: phase.journey.estimated_active_seconds,
@@ -353,6 +412,8 @@ function JourneyTodayBody({
       // WP-81: the completed state — the ink «done» square and «Done for
       // today» over the scene's own French title, and one quiet «Revoir».
       const titleFr = phase.journey?.scenario?.title_fr?.trim();
+      // WP-99: «La suite demain» — the engine's own teaser first.
+      const teaser = phase.recap?.completion_kind === 'early' ? null : recapTeaserOf(phase.recap);
       return (
         <Card
           copy={copy}
@@ -361,6 +422,15 @@ function JourneyTodayBody({
           lang={titleFr ? 'fr' : undefined}
           done
         >
+          {teaser && (
+            <p className="av2-body journey-today-card__teaser" data-teaser={teaser.source}>
+              <span className="av2-label">{seasonReturnCopy(controlLanguage).teaser_label}</span>{' '}
+              <span className="av2-fr" lang="fr">
+                {frenchQuote(teaser.text_fr)}
+              </span>
+            </p>
+          )}
+          <InterludeReturn interlude={interlude} language={controlLanguage} />
           <Action tone="secondary" inline onClick={onOpen}>
             {copy.done_review}
           </Action>
@@ -380,6 +450,23 @@ function JourneyTodayBody({
     default:
       return null;
   }
+}
+
+/** WP-98: «L’histoire reprend le 12 octobre.» — one line, when an interlude is on. */
+function InterludeReturn({
+  interlude,
+  language,
+}: {
+  interlude: InterludeView | null;
+  language: DailyJourneyController['controlLanguage'];
+}) {
+  if (!interlude) return null;
+  const t = seasonReturnCopy(language);
+  return (
+    <p className="av2-label" data-interlude-return={interlude.returnsOn || ''}>
+      {interludeHeadline(interlude, t, language)}
+    </p>
+  );
 }
 
 function Card({

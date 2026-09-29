@@ -1400,6 +1400,18 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                 </React.Fragment>
                             ))}
                         </div>
+                        {/* WP-99: the three pushes, said once in the learner's
+                            language. The account stores no per-kind switch
+                            (only the rows above), so this is an explanation,
+                            not three toggles that would save nothing. */}
+                        <div className="st-card st-card--padded" data-push-kinds="">
+                            <p className="st-row__hint" id="st-push-kinds-label"><strong>{copy.notif_kinds_label}</strong></p>
+                            <ul className="st-push-kinds" aria-labelledby="st-push-kinds-label">
+                                <li className="st-row__hint">{copy.notif_kind_depeche}</li>
+                                <li className="st-row__hint">{copy.notif_kind_facteur}</li>
+                                <li className="st-row__hint">{copy.notif_kind_deadline}</li>
+                            </ul>
+                        </div>
                     </section>
 
                     {/* ---------------- Apparence ---------------- */}
@@ -1728,6 +1740,7 @@ function SettingsStyles() {
                 color: var(--av2-muted);
                 overflow-wrap: anywhere;
             }
+            .av2 .st-push-kinds { display: grid; gap: 6px; margin: 8px 0 0; padding-left: 18px; }
             .av2 .st-row__value {
                 flex: none;
                 font-weight: 500;

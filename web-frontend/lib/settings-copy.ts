@@ -176,6 +176,11 @@ export type SettingsCopyKey =
   | 'notif_weekly_hint'
   | 'notif_serial'
   | 'notif_serial_hint'
+  // WP-99: the three pushes, explained (no per-kind toggle on the account yet)
+  | 'notif_kinds_label'
+  | 'notif_kind_depeche'
+  | 'notif_kind_facteur'
+  | 'notif_kind_deadline'
   | 'row_reminder_time'
   // Apparence
   | 'row_theme'
@@ -382,6 +387,10 @@ const EN: SettingsCopy = {
   notif_weekly_hint: 'A progress summary every week',
   notif_serial: 'Serial',
   notif_serial_hint: 'The next episode, when ready.',
+  notif_kinds_label: 'What the edition sends you',
+  notif_kind_depeche: 'The morning dépêche: a line from a character about today’s scene.',
+  notif_kind_facteur: 'The postman came: a letter is waiting in the Courrier.',
+  notif_kind_deadline: 'Last day: a letter still needs your reply.',
   row_reminder_time: 'Delivery time',
 
   row_theme: 'Paper',
@@ -587,6 +596,10 @@ const DE: SettingsCopy = {
   notif_weekly_hint: 'Eine Bilanz des Fortschritts jede Woche',
   notif_serial: 'Fortsetzungsroman',
   notif_serial_hint: 'Die nächste Folge, sobald fertig.',
+  notif_kinds_label: 'Was die Ausgabe Ihnen schickt',
+  notif_kind_depeche: 'Die Morgen-Dépêche: ein Satz einer Figur zur heutigen Szene.',
+  notif_kind_facteur: 'Der Briefträger war da: Ein Brief wartet im Courrier.',
+  notif_kind_deadline: 'Letzter Tag: Ein Brief wartet noch auf Ihre Antwort.',
   row_reminder_time: 'Zustellzeit',
 
   row_theme: 'Papier',
@@ -797,6 +810,10 @@ const FR: SettingsCopy = {
   notif_weekly_hint: 'Un bilan de progression chaque semaine',
   notif_serial: 'Feuilleton',
   notif_serial_hint: 'La suite, dès qu’elle paraît.',
+  notif_kinds_label: 'Ce que l’édition vous envoie',
+  notif_kind_depeche: 'La dépêche du matin : un mot d’un personnage sur la scène du jour.',
+  notif_kind_facteur: 'Le facteur est passé : une lettre vous attend au Courrier.',
+  notif_kind_deadline: 'Dernier jour : une lettre attend encore votre réponse.',
   row_reminder_time: 'Heure de livraison',
 
   row_theme: 'Papier',

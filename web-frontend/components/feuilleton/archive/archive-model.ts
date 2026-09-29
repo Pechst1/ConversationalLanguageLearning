@@ -64,6 +64,8 @@ export type ArchiveChapter = {
 export type ArchiveSeason = {
   number: number;
   title_fr: string;
+  /** WP-98: the season's one-line premise, printed on its volume's head. */
+  logline_fr: string | null;
   finished: boolean;
   /** Only the requested season carries its chapters (`?season=N`); the others are headers. */
   loaded: boolean;
@@ -199,16 +201,34 @@ export function normalizeArchive(raw: unknown): ArchivePayload {
       return {
         number,
         title_fr: text(season?.title_fr),
+        logline_fr: textOrNull(season?.logline_fr),
         finished: Boolean(season?.finished),
         loaded,
         day_count: loaded ? Math.max(dayCount, chapters.reduce((sum, chapter) => sum + chapter.days.length, 0)) : dayCount,
         chapters,
       };
     })
-    // A header-only season (not loaded) is still a volume on the shelf.
-    .filter((season) => season.chapters.length > 0 || (!season.loaded && season.day_count > 0))
+    // A header-only season (not loaded) is still a volume on the shelf, and
+    // WP-98: the season being written is a new volume from its premiere on,
+    // before its first page is filed.
+    .filter(
+      (season) =>
+        season.chapters.length > 0
+        || (!season.loaded && season.day_count > 0)
+        || (current !== null && current.season === season.number && !season.finished),
+    )
     .sort((a, b) => b.number - a.number);
   return { seasons, current };
+}
+
+/**
+ * WP-98: the season printed as a new volume — the running season, when it is
+ * not the first (a first season is simply «the» volume, with no head).
+ */
+export function isNewVolume(payload: ArchivePayload | null | undefined, season: ArchiveSeason | null | undefined): boolean {
+  if (!payload || !season || season.finished || season.number < 2) return false;
+  if (payload.current) return payload.current.season === season.number;
+  return payload.seasons.every((other) => other.number <= season.number);
 }
 
 /** Every filed day, in reading order across the whole archive. */

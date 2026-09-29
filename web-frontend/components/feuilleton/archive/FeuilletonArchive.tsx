@@ -46,6 +46,7 @@ import {
   chapterKey,
   defaultOpenChapters,
   findArchiveDay,
+  isNewVolume,
   mergeArchiveSeason,
   seasonPageCount,
   type ArchiveChapter,
@@ -351,6 +352,36 @@ export function ArchiveVolume({
                   {loadingSeason === season.number ? <LoadingBlock label={t.archive_loading} /> : chapters}
                 </div>
               )}
+            </section>
+          );
+        }
+        if (isNewVolume(archive, season)) {
+          // WP-98: the season being written after a finished one opens a new
+          // volume — «Saison N» in Garamond, its title and its logline.
+          return (
+            <section
+              className="fa-season fa-volume-new"
+              key={season.number}
+              aria-labelledby={`fa-volume-${season.number}`}
+              data-new-volume={season.number}
+            >
+              <header className="fa-volume-new__head">
+                <p className="av2-label av2-label--story">{t.volume_new}</p>
+                <h2 id={`fa-volume-${season.number}`} className="av2-headline av2-headline--screen" lang="fr">
+                  {faFill(archiveCopy('fr').season_n, { n: season.number })}
+                </h2>
+                {season.title_fr && (
+                  <p className="av2-headline av2-headline--title fa-volume-new__title" lang="fr">
+                    {frenchSpacing(season.title_fr)}
+                  </p>
+                )}
+                {season.logline_fr && (
+                  <p className="av2-body av2-fr fa-volume-new__logline" lang="fr">
+                    {frenchSpacing(season.logline_fr)}
+                  </p>
+                )}
+              </header>
+              {season.chapters.length > 0 ? chapters : <p className="av2-label">{t.volume_first_pages}</p>}
             </section>
           );
         }

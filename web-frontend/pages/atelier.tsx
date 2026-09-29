@@ -106,7 +106,8 @@ import {
 } from '@/components/atelier-v2/journey';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
 import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
-import type { ControlLanguage, JourneySnapshot } from '@/types/daily-journey';
+import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
+import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -1025,8 +1026,11 @@ export default function AtelierPage() {
   // The Today entry for the journey is on screen exactly when the frozen
   // precedence puts it in front of the legacy chain, plus the finished case.
   // Nothing may be rendered on top of it: it carries the day's primary action.
+  // WP-98: between two seasons there is no scene to recommend, and Home still
+  // says so in the day's card (the return date and the practice that exists).
   const journeyEntryVisible =
-    journeyEnabled && (journeyRecommended || journey.phase.kind === 'finished');
+    journeyEnabled
+    && (journeyRecommended || journey.phase.kind === 'finished' || todayInterlude(journey.envelope) !== null);
 
   // 2026-09-24: the legacy Home must never flash in front of a journey Home.
   // Until `GET /journey/today` says which Home this is, Home is its skeleton —
@@ -1646,6 +1650,19 @@ export default function AtelierPage() {
   // already done, a start that failed — leaves the learner on Home. Fires once
   // per landing, then drops the parameter so a reload is an ordinary visit.
   const startTodayRef = useRef<'idle' | 'opening' | 'done'>('idle');
+  // WP-99: a Dépêche tapped while Home is already open lands here again with
+  // `?start=today`. A fresh arrival of the parameter (after it was dropped) is
+  // a new landing; one still being opened is left alone. Declared before the
+  // landing effect so it re-arms it in the same commit.
+  const lastStartQueryRef = useRef('');
+  useEffect(() => {
+    if (!router.isReady) return;
+    const current = String(router.query.start || '');
+    if (current === 'today' && lastStartQueryRef.current !== 'today' && startTodayRef.current === 'done') {
+      startTodayRef.current = 'idle';
+    }
+    lastStartQueryRef.current = current;
+  }, [router.isReady, router.query.start]);
   useEffect(() => {
     if (!router.isReady || startTodayRef.current !== 'idle') return;
     if (String(router.query.start || '') !== 'today') return;
@@ -2853,6 +2870,8 @@ function TodayView({
       entries={homeEntries}
       tiles={homeTiles}
       day={homeDay}
+      // WP-98: no scene between two seasons, so no plan row to fill.
+      planHidden={Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       chips={homeChips}
       language={homeDay ? chromeLanguage : 'fr'}
       colophon={errorOnlyPage ? null : {

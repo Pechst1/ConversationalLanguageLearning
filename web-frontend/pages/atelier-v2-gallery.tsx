@@ -51,6 +51,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
 import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
+import { SeasonReturnGallerySections } from '@/components/atelier-v2/__fixtures__/SeasonReturnGallery';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import {
   CrCorrespondent,
@@ -664,6 +665,9 @@ export default function AtelierV2Gallery() {
 
           {/* WP-96 «Archives du journal» + WP-97 «Les suites». */}
           <ArchiveGallerySections language={language} Section={Section} />
+
+          {/* WP-98 «La saison suivante» + WP-99 «Le facteur et les dépêches». */}
+          <SeasonReturnGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar
