@@ -151,7 +151,8 @@ def test_day_one_never_drills_the_taste_words_and_waits_for_the_reply() -> None:
     drilled = [step.target.label_fr for step in plan.steps if step.kind is StepKind.RECALL]
     assert drilled == ["au comptoir"]
     kinds = [step.kind for step in plan.steps]
-    assert kinds == [StepKind.SCENE, StepKind.RESPOND, StepKind.RECALL, StepKind.RESOLUTION]
+    # The day-1 word is a warm-up, before the page that ends on the question.
+    assert kinds == [StepKind.RECALL, StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION]
     assert "taste word" in plan.rationale
 
 

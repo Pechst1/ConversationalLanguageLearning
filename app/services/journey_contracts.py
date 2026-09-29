@@ -799,7 +799,14 @@ class PlannedJourney:
         if len(self.steps) > MAX_PLANNED_STEPS:
             raise ValueError(f"plan has {len(self.steps)} steps, max {MAX_PLANNED_STEPS}")
         kinds = [step.kind for step in self.steps]
-        if kinds[0] is not StepKind.SCENE:
+        first_day = self.shape_reason == "first_day"
+        # WP-93 walk: the first day may open on its warm-ups (the words the
+        # reply will ask for); every other classic day opens on the scene.
+        lead = 0
+        if first_day:
+            while lead < len(kinds) and kinds[lead] is StepKind.RECALL:
+                lead += 1
+        if lead >= len(kinds) or kinds[lead] is not StepKind.SCENE:
             raise ValueError("a plan must open with the scene step")
         if kinds[-1] is not StepKind.RESOLUTION:
             raise ValueError("a plan must end with the resolution step")
@@ -812,9 +819,9 @@ class PlannedJourney:
         if StepKind.READ in kinds:
             raise ValueError("only a practice day plans a «Lecture»")
         if (
-            self.shape_reason == "first_day"
+            first_day
             and kinds.count(StepKind.RESPOND) == 1
-            and kinds.index(StepKind.RESPOND) != 1
+            and kinds.index(StepKind.RESPOND) != lead + 1
         ):
             # WP-93 (W5): the first day's page ends on Margaux's question; the
             # reply answers it next, never after an exercise. (The classic

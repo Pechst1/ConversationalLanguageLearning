@@ -2408,10 +2408,16 @@ def plan_journey(
         )
     )
     ordinal += 1
-    if first_day:
-        for recall_step in recall_steps:
-            steps.append(replace(recall_step, ordinal=ordinal))
-            ordinal += 1
+    if first_day and recall_steps:
+        # WP-93 walk (2026-09-29): the day-1 words («au comptoir», «à emporter»)
+        # are what the reply asks for, so a beginner meets them *before* the
+        # page, as warm-ups — never between Margaux's question and the answer
+        # (W5), and not after the reply that needed them.
+        steps = [
+            replace(step, ordinal=index)
+            for index, step in enumerate([*recall_steps, *steps])
+        ]
+        ordinal = len(steps)
     steps.append(
         PlannedStep(
             ordinal=ordinal,

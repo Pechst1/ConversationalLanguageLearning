@@ -352,9 +352,10 @@ def test_the_first_journey_is_authored_instant_and_makes_no_provider_call(
     assert journey["scenario"]["location_id"] == "le_mistral"
     assert journey["scenario"]["level_band"] == band
     kinds = [step["kind"] for step in journey["steps"]]
-    # WP-93 (W5): the page ends on Margaux's question and the reply answers it
-    # next; the two quick wins come straight after the reply.
-    assert kinds == ["scene", "respond", "recall", "recall", "resolution"]
+    # WP-93 (W5): the two quick wins are warm-ups — the words the reply asks
+    # for, met before the page; the page ends on Margaux's question and the
+    # reply answers it next.
+    assert kinds == ["recall", "recall", "scene", "respond", "resolution"]
     graded = [step for step in journey["steps"] if step["kind"] in ("recall", "respond")]
     assert len(graded) >= 3
     # Quick wins, not homework: required, and never typed.

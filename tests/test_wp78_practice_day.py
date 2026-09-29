@@ -177,7 +177,12 @@ def test_a_short_day_stays_short_and_the_first_day_is_untouched() -> None:
     first = planner.plan_journey(
         scenario=_brief(), candidates=_queue()[:2], practice=True, first_day=True
     )
-    assert first.practice is False and first.steps[0].kind is StepKind.SCENE
+    # The first day stays the classic, non-practice day; since the WP-93 walk its
+    # day-1 words are warm-ups before the page.
+    assert first.practice is False
+    kinds = [step.kind for step in first.steps]
+    assert kinds[kinds.index(StepKind.SCENE) + 1] is StepKind.RESPOND
+    assert all(kind is StepKind.RECALL for kind in kinds[: kinds.index(StepKind.SCENE)])
 
 
 def test_a_listening_day_poses_nothing_before_the_scene_and_only_dictation() -> None:

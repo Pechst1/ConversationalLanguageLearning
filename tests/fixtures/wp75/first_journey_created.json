@@ -13,7 +13,7 @@
     "timezone": "Europe/Paris",
     "budget_seconds": 600,
     "estimated_active_seconds": 334,
-    "current_step_id": "00000000-0000-4000-8000-000000000002",
+    "current_step_id": "00000000-0000-4000-8000-000000000003",
     "scenario": {
       "scenario_key": "order_at_cafe",
       "content_version": "journey-content-v1",
@@ -32,68 +32,9 @@
     },
     "steps": [
       {
-        "id": "00000000-0000-4000-8000-000000000002",
+        "id": "00000000-0000-4000-8000-000000000003",
         "ordinal": 0,
         "status": "active",
-        "estimated_seconds": 125,
-        "assistance_used": [],
-        "kind": "scene",
-        "prompt": {
-          "setup_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le zinc.",
-          "setup_native": "It is raining on the canal. You push open the door of Le Mistral. Margaux is wiping down the zinc counter.",
-          "objective_native": "Order a hot drink at the counter and say where you want to sit.",
-          "character_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
-          "character_line_audio_url": null,
-          "image_url": "/assets/serial/locations/le_mistral-counter.webp",
-          "audio_available": false,
-          "listen_first": false
-        }
-      },
-      {
-        "id": "00000000-0000-4000-8000-000000000005",
-        "ordinal": 1,
-        "status": "pending",
-        "estimated_seconds": 82,
-        "assistance_used": [],
-        "kind": "respond",
-        "prompt": {
-          "turn_index": 0,
-          "max_turns": 1,
-          "repair_allowed": true,
-          "character_id": "margaux_barman",
-          "character_name": "Margaux",
-          "character_line_fr": "Alors, qu'est-ce que je vous sers ?",
-          "character_line_audio_url": null,
-          "objective_native": "Say what you would like to drink and where you want to sit.",
-          "input_modes": [
-            "text"
-          ],
-          "targets": [
-            {
-              "kind": "vocabulary",
-              "id": "4101",
-              "label_fr": "un café",
-              "label_native": "a coffee"
-            },
-            {
-              "kind": "vocabulary",
-              "id": "4102",
-              "label_fr": "s'il vous plaît",
-              "label_native": "please"
-            }
-          ],
-          "help_available": [
-            "hint",
-            "translation",
-            "suggested_response"
-          ],
-          "letter": null
-        }
-      },
-      {
-        "id": "00000000-0000-4000-8000-000000000003",
-        "ordinal": 2,
-        "status": "pending",
         "estimated_seconds": 34,
         "assistance_used": [],
         "kind": "recall",
@@ -131,7 +72,7 @@
       },
       {
         "id": "00000000-0000-4000-8000-000000000004",
-        "ordinal": 3,
+        "ordinal": 1,
         "status": "pending",
         "estimated_seconds": 41,
         "assistance_used": [],
@@ -162,6 +103,65 @@
             "translation",
             "solution"
           ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "ordinal": 2,
+        "status": "pending",
+        "estimated_seconds": 125,
+        "assistance_used": [],
+        "kind": "scene",
+        "prompt": {
+          "setup_fr": "Il pleut sur le canal. Tu pousses la porte du Mistral. Margaux essuie le zinc.",
+          "setup_native": "It is raining on the canal. You push open the door of Le Mistral. Margaux is wiping down the zinc counter.",
+          "objective_native": "Order a hot drink at the counter and say where you want to sit.",
+          "character_line_fr": "Tiens, bonjour ! Vous vous installez ou c'est à emporter ?",
+          "character_line_audio_url": null,
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+          "audio_available": false,
+          "listen_first": false
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "ordinal": 3,
+        "status": "pending",
+        "estimated_seconds": 82,
+        "assistance_used": [],
+        "kind": "respond",
+        "prompt": {
+          "turn_index": 0,
+          "max_turns": 1,
+          "repair_allowed": true,
+          "character_id": "margaux_barman",
+          "character_name": "Margaux",
+          "character_line_fr": "Alors, qu'est-ce que je vous sers ?",
+          "character_line_audio_url": null,
+          "objective_native": "Say what you would like to drink and where you want to sit.",
+          "input_modes": [
+            "text"
+          ],
+          "targets": [
+            {
+              "kind": "vocabulary",
+              "id": "4101",
+              "label_fr": "un café",
+              "label_native": "a coffee"
+            },
+            {
+              "kind": "vocabulary",
+              "id": "4102",
+              "label_fr": "s'il vous plaît",
+              "label_native": "please"
+            }
+          ],
+          "help_available": [
+            "hint",
+            "translation",
+            "suggested_response"
+          ],
+          "letter": null
         }
       },
       {
