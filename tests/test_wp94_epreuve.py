@@ -325,8 +325,12 @@ def test_an_ordinary_scene_is_not_special(
 
 
 def test_a_failed_epreuve_returns_in_a_new_situation(
-    assembled_client, db_session, journey_enabled, clock, director, checkpoint
+    assembled_client, db_session, journey_enabled, clock, director, checkpoint, monkeypatch
 ):
+    # The chapter's shape is dealt from the thread id; a «bottle» chapter keeps
+    # every scene in one room, which is the other (tested) way the épreuve moves
+    # on. Pin an open shape so this test is about the new place.
+    monkeypatch.setattr(engine, "chapter_shape", lambda seed, index, previous=None: "standard")
     checkpoint["view"] = view(ready=True)
     director.location = "le_mistral"
     director.premise = "Tout le monde se retrouve au Mistral pour fêter l'anniversaire de Margaux."
