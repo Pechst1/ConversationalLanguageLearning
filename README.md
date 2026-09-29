@@ -399,6 +399,19 @@ episode back to a retryable `delayed` state.
 
 Access Flower dashboard at http://localhost:5555
 
+**Development without a worker (`CELERY_TASK_ALWAYS_EAGER`):** the `.claude/launch.json`
+backend configs set `CELERY_TASK_ALWAYS_EAGER=true`, so tasks run inline and never queue
+into a Redis nobody drains (a stale queue once held ~1,500 jobs, and a worker started on
+it would have made paid calls). In this mode the next-day warm-up is skipped and panel art
+is drawn in the API process. Never start a worker against a queue you have not inspected
+(`redis-cli -n 1 llen celery`). The test suite pins an in-memory broker
+(`tests/conftest.py`) and a guard test fails if a task is ever sent to a real one.
+
+Panel art never hangs: when a drawing is queued the API checks `/health/worker`'s
+heartbeat and, with no live worker, draws in-process; a panel still `rendering` after
+3 minutes is served as its plate (`image_status: failed`, reason `timeout`) the next
+time the episode is read.
+
 **Production:**
 ```bash
 docker compose -f docker/docker-compose.prod.yml up -d worker

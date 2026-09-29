@@ -51,6 +51,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -67,6 +68,12 @@ SETTING_SOURCE = "setting_reference"
 RENDERING = "rendering"
 READY = "ready"
 FAILED = "failed"
+#: WP-108: when a panel went ``rendering`` (epoch seconds). A drawing that has not
+#: come within ``RENDERING_TIMEOUT_SECONDS`` is served as its plate, so a lost job or a
+#: restarted process can never leave a page «sous presse» forever.
+RENDERING_SINCE_KEY = "rendering_since"
+RENDERING_TIMEOUT_SECONDS = 180.0
+TIMEOUT_REASON = "timeout"
 
 PENDING_KEY = "panel_art_pending"
 MAX_REFERENCES_PER_PANEL = 2
@@ -225,6 +232,7 @@ def request_scene_art(
         panel.generation_metadata = {
             **(panel.generation_metadata or {}),
             "image_status": RENDERING,
+            RENDERING_SINCE_KEY: time.time(),
         }
     indices = tuple(int(panel.panel_index) for panel in panels[:count]) if subset else None
     db.info.setdefault(PENDING_KEY, []).append(SceneArtJob(str(scene.id), db.get_bind(), indices))
@@ -255,18 +263,83 @@ def _adopt_executor() -> ThreadPoolExecutor:
         return _ADOPT_EXECUTOR
 
 
+_WORKER_CHECK_TTL_SECONDS = 30.0
+_WORKER_CHECK: tuple[float, bool] | None = None
+
+
+def worker_available(*, now: float | None = None) -> bool:
+    """Is a Celery worker alive to take a drawing? (WP-108)
+
+    Reuses the ``/health/worker`` logic (a fresh beat-and-worker heartbeat in Redis), cached
+    for 30 s so a burst of scenes costs one look. Eager mode and the in-process test
+    broker have no worker by definition. Anything unclear is «no worker»: the drawing then
+    runs in this process, which always finishes or fails."""
+
+    global _WORKER_CHECK
+    from app.celery_app import broker_is_memory, is_eager
+
+    if is_eager() or broker_is_memory():
+        return False
+    moment = time.monotonic() if now is None else now
+    cached = _WORKER_CHECK
+    if cached is not None and moment - cached[0] < _WORKER_CHECK_TTL_SECONDS:
+        return cached[1]
+    try:
+        from app.core.observability import worker_health
+
+        alive = worker_health().get("status") == "ok"
+    except Exception:  # noqa: BLE001 - can't tell is «no worker»
+        alive = False
+    _WORKER_CHECK = (moment, alive)
+    return alive
+
+
 def _dispatch_prefetch(job: PrefetchArtJob) -> None:
     """On the Celery worker, where the prefetch itself runs (see the WP-90 note below);
-    in this process when no broker takes it."""
+    in this process when no worker is alive to take it (WP-108)."""
 
-    try:
-        from app.tasks.journey_prefetch import draw_prefetched_panel_art
+    if worker_available():
+        try:
+            from app.tasks.journey_prefetch import draw_prefetched_panel_art
 
-        draw_prefetched_panel_art.apply_async(args=[job.prefetch_id])
-        return
-    except Exception as exc:  # pragma: no cover - broker-less dev fallback
-        logger.info("panel_art: prefetch {} drawn in process ({})", job.prefetch_id, exc)
+            draw_prefetched_panel_art.apply_async(args=[job.prefetch_id])
+            return
+        except Exception as exc:  # pragma: no cover - broker down
+            logger.info("panel_art: prefetch {} drawn in process ({})", job.prefetch_id, exc)
+    else:
+        logger.info("panel_art: no worker alive, prefetch {} drawn in process", job.prefetch_id)
     _executor().submit(render_prefetch_art, job)
+
+
+def heal_stale_rendering(db: Session, scenes, *, now: float | None = None) -> int:
+    """Serve any panel still ``rendering`` past the timeout as its plate (WP-108).
+
+    Called whenever an episode is read, so it needs no background job and rows stuck
+    before this existed heal on their next read. A panel with no ``rendering_since``
+    (written before WP-108) counts from its creation. Returns how many were released."""
+
+    stamp = time.time() if now is None else now
+    healed = 0
+    for scene in scenes:
+        for panel in scene.panels:
+            meta = panel.generation_metadata or {}
+            if meta.get("image_status") != RENDERING:
+                continue
+            since = meta.get(RENDERING_SINCE_KEY)
+            if not isinstance(since, (int, float)):
+                created = getattr(panel, "created_at", None)
+                if created is not None and created.tzinfo is None:
+                    created = created.replace(tzinfo=UTC)  # SQLite hands back naive UTC
+                since = created.timestamp() if created is not None else None
+            if since is None or stamp - float(since) < RENDERING_TIMEOUT_SECONDS:
+                continue
+            meta = {k: v for k, v in meta.items() if k not in (AWAITING_KEY, RENDERING_SINCE_KEY)}
+            meta.update(image_status=FAILED, image_error=TIMEOUT_REASON)
+            panel.generation_metadata = meta
+            healed += 1
+    if healed:
+        db.commit()
+    return healed
 
 
 @event.listens_for(Session, "after_commit")
@@ -892,6 +965,7 @@ def attach_prefetched_art(
             panel.generation_metadata = {
                 **(panel.generation_metadata or {}),
                 "image_status": RENDERING,
+                RENDERING_SINCE_KEY: time.time(),
                 AWAITING_KEY: prefetch_id,
             }
             awaiting.append(panel)
@@ -949,6 +1023,7 @@ def adopt_prefetched_art(job: AdoptArtJob, *, wait_seconds: float | None = None)
                     meta = {k: v for k, v in (panel.generation_metadata or {}).items() if k != AWAITING_KEY}
                     if position < count:
                         meta["image_status"] = RENDERING
+                        meta[RENDERING_SINCE_KEY] = time.time()
                         to_draw.append(int(panel.panel_index))
                     else:
                         meta.pop("image_status", None)

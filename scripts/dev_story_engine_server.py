@@ -47,6 +47,11 @@ def _guard_environment() -> None:
         sys.exit("DATABASE_URL must be set explicitly to a throwaway database (createdb ...).")
     if "language_learning" in url:
         sys.exit("Refusing to run against the owner's live language_learning database.")
+    # WP-108: a throwaway server must never queue into the owner's Redis (the walk
+    # harness put warm-up jobs there). Tasks run inline; the broker is in memory.
+    os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
+    os.environ["CELERY_BROKER_URL"] = "memory://"
+    os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
     os.environ.setdefault("ATELIER_DAILY_JOURNEY_ENABLED", "true")
     os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "true")
     # The fake client below bypasses the provider flag on purpose; keep the real

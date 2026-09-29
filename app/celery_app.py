@@ -47,6 +47,10 @@ celery_app.conf.update(
     task_soft_time_limit=25 * 60,
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    # WP-108: dev without a worker runs tasks inline instead of queueing into a
+    # broker nobody drains. Errors stay in the task (callers already tolerate them).
+    task_always_eager=bool(settings.CELERY_TASK_ALWAYS_EAGER),
+    task_eager_propagates=False,
 )
 
 celery_app.conf.beat_schedule = {
@@ -171,4 +175,16 @@ def _wp73_unbind_request_id(task_id: str | None = None, **_: object) -> None:
             observability.request_id_var.set(None)
 # --- WP-73 observability (end) ---------------------------------------------
 
-__all__ = ["celery_app"]
+def is_eager() -> bool:
+    """True when tasks run inline (no broker, no worker)."""
+
+    return bool(celery_app.conf.task_always_eager)
+
+
+def broker_is_memory() -> bool:
+    """True for the in-process test broker, where a task sent goes nowhere real."""
+
+    return str(celery_app.conf.broker_url or "").startswith("memory:")
+
+
+__all__ = ["celery_app", "is_eager", "broker_is_memory"]

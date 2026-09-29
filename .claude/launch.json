@@ -13,15 +13,10 @@
     },
     {
       "name": "backend",
-      "runtimeExecutable": "venv/bin/uvicorn",
+      "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "app.main:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8010",
-        "--timeout-keep-alive",
-        "75"
+        "-lc",
+        "CELERY_TASK_ALWAYS_EAGER=true venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010 --timeout-keep-alive 75"
       ],
       "port": 8010
     },
@@ -30,7 +25,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "BACKEND_CORS_ORIGINS='[\"http://localhost:3000\",\"http://127.0.0.1:3000\"]' DATABASE_URL=postgresql://localhost/atelier_wp39_1789134531 venv/bin/python scripts/dev_story_engine_server.py --port 8010"
+        "CELERY_TASK_ALWAYS_EAGER=true BACKEND_CORS_ORIGINS='[\"http://localhost:3000\",\"http://127.0.0.1:3000\"]' DATABASE_URL=postgresql://localhost/atelier_wp39_1789134531 venv/bin/python scripts/dev_story_engine_server.py --port 8010"
       ],
       "port": 8010
     },
@@ -49,7 +44,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "ATELIER_EPISODE_AUDIO_ENABLED=true DATABASE_URL=postgresql+psycopg2://vincentpechstein@localhost:5432/atelier_e2e_0926 venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011 --timeout-keep-alive 75"
+        "CELERY_TASK_ALWAYS_EAGER=true ATELIER_EPISODE_AUDIO_ENABLED=true DATABASE_URL=postgresql+psycopg2://vincentpechstein@localhost:5432/atelier_e2e_0926 venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011 --timeout-keep-alive 75"
       ],
       "port": 8011
     }

@@ -188,6 +188,10 @@ def schedule_next_day_warmup(
     if not prefetch_enabled_for(user):
         return None
     eta = next_day_warmup_eta(timezone_name, now=now)
+    if celery_app.conf.task_always_eager:
+        # WP-108: eager dev has no worker, and an eager task ignores its ETA: it would
+        # run a paid scene generation now, inside this request. No worker, no warm-up.
+        return None
     try:
         warm_learner_next_day.apply_async(
             args=[str(user.id), str(input_mode)], eta=eta

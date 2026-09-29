@@ -172,3 +172,12 @@ test('the server’s «why» note is re-picked in the chrome language', () => {
   assert.equal(pickByLanguage(reason.text_by_language, chromeLanguage('en', 'B1'), reason.text), reason.text_by_language.fr);
   assert.equal(pickByLanguage(undefined, 'en', reason.text), reason.text);
 });
+
+// WP-108 — the legacy composer route is gone, and an engine-managed scene opens
+// instead of an empty «opens in the session» card.
+test('WP-108: ?view=episode no longer opens the legacy composer; an engine scene opens', () => {
+  const source = fs.readFileSync(path.join(WEB_ROOT, 'pages/graphic-novel.tsx'), 'utf8');
+  assert.doesNotMatch(source, /view === 'episode'/);
+  assert.match(source, /story_episode_route/);
+  assert.match(source, /openEngineEpisode\(sceneError, serial\.scene_id\)/);
+});

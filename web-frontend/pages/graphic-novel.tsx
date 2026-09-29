@@ -160,8 +160,8 @@ function routeForSerialBeat(serial: SerialToday | null | undefined): string | nu
  * in the route it is «Archives du journal» (and `?view=cast`, «Le
  * trombinoscope»; `?day=…`, one planche reread) — the season page, `/serial`
  * and `/serial/cast` are gone into it. A reader deep link (`?scene=`), a
- * serial/mission context and `?view=episode` (the legacy composer) keep the
- * edition page below, unchanged.
+ * serial/mission context keep the edition page below. WP-108: the legacy
+ * composer route (`?view=episode`) is gone; it now lands on the archive.
  */
 export default function GraphicNovelPage() {
   const router = useRouter();
@@ -176,7 +176,7 @@ export default function GraphicNovelPage() {
     journeyId: typeof query.journey === 'string' ? query.journey : null,
     sceneId: typeof query.cause === 'string' ? query.cause : null,
   };
-  const edition = typeof query.scene === 'string' || Boolean(graphicNovelContextKey(query)) || view === 'episode';
+  const edition = typeof query.scene === 'string' || Boolean(graphicNovelContextKey(query));
   if (edition) return <GraphicNovelEditionPage />;
   const archiveView: ArchiveView =
     view === 'cast' ? 'cast' : dayQuery.date || dayQuery.journeyId || dayQuery.sceneId ? 'day' : 'archive';
@@ -250,6 +250,18 @@ function GraphicNovelEditionPage() {
     ? resolveMediaUrl(scene.script_payload?.page_image?.url)
     : null;
 
+  /* WP-108: an engine-managed scene answers 409 `story_episode_route`; the page
+     then shows its read-only projection. Resolves true when it did. */
+  const openEngineEpisode = useCallback(async (sceneError: any, sceneId: string) => {
+    const detail = sceneError?.response?.data?.detail;
+    if (Number(sceneError?.response?.status || 0) !== 409 || detail?.code !== 'story_episode_route') return false;
+    const episode = await apiService.getStoryEpisode(sceneId);
+    setStoryEpisode(episode);
+    setScene(null);
+    setGenerationFailure(null);
+    return true;
+  }, []);
+
   const loadInitial = useCallback(async () => {
     setLoading(true);
     try {
@@ -301,6 +313,9 @@ function GraphicNovelEditionPage() {
           try {
             loaded = await apiService.getGraphicNovelScene(serial.scene_id);
           } catch (sceneError: any) {
+            // WP-108: an engine-managed scene exists — open it, never say it
+            // «opens in the session».
+            if (await openEngineEpisode(sceneError, serial.scene_id)) return;
             // A superseded (pre-rebuild) scene answers 409. The episode is still the
             // learner's episode: drop the stale scene reference so the L'ÉPISODE
             // tab offers to recompose it instead of spinning on a load that can
@@ -341,7 +356,7 @@ function GraphicNovelEditionPage() {
     } finally {
       setLoading(false);
     }
-  }, [contextSceneKey, routeSceneId]);
+  }, [contextSceneKey, openEngineEpisode, routeSceneId]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -613,6 +628,7 @@ function GraphicNovelEditionPage() {
         } catch (sceneError: any) {
           // Superseded scene (409): fall back to the episode card rather than
           // composing an unrelated standalone edition.
+          if (await openEngineEpisode(sceneError, serial.scene_id)) return;
           console.warn('Feuilleton scene could not be loaded', sceneError?.response?.status, sceneError);
           setCanonicalBeat({ ...serial, scene_id: null, status: 'available' });
           setScene(null);
@@ -721,8 +737,7 @@ function GraphicNovelEditionPage() {
   );
   const head = pageHead({ loading, generationFailure, scene, scenePressing, canonicalBeat, t });
   /* WP-96: with no episode open, the Feuilleton tab is the archive
-     (`FeuilletonArchive`); this page only draws a scene, a story context or
-     the legacy composer (`?view=episode`). */
+     (`FeuilletonArchive`); this page only draws a scene or a story context. */
   const archiveT = archiveCopy(language);
 
   return (

@@ -29,6 +29,39 @@ for _variable in (
 ):
     os.environ[_variable] = _NEUTRALISED
 
+# WP-108: the same for the job queue. The owner's `.env` points Celery at the real
+# local Redis, so every test that reached `.delay()` / `.apply_async()` queued a real
+# job there: 1,499 of them (1,443 notifications, 56 next-day warm-ups) sat waiting for a
+# worker, and a worker started on them would have made paid calls. Set (not setdefault)
+# before `app.config` reads `.env`: an environment variable outranks the dotenv file.
+# `tests/test_wp108_no_real_broker.py` fails the suite if this ever regresses.
+os.environ["CELERY_BROKER_URL"] = "memory://"
+os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
+os.environ["CELERY_TASK_ALWAYS_EAGER"] = "false"
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_task_reaches_a_real_broker(monkeypatch):
+    """Fail the test that sends a Celery task to anything but the in-memory broker."""
+
+    from celery.app.task import Task
+
+    real_apply_async = Task.apply_async
+
+    def guarded(self, *args, **kwargs):
+        broker = str(self.app.conf.broker_url or "")
+        if not (broker.startswith("memory:") or self.app.conf.task_always_eager):
+            raise AssertionError(
+                f"WP-108: {self.name} was sent to a real broker ({broker!r}) during a test. "
+                "Patch the task's .delay/.apply_async or keep CELERY_BROKER_URL=memory://."
+            )
+        return real_apply_async(self, *args, **kwargs)
+
+    monkeypatch.setattr(Task, "apply_async", guarded)
+
+
 # Deliberately NOT done here: forcing the cost-bearing feature flags off.
 # An earlier version of this guard also set ATELIER_CORRECTION_LLM_ENABLED and
 # friends to "false". That broke 7 tests in tests/test_atelier.py which depend on

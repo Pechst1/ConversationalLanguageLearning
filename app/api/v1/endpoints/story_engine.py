@@ -179,6 +179,9 @@ def episodes(
             )
         )
     )
+    from app.services.panel_art import heal_stale_rendering
+
+    heal_stale_rendering(db, rows[:20])
     names = cast_names(db, rows[:20])
     return {
         "episodes": [public_scene(scene, names) for scene in rows[:20]],
@@ -192,6 +195,9 @@ def episode(scene_id: UUID, db: Session = Depends(get_db), user: User = Depends(
     «Lecture» page a READ step names (yesterday's episode, or today's «Coulisses»).
     Anyone else's page, or an unknown id, is a 404."""
     scene = owned_scene(db, user, scene_id, side_pages=True)
+    from app.services.panel_art import heal_stale_rendering
+
+    heal_stale_rendering(db, [scene])  # WP-108: a drawing that never came is served as its plate
     return public_scene(scene, cast_names(db, [scene]))
 
 

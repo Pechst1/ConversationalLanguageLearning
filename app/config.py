@@ -176,6 +176,9 @@ class Settings(BaseSettings):
 
     CELERY_BROKER_URL: AnyUrl | None = None
     CELERY_RESULT_BACKEND: AnyUrl | None = None
+    #: Run every task in the calling process and never touch the broker. For local
+    #: dev with no worker (WP-108): a queue nobody drains only fills up.
+    CELERY_TASK_ALWAYS_EAGER: bool = False
 
     # Developer convenience: optionally auto-create users on first login attempt
     AUTO_CREATE_USERS_ON_LOGIN: bool = Field(
