@@ -138,9 +138,17 @@ services:
       - key: ATELIER_DAILY_JOURNEY_COHORT
         sync: false
       # WP-88 (owner decision D-2): the characters speak. Clips are cached per
-      # scene revision and priced on the pilot ledger (≈ US$0.04 a scene).
+      # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
+      # characters, an estimate the row says so).
       - key: ATELIER_EPISODE_AUDIO_ENABLED
         value: "true"
+      # WP-103 T1 (decision R-5): a steerable speech model, told per character to
+      # speak native French with no English accent and at the band's pace
+      # (app/services/cast_voices.py). tts-1-hd cannot be steered; it is only the
+      # logged fallback if this model errors. Changing the model or the wording
+      # changes the cache key, so old clips are never served.
+      - key: FEUILLETON_AUDIO_TTS_MODEL
+        value: gpt-4o-mini-tts
       # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
       # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
       # (panels show the location plate, and startup logs why) until durable
@@ -278,9 +286,17 @@ services:
       - key: ATELIER_DAILY_JOURNEY_COHORT
         sync: false
       # WP-88 (owner decision D-2): the characters speak. Clips are cached per
-      # scene revision and priced on the pilot ledger (≈ US$0.04 a scene).
+      # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
+      # characters, an estimate the row says so).
       - key: ATELIER_EPISODE_AUDIO_ENABLED
         value: "true"
+      # WP-103 T1 (decision R-5): a steerable speech model, told per character to
+      # speak native French with no English accent and at the band's pace
+      # (app/services/cast_voices.py). tts-1-hd cannot be steered; it is only the
+      # logged fallback if this model errors. Changing the model or the wording
+      # changes the cache key, so old clips are never served.
+      - key: FEUILLETON_AUDIO_TTS_MODEL
+        value: gpt-4o-mini-tts
       # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
       # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
       # (panels show the location plate, and startup logs why) until durable

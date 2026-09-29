@@ -408,12 +408,33 @@ class Settings(BaseSettings):
         description="Generate pre-rendered serial Feuilleton narration/audio for panel captions and dialogue.",
     )
     FEUILLETON_AUDIO_TTS_MODEL: str = Field(
-        "tts-1-hd",
-        description="TTS model used when serial Feuilleton audio generation is enabled.",
+        "gpt-4o-mini-tts",
+        description=(
+            "Speech model for the characters' voices (radio episode, tapped lines, listening items). "
+            "WP-103 T1: a steerable model, so each character is told to speak native French with no "
+            "English accent (app/services/cast_voices.py). If it errors the call falls back to "
+            "tts-1-hd, logged. tts-1-hd/tts-1 cannot be steered and read French with an English accent."
+        ),
+    )
+    FEUILLETON_AUDIO_STEERABLE_A1_SPEED: float | None = Field(
+        None,
+        ge=0.25,
+        le=4.0,
+        description=(
+            "Speed multiplier (e.g. 0.9) sent at the A1 pace on a steerable speech model. Unset by "
+            "default: OpenAI's team has said `speed` is unsupported on gpt-4o-mini-tts, so the A1 pace "
+            "comes from the instructions alone. The 2026-09-29 listening sheet saw it accepted and "
+            "honoured once (+21 % duration at 0.9); set it once the owner has judged clip 15 against "
+            "clip 01. tts-1/tts-1-hd always get 0.9 at A1 (documented)."
+        ),
     )
     FEUILLETON_AUDIO_COST_USD_PER_1K_CHARS: float = Field(
-        0.015,
-        description="Estimated TTS cost per 1,000 characters for serial Feuilleton audio rollups.",
+        0.02,
+        description=(
+            "Estimated TTS cost per 1,000 characters for Feuilleton audio rollups and the pilot ledger. "
+            "gpt-4o-mini-tts bills by token (about US$0.015 a minute of speech ≈ US$0.018 per 1,000 "
+            "French characters); tts-1-hd was US$0.03."
+        ),
     )
     FEUILLETON_AUDIO_MAX_CHARS_PER_SCENE: int = Field(
         2400,

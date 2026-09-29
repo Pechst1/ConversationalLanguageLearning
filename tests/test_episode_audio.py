@@ -38,10 +38,21 @@ from app.services.living_story import ENGINE_VERSION_PREFIX
 class FakeSynthesizer:
     """Counts what it was asked for, and can be told to fail on one line."""
 
-    def __init__(self, *, fail_on: str | None = None, empty_on: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fail_on: str | None = None,
+        empty_on: str | None = None,
+        fail_models: tuple[str, ...] = (),
+    ) -> None:
         self.calls: list[tuple[str, str, str]] = []
+        #: WP-103: what each call was told — model, instructions, speed — beside
+        #: ``calls`` (which keeps the three-tuple older tests read).
+        self.specs: list[dict[str, object]] = []
         self.fail_on = fail_on
         self.empty_on = empty_on
+        #: A model that always errors (an account without access, a bad name).
+        self.fail_models = fail_models
 
     def text_to_speech(
         self,
@@ -49,8 +60,15 @@ class FakeSynthesizer:
         voice: str = "nova",
         model: str | None = None,
         provider: str | None = None,
+        instructions: str | None = None,
+        speed: float | None = None,
     ) -> bytes:
         self.calls.append((text, voice, str(provider)))
+        self.specs.append(
+            {"text": text, "voice": voice, "model": model, "instructions": instructions, "speed": speed}
+        )
+        if model in self.fail_models:
+            raise RuntimeError(f"model {model} said no")
         if self.fail_on and self.fail_on in text:
             raise RuntimeError("provider said no")
         if self.empty_on and self.empty_on in text:

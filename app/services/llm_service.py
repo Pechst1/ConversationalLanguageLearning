@@ -123,9 +123,15 @@ TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
 }
 
 #: OpenAI speech, US$ per 1,000 input characters (tts-1 $15/1M, tts-1-hd $30/1M).
+#: ``gpt-4o-mini-tts`` is billed by tokens ($0.60/1M text in, $12/1M audio out,
+#: which OpenAI puts at about $0.015 a minute of speech); at a French reading
+#: rate of ~14 characters a second that is ≈ $0.018 per 1,000 characters, and a
+#: slower A1 voice speaks fewer characters a minute — so 0.02 is a declared
+#: estimate on the safe side, and the ledger row says so.
 TTS_PRICES_PER_1K_CHARS: dict[str, float] = {
     "tts-1": 0.015,
     "tts-1-hd": 0.030,
+    "gpt-4o-mini-tts": 0.020,
 }
 
 #: OpenAI transcription, US$ per minute of audio (mirrors transcription_cost.py).
@@ -571,14 +577,27 @@ class OpenAIProvider:
         text: str,
         voice: str = "nova",
         model: str = "tts-1-hd",
+        instructions: str | None = None,
+        speed: float | None = None,
     ) -> bytes:
-        """Generate speech audio from text using OpenAI TTS."""
-        payload = {
+        """Generate speech audio from text using OpenAI TTS.
+
+        WP-103 T1: ``instructions`` steers a ``gpt-4o-mini-tts`` voice (accent,
+        persona, pace) and is sent only to a model that accepts it —
+        ``tts-1``/``tts-1-hd`` do not ("Does not work with tts-1 or tts-1-hd" in
+        OpenAI's reference). ``speed`` (0.25–4.0) is sent when given; the caller
+        decides which models honour it (:data:`cast_voices.SPEED_HONOURING_MODELS`).
+        """
+        payload: dict[str, Any] = {
             "model": model,
             "input": text,
             "voice": voice,
             "response_format": "mp3",
         }
+        if instructions and str(model).lower().startswith("gpt-4o"):
+            payload["instructions"] = instructions
+        if speed is not None:
+            payload["speed"] = float(speed)
 
         # A spoken turn has no second chance on screen: a transient 5xx or a
         # dropped socket used to leave the learner with a silent character, so
@@ -596,7 +615,14 @@ class OpenAIProvider:
             if response.status_code >= 400:
                 logger.error("OpenAI TTS error", status=response.status_code, body=response.text)
                 raise _status_error("OpenAI TTS", response.status_code, response.text)
-            logger.info("TTS generation success", chars=len(text), voice=voice, model=model)
+            logger.info(
+                "TTS generation success",
+                chars=len(text),
+                voice=voice,
+                model=model,
+                steered="instructions" in payload,
+                speed=payload.get("speed"),
+            )
             return response.content
 
         return call_with_retries(
@@ -998,8 +1024,14 @@ class LLMService:
         voice: str = "nova",
         model: str | None = None,
         provider: str | None = None,
+        instructions: str | None = None,
+        speed: float | None = None,
     ) -> bytes:
-        """Generate speech audio from text using configured provider."""
+        """Generate speech audio from text using configured provider.
+
+        ``instructions`` and ``speed`` (WP-103 T1) reach OpenAI only; ElevenLabs
+        has its own voice settings and ignores both.
+        """
         target_provider = provider or settings.TTS_PROVIDER
         
         if target_provider == "elevenlabs":
@@ -1030,7 +1062,9 @@ class LLMService:
                 raise LLMProviderError("OpenAI provider not configured for TTS")
             
             model = model or "tts-1-hd"
-            return openai_provider.text_to_speech(text, voice=voice, model=model)
+            return openai_provider.text_to_speech(
+                text, voice=voice, model=model, instructions=instructions, speed=speed
+            )
 
         raise LLMProviderError(f"Unsupported TTS provider: {target_provider}")
 

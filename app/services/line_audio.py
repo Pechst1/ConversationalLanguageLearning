@@ -19,6 +19,18 @@ first line, not the last (off: nothing read, nothing called, nothing billed —
 ``disabled`` for the client, which then uses the device's voice); a replay makes
 no call and writes no row; every synthesis is priced on the pilot ledger as an
 estimate that says so (``estimated: true`` with its basis).
+
+**WP-103 T1 — a clip is «this line, in this voice, spoken this way».** The clip
+*id* stays ``{voice}-{digest}`` (the planner names listening clips by it, days in
+advance), but the cache row is keyed by the **speech spec** as well
+(:attr:`cast_voices.SpeechSpec.cache_key`: model, instructions version, pace, a
+digest of the instructions and speed sent), stored in the row's ``model`` column
+— so a change of model, wording or band pace means the old clip is simply not
+found, and no migration is needed. A clip made before this change (its ``model``
+is a bare ``tts-1-hd``) is never served again. If the steerable model errors the
+line falls back to ``tts-1-hd`` once (logged) and *that* clip is cached under the
+fallback's own key, which is also accepted on lookup: an outage must not mean a
+paid call for the same line on every replay.
 """
 from __future__ import annotations
 
@@ -36,11 +48,17 @@ from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.line_audio import LineAudioClip
 from app.services.cast_voices import (
+    FALLBACK_SPEECH_MODEL,
     LINE_AUDIO_PATH_PREFIX,
     NARRATOR_ID,
+    SPEECH_INSTRUCTIONS_VERSION,
+    cache_key_is_current,
     cast_id_for,
     clip_id_for,
+    model_of_cache_key,
     normalize_line_text,
+    pace_for_band,
+    parse_cache_key,
     voice_for_character,
     voice_of_clip_id,
 )
@@ -49,6 +67,8 @@ from app.services.episode_audio import (
     Synthesizer,
     episode_lines,
     estimate_synthesis_cost_usd,
+    speak_text,
+    spec_for,
 )
 from app.services.pilot_events import PilotEventService
 
@@ -282,8 +302,62 @@ def _model() -> str:
     return str(settings.FEUILLETON_AUDIO_TTS_MODEL)
 
 
-def owned_clip(db: Session, *, user_id: uuid.UUID, clip_id: str) -> LineAudioClip | None:
-    """The learner's own clip for this id at today's model (or any model)."""
+def _learner_band(user: Any) -> str:
+    """The band whose pace the learner hears: their CEFR estimate."""
+
+    return str(getattr(user, "cefr_estimate", None) or "")
+
+
+def _cache_keys(character_id: str | None, band: str | None) -> tuple[str, ...]:
+    """The keys a clip of this speaker at this band may be stored under: the
+    configured model's, then the fallback's (a clip spoken during an outage)."""
+
+    keys = [spec_for(character_id, band, model=_model()).cache_key]
+    fallback = spec_for(character_id, band, model=FALLBACK_SPEECH_MODEL).cache_key
+    if fallback not in keys:
+        keys.append(fallback)
+    return tuple(keys)
+
+
+def _owned_variant(
+    db: Session, *, user_id: uuid.UUID, clip_id: str, keys: tuple[str, ...]
+) -> LineAudioClip | None:
+    """The learner's clip for this id under exactly one of ``keys`` (first key
+    preferred)."""
+
+    rows = list(
+        db.scalars(
+            select(LineAudioClip).where(
+                LineAudioClip.user_id == user_id,
+                LineAudioClip.clip_id == clip_id,
+                LineAudioClip.model.in_(keys),
+            )
+        )
+    )
+    for key in keys:
+        hit = next((row for row in rows if row.model == key), None)
+        if hit is not None:
+            return hit
+    return None
+
+
+def owned_clip(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    clip_id: str,
+    character_id: str | None = None,
+    band: str | None = None,
+) -> LineAudioClip | None:
+    """The learner's own clip for this id, made under *today's* instructions.
+
+    The lenient half of the lookup, for the route that serves bytes: the id says
+    the voice and the line but not who was speaking, and a clip the learner was
+    just told is ``ready`` must be found. Preferred, in order: the exact speech
+    spec for this speaker and band; any clip at the band's pace; any current
+    clip. A clip from before WP-103 — or from an older instructions version — is
+    never returned: it is the one with the English accent.
+    """
 
     rows = list(
         db.scalars(
@@ -292,18 +366,48 @@ def owned_clip(db: Session, *, user_id: uuid.UUID, clip_id: str) -> LineAudioCli
             )
         )
     )
-    if not rows:
+    models = (_model(), FALLBACK_SPEECH_MODEL)
+    current = [row for row in rows if cache_key_is_current(row.model, models=models)]
+    if not current:
         return None
-    model = _model()
-    return next((row for row in rows if row.model == model), rows[0])
+    if band is None:
+        from app.db.models.user import User
 
-
-def _shared_clip(db: Session, *, clip_id: str, model: str) -> LineAudioClip | None:
-    return db.scalar(
-        select(LineAudioClip)
-        .where(LineAudioClip.clip_id == clip_id, LineAudioClip.model == model)
-        .limit(1)
+        band = _learner_band(db.get(User, user_id))
+    speaker = character_id or f"voice:{voice_of_clip_id(clip_id) or ''}"
+    for key in _cache_keys(speaker, band):
+        hit = next((row for row in current if row.model == key), None)
+        if hit is not None:
+            return hit
+    pace = pace_for_band(band)
+    # The configured model's clip before the fallback's, at the same pace first.
+    ranked = sorted(
+        current,
+        key=lambda row: (
+            (parse_cache_key(row.model) or ("", "", "", ""))[2] != pace,
+            model_of_cache_key(row.model) != _model(),
+        ),
     )
+    return ranked[0]
+
+
+def _shared_clip(
+    db: Session, *, clip_id: str, keys: tuple[str, ...]
+) -> LineAudioClip | None:
+    """Another learner's clip of exactly this line under exactly one of ``keys``."""
+
+    rows = list(
+        db.scalars(
+            select(LineAudioClip)
+            .where(LineAudioClip.clip_id == clip_id, LineAudioClip.model.in_(keys))
+            .limit(8)
+        )
+    )
+    for key in keys:
+        hit = next((row for row in rows if row.model == key), None)
+        if hit is not None:
+            return hit
+    return None
 
 
 def _cap_near(db: Session, user: Any) -> bool:
@@ -330,6 +434,7 @@ def record_line_audio_cost(
     """One priced pilot row per line actually synthesized. A cache hit — the
     learner's own clip or a copy of another learner's — writes nothing."""
 
+    model_used = model_of_cache_key(clip.model)
     try:
         PilotEventService(db).record(
             LINE_AUDIO_EVENT_TYPE,
@@ -339,7 +444,12 @@ def record_line_audio_cost(
             payload={
                 "surface": surface,
                 "provider": TTS_PROVIDER,
-                "model": clip.model,
+                "model": model_used,
+                # WP-103 T1: how the line was spoken (and whether it fell back).
+                "cache_key": clip.model,
+                "instructions_version": SPEECH_INSTRUCTIONS_VERSION,
+                "pace": (parse_cache_key(clip.model) or ("", "", "", ""))[2],
+                "fell_back": model_used != _model(),
                 "clip_id": clip.clip_id,
                 "voice": clip.voice,
                 "character_id": clip.character_id,
@@ -350,10 +460,21 @@ def record_line_audio_cost(
                 "estimated": True,
                 "cost_basis": f"chars@${settings.FEUILLETON_AUDIO_COST_USD_PER_1K_CHARS}/1k",
             },
-            cost_usd=estimate_synthesis_cost_usd(clip.char_count),
+            cost_usd=_line_cost_usd(model_used, int(clip.char_count)),
         )
     except Exception:  # pragma: no cover - defensive
         logger.warning("Line audio cost row could not be written")
+
+
+def _line_cost_usd(model_used: str, chars: int) -> float:
+    """The declared estimate: the configured rate for the configured model, the
+    model's own list rate for a clip that fell back to another."""
+
+    if model_used == _model():
+        return estimate_synthesis_cost_usd(chars)
+    from app.services.llm_service import estimate_tts_cost_usd
+
+    return estimate_tts_cost_usd(model_used, chars)
 
 
 def _default_synthesizer() -> Synthesizer:
@@ -372,13 +493,18 @@ def speak_line(
     respect_cap: bool = True,
     synthesizer: Synthesizer | None = None,
     llm_factory: Callable[[], Synthesizer] | None = None,
+    band: str | None = None,
 ) -> LineAudioOutcome:
     """The clip for one line: cached if it can be, synthesized if it must be.
 
     Refusals in the cheap order: the flag (nothing read, nothing called), the
-    learner's own cache, another learner's copy of the same line in the same
-    voice (bytes copied, no call, no row), the daily cap, and only then the
+    learner's own cache, another learner's copy of the same line spoken the same
+    way (bytes copied, no call, no row), the daily cap, and only then the
     provider. A failed call is ``disabled`` — the device voice reads the line.
+
+    "The same way" is the speech spec (WP-103): the model, the instructions
+    version, the pace of ``band`` (default: the learner's CEFR estimate) and the
+    speaker's instructions. Clips made under any other spec are not found.
     """
 
     if not settings.ATELIER_EPISODE_AUDIO_ENABLED:
@@ -386,7 +512,9 @@ def speak_line(
     voice = line.voice
     clip_id = clip_id_for(voice, line.text_fr)
     model = _model()
-    mine = owned_clip(db, user_id=user.id, clip_id=clip_id)
+    band = _learner_band(user) if band is None else band
+    keys = _cache_keys(line.character_id, band)
+    mine = _owned_variant(db, user_id=user.id, clip_id=clip_id, keys=keys)
     if mine is not None:
         return LineAudioOutcome(status="ready", clip=mine, cached=True)
 
@@ -394,16 +522,17 @@ def speak_line(
         user_id=user.id,
         clip_id=clip_id,
         voice=voice,
-        model=model,
+        model=keys[0],
         character_id=str(line.character_id or "")[:80],
         text_fr=line.text_fr,
         char_count=len(line.text_fr),
         content_type="audio/mpeg",
     )
-    shared = _shared_clip(db, clip_id=clip_id, model=model)
+    shared = _shared_clip(db, clip_id=clip_id, keys=keys)
     if shared is not None:
         clip.audio = bytes(shared.audio)
         clip.content_type = shared.content_type or "audio/mpeg"
+        clip.model = shared.model
         db.add(clip)
         db.flush()
         return LineAudioOutcome(status="ready", clip=clip, cached=True)
@@ -414,15 +543,23 @@ def speak_line(
     try:
         if provider is None:
             provider = (llm_factory or _default_synthesizer)()
-        audio = provider.text_to_speech(
-            text=line.text_fr, voice=voice, model=model, provider=TTS_PROVIDER
+        spoken = speak_text(
+            provider,
+            text=line.text_fr,
+            voice=voice,
+            character_id=line.character_id,
+            band=band,
+            model=model,
         )
+        audio = spoken.audio
     except Exception as exc:
         logger.warning("Line audio synthesis failed", clip_id=clip_id, error=str(exc))
         return LineAudioOutcome(status="disabled", reason="tts_failed")
     if not audio:
         return LineAudioOutcome(status="disabled", reason="tts_empty")
     clip.audio = bytes(audio)
+    # Stored under the spec of the model that really spoke it.
+    clip.model = spoken.spec.cache_key
     db.add(clip)
     db.flush()
     record_line_audio_cost(db, user_id=user.id, clip=clip, surface=surface, step_id=step_id)
