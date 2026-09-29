@@ -372,3 +372,21 @@ Generated episodes fill the days between tentpoles.
 
 Note: season 3 «Les clés du Mistral» (authored 2026-09-29) shares the keys and
 the walls; once season 1 is rewritten, seasons 2–3 are re-cut to follow from it.
+
+### Owner decisions on the proof scenes (2026-09-30)
+
+The owner read the proof scenes (`docs/story/season-1/`, fb29995) and agreed with
+these recommendations:
+
+| # | Question | Decision |
+|---|---|---|
+| S-1 | Marin and Lila are not a couple (flatmates; two months together in 2016) | Yes |
+| S-2 | Marin's co-op plan replaces his ring proposal; Romy's romance with the learner is set aside | Yes. Romy stays friend and journalist, and her camera's recording of the reveal is a thread |
+| S-3 | Lila never stays in season 1 | Yes |
+| S-4 | «L.» is the man Odile left in 1970, possibly alive on rue de Lancry | Yes, as season 2's opening question |
+| S-5 | Camille Marchand (the second romance) | The learner's choice decides; lines work for any gender |
+| S-6 | The fire-insurance premise | Plausibility check by a French reader, not a lawyer |
+| S-7 | Tentpoles run ~3,500 words | Tentpoles span **two days** (a mid-point hook) or the weekend's long day |
+| S-8 | Weight (Odile's memory, the fire's debt) | Accepted as the emotional depth asked for |
+
+Next: the full season bible (WP-111), by the same writers' room.
