@@ -1,5 +1,7 @@
 # Tentpole 4 · «La photographie»
 
+*Days 25–26 · Saturday 5 and Sunday 6 December. Day A is the party, up to Margaux's sentence. Day B picks up the same night, at Gus's question. This is the natural «weekend long day» if the product wants a single long read.*
+
 *The reversal. The party held to save Le Mistral goes wrong, and it is your discovery that does it: one of your grandmother's Polaroids shows the fire starting in her kitchen. The learner came as the café's ally. By the last panel they are the heir to the problem.*
 
 **How to read this script.** **A2** is the default line. **B1** is given only where it differs. Lines tagged *(silence)* have no dialogue. Character lines are captions under the art. **Your line** is drawn as a balloon inside its panel, with Toi seen from behind or cropped, never face-on. Notes marked **Note** are for the owner and are never shown to the learner.
@@ -8,8 +10,9 @@
 
 ## State in
 
-- The group is holding the party: «Les 25 ans du Mistral». Margaux took over the café in 2001. The party is also a fundraiser, a *cagnotte* for Margaux's lawyer. Marchand refuses to renew her lease «pour faute»: according to him, the café's old wiring burned his building in 2022.
+- The group is holding the party: «Les 25 ans du Mistral». Margaux took over the café in 2001. The party is also a fundraiser, a *cagnotte* for Margaux's lawyer. Marchand refuses to renew her lease «pour faute»: according to him, the café's old wiring burned his building in 2023. The official report says the fire started in the back room at **1:30 a.m.**, «origine électrique probable».
 - **«Le mur d'Odile».** You agreed to show your grandmother's Polaroids at the party, sixty of them pinned above the booth. Lila copied the handwriting on the back of each one onto a small card. Nobody has read every back: some of the Polaroids are stuck together.
+- **The reader already has the clue from T2:** the patch of fresher white above Odile's stove.
 - **Flags read:**
   - `s1.promised_to` decides which announcement the scene interrupts: Gus's petition or Marin's «Le Mistral à nous».
   - `s1.marchand_invited` decides whether Marchand is at the door.
@@ -19,7 +22,7 @@
 
 ---
 
-## The page
+## Day A · Saturday 5 December (the party)
 
 **P1.** *Visual:* Le Mistral at night, packed wall to wall. A banner painted by Lila hangs across the mirror: «LE MISTRAL · 25 ANS · ON RESTE». Gus stands on a chair, tapping a glass with a spoon. Marin holds the chair steady with both hands and looks worried. On the left, Romy has a small camera on a tripod, and its red light is on. Margaux is behind the zinc. Toi is in the foreground, from behind, carrying two glasses through the crowd.
 - CAPTION · A2 «Samedi soir. Le Mistral a vingt-cinq ans. Tout le quartier est là.» · B1 «Samedi soir. Le Mistral fête ses vingt-cinq ans, et tout le quartier s'y est serré.»
@@ -48,24 +51,34 @@
 
 **P7.** *Visual:* Three faces in a strip. Marin's smile going out. Gus, still on the chair, glass raised, the speech dying in his mouth. Romy's eyes moving to her camera, whose red light is still on.
 - MARIN *(very low)* · A2 «Le 14 mars… C'est la nuit du feu.»
-- GUS · A2 «Et alors ? Le feu, c'était en bas. Dans l'arrière-salle. Les fils électriques.» · B1 «Et alors ? Le feu est parti de l'arrière-salle, des vieux fils électriques. C'est dans le rapport. Tout le monde le sait.»
+- GUS · A2 «Et alors ? Le feu, c'était en bas. Dans l'arrière-salle, à une heure et demie. Les fils électriques.» · B1 «Et alors ? Le feu est parti de l'arrière-salle à une heure et demie, des vieux fils électriques. C'est dans le rapport. Tout le monde le sait.»
 
 ### Solve · L'enquête *(the page pauses)*
 
 The photograph is shown again, full screen, with one prompt: **«Le feu : en bas, ou en haut ? Montre.»** («Where was the fire? Show me.»)
 
 - **A1/A2.** Tap the detail that shows it. The target is the reversed neon, «LARTSIM». The pan and the smoke also count as «a reading»: the scene accepts the tap and Lila points to the neon.
-- **B1.** Two lines appear. Tap the one the photograph contradicts: Gus's «Le feu est parti de l'arrière-salle», or the handwriting «14 mars. 23 h.». The answer is Gus's line.
+- **B1.** Two lines appear. Tap the one the photograph contradicts: Gus's «Le feu est parti de l'arrière-salle à une heure et demie», or the handwriting «14 mars. 23 h.». The answer is Gus's line: the Polaroid shows a fire upstairs two and a half hours earlier.
 - **If the learner taps elsewhere,** Lila says quietly: A2 «Là. Les lettres. Elles sont à l'envers.» · B1 «Regarde les lettres du néon. On les voit d'en haut.» The page continues. Nothing is lost.
 
 > **Note.** This is the cruellest choice in the season, and it is deliberate. The learner is the one who reads the evidence against their own grandmother. We never praise the right answer: the scene simply moves to P8.
 
 **P8.** *Visual:* Margaux puts down the glass she was drying. Her hands are empty for the first time in the season. She is looking at you, not at Gus. Behind her, the Polaroid from P3 leans against the till.
-- MARGAUX · A2 «Non. Le feu a commencé en haut. Chez Odile.» *(beat)* «Je le sais depuis le début.» · B1 «Non. C'est parti de chez Odile.» *(beat)* «Je le sais depuis le premier soir.»
+- MARGAUX · A2 «Non. Le feu a commencé en haut. Chez Odile. À onze heures.» *(beat)* «Je le sais depuis le début.» · B1 «Non. C'est parti de chez Odile, à onze heures.» *(beat)* «Je le sais depuis le premier soir.»
+- LILA *(beside you, very low; the payoff of T2)* · A2 «Le mur de la cuisine… Le blanc.»
+
+### Mid-point hook
+
+**P8b.** *(silence)* *Visual:* The whole room, seen from the wall of Polaroids: forty faces turning from Margaux to you. The burnt Polaroid is still in Marin's fingers.
+- CAPTION · A2 «Margaux a menti pendant trois ans. Et maintenant, tout le monde te regarde. À suivre…» · B1 «Trois ans de silence, et une photo. Maintenant, c'est toi que tout le monde regarde. À suivre…»
 
 ---
 
-## The turn
+## Day B · Sunday 6 December (the same night, continued)
+
+**P0 · Précédemment.** A strip: Marin peeling the two Polaroids apart; «J'ai oublié. Encore.»; Margaux's empty hands.
+
+### The turn
 
 **P9.** *Visual:* Gus climbs down from the chair too fast, and his index cards spill across the floor. He stops in front of you. On your side stands the person you trusted with the notary's letter in T1 (`s1.letter_trusted_to`; if that was nobody, Lila). The crowd is a blur of faces. Your panel is drawn from behind your shoulder, facing Gus, with an empty balloon.
 - GUS · A2 «Et toi ? Tu as mis cette photo au mur. Tu le savais ?» · B1 «Et toi ? C'est toi qui as apporté ces photos. Tu le savais ?»
@@ -96,8 +109,10 @@ The photograph is shown again, full screen, with one prompt: **«Le feu : en bas
 
 ### Exchange 2: Margaux tells the night *(behind or across the zinc)*
 
-Two small flashback panels in faded inks, 2022: Odile on the stairs in her dressing gown, holding the smoking pan by its handle; Margaux in her apron with a fire extinguisher.
+Two small flashback panels in faded inks, 2023: Odile on the stairs in her dressing gown, holding the smoking pan by its handle; Margaux in her apron with a fire extinguisher.
 - ODILE *(flashback)* · A2 «Margaux… j'ai oublié la poêle.» · then: A2 «Ne dis rien. Sinon, ils vont me prendre ma maison.»
+- MARGAUX *(now)* · A2 «J'ai éteint. Mais à une heure et demie, le feu est revenu. En bas, par le vieux conduit. Les pompiers m'ont demandé : "Rien de spécial ce soir ?" J'ai dit non.» · B1 «Je l'ai éteint. Mais à une heure et demie, le feu est redescendu par le vieux conduit, dans l'arrière-salle. Les pompiers m'ont demandé s'il s'était passé quelque chose d'anormal. J'ai dit non.»
+- MARGAUX · A2 «La semaine après, j'ai repeint son mur.»
 - MARGAUX *(now)* · A2 «Un mois après, ta famille est venue. Elle m'a dit au revoir comme à une cliente.» · B1 «Un mois plus tard, ta famille est venue la chercher. Elle m'a dit au revoir comme on salue une cliente.»
 - *(silence panel: Margaux dries a glass that is already dry.)*
 - MARGAUX · A2 «Tu m'en veux ?» · B1 «Tu m'en veux, d'avoir menti pour elle ?»
@@ -122,13 +137,15 @@ Two small flashback panels in faded inks, 2022: Odile on the stairs in her dress
 - **In every route, at the door,** he converts grief into procedure. MARCHAND · A2 «Le feu est parti de chez elle. Alors les dégâts… c'est la famille qui paie. C'est vous, maintenant.» · B1 «Vous comprenez ce que ça veut dire ? Le feu est parti de chez elle. Les dégâts, c'est sa succession qui les doit. C'est-à-dire vous.»
 
 **If Marchand is not here.** *Visual:* Romy switches the camera off in front of you, so you can see her do it.
-- ROMY · A2 «J'ai éteint. Mais j'ai tout vu.» · then A2 «Tu comprends ? Si le feu vient de chez elle… les dégâts, c'est pour toi. Pour l'appartement.» · B1 «Tu comprends ce que ça implique ? Si le feu est parti de chez elle, les dégâts reviennent à sa succession. À toi.»
+- ROMY · A2 «J'ai éteint. Mais j'ai tout vu.» *(she holds up the memory card; the camera had been on since P1)* A2 «Et tout est là-dessus.» · then A2 «Tu comprends ? Si le feu vient de chez elle… les dégâts, c'est pour toi. Pour l'appartement.» · B1 «Tu comprends ce que ça implique ? Si le feu est parti de chez elle, les dégâts reviennent à sa succession. À toi.»
 - ROMY · A2 «Tu veux que j'oublie ?»
 - *«Oui, s'il te plaît.»* → ROMY · A2 «Je peux me taire. Je ne peux pas oublier. C'est mon métier.» · B1 «Me taire, je peux. Oublier, non. C'est mon métier, voyons.»
 - *«Non. Écris la vérité.»* → ROMY · A2 «Pas ce soir. Ce soir, je suis ton amie. Demain, on verra.»
 - *Clumsy («Oublier… comme elle ? Non. Pas oublier.»)* → ROMY *(a beat; she puts the lens cap on)* · A2 «D'accord. Personne n'oublie. Mais personne n'écrit. Pas encore.»
 
 > **Note.** Both routes deliver the same blow, «your inheritance is part of the problem». Only the messenger differs, and the messenger shapes T6: the man who could forgive, or the journalist who could publish.
+
+**Romy's card (both variants, S-2 thread).** *(silence panel)* *Visual:* Romy ejects the memory card from the camera and slides it into the inside pocket of her leather jacket. She looks at you as she does it, so that it is not a theft. It is a question for later. → `romy.footage = with_romy`. The card holds the whole reveal, the Polaroid and Margaux's «Je le sais depuis le début», and it comes back in T6.
 
 ---
 
@@ -185,6 +202,7 @@ Two cards:
 - `s1.fire_photo = wall | margaux`
 - `s1.estate_liable = true`: the inheritance now carries the fire's costs
 - `s1.lied_to_marchand` (only if the kind lie was told)
+- `romy.footage = with_romy` (fixed)
 - `margaux.secret = exposed_to_group`
 - `mistral.villain_story = broken`: generated days may no longer write Marchand as the villain
 

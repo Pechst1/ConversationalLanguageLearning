@@ -1,5 +1,7 @@
 # Tentpole 5 · «Berlin»
 
+*Days 33–34 · Sunday 13 and Monday 14 December; her deadline is the 15th. Each variant runs as Day A, then a mid-point hook, then Day B, which picks up the same night.*
+
 *Lila has a one-year residency in Berlin: a studio, a grant and a date, 9 January. She wants it. She tells you, or you find out first, and which one depends on what you did with the photograph in T4. On the romance path, what she tells you and what you say back are also about the two of you. On the friendship path they are about courage.*
 
 **How to read this script.** It uses the same conventions as T4. **A2** is the default line and **B1** is given only where it differs. *(silence)* panels have no dialogue. Character lines are captions. **Your line** is a balloon in its panel. **Note** lines are for the owner only.
@@ -33,8 +35,10 @@
 
 ## Variant A · «Elle te le dit»
 
-**P1.** *Visual:* Le Mistral, Monday, closing time. Chairs going up on tables. Gus, already in his coat, stands in the middle of the room with a list; Marin stacks chairs and listens patiently.
-- GUS · A2 «La boulangère m'a rendu la monnaie… sans parler. Sans parler, Marin !» · B1 «La boulangère m'a rendu la monnaie en silence. En silence, Marin ! Depuis samedi, je suis un paria.»
+### Day A · Sunday 13 December
+
+**P1.** *Visual:* Le Mistral, Sunday, closing time. Chairs going up on tables. Gus, already in his coat, stands in the middle of the room with a list; Marin stacks chairs and listens patiently.
+- GUS · A2 «La boulangère m'a rendu la monnaie… sans parler. Sans parler, Marin !» · B1 «La boulangère m'a rendu la monnaie en silence. En silence, Marin ! Depuis samedi dernier, je suis un paria.»
 - MARIN · «C'est peut-être un signe.»
 - GUS · «Un signe de quoi ?»
 - MARIN · «Je sais pas encore.»
@@ -79,6 +83,16 @@
 **(d) Deflection.** *«Et Marin ? Et le Mistral ?»*
 - LILA · A2 «Voilà. Tout le monde pense à Marin. Moi, je t'ai demandé à toi.» · B1 «Et voilà. Tout le monde pense d'abord à Marin. C'est à toi que je pose la question.»
 - **Note.** The exchange repeats once. The deflection is exactly the group habit Lila is trying to leave.
+
+### Mid-point hook (A)
+
+**P7b.** *Visual:* Lila puts her cup down and walks round the end of the zinc, past you, to the door of the back room. She stops with her hand on the handle and looks back.
+- LILA · A2 «Viens. Je dois te montrer quelque chose.» · B1 «Viens. Il y a quelque chose que je dois te montrer.»
+- CAPTION · A2 «Dans l'arrière-salle, sous un drap, Lila cache quelque chose depuis des mois. À suivre…» · B1 «Derrière cette porte, sous un drap, Lila garde quelque chose depuis des mois. À suivre…»
+
+### Day B · Monday 14 December (the same night, continued)
+
+**P0 · Précédemment.** A strip: the Berlin letter on the zinc; «Dis-moi un truc vrai.»; your reply as a balloon; Lila's hand on the back-room door.
 
 ### Exchange 2: the portrait
 
@@ -128,10 +142,12 @@
 
 *(Odile's flat, `s1.lila_has_key = true`. See the end note for the version without the key.)*
 
+### Day A · Sunday 13 December
+
 **P1.** *Visual:* The stairwell at night. Your hand with the key; the timed light ticking. Under Odile's door there is a line of light that should not be there.
 - CAPTION · A2 «Deux heures du matin. Tu ne dors pas. En haut, il y a de la lumière.» · B1 «Deux heures du matin. Impossible de dormir. Là-haut, quelqu'un a laissé la lumière.»
 
-**P2.** *(silence)* *Visual:* Odile's room, empty of people. Her things have been pushed carefully to one side: her chair, her Polaroid box, her calendar still on May 2022. The space is full of Lila: an easel, a canvas half-wrapped in bubble wrap, and a wooden crate. On the drainer, two washed mugs, one of them the one you always use. She has been coming here for weeks.
+**P2.** *(silence)* *Visual:* Odile's room, empty of people. Her things have been pushed carefully to one side: her chair, her Polaroid box, her calendar still on April 2023. The space is full of Lila: an easel, a canvas half-wrapped in bubble wrap, and a wooden crate. On the drainer, two washed mugs, one of them the one you always use. She has been coming here for weeks.
 
 **P3.** *(silence)* *Visual:* Close on the crate. The stencil is legible: **FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL**.
 
@@ -161,6 +177,14 @@ The card fills the screen.
 > **Note.** This is the owner's own example of Déchiffrer («an invitation, an apology or a goodbye?»), and the honest answer is «the three». The learner is doing exactly what a reader does with a message from someone they care about.
 
 **P5.** *(silence)* *Visual:* The doorway. Lila with two paper cups from the all-night place on the corner, one of them your usual. She sees you, sees the card in your hand, and stops.
+
+### Mid-point hook (B)
+
+- CAPTION · A2 «Deux cafés. Une carte pas finie. Et Lila à la porte. À suivre…» · B1 «Deux cafés, une carte inachevée, et Lila sur le seuil. À suivre…»
+
+### Day B · Monday 14 December (the same night, continued)
+
+**P0 · Précédemment.** A strip: the crate stencilled «BERLIN»; the unfinished card; Lila frozen in the doorway with two cups.
 
 **P6.** *Visual:* Two-shot across the crate.
 - LILA · A2 «Tu as lu.» *(not a question)*

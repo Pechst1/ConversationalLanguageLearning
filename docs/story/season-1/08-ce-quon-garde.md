@@ -1,5 +1,7 @@
 # Tentpole 8 · «Ce qu'on garde»
 
+*Days 58–59 · Thursday 7 and Friday 8 January, the day of Lila's train and the end of Solvel's offer.*
+
 *The season finale, in three endings. Each one answers the central question («tu le gardes, tu le partages, ou tu le laisses partir ?»), each has a cost somebody pays, and in each the apartment gives up Odile's letter, which points somewhere else. All three are good endings. None of them is the one where you «lost».*
 
 **How to read this script.** It uses the same conventions as T4 and T5. **A2** is the default line and **B1** is given only where it differs. *(silence)* panels have no dialogue. Character lines are captions. **Your line** is a balloon in its panel. **Note** lines are for the owner only.
@@ -10,11 +12,15 @@
 
 | Ending | Requires | The cost | Who «wins» the argument |
 |---|---|---|---|
-| **1 · Garder** | `evidence_shared = marchand_only` · `flat = keep` | Marchand leaves the building he lived in for 41 years. Margaux still carries the café alone. | Gus: everything stays. |
+| **1 · Garder** | `evidence_shared = marchand_only` · Margaux persuaded in T7 · `flat = keep` | Marchand leaves the building he lived in for 41 years. Margaux still carries the café alone. | Gus: everything stays. |
 | **2 · Partager** | The truth made public (`fire_photo = wall` or `evidence_shared = public`) · Gus persuaded in T7 · `flat = coop` | You give up the flat. Gus loses the café of his childhood as it was. | Marin: it changes so it can survive. |
 | **3 · Laisser partir** | Chosen in T7, with Margaux: `flat = sell` | The group loses its home. | Lila: nobody holds anybody back. |
 
-**The day.** All three endings take place on **7 January**, the eve of Lila's train, and end on the morning of **8 January**. Lila leaves in every ending. What the endings change is what she leaves behind.
+**The days.** Each ending runs over two days, like every tentpole:
+- **Day A · Thursday 7 January.** The ending's page, your turn, and at night the apartment yields Odile's letter. The mid-point hook is the letter's last line.
+- **Day B · Friday 8 January.** The platform at 9:55, then the painting and «À suivre…».
+
+Lila leaves in every ending. What the endings change is what she leaves behind.
 
 ---
 
@@ -112,7 +118,9 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 
 ## Ending 1 · «Garder»
 
-*What happened in T6/T7.* You showed Marchand, and only Marchand, Odile's notebook page: «J'ai demandé à Margaux de mentir. C'est ma faute, pas la sienne.» He withdrew the complaint and renewed Margaux's lease for nine years. To pay for a place in a residence without stairs, he sold his own two floors to Solvel. You kept the flat and are moving in. The café stays exactly as it was. The secret stays inside four people.
+*What happened in T6/T7.* You showed Marchand, and only Marchand, Odile's notebook page: «J'ai demandé à Margaux de mentir. C'est ma faute, pas la sienne.» He withdrew the complaint and renewed Margaux's lease for nine years. To pay for a place in a residence without stairs, he sold his floors above the café to Solvel. He kept the café's walls, so Margaux's rent now pays for his residence. You kept the flat and are moving in. The café stays exactly as it was. The secret stays inside four people.
+
+### Day A · Thursday 7 January
 
 **P1.** *Visual:* Morning. Gus on a ladder by the door, screwing up a brass plaque: «LE MISTRAL · DEPUIS 1951». Marin holds the ladder with both hands, as he held the chair in T4.
 - GUS · A2 «Plus haut ? Plus bas ?»
@@ -132,7 +140,7 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 
 - **(a)** *«Oui. Je reste. J'habite en haut maintenant.»* → MARCHAND · A2 «Alors fermez bien la fenêtre de la cuisine. Elle ne ferme pas. Elle n'a jamais fermé.» · B1 «Alors fermez bien la fenêtre de la cuisine. Elle ferme mal. Elle a toujours mal fermé.»
   > **Note.** He knows that kitchen. Six years of Sundays.
-- **(b)** *«Je ne sais pas.»* → MARCHAND · A2 «Elle non plus, elle ne savait pas. Elle est restée treize ans.»
+- **(b)** *«Je ne sais pas.»* → MARCHAND · A2 «Elle non plus, elle ne savait pas. Elle est restée quatorze ans.»
 - **(c) Clumsy but sincere.** *«Je reste… pour elle ? Non. Pour moi. Et un peu pour vous. Vous venez le dimanche ?»* → *(silence panel: the «softened» expression, a small reluctant nod)* · MARCHAND · A2 «Le dimanche… On verra. Il y a le bus 46.»
   > **Note.** The Sunday lunches pass from Odile to her grandchild. This is the best version of the ending.
 - **(d)** *«Pardon. Vous partez à cause de nous.»* → MARCHAND · A2 «Non. Je pars à cause de l'escalier.» *(beat)* «Et un peu à cause de vous. Ce n'est pas grave.»
@@ -147,6 +155,15 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 **R3: the apartment.** *Visual:* Your first night living upstairs. The radiator is cold (the season's oldest joke). You kneel and hit it, as Marin taught you. Behind the valve, something taped to the wall shifts and slides: an envelope. → **The letter** (Déchiffrer).
 - *Romance:* Lila came up at midnight to say goodbye and is reading over your shoulder. When you reach «quelqu'un», her hand finds your sleeve. *(silence)*
 - *Friendship:* Lila on the phone, packing: LILA · A2 «Lis-le-moi. Tout. Lentement.»
+
+### Mid-point hook (1)
+
+- *(silence)* The last line of the letter, alone on the panel: «Pour l'autre, regarde derrière le tableau du Mistral.» Through the floor, the café is dark, and the painting hangs on its nail directly below you.
+- CAPTION · A2 «Le tableau est juste en dessous. Demain matin, Lila part. À suivre…»
+
+### Day B · Friday 8 January
+
+**P0 · Précédemment.** A strip: the radiator; the envelope; «…et quelqu'un.»
 
 **R4.** → **The platform** (common).
 
@@ -163,7 +180,7 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 - **Gus** is happiest in this ending, and knows nothing of the notebook.
 - **Marin** puts his folder in a drawer. He brings it up once, gently, in season 2.
 - **Margaux** knows you protected her the way she protected Odile.
-- **Romy** knows there is a story she wasn't given, and she lets it go, once.
+- **Romy** knows there is a story she wasn't given, and she lets it go, once. If `romy.footage = kept`, she gives you the memory card on the platform, without a word.
 - **Marchand** comes on Sundays if (c).
 
 ---
@@ -171,6 +188,8 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 ## Ending 2 · «Partager»
 
 *What happened in T6/T7.* The truth is public: Romy's article, published with your consent, «Le feu du Mistral : une histoire de loyauté». The quartier came. Odile's forty pledges became 212 members of «Le Mistral à nous». Marchand sold the walls to the co-op and not to Solvel, for less, because Odile's notebook had his line: «oui, si Margaux reste». The fire damage was paid from the sale of your flat to the co-op at a low price. The flat is now the co-op's workshop, with painting classes for children in the afternoon, and the meeting room. You rent the little room under the roof from the co-op.
+
+### Day A · Thursday 7 January
 
 **P1.** *Visual:* 8 a.m., the first day of the new Mistral. A queue of neighbours with bowls. Marin at the pass in an apron, flushed and joyful, ladling soup. Margaux behind the zinc, same as ever, with a new badge: «Margaux · sociétaire n° 1».
 - MARIN · A2 «Soupe de poisson ! Recette de ma grand-mère ! Elle disait toujours…»
@@ -195,11 +214,19 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 
 **R1.** *(silence)* *Visual:* 11 a.m. Margaux on a bench by the canal, doing nothing, her face in the winter sun. The first day off in twenty-five years.
 
-**R2: the apartment.** *Visual:* That afternoon, the co-op's builders are tearing out Odile's burnt kitchen to make the workshop. A builder hands you an envelope he found behind the tiles, just above where the stove stood.
+**R2: the apartment.** *Visual:* That afternoon, the co-op's builders are tearing out Odile's old kitchen to make the workshop. A builder hands you an envelope he found behind the tiles, just above where the stove stood.
 - MARIN *(in the doorway)* · A2 «Elle l'a caché derrière le feu.» · B1 «Elle l'a caché derrière le feu. Si ça, c'est pas un signe…»
 - → **The letter** (Déchiffrer).
 - *Romance:* Lila is in the doorway too, measuring the wall where her easel would go if she came back. She doesn't say it. *(silence)*
 - *Friendship:* Lila: A2 «Lis. Et après, on cherche ce tableau.»
+
+### Mid-point hook (2)
+
+- CAPTION · A2 «Derrière le tableau du Mistral… Mais le tableau n'est plus au mur depuis les travaux. Demain matin, Lila part. À suivre…»
+
+### Day B · Friday 8 January
+
+**P0 · Précédemment.** A strip: the builders' tiles; the envelope; «…et quelqu'un.»
 
 **R3.** → **The platform** (common).
 
@@ -226,6 +253,8 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 ## Ending 3 · «Laisser partir»
 
 *What happened in T6/T7.* In T7, Margaux said the sentence she had never said: «Je veux voir la mer avant d'être vieille. Enfin… plus vieille.» You chose with her to let it go. You sold the flat to Solvel, and the price paid the fire damage and the insurer. Solvel's compensation cleared Margaux's debts. Le Mistral closes tonight. The group loses its home.
+
+### Day A · Thursday 7 January
 
 **P1.** *Visual:* Afternoon. A brocante dealer and his son carry chairs out to a white van. Among them, under the son's arm, is the painting from above the zinc. *(The reader sees it go. The learner's character does not.)*
 - CAPTION · A2 «Dernier jour. Tout part : les chaises, les verres, les tableaux.» · B1 «Dernier jour. Tout s'en va : les chaises, les verres, les tableaux.»
@@ -259,7 +288,15 @@ One panel in every ending. Camille Marchand is about thirty, rooted in the 10th,
 - *Romance:* Lila is carrying the other end of the table. She sets it down and sits on it. *(silence)*
 - *Friendship:* LILA · A2 «Lis. Je tiens la table.»
 
-**R3.** You run downstairs to the empty café. The nail above the zinc is bare. The white van left hours ago.
+**R3.** *Visual:* You run downstairs to the empty café. The nail above the zinc is bare. The white van left hours ago.
+
+### Mid-point hook (3)
+
+- CAPTION · A2 «Le tableau est parti cet après-midi. Et demain matin, Lila part aussi. À suivre…» · B1 «Le tableau est parti cet après-midi, dans une camionnette. Demain matin, c'est le tour de Lila. À suivre…»
+
+### Day B · Friday 8 January
+
+**P0 · Précédemment.** A strip: the neon going out; the table turned over; the bare nail.
 
 **R4.** → **The platform** (common). Margaux is there with her own bag, packed for Brittany.
 

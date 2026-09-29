@@ -1,5 +1,7 @@
 # Saison 1 · «La clé d'Odile» (season bible sketch)
 
+> **Superseded by `00-season-bible.md` (2026-09-30).** This sketch is kept as history. It is what the owner approved, with decisions S-1..S-8. Three things changed since: Odile's flat is now on the **first** floor (the fire has to reach the café), and the fire's timing is now 23:00 upstairs, 1:30 in the back room. The fire and Odile's departure move from 2022 to **March–April 2023**, so that «trois ans» is true in December 2026.
+
 *Writers' room, 2026-09-30. A sketch for the owner to judge the premise; not yet the WP-111 bible.*
 
 ## The central question
