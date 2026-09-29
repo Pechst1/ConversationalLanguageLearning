@@ -101,8 +101,9 @@ def test_the_journal_is_a_cahier_tab_with_a_french_label():
     cahier = CAHIER.read_text(encoding="utf-8")
     assert "journal: 'mode_journal'" in cahier
     assert "mode_journal: 'Journal'" in _table("fr")
-    assert "'grammar', 'vocabulary', 'journal', 'releve'" in cahier
-    assert "'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library'" in cahier
+    # WP-95: «Carnet» follows the Relevé.
+    assert "'grammar', 'vocabulary', 'journal', 'releve', 'carnet'" in cahier
+    assert "'grammar' | 'vocabulary' | 'journal' | 'releve' | 'carnet' | 'library'" in cahier
 
 
 def test_the_tab_is_deep_linkable_remembered_and_titled_in_french():
