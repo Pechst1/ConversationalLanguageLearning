@@ -1544,6 +1544,7 @@ def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
     provider.season_engine = True
     d = driver(assembled_client, db_session, cefr="A2.2")
     speakers = [CAST["romy"], CAST["margaux"], CAST["lila"]]
+    side_stories: set = set()
     for day in range(1, SEASON_RUN_DAYS + 1):
         play_day(
             d,
@@ -1556,6 +1557,13 @@ def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
                 extra={"development_index": 1 + day % 2},
             ),
         )
+        # WP-98: season three is authored, so the chronicle's detailed tail may be a
+        # later season by day 200 — side stories are collected as the life goes.
+        side_stories |= {
+            row.get("event_id")
+            for row in live_state(db_session, d).get("chronicle") or []
+            if row.get("kind") != "season" and row.get("side_story")
+        }
         clock.advance(days=1)
 
     contexts = provider.director_contexts()
@@ -1585,13 +1593,14 @@ def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
     chapters = _chapter_rows(db_session, d)
     assert int(live["season_index"]) >= 2, "two hundred days must reach a second season"
     assert int(thread.world_bible["season_number"]) >= 2
+    # WP-98: season three is authored too, so two hundred days may already be in it —
+    # whichever season this is, the arcs on the thread are that season's own.
+    from app.services.serial import SerialThreadService
+
+    authored = SerialThreadService.authored_season_world_bible(int(live["season_index"]))
     assert {arc["id"] for arc in thread.world_bible["season_arcs"]} == {
-        "romy_montreal_deadline",
-        "lila_berlin_opening",
-        "gus_creteil_truth",
-        "marin_father_call",
-        "user_chosen_paris",
-    }, "the second season's own arcs"
+        arc["id"] for arc in authored["season_arcs"]
+    }, "the current season's own arcs"
     assert live["seasons"] and live["seasons"][0]["season"] == 1
 
     # 3. What the learner lived came with them, and the chronicle folds per season.
@@ -1606,7 +1615,7 @@ def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
 
     # 4. The arcs were gated, not rubber-stamped: side stories exist, and no arc ever
     #    advanced two stages inside `min_episodes_between_stages` days.
-    assert any(row.get("side_story") for row in live["chronicle"] if row.get("kind") != "season"), (
+    assert side_stories, (
         "a chapter that claimed no stage is recorded as a side story"
     )
 

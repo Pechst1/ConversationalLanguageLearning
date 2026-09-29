@@ -1812,11 +1812,11 @@ def test_season_finale_without_next_season_enters_interlude(db_session, monkeypa
     thread = _run(service.get_or_create_thread(user))
     thread.current_episode_index = 96
     world = dict(thread.world_bible or {})
-    world["season_number"] = 2
+    world["season_number"] = 3
     thread.world_bible = world
     _complete_season_arcs(thread, episode_index=95)
     state = dict(thread.state or {})
-    state["season_number"] = 2
+    state["season_number"] = 3
     thread.state = state
     finale_payload = SerialArcPlanner(thread).plan_next_episode("see").model_dump(mode="json")
     assert finale_payload["season_finale"] is True
@@ -1874,7 +1874,7 @@ def test_season_finale_without_next_season_enters_interlude(db_session, monkeypa
     assert thread.state["season_complete"] is True
     assert thread.state["interlude_mode"] is True
     assert thread.state["interlude_since_episode"] == 97
-    assert thread.world_bible.get("season_number") == 2
+    assert thread.world_bible.get("season_number") == 3
 
     next_brief = SerialArcPlanner(thread).plan_next_episode("act").model_dump(mode="json")
     assert next_brief["interlude"] is True
@@ -1895,7 +1895,7 @@ def test_interlude_briefs_rotate_and_never_repeat_a_finale(db_session):
     thread.state = state
 
     beat_ids = []
-    for index in range(97, 103):
+    for index in range(97, 97 + 2 * len(INTERLUDE_BEATS)):
         thread.current_episode_index = index
         brief = SerialArcPlanner(thread).plan_next_episode("see" if index % 2 else "act").model_dump(mode="json")
         assert brief["interlude"] is True

@@ -51,6 +51,13 @@ def _engine_version() -> str:
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
 WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v1.json"
 WORLD_BIBLE_S2_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s2.json"
+WORLD_BIBLE_S3_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s3.json"
+# WP-98: every authored season after the first, by number. A season with no file here
+# is either written by `season_writer` (behind ATELIER_SEASON_WRITER_ENABLED) or waited
+# for in a named interlude with a return date — never an unbounded one.
+AUTHORED_SEASON_PATHS: dict[int, Path] = {2: WORLD_BIBLE_S2_PATH, 3: WORLD_BIBLE_S3_PATH}
+# Keys of a season file that are directives to the merge, not world-bible content.
+SEASON_MERGE_DIRECTIVES = frozenset({"cast_updates", "cast_additions", "locations_fr"})
 
 
 def _compact(value: Any, max_length: int) -> str:
@@ -1546,15 +1553,66 @@ class SerialThreadService:
         return dict(thread.state or state)
 
     def _load_next_season_world_bible(self, *, current_world: dict[str, Any], next_season: int) -> dict[str, Any]:
-        if next_season != 2:
+        season_world = self.authored_season_world_bible(next_season)
+        if not season_world:
+            return {}
+        return self.merge_season_world_bible(current_world, season_world, next_season=next_season)
+
+    @staticmethod
+    def authored_season_world_bible(season: int) -> dict[str, Any]:
+        """The authored season file for ``season`` (2, 3, …), or ``{}`` when none exists."""
+
+        path = AUTHORED_SEASON_PATHS.get(int(season))
+        if path is None:
             return {}
         try:
-            season_world = json.loads(WORLD_BIBLE_S2_PATH.read_text(encoding="utf-8"))
+            loaded = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {}
+        return loaded if isinstance(loaded, dict) else {}
+
+    @staticmethod
+    def merge_season_world_bible(
+        current_world: dict[str, Any], season_world: dict[str, Any], *, next_season: int
+    ) -> dict[str, Any]:
+        """Lay one season file over the world the life is already in (WP-63/WP-98).
+
+        Top-level keys replace; the cast, the places and the art are carried. Three
+        directives are applied instead of copied: ``cast_updates`` (per-character
+        fields that change this season, e.g. a new secret), ``cast_additions`` (a
+        character who joins — never one already present) and ``locations_fr`` (the
+        French name of each place, filled where the carried setting lacks one).
+        """
+
         next_world = dict(current_world or {})
         for key, value in season_world.items():
+            if key in SEASON_MERGE_DIRECTIVES:
+                continue
             next_world[key] = value
+        cast = [dict(member) for member in next_world.get("cast") or [] if isinstance(member, dict)]
+        updates = season_world.get("cast_updates") or {}
+        if isinstance(updates, dict):
+            for member in cast:
+                patch = updates.get(str(member.get("id")))
+                if isinstance(patch, dict):
+                    member.update(patch)
+        known = {str(member.get("id")) for member in cast}
+        for member in season_world.get("cast_additions") or []:
+            if isinstance(member, dict) and member.get("id") and str(member["id"]) not in known:
+                cast.append(dict(member))
+                known.add(str(member["id"]))
+        if cast or "cast" in next_world:
+            next_world["cast"] = cast
+        names_fr = season_world.get("locations_fr") or {}
+        setting = next_world.get("setting")
+        if isinstance(names_fr, dict) and isinstance(setting, dict):
+            places = []
+            for place in setting.get("recurring_locations") or []:
+                if isinstance(place, dict) and place.get("id") and not place.get("name_fr"):
+                    name = names_fr.get(str(place["id"]))
+                    place = {**place, **({"name_fr": name} if name else {})}
+                places.append(place)
+            next_world["setting"] = {**setting, "recurring_locations": places}
         next_world["season_number"] = next_season
         return next_world
 

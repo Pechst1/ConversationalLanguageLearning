@@ -451,6 +451,14 @@ class Settings(BaseSettings):
         True, description="Generate new daily situations and semantic responses from shared serial state."
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    ATELIER_SEASON_WRITER_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-98: past the last authored season, draft the next season's arcs from the "
+            "learner's own material (one director call, critic-gated). Off: a named "
+            "interlude with a return date, then a reprise season built without a model."
+        ),
+    )
     ATELIER_STORY_TURN_LANES_ENABLED: bool = Field(
         True,
         description=(

@@ -1,6 +1,8 @@
 {
   "world_bible_version": "paris-s2",
   "season_number": 2,
+  "season_title_fr": "Choisir Paris",
+  "season_logline_fr": "Le groupe n'est plus nouveau pour vous. Montréal, Berlin, Créteil, un père au téléphone : chacun doit choisir sa vie, et vous aussi.",
   "season_two_situation": {
     "your_arc": "The group is no longer new to you; the question becomes what kind of Paris life you are choosing on purpose.",
     "open_threads": [

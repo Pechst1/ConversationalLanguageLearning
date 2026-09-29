@@ -687,7 +687,15 @@ last chapter: build it from season.finale.heaviest (the consequences that weigh 
 and season.finale.unpaid_plants, bring the threads that are still open into one room,
 and end the season — do not open a new question you cannot answer here. During
 "interlude" write the quiet authored beat in season.interlude: no arc, no crisis, no
-finale, only the group being ordinary together before a new season starts.
+finale, only the group being ordinary together before a new season starts
+(season.interlude.returns_on is the day the next season begins — never promise more).
+When season.premiere is present, this is the FIRST chapter of a new season: open it
+from the season's first_episode_seed and let its title and logline be felt, not recited.
+gap_days is how many days since the learner last finished a day. When absence is
+present, the learner is coming back after absence.days days: the addressed character's
+opening line greets them back warmly and simply — glad to see them, curious, maybe one
+thing that happened meanwhile — and NEVER guilt-trips (no reproach, no "where were you",
+no "you abandoned us", no counting the days at them).
 VOCABULARY (the scene is where this learner's words come from). lexicon names three to
 five words this scene teaches, chosen for the learner's level: concrete, useful words a
 learner at that band does not know yet and will meet again — never names, never the
@@ -1661,10 +1669,13 @@ def season_situation(world: dict) -> dict:
     ``season_two_situation``, which ``_season_projection`` cannot read»).
     """
 
+    from app.services.season_writer import situation_key
+
     number = _int_or(world.get("season_number"), 1)
-    ordinals = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
-    keys = [f"season_{ordinals.get(number, '')}_situation"] + [
-        key for key in world if isinstance(key, str) and key.endswith("_situation")
+    # WP-98: a written season past nine uses the generic key; the fallback scan reads
+    # the most recently merged situation first, never season one's by accident.
+    keys = [situation_key(number), "season_situation"] + [
+        key for key in reversed(list(world)) if isinstance(key, str) and key.endswith("_situation")
     ]
     for key in keys:
         value = world.get(key)
@@ -1950,7 +1961,9 @@ def chapter_after_scene(chapter: dict, draft: SceneDraft, turn: SemanticTurn, ev
     # happened in this scene. A chapter that never claims one is a side story — a
     # good evening in this life that did not advance the season, recorded as such
     # rather than silently credited with a stage.
-    if draft.advances_arc and draft.arc_id:
+    if draft.advances_arc and draft.arc_id and not chapter.get("interlude"):
+        # (An interlude chapter opens no arc: between two seasons it is a side story
+        # whatever the draft claims — WP-98.)
         chapter["stage_reached"] = True
         chapter["side_story"] = False
         if draft.arc_stage_id:
@@ -3534,12 +3547,25 @@ def finale_context(live: dict, *, world: dict, day: int) -> dict:
     }
 
 
-def interlude_beat(seed: str, index: int) -> dict:
-    """One authored between-seasons beat, reused from the serial's own deck."""
+def interlude_beats(world: dict | None = None) -> list[dict]:
+    """The between-seasons deck: the season's own authored beats first (WP-98), then
+    the serial's shared ones — so a named interlude of two weeks does not replay three."""
 
     from app.services.serial_arc_planner import INTERLUDE_BEATS
 
-    beat = INTERLUDE_BEATS[_die(seed, "interlude", int(index)) % len(INTERLUDE_BEATS)]
+    own = [
+        beat
+        for beat in (world or {}).get("interlude_beats") or []
+        if isinstance(beat, dict) and beat.get("id")
+    ]
+    return [*own, *INTERLUDE_BEATS]
+
+
+def interlude_beat(seed: str, index: int, world: dict | None = None) -> dict:
+    """One authored between-seasons beat, dealt per learner from the deck."""
+
+    deck = interlude_beats(world)
+    beat = deck[_die(seed, "interlude", int(index)) % len(deck)]
     return {
         "id": beat.get("id"),
         "summary": beat.get("summary"),
@@ -3555,44 +3581,101 @@ def interlude_beat(seed: str, index: int) -> dict:
 # --- escalation: a problem may come back exactly once ------------------------
 
 
-def roll_over_season(db: Session, thread: Any, live: dict, *, day: int) -> bool:
-    """Close this season and open the next one on the same life (WP-63 §6).
+def roll_over_season(
+    db: Session,
+    thread: Any,
+    live: dict,
+    *,
+    day: int,
+    today: str | None = None,
+    user: User | None = None,
+) -> bool:
+    """Close this season and open the next one on the same life (WP-63 §6, WP-98).
 
-    The world bible is swapped for the authored next season — the serial's own
-    loader, so cast, locations and art are carried and only the arcs, the threads
-    and the agendas are new. What the learner *lived* survives untouched: the
-    chronicle (which folds per season, as WP-62 built it to), the consequences, the
-    plants, the secrets, the moods, the commitments. The season counters are the only
-    thing reset, because they are the only thing that belonged to season one.
+    The world bible is swapped for the next season — the cast, locations and art are
+    carried and only the arcs, the threads and the agendas are new. What the learner
+    *lived* survives untouched: the chronicle (which folds per season, as WP-62 built it
+    to), the consequences, the plants, the secrets, the moods, the commitments. The
+    season counters are the only thing reset, because they are the only thing that
+    belonged to the season just finished.
 
-    Returns False when no next season is authored: the life then stays in the
-    interlude, playing quiet chapters, rather than looping a second finale — the
-    "entre deux saisons" rule the legacy engine already settled on.
+    The next season is, in order: the authored one (seasons 2 and 3); a written one
+    (``season_writer``, behind ``ATELIER_SEASON_WRITER_ENABLED``); or none yet — then
+    the interlude is NAMED, ``live["interlude"] = {since, returns_on, reason_fr}``, and
+    this returns False. Asked again on or after ``returns_on`` with still nothing
+    written, the reprise season (``season_writer.reprise_season``, no model call)
+    begins: the date the learner was promised is kept, and no interlude is unbounded.
     """
 
+    from app.services import season_writer
     from app.services.serial import SerialThreadService
 
     world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     season = int(live.get("season_index") or _int_or(world.get("season_number"), 1))
-    # Facts the finished season established outlive its arc counters, so a later
-    # season's `entry_requires` can still read what this life has actually done.
-    live["world_flags"] = {
-        **(live.get("world_flags") or {}),
-        **arc_flags(list(world.get("season_arcs") or []), live.get("arc_progress") or {}),
-    }
-    live["threads_archive"] = [
-        *(live.get("threads_archive") or []),
-        *[
-            {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"], "season": season}
-            for row in threads_projection(world, live)
-        ],
-    ][-20:]
-    following = SerialThreadService(db)._load_next_season_world_bible(
-        current_world=world, next_season=season + 1
-    )
-    if not following:
+    today_iso = _date_of(today) or _today().isoformat()
+    if live.get("archived_season") != season:
+        # Facts the finished season established outlive its arc counters, so a later
+        # season's `entry_requires` can still read what this life has actually done.
+        # Archived once per season: a named interlude asks again, it does not re-archive.
+        live["world_flags"] = {
+            **(live.get("world_flags") or {}),
+            **arc_flags(list(world.get("season_arcs") or []), live.get("arc_progress") or {}),
+        }
+        live["threads_archive"] = [
+            *(live.get("threads_archive") or []),
+            *[
+                {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"], "season": season}
+                for row in threads_projection(world, live)
+            ],
+        ][-20:]
+        live["archived_season"] = season
+    interlude = dict(live.get("interlude") or {})
+    if interlude.get("returns_on") and today_iso < str(interlude["returns_on"]):
         live["season_stage"] = "interlude"
         return False
+    service = SerialThreadService(db)
+    following = service._load_next_season_world_bible(current_world=world, next_season=season + 1)
+    source = "authored"
+    if not following and settings.ATELIER_SEASON_WRITER_ENABLED:
+        written = season_writer.draft_next_season(
+            live=live, world=world, next_season=season + 1, db=db, user=user
+        )
+        if written:
+            following = service.merge_season_world_bible(world, written, next_season=season + 1)
+            source = "written"
+    if not following and interlude.get("returns_on"):
+        # The promised day has come and nothing was written: the story resumes anyway,
+        # from what this life left open.
+        reprise = season_writer.reprise_season(
+            live=live, world=world, next_season=season + 1, seed=str(getattr(thread, "id", ""))
+        )
+        following = service.merge_season_world_bible(world, reprise, next_season=season + 1)
+        source = "reprise"
+    if not following:
+        live["season_stage"] = "interlude"
+        live["interlude"] = season_writer.named_interlude(today_iso)
+        logger.info(
+            "living_story: season %s ended; interlude until %s",
+            season,
+            live["interlude"]["returns_on"],
+        )
+        return False
+    # A character whose secret changed this season starts the new one unknown; the
+    # old secret's state is kept in the archive, never silently lost.
+    old_secrets = {
+        str(member.get("id")): member.get("secret")
+        for member in world.get("cast") or []
+        if isinstance(member, dict) and member.get("id")
+    }
+    secrets = dict(live.get("secrets") or {})
+    archived = dict(live.get("secrets_archive") or {})
+    for member in following.get("cast") or []:
+        cid = str((member or {}).get("id") or "")
+        if cid in secrets and cid in old_secrets and member.get("secret") != old_secrets[cid]:
+            archived[f"s{season}:{cid}"] = secrets.pop(cid)
+    live["secrets"] = secrets
+    if archived:
+        live["secrets_archive"] = archived
     thread.world_bible = following
     live["season_index"] = season + 1
     live["seasons"] = [
@@ -3605,8 +3688,333 @@ def roll_over_season(db: Session, thread: Any, live: dict, *, day: int) -> bool:
     live["escalated_problems"] = {}
     live["season_chapters"] = 0
     live["season_stage"] = "running"
-    logger.info("living_story: season %s begins on day %s", season + 1, day)
+    if interlude:
+        live["interludes"] = [
+            *(live.get("interludes") or []),
+            {**interlude, "ended_on": today_iso},
+        ][-5:]
+    live.pop("interlude", None)
+    live["season_premiere"] = {
+        **season_premiere_of(following),
+        "source": source,
+        "pending": True,
+        "day": int(day),
+    }
+    logger.info("living_story: season %s (%s) begins on day %s", season + 1, source, day)
     return True
+
+
+def season_premiere_of(world: dict) -> dict:
+    """``{number, title_fr, logline_fr}`` of the season this world is on (WP-98)."""
+
+    number = _int_or(world.get("season_number"), 1)
+    situation = season_situation(world)
+    threads_fr = [str(text) for text in situation.get("open_threads_fr") or [] if text]
+    return {
+        "number": number,
+        "title_fr": str(world.get("season_title_fr") or f"Saison {number}"),
+        "logline_fr": str(
+            world.get("season_logline_fr") or (threads_fr[0] if threads_fr else "")
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# WP-99 «Le facteur et les dépêches» — teasers, absence, «Entre-temps»
+#
+# No model call anywhere below. A teaser is composed from a stored row (an open
+# promise, an unpaid plant, an open season question) in the addressed character's
+# voice, and dropped if it cannot be tied back to one; an absence greeting is a fixed
+# line chosen by the length of the gap; «Entre-temps» reads the `meanwhile` rows the
+# cast's agendas already wrote.
+# ---------------------------------------------------------------------------
+
+TEASER_WINDOW_DAYS = 14
+TEASER_LEDGER_LIMIT = 30
+TEASER_QUOTE_CHARS = 110
+TEASER_KEY = "next_teaser"
+TEASERS_KEY = "teasers"
+ABSENCE_MIN_DAYS = 2
+
+# One opener per cast member, in their own voice; `tu`/`vous` where it matters.
+TEASER_VOICES: dict[str, dict[str, str]] = {
+    "marin_leveque": {"tu": "Dis, j'y repense… C'est peut-être un signe.", "vous": "Dites, j'y repense… C'est peut-être un signe."},
+    "lila_bonnet": {"tu": "Toi, tu me caches quelque chose…", "vous": "Vous, vous me cachez quelque chose…"},
+    "augustin_de_roncourt": {"tu": "Règle numéro un de La Méthode : on n'oublie rien.", "vous": "Règle numéro un de La Méthode : on n'oublie rien."},
+    "romy_tremblay": {"tu": "Bon, c'est quoi la vraie histoire ?", "vous": "Bon, c'est quoi la vraie histoire ?"},
+    "margaux_barman": {"tu": "J'ai rien entendu. Mais quand même…", "vous": "Je n'ai rien entendu. Mais quand même…"},
+    "tiago_moreira": {"tu": "Pardon, une question…", "vous": "Pardon, une question…"},
+}
+DEFAULT_TEASER_VOICE = {"tu": "Au fait…", "vous": "Au fait…"}
+_TEASER_FRAMES = {
+    "commitment": (
+        {"tu": "Tu n'as pas oublié ? « {text} »", "vous": "Vous n'avez pas oublié ? « {text} »"},
+        {"tu": "Tu as promis, hein : « {text} »", "vous": "Vous avez promis, hein : « {text} »"},
+    ),
+    "plant": (
+        {"tu": "Je repense à ce détail : « {text} »", "vous": "Je repense à ce détail : « {text} »"},
+        {"tu": "Tu as remarqué ? « {text} »", "vous": "Vous avez remarqué ? « {text} »"},
+    ),
+    "thread": (
+        {"tu": "Il faudra qu'on en parle : « {text} »", "vous": "Il faudra qu'on en parle : « {text} »"},
+        {"tu": "Demain, peut-être, on saura : « {text} »", "vous": "Demain, peut-être, on saura : « {text} »"},
+    ),
+}
+
+# The gap decides the line; the register decides the words. Warm, never a reproach.
+ABSENCE_GREETINGS: tuple[tuple[int, dict[str, str]], ...] = (
+    (4, {"tu": "Ah, te revoilà ! Ça me fait plaisir.", "vous": "Ah, vous revoilà ! Ça me fait plaisir."}),
+    (8, {"tu": "Quelle bonne surprise ! On t'a gardé ta place.", "vous": "Quelle bonne surprise ! On vous a gardé votre place."}),
+    (21, {"tu": "Ça fait longtemps ! Viens, assieds-toi, je te raconte.", "vous": "Ça fait longtemps ! Venez, asseyez-vous, je vous raconte."}),
+    (10_000, {"tu": "Te voilà ! Quel plaisir de te revoir. Il s'est passé des choses, tu sais.", "vous": "Vous voilà ! Quel plaisir de vous revoir. Il s'est passé des choses, vous savez."}),
+)
+_ABSENCE_TAILS = {
+    "marin_leveque": "C'est un signe, ça.",
+    "margaux_barman": "La même chose ?",
+    "romy_tremblay": "Voyons donc, raconte !",
+    "lila_bonnet": "Bon, on fait quoi alors ?",
+}
+_GUILT = re.compile(
+    r"(où\s+(?:étais[- ]tu|étiez[- ]vous|t'étais|vous\s+étiez)|t'étais\s+passé|"
+    r"tu\s+nous\s+as\s+(?:abandonn|oubli|lâch)|vous\s+nous\s+avez\s+(?:abandonn|oubli|lâch)|"
+    r"(?:enfin|quand\s+même)\s+(?:de\s+retour|là)\s*!|"
+    r"ça\s+fait\s+\d+\s+jours|tu\s+as\s+disparu|vous\s+avez\s+disparu)",
+    re.IGNORECASE,
+)
+
+
+def _words(text: Any) -> set[str]:
+    return {word for word in re.findall(r"\w+", str(text or "").casefold()) if len(word) > 3}
+
+
+def _clip_quote(text: Any, limit: int = TEASER_QUOTE_CHARS) -> str:
+    line = " ".join(str(text or "").split()).strip().strip("«»\"").strip()
+    if len(line) <= limit:
+        return line
+    return line[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+
+
+def teaser_candidates(live: dict, world: dict) -> list[dict]:
+    """The open rows a teaser may name: promises, unpaid plants, open season questions."""
+
+    rows: list[dict] = []
+    for row in live.get("commitments") or []:
+        if isinstance(row, dict) and row.get("status") == "open" and row.get("id") and row.get("text_fr"):
+            rows.append({
+                "ref": str(row["id"]), "kind": "commitment", "text_fr": str(row["text_fr"]),
+                "characters": [str(who) for who in row.get("witnesses") or []],
+            })
+    for row in live.get("planted") or []:
+        if isinstance(row, dict) and row.get("status") != "paid" and row.get("id") and row.get("text_fr"):
+            rows.append({
+                "ref": str(row["id"]), "kind": "plant", "text_fr": str(row["text_fr"]),
+                "characters": [str(row.get("character_id") or "")],
+            })
+    # Season questions are season-wide: any cast member may raise one.
+    for row in threads_projection(world, live):
+        if row["state"] != "closed" and row.get("text_fr"):
+            rows.append({"ref": row["key"], "kind": "thread", "text_fr": row["text_fr"], "characters": []})
+    return rows
+
+
+def teaser_grounded(text: str, ref: str | None, candidates: list[dict]) -> bool:
+    """True only when the teaser names a real open row: its id, and its words."""
+
+    row = next((item for item in candidates if item["ref"] == ref), None) if ref else None
+    if row is None:
+        return False
+    needed = _words(_clip_quote(row["text_fr"]))
+    if not needed:
+        return False
+    return len(needed & _words(text)) >= min(2, len(needed))
+
+
+def compose_teaser(
+    candidate: dict, *, character_id: str | None, register: str, variant: int = 0
+) -> str:
+    voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)
+    key = "tu" if register == "tu" else "vous"
+    frames = _TEASER_FRAMES[candidate["kind"]]
+    frame = frames[int(variant) % len(frames)][key]
+    return f"{voice[key]} {frame.format(text=_clip_quote(candidate['text_fr']))}"
+
+
+def _days_between(earlier: str | None, later: str | None) -> int | None:
+    a, b = _date_of(earlier), _date_of(later)
+    if not a or not b:
+        return None
+    return (_date.fromisoformat(b) - _date.fromisoformat(a)).days
+
+
+def next_teaser(
+    live: dict,
+    world: dict,
+    *,
+    character_id: str | None,
+    register: str,
+    date: str | None,
+    seed: str,
+    name: str | None = None,
+) -> dict | None:
+    """One forward line per resolution, or None — never an invented plot.
+
+    Prefers a row the addressed character witnessed, then any open row, in a seeded
+    order; skips any row or wording already used as a teaser in the last
+    ``TEASER_WINDOW_DAYS`` days; and validates the composed line against the row it
+    names before it is kept.
+    """
+
+    today = _date_of(date) or _today().isoformat()
+    recent = [
+        row for row in live.get(TEASERS_KEY) or []
+        if isinstance(row, dict)
+        and (_days_between(row.get("date"), today) is not None)
+        and 0 <= _days_between(row.get("date"), today) < TEASER_WINDOW_DAYS
+    ]
+    used_refs = {str(row.get("ref")) for row in recent}
+    last_kind = str((recent[-1] if recent else {}).get("kind") or "")
+    used_texts = {str(row.get("text_fr")) for row in recent}
+    candidates = teaser_candidates(live, world)
+    fresh = [row for row in candidates if row["ref"] not in used_refs]
+    varied = len({row["kind"] for row in fresh}) > 1
+    first_name = str(name or "").split(" ")[0].casefold()
+    # Variety first (not the same kind of line as yesterday's), then the rows this
+    # character was there for, then the learner's own dice.
+    fresh.sort(
+        key=lambda row: (
+            1 if varied and row["kind"] == last_kind else 0,
+            # A question about the speaker, quoted in the third person, sounds wrong
+            # in their own mouth: someone else raises it first.
+            1 if first_name and row["kind"] == "thread" and first_name in _words(row["text_fr"]) else 0,
+            0 if character_id and character_id in row["characters"] else 1,
+            _die(seed, "teaser", today, row["ref"]),
+        )
+    )
+    for row in fresh:
+        text = compose_teaser(
+            row,
+            character_id=character_id,
+            register=register,
+            variant=_die(seed, "teaser-frame", today),
+        )
+        if text in used_texts or not teaser_grounded(text, row["ref"], candidates):
+            continue
+        return {
+            "text_fr": text,
+            "character_id": character_id,
+            **({"character_name": name} if name else {}),
+            "date": today,
+            "ref": row["ref"],
+            "kind": row["kind"],
+        }
+    return None
+
+
+def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
+    rows = [row for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)]
+    if teaser:
+        rows.append(
+            {key: teaser.get(key) for key in ("ref", "kind", "text_fr", "date", "character_id")}
+        )
+    return rows[-TEASER_LEDGER_LIMIT:]
+
+
+def last_completed_day(db: Session, user: User, *, before: Any) -> str | None:
+    """The learner's last finished day strictly before ``before`` (ISO), if any."""
+
+    limit = _date_of(before.isoformat() if hasattr(before, "isoformat") else before)
+    if not limit:
+        return None
+    try:
+        value = db.scalar(
+            select(DailyJourney.local_date)
+            .where(
+                DailyJourney.user_id == user.id,
+                DailyJourney.status == "completed",
+                DailyJourney.local_date < _date.fromisoformat(limit),
+            )
+            .order_by(DailyJourney.local_date.desc())
+            .limit(1)
+        )
+    except Exception:  # pragma: no cover - a read never costs the scene
+        logger.exception("living_story: last completed day unavailable")
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else None
+
+
+def gap_days(db: Session, user: User, live: dict, *, today: Any) -> int | None:
+    """Days since the learner's last completed day (1 = they played yesterday).
+
+    Read from the journeys; a life whose journeys are gone falls back to the dates on
+    its own story events. None when this is the learner's first day.
+    """
+
+    today_iso = _date_of(today.isoformat() if hasattr(today, "isoformat") else today)
+    if not today_iso:
+        return None
+    last = last_completed_day(db, user, before=today_iso) if db is not None and user is not None else None
+    if not last:
+        dates = sorted(
+            date
+            for event in live.get("events") or []
+            if isinstance(event, dict) and event.get("kind") != "meanwhile"
+            for date in [_date_of(event.get("date"))]
+            if date and date < today_iso
+        )
+        last = dates[-1] if dates else None
+    return _days_between(last, today_iso) if last else None
+
+
+def absence_greeting(days: int, *, character_id: str | None, register: str) -> str:
+    """The addressed character's welcome back, fitted to the length of the absence."""
+
+    key = "tu" if register == "tu" else "vous"
+    line = next(lines[key] for bound, lines in ABSENCE_GREETINGS if int(days) < bound)
+    tail = _ABSENCE_TAILS.get(str(character_id or ""))
+    return f"{line} {tail}" if tail and int(days) < 21 else line
+
+
+def absence_context(days: int | None) -> dict | None:
+    if days is None or int(days) < ABSENCE_MIN_DAYS:
+        return None
+    return {
+        "days": int(days),
+        "instruction": (
+            f"The learner is back after {int(days)} days away. The addressed character "
+            "greets them warmly in the opening line — glad, curious, perhaps one thing "
+            "that happened meanwhile. No reproach, no guilt, no counting the days."
+        ),
+    }
+
+
+def guilt_tripping(text: str) -> bool:
+    return bool(_GUILT.search(str(text or "")))
+
+
+def meanwhile_since(live_state: dict | None, since_date: Any) -> list[dict]:
+    """What the cast did off-screen after ``since_date`` — «Entre-temps» (WP-99).
+
+    The `meanwhile` rows the agendas wrote between chapters, oldest first, each as
+    ``{"text_fr", "date", "character_id"}``. Deterministic; no model call. ``live_state``
+    may be the thread's whole ``state`` or its ``living_story`` entry.
+    """
+
+    live = _live_of(live_state)
+    since = _date_of(since_date.isoformat() if hasattr(since_date, "isoformat") else since_date)
+    rows = []
+    for event in live.get("events") or []:
+        if not isinstance(event, dict):
+            continue
+        if event.get("kind") != "meanwhile" and not str(event.get("id") or "").startswith(MEANWHILE_PREFIX):
+            continue
+        date = _date_of(event.get("date")) or _date_of(event.get("at"))
+        if not date or (since and date <= since) or not event.get("summary_fr"):
+            continue
+        rows.append(
+            {"text_fr": str(event["summary_fr"]), "date": date, "character_id": event.get("character_id")}
+        )
+    rows.sort(key=lambda row: row["date"])
+    return rows
 
 
 def escalation_refs(context: dict) -> set[str]:
@@ -3718,6 +4126,8 @@ def story_context(db: Session, user: User) -> dict:
     )
     if chapter:
         shape = str(chapter.get("shape") or shape)
+    gap = gap_days(db, user, live, today=_today())
+    absence = absence_context(gap)
     # WP-97: the one character, if any, whose trust has earned «On se tutoie ?» today.
     asking = tutoiement_candidate(
         live,
@@ -3776,8 +4186,31 @@ def story_context(db: Session, user: User) -> dict:
             "finale": finale_context(live, world=world, day=day_index)
             if phase == "finale"
             else None,
-            "interlude": interlude_beat(seed, chapters_total(live)) if phase == "interlude" else None,
+            "interlude": {
+                **interlude_beat(seed, chapters_total(live), world),
+                # WP-98: a named interlude says when the story resumes.
+                **{
+                    key: (live.get("interlude") or {}).get(key)
+                    for key in ("returns_on", "reason_fr")
+                    if (live.get("interlude") or {}).get(key)
+                },
+            }
+            if phase == "interlude"
+            else None,
+            # WP-98: the first chapter of a new season knows it is one.
+            "premiere": {
+                key: (live.get("season_premiere") or {}).get(key)
+                for key in ("number", "title_fr", "logline_fr")
+            }
+            if (live.get("season_premiere") or {}).get("pending")
+            else None,
+            "first_episode_seed": season_situation(world).get("first_episode_seed")
+            if (live.get("season_premiere") or {}).get("pending")
+            else None,
         },
+        # WP-99: how long the learner was away, and — from two days — how to greet them.
+        "gap_days": gap,
+        **({"absence": absence} if absence else {}),
         # A problem that has already come back once may not come back again.
         "escalated_problems": sorted(live.get("escalated_problems") or {}),
         "story_so_far": list(state.get("story_so_far") or [])[-8:],
@@ -4327,6 +4760,20 @@ def _validate_scene(draft: SceneDraft, context: dict):
                 f"lines to someone who is, or to narration: cast is {sorted(cast)}."
             ),
         )
+    if context.get("absence"):
+        # WP-99: a learner coming back is welcomed, never reproached.
+        opening = [draft.opening_line_fr, *[
+            line.text_fr for panel in draft.panels for line in panel.dialogue
+        ]]
+        blamed = next((text for text in opening if guilt_tripping(text)), None)
+        if blamed:
+            raise StoryUnavailable(
+                "absence_guilt",
+                hint=(
+                    f"«{blamed[:80]}» reproaches the learner for being away. Greet them "
+                    "back warmly instead — glad to see them, curious — with no blame."
+                ),
+            )
     known = {event["id"] for event in context["events"]}
     # Unknown source ids are dropped, not fatal (WP-14F L-1: the director cited situation
     # ids as sources and a learner lost thirteen days). Provenance keeps only real events;
@@ -6041,7 +6488,11 @@ def bind_journey(
         if phase == "finale":
             shape, extra = "ensemble", {"finale": True, "side_story": False}
         elif phase == "interlude":
-            beat = interlude_beat(str(thread.id), chapters_total(live))
+            beat = interlude_beat(
+                str(thread.id),
+                chapters_total(live),
+                thread.world_bible if isinstance(thread.world_bible, dict) else {},
+            )
             shape, extra = DEFAULT_SHAPE, {"interlude": True, "interlude_beat_id": beat["id"]}
         # The closing chapter's question is retired for good: a later scene may not
         # reopen it (WP-17 turnover).
@@ -6173,6 +6624,38 @@ def bind_journey(
         ),
         "margin_notes": margin_notes_for(draft, ledgers_before, world=world_now),
     }
+    # WP-98: the first page of a new season is its premiere («Nouvelle saison»).
+    premiere = dict(live.get("season_premiere") or {})
+    if premiere.get("pending") and not continues_chapter:
+        scene.script_payload = {
+            **scene.script_payload,
+            "season_premiere": {
+                key: premiere.get(key) for key in ("number", "title_fr", "logline_fr")
+            },
+        }
+        live["season_premiere"] = {
+            **premiere,
+            "pending": False,
+            "scene_id": str(scene.id),
+            "date": _journey_date(journey),
+        }
+        state[STATE_KEY] = live
+        thread.state = state
+    # WP-99: back after two days or more — the addressed character's welcome, fitted
+    # to the gap (measured on the day this page is served, not the day it was written).
+    away = gap_days(db, user, live, today=_journey_date(journey) or _today())
+    if away is not None and away >= ABSENCE_MIN_DAYS:
+        scene.script_payload = {
+            **scene.script_payload,
+            "absence": {
+                "days": int(away),
+                "greeting_fr": absence_greeting(
+                    away,
+                    character_id=draft.character_id,
+                    register=_register_of(state.get("relationships"), draft.character_id),
+                ),
+            },
+        }
     # WP-97 «On se tutoie ?»: staged only when the accepted draft really has the
     # trusted character ask it; the learner's reply decides at settle.
     asking = (context.get(TUTOIEMENT_KEY) or {}).get("character_id")
@@ -6938,6 +7421,9 @@ def settle_resolution(
             day=day,
         )
         if meanwhile and meanwhile["id"] not in {row.get("id") for row in live.get("events") or []}:
+            # WP-99: dated, so «Entre-temps» can say what happened while the learner
+            # was away (`meanwhile_since`).
+            meanwhile["date"] = _journey_date(journey)
             live["events"] = [*live.get("events", []), meanwhile][-MAX_HISTORY:]
         if chapter.get("finale"):
             # The finale settles the season's questions, whatever else it did.
@@ -6948,7 +7434,7 @@ def settle_resolution(
             live, chapter=chapter, world_arcs=world_arcs, arc_progress=live["arc_progress"]
         )
         if chapter.get("interlude"):
-            roll_over_season(db, thread, live, day=day)
+            roll_over_season(db, thread, live, day=day, today=_journey_date(journey), user=user)
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
     from app.services.serial import SerialThreadService
@@ -6980,6 +7466,23 @@ def settle_resolution(
         ),
         date=_journey_date(journey),
     )
+    # WP-99: one forward line per resolution, in the addressed character's voice, that
+    # names a real open row — or none at all.
+    world_after = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+    teaser = next_teaser(
+        live,
+        world_after,
+        character_id=brief.character_id,
+        register=_register_of(state.get("relationships"), brief.character_id),
+        date=_journey_date(journey),
+        seed=str(thread.id),
+        name=_cast_names(world_after).get(brief.character_id),
+    )
+    if teaser:
+        live[TEASER_KEY] = teaser
+    else:
+        live.pop(TEASER_KEY, None)
+    live[TEASERS_KEY] = teasers_after(live, teaser)
     state[STATE_KEY] = live
     thread.state = state
     scene.recap_payload = {
@@ -7013,6 +7516,7 @@ def settle_resolution(
         **(scene.script_payload or {}),
         **({"chapter": chapter_block} if chapter_block else {}),
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
+        **({"next_teaser_fr": teaser["text_fr"]} if teaser else {}),
         "estimated_cost": {
             **cost,
             "story_generation_usd": round(

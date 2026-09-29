@@ -11,6 +11,7 @@ import argparse
 import json
 import time
 from copy import deepcopy
+from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -384,7 +385,7 @@ def main():
                 if phase == "finale":
                     shape, extra = "ensemble", {"finale": True, "side_story": False}
                 elif phase == "interlude":
-                    beat = engine.interlude_beat(args.seed, engine.chapters_total(live))
+                    beat = engine.interlude_beat(args.seed, engine.chapters_total(live), world)
                     shape, extra = engine.DEFAULT_SHAPE, {"interlude": True, "interlude_beat_id": beat["id"]}
                 current = engine.open_chapter(scene, shape=shape, **extra)
                 live["chapters_total"] = engine.chapters_total(live) + 1
@@ -487,7 +488,12 @@ def main():
                     live, chapter=current, world_arcs=world_arcs, arc_progress=arc_progress
                 )
                 if current.get("interlude"):
-                    if engine.roll_over_season(EventSink(), thread, live, day=day + 1):
+                    # WP-98: one synthetic calendar day per scene, so a named interlude's
+                    # return date is reached the way production reaches it.
+                    synthetic_today = (date(2026, 1, 5) + timedelta(days=day)).isoformat()
+                    if engine.roll_over_season(
+                        EventSink(), thread, live, day=day + 1, today=synthetic_today
+                    ):
                         world = thread.world_bible
                         arc_progress = {}
                         cast_ids = [c["id"] for c in engine._cast_projection(world) if c.get("id")]
@@ -549,10 +555,37 @@ def main():
                 "finale": engine.finale_context(live, world=world, day=day + 1)
                 if phase == "finale"
                 else None,
-                "interlude": engine.interlude_beat(args.seed, engine.chapters_total(live))
+                "interlude": {
+                    **engine.interlude_beat(args.seed, engine.chapters_total(live), world),
+                    **{
+                        key: (live.get("interlude") or {}).get(key)
+                        for key in ("returns_on", "reason_fr")
+                        if (live.get("interlude") or {}).get(key)
+                    },
+                }
                 if phase == "interlude"
                 else None,
+                "premiere": {
+                    key: (live.get("season_premiere") or {}).get(key)
+                    for key in ("number", "title_fr", "logline_fr")
+                }
+                if (live.get("season_premiere") or {}).get("pending")
+                else None,
             }
+            # WP-99: the synthetic learner plays every day; the teaser is written as
+            # `settle_resolution` writes it, and printed for the human review.
+            context["gap_days"] = 1
+            teaser = engine.next_teaser(
+                live,
+                world,
+                character_id=scene.character_id,
+                register="vous",
+                date=(date(2026, 1, 5) + timedelta(days=day)).isoformat(),
+                seed=args.seed,
+            )
+            live["teasers"] = engine.teasers_after(live, teaser)
+            if teaser:
+                print(f"  teaser: {teaser['text_fr']}", flush=True)
             context["escalated_problems"] = sorted(live.get("escalated_problems") or {})
             print(
                 f"Synthetic scene {day + 1}: accepted; {calls}/{args.max_requests} requests used.",
