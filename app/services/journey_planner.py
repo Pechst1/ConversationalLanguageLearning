@@ -29,6 +29,7 @@ never re-randomises an option order or a tile layout.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -1972,6 +1973,10 @@ def _first_day_recall(
     and only for a phrase of two words or more, which is what tiles need.
     """
 
+    if scenario.level_band in {"B1", "B2", "C1", "C2"}:
+        return practice_task("short_answer", target=target, scenario=scenario,
+            affordances=affordances, optional=optional, learner_text=None,
+            pool=[], sentences=scene_sentences(scenario.setup_fr, scenario.opening_line_fr))
     if position % 2 and len((target.label_fr or "").split()) >= 2:
         tiles = build_recall_task(
             target=target, scenario=scenario, affordances=[], optional=optional
@@ -2237,7 +2242,11 @@ def plan_journey(
                     position=len(recalls),
                 )
             elif dice is None:
-                recall = build_recall_task(
+                recall = practice_task(
+                    "short_answer", target=entry.target, scenario=scenario,
+                    affordances=affordances, optional=optional, learner_text=learner_wording,
+                    pool=[], sentences=scene_sentences(scenario.setup_fr, scenario.opening_line_fr),
+                ) if scenario.level_band in {"B1", "B2", "C1", "C2"} else build_recall_task(
                     target=entry.target,
                     scenario=scenario,
                     affordances=affordances,
@@ -2252,7 +2261,7 @@ def plan_journey(
                     shape=shape,
                     target_kind=str(entry.target.kind),
                     target_id=identity,
-                    eligible=CLASSIC_RECALL_FORMATS,
+                    eligible=("short_answer", "transform", "word_bank", "tiles") if scenario.level_band in {"B1", "B2", "C1", "C2"} else CLASSIC_RECALL_FORMATS,
                 )
                 recall = build_rotated_recall_task(
                     target=entry.target,
@@ -2680,6 +2689,19 @@ def practice_task(
     and a glossed word may be asked for in writing whatever its length.
     """
 
+    if task_type == "short_answer" and scenario.level_band in {"B1", "B2", "C1", "C2"} and _glossed(target) is None:
+        label = target.label_fr.strip()
+        for sentence in sentences:
+            match = re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", sentence, re.IGNORECASE)
+            if match and 3 <= len(sentence.split()) <= 22:
+                prompt = sentence[:match.start()] + "…" + sentence[match.end():]
+                return RecallTask(
+                    task_type="short_answer", instruction_native="Complétez la phrase de la scène.",
+                    prompt_fr=prompt, options=[], target=target, optional=optional,
+                    accepted_answers=[label], solution_fr=label, estimated_seconds=0,
+                    goal_native="Écrivez les mots manquants.", source_fr=prompt,
+                )
+        return None
     if task_type == str(RecallFormat.TILES) and target.kind is not TargetKind.ERROR:
         tiles = build_recall_task(
             target=target, scenario=scenario, affordances=[], optional=optional
@@ -2722,8 +2744,15 @@ def _slot_formats(
     identity: str,
     used_today: dict[str, int],
     used_by_target: set[str],
+    learner_band: str = "A1",
+    recognition_used: int = 0,
 ) -> list[str]:
     declared = PRACTICE_SLOT_FORMATS[slot]
+    if learner_band in {"B1", "B2", "C1", "C2"}:
+        # One recognition warm-up at most. The rest asks the learner to produce.
+        declared = ("transform", "short_answer")
+        if slot == "warmup" and recognition_used == 0:
+            declared = ("choice", *declared)
     allowed = [
         task_type
         for task_type in declared
@@ -2810,7 +2839,7 @@ def fill_practice_items(
                 if uses.get(target_identity(entry.target)):
                     continue
                 task = grammar_items.review_item(
-                    brief,
+                    {**brief, "level": scenario.level_band},
                     sentences=list(safe_sentences),
                     language=scenario.control_language,
                     day_key=day_key,
@@ -2865,6 +2894,8 @@ def fill_practice_items(
                 identity=identity,
                 used_today=used_today,
                 used_by_target=formats_by_target.get(identity, set()),
+                learner_band=scenario.level_band,
+                recognition_used=1 if caps.budget_seconds == 300 else sum(item.task.task_type in {"choice", "classify", "match_pairs", "listen_tap", "who_said"} for item in items),
             ):
                 task = practice_task(
                     task_type,
@@ -3116,7 +3147,7 @@ def _introduction_items(
     guided = [
         (task, grammar_item_seconds(task, spt=spt, multiplier=multiplier))
         for task in grammar_items.guided_items(
-            brief,
+            {**brief, "level": scenario.level_band},
             sentences=sentences,
             language=scenario.control_language,
             meanings=line_meanings(scenario),
@@ -3179,6 +3210,8 @@ def top_up_from_scene(
         entry = by_identity.get(identity)
         if entry is None or not shape_allows_format(shape, task.task_type):
             continue
+        if scenario.level_band in {"B1", "B2", "C1", "C2"} and task.task_type not in {"transform", "short_answer", "dictation"}:
+            continue
         kind = (identity, task.task_type, str(task.instruction_native))
         if kind in taken:
             continue
@@ -3220,7 +3253,8 @@ def add_listening_items(
     extra_heard: int = 0,
 ) -> list[PracticeItem]:
     """WP-91 — with audio on, the day *hears* its words: listen-and-tap items
-    carry a clip of the phrase, and one dictation asks for a line of the scene.
+    carry a clip of the phrase, and dictations ask for lines of the scene.
+    From B1 the listening floor uses written dictations rather than tapping.
 
     Called only when the deployment speaks (``audio_available``); a day planned
     without audio never reaches this and is exactly what it was. Budget-scaled
@@ -3241,6 +3275,10 @@ def add_listening_items(
     # the recall ceiling by ``extra_heard`` (they are input, not drills).
     cap += max(0, extra_heard)
     wanted_dictations = DICTATION_ITEMS_PER_DAY + max(0, extra_heard) // 3
+    if scenario.level_band in {"B1", "B2", "C1", "C2"}:
+        # Keep the listening floor as written dictations at B1, so heard words
+        # also count as production instead of displacing it with recognition.
+        wanted_dictations += LISTEN_TAP_ITEMS_BY_BUDGET.get(caps.budget_seconds, 1)
     room = headroom - sum(item.cost for item in placed)
     pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
     pool.extend(target for target in partners if _glossed(target) is not None)
@@ -3265,6 +3303,8 @@ def add_listening_items(
 
     # -- listen-and-tap: the day's floor of heard words ------------------------
     wanted = LISTEN_TAP_ITEMS_BY_BUDGET.get(caps.budget_seconds, 1) + max(0, extra_heard) * 2 // 3
+    if scenario.level_band in {"B1", "B2", "C1", "C2"}:
+        wanted = 0
     if shape_allows_format(shape, str(RecallFormat.LISTEN_TAP)):
         tapped = {
             target_identity(item.entry.target)

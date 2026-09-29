@@ -14,6 +14,7 @@
 //   --b1-days 3        days for the B1 learner (French chrome; default 3, 0 = skip)
 //   --out DIR          output folder                         (default e2e/out/<stamp>)
 //   --keep             leave the servers and database up (for debugging)
+//   --token-minutes 1  expire access tokens during the walk (WP-107)
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -37,6 +38,8 @@ if (argv.includes('--live')) {
 const langs = opt('langs', 'en,de,fr').split(',').filter(Boolean);
 const days = Number(opt('days', 7));
 const b1Days = Number(opt('b1-days', 3));
+const tokenMinutes = Number(opt('token-minutes', 1));
+if (!Number.isInteger(tokenMinutes) || tokenMinutes < 1) throw new Error('--token-minutes must be a positive integer');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const outDir = path.resolve(opt('out', path.join(here, 'out', stamp)));
 const SECRET = 'e3-walk-secret-not-for-production';
@@ -99,7 +102,7 @@ async function playDayInner(l, day) {
 let exitCode = 0;
 try {
   console.log(`[walk] output: ${outDir}`);
-  stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET });
+  stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET, tokenMinutes });
   console.log(`[walk] stack up: api :${stack.apiPort}, web :${stack.webPort}, db ${stack.dbName} (migrate ${stack.migrateSeconds}s)`);
   // Warm the dev server's on-demand compiles so the first screenshots are not spinners.
   browser = await chromium.launch();
@@ -124,6 +127,31 @@ try {
     }
     coverage[l.label] = [...l.covered];
     console.log(`[walk] ${l.label}: screens seen: ${[...l.covered].join(', ')}`);
+    // WP-107: a refused replay has a clear reconnect action, in every chrome
+    // language. This fault is local to this browser; it changes no user row.
+    await l.walk.page.route(`${stack.api}/**`, (route) => {
+      const preflight = route.request().method() === 'OPTIONS';
+      return route.fulfill({
+        status: preflight ? 204 : 401,
+        headers: {
+          'access-control-allow-origin': stack.web,
+          'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+          'access-control-allow-headers': route.request().headers()['access-control-request-headers'] || 'authorization, content-type, x-request-id',
+        },
+        contentType: 'application/json', body: preflight ? '' : '{"detail":"Expired test session"}',
+      });
+    });
+    await l.walk.page.goto(`${stack.web}/atelier`);
+    const expired = l.walk.page.getByText(/Your session has expired|Deine Sitzung ist abgelaufen|Votre session a expiré/);
+    await expired.waitFor({ timeout: 15000 });
+    findings.check('expired-session-has-reconnect-action',
+      await l.walk.page.getByRole('button', { name: /Sign in again|Erneut anmelden|Se reconnecter/ }).count() === 1,
+      'The expired session needs one sign-in action', l.walk.where());
+    await l.walk.shoot('session-expired');
+    await l.walk.page.getByRole('button', { name: /Sign in again|Erneut anmelden|Se reconnecter/ }).click();
+    await l.walk.page.waitForURL('**/auth/signin?callbackUrl=*', { timeout: 15000 });
+    await l.walk.page.locator('#signin-email').waitFor({ timeout: 15000 });
+    findings.check('expired-session-can-sign-in', true, 'The reconnect action opens the sign-in form', l.walk.where());
     await l.context.close();
   }
 } catch (e) {

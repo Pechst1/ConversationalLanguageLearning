@@ -550,6 +550,11 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-on-red);
         font-size: var(--av2-t-action);
       }
+      /* WP-107: changing Next to Continue cannot change the thumb target. */
+      .av2 .fr-reader .fr-next {
+        min-height: max(44px, 3.5rem);
+        font-size: var(--av2-t-action);
+      }
       .av2 .fr-btn.is-action:disabled { background: var(--fr-line); color: var(--fr-ink-2); }
       .av2 .fr-btn.is-action[data-press='3d'] { box-shadow: 0 var(--av2-press) 0 var(--fr-red-shadow); }
       .av2 .fr-btn.is-action[data-press='3d']:active:not(:disabled) { transform: translateY(var(--av2-press)); }

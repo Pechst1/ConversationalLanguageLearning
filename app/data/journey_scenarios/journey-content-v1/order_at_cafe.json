@@ -25,7 +25,8 @@
   "forbidden_terms": [],
   "authored_bands": [
     "A1",
-    "A2"
+    "A2",
+    "B1"
   ],
   "serial_locations": [
     "le_mistral"
@@ -307,6 +308,166 @@
           "fr": "Je voudrais un thé au comptoir, et un verre d'eau, s'il vous plaît."
         },
         "estimated_seconds": 126
+      },
+      "outcomes": [
+        {
+          "key": "served_at_counter",
+          "line_fr": "{drink_cap|Très bien}, au comptoir. Je vous prépare ça{extra|}.",
+          "summary_native": {
+            "en": "Margaux served your {drink_native|order} at the counter{extra_native|}.",
+            "de": "Margaux hat dir {drink_native|deine Bestellung} am Tresen serviert{extra_native|}.",
+            "fr": "Margaux t'a servi {drink_native|ta commande} au comptoir{extra_native|}."
+          }
+        },
+        {
+          "key": "served_at_terrace",
+          "line_fr": "{drink_cap|Très bien}, en terrasse. Je vous apporte tout dans deux minutes.",
+          "summary_native": {
+            "en": "Margaux is bringing your {drink_native|order} out to the covered terrace.",
+            "de": "Margaux bringt dir {drink_native|deine Bestellung} auf die überdachte Terrasse.",
+            "fr": "Margaux t'apporte {drink_native|ta commande} en terrasse couverte."
+          }
+        },
+        {
+          "key": "takeaway",
+          "line_fr": "{drink_cap|C'est noté}, à emporter. Je vous mets ça dans un gobelet.",
+          "summary_native": {
+            "en": "Margaux is putting your {drink_native|order} in a cup to take away.",
+            "de": "Margaux füllt dir {drink_native|deine Bestellung} zum Mitnehmen ab.",
+            "fr": "Margaux te met {drink_native|ta commande} dans un gobelet à emporter."
+          }
+        },
+        {
+          "key": "not_ordered",
+          "line_fr": "Pas de souci, prenez votre temps. Je suis là quand vous voulez.",
+          "summary_native": {
+            "en": "You did not order this time. Margaux said to take your time.",
+            "de": "Du hast diesmal nichts bestellt. Margaux sagt, du kannst dir Zeit lassen.",
+            "fr": "Tu n'as rien commandé cette fois. Margaux te dit de prendre ton temps."
+          }
+        }
+      ]
+    },
+    {
+      "level_band": "B1",
+      "title_fr": "Encore un moment au Mistral",
+      "objective_key": "order_at_cafe.counter_drink_and_request",
+      "objective_native": {
+        "en": "Order a hot drink, choose where to sit, and ask Margaux for one extra thing.",
+        "de": "Bestelle ein warmes Getränk, wähle einen Platz und bitte Margaux um eine Kleinigkeit dazu.",
+        "fr": "Commandez une boisson, choisissez où la boire et ajoutez une demande."
+      },
+      "setup_fr": "Margaux s'apprête à fermer, mais la pluie vous retient au Mistral. Vous hésitez entre rester au comptoir et emporter votre commande.",
+      "setup_native": {
+        "en": "Closing time at Le Mistral. Two customers are left and one free spot at the counter. Margaux is putting cups away, unhurried.",
+        "de": "Es ist kurz vor Feierabend im Mistral. Zwei Gäste sind noch da, am Tresen ist ein Platz frei. Margaux räumt in aller Ruhe Tassen weg.",
+        "fr": "Margaux s'apprête à fermer, mais la pluie vous retient au Mistral. Vous hésitez entre rester au comptoir et emporter votre commande."
+      },
+      "opening_line_fr": "Si vous restez au comptoir, je vous servirai encore. Vous préférez quoi ?",
+      "panels": [
+        {
+          "narration_fr": "La pluie redouble tandis que Margaux range les dernières tasses.",
+          "dialogue": [],
+          "visual_direction": "Wide shot from the doorway into Le Mistral at night: rain on the glass, warm amber light, Margaux behind the worn zinc counter wiping it; in the back booth Marin and Lila sit close together. The learner stands in the doorway seen from behind, coat wet.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Si tu partages le dernier croissant, je te pardonnerai."
+            },
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "J'aurais dû en commander deux !"
+            }
+          ],
+          "visual_direction": "Medium shot of the back booth: Lila, laughing, pulls a croissant away from Marin; big bearded Marin in his green sweater looks mock-innocent, crumbs in his beard. Two cups of coffee on the table.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-2.webp"
+        },
+        {
+          "narration_fr": "Margaux regarde la porte, puis les tasses encore chaudes.",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Si la pluie continue, je fermerai un peu plus tard."
+            }
+          ],
+          "visual_direction": "Close-up of Margaux at the counter, drying a wine glass with a cloth, one eyebrow raised, a dry half-smile, glancing sideways toward the booth.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-3.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "margaux_barman",
+              "text_fr": "Si vous restez au comptoir, je vous servirai encore. Vous préférez quoi ?"
+            }
+          ],
+          "visual_direction": "Medium shot over the learner's shoulder (the learner cropped at the left edge, seen from behind): Margaux faces us across the zinc counter, glass in hand, a welcoming look. Rain streaks the window behind her.",
+          "image_asset": "assets/serial/scenes/order_at_cafe/panel-4.webp"
+        }
+      ],
+      "required_facts_fr": [
+        "Le Mistral ferme dans vingt minutes ; Margaux sert encore.",
+        "Il reste une place au comptoir et la terrasse couverte est libre.",
+        "Margaux accepte une demande en plus : un verre d'eau, un sucre, l'addition, la carte.",
+        "Le vouvoiement tient toute la scène."
+      ],
+      "target_affordances_fr": [
+        "je voudrais",
+        "est-ce que je peux avoir",
+        "un verre d'eau",
+        "l'addition",
+        "s'il vous plaît",
+        "au comptoir",
+        "en terrasse",
+        "à emporter",
+        "Si je reste au comptoir, je prendrai un thé et un verre d'eau, s'il vous plaît."
+      ],
+      "estimated_seconds": 300,
+      "reading_seconds": {
+        "scene": 60,
+        "recall": 45,
+        "resolution": 60
+      },
+      "response_task": {
+        "objective_native": {
+          "en": "Say what you would like, where you will sit, and add one request.",
+          "de": "Sag, was du möchtest, wo du sitzt, und stell eine zusätzliche Bitte.",
+          "fr": "Commandez une boisson, choisissez où la boire et ajoutez une demande."
+        },
+        "opening_line_fr": "Si vous restez au comptoir, je vous servirai encore. Vous préférez quoi ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": [
+          "name_a_hot_drink",
+          "state_where_you_will_drink_it",
+          "add_one_extra_request"
+        ],
+        "optional_intents": [
+          "greet_margaux",
+          "use_a_polite_marker",
+          "acknowledge_closing_time"
+        ],
+        "rubric_native": {
+          "en": "Met: the learner names a hot drink, says where they will have it, AND makes one extra request (water, sugar, the bill, paying by card). Partially met: two of the three. Not yet: fewer than two. A request framed as « Je peux avoir… ? » or « Est-ce que je peux… ? » both count. Pick exactly one outcome key from the allowed list; if no place is named, use served_at_counter.",
+          "de": "Erfüllt: Es werden ein warmes Getränk, ein Ort UND eine zusätzliche Bitte genannt (Wasser, Zucker, die Rechnung, Kartenzahlung). Teilweise erfüllt: zwei von drei. Noch nicht: weniger als zwei. « Je peux avoir… ? » und « Est-ce que je peux… ? » zählen beide. Wähle genau einen erlaubten Outcome-Key; ohne Ortsangabe nimm served_at_counter.",
+          "fr": "Atteint : l'apprenant nomme une boisson chaude, dit où il la prend ET formule une demande en plus (eau, sucre, addition, paiement par carte). Partiellement atteint : deux sur trois. Pas encore : moins de deux. « Je peux avoir… ? » et « Est-ce que je peux… ? » comptent tous les deux. Choisis exactement un outcome_key autorisé ; sans lieu, prends served_at_counter."
+        },
+        "suggested_response_fr": "Si je reste au comptoir, je prendrai un thé et un verre d'eau, s'il vous plaît.",
+        "hint_native": {
+          "en": "Name the drink first, then the place, then ask for the extra thing.",
+          "de": "Nenne zuerst das Getränk, dann den Platz, dann die zusätzliche Bitte.",
+          "fr": "Après si, utilisez le présent ; annoncez ensuite ce qui se passera."
+        },
+        "translation_native": {
+          "en": "I would like a tea at the counter, and a glass of water, please.",
+          "de": "Ich hätte gern einen Tee am Tresen und ein Glas Wasser, bitte.",
+          "fr": "Si je reste au comptoir, je prendrai un thé et un verre d'eau, s'il vous plaît."
+        },
+        "estimated_seconds": 155
       },
       "outcomes": [
         {

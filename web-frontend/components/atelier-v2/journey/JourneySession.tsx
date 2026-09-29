@@ -69,7 +69,7 @@ import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
-import { closesConversation, continuesConversation } from './respond-thread';
+import { continuesConversation } from './respond-thread';
 import { stepHeaderLine } from './drill-frame';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
@@ -349,7 +349,7 @@ export function JourneySession({
               {showCastIntro && (
                 <CastIntro
                   cast={castIntro}
-                  language={controller.controlLanguage}
+                  language={chromeLanguage}
                   onContinue={() => {
                     rememberCastIntroSeen(journeyId);
                     setCastIntroDone(true);
@@ -484,7 +484,7 @@ export function JourneySession({
                   immersive reader, which owns its whole screen. */}
               {/* WP-103 T7: once the conversation is closed, «Continuer» is the
                   only action on the screen. */}
-              {!immersive && !showCastIntro && !(step.kind === 'respond' && closesConversation(feedback)) && (
+              {!immersive && !showCastIntro && step.kind !== 'respond' && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"

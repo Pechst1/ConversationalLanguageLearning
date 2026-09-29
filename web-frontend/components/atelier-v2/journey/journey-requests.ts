@@ -202,6 +202,9 @@ export function planFailure(
   error: unknown,
   fallbackMessage = 'transport_error',
 ): FailurePlan {
+  if ((error as { response?: { status?: number } } | null)?.response?.status === 401) {
+    return { kind: 'error', message: 'session_expired', retryable: false };
+  }
   const code = detail?.code ?? journeyErrorCode(error);
   const message = detail?.message || journeyErrorDetail(error)?.message || fallbackMessage;
 

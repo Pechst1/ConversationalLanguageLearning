@@ -511,6 +511,7 @@ export type RecapLevelUp = {
 };
 
 export type JourneySnapshot = {
+  learner_level?: string | null;
   id: string;
   contract_version: 1;
   revision: number;
@@ -611,6 +612,7 @@ export type CastIntroEntry = {
 };
 
 export type TodayEnvelope = {
+  learner_level?: string | null;
   contract_version: 1;
   enabled: boolean;
   control_language: ControlLanguage;

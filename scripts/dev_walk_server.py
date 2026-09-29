@@ -21,6 +21,7 @@ os.environ["ATELIER_TEST_CLOCK_ENABLED"] = "true"
 os.environ["APP_ENV"] = "development"
 os.environ.setdefault("ATELIER_DAILY_JOURNEY_COHORT", "*")
 os.environ.setdefault("SCHEMA_GUARD_ENABLED", "true")
+os.environ["ATELIER_CORRECTION_LLM_ENABLED"] = "false"
 
 import dev_story_engine_server  # noqa: E402
 

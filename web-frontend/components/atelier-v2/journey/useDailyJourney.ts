@@ -595,7 +595,7 @@ export function useDailyJourney(
         setFeedback({
           kind: 'error',
           message: plan.kind === 'error' ? plan.message : 'transport_error',
-          retryable: true,
+          retryable: plan.kind === 'error' ? plan.retryable : true,
         });
       }
     },

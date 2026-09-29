@@ -49,6 +49,8 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.user import User
+from app.services.journey_content import learner_level_band
+from app.services.chrome_language import user_chrome_language
 from app.db.savepoint import best_effort, run_best_effort, session_is_usable
 from app.schemas.daily_journey import (
     PRACTICE_ERRATA_HREF,
@@ -909,7 +911,7 @@ class DailyJourneyService:
 
     def get_today(self, user: User, *, timezone_hint: str | None = None) -> TodayEnvelope:
         enabled = journey_enabled_for(user)
-        control_language = normalize_control_language(user.native_language)
+        control_language = user_chrome_language(user)
 
         journey = self._occupying_journey(user)
         if journey is not None and self._heal_interrupted(journey):
@@ -944,6 +946,7 @@ class DailyJourneyService:
             journey=journey,
         )
         return TodayEnvelope(
+            learner_level=learner_level_band(user),
             enabled=enabled,
             control_language=control_language,
             local_date=today,
@@ -1070,9 +1073,7 @@ class DailyJourneyService:
         return healed
 
     def get_capability_progress(self, user: User) -> CapabilityProgress:
-        control_language: ControlLanguage = normalize_control_language(
-            user.native_language
-        )
+        control_language: ControlLanguage = user_chrome_language(user)
         try:
             view = self.adapters.capabilities.build_capability_summary(
                 self.db, user=user, control_language=control_language
@@ -1935,6 +1936,7 @@ class DailyJourneyService:
                     str(journey.current_step_id) if journey.current_step_id else None
                 ),
                 "scenario": _scenario_view(journey.scenario_snapshot),
+                "learner_level": learner_level_band(self.db.get(User, journey.user_id)),
                 "steps": steps,
                 "recap": journey.recap_snapshot,
                 "retry": self._retry_hint(journey),
@@ -2392,7 +2394,7 @@ class DailyJourneyService:
             view = living_story.scene_checkpoint(self.db, user)
             if not isinstance(view, dict) or not view.get("checkpoint_ready"):
                 return none
-            language = normalize_control_language(user.native_language)
+            language = user_chrome_language(user)
             menu = living_story.can_do_menu(
                 self.db, user, band=view.get("band"), control_language=str(language)
             )
@@ -2403,7 +2405,7 @@ class DailyJourneyService:
                 "special": "epreuve",
                 "epreuve": epreuve_snapshot_view(
                     {"band": plan.get("band"), "can_do_ids": plan.get("can_do_ids")},
-                    user.native_language,
+                    language,
                 ),
             }
 
@@ -3130,7 +3132,7 @@ class DailyJourneyService:
                 "first_day": {
                     "kind": FIRST_DAY_KIND,
                     "cast_intro": self.adapters.content.first_day_cast_intro(
-                        user.native_language
+                        user_chrome_language(user)
                     ),
                 },
             }
@@ -4539,7 +4541,7 @@ class DailyJourneyService:
                 self.db,
                 user=user,
                 journey_id=journey.id,
-                control_language=normalize_control_language(user.native_language),
+                control_language=user_chrome_language(user),
             )
         except Exception:  # pragma: no cover - defensive
             logger.exception("daily_journey: register line unavailable")
@@ -4756,7 +4758,7 @@ class DailyJourneyService:
                 self.db,
                 user=user,
                 journey_id=journey.id,
-                control_language=normalize_control_language(user.native_language),
+                control_language=user_chrome_language(user),
             )
         except AdapterUnavailable:
             raise

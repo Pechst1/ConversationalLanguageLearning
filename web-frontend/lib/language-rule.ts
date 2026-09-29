@@ -41,17 +41,16 @@ export function chromeLanguage(control: unknown, level?: unknown): ControlLangua
 
 type JourneyLike = {
   controlLanguage?: unknown;
-  journey?: { scenario?: { level_band?: string | null } | null } | null;
+  journey?: { learner_level?: string | null; scenario?: { level_band?: string | null } | null } | null;
   envelope?: {
-    journey?: { scenario?: { level_band?: string | null } | null } | null;
+    learner_level?: string | null;
+    journey?: { learner_level?: string | null; scenario?: { level_band?: string | null } | null } | null;
     available?: { level_band?: string | null } | null;
   } | null;
 };
 
 /**
- * The chrome language of a daily-journey screen. The learner's band is the
- * scenario's (the planner deals it at the learner's level); before a journey
- * exists, the offered scenario's.
+ * Chrome follows the learner estimate, including when resuming an older scene.
  */
 export function journeyChromeLanguage(controller: JourneyLike): ControlLanguage {
   return chromeLanguage(controller.controlLanguage, journeyLevel(controller));
@@ -60,6 +59,9 @@ export function journeyChromeLanguage(controller: JourneyLike): ControlLanguage 
 /** The learner's band as the day's journey knows it, or `null` before one exists. */
 export function journeyLevel(controller: JourneyLike): string | null {
   return (
+    controller.envelope?.learner_level ??
+    controller.journey?.learner_level ??
+    controller.envelope?.journey?.learner_level ??
     controller.journey?.scenario?.level_band ??
     controller.envelope?.journey?.scenario?.level_band ??
     controller.envelope?.available?.level_band ??

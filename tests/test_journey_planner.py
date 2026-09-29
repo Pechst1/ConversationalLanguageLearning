@@ -812,6 +812,7 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
     assert imported <= {
         "__future__",
         "hashlib",
+        "re",  # WP-107: pure word-boundary matching for a scene-based B1 cloze.
         "dataclasses",
         "typing",
         "app.services.journey_content",

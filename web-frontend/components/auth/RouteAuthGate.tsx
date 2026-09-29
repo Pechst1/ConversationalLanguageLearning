@@ -1,10 +1,12 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
-import { AtelierV2Root } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, StateBlock } from '@/components/atelier-v2/ui';
 import { sanitizeAuthCallbackUrl, useAppSession } from '@/lib/app-auth';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
-import { readLearnerLanguage } from '@/lib/learner-language';
+import { readLearnerLanguage, readLearnerLevel } from '@/lib/learner-language';
+import { chromeLanguage } from '@/lib/language-rule';
+import { reconnectWebSession, SESSION_EXPIRED_EVENT, sessionExpiredCopy } from '@/lib/session-recovery';
 
 const PUBLIC_PATHNAMES = new Set([
   '/',
@@ -52,11 +54,17 @@ export default function RouteAuthGate({ children }: { children: React.ReactNode 
   const isGuestOnly = GUEST_ONLY_PATHNAMES.has(router.pathname);
   const isProtected = !PUBLIC_PATHNAMES.has(router.pathname);
   const pendingRedirectRef = React.useRef<string | null>(null);
+  const [expired, setExpired] = React.useState(false);
+  React.useEffect(() => {
+    const expire = () => setExpired(true);
+    window.addEventListener(SESSION_EXPIRED_EVENT, expire);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expire);
+  }, []);
 
   React.useEffect(() => {
     if (!router.isReady) return;
 
-    if (isProtected && status === 'unauthenticated') {
+    if (isProtected && status === 'unauthenticated' && !expired) {
       const callbackUrl = sanitizeAuthCallbackUrl(router.asPath);
       const redirectKey = `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
       if (pendingRedirectRef.current === redirectKey) return;
@@ -78,7 +86,20 @@ export default function RouteAuthGate({ children }: { children: React.ReactNode 
         pendingRedirectRef.current = null;
       });
     }
-  }, [isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
+  }, [expired, isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
+
+  if (isProtected && expired) {
+    const language = chromeLanguage(readLearnerLanguage(), readLearnerLevel());
+    const copy = sessionExpiredCopy[language];
+    return (
+      <AtelierV2Root language={language}>
+        <StateBlock tone="error" title={copy.message} action={{
+          label: copy.action,
+          onSelect: () => { void reconnectWebSession(sanitizeAuthCallbackUrl(router.asPath)); },
+        }} />
+      </AtelierV2Root>
+    );
+  }
 
   if (!router.isReady && isProtected && status !== 'authenticated') return <LoadingFrame />;
   if (isProtected && status !== 'authenticated') return <LoadingFrame />;

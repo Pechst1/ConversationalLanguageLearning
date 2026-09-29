@@ -6,25 +6,61 @@
     "A1": [
       {
         "word": "au comptoir",
-        "gloss": {"en": "at the counter", "de": "am Tresen", "fr": "au comptoir"},
+        "gloss": {
+          "en": "at the counter",
+          "de": "am Tresen",
+          "fr": "au comptoir"
+        },
         "part_of_speech": "phrase"
       },
       {
         "word": "à emporter",
-        "gloss": {"en": "to take away", "de": "zum Mitnehmen", "fr": "à emporter"},
+        "gloss": {
+          "en": "to take away",
+          "de": "zum Mitnehmen",
+          "fr": "à emporter"
+        },
         "part_of_speech": "phrase"
       }
     ],
     "A2": [
       {
         "word": "un verre d'eau",
-        "gloss": {"en": "a glass of water", "de": "ein Glas Wasser", "fr": "un verre d'eau"},
+        "gloss": {
+          "en": "a glass of water",
+          "de": "ein Glas Wasser",
+          "fr": "un verre d'eau"
+        },
         "part_of_speech": "noun"
       },
       {
         "word": "au comptoir",
-        "gloss": {"en": "at the counter", "de": "am Tresen", "fr": "au comptoir"},
+        "gloss": {
+          "en": "at the counter",
+          "de": "am Tresen",
+          "fr": "au comptoir"
+        },
         "part_of_speech": "phrase"
+      }
+    ],
+    "B1": [
+      {
+        "word": "s'apprêter à",
+        "gloss": {
+          "en": "to be about to",
+          "de": "im Begriff sein",
+          "fr": "être sur le point de"
+        },
+        "part_of_speech": "phrase"
+      },
+      {
+        "word": "emporter",
+        "gloss": {
+          "en": "to take away",
+          "de": "mitnehmen",
+          "fr": "prendre avec soi"
+        },
+        "part_of_speech": "verb"
       }
     ]
   },

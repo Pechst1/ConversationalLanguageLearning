@@ -15,6 +15,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
+from app.services.chrome_language import user_chrome_language
 from app.core.offload import off_event_loop
 from app.core.security import (
     InvalidTokenError,
@@ -1148,11 +1149,17 @@ def _session_response(
         )
         payload = _with_learner_instructions(
             payload,
-            native_language=getattr(user, "native_language", None),
+            native_language=user_chrome_language(user),
         )
         # WP-103: every item's goal in the learner's language, no retired frame, no
         # server-only key (the classify follow-up's).
-        payload = public_payload(payload, normalize_language(getattr(user, "native_language", None)))
+        payload = public_payload(payload, user_chrome_language(user))
+        if user_chrome_language(user) == "fr":
+            from app.services.grammar_units import french_rule
+            payload["rule_panel"] = {
+                **(payload.get("rule_panel") or {}), "rule": french_rule(selection.concept),
+                "when": None, "pattern": None, "check": None,
+            }
         exercise_sets.append(
             {
                 "id": str(exercise_set.id),

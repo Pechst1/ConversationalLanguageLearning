@@ -10,10 +10,9 @@ catalogue's, the authored card's, or the scene's.
 
 The four steps of the Essai (§2.4), weakest first:
 
-* **recognise** — «which sentence follows today's rule?»: one sentence that
-  uses the unit (the scene's first, else a catalogue example) among scene
-  sentences no one could read as using it — or no item when that is not
-  unambiguous;
+* **recognise** — «which sentence follows today's rule?»: up to A2, a rule
+  example among unrelated scene lines; from B1, an authored same-form contrast
+  or the item bank's near misses;
 * **choose** — the ✗/✓ contrast pair: «which one is right?»;
 * **build** — an example sentence rebuilt from chips, with the wrong form of
   the contrast pair (or another form of the paradigm) as a spare chip;
@@ -27,6 +26,8 @@ builder returns ``None`` rather than pose a format it cannot pose honestly.
 Rappel formats scale with the unit's stability (§2.4, WP-L4): low (< 3 days) →
 recognise / choose; medium (< 10 days) → build / transform; high → no item,
 the unit is asked for inside the reply instead (Réemploi, a free-use prompt).
+From B1, a new rule has at most one recognition warm-up and otherwise repairs;
+due rules ask for production even at low stability.
 """
 from __future__ import annotations
 
@@ -34,6 +35,7 @@ import hashlib
 import re
 import unicodedata
 from typing import Any
+from app.services.chrome_language import french_chrome
 
 from app.services.journey_contracts import (
     ControlLanguage,
@@ -385,22 +387,32 @@ def recognise_item(
     recognise item: the Essai starts with «choose».
     """
 
-    patterns = list(brief.get("detectors") or [])
-    if not patterns:
-        return None
-    uses = form_sentences(brief, sentences)
-    if not uses:
-        return None
-    answer = uses[0]
-    others: list[str] = []
-    for sentence in sentences:
-        text = plain(sentence)
-        if (
-            _usable(text)
-            and not mentions_rule(brief, text)
-            and _fold(text) not in {_fold(item) for item in [answer, *others]}
-        ):
-            others.append(text)
+    if french_chrome(brief.get("level")):
+        pair = brief.get("recognition_pair")
+        if pair:
+            answer, others = pair
+        else:
+            pairs = list(brief.get("contrast_pairs") or [])
+            if not pairs:
+                return None
+            answer = plain(pairs[0].get("right"))
+            others = [plain(pairs[0].get("wrong"))]
+            if not answer or not all(others) or _fold(answer) == _fold(others[0]):
+                return None
+    else:
+        patterns = list(brief.get("detectors") or [])
+        if not patterns:
+            return None
+        uses = form_sentences(brief, sentences)
+        if not uses:
+            return None
+        answer = uses[0]
+        others = []
+        for sentence in sentences:
+            text = plain(sentence)
+            if (_usable(text) and not mentions_rule(brief, text)
+                and _fold(text) not in {_fold(item) for item in [answer, *others]}):
+                others.append(text)
     if not others:
         return None
     others.sort(key=lambda text: _digest(brief["concept_id"], "recognise", text))
@@ -605,6 +617,13 @@ def guided_items(
 
     items: list[RecallTask] = []
     recognise = recognise_item(brief, sentences=sentences, language=language)
+    if french_chrome(brief.get("level")):
+        # One warm-up, followed by writing. Each contrast is a separate repair.
+        for pair in brief.get("contrast_pairs") or []:
+            task = transform_item({**brief, "contrast_pairs": [pair]}, language=language, meanings=meanings)
+            if task and task.prompt_fr not in {item.prompt_fr for item in items}:
+                items.append(task)
+        return ([recognise] if recognise and len(items) >= 2 else []) + items[:3]
     if recognise is not None:
         items.append(recognise)
     choose = choose_item(brief, language=language)
@@ -649,7 +668,10 @@ def review_item(
     band = review_band(brief.get("stability"))
     if band == "high":
         return None
-    if band == "low":
+    advanced = french_chrome(brief.get("level"))
+    if advanced:
+        builders = [lambda: transform_item(brief, language=language, meanings=meanings)]
+    elif band == "low":
         builders = [
             lambda: choose_item(brief, language=language),
             lambda: recognise_item(brief, sentences=sentences, language=language),
@@ -661,7 +683,7 @@ def review_item(
         ]
     if int(_digest(brief.get("concept_id"), day_key)[:2], 16) % 2:
         builders.reverse()
-    fallbacks = [
+    fallbacks = [] if advanced else [
         lambda: choose_item(brief, language=language),
         lambda: recognise_item(brief, sentences=sentences, language=language),
     ]

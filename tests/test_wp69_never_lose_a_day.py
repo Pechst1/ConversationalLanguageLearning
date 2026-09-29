@@ -546,7 +546,7 @@ def _authored_keys() -> set[str]:
 
 @pytest.mark.parametrize(
     ("cefr", "expected_band"),
-    [("A1.1", "A1"), ("A2.2", "A2"), ("B1.1", "A2")],
+    [("A1.1", "A1"), ("A2.2", "A2"), ("B1.1", "B1")],
 )
 def test_a_story_engine_failure_serves_an_authored_day_for_the_band(
     db_session: Session,

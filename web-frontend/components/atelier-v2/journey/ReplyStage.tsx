@@ -27,6 +27,7 @@ import { SpeakingPortrait } from './SpeakingPortrait';
 import { useAutoSpeak, type LineVoice, type VoiceLine } from './useLineVoice';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { replyFinishedTyping } from './voice-autoplay';
+import { shortCharacterName } from './reply-task';
 
 export type ReplySpeaker = { id: string | null; name: string } | null;
 
@@ -34,10 +35,10 @@ export type ReplySpeaker = { id: string | null; name: string } | null;
 export function respondSpeaker(prompt: RespondPrompt): ReplySpeaker {
   const letter = prompt.letter;
   if (letter?.correspondent_name) {
-    return { id: letter.correspondent_id || null, name: letter.correspondent_name };
+    return { id: letter.correspondent_id || null, name: shortCharacterName(letter.correspondent_name, letter.correspondent_id) };
   }
   return prompt.character_name
-    ? { id: prompt.character_id || null, name: prompt.character_name }
+    ? { id: prompt.character_id || null, name: shortCharacterName(prompt.character_name, prompt.character_id) }
     : null;
 }
 

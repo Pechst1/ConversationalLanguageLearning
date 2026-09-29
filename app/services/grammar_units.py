@@ -220,6 +220,12 @@ def built_rule_card(concept: Any, *, pairs: list[dict[str, str]] | None = None) 
         for locale, text in (rule_short.items() if isinstance(rule_short, dict) else [])
         if str(text or "").strip()
     }
+    if not rule.get("fr"):
+        mapped = [str((row.get("syllabus") or {}).get("rule_short", {}).get("fr") or "").strip()
+                  for row in _v2_rows_for(concept)]
+        french = " ".join(dict.fromkeys(text for text in mapped if text))
+        if french:
+            rule["fr"] = french
     if not rule:
         core = str(getattr(concept, "core_rule", "") or "").strip()
         if core:
@@ -249,6 +255,17 @@ def rule_card(concept: Any) -> dict[str, Any] | None:
     if authored:
         return authored
     return built_rule_card(concept)
+
+
+def french_rule(concept: Any) -> str | None:
+    """An authored French rule, including a v1 unit's mapped v2 rules."""
+    card = rule_card(concept) or {}
+    own = (card.get("rule") or {}).get("fr")
+    if own:
+        return str(own)
+    rules = [str((row.get("syllabus") or {}).get("rule_short", {}).get("fr") or "").strip()
+             for row in _v2_rows_for(concept)]
+    return " ".join(dict.fromkeys(rule for rule in rules if rule)) or None
 
 
 def pattern_forms(concept: Any) -> list[str]:
@@ -297,6 +314,10 @@ def unit_brief(
     pairs = contrast_pairs(concept)
     rule_short = concept_syllabus(concept).get("rule_short") or {}
     card = rule_card(concept)
+    from app.services.item_bank import near_miss_sentences
+    recognition_pair = near_miss_sentences(
+        getattr(concept, "external_id", None), seed=f"recognise|{concept.id}"
+    ) if str(getattr(concept, "level", "")).startswith(("B", "C")) else None
     return {
         "concept_id": int(concept.id),
         "external_id": str(getattr(concept, "external_id", "") or ""),
@@ -312,6 +333,7 @@ def unit_brief(
         "rule_card": card,
         "examples": examples(concept),
         "contrast_pairs": pairs,
+        "recognition_pair": recognition_pair,
         "detectors": regex_patterns(detectors),
         "noun_phrase": is_noun_phrase_unit(concept),
         #: ``llm:`` detectors are never run: evidence from corrections only.

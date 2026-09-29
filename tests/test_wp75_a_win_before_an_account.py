@@ -327,7 +327,7 @@ def test_journey_evidence_is_the_placement_prior(db_session: Session, client: Te
 
 
 @pytest.mark.parametrize(
-    ("starting_point", "band"), [("new", "A1"), ("some", "A2"), ("comfortable", "A2")]
+    ("starting_point", "band"), [("new", "A1"), ("some", "A2"), ("comfortable", "B1")]
 )
 def test_the_first_journey_is_authored_instant_and_makes_no_provider_call(
     client: TestClient,
@@ -358,10 +358,10 @@ def test_the_first_journey_is_authored_instant_and_makes_no_provider_call(
     assert kinds == ["recall", "recall", "scene", "respond", "resolution"]
     graded = [step for step in journey["steps"] if step["kind"] in ("recall", "respond")]
     assert len(graded) >= 3
-    # Quick wins, not homework: required, and never typed.
+    # Required quick wins: B1 writes the phrase, A1/A2 recognize or arrange it.
     recalls = [step for step in journey["steps"] if step["kind"] == "recall"]
     assert all(not step["prompt"]["optional"] for step in recalls)
-    assert {step["prompt"]["task_type"] for step in recalls} == {"choice", "tiles"}
+    assert {step["prompt"]["task_type"] for step in recalls} == ({"short_answer"} if band == "B1" else {"choice", "tiles"})
     assert driver.private_leaks == []
 
     cast = journey["cast_intro"]

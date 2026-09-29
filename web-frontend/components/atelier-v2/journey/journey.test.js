@@ -609,14 +609,15 @@ const noSleep = () => Promise.resolve();
   const respondHtml = renderToStaticMarkup(
     React.createElement(steps.RespondStepView, { step: withVoice, ...baseStepProps }),
   );
-  assert.ok(htmlHas(respondHtml, EN.speak), 'speaking is the primary output');
+  assert.ok(htmlHas(respondHtml, EN.send), 'WP-107: sending is the primary output');
   // WP-82 (appendix A): the «say it out loud…» line is gone — the mic says it.
   assert.ok(!htmlHas(respondHtml, EN.voice_hint), 'no explaining line under the mic');
   assert.ok(!/prononciation|pronunciation/i.test(respondHtml), 'and no talk of pronunciation');
-  assert.ok(htmlHas(respondHtml, EN.use_text), 'writing is one tap away');
-  assert.ok(!respondHtml.includes('<textarea'), 'the field waits for a transcript');
+  assert.ok(!htmlHas(respondHtml, EN.use_voice), 'voice waits behind Hint');
+  assert.ok(respondHtml.includes('<textarea'), 'the reply opens on the field');
   assert.ok(htmlHas(respondHtml, withVoice.prompt.character_line_fr));
-  assert.ok(htmlHas(respondHtml, 'un café'), 'the elicited targets are shown');
+  assert.ok(!htmlHas(respondHtml, 'un café'), 'WP-107: target chips wait behind Hint');
+  assert.ok(htmlHas(respondHtml, EN.help_hint), 'one help disclosure is offered');
 
   const respondTextOnlyHtml = renderToStaticMarkup(
     React.createElement(steps.RespondStepView, { step: voicelessRespond, ...baseStepProps }),

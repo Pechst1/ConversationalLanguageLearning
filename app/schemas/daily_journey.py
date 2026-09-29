@@ -818,6 +818,8 @@ class MasteryToday(JourneyModel):
 
 
 class JourneySnapshot(JourneyModel):
+    #: Current learner estimate, independent of the persisted scene's band.
+    learner_level: str | None = None
     id: str
     contract_version: ContractVersion = CONTRACT_VERSION
     revision: int
@@ -906,6 +908,7 @@ class ForgeEntry(JourneyModel):
 
 
 class TodayEnvelope(JourneyModel):
+    learner_level: str | None = None
     contract_version: ContractVersion = CONTRACT_VERSION
     enabled: bool
     control_language: ControlLanguage

@@ -5,7 +5,7 @@ this learner walking into today, and is it actually safe to show?*
 
 Design rules this file exists to enforce:
 
-* **Authored first.** Every scenario family ships hand-written A1 and A2 French
+* **Authored first.** Every scenario family ships hand-written A1, A2 and B1 French
   content in ``app/data/journey_scenarios/<content_version>/``. That path costs
   nothing: no model call, no image call, no network. It is the path the
   end-to-end café journey runs on and the path every test exercises by default
@@ -155,22 +155,17 @@ OFF_TOPIC_TERMS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-#: Length envelopes per authored band. Anything above A2 reuses the A2 envelope,
-#: because the authored ceiling is A2.
+#: Length envelopes per authored band, including the short B1 fallback scenes.
 BAND_LIMITS: dict[str, dict[str, int]] = {
     "A1": {"setup_words": 28, "line_words": 16},
     "A2": {"setup_words": 40, "line_words": 24},
+    "B1": {"setup_words": 60, "line_words": 35},
 }
 
 _TU_MARKERS = re.compile(r"\b(tu|toi|te|ton|ta|tes)\b|\bt'", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
 _OUTCOME_KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 
-_LEVEL_NOTE_ABOVE: dict[str, str] = {
-    "en": "This scene is written at {band}, below your current level.",
-    "de": "Diese Szene ist auf {band} geschrieben, unter deinem aktuellen Niveau.",
-    "fr": "Cette scène est écrite au niveau {band}, en dessous de ton niveau actuel.",
-}
 _LEVEL_NOTE_BELOW: dict[str, str] = {
     "en": "This scene is written at {band}, a step above where you are.",
     "de": "Diese Szene ist auf {band} geschrieben, eine Stufe über deinem Niveau.",
@@ -371,13 +366,14 @@ def _select_variant(
 
     authored = sorted(by_band, key=_band_index)
     lowest, highest = authored[0], authored[-1]
+    if _band_index(band) >= _band_index("B1") and _band_index(highest) < _band_index("B1"):
+        return None, LevelFit(learner_band=band, content_band=band, is_exact=False)
     if _band_index(band) > _band_index(highest):
-        note = _LEVEL_NOTE_ABOVE.get(control_language, _LEVEL_NOTE_ABOVE["en"])
         return by_band[highest], LevelFit(
             learner_band=band,
             content_band=highest,
             is_exact=False,
-            note_native=note.format(band=highest),
+            note_native=None,
         )
     note = _LEVEL_NOTE_BELOW.get(control_language, _LEVEL_NOTE_BELOW["en"])
     return by_band[lowest], LevelFit(
@@ -545,7 +541,7 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
     if brief.image_url is not None and brief.image_url.startswith("data:"):
         problems.append("inline base64 image URLs are not allowed")
 
-    limits = BAND_LIMITS.get(brief.level_band, BAND_LIMITS["A2"])
+    limits = BAND_LIMITS.get(brief.level_band, BAND_LIMITS["B1"])
     for label, text in (
         ("title_fr", brief.title_fr),
         ("setup_fr", brief.setup_fr),
@@ -1541,7 +1537,8 @@ def resolve_scenario_brief(
     """
 
     version = content_version or CURRENT_CONTENT_VERSION
-    control_language = normalize_control_language(user.native_language)
+    from app.services.chrome_language import user_chrome_language
+    control_language = user_chrome_language(user)
     spec = _load_scenario_spec(scenario_key, version)
     if spec is None:
         reason = (
@@ -1702,12 +1699,9 @@ def resolve_level_fit(*, user: User, brief: ScenarioBrief) -> LevelFit:
     control_language = normalize_control_language(user.native_language)
     if band == brief.level_band:
         return LevelFit(learner_band=band, content_band=brief.level_band, is_exact=True)
-    template = (
-        _LEVEL_NOTE_ABOVE
-        if _band_index(band) > _band_index(brief.level_band)
-        else _LEVEL_NOTE_BELOW
-    )
-    note = template.get(control_language, template["en"]).format(band=brief.level_band)
+    note = None
+    if _band_index(band) < _band_index(brief.level_band):
+        note = _LEVEL_NOTE_BELOW.get(control_language, _LEVEL_NOTE_BELOW["en"]).format(band=brief.level_band)
     return LevelFit(
         learner_band=band,
         content_band=brief.level_band,

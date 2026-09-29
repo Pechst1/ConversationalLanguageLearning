@@ -195,10 +195,10 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
     learner's language, ``source_fr`` on a repair, no pseudo-scene frame, and no
     ``follow_up_key`` (the classify follow-up's key stays on the server)."""
 
-    from app.services.glosses import normalize_language
+    from app.services.chrome_language import user_chrome_language
     from app.services.item_bank import public_item
 
-    return public_item(payload, normalize_language(getattr(user, "native_language", None)))
+    return public_item(payload, user_chrome_language(user))
 
 
 def fingerprint_for(concept_id: int, round_name: str, mode: str, item_id: str) -> str:

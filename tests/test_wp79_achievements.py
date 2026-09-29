@@ -84,7 +84,8 @@ def test_every_listed_achievement_is_reachable(db_session: Session, enabled: Non
     assert _unlock(db_session, user) == {"first_letter"}
 
     # words_kept_50 — fifty words in the learner's own Lexique; 49 is not 50.
-    for i in range(50):
+    kept_before = db_session.query(UserVocabularyProgress).filter_by(user_id=user.id).count()
+    for i in range(50 - kept_before):
         word = VocabularyWord(
             language="fr",
             word=f"reach{i}",
@@ -95,7 +96,7 @@ def test_every_listed_achievement_is_reachable(db_session: Session, enabled: Non
         db_session.add(word)
         db_session.flush()
         db_session.add(UserVocabularyProgress(user_id=user.id, word_id=word.id, state="new"))
-        if i == 48:
+        if i == 48 - kept_before:
             db_session.commit()
             assert _unlock(db_session, user) == set()
     db_session.commit()

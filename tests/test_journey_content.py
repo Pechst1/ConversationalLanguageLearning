@@ -431,18 +431,16 @@ def test_learner_level_band(db_session, cefr, proficiency, expected):
     assert jc.learner_level_band(user) == expected
 
 
-def test_higher_level_learner_gets_the_a2_scene_with_an_honest_note(db_session):
+def test_higher_level_learner_gets_b1_content_and_french_chrome(db_session):
     user = _user(db_session, cefr="B2.1")
     brief = _cafe_brief(db_session, user)
-    # the brief reports the band it was actually written at, never the learner's
-    assert brief.level_band == "A2"
-    assert "A2" in brief.objective_native
-
+    assert brief.level_band == "B1"
+    assert brief.control_language == "fr"
     fit = jc.resolve_level_fit(user=user, brief=brief)
     assert fit.learner_band == "B2"
-    assert fit.content_band == "A2"
+    assert fit.content_band == "B1"
     assert fit.is_exact is False
-    assert fit.note_native and "A2" in fit.note_native
+    assert fit.note_native is None
 
 
 def test_exact_level_match_carries_no_suitability_note(db_session):
@@ -454,11 +452,13 @@ def test_exact_level_match_carries_no_suitability_note(db_session):
     assert brief.objective_native == _fixture("first_day")["available"]["objective_native"]
 
 
-def test_german_learner_above_the_authored_ceiling_reads_a_german_note(db_session):
+def test_german_advanced_learner_reads_french_without_a_level_note(db_session):
     user = _user(db_session, cefr="C1.1", native="de")
     brief = _cafe_brief(db_session, user)
-    assert brief.level_band == "A2"
-    assert "Niveau" in brief.objective_native
+    assert brief.level_band == "B1"
+    assert brief.control_language == "fr"
+    assert "Niveau" not in brief.objective_native
+
 
 
 # --------------------------------------------------------------------------

@@ -651,5 +651,5 @@ def test_grammar_items_stay_pure() -> None:
         node.module for node in ast.walk(ast.parse(source))
         if isinstance(node, ast.ImportFrom) and node.module
     }
-    assert imported <= {"__future__", "typing", "app.services.journey_contracts"}, imported
-
+    # The shared language policy is pure too; bank/catalogue I/O stays in grammar_units.
+    assert imported <= {"__future__", "typing", "app.services.journey_contracts", "app.services.chrome_language"}, imported

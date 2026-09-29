@@ -18,10 +18,21 @@
       "fr": "Romy tutoie tout le monde, comme au Québec ; son « vous » guindé n’est qu’une blague."
     }
   },
-  "forbidden_topic_groups": ["landlord_paperwork", "administration"],
+  "forbidden_topic_groups": [
+    "landlord_paperwork",
+    "administration"
+  ],
   "forbidden_terms": [],
-  "authored_bands": ["A1", "A2"],
-  "serial_locations": ["metro_platform", "le_mistral", "newsroom"],
+  "authored_bands": [
+    "A1",
+    "A2",
+    "B1"
+  ],
+  "serial_locations": [
+    "metro_platform",
+    "le_mistral",
+    "newsroom"
+  ],
   "variants": [
     {
       "level_band": "A1",
@@ -107,7 +118,11 @@
         "dans dix minutes"
       ],
       "estimated_seconds": 260,
-      "reading_seconds": {"scene": 38, "recall": 42, "resolution": 56},
+      "reading_seconds": {
+        "scene": 38,
+        "recall": 42,
+        "resolution": 56
+      },
       "response_task": {
         "objective_native": {
           "en": "Say you are late and give the reason.",
@@ -117,8 +132,14 @@
         "opening_line_fr": "Bon, qu'est-ce qui se passe ?",
         "max_turns": 2,
         "repair_allowed": true,
-        "required_intents": ["say_you_are_late", "give_the_reason"],
-        "optional_intents": ["apologize", "say_roughly_when_you_arrive"],
+        "required_intents": [
+          "say_you_are_late",
+          "give_the_reason"
+        ],
+        "optional_intents": [
+          "apologize",
+          "say_roughly_when_you_arrive"
+        ],
         "rubric_native": {
           "en": "Met: the learner says they are late AND names a cause (the métro, traffic, work). « Je suis en retard » and « J'ai du retard » both count. Partially met: only one of the two. Not yet: neither. Do not require a tense the learner has not met; the present is fine here. Pick exactly one outcome key from the allowed list; with no arrival time, use romy_waits_at_bar.",
           "de": "Erfüllt: Es wird gesagt, dass man zu spät kommt, UND ein Grund genannt (Metro, Verkehr, Arbeit). « Je suis en retard » und « J'ai du retard » zählen beide. Teilweise erfüllt: nur eines von beidem. Noch nicht: keines. Verlange keine Zeitform, die noch nicht dran war; das Präsens genügt. Wähle genau einen erlaubten Outcome-Key; ohne Ankunftszeit nimm romy_waits_at_bar.",
@@ -251,7 +272,11 @@
         "dans vingt minutes"
       ],
       "estimated_seconds": 286,
-      "reading_seconds": {"scene": 40, "recall": 44, "resolution": 58},
+      "reading_seconds": {
+        "scene": 40,
+        "recall": 44,
+        "resolution": 58
+      },
       "response_task": {
         "objective_native": {
           "en": "Say you are late, why, and when you will arrive.",
@@ -261,8 +286,15 @@
         "opening_line_fr": "Voyons donc. Qu'est-ce qui se passe ?",
         "max_turns": 2,
         "repair_allowed": true,
-        "required_intents": ["say_you_are_late", "give_the_reason", "give_a_new_arrival_time"],
-        "optional_intents": ["apologize", "propose_what_romy_should_do"],
+        "required_intents": [
+          "say_you_are_late",
+          "give_the_reason",
+          "give_a_new_arrival_time"
+        ],
+        "optional_intents": [
+          "apologize",
+          "propose_what_romy_should_do"
+        ],
         "rubric_native": {
           "en": "Met: the learner says they will be late, names the cause AND gives a concrete new arrival time — a clock time (« vers 19h30 ») or a duration (« dans vingt minutes ») both count. Partially met: two of the three; the missing arrival time is the natural thing to ask for on the repair turn. Not yet: fewer than two. Pick exactly one outcome key from the allowed list.",
           "de": "Erfüllt: Es wird gesagt, dass man sich verspätet, der Grund genannt UND eine konkrete neue Ankunftszeit gegeben — Uhrzeit (« vers 19h30 ») oder Dauer (« dans vingt minutes ») zählen beide. Teilweise erfüllt: zwei von drei; die fehlende Ankunftszeit ist genau das, was in der Reparaturrunde nachgefragt wird. Noch nicht: weniger als zwei. Wähle genau einen erlaubten Outcome-Key.",
@@ -280,6 +312,162 @@
           "fr": "Je vais être en retard, le métro est bloqué. J'arrive vers dix-neuf heures trente."
         },
         "estimated_seconds": 140
+      },
+      "outcomes": [
+        {
+          "key": "romy_waits_at_bar",
+          "line_fr": "Bon. Je commande un truc et je t'attends au bar.",
+          "summary_native": {
+            "en": "Romy will wait for you at the bar.",
+            "de": "Romy wartet an der Bar auf dich.",
+            "fr": "Romy t'attend au bar."
+          }
+        },
+        {
+          "key": "romy_reschedules",
+          "line_fr": "Laisse tomber pour ce soir, on se voit demain.",
+          "summary_native": {
+            "en": "Romy moved the meeting to tomorrow.",
+            "de": "Romy hat das Treffen auf morgen verschoben.",
+            "fr": "Romy a reporté le rendez-vous à demain."
+          }
+        },
+        {
+          "key": "romy_meets_at_station",
+          "line_fr": "Bouge pas, je viens te chercher à la station.",
+          "summary_native": {
+            "en": "Romy is coming to meet you at the station.",
+            "de": "Romy kommt dich an der Station abholen.",
+            "fr": "Romy vient te chercher à la station."
+          }
+        }
+      ]
+    },
+    {
+      "level_band": "B1",
+      "title_fr": "Prévenir avant de promettre",
+      "objective_key": "explain_delay.new_arrival_time",
+      "objective_native": {
+        "en": "Tell Romy you are late, say why, and give a new arrival time.",
+        "de": "Sag Romy, dass du zu spät kommst, warum, und wann du ankommst.",
+        "fr": "Expliquez le retard et proposez une nouvelle heure."
+      },
+      "setup_fr": "Le métro reste bloqué entre deux stations. Romy vous attend au Mistral : expliquez le retard et proposez une heure réaliste, sans promettre l'impossible.",
+      "setup_native": {
+        "en": "The métro has stopped between stations. Romy is already waiting.",
+        "de": "Die Metro steht zwischen zwei Stationen. Romy wartet schon.",
+        "fr": "Le métro reste bloqué entre deux stations. Romy vous attend au Mistral : expliquez le retard et proposez une heure réaliste, sans promettre l'impossible."
+      },
+      "opening_line_fr": "Si le métro ne repart pas, tu feras comment ? Je peux attendre un peu.",
+      "panels": [
+        {
+          "narration_fr": "Depuis dix minutes, le métro est immobile. Personne ne sait quand il repartira.",
+          "dialogue": [],
+          "visual_direction": "Inside a stopped Paris métro carriage in a dark tunnel: flickering lights, tired passengers sighing. The learner stands seen from behind, holding a pole, phone in hand.",
+          "image_asset": "assets/serial/scenes/explain_delay/panel-1.webp",
+          "in_frame": []
+        },
+        {
+          "narration_fr": "Au Mistral, Romy hésite à commander.",
+          "dialogue": [
+            {
+              "character_id": "augustin_de_roncourt",
+              "text_fr": "Si tu attends encore, ton café sera froid."
+            },
+            {
+              "character_id": "romy_tremblay",
+              "text_fr": "Je prendrai un autre café quand mon ami arrivera."
+            }
+          ],
+          "visual_direction": "Le Mistral in the evening, the back booth: Romy in her black leather jacket checks her watch; Gus in an impeccable navy three-piece suit lounges opposite, amused, holding a glass of wine.",
+          "image_asset": "assets/serial/scenes/explain_delay/panel-2.webp",
+          "location_id": "le_mistral"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "augustin_de_roncourt",
+              "text_fr": "Moi, j'aurais pris un taxi."
+            },
+            {
+              "character_id": "romy_tremblay",
+              "text_fr": "Et moi, je préfère savoir ce qui se passe."
+            }
+          ],
+          "visual_direction": "Medium close-up of the booth: Romy rolls her eyes while typing on her phone; Gus adjusts his red pocket square with theatrical pride.",
+          "image_asset": "assets/serial/scenes/explain_delay/panel-3.webp",
+          "location_id": "le_mistral"
+        },
+        {
+          "narration_fr": "Votre téléphone vibre.",
+          "dialogue": [
+            {
+              "character_id": "romy_tremblay",
+              "text_fr": "Si le métro ne repart pas, tu feras comment ? Je peux attendre un peu."
+            }
+          ],
+          "visual_direction": "Close-up inside the métro carriage: the learner's hand holding a glowing phone (screen not readable), the dark tunnel wall through the window.",
+          "image_asset": "assets/serial/scenes/explain_delay/panel-4.webp",
+          "in_frame": []
+        }
+      ],
+      "required_facts_fr": [
+        "Le rendez-vous était à dix-neuf heures ; il est dix-neuf heures dix.",
+        "Le métro est arrêté entre deux stations, sans annonce.",
+        "Romy peut attendre au bar, reporter à demain, ou venir à la station.",
+        "Romy te tutoie et attend le tutoiement en retour."
+      ],
+      "target_affordances_fr": [
+        "je vais être en retard",
+        "le métro est bloqué",
+        "j'arrive vers",
+        "dix-neuf heures trente",
+        "désolé",
+        "dans vingt minutes",
+        "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied."
+      ],
+      "estimated_seconds": 300,
+      "reading_seconds": {
+        "scene": 60,
+        "recall": 45,
+        "resolution": 60
+      },
+      "response_task": {
+        "objective_native": {
+          "en": "Say you are late, why, and when you will arrive.",
+          "de": "Sag, dass du zu spät kommst, warum, und wann du da bist.",
+          "fr": "Expliquez le retard et proposez une nouvelle heure."
+        },
+        "opening_line_fr": "Si le métro ne repart pas, tu feras comment ? Je peux attendre un peu.",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": [
+          "say_you_are_late",
+          "give_the_reason",
+          "give_a_new_arrival_time"
+        ],
+        "optional_intents": [
+          "apologize",
+          "propose_what_romy_should_do"
+        ],
+        "rubric_native": {
+          "en": "Met: the learner says they will be late, names the cause AND gives a concrete new arrival time — a clock time (« vers 19h30 ») or a duration (« dans vingt minutes ») both count. Partially met: two of the three; the missing arrival time is the natural thing to ask for on the repair turn. Not yet: fewer than two. Pick exactly one outcome key from the allowed list.",
+          "de": "Erfüllt: Es wird gesagt, dass man sich verspätet, der Grund genannt UND eine konkrete neue Ankunftszeit gegeben — Uhrzeit (« vers 19h30 ») oder Dauer (« dans vingt minutes ») zählen beide. Teilweise erfüllt: zwei von drei; die fehlende Ankunftszeit ist genau das, was in der Reparaturrunde nachgefragt wird. Noch nicht: weniger als zwei. Wähle genau einen erlaubten Outcome-Key.",
+          "fr": "Atteint : l'apprenant dit qu'il va être en retard, nomme la cause ET donne une nouvelle heure d'arrivée concrète — une heure (« vers 19h30 ») ou une durée (« dans vingt minutes ») comptent toutes les deux. Partiellement atteint : deux sur trois ; l'heure manquante est exactement ce qu'on redemande au tour de réparation. Pas encore : moins de deux. Choisis exactement un outcome_key autorisé."
+        },
+        "suggested_response_fr": "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
+        "hint_native": {
+          "en": "Use the near future: « je vais être en retard », then the reason, then a time.",
+          "de": "Nutze das nahe Futur: « je vais être en retard », dann den Grund, dann eine Uhrzeit.",
+          "fr": "Après si, utilisez le présent ; annoncez ensuite ce qui se passera."
+        },
+        "translation_native": {
+          "en": "I am going to be late, the métro is stuck. I will get there around half past seven.",
+          "de": "Ich komme zu spät, die Metro steht. Ich bin gegen halb acht da.",
+          "fr": "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied."
+        },
+        "estimated_seconds": 155
       },
       "outcomes": [
         {

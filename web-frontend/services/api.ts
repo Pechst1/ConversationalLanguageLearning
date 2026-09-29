@@ -6,6 +6,8 @@ import type { EclairResult, EclairRound } from '@/lib/eclair';
 import type { GrammarMapPayload } from '@/lib/grammar-map';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
+import { getSession } from 'next-auth/react';
+import { SESSION_EXPIRED_EVENT, webSessionRecovery } from '@/lib/session-recovery';
 
 import { getAppAccessToken } from '@/lib/app-auth';
 import { audioUploadFilename } from '@/lib/audio-recording';
@@ -1955,6 +1957,7 @@ function isUnauthorized(error: any): boolean {
  * that port on the developer's machine.
  */
 const SAME_ORIGIN_API_PROXY = '/api/backend';
+const refreshWebSession = webSessionRecovery(getSession);
 
 export function resolveBrowserApiBaseUrl() {
   const configured = normalizeApiBaseUrl(
@@ -2003,7 +2006,9 @@ class ApiService {
     this.api.interceptors.request.use(
       async (config) => {
         const requestConfig = config as SilentRequestConfig;
-        const token = requestConfig.skipAuth ? null : await getAppAccessToken();
+        // A replay must keep the freshly recovered token and the original body
+        // (including client_mutation_id), rather than reading a stale session again.
+        const token = requestConfig.skipAuth || requestConfig._retryAuth ? null : await getAppAccessToken();
         if (!requestConfig.skipAuth && token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -2050,6 +2055,19 @@ class ApiService {
               window.location.assign('/auth/signin');
             }
           }
+          return Promise.reject(error);
+        }
+
+        if (isUnauthorized(error) && !isNativePlatform() && requestConfig && !requestConfig.skipAuth) {
+          if (!requestConfig._retryAuth) {
+            requestConfig._retryAuth = true;
+            const accessToken = await refreshWebSession();
+            if (accessToken) {
+              requestConfig.headers = { ...(requestConfig.headers || {}), Authorization: `Bearer ${accessToken}` };
+              return this.api.request(requestConfig);
+            }
+          }
+          if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
           return Promise.reject(error);
         }
 

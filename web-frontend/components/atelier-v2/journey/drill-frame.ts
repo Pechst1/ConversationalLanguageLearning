@@ -129,5 +129,6 @@ export function stepHeaderLine(input: {
   const { step } = input;
   if (step && isDrillKind(step.kind)) return drillHeaderLabel(step, input.language, input.copy) ?? '';
   if (step && step.kind === 'read') return '';
+  if (step && step.kind === 'respond') return clean(input.location);
   return join([input.location, input.objective]);
 }

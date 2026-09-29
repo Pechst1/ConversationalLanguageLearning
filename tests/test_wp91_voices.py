@@ -180,7 +180,7 @@ def test_a_regulier_day_with_audio_holds_three_real_listening_items(band, langua
     ]
     assert len(heard) >= 3, plan.rationale
     kinds = [step.public_prompt["task_type"] for step in heard]
-    assert kinds.count("dictation") == 1
+    assert kinds.count("dictation") >= 3 if band == "B1" else kinds.count("dictation") == 1
     for step in heard:
         RecallPrompt.model_validate(step.public_prompt)
         if step.public_prompt["task_type"] == "listen_tap":

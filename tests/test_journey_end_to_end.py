@@ -777,7 +777,7 @@ def test_the_next_eligible_day_is_grounded_in_yesterday(
 
 
 @pytest.mark.parametrize(
-    ("cefr", "expected_band"), [("A1.1", "A1"), ("B1.1", "A2")]
+    ("cefr", "expected_band"), [("A1.1", "A1"), ("B1.1", "B1")]
 )
 def test_the_apps_own_suggested_response_satisfies_the_objective_it_answers(
     assembled_client: TestClient,
@@ -1349,7 +1349,7 @@ def test_a_hundred_overdue_words_still_fit_the_five_minute_envelope(
     assert 0 < len(recalls) <= 2, f"{len(recalls)} recall steps would blow the budget"
 
 
-def test_an_advanced_learner_is_told_the_scene_is_below_their_level(
+def test_an_advanced_learner_gets_french_chrome_without_a_below_level_note(
     assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
 ) -> None:
     email = f"wp12-advanced-{uuid.uuid4().hex[:8]}@example.com"
@@ -1357,10 +1357,9 @@ def test_an_advanced_learner_is_told_the_scene_is_below_their_level(
 
     driver = Driver(assembled_client, headers, db=db_session)
     available = driver.today()["available"]
-    assert available["level_band"] in ("A1", "A2")
-    assert "below your current level" in available["objective_native"], (
-        "an advanced learner must be told the authored ceiling, not sold a match"
-    )
+    assert available["level_band"] == "B1"
+    assert driver.today()["control_language"] == "fr"
+    assert "below your current level" not in available["objective_native"]
 
 
 def test_a_stale_client_is_refused_with_a_way_back(
@@ -1875,4 +1874,3 @@ def test_the_resolution_finally_shows_the_register_it_has_been_grading(
     blob = str(prompt)
     for marker in ("rubric", "expected_register", "verdict", "respected"):
         assert marker not in blob, marker
-

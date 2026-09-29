@@ -329,7 +329,7 @@ test('T3 · the day’s reply objective belongs to the scene and the reply only'
     });
   assert.equal(line(recallStep()), 'Recall · Gender and number');
   assert.ok(!line(recallStep()).includes('Ask Romy'), 'no objective above a drill');
-  assert.equal(line(respondStep()), 'Le Mistral · Ask Romy if she wants to sit with you.');
+  assert.equal(line(respondStep()), 'Le Mistral');
   assert.equal(line({ kind: 'scene', prompt: {} }), 'Le Mistral · Ask Romy if she wants to sit with you.');
   assert.equal(line({ kind: 'resolution', prompt: {} }), 'Le Mistral · Ask Romy if she wants to sit with you.');
   assert.equal(line({ kind: 'read', prompt: {} }), '', 'a page to read carries its own kicker');
@@ -349,7 +349,8 @@ test('T3 · the session prints the drill’s name, not the day’s objective, ab
   const respond = respondStep();
   const journey2 = journeyWith([recall, respond], respond.id);
   const reply = decode(renderToStaticMarkup(h(JourneySession, { controller: controllerFor(journey2, respond) })));
-  assert.ok(reply.includes('Le Mistral · Ask Romy if she wants to sit with you.'), 'the reply keeps the objective');
+  assert.ok(reply.includes('Le Mistral'), 'the header keeps the place');
+  assert.ok(!reply.includes('Le Mistral · Ask Romy'), 'the header does not repeat the task');
 });
 
 // ===========================================================================
@@ -501,10 +502,8 @@ test('T7 · the exchange cue, in each chrome language', () => {
 
 test('T7 · the cue sits under the latest line while the field is open, and only then', () => {
   const open = renderToStaticMarkup(h(steps.RespondStepView, commonProps(turnTwoOfThree(null))));
-  assert.match(open, /<p class="av2-thread__cue"><span>Your turn — reply to Marin<\/span><span class="av2-thread__cue-part"> · Exchange 2 of 3<\/span><\/p>/);
-  assert.ok(open.indexOf('</ol>') < open.indexOf('av2-thread__cue'), 'under the thread');
-  assert.ok(open.indexOf('av2-thread__cue') < open.indexOf('<textarea'), 'above the field');
-  assert.ok(!open.includes('data-last="true"'), 'not the last one');
+  assert.ok(!open.includes('av2-thread__cue'), 'WP-107: one task line, no text count');
+  assert.ok(open.includes('<textarea'), 'the learner can reply');
 
   const lastTurn = renderToStaticMarkup(
     h(steps.RespondStepView, commonProps(respondStep({ turn_index: 2, character_line_fr: 'Et avec ça ?', thread: [
@@ -512,8 +511,7 @@ test('T7 · the cue sits under the latest line while the field is open, and only
       { learner_fr: 'Au comptoir.', character_fr: 'Et avec ça ?', correction: null },
     ] }), { copy: FR })),
   );
-  assert.match(lastTurn, /data-last="true"/);
-  assert.ok(lastTurn.includes('Dernier échange'));
+  assert.ok(!lastTurn.includes('Dernier échange'), 'the tokens carry exchange progress');
 
   // The wait and the close have no cue: the field is not open.
   const waiting = renderToStaticMarkup(
@@ -540,7 +538,7 @@ test('T7 · after the close «Continue» is the only action', () => {
   const midway = renderToStaticMarkup(
     h(JourneySession, { controller: controllerFor(journeyWith([respondStep()], 'step-respond'), respondStep()) }),
   );
-  assert.ok(midway.includes(EN.finish_early), 'while the conversation is open the quiet exit stays');
+  assert.ok(!midway.includes(EN.finish_early), 'WP-107: pause lives in the header');
 });
 
 // ===========================================================================
@@ -722,4 +720,38 @@ test('WP-103 · every new journey key exists in all three chrome languages', () 
   }
   assert.equal(FR.exchange_last, 'Dernier échange');
   assert.equal(FR.radio_text_show, 'Afficher le texte');
+});
+
+
+test('WP-107 · a B1 learner resuming an A2 scene keeps French chrome', () => {
+  const { journeyChromeLanguage, journeyLevel } = require('@/lib/language-rule.ts');
+  const controller = { controlLanguage: 'en', journey: { learner_level: 'B1.1', scenario: { level_band: 'A2' } } };
+  assert.equal(journeyLevel(controller), 'B1.1');
+  assert.equal(journeyChromeLanguage(controller), 'fr');
+  assert.equal(journeyChromeLanguage({ ...controller, envelope: { learner_level: 'B2.1' } }), 'fr');
+});
+
+test('WP-107 · reply has a short name, one task and one help disclosure', () => {
+  const prompt = { character_id: 'romy_tremblay', character_name: 'Romane « Romy » Tremblay',
+    character_line_fr: 'Si tu finis tôt, tu viens ?', objective_native: 'Proposez une heure — avec si.',
+    targets: [{kind: 'grammar', id: '107', label_fr: 'Si + présent → futur'}], help_available: ['hint', 'translation', 'suggested_response'] };
+  const html = decode(renderToStaticMarkup(h(steps.RespondStepView, commonProps(respondStep(prompt), { copy: FR }))));
+  assert.ok(html.includes('Romy'));
+  assert.ok(!html.includes('Romane'));
+  assert.equal(html.split(prompt.objective_native).length - 1, 1);
+  assert.ok(!html.includes('Si + présent'));
+  assert.ok(!html.includes(FR.help_translation));
+  assert.ok(!html.includes(FR.help_suggested_response));
+  assert.ok(html.includes(FR.help_hint));
+  assert.ok(html.indexOf('av2-speech') < html.indexOf(prompt.objective_native));
+  assert.ok(html.indexOf(prompt.objective_native) < html.indexOf('<textarea'));
+});
+
+test('WP-107 · expired authentication gives a sign-in action, never a transport banner', () => {
+  const html = decode(renderToStaticMarkup(h(steps.JourneyFeedbackView, { copy: FR,
+    feedback: { kind: 'error', message: 'session_expired', retryable: false },
+    onContinue() {}, onRetry() {}, onDismiss() {} })));
+  assert.ok(html.includes('Votre session a expiré'));
+  assert.ok(html.includes('Se reconnecter'));
+  assert.ok(!html.includes(FR.transport_error));
 });

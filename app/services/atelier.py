@@ -4331,7 +4331,8 @@ class AtelierCorrectionService:
         prompt_payload_override: dict[str, Any] | None = None,
         retest_of: UUID | None = None,
     ) -> AtelierAttempt:
-        self.explanation_language = normalize_language(user.native_language)
+        from app.services.chrome_language import user_chrome_language
+        self.explanation_language = user_chrome_language(user)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
         # WP-16 additive: per-attempt state for the answer bound and the cost row.
@@ -4859,7 +4860,8 @@ class AtelierCorrectionService:
         if not user or not session:
             return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
 
-        self.explanation_language = normalize_language(user.native_language)
+        from app.services.chrome_language import user_chrome_language
+        self.explanation_language = user_chrome_language(user)
         started = time.perf_counter()
         try:
             ai_correction = self.correct(
@@ -7268,11 +7270,16 @@ class AtelierCorrectionService:
         return str(item.get("type") or "grammar_target")
 
     def _why_for(self, concept: GrammarConcept | None) -> str:
+        if self.explanation_language == "fr":
+            from app.services.grammar_units import french_rule
+            return (french_rule(concept) if concept else None) or _copy("atelier.generic.why", "fr")
         if concept:
             return infer_grammar_profile(concept).principle
         return _copy("atelier.generic.why", self.explanation_language)
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
+        if self.explanation_language == "fr":
+            return _copy("atelier.generic.repair", "fr")
         if concept:
             return infer_grammar_profile(concept).repair
         return _copy("atelier.generic.repair", self.explanation_language)

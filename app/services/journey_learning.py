@@ -741,6 +741,12 @@ def select_learning_candidates(
         selected = _with_grammar_rappel(
             db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
         )
+    if scenario.control_language == "fr" and user.native_language != "fr":
+        # The catalogue's stored translation is English/German. French tasks
+        # use the scene's sentence instead of posing that foreign gloss.
+        selected = [replace(candidate, target=replace(candidate.target, label_native=None))
+                    if candidate.target.kind is TargetKind.VOCABULARY else candidate
+                    for candidate in selected]
     return _with_grammar_briefs(db, user=user, candidates=selected)
 
 
@@ -819,9 +825,9 @@ def _with_grammar_briefs(
     if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
         return candidates
     from app.services.concept_life import concept_brief
-    from app.services.journey_contracts import normalize_control_language
+    from app.services.chrome_language import user_chrome_language
 
-    language = normalize_control_language(getattr(user, "native_language", None))
+    language = user_chrome_language(user)
     out: list[LearningCandidate] = []
     for candidate in candidates:
         if candidate.target.kind is not TargetKind.GRAMMAR:

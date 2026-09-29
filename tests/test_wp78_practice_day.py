@@ -121,7 +121,11 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
         if step.kind is StepKind.RECALL:
             RecallPrompt.model_validate(step.public_prompt)
     quick = [step.public_prompt["task_type"] for step in plan.steps if step.kind is StepKind.RECALL]
-    assert len(set(quick)) >= 4, f"a mix, not one format five times: {quick}"
+    if band == "B1":
+        assert len(set(quick)) >= 2
+        assert sum(kind in {"short_answer", "transform", "dictation"} for kind in quick) / len(quick) >= .6
+    else:
+        assert len(set(quick)) >= 4, f"a mix, not one format five times: {quick}"
 
 
 def test_the_median_of_a_month_of_practice_days_holds_six() -> None:

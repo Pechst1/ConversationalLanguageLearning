@@ -1998,6 +1998,19 @@ def unit_band(unit: str) -> str:
     return str(unit_row(unit).get("level") or "A1")
 
 
+def near_miss_sentences(external_id: str | None, *, seed: str) -> tuple[str, list[str]] | None:
+    """A correct sentence and its authored trap forms, with the same context.
+
+    Unlike unrelated scene lines, every option exercises the same construction.
+    """
+    for unit in units_for_external_id(external_id):
+        for item in default_bank().generate(unit, 4, seed=seed, detector=unit_detector(unit)):
+            wrong = list(dict.fromkeys(item.wrong_sentences))
+            if wrong:
+                return item.sentence, wrong[:3]
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Rung items (the séance's payload shapes)
 # --------------------------------------------------------------------------- #
@@ -2164,6 +2177,17 @@ def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
             out["goal_native"] = goal_l10n(kind, meaning).get(code) or goal_l10n(kind, meaning)["en"]
     if out.get("source") and not out.get("source_fr") and ("expected_answer" in out):
         out["source_fr"] = out["source"]
+    if code == "fr":
+        # Stored sets carry English meaning cues. French chrome uses the task's
+        # existing French source, rather than embedding English in a French goal.
+        if "answer_tokens" in out:
+            out["goal_native"] = "Remettez les mots dans l’ordre pour construire la phrase."
+            out["meaning_cue"] = None
+            out["prompt"] = out["goal_native"]
+        elif out.get("source_fr"):
+            out["goal_native"] = "Corrigez la phrase en gardant le même sens."
+        elif "blank" in out or "correct_answer" in out:
+            out["goal_native"] = "Complétez la phrase avec la forme qui convient."
     return out
 
 

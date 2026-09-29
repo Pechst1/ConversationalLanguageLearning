@@ -24,6 +24,8 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { replyTaskLine } from './reply-task';
+import { reconnectWebSession, sessionExpiredCopy } from '@/lib/session-recovery';
 
 import {
   Action,
@@ -128,7 +130,6 @@ import {
   closesConversation,
   continuesConversation,
   correctionNotes,
-  exchangeCue,
   exchangeFromResult,
   exchangeProgress,
   parseLocalThread,
@@ -785,16 +786,17 @@ export function RespondStepView({
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
   const [local, setLocal] = useState<LocalThread>(() => parseLocalThread(draft?.get(threadKey)));
   const [openNote, setOpenNote] = useState<string | null>(null);
+  const [hintOpen, setHintOpen] = useState(false);
   // What was sent, captured at the tap: the snapshot moves to the next turn
   // (and the field empties) the moment the reply lands.
   const sentRef = useRef<SentTurn | null>(null);
   const canSpeak = voiceOffered(step.prompt);
   const canType = textOffered(step.prompt);
   // WP-27: speaking is the default output. The first render agrees with the
-  // server (voice whenever the step offers it) and the remembered preference
-  // is applied in an effect, so a learner who chose "Écrire" keeps it without
+  // server (text whenever the step offers it) and the remembered preference
+  // is applied in an effect, so a learner who chose voice keeps it without
   // a hydration mismatch.
-  const [mode, setMode] = useState<AnswerMode>(canSpeak ? 'voice' : 'text');
+  const [mode, setMode] = useState<AnswerMode>(canType ? 'text' : 'voice');
   const [explainRefusal, setExplainRefusal] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const voice = useVoiceAnswer();
@@ -876,7 +878,7 @@ export function RespondStepView({
       setMode('voice');
       return;
     }
-    setMode(readAnswerMode('voice'));
+    setMode(readAnswerMode('text'));
   }, [canSpeak, canType]);
 
   const chooseMode = (next: AnswerMode) => {
@@ -992,11 +994,7 @@ export function RespondStepView({
     feedback.kind === 'replying',
   );
   const progress = exchangeProgress(step.prompt, closing);
-  // WP-103 T7: while the field is open, say whose turn it is and how far it goes.
-  const cue =
-    letter || graded || waitingForReply
-      ? null
-      : exchangeCue({ copy, name: replier?.name ?? step.prompt.character_name, progress });
+  // The tokens carry exchange progress; the thread itself shows whose turn it is.
 
   const answerArea = graded ? (
     // A letter keeps the sent answer in the field's block; in the thread the
@@ -1062,11 +1060,6 @@ export function RespondStepView({
 
       <div className="av2-respond__actions">
         {sendAction}
-        {canSpeak && (
-          <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
-            {copy.use_voice}
-          </Action>
-        )}
       </div>
     </>
   );
@@ -1074,18 +1067,8 @@ export function RespondStepView({
   const brief = (
     <>
       <p className="av2-body av2-body--lg">
-        {letter ? letter.objective_native : step.prompt.objective_native}
+        {replyTaskLine(letter ? letter.objective_native : step.prompt.objective_native)}
       </p>
-
-      {step.prompt.targets.length > 0 && (
-        <div className="av2-help__actions">
-          {step.prompt.targets.map((target) => (
-            <Chip key={`${target.kind}:${target.id}`} icon={<ShapeToken kind="reward" size="sm" />}>
-              <span lang="fr">{target.label_fr}</span>
-            </Chip>
-          ))}
-        </div>
-      )}
     </>
   );
 
@@ -1115,15 +1098,30 @@ export function RespondStepView({
         </Notice>
       )}
 
-      {!graded && (
-        <HelpRow
-          available={step.prompt.help_available}
-          used={step.assistance_used.filter((level) => level !== 'none')}
-          copy={copy}
-          busy={busy}
-          help={help}
-          onHelp={onHelp}
-        />
+      {!graded && (step.prompt.help_available.length > 0 || step.prompt.targets.length > 0 || canSpeak) && (
+        <div className="av2-stack av2-help">
+          <Chip onClick={() => setHintOpen((open) => !open)} aria-expanded={hintOpen}>
+            {copy.help_hint}
+          </Chip>
+          {hintOpen && <>
+            {canSpeak && mode === 'text' && <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
+              {copy.use_voice}
+            </Action>}
+            {step.prompt.targets.length > 0 && <div className="av2-help__actions">
+              {step.prompt.targets.map((target) => <Chip key={`${target.kind}:${target.id}`}>
+                <span lang="fr">{target.label_fr}</span>
+              </Chip>)}
+            </div>}
+            <HelpRow
+              available={step.prompt.help_available}
+              used={step.assistance_used.filter((level) => level !== 'none')}
+              copy={copy}
+              busy={busy}
+              help={help}
+              onHelp={onHelp}
+            />
+          </>}
+        </div>
       )}
     </>
   );
@@ -1170,7 +1168,6 @@ export function RespondStepView({
         </p>
         <ExchangeTokens progress={progress} copy={copy} />
       </div>
-      {brief}
       <RespondThread
         journeyId={journeyId}
         stepId={step.id}
@@ -1185,12 +1182,7 @@ export function RespondStepView({
         openNote={openNote}
         onToggleNote={(key) => setOpenNote((current) => (current === key ? null : key))}
       />
-      {cue && (
-        <p className="av2-thread__cue" data-last={cue.last ? 'true' : undefined}>
-          <span>{cue.lead}</span>
-          {cue.part && <span className="av2-thread__cue-part"> · {cue.part}</span>}
-        </p>
-      )}
+      {!graded && !waitingForReply && brief}
       {answerArea}
       {aside}
     </section>
@@ -1526,7 +1518,10 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{copy.transport_error}</p>
+            <p>{feedback.message === 'session_expired' ? sessionExpiredCopy[copyLanguage(copy)].message : copy.transport_error}</p>
+            {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
+              {sessionExpiredCopy[copyLanguage(copy)].action}
+            </Action>}
             {feedback.retryable && (
               <Action tone="secondary" inline onClick={onRetry}>
                 {copy.retry}
