@@ -1645,7 +1645,7 @@ Do not invent an outcome key. Do not add any other field."""
 # --------------------------------------------------------------------------
 
 #: Words in one authored-scene character line, by band. The story engine's ACTOR
-#: caps (``living_story._REPLY_WORD_LIMITS``: A1 40 …) bound a whole reply *and*
+#: caps (``living_story._REPLY_WORD_LIMITS``: A1 15 …) bound a whole reply *and*
 #: its ending; a line said across a café counter to an A1 learner is one clause.
 REPLY_WORD_CAPS: dict[str, int] = {"A1": 12, "A2": 18, "B1": 28, "B2": 40, "C1": 50, "C2": 50}
 #: At A1 a line asks at most one question and never chains clauses with « ; ».
@@ -1832,15 +1832,33 @@ def reply_lexical_issue(
     """
 
     try:
+        from app.services.lexical_coverage import known_word_set
+
+        known = known_word_set(db, user=user)
+    except Exception as exc:  # noqa: BLE001 - a level check never costs a turn
+        logger.warning("journey_conversation_lexical_check_skipped: {}", exc.__class__.__name__)
+        return None
+    return lexical_issue_for_known(known, reply=reply, seen=seen, names=names)
+
+
+def lexical_issue_for_known(
+    known: Any,
+    *,
+    reply: str,
+    seen: list[str],
+    names: list[str],
+) -> str | None:
+    """:func:`reply_lexical_issue` for a known-word set already read — pure, so the
+    story engine's reply lanes can run it off the request's session (WP-103 T5)."""
+
+    try:
         from app.services.lexical_coverage import (
             MAX_HINT_WORDS,
             SUPPORTED_COVERAGE_FLOOR,
             accidental_budget,
-            known_word_set,
             text_coverage,
         )
 
-        known = known_word_set(db, user=user)
         if not known.is_assessable:
             return None
         result = text_coverage(reply, known, targets=seen, proper_nouns=names)

@@ -555,7 +555,10 @@ in resolved_chapter_questions, and never a rewording of one. suggested_response_
 learner could actually say, never a list of alternatives with slashes or brackets.
 An invitation can be declined; do not railroad the learner. character_id
 is the cast member who addresses the learner and must be an id from world.cast; every
-dialogue character_id likewise; the learner is never a character_id. location_id must
+dialogue character_id likewise; the learner is never a character_id. The person the
+objective asks the learner to talk to IS character_id: never "Ask Romy…" while Marin is
+the one who speaks to the learner and answers — if the learner must talk to Romy, Romy is
+character_id and says opening_line_fr. location_id must
 be an id from world.locations. Premise plus all panel narration and dialogue stay
 under about 160 words for A1, 240 for A2, 300 for B1, 350 for B2 and 400 for C1. Preserve
 character knowledge: a character only knows witnessed events or facts explicitly
@@ -776,10 +779,11 @@ promise that is already listed in story.commitments as open, emit no commitment:
 the same promise, and it is already recorded. Write a commitment as what the learner
 will do, not as a line of dialogue addressed to them. Never quote or paraphrase
 scene.suggested_response_fr in reply_fr: the character answers, they do not dictate the
-learner's next line. Keep reply_fr and resolution_fr at the learner's level (A1: short
-present-tense sentences, at most 35 words in total; A2: at most 55 words; B1: up to 85,
-with a reason or a condition; B2: up to 110, with connectors, idiom and something left
-implicit; C1: up to 140, with register play and a line that means more than it says).
+learner's next line. Keep reply_fr at the learner's level (A1: one or two short
+present-tense sentences, at most 15 words; A2: at most 25 words; B1: up to 85, with a
+reason or a condition; B2: up to 110, with connectors, idiom and something left implicit;
+C1: up to 140, with register play and a line that means more than it says) and
+resolution_fr too (A1 at most 35 words, A2 55, B1 85, B2 110, C1 140).
 Never write a form like "prêt(e)" or "content(e)": choose one form or rephrase. Mark
 met only when the communicative objective (including a coherent alternative or refusal)
 is fulfilled. Clarify ambiguity; no success, commitment or plot resolution from unclear
@@ -1173,16 +1177,21 @@ def _approved(
     # they come; and if no later attempt succeeds, this draft is served.
     soft: dict[str, Any] = {"fallback": None, "hinted": False, "this_attempt": False}
 
-    def vet(proposal) -> None:
+    def vet(proposal):
+        """The proposal to keep: ``proposal`` itself, or — on the attempt after a soft
+        rejection — the servable version the rejection carried (WP-103: a reply trimmed
+        at a sentence boundary, an objective re-addressed to the addressed character)."""
+
         try:
             validate(proposal)
         except SoftRejection as exc:
             if soft["hinted"]:
-                return
+                return exc.proposal if exc.proposal is not None else proposal
             if soft["fallback"] is None:
                 soft["fallback"] = exc.proposal if exc.proposal is not None else proposal
             soft["this_attempt"] = True
             raise
+        return proposal
 
     # WP-58: when every attempt is refused, a *turn* does not fail the learner's send —
     # ``evaluate_turn`` answers with an honest authored ending instead (live review
@@ -1230,12 +1239,11 @@ def _approved(
                             feedback = list(dict.fromkeys([*feedback, error.feedback]))
                         continue
                     try:
-                        vet(proposal)
+                        approved.append(vet(proposal))
                     except StoryUnavailable as exc:
                         reason = str(exc)
                         feedback = list(dict.fromkeys([*feedback, exc.feedback]))
                         continue
-                    approved.append(proposal)
                 if not approved:
                     continue
                 proposal = (
@@ -1255,7 +1263,7 @@ def _approved(
                     record,
                     deadline=deadline,
                 )
-                vet(proposal)
+                proposal = vet(proposal)
             if not CRITIC_ENABLED or schema.__name__ not in CRITIC_STAGES:
                 # A/B only (scripts/longitudinal_story_review.py --critic). The
                 # deterministic guards above have already run; nothing else is skipped.
@@ -4511,7 +4519,148 @@ def _check_address(texts: list[str], address: str | None) -> None:
         )
 
 
-_REPLY_WORD_LIMITS = {"A1": 40, "A2": 60, "B1": 90, "B2": 120, "C1": 150}
+# WP-103 T5 (the owner's test, 2026-09-29): Marin answered an A1 learner in 43 words.
+# An engine reply is the next thing the learner reads: at A1 one or two short sentences
+# of at most 15 words, at A2 at most 25; B1 and up keep their caps. A reply above the
+# line is refused once with the reason, then trimmed at a sentence boundary — a length
+# problem never costs the learner the turn.
+_REPLY_WORD_LIMITS = {"A1": 15, "A2": 25, "B1": 90, "B2": 120, "C1": 150}
+#: Sentences in one reply, by band. An interjection («Oui !», «Ah bon ?») is not one.
+_REPLY_SENTENCE_LIMITS = {"A1": 2}
+_INTERJECTION_WORDS = 2
+_REPLY_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+_REPLY_CLAUSE_END = re.compile(r"(?<=[,;:])\s+")
+_WORD_CHAR = re.compile(r"\w", re.UNICODE)
+
+
+def reply_words(text: str | None) -> int:
+    """Running words as a reader counts them: « ? » and « ! » are not words."""
+
+    return len([token for token in str(text or "").split() if _WORD_CHAR.search(token)])
+
+
+def _reply_sentences(text: str | None) -> list[str]:
+    return [part for part in _REPLY_SENTENCE_END.split(" ".join(str(text or "").split())) if part.strip()]
+
+
+def _counted_sentences(parts: list[str]) -> int:
+    return sum(1 for part in parts if reply_words(part) > _INTERJECTION_WORDS)
+
+
+def _reply_band(level: Any) -> str:
+    return str(level or "").strip().upper()[:2]
+
+
+def reply_length_issue(reply: str | None, level: Any) -> str | None:
+    """The retry hint when an engine reply is above the learner's line, else ``None``."""
+
+    band = _reply_band(level)
+    cap = _REPLY_WORD_LIMITS.get(band)
+    if not cap:
+        return None
+    words = reply_words(reply)
+    sentence_cap = _REPLY_SENTENCE_LIMITS.get(band)
+    shape = " in one or two short sentences" if sentence_cap else ""
+    learner = f"an {band}" if band[:1] == "A" else f"a {band}"
+    if words > cap:
+        return (
+            f"The reply runs to {words} words; {learner} learner reads at most {cap}{shape}. "
+            "Say the same thing in fewer, shorter words, and keep the one question that "
+            "moves the scene on."
+        )
+    sentences = _counted_sentences(_reply_sentences(reply))
+    if sentence_cap and sentences > sentence_cap:
+        return (
+            f"The reply has {sentences} sentences; {learner} learner reads one or two short "
+            "ones. Keep what answers the learner and, if there is one, the question."
+        )
+    return None
+
+
+def trim_reply(reply: str | None, level: Any) -> str:
+    """``reply`` cut at a sentence boundary to fit the band (WP-103 T5).
+
+    Whole sentences from the start while they fit — the first one answers the
+    learner and is always kept; when the reply asked something and the kept part does
+    not, its question takes the place of the later sentences if it fits. A first
+    sentence longer than the whole cap is cut at a clause boundary (a comma), and only
+    as a last resort at a word.
+    """
+
+    text = " ".join(str(reply or "").split())
+    band = _reply_band(level)
+    cap = _REPLY_WORD_LIMITS.get(band)
+    if not cap or reply_length_issue(text, band) is None:
+        return text
+    sentence_cap = _REPLY_SENTENCE_LIMITS.get(band)
+    parts = _reply_sentences(text)
+
+    def fits(chosen: list[str]) -> bool:
+        joined = " ".join(chosen)
+        return reply_words(joined) <= cap and (
+            not sentence_cap or _counted_sentences(chosen) <= sentence_cap
+        )
+
+    kept: list[str] = []
+    for part in parts:
+        if not fits([*kept, part]):
+            break
+        kept.append(part)
+    questions = [part for part in parts if part.rstrip().endswith("?")]
+    if questions and not any(part in kept for part in questions):
+        question = questions[-1]
+        for keep in range(len(kept), 0 if kept else -1, -1):
+            if fits([*kept[:keep], question]):
+                kept = [*kept[:keep], question]
+                break
+    if kept:
+        return " ".join(kept)
+    # One sentence longer than the whole cap: its leading clauses, then its words.
+    clauses = _REPLY_CLAUSE_END.split(parts[0] if parts else text)
+    head: list[str] = []
+    for clause in clauses:
+        if reply_words(" ".join([*head, clause])) > cap:
+            break
+        head.append(clause)
+    if head:
+        return " ".join(head).rstrip(" ,;:") + "."
+    words = (parts[0] if parts else text).split()
+    return " ".join(words[:cap]).rstrip(" ,;:") + "…"
+
+
+def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
+    """The two reply checks that never cost a turn (WP-103 T5), run last.
+
+    Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
+    at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
+    too many words this learner has not met → a :class:`SoftRejection` carrying the
+    reply as it is. Either way the retry is told why, and the attempt after it — or,
+    if it fails, this one — is served as the rejection carried it.
+    """
+
+    reply = str(getattr(model, "reply_fr", "") or "")
+    hints: list[str] = []
+    issue = reply_length_issue(reply, level)
+    trimmed = trim_reply(reply, level) if issue else reply
+    if issue:
+        hints.append(issue)
+    lexical_hint = None
+    if lexical is not None:
+        try:
+            lexical_hint = lexical(reply)
+        except Exception:  # noqa: BLE001 - a level check never costs a turn
+            logger.warning("living_story: reply lexical check skipped", exc_info=True)
+            lexical_hint = None
+    if lexical_hint:
+        hints.append(str(lexical_hint))
+    if not hints:
+        return
+    served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
+    raise SoftRejection(
+        "reply_above_level" if issue else "reply_off_lexicon",
+        hint=" ".join(hints),
+        proposal=served,
+    )
 # A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
 _SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
 MIN_SCENE_PANELS = 4
@@ -4662,6 +4811,171 @@ def _check_objective_scope(
                 f"\"{objective}\" chains {found + 1} asks."
             ),
         )
+
+
+# WP-103 T4 (the owner's test, 2026-09-29): «Ask Romy if she wants to sit with you» —
+# and Marin answered, with Marin's face. The person the objective asks the learner to
+# talk to IS the addressed character. The verbs below make the next word the person
+# spoken to, in the three control languages; the name is read by lookahead so «Bitte
+# frag Romy» still finds «frag Romy».
+_ADDRESSING = re.compile(
+    r"\b(?:ask|tell|invite|answer|reply\s+to|respond\s+to|greet|thank|say\s+to"
+    r"|suggest\s+to|propose\s+to|offer|convince|persuade|reassure|remind|warn"
+    r"|apologi[sz]e\s+to|explain\s+to|call|text|write\s+to|help|comfort|congratulate"
+    r"|encourage|agree\s+with|talk\s+to|speak\s+to|chat\s+with|order\s+from"
+    r"|demande[rz]?\s+à|dis\s+à|dites\s+à|réponds\s+à|répondez\s+à|propose[rz]?\s+à"
+    r"|invite[rz]?|remercie[rz]?|explique[rz]?\s+à|salue[rz]?|rassure[rz]?|convaincs"
+    r"|convainquez|rappelle[rz]?\s+à|écris\s+à|écrivez\s+à|parle[rz]?\s+à|annonce[rz]?\s+à"
+    r"|conseille[rz]?|aide[rz]?|frag(?:e|en\s+sie)?|sag(?:e|en\s+sie)?|antworte|lade|lad"
+    r"|erkläre|erzähle?|danke|begrüße|überzeuge|beruhige|schreib(?:e)?|sprich\s+mit|hilf)"
+    r"\s+(?=(?P<name>[^\W\d_][\w'’-]*))",
+    re.IGNORECASE,
+)
+#: Third-person pronouns to swap when the objective is re-addressed to a character of
+#: the other gender. English «her» (him or his) is decided by the word after it.
+_TO_MASCULINE = {
+    "she": "he", "herself": "himself", "hers": "his", "elle": "il", "elle-même": "lui-même",
+}
+_TO_FEMININE = {
+    "he": "she", "himself": "herself", "his": "her", "him": "her", "il": "elle",
+    "lui-même": "elle-même",
+}
+_HER_OBJECT_FOLLOWERS = frozenset(
+    {"", "to", "if", "whether", "that", "and", "or", "for", "with", "about", "in", "on",
+     "at", "a", "an", "the", "why", "when", "where", "how", "what", "who", "out", "up"}
+)
+
+
+def short_name(member: dict) -> str:
+    """How the story calls a cast member: the nickname in « », else the first name."""
+
+    name = str(member.get("name") or "").strip()
+    nickname = re.search(r"«\s*([^»]+?)\s*»", name)
+    if nickname:
+        return nickname.group(1)
+    return name.split()[0] if name else str(member.get("id") or "").split("_")[0].capitalize()
+
+
+def objective_addressees(objective: str | None, cast: list[dict]) -> list[tuple[dict, str]]:
+    """Every cast member the objective asks the learner to speak to, with the word
+    that names them there: ``[(member, "Romy")]``."""
+
+    found: list[tuple[dict, str]] = []
+    for match in _ADDRESSING.finditer(str(objective or "")):
+        raw = match.group("name")
+        if re.search(r"['’]s$", raw, re.IGNORECASE):
+            continue  # «Invite Romy's friend»: Romy is not the one spoken to
+        word = re.sub(r"['’].*$", "", raw)
+        key = _folded(word)
+        member = next((m for m in cast if key and key in _name_keys(m)), None)
+        if member is not None and all(member.get("id") != seen.get("id") for seen, _ in found):
+            found.append((member, word))
+    return found
+
+
+def objective_addressee_mismatch(
+    objective: str | None, character_id: str, cast: list[dict]
+) -> tuple[dict, str] | None:
+    """The other cast member the objective addresses while ``character_id`` answers,
+    or ``None``. An objective that also addresses the character ("Tell Marin that
+    Romy…") is not a mismatch; one that names nobody is not either."""
+
+    addressed = objective_addressees(objective, cast)
+    if not addressed or any(member.get("id") == character_id for member, _ in addressed):
+        return None
+    return addressed[0]
+
+
+def _swap_pronouns(text: str, *, to_masculine: bool) -> str:
+    """She → he, «si elle» → «s'il» (or back): the re-addressed person's pronouns."""
+
+    table = _TO_MASCULINE if to_masculine else _TO_FEMININE
+
+    def swap(match: re.Match[str]) -> str:
+        word = match.group(0)
+        target = table.get(word.casefold())
+        if target is None:
+            return word
+        return target.capitalize() if word[:1].isupper() else target
+
+    words = "|".join(re.escape(word) for word in sorted(table, key=len, reverse=True))
+    swapped = re.sub(rf"(?<![\w-])(?:{words})(?![\w-])", swap, text, flags=re.IGNORECASE)
+    if to_masculine:
+        # «her» is him (ask her) or his (her seat): the next word decides.
+        def her(match: re.Match[str]) -> str:
+            following = (match.group(2) or "").casefold()
+            word = "him" if following in _HER_OBJECT_FOLLOWERS else "his"
+            word = word.capitalize() if match.group(1)[:1].isupper() else word
+            return word + match.group(0)[len(match.group(1)):]
+
+        swapped = re.sub(r"\b(her)\b(?:\s+([A-Za-z]+))?", her, swapped, flags=re.IGNORECASE)
+        swapped = re.sub(r"\b([Ss])i il\b", r"\1'il", swapped)
+    else:
+        swapped = re.sub(r"\b([Ss])['’]il\b", r"\1i elle", swapped)
+    return swapped
+
+
+def readdress(text: str | None, word: str, other: dict, addressed: dict, *, pronouns: bool) -> str:
+    """``text`` with ``word`` (the other member's name) replaced by the addressed
+    character's name — and, when their genders differ, the pronouns that follow it."""
+
+    value = str(text or "")
+    if not value or not word:
+        return value
+    index = value.casefold().find(word.casefold())
+    replaced = re.sub(rf"(?<![\w-]){re.escape(word)}(?![\w-])", short_name(addressed), value)
+    if not pronouns or index < 0:
+        return replaced
+    genders = (str(other.get("gender") or ""), str(addressed.get("gender") or ""))
+    if genders[0] == genders[1] or not all(g in {"f", "m"} for g in genders):
+        return replaced
+    head, tail = replaced[:index], replaced[index:]
+    return head + _swap_pronouns(tail, to_masculine=genders[1] == "m")
+
+
+def _check_addressee(draft: SceneDraft, context: dict) -> None:
+    """WP-103 T4. The objective's addressee is the addressed character.
+
+    A draft whose objective asks the learner to talk to another cast member is a
+    :class:`SoftRejection`: the one retry is told precisely who must change, and the
+    rejection carries the draft re-addressed deterministically (the name, and the
+    pronouns when the genders differ) — served on the retry if it repeats the mistake,
+    and if the retry fails. A scene is never lost to it.
+    """
+
+    cast = [member for member in (context.get("world") or {}).get("cast") or [] if member.get("id")]
+    addressed = next((m for m in cast if m.get("id") == draft.character_id), None)
+    mismatch = objective_addressee_mismatch(draft.objective_native, draft.character_id, cast)
+    if addressed is None or mismatch is None:
+        return
+    other, word = mismatch
+    repaired = draft.model_copy(deep=True)
+    repaired.objective_native = readdress(draft.objective_native, word, other, addressed, pronouns=True)
+    repaired.objective_semantics = readdress(
+        draft.objective_semantics, word, other, addressed, pronouns=True
+    )
+    repaired.hint_native = readdress(draft.hint_native, word, other, addressed, pronouns=True)
+    repaired.suggested_response_fr = readdress(
+        draft.suggested_response_fr, word, other, addressed, pronouns=False
+    )
+    them, speaker = short_name(other), short_name(addressed)
+    hint = (
+        f"The objective asks the learner to talk to {them} (\"{draft.objective_native}\"), "
+        f"but character_id is {draft.character_id}: {speaker} is the one who speaks to the "
+        f"learner and answers. The person the objective addresses IS the addressed "
+        f"character. Either rewrite the objective to address {speaker}, or make {them} "
+        f"the character_id and give {them} opening_line_fr."
+    )
+    aids = None
+    try:
+        _check_reading_aids(repaired, context)
+    except SoftRejection as exc:
+        aids = exc.hint
+    raise SoftRejection(
+        "objective_addresses_other_character",
+        hint=" ".join(part for part in (hint, aids) if part),
+        proposal=repaired,
+    )
 
 
 def _premise_overlap(left: str, right: str) -> float:
@@ -5153,6 +5467,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _validate_lexicon(draft, context)
     # Last, on the draft every hard guard has accepted: a soft rejection carries a
     # scene that is servable as it stands.
+    _check_addressee(draft, context)
     _check_reading_aids(draft, context)
 
 
@@ -6828,6 +7143,69 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     }
 
 
+def _scene_texts_seen(payload: dict) -> list[str]:
+    """Every French line the learner has read or written in this scene (WP-103 T5)."""
+
+    scene = payload.get("scene") or {}
+    seen = [
+        str(scene.get(key) or "")
+        for key in ("premise_fr", "opening_line_fr", "title_fr")
+    ]
+    for panel in scene.get("panels") or []:
+        if not isinstance(panel, dict):
+            continue
+        seen.append(str(panel.get("narration_fr") or ""))
+        seen.extend(
+            str(line.get("text_fr") or "")
+            for line in panel.get("dialogue") or []
+            if isinstance(line, dict)
+        )
+    for exchange in payload.get("history") or []:
+        if isinstance(exchange, dict):
+            seen.extend(str(value) for value in exchange.values() if isinstance(value, str))
+    seen.append(str(payload.get("learner_text") or ""))
+    seen.extend(
+        str(target.get("label_fr") or "")
+        for target in payload.get("targets") or []
+        if isinstance(target, dict)
+    )
+    return [text for text in seen if text.strip()]
+
+
+def _cast_name_words(payload: dict) -> list[str]:
+    story = payload.get("story") or {}
+    names: list[str] = []
+    for member in (story.get("world") or {}).get("cast") or []:
+        names.extend(re.findall(r"[^\W\d_]+", str(member.get("name") or "")))
+    learner = story.get("learner") or {}
+    names.extend(re.findall(r"[^\W\d_]+", str(learner.get("name") or "")))
+    return [name for name in names if name]
+
+
+def reply_lexical_checker(db: Session, user: User, payload: dict):
+    """WP-89's word budget for an engine reply (WP-103 T5): ``reply -> hint | None``.
+
+    The learner's known-word set is read here, on the request's own session, so the
+    check itself is pure and may run in a reply lane's thread. ``None`` when the set
+    cannot be assessed: the check abstains, it never refuses a reply for want of data.
+    """
+
+    try:
+        from app.services.lexical_coverage import known_word_set
+
+        known = known_word_set(db, user=user)
+        if not known.is_assessable:
+            return None
+    except Exception:  # noqa: BLE001 - a level check never costs a turn
+        logger.warning("living_story: reply lexical check unavailable", exc_info=True)
+        return None
+    from app.services.journey_conversation import lexical_issue_for_known
+
+    seen = _scene_texts_seen(payload)
+    names = _cast_name_words(payload)
+    return lambda reply: lexical_issue_for_known(known, reply=reply, seen=seen, names=names)
+
+
 def keeps_talking(task: ResponseTask, turn_index: int, *, self_repair=None) -> bool:
     """True while the scene's conversation has exchanges left after this turn.
 
@@ -6875,7 +7253,11 @@ def _same_utterance(left: str, right: str) -> bool:
     return bool(folded_left) and folded_left == folded_right
 
 
-def _validate_turn(turn: SemanticTurn, payload: dict):
+def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_checks: bool = True):
+    """The ACTOR turn's guards. ``reply_checks`` off: the reply was already shown
+    (the story lane re-validates a released reply), so its length and words are not
+    judged again. ``lexical(reply) -> hint | None`` is WP-89's word budget (WP-103)."""
+
     texts = [payload["learner_text"], *[h.get("learner", "") for h in payload["history"]]]
 
     def quoted(quote):
@@ -6915,16 +7297,6 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
             ),
         )
     story = payload.get("story") or {}
-    limit = _REPLY_WORD_LIMITS.get(str(story.get("level") or ""))
-    if limit and len(turn.reply_fr.split()) > limit:
-        raise StoryUnavailable(
-            "reply_above_level",
-            hint=(
-                f"The reply runs to {len(turn.reply_fr.split())} words; a "
-                f"{story.get('level')} learner reads at most {limit}. Say the same "
-                "thing in fewer, shorter sentences."
-            ),
-        )
     # Only what the learner reads is a hard rejection. `understood_intent` is the
     # model's private paraphrase; the A2 paid run put "Le·la apprenant·e" there
     # and the live review of 2026-09-19 lost a whole day to it — two attempts,
@@ -6985,6 +7357,10 @@ def _validate_turn(turn: SemanticTurn, payload: dict):
     # records observations for the task's own targets, so an invented id can never
     # earn credit, while rejecting the whole turn would cost the learner a valid reply
     # (live review 2026-09-06: two attempts lost this way with an empty target list).
+    if reply_checks:
+        # WP-103 T5: last, on a turn every hard guard has accepted — length and words
+        # are refused once with the reason, then the trimmed reply is served.
+        reply_soft_check(turn, story.get("level"), lexical)
 
 
 def evaluate_turn(
@@ -7021,8 +7397,14 @@ def evaluate_turn(
             db, user, scenario, task, answer, history, turn_index, self_repair=self_repair
         )
         payload["assistance"] = str(assistance)
+        lexical = reply_lexical_checker(db, user, payload)
         turn, usage = _approved(
-            ACTOR, payload, SemanticTurn, lambda t: _validate_turn(t, payload), db=db, user=user
+            ACTOR,
+            payload,
+            SemanticTurn,
+            lambda t: _validate_turn(t, payload, lexical=lexical),
+            db=db,
+            user=user,
         )
         needs_repair = turn.needs_clarification and turn_index < task.max_turns
         if self_repair is not None and turn_index < task.max_turns:

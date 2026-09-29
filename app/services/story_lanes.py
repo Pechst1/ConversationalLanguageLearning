@@ -176,8 +176,8 @@ coffee. The reply is emotional truth, not customer service: show how the words l
 you (relief, disappointment, a joke to cover hurt, warmth), answering from mood and
 relationship. Do not end the scene, do not narrate what happens next, do not invent a
 choice, promise or plan the learner did not state.
-Keep reply_fr at the learner's level (A1: short present-tense sentences, at most 35
-words; A2: at most 55; B1: up to 85; B2: up to 110; C1: up to 140). Answer tu with tu,
+Keep reply_fr at the learner's level (A1: one or two short present-tense sentences, at
+most 15 words; A2: at most 25 words; B1: up to 85; B2: up to 110; C1: up to 140). Answer tu with tu,
 vous with vous, as the scene addresses the learner. Below B1 use no coarse or vulgar word.
 Address, agreement and endearments aimed at the learner follow learner.address; for
 neutral use no gendered adjective, participle or endearment about the learner and never
@@ -352,8 +352,14 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
 
 
-def validate_voice(voice: VoiceReply, payload: dict) -> None:
-    """The guards the critic used to backstop, now synchronous on the reply."""
+def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
+    """The guards the critic used to backstop, now synchronous on the reply.
+
+    WP-103 T5: length (A1 ≤ 15 words in one or two short sentences, A2 ≤ 25) and
+    WP-89's word budget (``lexical(reply) -> hint | None``) run last, as
+    :class:`~app.services.living_story.SoftRejection`: one retry with the reason,
+    then the reply trimmed at a sentence boundary is served.
+    """
 
     story = payload.get("story") or {}
     scene = payload.get("scene") or {}
@@ -369,15 +375,6 @@ def validate_voice(voice: VoiceReply, payload: dict) -> None:
             hint="The reply recites the learner's expected answer. React to what they said.",
         )
     level = str(story.get("level") or "")
-    limit = engine._REPLY_WORD_LIMITS.get(level)
-    if limit and len(voice.reply_fr.split()) > limit:
-        raise engine.StoryUnavailable(
-            "reply_above_level",
-            hint=(
-                f"The reply runs to {len(voice.reply_fr.split())} words; a {level} learner "
-                f"reads at most {limit}. Say it in fewer, shorter sentences."
-            ),
-        )
     address = (story.get("learner") or {}).get("address")
     voice.reply_fr = engine._scrub_endearments(
         engine._scrub_paren_gender(engine._scrub_inclusive_dot(voice.reply_fr)), address
@@ -395,6 +392,7 @@ def validate_voice(voice: VoiceReply, payload: dict) -> None:
         voice.understood_intent = engine._scrub_inclusive_dot(voice.understood_intent)
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         voice.needs_clarification = True
+    engine.reply_soft_check(voice, level, lexical)
 
 
 def capped_outcome(tutor: TutorVerdict, voice: VoiceReply) -> str:
@@ -476,10 +474,18 @@ class ReplyLanes:
 
 def _run_lane(system, request, schema, validate, *, deadline, collected, max_tokens, window,
               reasoning_effort=LANE_REASONING_EFFORT, attempts=None):
-    """One lane's own small approval loop: call, guard, retry once with the hint."""
+    """One lane's own small approval loop: call, guard, retry once with the hint.
+
+    A :class:`~app.services.living_story.SoftRejection` (WP-103: a reply above the
+    band's line, or with too many unmet words) is retried once with its reason; the
+    attempt after it is served as the rejection carried it (trimmed), and if every
+    later attempt fails, the first one is — a length problem never loses the turn.
+    """
 
     feedback: list[str] = []
     reason = "story_generation_unavailable"
+    fallback = None
+    hinted = False
     for _ in range(attempts or settings.ATELIER_STORY_MAX_ATTEMPTS):
         if deadline - time.monotonic() < 1:
             reason = "story_generation_deadline"
@@ -497,15 +503,28 @@ def _run_lane(system, request, schema, validate, *, deadline, collected, max_tok
             )
             validate(proposal)
             return proposal
+        except engine.SoftRejection as exc:
+            served = exc.proposal if exc.proposal is not None else proposal
+            if hinted:
+                return served
+            fallback = fallback if fallback is not None else served
+            hinted = True
+            reason = str(exc)
+            feedback = list(dict.fromkeys([*feedback, exc.feedback]))
         except engine.StoryUnavailable as exc:
             reason = str(exc)
             feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+    if fallback is not None:
+        logger.info("story_lanes: serving the reply the soft rejection carried (%s)", reason)
+        return fallback
     raise engine.StoryUnavailable(reason, hint=" | ".join(feedback)[:1200] or None)
 
 
-def run_reply_lanes(payload: dict, *, deadline: float | None = None) -> ReplyLanes:
+def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=None) -> ReplyLanes:
     """Tutor and voice in parallel. Wall time ≈ max(tutor, voice). No DB access here:
-    the caller records the usage on its own session once both are back."""
+    the caller records the usage on its own session once both are back. ``lexical``
+    (``reply -> hint | None``, built on the caller's session) is WP-89's word budget
+    applied to the voice's reply (WP-103 T5)."""
 
     deadline = deadline or time.monotonic() + engine.OPERATION_BUDGET_SECONDS
     usage: dict[str, list[dict]] = {"tutor": [], "voice": []}
@@ -519,7 +538,8 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None) -> ReplyLan
         ),
         "voice": lambda: _run_lane(
             VOICE, voice_payload(payload), VoiceReply,
-            lambda v: validate_voice(v, payload), deadline=deadline, collected=usage["voice"],
+            lambda v: validate_voice(v, payload, lexical=lexical), deadline=deadline,
+            collected=usage["voice"],
             max_tokens=VOICE_OUTPUT_TOKENS + LANE_REASONING_HEADROOM,
             window=LANE_REQUEST_TIMEOUT_SECONDS,
         ),
@@ -565,7 +585,8 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     """The legacy turn guards on the merged turn, and an ending is always owed: the
     story lane only runs on the turn that closes the scene."""
 
-    engine._validate_turn(turn, payload)
+    # The reply was released on the request: its length and words are not judged again.
+    engine._validate_turn(turn, payload, reply_checks=False)
     if not turn.resolution_fr or not turn.summary_native:
         raise engine.StoryUnavailable(
             "missing_generated_ending",
@@ -739,7 +760,7 @@ def evaluate_turn_lanes(
         )
         payload["assistance"] = str(assistance)
         try:
-            lanes = run_reply_lanes(payload)
+            lanes = run_reply_lanes(payload, lexical=engine.reply_lexical_checker(db, user, payload))
         except LaneFailure as failure:
             scene = _scene_of(db, scenario)
             for lane, usage in failure.usage.items():
