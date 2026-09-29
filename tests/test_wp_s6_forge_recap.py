@@ -63,10 +63,9 @@ def test_bank_cues_offer_the_learner_language_and_keep_the_english_prompt():
 
     output = ib.output_item(item, round_name="sentence", requirement={"label": "X", "target_count": 1})
     assert output["prompt_l10n"]["en"] == output["prompt"]
-    # The situation moves with the ask: no English scene inside a German cue.
-    scene = ib._scene_for(item)
-    assert scene not in output["prompt_l10n"]["de"]
-    assert "Sag auf Französisch" in output["prompt_l10n"]["de"]
+    # WP-103 T11: no pseudo-scene from outside the learner's story — a plain ask.
+    assert output["prompt"] == f'Say in French: "{item.en}"'
+    assert output["prompt_l10n"]["de"].startswith("Sag auf Französisch")
     assert "Dites en français" in output["prompt_l10n"]["fr"]
 
     gloss = bank.generate("FR2_A12_CONNECTORS", 1, seed="wp-s6")[0]

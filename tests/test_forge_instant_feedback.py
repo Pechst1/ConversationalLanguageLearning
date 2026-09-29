@@ -212,6 +212,10 @@ def test_free_production_returns_locally_and_queues_the_model(client: TestClient
     monkeypatch.setattr(atelier_endpoints, "run_atelier_ai_review", lambda attempt_id: queued.append(attempt_id))
     headers, session_id, concept, payload = _start(client, db_session)
     example = payload["output_ladder"]["sentence"]["items"][0]["example_answer"]
+    # WP-103 T9: not the example itself — an accepted answer is «Right» at once and
+    # no model reading reverses it (tests/test_wp103_forge.py). Any other line is
+    # «checking» until the model's verdict lands, which is what this test follows.
+    answer = example.rstrip(" .!") + " demain."
 
     started = time.perf_counter()
     response = client.post(
@@ -222,7 +226,7 @@ def test_free_production_returns_locally_and_queues_the_model(client: TestClient
             "round": "sentence",
             "mode": "sentence",
             "exercise_id": f"{concept['external_id']}:sentence",
-            "answer_payload": {"text": example},
+            "answer_payload": {"text": answer},
         },
     )
     elapsed_ms = (time.perf_counter() - started) * 1000
@@ -236,7 +240,8 @@ def test_free_production_returns_locally_and_queues_the_model(client: TestClient
     assert elapsed_ms < 500
     assert body["correction"]["assessment_status"] == "provisional"
     assert body["correction"]["local_check"]["detector"] in {"hit", "miss", "unknown"}
-    assert body["correction"]["local_check"]["model_similarity"] == 1.0
+    assert 0.5 < body["correction"]["local_check"]["model_similarity"] < 1.0
+    assert body["correction"]["local_status"] == body["local_status"] == "checking"
     assert body["ai_review"]["status"] == "pending"
 
     # The relecture lands: it amends the stored correction and the latency row.

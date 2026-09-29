@@ -53,8 +53,13 @@ from app.services.exercise_generation import (
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
 from app.services.forge_grading import (
     FREE_PRODUCTION_ROUNDS,
+    LOCAL_RIGHT,
+    classify_follow_up,
     describe_diff,
+    drop_false_english,
+    notes_native,
     production_local_check,
+    refine_production_correction,
     same_answer,
     token_diff,
 )
@@ -88,7 +93,7 @@ ATELIER_GENERATOR_VERSION = "atelier-v11"
 # previous attempt's structural/critique feedback so the model can self-correct,
 # which keeps the deterministic fallback rare.
 ATELIER_GENERATION_MAX_ATTEMPTS = 3
-ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v3"
+ATELIER_CORRECTION_PROMPT_VERSION = "atelier-correction-v4"
 ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 #: WP-S1 / WP-S8: one pilot row per séance submit — the rung, the local
 #: verdict's latency and, once the relecture lands, its latency and whether it
@@ -96,6 +101,28 @@ ATELIER_AI_AUTO_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 FORGE_VERDICT_EVENT = "forge_verdict"
 #: Rungs whose relecture may change the verdict: their evidence waits for it.
 ATELIER_EVIDENCE_HOLD_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+
+
+def _accepted_answers(prompt_payload: dict[str, Any]) -> list[str]:
+    """Every sentence the task accepts as right (WP-103 T9): the item's accepted
+    answers and its example answer. A free answer that is one of them is «Right»
+    before the model has read it; nothing else is."""
+
+    item = (prompt_payload.get("items") or [{}])[0] or {}
+    if not isinstance(item, dict):
+        item = {}
+    values = [
+        *(item.get("accepted_answers") or []),
+        *(prompt_payload.get("accepted_answers") or []),
+        item.get("example_answer"),
+        prompt_payload.get("example_answer"),
+    ]
+    return [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+
+
+def local_check_status(correction: dict[str, Any]) -> str | None:
+    local = correction.get("local_check") if isinstance(correction.get("local_check"), dict) else {}
+    return local.get("local_status")
 
 
 def _verdict_passes(verdict: Any) -> bool:
@@ -4305,6 +4332,8 @@ class AtelierCorrectionService:
         retest_of: UUID | None = None,
     ) -> AtelierAttempt:
         self.explanation_language = normalize_language(user.native_language)
+        # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
+        self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
         # WP-16 additive: per-attempt state for the answer bound and the cost row.
         self._answer_truncated = False
         self._cost_user_id = user.id
@@ -4854,7 +4883,13 @@ class AtelierCorrectionService:
             review = self.ai_review_from_correction(correction)
             previous_verdict = str(attempt.verdict or correction.get("verdict") or "")
             previous_score = float(attempt.score_0_4 or 0)
-            final = self._merge_relecture(attempt.round, correction, ai_correction)
+            final = self._merge_relecture(
+                attempt.round,
+                correction,
+                ai_correction,
+                learner_text=self._answer_text(attempt.answer_payload or {}),
+                accepted=_accepted_answers(attempt.prompt_payload or {}),
+            )
             if attempt.round in FREE_PRODUCTION_ROUNDS and final.get("lexical_gaps"):
                 final = self._ingest_lexical_gaps(user=user, session=session, correction=final)
             ai_review = {
@@ -4914,7 +4949,7 @@ class AtelierCorrectionService:
     #: correction does not carry and must survive the swap.
     _CARRIED_CORRECTION_KEYS = (
         "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
-        "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "latency",
+        "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "local_status", "latency",
         "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
         "forge",
     )
@@ -4945,8 +4980,21 @@ class AtelierCorrectionService:
             self.db.add(attempt)
         return True
 
-    def _merge_relecture(self, round_name: str, local: dict[str, Any], ai: dict[str, Any]) -> dict[str, Any]:
-        """The stored correction once the model's reading lands (see run_ai_review_for_attempt)."""
+    def _merge_relecture(
+        self,
+        round_name: str,
+        local: dict[str, Any],
+        ai: dict[str, Any],
+        *,
+        learner_text: str | None = None,
+        accepted: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """The stored correction once the model's reading lands (see run_ai_review_for_attempt).
+
+        WP-103 T9/T10, free production: the model's reading is held to the key
+        (:func:`refine_production_correction`), and a «Right» already shown is never
+        reversed — the model's corrections of it become style notes.
+        """
 
         ai_passes = _verdict_passes(ai.get("verdict")) and not [
             item for item in (ai.get("errata") or [])
@@ -4955,6 +5003,26 @@ class AtelierCorrectionService:
         local_passes = _verdict_passes(local.get("verdict"))
         if round_name in FREE_PRODUCTION_ROUNDS:
             final = dict(ai)
+            if learner_text is not None:
+                final = refine_production_correction(
+                    final,
+                    learner_text=learner_text,
+                    accepted=accepted or [],
+                    language=self.explanation_language,
+                )
+            if local.get("local_status") == LOCAL_RIGHT:
+                final["style_notes_native"] = notes_native(final.get("errata"))
+                final.update(
+                    {
+                        "verdict": local.get("verdict") or "correct",
+                        "score_0_4": float(local.get("score_0_4") or 4.0),
+                        "errata": [],
+                        "missing_targets": [],
+                        "lexical_gaps": [],
+                        "corrected_answer": learner_text or local.get("corrected_answer") or "",
+                        "notes_native": [],
+                    }
+                )
         else:
             # The key's verdict, score and target stand.
             final = dict(local)
@@ -4966,6 +5034,7 @@ class AtelierCorrectionService:
         for carried_key in self._CARRIED_CORRECTION_KEYS:
             if carried_key in local and carried_key not in final:
                 final[carried_key] = local[carried_key]
+        final["notes_native"] = notes_native(final.get("errata"))
         return final
 
     def _attach_world_reply(self, attempt: AtelierAttempt, *, user: User) -> None:
@@ -5138,6 +5207,8 @@ class AtelierCorrectionService:
         kept, dropped = _drop_noop_errata(list(correction.get("errata") or []))
         if dropped:
             correction["errata"] = kept
+        if round_name == "recognize" and mode == "classify":
+            correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
         # Pattern hits cannot certify arbitrary French or task relevance.
         if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
             local_check: dict[str, Any] | None = None
@@ -5151,7 +5222,9 @@ class AtelierCorrectionService:
                 local_concept = concept
                 if local_concept is None and session is not None:
                     local_concept = next(iter(self._session_concepts(session)), None)
-                local_check = production_local_check(local_concept, text, model_answer)
+                local_check = production_local_check(
+                    local_concept, text, model_answer, _accepted_answers(prompt_payload)
+                )
             test_out_grade = (
                 _test_out_local_grade(local_check, text)
                 if local_check is not None and session is not None and session.status == "test_out"
@@ -5169,6 +5242,11 @@ class AtelierCorrectionService:
             elif local_check is not None and text.strip() and self._can_schedule_ai_review():
                 correction["local_check"] = local_check
                 correction["assessment_status"] = "provisional"
+                # WP-103 T9: before the model has read it, the séance says «Right» only
+                # for an accepted answer; anything else is «checking» («Je relis…»).
+                correction["local_status"] = local_check["local_status"]
+                if local_check["local_status"] == LOCAL_RIGHT:
+                    correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
             else:
                 correction.update({
                     "verdict": "needs_review", "score_0_4": 0,
@@ -5181,7 +5259,41 @@ class AtelierCorrectionService:
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
         correction.setdefault("explanation_language", self.explanation_language)
+        if round_name in FREE_PRODUCTION_ROUNDS and not correction.get("local_status") and local_check_status(correction):
+            correction["local_status"] = local_check_status(correction)
+        # WP-103: one note per issue, deduplicated — never three copies of one rule.
+        correction["notes_native"] = notes_native(correction.get("errata"))
         return correction
+
+    def _with_classify_follow_up(
+        self, correction: dict[str, Any], prompt_payload: dict[str, Any], answer_payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """WP-103 T8: a judgement answered shows the right sentence, and «À corriger»
+        sorted correctly opens its correction (``corrected_fr``, ``follow_up``)."""
+
+        answers = answer_payload.get("answers") or {}
+        follow_ups: dict[str, Any] = {}
+        for item in prompt_payload.get("items") or []:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            extra = classify_follow_up(
+                item,
+                answers.get(item["id"]),
+                band=getattr(self, "_learner_band", None),
+                language=self.explanation_language,
+            )
+            if extra:
+                follow_ups[str(item["id"])] = extra
+        if not follow_ups:
+            return correction
+        updated = dict(correction)
+        first = next(iter(follow_ups.values()))
+        updated["corrected_fr"] = first["corrected_fr"]
+        if first.get("follow_up"):
+            updated["follow_up"] = first["follow_up"]
+        if len(follow_ups) > 1:
+            updated["follow_ups"] = follow_ups
+        return updated
 
     def _correct_for_round(
         self,
@@ -6831,6 +6943,8 @@ class AtelierCorrectionService:
             ])
 
         lexical_gaps = self._normalize_lexical_gaps(parsed.get("lexical_gaps"))
+        # WP-103 T10: a French word is not English («poster»): such a correction goes.
+        errata, lexical_gaps, false_english = drop_false_english(errata, lexical_gaps)
         gap_external_id = default_concept.external_id if default_concept else None
         gap_concept_id = default_concept.id if default_concept else None
         for gap in lexical_gaps:
@@ -6869,6 +6983,9 @@ class AtelierCorrectionService:
             if verdict in {"correct", "accepted"}:
                 verdict = "partial"
             score = min(score, 2.5)
+        if false_english and not errata and not missing_targets and verdict == "partial":
+            # The only fault found was a French word called English: there is none.
+            verdict, score = "correct", 4.0
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -6976,7 +7093,13 @@ class AtelierCorrectionService:
             "answer flawless. Keep the learner's intended meaning: put the correct French for that specific word into corrected_answer, and "
             "add an entry to lexical_gaps giving the exact fragment they wrote (learner_fragment), its language (de/en/other), the correct "
             "French (french), and a short English gloss. An answer that leans on a non-French word is at most 'partial', never 'correct' or "
-            "'accepted'. When the answer is fully French, return lexical_gaps as an empty array."
+            "'accepted'. When the answer is fully French, return lexical_gaps as an empty array. "
+            # WP-103 T10: the owner's «Lila cherche un poster grand» was told «poster» is English.
+            "A word that looks English can be French: established loanwords such as poster, week-end, parking, sandwich, "
+            "email, film, sport, taxi, match or jean are French words. Never call a French word English, never list it in "
+            "lexical_gaps and never replace it only because it looks English; correct only what is actually wrong around it. "
+            "One explanation per issue: why_wrong is at most two short sentences about that issue only; never repeat the same "
+            "explanation in several errata, and repair_hint never restates why_wrong."
         )
 
     def _explanation_language_instruction(self) -> str:

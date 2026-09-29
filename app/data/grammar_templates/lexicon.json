@@ -1794,6 +1794,12 @@
    "id": "affiche",
    "fr": "affiche",
    "g": "f",
+   "alt_fr": [
+    {
+     "fr": "poster",
+     "g": "m"
+    }
+   ],
    "en": "poster",
    "kind": "obj",
    "tags": [

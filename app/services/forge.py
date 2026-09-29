@@ -190,6 +190,17 @@ class ItemProvider(Protocol):
         """
 
 
+def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
+    """An item as the Forge serves it (WP-103 T3/T8/T11): ``goal_native`` in the
+    learner's language, ``source_fr`` on a repair, no pseudo-scene frame, and no
+    ``follow_up_key`` (the classify follow-up's key stays on the server)."""
+
+    from app.services.glosses import normalize_language
+    from app.services.item_bank import public_item
+
+    return public_item(payload, normalize_language(getattr(user, "native_language", None)))
+
+
 def fingerprint_for(concept_id: int, round_name: str, mode: str, item_id: str) -> str:
     return f"{int(concept_id)}:{round_name}:{mode}:{item_id}"
 
@@ -921,8 +932,9 @@ class ForgeService:
                     "role": slot.role,
                     "reprise": slot.reprise,
                     # The item itself: a bank top-up is not in the exercise
-                    # set the client loaded at the start.
-                    "item": dict(item.payload or {}),
+                    # set the client loaded at the start. WP-103: its goal in the
+                    # learner's language, no retired frame, no server-only key.
+                    "item": _public_item(dict(item.payload or {}), user),
                     # WP-S5: who teaches this rule.
                     "coach": self.coach_for(slot.concept_id),
                 }

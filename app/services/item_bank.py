@@ -1769,7 +1769,30 @@ class ItemBank:
         tail = text[position:]
         return [re.sub(r"\s+", " ", result + tail).strip() for result in results]
 
-    def render(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> BankItem:
+    def _alternative_sentences(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> list[str]:
+        """WP-103 T10: the sentence again with a noun's accepted French alternative
+        («une grande affiche» → «un grand poster»), the frame redoing the agreement."""
+
+        sentences: list[str] = []
+        for slot, entry in bindings.items():
+            for alternative in entry.get("alt_fr") or []:
+                word = alternative.get("fr") if isinstance(alternative, dict) else alternative
+                if not isinstance(word, str) or not word.strip():
+                    continue
+                variant = {key: value for key, value in entry.items() if key not in {"alt_fr", "pl"}}
+                variant.update({"fr": word, "lemma": word, "id": f"{entry.get('id')}~{word}"})
+                if isinstance(alternative, dict):
+                    variant["g"] = alternative.get("g", entry.get("g"))
+                    if alternative.get("pl"):
+                        variant["pl"] = alternative["pl"]
+                try:
+                    rendered = self.render(frame, {**bindings, slot: variant}, alternatives=False)
+                except (RenderError, KeyError, IndexError):
+                    continue
+                sentences.append(rendered.sentence)
+        return sentences
+
+    def render(self, frame: _Frame, bindings: dict[str, dict[str, Any]], *, alternatives: bool = True) -> BankItem:
         target_match = _TARGET_RE.search(frame.fr)
         if not target_match:
             raise RenderError(f"frame {frame.frame_id} has no target")
@@ -1812,6 +1835,8 @@ class ItemBank:
         english = finish_english(self._render_text(frame.en, bindings, english=True))
         scene = finish_english(self._render_text(frame.scene, bindings, english=True)) if frame.scene else ""
         accepted = [finish_sentence(tidy_french(self._render_text(alt, bindings))) for alt in frame.accepted]
+        if alternatives:
+            accepted.extend(self._alternative_sentences(frame, bindings))
         lemmas = tuple(
             str(entry.get("lemma") or entry.get("fr") or "").lower()
             for entry in bindings.values()
@@ -2052,6 +2077,158 @@ _SCENES_L10N: dict[str, dict[str, str]] = {
 }
 
 
+#: WP-103 T3: what every drill asks for, in the learner's language — the meaning of
+#: the sentence to produce («Build: "Lila is looking for a big poster."»). The
+#: meaning is the frame's English gloss (the bank has no German or French frames).
+_GOALS: dict[str, dict[str, str]] = {
+    "build": {
+        "en": 'Build: "{meaning}"',
+        "de": "Bau den Satz: „{meaning}“",
+        "fr": "Construisez : « {meaning} »",
+    },
+    "fill": {
+        "en": 'Complete the sentence: "{meaning}"',
+        "de": "Ergänze den Satz: „{meaning}“",
+        "fr": "Complétez la phrase : « {meaning} »",
+    },
+    "repair": {
+        "en": 'Correct it so that it says: "{meaning}"',
+        "de": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+        "fr": "Corrigez la phrase pour dire : « {meaning} »",
+    },
+    "pick": {
+        "en": 'Pick the sentence that says: "{meaning}"',
+        "de": "Wähle den Satz, der sagt: „{meaning}“",
+        "fr": "Choisissez la phrase qui dit : « {meaning} »",
+    },
+    "say": {
+        "en": 'Say in French: "{meaning}"',
+        "de": "Sag auf Französisch: „{meaning}“",
+        "fr": "Dites en français : « {meaning} »",
+    },
+    "reply": {
+        "en": 'Reply in French: "{meaning}"',
+        "de": "Antworte auf Französisch: „{meaning}“",
+        "fr": "Répondez en français : « {meaning} »",
+    },
+    "message": {
+        "en": 'Write a short message in French with the idea "{meaning}"',
+        "de": "Schreib eine kurze Nachricht auf Französisch mit dem Gedanken „{meaning}“",
+        "fr": "Écrivez un court message en français avec l’idée « {meaning} »",
+    },
+    "judge": {
+        "en": "Is this sentence right, or does it need correcting?",
+        "de": "Ist dieser Satz richtig, oder muss er korrigiert werden?",
+        "fr": "Cette phrase est-elle juste, ou faut-il la corriger ?",
+    },
+}
+
+
+def goal_l10n(kind: str, meaning: str | None = None) -> dict[str, str]:
+    """``{en, de, fr}`` for one drill goal (WP-103 T3)."""
+
+    table = _GOALS[kind]
+    return {language: template.format(meaning=meaning or "").strip() for language, template in table.items()}
+
+
+def _goal(kind: str, meaning: str | None = None) -> dict[str, Any]:
+    """The goal fields a bank item carries: ``goal_native`` (English, the default)
+    and ``goal_l10n``; the learner's language is picked on the way out
+    (:func:`with_goal`)."""
+
+    l10n = goal_l10n(kind, meaning)
+    return {"goal_native": l10n["en"], "goal_l10n": l10n}
+
+
+#: Rounds/modes whose item must say what to produce (the WP-103 contract).
+GOAL_REQUIRED_MODES = frozenset({"word_bank", "fill", "transform", "rewrite", "tiles", "unscramble"})
+
+
+def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
+    """``item`` with ``goal_native`` in the learner's language, and ``source_fr``
+    for a repair (WP-103 T3). An item written before WP-103 — the séance's model
+    sets, the curated fallbacks — gets its goal from what it already carries: a
+    word bank's ``meaning_cue``, a repair's or a fill's ``meaning``."""
+
+    if not isinstance(item, dict):
+        return item
+    out = dict(item)
+    code = str(language or "en").strip().lower()[:2]
+    l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
+    if l10n:
+        out["goal_native"] = l10n.get(code) or l10n.get("en") or out.get("goal_native")
+    elif not out.get("goal_native"):
+        meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
+        if meaning:
+            kind = "build" if "answer_tokens" in out else ("repair" if "source" in out else "fill")
+            out["goal_native"] = goal_l10n(kind, meaning).get(code) or goal_l10n(kind, meaning)["en"]
+    if out.get("source") and not out.get("source_fr") and ("expected_answer" in out):
+        out["source_fr"] = out["source"]
+    return out
+
+
+#: The pseudo-scenes La Forge wrapped round every production item until WP-103 T11
+#: («Romy texts you from the newsroom…»), in every language they were written in.
+#: They came from nowhere in the learner's story; a stored item still carrying one
+#: is served without it (:func:`without_frames`). WP-104 gives frames from today.
+_RETIRED_FRAMES: tuple[str, ...] = ()
+
+
+def _strip_frame(text: Any) -> Any:
+    if not isinstance(text, str):
+        return text
+    stripped = text
+    for frame in _RETIRED_FRAMES:
+        if stripped.startswith(frame):
+            stripped = stripped[len(frame):].lstrip()
+    return stripped
+
+
+def without_frames(node: Any) -> Any:
+    """``node`` (an item, a set payload) with every retired pseudo-scene removed
+    from its prompts (WP-103 T11)."""
+
+    if isinstance(node, list):
+        return [without_frames(child) for child in node]
+    if not isinstance(node, dict):
+        return node
+    out = {key: without_frames(value) for key, value in node.items()}
+    if isinstance(out.get("prompt"), str):
+        out["prompt"] = _strip_frame(out["prompt"])
+    if isinstance(out.get("prompt_l10n"), dict):
+        out["prompt_l10n"] = {key: _strip_frame(value) for key, value in out["prompt_l10n"].items()}
+    return out
+
+
+#: Keys an item carries for the server only: the follow-up's key (WP-103 T8).
+_PRIVATE_ITEM_KEYS = ("follow_up_key",)
+
+
+def public_item(item: Any, language: Any = None) -> Any:
+    """A served item: its goal in the learner's language, no retired frame, and none
+    of the keys the server keeps for itself (WP-103 T3/T8/T11)."""
+
+    if not isinstance(item, dict):
+        return item
+    out = with_goal(without_frames(item), language)
+    for key in _PRIVATE_ITEM_KEYS:
+        out.pop(key, None)
+    return out
+
+
+def public_payload(node: Any, language: Any = None) -> Any:
+    """:func:`public_item` over a whole exercise-set payload."""
+
+    if isinstance(node, list):
+        return [public_payload(child, language) for child in node]
+    if not isinstance(node, dict):
+        return node
+    out = {key: public_payload(value, language) for key, value in node.items()}
+    if "id" in out and any(key in out for key in ("prompt", "tokens", "source", "labels", "choices")):
+        out = public_item(out, language)
+    return out
+
+
 def _cue_l10n(key: str, item: BankItem, *, scene: str | None = None) -> dict[str, str]:
     """``{en, de, fr}`` for one cue template (WP-S6). A situation with no
     authored translation is left out of that language rather than mixed in."""
@@ -2063,6 +2240,16 @@ def _cue_l10n(key: str, item: BankItem, *, scene: str | None = None) -> dict[str
             where = scene if language == "en" else _SCENES_L10N.get(scene, {}).get(language, "")
         out[language] = template.format(meaning=item.en, scene=where).strip()
     return out
+
+
+_RETIRED_FRAMES = tuple(
+    sorted(
+        {scene for scene in _SCENES_L10N}
+        | {text for row in _SCENES_L10N.values() for text in row.values()},
+        key=len,
+        reverse=True,
+    )
+)
 
 
 def _item_id(unit: str, item: BankItem, mode: str) -> str:
@@ -2136,6 +2323,7 @@ def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
         "choices": _scramble(choices, item.fingerprint),
         "correct_answer": item.target,
         "meaning": item.en,
+        **_goal("fill", item.en),
         **_answer_key(item),
     }
     payload["accepted_answers"] = [item.target]
@@ -2156,9 +2344,22 @@ def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str
         "correct_label": label,
         "correct_answer": label,
         "classify_kind": "judgement",
+        **_goal("judge"),
         **_answer_key(item),
     }
     payload["accepted_answers"] = [label]
+    if not show_correct:
+        # WP-103 T8: a sentence sorted «À corriger» is then corrected. The key of
+        # that follow-up rides on the item (``classify_follow_up`` reads it once the
+        # sort is answered); the served item leaves it out (``public_item``).
+        payload["source_fr"] = item.wrong_sentences[0]
+        payload["follow_up_key"] = {
+            "corrected_fr": item.sentence,
+            "accepted_fr": list(item.accepted),
+            "meaning": item.en,
+            "wrong_span": item.traps[0] if item.traps else "",
+            "target_span": item.target,
+        }
     if lesson_external_id:
         payload["lesson_external_id"] = lesson_external_id
     return _checked("classify", payload)
@@ -2179,6 +2380,7 @@ def pair_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
         "correct_label": item.sentence,
         "correct_answer": item.sentence,
         "classify_kind": "minimal_pair",
+        **_goal("pick", item.en),
         **_answer_key(item),
     }
     if lesson_external_id:
@@ -2230,6 +2432,7 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
         "prompt": _INSTRUCTIONS["forge.word_bank" if spares else "forge.word_bank_all"],
         "instruction_key": "forge.word_bank" if spares else "forge.word_bank_all",
         "meaning_cue": item.en,
+        **_goal("build", item.en),
         "answer_tokens": answer_tokens,
         "tokens": chips,
         "correct_answer": item.sentence,
@@ -2267,32 +2470,22 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
             "type": "rewrite",
             **instruction,
             "source": source,
+            "source_fr": source,
             "wrong_span": wrong_span,
             "expected_answer": item.sentence,
             "meaning": item.en,
+            **_goal("repair", item.en),
             **_answer_key(item),
         },
     )
 
 
-_DEFAULT_SCENES = (
-    "At Le Mistral, Margaux leans over the zinc counter and asks you something.",
-    "Romy texts you from the newsroom and wants a quick answer.",
-    "At the canal market, Marin turns to you with a question.",
-    "Lila calls you from her classroom during the break.",
-    "Gus sends you a message from his loft.",
-)
-
-
-def _scene_for(item: BankItem) -> str:
-    if item.scene:
-        return item.scene
-    index = int(item.fingerprint[:4], 16) % len(_DEFAULT_SCENES)
-    return _DEFAULT_SCENES[index]
-
-
 def production_prompt(item: BankItem) -> str:
-    return f'{_scene_for(item)} Say in French: "{item.en}"'
+    """WP-103 T11: a plain «Say in French: …». The pseudo-scene that wrapped it
+    («Romy texts you from the newsroom…») came from nowhere in the learner's story;
+    until WP-104 gives a frame from today's page, there is none."""
+
+    return f'Say in French: "{item.en}"'
 
 
 def output_item(
@@ -2315,7 +2508,8 @@ def output_item(
         "instruction": _INSTRUCTIONS[f"forge.{round_name}"],
         "instruction_key": f"forge.{round_name}",
         "prompt": production_prompt(item),
-        "prompt_l10n": _cue_l10n("say", item, scene=_scene_for(item)),
+        "prompt_l10n": _cue_l10n("say", item),
+        **_goal("say", item.en),
         "example_answer": item.sentence,
         "requirements": [dict(requirement)],
         "min_words": max(2, min(words - 2, 5)),
@@ -2350,6 +2544,7 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         "character": {"id": coach["id"], "name": coach["name"], "register": coach.get("register", "tu")},
         "coach": dict(coach),
         "scene": {"lines": scene["lines"]},
+        **_goal("reply", scene["reply_en"]),
         "example_answer": reply,
         "requirements": [dict(requirement)],
         "min_words": max(2, min(words - 2, 5)),
@@ -2365,10 +2560,11 @@ def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any
     return {
         "source_fragment": model.sentence,
         "prompt": (
-            f'{_scene_for(item)} Write a short message in French (two or three sentences). '
+            'Write a short message in French (two or three sentences). '
             f'Include the idea "{item.en}" and add a reason or a detail of your own.'
         ),
-        "prompt_l10n": _cue_l10n("message", item, scene=_scene_for(item)),
+        "prompt_l10n": _cue_l10n("message", item),
+        **_goal("message", item.en),
         "requirements": [dict(requirement)],
         "min_words": 10,
         "max_words": 70,
@@ -2574,8 +2770,14 @@ def build_bank_set(
 
 
 __all__ = [
+    "GOAL_REQUIRED_MODES",
     "BankItem",
     "BankSet",
+    "goal_l10n",
+    "public_item",
+    "public_payload",
+    "with_goal",
+    "without_frames",
     "ITEMS_PER_SET",
     "ITEM_BANK_VERSION",
     "ItemBank",

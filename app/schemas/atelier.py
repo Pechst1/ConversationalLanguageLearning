@@ -147,6 +147,9 @@ class AtelierAttemptResponse(BaseModel):
     verdict: str
     score_0_4: float
     correction: dict[str, Any]
+    #: WP-103 T9, free production only: ``right`` (an accepted answer — final) or
+    #: ``checking`` («Je relis…» until the model's verdict). Also on ``correction``.
+    local_status: str | None = None
     ai_review: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
     # WP-S3 La Forge: the staircase after this answer and the next item.

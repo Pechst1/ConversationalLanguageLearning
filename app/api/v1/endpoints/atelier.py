@@ -91,6 +91,7 @@ from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
 from app.services.intake_throttle import intake_notice  # WP-L6 auto-throttle
+from app.services.item_bank import public_payload  # WP-103 goals, no frames
 from app.services.learner_copy import (
     LEARNER_COPY,
     learner_text,
@@ -563,6 +564,7 @@ def _attempt_response(
         verdict=attempt.verdict,
         score_0_4=attempt.score_0_4,
         correction=correction,
+        local_status=correction.get("local_status") if isinstance(correction, dict) else None,
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
         forge=forge or {},
@@ -1148,6 +1150,9 @@ def _session_response(
             payload,
             native_language=getattr(user, "native_language", None),
         )
+        # WP-103: every item's goal in the learner's language, no retired frame, no
+        # server-only key (the classify follow-up's).
+        payload = public_payload(payload, normalize_language(getattr(user, "native_language", None)))
         exercise_sets.append(
             {
                 "id": str(exercise_set.id),
