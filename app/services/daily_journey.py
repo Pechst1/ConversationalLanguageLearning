@@ -115,6 +115,7 @@ from app.services.journey_contracts import (
     effect_source_key,
     normalize_answer_text,
     normalize_control_language,
+    rhythm_caps,
     strongest_assistance,
 )
 from app.services.journey_day_shapes import (
@@ -803,8 +804,11 @@ def _is_side_page(scene: Any) -> bool:
     )
 
 
-def _previous_engine_scene(db: Session, user: User, journey: DailyJourney) -> Any:
-    """The learner's most recent story-engine page before today's journey."""
+def _previous_engine_scenes(
+    db: Session, user: User, journey: DailyJourney, *, limit: int = 2
+) -> list[Any]:
+    """The learner's most recent story-engine pages before today's journey,
+    newest first (yesterday's, then the day before's)."""
 
     from app.db.models.graphic_novel import GraphicNovelScene
     from app.services.living_story import ENGINE_VERSION_PREFIX
@@ -819,13 +823,16 @@ def _previous_engine_scene(db: Session, user: User, journey: DailyJourney) -> An
         .limit(10)
     ).all()
     today = str(journey.id)
+    found: list[Any] = []
     for scene in rows:
         source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
         if str(source.get("journey_id") or "") == today or _is_side_page(scene):
             continue
         if scene.panels:
-            return scene
-    return None
+            found.append(scene)
+            if len(found) >= limit:
+                break
+    return found
 
 
 def _scene_page_texts(scene: Any) -> tuple[list[str], int]:
@@ -1452,165 +1459,202 @@ class DailyJourneyService:
 
     def _reading_for_today(
         self, user: User, journey: DailyJourney, brief: ScenarioBrief
-    ) -> dict[str, Any] | None:
-        """Today's «Lecture» offer, or ``None``.
+    ) -> list[dict[str, Any]]:
+        """Today's «Lecture» offers, in order (empty when none).
 
-        Soutenu and Intensif only (budget ≥ ``READ_MIN_BUDGET_SECONDS``), on a
-        practice day. «coulisses» when the story lane can write today's side
-        page (a story-engine day, the ``coulisses`` module present and
-        ``ATELIER_COULISSES_ENABLED`` on) — with yesterday's page kept as its
-        stand-in; otherwise «relecture» of yesterday's engine page. A read
-        that fails costs the step, never the day.
+        Soutenu: one page, Intensif: two (``RhythmCaps.max_reads``), on a
+        practice day. «coulisses» leads when the story lane can write today's
+        side page (a story-engine day, the ``coulisses`` module present and
+        ``ATELIER_COULISSES_ENABLED`` on); the rest are the latest earlier
+        story pages, newest first («relecture»). A read that fails costs the
+        step, never the day.
         """
 
-        if int(journey.budget_seconds or 0) < READ_MIN_BUDGET_SECONDS:
-            return None
+        pages = rhythm_caps(journey.budget_seconds).max_reads
+        if int(journey.budget_seconds or 0) < READ_MIN_BUDGET_SECONDS or pages <= 0:
+            return []
         if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
-            return None
+            return []
         audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
         previous = run_best_effort(
             self.db,
-            "daily_journey: yesterday's page",
-            lambda: _previous_engine_scene(self.db, user, journey),
-            default=None,
+            "daily_journey: earlier pages",
+            lambda: _previous_engine_scenes(self.db, user, journey, limit=pages),
+            default=[],
             log=logger,
-        )
-        relecture: dict[str, Any] | None = None
-        if previous is not None:
-            texts, panel_count = _scene_page_texts(previous)
-            relecture = {
-                "variant": "relecture",
-                "title_fr": str(previous.title or ""),
-                "scene_id": str(previous.id),
-                "status": "ready",
-                "audio_available": audio,
-                "texts_fr": texts,
-                "panel_count": panel_count,
-            }
+        ) or []
+        relectures: list[dict[str, Any]] = []
+        for scene in previous:
+            texts, panel_count = _scene_page_texts(scene)
+            relectures.append(
+                {
+                    "variant": "relecture",
+                    "title_fr": str(scene.title or ""),
+                    "scene_id": str(scene.id),
+                    "status": "ready",
+                    "audio_available": audio,
+                    "texts_fr": texts,
+                    "panel_count": panel_count,
+                }
+            )
+        offers: list[dict[str, Any]] = []
         if brief.story_context and _coulisses_enabled():
-            return {
-                "variant": "coulisses",
-                "title_fr": str(brief.title_fr or ""),
-                "scene_id": None,
-                "status": "writing",
-                "audio_available": audio,
-                "fallback": relecture,
-            }
-        return relecture
+            offers.append(
+                {
+                    "variant": "coulisses",
+                    "title_fr": str(brief.title_fr or ""),
+                    "scene_id": None,
+                    "status": "writing",
+                    "audio_available": audio,
+                }
+            )
+        # The planner plans the first ``pages``; a relecture past them is kept
+        # (``_bind_reading_step``) as the page a failed «coulisses» gives way to.
+        offers.extend(relectures)
+        return offers
 
     def _bind_reading_step(
         self,
         user: User,
         journey: DailyJourney,
         brief: ScenarioBrief,
-        reading: dict[str, Any] | None,
+        reading: list[dict[str, Any]] | dict[str, Any] | None,
     ) -> None:
-        """Store what the «Lecture» offers; ask the story lane for «coulisses»."""
+        """Store what each «Lecture» step offers; ask the story lane for «coulisses»."""
 
-        step = next(
-            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)), None
+        steps = sorted(
+            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)),
+            key=lambda item: item.ordinal,
         )
-        if step is None:
+        if not steps:
             return
-        prompt = dict(step.public_prompt or {})
-        offer = reading if isinstance(reading, dict) else {}
-        fallback = offer.get("fallback") if isinstance(offer.get("fallback"), dict) else None
-        private: dict[str, Any] = {"variant": prompt.get("variant")}
-        if prompt.get("variant") == "relecture":
-            private["relecture"] = {
-                "scene_id": prompt.get("scene_id"),
-                "title_fr": prompt.get("title_fr"),
-            }
-        elif fallback:
-            private["relecture"] = {
-                "scene_id": fallback.get("scene_id"),
-                "title_fr": fallback.get("title_fr"),
-            }
-        if prompt.get("variant") == "coulisses":
-            module = _coulisses_module()
-            scene_id = str((brief.story_context or {}).get("scene_id") or "")
-            requested = False
-            if module is not None and scene_id:
-                from app.db.models.graphic_novel import GraphicNovelScene
+        offers = [reading] if isinstance(reading, dict) else list(reading or [])
+        relectures = [
+            {"scene_id": offer.get("scene_id"), "title_fr": offer.get("title_fr")}
+            for offer in offers
+            if isinstance(offer, dict) and offer.get("variant") == "relecture" and offer.get("scene_id")
+        ]
+        for step in steps:
+            prompt = dict(step.public_prompt or {})
+            private: dict[str, Any] = {"variant": prompt.get("variant"), "relectures": relectures}
+            if prompt.get("variant") == "relecture":
+                private["relecture"] = {
+                    "scene_id": prompt.get("scene_id"),
+                    "title_fr": prompt.get("title_fr"),
+                }
+            if prompt.get("variant") == "coulisses":
+                private["coulisses_requested"] = self._request_coulisses(user, journey, brief)
+            step.private_task = private
 
-                def ask() -> bool:
-                    scene = self.db.get(GraphicNovelScene, uuid.UUID(scene_id))
-                    if scene is None:
-                        return False
-                    return bool(
-                        module.request_coulisses(
-                            self.db, user=user, journey_id=journey.id, scene=scene
-                        )
-                    )
+    def _request_coulisses(self, user: User, journey: DailyJourney, brief: ScenarioBrief) -> bool:
+        module = _coulisses_module()
+        scene_id = str((brief.story_context or {}).get("scene_id") or "")
+        if module is None or not scene_id:
+            return False
+        from app.db.models.graphic_novel import GraphicNovelScene
 
-                requested = bool(
-                    run_best_effort(
-                        self.db,
-                        "daily_journey: coulisses request",
-                        ask,
-                        default=False,
-                        log=logger,
-                    )
-                )
-            private["coulisses_requested"] = requested
-        step.private_task = private
+        def ask() -> bool:
+            scene = self.db.get(GraphicNovelScene, uuid.UUID(scene_id))
+            if scene is None:
+                return False
+            return bool(
+                module.request_coulisses(self.db, user=user, journey_id=journey.id, scene=scene)
+            )
 
-    def _read_prompt_view(self, journey: DailyJourney, step: DailyJourneyStep) -> dict[str, Any]:
-        """WP-93: the «Lecture» as it stands *now* — re-read on every snapshot.
+        return bool(
+            run_best_effort(
+                self.db, "daily_journey: coulisses request", ask, default=False, log=logger
+            )
+        )
 
-        «coulisses» reports the story lane's status (``writing`` → ``ready``
-        with its scene, or ``unavailable``); an unavailable «coulisses» falls
-        back to yesterday's page when the day had one. A «relecture» whose page
-        is gone is ``unavailable``. ``audio_available`` is the deployment's
-        switch at projection time.
+    def _read_views(self, journey: DailyJourney) -> dict[Any, dict[str, Any]]:
+        """WP-93: every «Lecture» step as it stands *now* — re-read on each snapshot.
+
+        The pages on offer are gathered first: today's «coulisses» while it is
+        being written or once ready (with its point-of-view character), then
+        the earlier pages the day named («relecture»), newest first, each only
+        while it is still the learner's. They are handed to the READ steps in
+        order, so an unavailable «coulisses» gives its place to yesterday's
+        page (relecture first) and a step left without a page is
+        ``unavailable``. ``audio_available`` is the switch at projection time.
         """
 
-        stored = dict(step.public_prompt or {})
-        private = dict(step.private_task or {})
-        prompt: dict[str, Any] = {
-            "variant": stored.get("variant") or "relecture",
-            "title_fr": str(stored.get("title_fr") or ""),
-            "scene_id": stored.get("scene_id"),
-            "status": stored.get("status") or "unavailable",
-            "audio_available": bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
-            "character_id": None,
-            "character_name": None,
-        }
-        relecture = private.get("relecture") if isinstance(private.get("relecture"), dict) else None
-        if prompt["variant"] == "coulisses":
-            status, scene_id, title, pov, pov_name = run_best_effort(
-                self.db,
-                "daily_journey: coulisses status",
-                lambda: _coulisses_state(self.db, journey, private),
-                default=("unavailable", None, None, None, None),
-                log=logger,
-            )
-            prompt.update(
-                status=status, scene_id=scene_id, character_id=pov, character_name=pov_name
-            )
-            if title:
-                prompt["title_fr"] = title
-            if status != "unavailable" or not (relecture and relecture.get("scene_id")):
-                return prompt
-            prompt.update(
-                variant="relecture",
-                title_fr=str(relecture.get("title_fr") or ""),
-                scene_id=relecture.get("scene_id"),
-            )
-        scene_id = prompt.get("scene_id")
-        exists = bool(scene_id) and bool(
-            run_best_effort(
-                self.db,
-                "daily_journey: relecture page",
-                lambda: _owned_engine_scene(self.db, journey.user_id, scene_id) is not None,
-                default=False,
-                log=logger,
-            )
+        steps = sorted(
+            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)),
+            key=lambda item: item.ordinal,
         )
-        prompt["status"] = "ready" if exists else "unavailable"
-        if not exists:
-            prompt["scene_id"] = None
-        return prompt
+        if not steps:
+            return {}
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        pages: list[dict[str, Any]] = []
+        relectures: list[dict[str, Any]] = []
+        for step in steps:
+            private = dict(step.private_task or {})
+            stored = dict(step.public_prompt or {})
+            if (private.get("variant") or stored.get("variant")) == "coulisses":
+                status, scene_id, title, pov, pov_name = run_best_effort(
+                    self.db,
+                    "daily_journey: coulisses status",
+                    lambda private=private: _coulisses_state(self.db, journey, private),
+                    default=("unavailable", None, None, None, None),
+                    log=logger,
+                )
+                if status != "unavailable":
+                    pages.append(
+                        {
+                            "variant": "coulisses",
+                            "title_fr": title or str(stored.get("title_fr") or ""),
+                            "scene_id": scene_id,
+                            "status": status,
+                            "character_id": pov,
+                            "character_name": pov_name,
+                        }
+                    )
+            for candidate in [private.get("relecture"), *(private.get("relectures") or [])]:
+                if isinstance(candidate, dict) and candidate.get("scene_id"):
+                    relectures.append(candidate)
+        seen: set[str] = set()
+        for candidate in relectures:
+            scene_id = str(candidate["scene_id"])
+            if scene_id in seen:
+                continue
+            seen.add(scene_id)
+            exists = bool(
+                run_best_effort(
+                    self.db,
+                    "daily_journey: relecture page",
+                    lambda scene_id=scene_id: _owned_engine_scene(
+                        self.db, journey.user_id, scene_id
+                    )
+                    is not None,
+                    default=False,
+                    log=logger,
+                )
+            )
+            if exists:
+                pages.append(
+                    {
+                        "variant": "relecture",
+                        "title_fr": str(candidate.get("title_fr") or ""),
+                        "scene_id": scene_id,
+                        "status": "ready",
+                        "character_id": None,
+                        "character_name": None,
+                    }
+                )
+        views: dict[Any, dict[str, Any]] = {}
+        for index, step in enumerate(steps):
+            stored = dict(step.public_prompt or {})
+            page = pages[index] if index < len(pages) else {
+                "variant": stored.get("variant") or "relecture",
+                "title_fr": str(stored.get("title_fr") or ""),
+                "scene_id": None,
+                "status": "unavailable",
+                "character_id": None,
+                "character_name": None,
+            }
+            views[step.id] = {**page, "audio_available": audio}
+        return views
 
     def _mark_rule_read(self, user: User, step: DailyJourneyStep) -> None:
         """WP-L4: the Règle was read — the unit is introduced (visible to WP-L7)."""
@@ -1827,6 +1871,7 @@ class DailyJourneyService:
         """Build the public snapshot. Reads ``public_prompt`` only, never
         ``private_task``, so evaluator material cannot leak by construction."""
 
+        read_views = self._read_views(journey)
         steps = [
             {
                 "id": str(step.id),
@@ -1837,7 +1882,7 @@ class DailyJourneyService:
                 "assistance_used": list(step.assistance_used or []),
                 "prompt": self._forge_prompt_view(journey, step)
                 if StepKind(step.kind) is StepKind.FORGE
-                else self._read_prompt_view(journey, step)
+                else read_views.get(step.id) or _public_prompt_view(step)
                 if StepKind(step.kind) is StepKind.READ
                 else _public_prompt_view(step),
             }
@@ -2228,8 +2273,37 @@ class DailyJourneyService:
         descriptor = dict(result.public_descriptor())
         # WP-L6: the day is planned to the learner's rhythm, so the preview says
         # the rhythm's minutes, not the story brief's own 4½-minute estimate.
-        descriptor["estimated_seconds"] = budget_seconds_for(user)
+        # WP-93: and the minutes a day at that rhythm actually plans — the
+        # learner's recent planned days, else the planner's prior — never the
+        # rhythm's budget when the plan comes in under it.
+        descriptor["estimated_seconds"] = self._expected_day_seconds(user)
         return ScenarioDescriptor.model_validate(descriptor)
+
+    def _expected_day_seconds(self, user: User) -> int:
+        from app.services.journey_planner import EXPECTED_DAY_SAMPLE, expected_day_seconds
+
+        budget = budget_seconds_for(user)
+        recent = run_best_effort(
+            self.db,
+            "daily_journey: recent planned minutes",
+            lambda: [
+                int(value)
+                for value in self.db.scalars(
+                    select(DailyJourney.estimated_active_seconds)
+                    .where(
+                        DailyJourney.user_id == user.id,
+                        DailyJourney.budget_seconds == budget,
+                        DailyJourney.estimated_active_seconds > 0,
+                    )
+                    .order_by(DailyJourney.local_date.desc())
+                    .limit(EXPECTED_DAY_SAMPLE)
+                )
+                if value
+            ],
+            default=[],
+            log=logger,
+        )
+        return expected_day_seconds(budget, recent)
 
     # ------------------------------------------------------------------
     # Internals — idempotency receipts

@@ -1975,7 +1975,7 @@ def plan_journey(
     practice: bool = False,
     introduction: dict[str, Any] | None = None,
     forge: dict[str, Any] | None = None,
-    reading: dict[str, Any] | None = None,
+    reading: dict[str, Any] | list[dict[str, Any]] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
 
@@ -1985,10 +1985,11 @@ def plan_journey(
     capped per rhythm, and nothing sits between the scene's closing question
     and the reply (W5): warm-ups, the rule card, its guided items and the
     forge come before the scene; every other item comes after the reply.
-    ``reading`` (Soutenu and Intensif) is today's «Lecture» offer —
-    ``{"variant": "relecture"|"coulisses", "title_fr", "scene_id", "status",
-    "audio_available", "texts_fr", "panel_count"}`` — planned as one optional
-    step after the ending when the budget holds it.
+    ``reading`` (Soutenu and Intensif) is today's «Lecture» offer, one page or
+    a list — ``{"variant": "relecture"|"coulisses", "title_fr", "scene_id",
+    "status", "audio_available", "texts_fr", "panel_count"}`` — planned as
+    optional steps after the ending, up to the rhythm's ``max_reads``, while
+    the budget holds them.
 
     ``forge`` (WP-S4) folds La Forge into a practice day (Soutenu and Intensif,
     owner decision 3): ``{"concept_id", "title_native", "title_fr",
@@ -3172,6 +3173,7 @@ def add_listening_items(
     caps: RhythmCaps,
     max_items: int | None = None,
     partners: list[TargetRef] | tuple[TargetRef, ...] = (),
+    extra_heard: int = 0,
 ) -> list[PracticeItem]:
     """WP-91 — with audio on, the day *hears* its words: listen-and-tap items
     carry a clip of the phrase, and one dictation asks for a line of the scene.
@@ -3191,6 +3193,10 @@ def add_listening_items(
     cap = min(caps.max_recall, rule.max_recall)
     if max_items is not None:
         cap = min(cap, max_items)
+    # WP-93: a paged day from Soutenu up hears more — heard items may go past
+    # the recall ceiling by ``extra_heard`` (they are input, not drills).
+    cap += max(0, extra_heard)
+    wanted_dictations = DICTATION_ITEMS_PER_DAY + max(0, extra_heard) // 3
     room = headroom - sum(item.cost for item in placed)
     pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
     pool.extend(target for target in partners if _glossed(target) is not None)
@@ -3214,7 +3220,7 @@ def add_listening_items(
         )
 
     # -- listen-and-tap: the day's floor of heard words ------------------------
-    wanted = LISTEN_TAP_ITEMS_BY_BUDGET.get(caps.budget_seconds, 1)
+    wanted = LISTEN_TAP_ITEMS_BY_BUDGET.get(caps.budget_seconds, 1) + max(0, extra_heard) * 2 // 3
     if shape_allows_format(shape, str(RecallFormat.LISTEN_TAP)):
         tapped = {
             target_identity(item.entry.target)
@@ -3304,7 +3310,7 @@ def add_listening_items(
             candidates.index(line),
         ),
     )
-    for line in ranked[:DICTATION_ITEMS_PER_DAY]:
+    for line in ranked[:wanted_dictations]:
         entry = owner(line) or entries[0]
         task = build_dictation_task(
             target=entry.target, line=line, optional=True,
@@ -3393,7 +3399,7 @@ def _plan_practice_day(
     partners: list[TargetRef] | None = None,
     introduction: dict[str, Any] | None = None,
     forge: dict[str, Any] | None = None,
-    reading: dict[str, Any] | None = None,
+    reading: dict[str, Any] | list[dict[str, Any]] | None = None,
     scene_audio: bool = False,
 ) -> PlannedJourney:
     """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
@@ -3418,40 +3424,43 @@ def _plan_practice_day(
 
     caps = rhythm_caps(budget_seconds)
     forge_reserve = forge_reserve_seconds(forge)
-    # WP-93 «Lecture»: one optional second page on a long rhythm, reserved
-    # before any drill.
-    read_step: PlannedStep | None = None
-    read_cost = 0
-    if (
-        isinstance(reading, dict)
-        and budget_seconds >= READ_MIN_BUDGET_SECONDS
-        and str(reading.get("variant") or "") in ("relecture", "coulisses")
-    ):
-        heard = bool(reading.get("audio_available", audio_available)) and bool(audio_available)
-        cost = reading_step_seconds(
-            reading, scenario, spt=spt, multiplier=multiplier, audio=heard
-        )
-        core = scene_cost + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
-        if core + resolution_cost + cost <= budget_seconds:
-            read_cost = cost
-            variant = str(reading["variant"])
-            status = str(reading.get("status") or ("ready" if variant == "relecture" else "writing"))
-            read_step = PlannedStep(
+    # WP-93 «Lecture»: the long rhythms' extra pages (one on Soutenu, two on
+    # Intensif), reserved before any drill, in the order offered.
+    read_steps: list[PlannedStep] = []
+    offers = [reading] if isinstance(reading, dict) else list(reading or [])
+    core = scene_cost + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
+    for offer in offers:
+        if len(read_steps) >= caps.max_reads or budget_seconds < READ_MIN_BUDGET_SECONDS:
+            break
+        if not isinstance(offer, dict) or str(offer.get("variant") or "") not in (
+            "relecture", "coulisses"
+        ):
+            continue
+        heard = bool(offer.get("audio_available", audio_available)) and bool(audio_available)
+        cost = reading_step_seconds(offer, scenario, spt=spt, multiplier=multiplier, audio=heard)
+        spent = sum(step.estimated_seconds for step in read_steps)
+        if core + resolution_cost + spent + cost > budget_seconds:
+            notes.append("lecture skipped: the day's budget does not hold another page")
+            continue
+        variant = str(offer["variant"])
+        status = str(offer.get("status") or ("ready" if variant == "relecture" else "writing"))
+        read_steps.append(
+            PlannedStep(
                 ordinal=0,
                 kind=StepKind.READ,
                 estimated_seconds=cost,
                 public_prompt={
                     "variant": variant,
-                    "title_fr": str(reading.get("title_fr") or scenario.title_fr),
-                    "scene_id": (str(reading["scene_id"]) if reading.get("scene_id") else None),
+                    "title_fr": str(offer.get("title_fr") or scenario.title_fr),
+                    "scene_id": (str(offer["scene_id"]) if offer.get("scene_id") else None),
                     "status": status if status in ("ready", "writing", "unavailable") else "writing",
                     "audio_available": heard,
                 },
                 optional=True,
             )
-            notes.append(f"lecture planned: {variant}, {cost}s")
-        else:
-            notes.append("lecture skipped: the day's budget does not hold a second page")
+        )
+        notes.append(f"lecture planned: {variant}, {cost}s")
+    read_cost = sum(step.estimated_seconds for step in read_steps)
     # WP-93: the input floor. The page (and the «Lecture») count; what they
     # leave short of the floor is kept free of drills — only a heard item may
     # use it. A page-less (legacy) brief has no page to price and keeps the
@@ -3579,6 +3588,7 @@ def _plan_practice_day(
             caps=caps,
             max_items=max_items,
             partners=partners or [],
+            extra_heard=caps.max_heard if scene_page(scenario) else 0,
         )
 
     respond_cost, items = attempt(turns)
@@ -3796,8 +3806,7 @@ def _plan_practice_day(
             },
         )
     )
-    if read_step is not None:
-        steps.append(read_step)
+    steps.extend(read_steps)
 
     if forge:
         # WP-S4: La Forge, folded in with the rule — before the scene, so the
@@ -3868,6 +3877,37 @@ def graded_interactions(plan: PlannedJourney) -> int:
         if step.kind is StepKind.RESPOND
         or (step.kind is StepKind.RECALL and step.initial_status is not StepStatus.SKIPPED)
     )
+
+
+#: WP-93. What share of its budget a paged day plans, before the learner has a
+#: planned day at this rhythm to go by — the WP-L9 harness's audio-off floor,
+#: rounded down (``tests/test_wp_l9_rhythm_harness.py`` pins that the prior never
+#: promises more than the harness plans). The preview says these minutes, not
+#: the rhythm's: a day promised at twenty minutes that plans eighteen is the
+#: false time promise of the July audit.
+EXPECTED_DAY_SHARE: dict[int, float] = {300: 0.95, 600: 0.8, 1200: 0.85, 1800: 0.85}
+#: How many of the learner's latest planned days at the same budget the preview
+#: reads (their median wins over the prior).
+EXPECTED_DAY_SAMPLE = 7
+
+
+def expected_day_seconds(budget_seconds: int, recent: list[int] | None = None) -> int:
+    """WP-93: the minutes a day at this budget will honestly plan.
+
+    The median of the learner's latest planned days at this budget when there
+    are any, else :data:`EXPECTED_DAY_SHARE` of the budget; never more than
+    the budget.
+    """
+
+    budget = int(budget_seconds or DEFAULT_BUDGET_SECONDS)
+    samples = sorted(int(value) for value in (recent or []) if value and int(value) > 0)
+    if samples:
+        middle = len(samples) // 2
+        median = samples[middle] if len(samples) % 2 else (samples[middle - 1] + samples[middle]) // 2
+        return min(budget, median)
+    fitting = [value for value in EXPECTED_DAY_SHARE if value <= budget]
+    share = EXPECTED_DAY_SHARE[max(fitting)] if fitting else 1.0
+    return min(budget, int(budget * share))
 
 
 def input_seconds(plan: PlannedJourney) -> int:
@@ -4066,6 +4106,8 @@ __all__ = [
     "SCENE_LINE_HELP_SECONDS",
     "SCENE_PANEL_SECONDS",
     "TASTE_WORDS_FR",
+    "EXPECTED_DAY_SHARE",
+    "expected_day_seconds",
     "input_seconds",
     "input_share",
     "page_seconds",

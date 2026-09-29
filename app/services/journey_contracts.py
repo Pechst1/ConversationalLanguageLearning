@@ -97,15 +97,23 @@ class RhythmCaps:
     #: How many of the learner's daily new words the word drill leaves for the
     #: day until the day is planned (§5: one intake pool, the journey first).
     journey_new_words: int
+    #: WP-93: how many «Lecture» pages (READ steps) the day may plan — one on
+    #: Soutenu, two on Intensif («coulisses» and yesterday's page).
+    max_reads: int = 0
+    #: WP-93: heard items (a listen-and-tap or a dictation that carries a clip)
+    #: a paged day may add *beyond* ``max_recall``: listening is input, and a
+    #: longer rhythm buys input, not more drills.
+    max_heard: int = 0
 
 
 RHYTHM_CAPS: dict[int, RhythmCaps] = {
     300: RhythmCaps(300, MAX_PRACTICE_STEPS, MAX_PRACTICE_RECALL_STEPS,
                     MAX_WARMUP_RECALL_STEPS, 2, 1, 5, 8, 2, 2, 2),
-    # WP-93: steps = recall + scene, reply, ending, rule, forge and «Lecture».
+    # WP-93: steps = recall + heard + scene, reply, ending, rule, forge and
+    # the «Lecture» pages.
     600: RhythmCaps(600, 18, 12, 5, 5, 2, 10, 16, 2, 3, 4),
-    1200: RhythmCaps(1200, 26, 20, 8, 8, 4, 16, 32, 3, 4, 8),
-    1800: RhythmCaps(1800, 34, 28, 11, 11, 6, 24, 48, 3, 4, 12),
+    1200: RhythmCaps(1200, 32, 20, 8, 8, 4, 16, 32, 3, 4, 8, max_reads=1, max_heard=6),
+    1800: RhythmCaps(1800, 49, 28, 11, 11, 6, 24, 48, 3, 4, 12, max_reads=2, max_heard=12),
 }
 
 #: WP-93. At least this share of a day's budget is reading or listening — the
@@ -700,6 +708,18 @@ DAY_SHAPE_RULES: dict[DayShape, DayShapeRule] = {
 }
 
 
+def is_heard_step(step: Any) -> bool:
+    """WP-93: a recall step the learner *hears* — a listen-and-tap or dictation
+    that carries its clip (``public_prompt.audio_url``)."""
+
+    prompt = getattr(step, "public_prompt", None) or {}
+    return (
+        getattr(step, "kind", None) is StepKind.RECALL
+        and str(prompt.get("task_type") or "") in LISTENING_RECALL_FORMATS
+        and bool(prompt.get("audio_url"))
+    )
+
+
 def practice_day_shape_rule(
     shape: DayShape | str | None, budget_seconds: int | None = None
 ) -> DayShapeRule:
@@ -858,9 +878,12 @@ class PlannedJourney:
             raise ValueError("a plan needs exactly one scene step")
         if kinds.count(StepKind.RESPOND) != 1:
             raise ValueError("a plan needs exactly one respond step")
-        if kinds.count(StepKind.READ) > 1:
-            raise ValueError("a day plans at most one «Lecture»")
-        body = kinds[:-1] if kinds and kinds[-1] is StepKind.READ else kinds
+        reads = kinds.count(StepKind.READ)
+        if reads > caps.max_reads:
+            raise ValueError(f"a day at this rhythm plans at most {caps.max_reads} «Lecture» page(s)")
+        body = kinds[: len(kinds) - reads] if reads else kinds
+        if any(kind is not StepKind.READ for kind in kinds[len(body):]):
+            raise ValueError("the «Lecture» comes after the ending")
         if kinds.count(StepKind.RESOLUTION) != 1 or body[-1] is not StepKind.RESOLUTION:
             raise ValueError("a plan must end with the resolution step")
         if StepKind.READ in body:
@@ -897,10 +920,14 @@ class PlannedJourney:
                 f"a {shape} day holds {rule.min_steps}..{rule.max_steps} steps, "
                 f"not {len(self.steps)}"
             )
-        if not rule.min_recall <= recalls <= rule.max_recall:
+        # WP-93: heard items beyond the recall ceiling are input, allowed up to
+        # the rhythm's ``max_heard``; every other item counts against the ceiling.
+        heard = sum(1 for step in self.steps if is_heard_step(step))
+        extra = min(heard, caps.max_heard)
+        if not rule.min_recall <= recalls <= rule.max_recall + extra:
             raise ValueError(
                 f"a {shape} day holds {rule.min_recall}..{rule.max_recall} recall "
-                f"step(s), not {recalls}"
+                f"step(s) (+{caps.max_heard} heard), not {recalls}"
             )
         for index, step in enumerate(self.steps):
             if step.kind is not StepKind.RECALL:

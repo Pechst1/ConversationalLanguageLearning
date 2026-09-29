@@ -40,7 +40,7 @@ from app.services.grammar_catalog import (
     FRENCH_CORE_CATALOG_VERSION,
     catalog_rows,
 )
-from app.services.journey_contracts import rhythm_caps
+from app.services.journey_contracts import is_heard_step, rhythm_caps
 from app.services.level_coverage import SUB_BANDS, band_words
 from app.services.lexical_coverage import tokenize
 from tests.test_wpl6_rhythm import _plan
@@ -90,6 +90,32 @@ def _reading(audio: bool) -> dict:
     }
 
 
+def _readings(rhythm: str, audio: bool) -> list[dict]:
+    """Soutenu: yesterday's page. Intensif: today's «Coulisses» (priced as
+    today's page until it is written) and yesterday's page."""
+
+    if rhythm == "intensif":
+        coulisses = {"variant": "coulisses", "title_fr": "Coulisses", "audio_available": audio}
+        return [coulisses, _reading(audio)]
+    return [_reading(audio)]
+
+
+def _forge(rhythm: str) -> dict | None:
+    """The folded forge, as production passes it (Soutenu and Intensif)."""
+
+    from app.services import forge_picker
+
+    if rhythm not in forge_picker.FOLDED_RHYTHMS:
+        return None
+    return {
+        "concept_id": None,
+        "title_native": "",
+        "title_fr": "",
+        "reserve_seconds": forge_picker.FORGE_RESERVE_SECONDS,
+        "max_seconds": forge_picker.FORGE_SECONDS[rhythm],
+    }
+
+
 @lru_cache(maxsize=16)
 def _day(rhythm: str, audio: bool = False):
     budget = RHYTHM_BUDGET[rhythm]
@@ -98,7 +124,8 @@ def _day(rhythm: str, audio: bool = False):
         pool=rhythm_caps(budget).candidate_limit,
         scenario=engine_brief(),
         audio_available=audio,
-        reading=_reading(audio),
+        reading=_readings(rhythm, audio),
+        forge=_forge(rhythm),
     )
     plan.validate()
     return plan
@@ -123,21 +150,28 @@ def _mix(rhythm: str, audio: bool) -> dict:
         "input_of_day": round(
             planner.input_seconds(plan) / max(1, plan.estimated_active_seconds), 4
         ),
+        "of_budget": round(plan.estimated_active_seconds / plan.budget_seconds, 3),
         "recall": planner.recall_count(plan),
+        "heard": sum(1 for step in plan.steps if is_heard_step(step)),
         "reuse": round(found / asked, 2) if asked else None,
-        "lecture": any(step.kind.value == "read" for step in plan.steps),
+        "lecture": sum(1 for step in plan.steps if step.kind.value == "read"),
+        "forge": sum(step.estimated_seconds for step in plan.steps if step.kind.value == "forge"),
     }
 
 
 def render_mix() -> str:
-    rows = ["rhythm    audio  min   input/budget  input/day  recall  reuse  lecture"]
+    rows = [
+        "rhythm    audio  min   %budget  input/budget  input/day  recall  heard  reuse  "
+        "lecture  forge"
+    ]
     for rhythm in RHYTHMS:
         for audio in (False, True):
             mix = _mix(rhythm, audio)
             rows.append(
                 f"{rhythm:<9} {'on ' if audio else 'off'}   {mix['minutes']:>4}  "
-                f"{mix['input_of_budget']:>12.0%}  {mix['input_of_day']:>9.0%}  "
-                f"{mix['recall']:>6}  {mix['reuse']!s:>5}  {'yes' if mix['lecture'] else 'no'}"
+                f"{mix['of_budget']:>7.0%}  {mix['input_of_budget']:>12.0%}  "
+                f"{mix['input_of_day']:>9.0%}  {mix['recall']:>6}  {mix['heard']:>5}  "
+                f"{mix['reuse']!s:>5}  {mix['lecture']:>7}  {mix['forge']:>4}s"
             )
     return "\n".join(rows)
 
@@ -228,20 +262,45 @@ RECALL_CAPS = {"leger": 6, "regulier": 12, "soutenu": 20, "intensif": 28}
 def test_the_report_prints_the_new_mix_per_rhythm() -> None:
     print("\nWP-93 mix (engine page, prior pace)\n" + render_mix())  # noqa: T201 - the report
     for rhythm in RHYTHMS:
+        caps = rhythm_caps(RHYTHM_BUDGET[rhythm])
         for audio in (False, True):
             mix = _mix(rhythm, audio)
-            assert mix["recall"] <= RECALL_CAPS[rhythm], (rhythm, audio, mix)
+            # Drills stay under the ceiling; only heard items may go past it.
+            assert mix["recall"] - mix["heard"] <= RECALL_CAPS[rhythm], (rhythm, audio, mix)
+            assert mix["recall"] <= RECALL_CAPS[rhythm] + caps.max_heard, (rhythm, audio, mix)
             assert mix["reuse"] is not None and mix["reuse"] >= 0.5, (rhythm, mix)
-            # The «Lecture» is bought from Soutenu up, never on shorter days.
-            assert mix["lecture"] is (RHYTHM_BUDGET[rhythm] >= 1200), (rhythm, mix)
-    # Régulier's p50 still fits 8–10 minutes, and with the deployment
-    # speaking its input clears the 35 % floor (D-5).
+            # The «Lecture»: one page on Soutenu, two on Intensif, none below.
+            assert mix["lecture"] == caps.max_reads, (rhythm, mix)
+    # Léger is five minutes; Régulier's p50 still fits 8–10 minutes, and with
+    # the deployment speaking its input clears the 35 % floor (D-5).
     for audio in (False, True):
+        assert 4.5 <= _mix("leger", audio)["minutes"] <= 5, audio
         assert 8 <= _mix("regulier", audio)["minutes"] <= 10, audio
     assert _mix("regulier", True)["input_of_budget"] >= 0.35
-    # Every rhythm's input is at least a third of the day it plans.
+    # A longer rhythm reaches its minutes with input: with audio on, Soutenu
+    # and Intensif plan at least 90 % of their budget and clear the floor.
+    for rhythm in ("soutenu", "intensif"):
+        mix = _mix(rhythm, True)
+        assert mix["of_budget"] >= 0.9 and mix["input_of_budget"] >= 0.35, (rhythm, mix)
+    # Every rhythm's input is at least a quarter of the day it plans (audio
+    # off) and a third with audio on.
     for rhythm in RHYTHMS:
+        assert _mix(rhythm, False)["input_of_day"] >= 0.25, rhythm
         assert _mix(rhythm, True)["input_of_day"] >= 0.33, rhythm
+
+
+def test_the_preview_never_promises_more_minutes_than_the_day_plans() -> None:
+    """Where a day plans under its budget (audio off), the stated minutes are
+    the planner's prior, which never exceeds what the harness plans."""
+
+    for rhythm in RHYTHMS:
+        budget = RHYTHM_BUDGET[rhythm]
+        prior = planner.expected_day_seconds(budget)
+        for audio in (False, True):
+            assert prior <= _day(rhythm, audio).estimated_active_seconds, (rhythm, audio, prior)
+    # The learner's own planned days win over the prior, capped at the budget.
+    assert planner.expected_day_seconds(1200, [1000, 1100, 900]) == 1000
+    assert planner.expected_day_seconds(600, [700]) == 600
 
 
 def test_drills_never_take_the_input_floor() -> None:

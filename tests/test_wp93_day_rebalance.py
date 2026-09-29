@@ -33,6 +33,7 @@ from app.services.journey_contracts import (
     RHYTHM_BUDGETS,
     DayShape,
     StepKind,
+    is_heard_step,
     rhythm_caps,
 )
 from app.services.journey_day_shapes import DayShapeInputs
@@ -251,7 +252,7 @@ def test_the_validator_keeps_the_lecture_single_optional_and_last() -> None:
     with pytest.raises(ValueError, match="resolution|after the ending"):
         replace(plan, steps=early).validate()
     twice = [*plan.steps, replace(read, ordinal=len(plan.steps))]
-    with pytest.raises(ValueError, match="at most one"):
+    with pytest.raises(ValueError, match="at most 1"):
         replace(plan, steps=twice).validate()
     classic = [s for s in plan.steps if s.kind not in (StepKind.RECALL, StepKind.RULE)]
     classic = [replace(step, ordinal=index) for index, step in enumerate(classic)]
@@ -481,11 +482,29 @@ def test_the_relecture_offer_reads_yesterdays_page(db_session, monkeypatch) -> N
         status="active", budget_seconds=1200,
     )
     service = DailyJourneyService(db_session, adapters=None)  # type: ignore[arg-type]
-    offer = service._reading_for_today(user, journey, engine_brief())
+    [offer] = service._reading_for_today(user, journey, engine_brief())
     assert offer["variant"] == "relecture" and offer["scene_id"] == str(yesterday.id)
     assert offer["texts_fr"] == ["Il pleut.", "Ma clé !"] and offer["panel_count"] == 1
     journey.budget_seconds = 600
-    assert service._reading_for_today(user, journey, engine_brief()) is None
+    assert service._reading_for_today(user, journey, engine_brief()) == []
+    # Intensif reads two pages: yesterday's and the one before.
+    before = GraphicNovelScene(
+        user_id=user.id, title="Le parapluie", brief="x", status="completed",
+        source_snapshot={"journey_id": str(uuid.uuid4())}, script_payload={},
+        cache_key=f"wp93-{uuid.uuid4().hex[:12]}", prompt_version=ENGINE_VERSION,
+        image_model="m", image_quality="reference",
+        created_at=datetime.now(UTC) - timedelta(days=2),
+    )
+    db_session.add(before)
+    db_session.flush()
+    before.panels.append(
+        GraphicNovelPanel(panel_index=0, title="1", beat="b", image_prompt="p",
+                          overlay_payload={"narration_fr": "Il fait beau.", "dialogue": []})
+    )
+    db_session.flush()
+    journey.budget_seconds = 1800
+    offers = service._reading_for_today(user, journey, engine_brief())
+    assert [offer["scene_id"] for offer in offers] == [str(yesterday.id), str(before.id)]
     db_session.rollback()
 
 
@@ -552,3 +571,82 @@ def test_the_line_audio_door_speaks_the_rule_cards_scene_line_only() -> None:
     assert match_line(lines, "Un autre texte.") is None
     other = SimpleNamespace(kind="forge", public_prompt={"title_fr": "Le passé composé"}, private_task={})
     assert step_lines(None, SimpleNamespace(steps=[]), other) == []  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("audio", [False, True])
+def test_intensif_reads_two_pages_and_hears_more(audio: bool) -> None:
+    offers = [
+        {"variant": "coulisses", "title_fr": "Coulisses"},
+        _relecture(),
+        _relecture(title_fr="Avant-hier"),
+    ]
+    # As production folds it on Intensif (WP-S4): its real minutes count.
+    forge = {"concept_id": None, "reserve_seconds": 240, "max_seconds": 600}
+    plan = _plan(1800, reading=offers, audio_available=audio, forge=forge)
+    plan.validate()
+    assert any(step.kind is StepKind.FORGE for step in plan.steps)
+    reads = [step for step in plan.steps if step.kind is StepKind.READ]
+    assert [step.public_prompt["variant"] for step in reads] == ["coulisses", "relecture"]
+    assert [step.kind for step in plan.steps[-2:]] == [StepKind.READ, StepKind.READ]
+    heard = sum(1 for step in plan.steps if is_heard_step(step))
+    drills = planner.recall_count(plan) - heard
+    assert drills <= rhythm_caps(1800).max_recall
+    if audio:
+        # Heard items may pass the ceiling: listening is input.
+        assert heard > planner.LISTEN_TAP_ITEMS_BY_BUDGET[1800]
+        assert plan.estimated_active_seconds >= 0.9 * 1800, plan.rationale
+    one = _plan(1200, reading=offers, audio_available=audio)
+    assert [s.public_prompt["variant"] for s in one.steps if s.kind is StepKind.READ] == ["coulisses"]
+
+
+def test_the_preview_states_the_planned_minutes() -> None:
+    assert planner.expected_day_seconds(1800) < 1800
+    assert planner.expected_day_seconds(1800, [1500, 1700, 1600]) == 1600
+    assert planner.expected_day_seconds(300) <= 300
+
+
+def test_an_unavailable_coulisses_gives_its_place_to_yesterdays_page(db_session, monkeypatch) -> None:
+    from app.db.models.daily_journey import DailyJourneyStep
+    from app.services.daily_journey import DailyJourneyService
+
+    monkeypatch.setattr(settings, "ATELIER_COULISSES_ENABLED", False)
+    user = User(
+        id=uuid.uuid4(), email=f"{uuid.uuid4()}@wp93.test", hashed_password="x",
+        native_language="en", target_language="fr",
+    )
+    db_session.add(user)
+    db_session.flush()
+    yesterday = GraphicNovelScene(
+        user_id=user.id, title="La clé oubliée", brief="x", status="completed",
+        source_snapshot={}, script_payload={}, cache_key=f"wp93-{uuid.uuid4().hex[:12]}",
+        prompt_version=ENGINE_VERSION, image_model="m", image_quality="reference",
+    )
+    db_session.add(yesterday)
+    db_session.flush()
+    journey = DailyJourney(
+        id=uuid.uuid4(), user_id=user.id, local_date=date(2026, 9, 29), timezone="UTC",
+        status="active", budget_seconds=1800,
+    )
+    relecture = {"scene_id": str(yesterday.id), "title_fr": "La clé oubliée"}
+
+    def read_step(ordinal: int, variant: str) -> DailyJourneyStep:
+        return DailyJourneyStep(
+            id=uuid.uuid4(), ordinal=ordinal, kind="read", status="pending",
+            estimated_seconds=150, optional=True,
+            public_prompt={"variant": variant, "title_fr": "t", "scene_id": None,
+                           "status": "writing", "audio_available": False},
+            private_task={"variant": variant, "relectures": [relecture],
+                          **({"relecture": relecture} if variant == "relecture" else {})},
+            assistance_used=[],
+        )
+
+    first, second = read_step(8, "coulisses"), read_step(9, "relecture")
+    journey.steps = [first, second]
+    views = DailyJourneyService(db_session, adapters=None)._read_views(journey)  # type: ignore[arg-type]
+    # Relecture first; the second page has nothing left to show.
+    assert ReadPrompt.model_validate(views[first.id]).model_dump() == {
+        "variant": "relecture", "title_fr": "La clé oubliée", "scene_id": str(yesterday.id),
+        "status": "ready", "audio_available": False, "character_id": None, "character_name": None,
+    }
+    assert views[second.id]["status"] == "unavailable" and views[second.id]["scene_id"] is None
+    db_session.rollback()

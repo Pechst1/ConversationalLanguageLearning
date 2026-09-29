@@ -217,6 +217,13 @@ def _read_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> l
     private = step.private_task if isinstance(step.private_task, dict) else {}
     relecture = private.get("relecture") if isinstance(private.get("relecture"), dict) else {}
     ids = [prompt.get("scene_id"), relecture.get("scene_id")]
+    # WP-93: the earlier pages the day named — a READ step shows one of them
+    # when «coulisses» gives its place away.
+    ids.extend(
+        page.get("scene_id")
+        for page in private.get("relectures") or []
+        if isinstance(page, dict)
+    )
     if private.get("variant") == "coulisses" or prompt.get("variant") == "coulisses":
         try:
             from app.services.coulisses import coulisses_scene_for
