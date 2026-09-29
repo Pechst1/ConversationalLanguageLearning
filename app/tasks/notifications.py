@@ -27,7 +27,27 @@ REVIEW_REMINDER_MINUTE = 18 * 60
 SCHEDULE_WINDOW_MINUTES = 15
 STREAK_REMINDER_EVENT = "streak_reminder_sent"
 REVIEW_REMINDER_EVENT = "review_reminder_sent"
-MORNING_EVENT = "morning_edition_sent"
+MORNING_EVENT = "morning_edition_sent"  # == serial_notifications.MORNING_PUSH_EVENT
+#: WP-99: at most one Courrier push a local day, whatever it announces.
+COURRIER_PUSH_EVENT = "courrier_push_sent"
+#: WP-99: the Courrier push goes this long after the learner's reminder time
+#: (their morning is the dépêche's; the letter comes with the midday post)…
+COURRIER_PUSH_OFFSET_MINUTES = 5 * 60
+#: …and never outside these local hours (else at 12:30).
+COURRIER_PUSH_EARLIEST = 9 * 60
+COURRIER_PUSH_LATEST = 20 * 60 + 30
+COURRIER_PUSH_FALLBACK_MINUTE = 12 * 60 + 30
+#: WP-99: the per-day cap on scheduled pushes. The optional ones (the Courrier)
+#: stay silent once a learner's local day already carries this many.
+DAILY_PUSH_CAP = 3
+#: Every scheduled push the cap counts (each one keyed on the local date).
+SCHEDULED_PUSH_EVENTS = (
+    MORNING_EVENT,
+    STREAK_REMINDER_EVENT,
+    REVIEW_REMINDER_EVENT,
+    "rehearsal_reminder_sent",
+    COURRIER_PUSH_EVENT,
+)
 FRENCH_MONTHS = (
     "janvier", "février", "mars", "avril", "mai", "juin",
     "juillet", "août", "septembre", "octobre", "novembre", "décembre",
@@ -443,5 +463,102 @@ def send_serial_edition_notification(
             "episode_index": int(episode_index),
             "deliveries": delivered,
         }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# WP-99 «Le facteur est passé»
+# ---------------------------------------------------------------------------
+
+
+def courrier_push_minute(user: User) -> int:
+    """Local minute of the day the Courrier push may go out for this learner."""
+
+    minute = (_preferred_notification_minute(user) + COURRIER_PUSH_OFFSET_MINUTES) % (24 * 60)
+    if COURRIER_PUSH_EARLIEST <= minute <= COURRIER_PUSH_LATEST:
+        return minute
+    return COURRIER_PUSH_FALLBACK_MINUTE
+
+
+def pushes_sent_on(db, user: User, day: date) -> int:
+    """Scheduled pushes already sent for this learner's local ``day``."""
+
+    from sqlalchemy import func, or_
+
+    key = day.isoformat()
+    return int(
+        db.scalar(
+            select(func.count(PilotEvent.id)).where(
+                PilotEvent.user_id == user.id,
+                PilotEvent.event_type.in_(SCHEDULED_PUSH_EVENTS),
+                or_(PilotEvent.entity_id == key, PilotEvent.entity_id.like(f"%:{key}")),
+            )
+        )
+        or 0
+    )
+
+
+def _send_courrier_push(db, user: User, today: date) -> int:
+    """One learner's Courrier push for ``today``, or nothing. Returns deliveries."""
+
+    from app.services import story_correspondence as courrier
+    from app.services.notification_service import NotificationService
+    from app.services.serial_notifications import courrier_push
+
+    key = today.isoformat()
+    if _already_sent(db, user, COURRIER_PUSH_EVENT, key):
+        return 0
+    if pushes_sent_on(db, user, today) >= DAILY_PUSH_CAP:
+        return 0
+    # A chain's next letter or a story-born one is written now, so the push
+    # announces a letter that is really in the box.
+    courrier.deliver_pending_letter(db, user=user)
+    found = courrier.courrier_push_candidate(db, user=user, today=today)
+    if found is None:
+        return 0
+    kind, mission = found
+    push = courrier_push(db, user, mission=mission, kind=kind)
+    data = push.data(f"letter_{kind}", key)
+    data["mission_id"] = str(mission.id)
+    count = NotificationService(db).send_notification(user.id, push.message, push.title, data=data)
+    if not count:
+        return 0
+    courrier.note_courrier_push(db, mission=mission, kind=kind, today=today)
+    _record_sent(
+        db, user, COURRIER_PUSH_EVENT, key,
+        {"title": push.title, "message": push.message, "kind": kind,
+         "mission_id": str(mission.id), "deliveries": count},
+    )
+    return count
+
+
+@celery_app.task(name="app.tasks.notifications.send_courrier_pushes")
+def send_courrier_pushes(now: str | None = None) -> dict[str, int]:
+    """WP-99: «Le facteur est passé» and «Dernier jour pour répondre à …».
+
+    Every 15 minutes; each learner is visited once, in the window of
+    :func:`courrier_push_minute` in their own zone. At most one Courrier push a
+    local day, and none once the day's scheduled pushes reached
+    :data:`DAILY_PUSH_CAP`.
+    """
+
+    moment = _utc_now(now)
+    db = SessionLocal()
+    eligible = delivered = 0
+    try:
+        for user in _push_users(db):
+            if not getattr(user, "practice_reminders", True):
+                continue
+            local = _local_now(user, moment)
+            if not _in_window(_minute_of(local), courrier_push_minute(user)):
+                continue
+            eligible += 1
+            try:
+                delivered += _send_courrier_push(db, user, local.date())
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to send Courrier push", user_id=str(user.id))
+        return {"eligible_users": eligible, "notifications_sent": delivered}
     finally:
         db.close()

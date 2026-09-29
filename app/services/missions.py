@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -62,245 +62,386 @@ MISSION_FORMAT_ALTERNATIVES = ("chat_message", "email_formal", "voicemail_reply"
 REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     {
         "domain": "food_dining",
-        "label": "Food and dining",
+        "label": "Manger dehors",
         "categories": {"food_drink"},
-        "title": "Bakery Backup",
+        "title": "Plus de pain blanc",
         "contact_name": "Samira",
-        "contact_role": "baker at the corner boulangerie",
+        "contact_role": "boulangère du quartier",
         "contact_initials": "SA",
         "channel": "counter_chat",
-        "channel_label": "Counter chat",
+        "channel_label": "Au comptoir",
         "tone": "warm_practical",
         "register": "polite neutral",
-        "scene_anchor": "At the boulangerie counter, just before the lunch rush",
+        "scene_anchor": "À la boulangerie, avant midi",
         "opening_message": "Bonjour ! Il n'y a plus de pain blanc. Vous voulez un autre pain ?",
-        "brief": "The bakery is out of your usual bread. React naturally, choose an alternative, and ask one practical question.",
+        "brief": "Il n'y a plus votre pain. Choisissez un autre pain et demandez quelque chose.",
         "success_signal": "Samira knows what you want and whether to slice or set anything aside.",
-        "twist": "Your usual baguette is gone, but the baker has one very opinionated recommendation.",
-        "ambient_cues": ["warm bread smell", "a small queue behind you", "one quick decision"],
+        "twist": "Samira a une idée : son pain aux fruits.",
+        "ambient_cues": ["l'odeur du pain chaud", "des gens derrière vous", "un petit choix"],
         "quick_replies": ["D'accord, je prends...", "Est-ce que vous avez aussi...", "Qu'est-ce que vous aimez ?"],
     },
     {
         "domain": "housing",
-        "label": "Housing",
+        "label": "Le logement",
         "categories": {"home_objects", "nature_weather"},
-        "title": "Cold Radiator",
+        "title": "Le radiateur est froid",
         "contact_name": "M. Marchand",
-        "contact_role": "landlord",
+        "contact_role": "propriétaire",
         "contact_initials": "MM",
         "channel": "sms",
         "channel_label": "SMS",
         "tone": "polite_firm",
         "register": "vous / polite formal",
-        "scene_anchor": "In your apartment, wearing a coat indoors",
+        "scene_anchor": "Chez vous, avec un manteau",
         "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
-        "brief": "Your radiator has stopped working. Explain the problem and ask for a repair slot.",
+        "brief": "Le radiateur ne marche plus. Dites le problème et demandez un jour pour réparer.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
-        "twist": "He can only send someone in a very French window: between 8 h and noon.",
-        "ambient_cues": ["cold apartment", "formal register matters", "one appointment window"],
+        "twist": "Quelqu'un peut venir le matin, pas après midi.",
+        "ambient_cues": ["un appartement froid", "on dit « vous »", "un rendez-vous"],
         "quick_replies": ["Bonjour Monsieur, le radiateur...", "Est-ce que quelqu'un peut venir...", "Je suis là le matin..."],
     },
     {
         "domain": "neighbours",
-        "label": "Neighbours",
+        "label": "Les voisins",
         "categories": {"people_relationships", "communication", "home_objects"},
-        "title": "The Downstairs Note",
+        "title": "Un mot de la voisine",
         "contact_name": "Mme Vidal",
-        "contact_role": "downstairs neighbour",
+        "contact_role": "voisine d'en bas",
         "contact_initials": "MV",
         "channel": "note_reply",
-        "channel_label": "Building note",
+        "channel_label": "Mot dans l'immeuble",
         "tone": "soothing",
         "register": "polite formal",
-        "scene_anchor": "At the mailboxes, after finding a stern handwritten note",
+        "scene_anchor": "Devant les boîtes aux lettres, un petit mot",
         "opening_message": "Bonsoir, il y a eu beaucoup de bruit hier soir. C'est fini maintenant ?",
-        "brief": "A neighbour complains about noise. Smooth it over and make the next evening less tense.",
+        "brief": "La voisine parle du bruit. Répondez et dites ce que vous allez faire.",
         "success_signal": "Your neighbour feels heard and knows what will change.",
-        "twist": "She is grumpy, but she signs the note with a tiny smiley face.",
-        "ambient_cues": ["thin walls", "shared stairwell", "keep the peace"],
+        "twist": "Elle n'est pas contente, mais il y a un petit sourire sous son mot.",
+        "ambient_cues": ["des murs fins", "le même escalier", "rester amis"],
         "quick_replies": ["Bonsoir Madame, je suis désolé...", "Ce soir, je vais faire moins de bruit...", "Merci pour votre mot..."],
     },
     {
         "domain": "deliveries_admin",
-        "label": "Deliveries and admin",
+        "label": "Colis et papiers",
         "categories": {"communication", "technology_media", "places_infrastructure"},
-        "title": "Parcel Detour",
+        "title": "Le colis perdu",
         "contact_name": "Service Client",
-        "contact_role": "seller support agent",
+        "contact_role": "service client du magasin",
         "contact_initials": "SC",
         "channel": "support_message",
-        "channel_label": "Support chat",
+        "channel_label": "Messagerie du service client",
         "tone": "calm_specific",
         "register": "polite neutral",
-        "scene_anchor": "On your phone, staring at a delivery photo that is not your door",
+        "scene_anchor": "Sur votre téléphone, une photo : ce n'est pas votre porte",
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
-        "brief": "A parcel went to the wrong address. Explain what happened and ask for a fix.",
+        "brief": "Le colis n'est pas chez vous. Expliquez et demandez une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "The delivery photo shows a blue door; your building has a green one.",
-        "ambient_cues": ["delivery screenshot", "wrong door colour", "one support ticket"],
+        "twist": "Sur la photo, la porte est bleue. Votre porte est verte.",
+        "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
     },
     {
         "domain": "health",
-        "label": "Health",
+        "label": "La santé",
         "categories": {"body_health", "time_calendar"},
-        "title": "Dentist Voicemail",
+        "title": "Un message du dentiste",
         "contact_name": "Cabinet Martin",
-        "contact_role": "dentist reception",
+        "contact_role": "secrétaire du dentiste",
         "contact_initials": "CM",
         "channel": "voice_note",
-        "channel_label": "Voice note",
+        "channel_label": "Message vocal",
         "tone": "clear_courteous",
         "register": "polite formal",
-        "scene_anchor": "Outside the metro, replaying a short voicemail",
+        "scene_anchor": "Devant le métro, un petit message sur le téléphone",
         "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
-        "brief": "The dentist needs to move your appointment. Confirm or ask for a better time.",
+        "brief": "Le dentiste change votre rendez-vous. Dites oui ou proposez une autre heure.",
         "success_signal": "The reception desk can book the right slot without calling again.",
-        "twist": "They offer the one morning you usually have class.",
-        "ambient_cues": ["short voicemail", "calendar open", "health register"],
+        "twist": "Vendredi matin, vous avez cours.",
+        "ambient_cues": ["un message court", "votre semaine", "on dit « vous »"],
         "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
     },
     {
         "domain": "transport",
-        "label": "Transport",
+        "label": "Les transports",
         "categories": {"transport_travel", "time_calendar", "places_infrastructure"},
-        "title": "Cancelled Train",
+        "title": "Pas de train",
         "contact_name": "Agent Moreau",
-        "contact_role": "station agent",
+        "contact_role": "agent de la gare",
         "contact_initials": "AM",
         "channel": "counter_chat",
-        "channel_label": "Station desk",
+        "channel_label": "Guichet de la gare",
         "tone": "urgent_polite",
         "register": "vous / polite formal",
-        "scene_anchor": "At the station desk, while the departure board keeps changing",
+        "scene_anchor": "Au guichet de la gare, le tableau change encore",
         "opening_message": "Votre train ne part pas. Vous voulez partir aujourd'hui ou avoir votre argent ?",
-        "brief": "Your train is cancelled. Ask for the next option and clarify the refund.",
+        "brief": "Votre train ne part pas. Demandez le prochain train ou votre argent.",
         "success_signal": "The agent knows whether to reroute or refund you.",
-        "twist": "The next direct train exists, but it leaves from a different station.",
-        "ambient_cues": ["departure board flashing", "queue behind you", "refund question"],
+        "twist": "Il y a un autre train, mais il part d'une autre gare.",
+        "ambient_cues": ["le tableau des départs", "des gens derrière vous", "une question d'argent"],
         "quick_replies": ["Je dois arriver aujourd'hui...", "Le prochain train part à quelle heure ?", "Et pour mon argent..."],
     },
     {
         "domain": "social_plans",
-        "label": "Social plans",
+        "label": "Sorties entre amis",
         "categories": {"people_relationships", "arts_leisure", "food_drink"},
-        "title": "Last-Minute Picnic",
+        "title": "Au parc ce midi",
         "contact_name": "Noémie",
-        "contact_role": "French friend",
+        "contact_role": "une amie",
         "contact_initials": "NO",
         "channel": "whatsapp",
         "channel_label": "WhatsApp",
         "tone": "light_warm",
         "register": "tu / warm informal",
-        "scene_anchor": "A sunny afternoon, phone buzzing on the kitchen table",
+        "scene_anchor": "Un jour de soleil, votre téléphone sonne",
         "opening_message": "On mange dans le parc des Buttes-Chaumont dans une heure. Tu viens ?",
-        "brief": "A friend invites you last-minute. Accept warmly and ask where to meet.",
+        "brief": "Une amie vous propose de venir. Dites oui et demandez où.",
         "success_signal": "Noémie knows you are coming and where to wait for you.",
-        "twist": "Everyone is bringing something, and nobody remembered cups.",
-        "ambient_cues": ["sunny park plan", "one hour notice", "bring something small"],
+        "twist": "Tout le monde apporte quelque chose, mais personne n'a de verres.",
+        "ambient_cues": ["le parc au soleil", "dans une heure", "apporter quelque chose"],
         "quick_replies": ["Oui, avec plaisir !", "J'apporte...", "On se voit où ?"],
     },
     {
         "domain": "work",
-        "label": "Work",
+        "label": "Le travail",
         "categories": {"work_money", "time_calendar", "communication"},
-        "title": "Twenty Minutes Late",
+        "title": "Vingt minutes de retard",
         "contact_name": "Nadia",
-        "contact_role": "colleague",
+        "contact_role": "collègue",
         "contact_initials": "NA",
         "channel": "work_chat",
-        "channel_label": "Work chat",
+        "channel_label": "Messagerie du travail",
         "tone": "calm_practical",
         "register": "polite neutral",
-        "scene_anchor": "On the tram, after a delay pushes your morning meeting",
+        "scene_anchor": "Dans le bus, pour aller au travail",
         "opening_message": "Tu es là pour la réunion de neuf heures ? On commence bientôt.",
-        "brief": "Tell a colleague you will be 20 minutes late and give the practical reason.",
+        "brief": "Dites à Nadia que vous arrivez vingt minutes plus tard, et pourquoi.",
         "success_signal": "Nadia knows when you arrive and what to do meanwhile.",
-        "twist": "The tram delay is real, but the meeting link also changed.",
-        "ambient_cues": ["morning delay", "work tone", "one useful workaround"],
+        "twist": "Le bus ne va pas vite, et on va dans une autre salle.",
+        "ambient_cues": ["un matin difficile", "au travail", "une idée simple"],
         "quick_replies": ["Je suis désolé, j'arrive dans...", "Le bus est en retard...", "Vous pouvez commencer sans moi..."],
     },
     {
         "domain": "services",
-        "label": "Services",
+        "label": "Les services",
         "categories": {"technology_media", "communication", "work_money"},
-        "title": "Three Days Offline",
+        "title": "Trois jours sans internet",
         "contact_name": "Assistance Fibre",
-        "contact_role": "internet operator",
+        "contact_role": "service internet",
         "contact_initials": "AF",
         "channel": "support_chat",
-        "channel_label": "Support chat",
+        "channel_label": "Messagerie du service",
         "tone": "polite_firm",
         "register": "polite formal",
-        "scene_anchor": "At home, tethering your laptop from a tired phone",
+        "scene_anchor": "Chez vous, internet sur le téléphone",
         "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
-        "brief": "Your wifi has been down for three days. Chase the operator politely but firmly.",
+        "brief": "Vous n'avez pas internet depuis trois jours. Écrivez un message poli et clair.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
-        "twist": "They keep calling it a short interruption. It is day three.",
-        "ambient_cues": ["phone hotspot", "third day", "polite but firm"],
+        "twist": "Pour eux, c'est « un petit problème ». C'est le troisième jour.",
+        "ambient_cues": ["internet sur le téléphone", "le troisième jour", "poli mais clair"],
         "quick_replies": ["Bonjour, je n'ai pas internet depuis...", "Ça fait trois jours...", "Qu'est-ce que vous pouvez faire pour moi ?"],
     },
     {
         "domain": "shopping",
-        "label": "Shopping",
+        "label": "Les achats",
         "categories": {"clothing", "work_money", "communication"},
-        "title": "Wrong Size",
+        "title": "Pas la bonne taille",
         "contact_name": "Boutique Anaïs",
-        "contact_role": "shop assistant",
+        "contact_role": "vendeuse",
         "contact_initials": "BA",
         "channel": "email",
-        "channel_label": "Short email",
+        "channel_label": "Court e-mail",
         "tone": "polite_clear",
         "register": "polite formal",
-        "scene_anchor": "At your desk, with the return label half printed",
+        "scene_anchor": "À votre bureau, avec le paquet à renvoyer",
         "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
-        "brief": "The wrong size arrived. Arrange an exchange with enough detail.",
+        "brief": "Ce n'est pas la bonne taille. Demandez un échange.",
         "success_signal": "The shop can send the correct size or confirm the return.",
-        "twist": "The last item in your size is being held until tonight.",
-        "ambient_cues": ["order number nearby", "return label", "one size left"],
+        "twist": "Il reste un seul article à votre taille, jusqu'à ce soir.",
+        "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
     },
     {
         "domain": "bureaucracy",
-        "label": "Bureaucracy",
+        "label": "La mairie",
         "categories": {"society_politics", "places_infrastructure", "communication"},
-        "title": "Mairie Detail",
+        "title": "Un papier pour la mairie",
         "contact_name": "Accueil Mairie",
-        "contact_role": "city hall clerk",
+        "contact_role": "accueil de la mairie",
         "contact_initials": "AM",
         "channel": "formal_email",
-        "channel_label": "Formal email",
+        "channel_label": "E-mail officiel",
         "tone": "formal_precise",
         "register": "vous / administrative formal",
-        "scene_anchor": "At the kitchen table, one form still missing a detail",
+        "scene_anchor": "À la table de la cuisine, un papier pas fini",
         "opening_message": "Bonjour, il nous faut encore une chose : où habitez-vous ?",
-        "brief": "A city hall form needs one detail clarified. Ask exactly what they need.",
+        "brief": "Il manque une chose pour la mairie. Demandez ce qu'il faut.",
         "success_signal": "The clerk tells you which document or detail will complete the file.",
-        "twist": "The document is valid, but the address line is formatted differently.",
-        "ambient_cues": ["PDF form", "official wording", "one missing detail"],
+        "twist": "Le papier est bon, mais l'adresse n'est pas la même.",
+        "ambient_cues": ["un formulaire", "des mots difficiles", "une chose qui manque"],
         "quick_replies": ["Bonjour Madame, Monsieur...", "Qu'est-ce qu'il faut ?", "J'habite..."],
     },
     {
         "domain": "everyday_warmth",
-        "label": "Everyday warmth",
+        "label": "Petits bonheurs",
         "categories": {"people_relationships", "emotions_abstract", "communication"},
-        "title": "Cat Note",
+        "title": "Un mot sur le chat",
         "contact_name": "Luc",
-        "contact_role": "neighbour upstairs",
+        "contact_role": "voisin du dessus",
         "contact_initials": "LU",
         "channel": "sms",
         "channel_label": "SMS",
         "tone": "kind_playful",
         "register": "tu / friendly neighbour",
-        "scene_anchor": "In the stairwell, after a neighbour mentions your runaway cat",
+        "scene_anchor": "Dans l'escalier, le voisin parle de votre chat",
         "opening_message": "Ton chat est encore venu chez moi. Il est très mignon, mais il veut toujours entrer !",
-        "brief": "A neighbour leaves a kind note about your cat. Reply warmly and make a small plan.",
+        "brief": "Le voisin écrit un gentil mot sur votre chat. Répondez et dites ce que vous allez faire.",
         "success_signal": "Luc smiles instead of feeling annoyed and knows what you will do.",
-        "twist": "The cat apparently has a preferred chair in Luc's flat.",
-        "ambient_cues": ["stairwell note", "friendly tease", "small apology"],
+        "twist": "Chez Luc, le chat a déjà sa chaise préférée.",
+        "ambient_cues": ["un mot dans l'escalier", "un voisin sympa", "un petit pardon"],
         "quick_replies": ["Oh non, désolé !", "Je vais fermer ma porte...", "Merci pour ton mot..."],
     },
 )
+
+
+# ---------------------------------------------------------------------------
+# WP-99 (W13) — the Courrier belongs to the cast from day 1
+# ---------------------------------------------------------------------------
+
+#: Who may write a learner's first letter: two people they meet on day 1.
+FIRST_LETTER_WRITERS: tuple[str, ...] = ("margaux_barman", "romy_tremblay")
+
+#: The cast's roles as the Courrier prints them (French, the letter's language).
+CAST_ROLES_FR: dict[str, str] = {
+    "marin_leveque": "votre premier ami à Paris",
+    "romy_tremblay": "journaliste, nouvelle à Paris",
+    "lila_bonnet": "institutrice et peintre",
+    "margaux_barman": "serveuse au Mistral",
+    "landlord_marchand": "votre propriétaire",
+}
+
+#: The authored first letter per band group (``A`` = A1–A2, ``B`` = B1 and up),
+#: served without a model call when the story has nothing yet to write about.
+#: French only, «vous» unless the two already agreed on «tu» (``*_tu``).
+FIRST_LETTERS: dict[str, dict[str, Any]] = {
+    "A": {
+        "domain": "cast_first_letter",
+        "label": "Le Mistral",
+        "character_id": "margaux_barman",
+        "title": "Votre écharpe au Mistral",
+        "contact_name": "Margaux",
+        "contact_role": "serveuse au Mistral",
+        "contact_initials": "MA",
+        "channel": "sms",
+        "channel_label": "SMS",
+        "tone": "light_warm",
+        "register": "vous / warm but polite",
+        "scene_anchor": "Le soir, un message du café Le Mistral",
+        "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Vous avez oublié votre écharpe sur la table. Vous passez demain ?",
+        "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Tu as oublié ton écharpe sur la table. Tu passes demain ?",
+        "brief": "Margaux a votre écharpe. Répondez et dites quand vous passez.",
+        "brief_tu": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
+        "success_signal": "Margaux sait quand vous passez.",
+        "success_signal_i18n": {
+            "fr": "Margaux sait quand vous passez.",
+            "en": "Margaux knows when you are coming by.",
+            "de": "Margaux weiß, wann Sie vorbeikommen.",
+        },
+        "twist": "Demain, le premier café est pour moi.",
+        "ambient_cues": ["une écharpe bleue", "le café Le Mistral", "un petit message"],
+        "quick_replies": ["Merci, Margaux !", "Je passe demain à...", "Oui, c'est mon écharpe."],
+    },
+    "B": {
+        "domain": "cast_first_letter",
+        "label": "Le Mistral",
+        "character_id": "romy_tremblay",
+        "title": "Trois questions de Romy",
+        "contact_name": "Romy",
+        "contact_role": "journaliste, nouvelle à Paris",
+        "contact_initials": "RO",
+        "channel": "email",
+        "channel_label": "Court e-mail",
+        "tone": "light_warm",
+        "register": "vous / warm but polite",
+        "scene_anchor": "Un e-mail de Romy, après votre soirée au Mistral",
+        "opening_message": (
+            "Bonjour ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
+            "arrivent à Paris. Vous voulez bien répondre à trois questions : d'où venez-vous, "
+            "pourquoi Paris, et qu'est-ce qui vous surprend ici ?"
+        ),
+        "opening_message_tu": (
+            "Salut ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
+            "arrivent à Paris. Tu veux bien répondre à trois questions : d'où tu viens, "
+            "pourquoi Paris, et qu'est-ce qui te surprend ici ?"
+        ),
+        "brief": "Romy écrit un article. Répondez à ses trois questions.",
+        "brief_tu": "Romy écrit un article. Réponds à ses trois questions.",
+        "success_signal": "Romy sait d'où vous venez et pourquoi vous êtes à Paris.",
+        "success_signal_i18n": {
+            "fr": "Romy sait d'où vous venez et pourquoi vous êtes à Paris.",
+            "en": "Romy knows where you are from and why you are in Paris.",
+            "de": "Romy weiß, woher Sie kommen und warum Sie in Paris sind.",
+        },
+        "twist": "Elle a déjà un titre pour l'article, mais pas encore de photo.",
+        "ambient_cues": ["un article en préparation", "trois questions", "le café Le Mistral"],
+        "quick_replies": ["Je viens de...", "Je suis à Paris parce que...", "Ici, ce qui me surprend, c'est..."],
+    },
+}
+
+
+def first_letter_for(user: User, *, register: str = "vous") -> dict[str, Any]:
+    """The authored first letter for this learner's band, in their register with the writer."""
+
+    band = str(getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1")
+    band = band.strip().upper()[:2]
+    letter = dict(FIRST_LETTERS["B" if band.startswith(("B", "C")) else "A"])
+    if register == "tu":
+        letter["opening_message"] = letter["opening_message_tu"]
+        letter["brief"] = letter["brief_tu"]
+        letter["register"] = "tu / warm informal"
+    for key in ("opening_message_tu", "brief_tu"):
+        letter.pop(key, None)
+    return letter
+
+
+def letter_level_brief(known: Any, level: Any) -> dict[str, Any]:
+    """WP-99: the WP-84 level check, handed to the writer *before* it writes.
+
+    The same limits :func:`letter_level_verdict` applies after the fact —
+    ``lexical_coverage.check_copy_level`` — so an A1 letter can pass on the
+    first try instead of burning two rejected drafts: up to A2 the band's own
+    core word list (by frequency, at most ``LETTER_ALLOWED_WORDS_MAX``), the
+    number of words allowed outside it, and the known-word floor.
+    """
+
+    from app.services.lexical_coverage import (
+        COPY_COVERAGE_FLOOR,
+        accidental_budget,
+        band_index,
+        band_of,
+        load_lexicon,
+    )
+
+    band = getattr(known, "band", None) or band_of(str(level or "A1"))
+    brief: dict[str, Any] = {
+        "band": band,
+        "max_words_outside_the_list": accidental_budget(band),
+        "known_word_floor_percent": int(COPY_COVERAGE_FLOOR * 100),
+        "max_words_per_sentence": {"A1": 10, "A2": 14}.get(band, 20),
+        "rules": [
+            "Names, numbers and due_vocabulary are always allowed.",
+            "Short sentences, present tense and passé composé, everyday verbs.",
+            "No idioms, no administrative or commercial jargon.",
+        ],
+    }
+    if band_index(band) <= band_index("A2"):
+        lexicon = load_lexicon()
+        words = sorted(lexicon.core_lemmas(band), key=lambda lemma: (lexicon.rank(lemma) or 10**6, lemma))
+        brief["allowed_words"] = words[:LETTER_ALLOWED_WORDS_MAX]
+    return brief
+
+
+#: The longest word list a letter prompt carries (A1's whole core list fits).
+LETTER_ALLOWED_WORDS_MAX = 900
 
 
 # Concrete, real-life sub-goals per scenario domain. The mission is "solved" — and
@@ -319,6 +460,7 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
     "shopping": ["Say what is wrong with the order", "Ask for an exchange or refund"],
     "bureaucracy": ["State what you need", "Confirm the missing document or detail"],
     "everyday_warmth": ["Reply warmly to their note", "Say one concrete next step"],
+    "cast_first_letter": ["Answer their question", "Say one concrete next step"],
 }
 
 
@@ -936,8 +1078,10 @@ class MissionGenerator:
         seed: tuple[Any, ...] = (),
         chain: dict[str, Any] | None = None,
         correspondence: dict[str, Any] | None = None,
+        authored_letter: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
+        authored_letter = authored_letter if isinstance(authored_letter, dict) else None
         custom_context = self._custom_context(custom_context)
         stakes_level = self._stakes_level(stakes_level, cadence=cadence)
         active_category = normalize_category(active_category) if active_category else None
@@ -960,13 +1104,27 @@ class MissionGenerator:
         variety_category = active_category
         if not variety_category and (fuel_source == "vocab" or preferred_vocabulary_ids):
             variety_category = self._dominant_vocabulary_category(vocabulary)
-        variety = self._choose_variety(
-            active_category=variety_category,
-            recent_variety=recent_variety or [],
-            fuel_source=fuel_source,
-            seed=tuple(seed),
-            forced_domain=(chain or {}).get("domain"),
-        )
+        if authored_letter:
+            # WP-99 (W13): the learner's first letter, authored, from the cast.
+            variety = {
+                key: value
+                for key, value in authored_letter.items()
+                if key not in {"success_signal_i18n", "character_id"}
+            }
+            variety.update(
+                active_category=variety_category,
+                fuel_source=fuel_source,
+                fuel_detail=self._fuel_detail(fuel_source=fuel_source, active_category=variety_category),
+                mission_format=self._mission_format_for_channel(variety.get("channel")),
+            )
+        else:
+            variety = self._choose_variety(
+                active_category=variety_category,
+                recent_variety=recent_variety or [],
+                fuel_source=fuel_source,
+                seed=tuple(seed),
+                forced_domain=(chain or {}).get("domain"),
+            )
         source_snapshot = await self._source_snapshot(
             user=user,
             mission_type=mission_type,
@@ -1004,7 +1162,9 @@ class MissionGenerator:
             concepts=concepts,
             variety=variety,
         )
-        if mission_type != "news_summary":
+        if authored_letter and authored_letter.get("success_signal_i18n"):
+            messenger["success_signal_i18n"] = dict(authored_letter["success_signal_i18n"])
+        if mission_type != "news_summary" and not authored_letter:
             scenario = self._llm_scenario(
                 user=user,
                 mission_type=mission_type,
@@ -1014,6 +1174,7 @@ class MissionGenerator:
                 recent_variety=recent_variety or [],
                 correspondence=correspondence,
                 chain=chain,
+                story_context=custom_context if custom_context.get("source") == "story_born" else None,
             )
             if scenario:
                 title = scenario.get("title") or title
@@ -1682,13 +1843,18 @@ class MissionGenerator:
         desired_outcome = _compact_text((value or {}).get("desired_outcome"), max_length=400)
         relationship = _compact_text((value or {}).get("relationship"), max_length=120)
         register = _compact_text((value or {}).get("register"), max_length=80)
-        return {
+        source = "story_born" if (value or {}).get("source") == "story_born" else "learner_custom"
+        context = {
             "scenario": scenario,
             "desired_outcome": desired_outcome,
             "relationship": relationship,
             "register": register or self._infer_register(scenario=scenario, relationship=relationship),
-            "source": "learner_custom",
+            "source": source,
         }
+        if source == "story_born":
+            context["character_name"] = _compact_text((value or {}).get("character_name"), max_length=80)
+            context["summary_fr"] = _compact_text((value or {}).get("summary_fr"), max_length=240)
+        return context
 
     def _customize_mission(
         self,
@@ -1700,6 +1866,10 @@ class MissionGenerator:
         custom_context: dict[str, Any],
         concepts: list[GrammarConcept],
     ) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
+        if custom_context.get("source") == "story_born":
+            return self._story_born_mission(
+                title=title, brief=brief, messenger=messenger, custom_context=custom_context
+            )
         scenario = custom_context["scenario"]
         relationship = custom_context.get("relationship") or self._infer_relationship(scenario)
         register = custom_context.get("register") or self._infer_register(scenario=scenario, relationship=relationship)
@@ -1752,6 +1922,86 @@ class MissionGenerator:
             },
         ]
         return custom_title or title, custom_brief or brief, custom_messenger, objectives
+
+    def _story_born_mission(
+        self,
+        *,
+        title: str,
+        brief: str,
+        messenger: dict[str, Any],
+        custom_context: dict[str, Any],
+    ) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
+        """A cast member's letter about a scene (WP-64), printed in French only (WP-99).
+
+        The generic custom-mission frame («Real Mission: …», an English scene
+        anchor and cues, the character id as a role) is not used: the writer is
+        a person from the story, and everything the Courrier prints is French.
+        A generated letter keeps its own French title, opening and P.S.; without
+        one, the letter says plainly who writes and about what.
+        """
+
+        character_id = str(custom_context.get("relationship") or "")
+        from app.services.serial_notifications import CHARACTER_NAMES, portrait_character
+
+        key = portrait_character(character_id) or character_id
+        name = (
+            str(messenger.get("contact_name") or "").strip()
+            or custom_context.get("character_name")
+            or CHARACTER_NAMES.get(key)
+            or "Un personnage"
+        )
+        tu = str(custom_context.get("register") or "").lower().startswith("tu")
+        generated = bool(messenger.get("success_signal_i18n"))
+        outcome = custom_context.get("desired_outcome") or (
+            f"{name} sait ce que tu en penses." if tu else f"{name} sait ce que vous en pensez."
+        )
+        story_messenger = {
+            **messenger,
+            "contact_name": name,
+            "contact_role": CAST_ROLES_FR.get(key) or "",
+            "contact_initials": (messenger.get("contact_initials") if generated else None) or name[:2].upper(),
+            "channel_label": "Message",
+            "thread_title": f"{name} · après la scène",
+            "scene_anchor": (messenger.get("scene_anchor") if generated else None)
+            or "Un message, après la dernière scène du feuilleton",
+            "inbox_context": custom_context["scenario"],
+            "opening_message": (messenger.get("opening_message") if generated else None)
+            or (
+                f"Salut, c'est {name}. Je pense encore à notre dernière rencontre. Et toi, tu en penses quoi ?"
+                if tu
+                else f"Bonjour, c'est {name}. Je pense encore à notre dernière rencontre. Et vous, qu'en pensez-vous ?"
+            ),
+            "ambient_cues": (messenger.get("ambient_cues") if generated else None)
+            or [f"un message de {name}", "la dernière scène", "une réponse courte"],
+            "quick_replies": (messenger.get("quick_replies") if generated else None)
+            or (
+                ["Salut ! Moi, je pense que...", "Pour la suite, je...", "Merci pour ton message !"]
+                if tu
+                else ["Bonjour ! Moi, je pense que...", "Pour la suite, je...", "Merci pour votre message !"]
+            ),
+            "twist": messenger.get("twist") if generated else None,
+            "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
+        }
+        story_title = (title if generated and title else None) or f"Un mot de {name}"
+        summary = str(custom_context.get("summary_fr") or "").strip()
+        if summary and summary[-1] not in ".!?…":
+            summary += "."
+        about = f" : {summary}" if summary else "."
+        story_brief = (
+            f"{name} t'écrit après ce qui s'est passé{about} Réponds-lui en français."
+            if tu
+            else f"{name} vous écrit après ce qui s'est passé{about} Répondez-lui en français."
+        )
+        objectives = [
+            {
+                "id": "custom_real_life_outcome",
+                "label": f"Achieve: {outcome}",
+                "target_count": 1,
+                "kind": "pragmatics",
+                "required": True,
+            }
+        ]
+        return story_title, story_brief, story_messenger, objectives
 
     def _infer_relationship(self, scenario: str) -> str:
         marker = scenario.lower()
@@ -2023,6 +2273,7 @@ class MissionGenerator:
         recent_variety: list[dict[str, Any]],
         correspondence: dict[str, Any] | None = None,
         chain: dict[str, Any] | None = None,
+        story_context: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """A vivid, personalized texting scenario. Returns None if the LLM is unavailable,
         so the canned templates remain the deterministic fallback."""
@@ -2051,11 +2302,19 @@ class MissionGenerator:
             "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
             "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
             "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
-            "forward rather than starting a new situation. If rewrite_because is present, your previous "
+            "forward rather than starting a new situation. level_limits is binding and checked by machine "
+            "after you write: use only words from level_limits.allowed_words when it is given (plus names, "
+            "numbers and due_vocabulary), at most level_limits.max_words_outside_the_list other words in the "
+            "whole letter, and sentences no longer than level_limits.max_words_per_sentence; a letter that "
+            "breaks a limit is thrown away. If rewrite_because is present, your previous "
             "letter was too hard or incomplete: rewrite it fixing exactly that. Return JSON only."
         )
+        # WP-99: the WP-84 check's limits go into the prompt, so the first draft
+        # is written at the learner's band rather than rejected at it.
+        known = self._letter_known_words(user)
         user_payload = {
             "cefr_level": cefr,
+            "level_limits": letter_level_brief(known, cefr),
             "scenario_flavor": flavor,
             "mission_type": mission_type,
             "target_grammar": grammar,
@@ -2070,6 +2329,19 @@ class MissionGenerator:
             "how_they_feel_about_the_learner": (correspondence or {}).get("mood_line"),
             "unanswered_letter_to_mention_once": (correspondence or {}).get("cooling_note"),
             "chain": dict(chain) if chain else None,
+            # WP-99: a story-born letter is written by that cast member about
+            # that scene — the chosen variety's contact and situation give way.
+            "story_letter": (
+                {
+                    "writer": story_context.get("character_name") or story_context.get("relationship"),
+                    "about": story_context.get("scenario"),
+                    "register": story_context.get("register") or "vous",
+                    "rule": "The letter is from this person about this scene only: ignore chosen_variety's "
+                    "contact and situation, invent no new fact.",
+                }
+                if story_context
+                else None
+            ),
             # Every field below is printed on Le Courrier, a French publication
             # surface: the headline, the situation, the "on attend de vous" line
             # and the P.S. all sit in the same French fiction as the chrome, with
@@ -2103,7 +2375,6 @@ class MissionGenerator:
         # coverage guard's copy rule) and must carry its objective in the
         # learner's language. One rewrite with the guard's hint; then the
         # authored letter, which is written at A1.
-        known = self._letter_known_words(user)
         data: dict[str, Any] | None = None
         for attempt in range(LETTER_LEVEL_ATTEMPTS):
             try:
@@ -2252,18 +2523,18 @@ class MissionGenerator:
         grammar_hint = self._grammar_goal(concepts)
         first_source = ((source_snapshot.get("items") or [{}])[0] or {}).get("title", "")
         defaults: dict[str, Any] = {
-            "channel_label": variety.get("channel_label") or "Reality messages",
+            "channel_label": variety.get("channel_label") or "Message",
             "contact_name": variety.get("contact_name") or "Camille",
-            "contact_role": variety.get("contact_role") or "local contact",
+            "contact_role": variety.get("contact_role") or "quelqu'un du quartier",
             "contact_initials": variety.get("contact_initials") or "CA",
-            "presence": "available now",
+            "presence": "en ligne",
             "time_label": "17:42",
-            "thread_title": f"{variety.get('contact_name') or 'Camille'} · {variety.get('title') or 'real moment'}",
-            "scene_anchor": variety.get("scene_anchor") or "A real-world moment in France",
-            "dispatch_note": variety.get("brief") or "Send a believable French reply that would make sense in real life.",
-            "inbox_context": variety.get("twist") or "The other person needs useful information, not a classroom answer.",
+            "thread_title": f"{variety.get('contact_name') or 'Camille'} · {variety.get('title') or 'un vrai moment'}",
+            "scene_anchor": variety.get("scene_anchor") or "Un moment de la vraie vie, en France",
+            "dispatch_note": variety.get("brief") or "Une réponse naturelle en français.",
+            "inbox_context": variety.get("twist") or "L'autre personne a besoin d'une vraie réponse.",
             "opening_message": variety.get("opening_message") or "Bonjour, dites-moi ce que vous voulez.",
-            "ambient_cues": list(variety.get("ambient_cues") or ["one practical constraint", "a real person waiting", "short message rhythm"]),
+            "ambient_cues": list(variety.get("ambient_cues") or ["un petit problème", "quelqu'un attend", "un message court"]),
             "quick_replies": list(variety.get("quick_replies") or ["Bonjour, je voudrais...", "Est-ce que vous pouvez...", "Merci beaucoup..."]),
             "success_signal": variety.get("success_signal") or "They know what to do next.",
             "twist": variety.get("twist"),
@@ -2280,15 +2551,15 @@ class MissionGenerator:
             "explain_plan": {
                 **defaults,
                 "contact_name": "Nadia",
-                "contact_role": "teammate",
+                "contact_role": "collègue",
                 "contact_initials": "NA",
                 "time_label": "08:15",
-                "thread_title": "Nadia · tomorrow plan",
-                "scene_anchor": "A work chat before a schedule change",
-                "dispatch_note": "Explain the plan as a calm, practical update.",
-                "inbox_context": "Nadia needs sequence, backup, and a condition that could change the plan.",
+                "thread_title": "Nadia · le plan de demain",
+                "scene_anchor": "Messagerie du travail, avant un changement de planning",
+                "dispatch_note": "Expliquez votre plan, simplement.",
+                "inbox_context": "Nadia veut savoir ce que vous faites d'abord, et après.",
                 "opening_message": "Tu peux me dire ce que tu fais demain ? Je veux savoir.",
-                "ambient_cues": ["calendar moved", "one colleague is unavailable", "decision needed before noon"],
+                "ambient_cues": ["le planning change", "une collègue absente", "une décision avant midi"],
                 "quick_replies": [
                     "D'abord, je vais...",
                     "Si ça ne marche pas...",
@@ -2299,19 +2570,19 @@ class MissionGenerator:
             "news_summary": {
                 **defaults,
                 "contact_name": "Mina",
-                "contact_role": "news-curious friend",
+                "contact_role": "une amie curieuse",
                 "contact_initials": "MI",
                 "time_label": "12:03",
-                "thread_title": "Mina · French headline",
-                "scene_anchor": "Lunch break, one headline in your feed",
-                "dispatch_note": "Turn the source into a useful short briefing.",
-                "inbox_context": first_source or "Mina saw a France-related headline and wants the practical point.",
+                "thread_title": "Mina · un titre du jour",
+                "scene_anchor": "À midi, un titre dans le journal",
+                "dispatch_note": "Résumez l'information en quelques phrases.",
+                "inbox_context": first_source or "Mina a vu un titre et veut comprendre.",
                 "opening_message": (
                     f"J'ai vu ce titre : « {first_source} ». Tu peux me résumer l'idée principale ?"
                     if first_source
                     else "J'ai vu une nouvelle ce matin. Tu peux me dire ce qui se passe ?"
                 ),
-                "ambient_cues": ["one source card", "no copying", "one practical consequence"],
+                "ambient_cues": ["un article", "sans recopier", "ce que ça change"],
                 "quick_replies": [
                     "C'est une histoire de...",
                     "Pour nous, ça veut dire...",
@@ -2322,15 +2593,15 @@ class MissionGenerator:
             "travel_work": {
                 **defaults,
                 "contact_name": "Agent Moreau",
-                "contact_role": "front-desk agent",
+                "contact_role": "agent d'accueil",
                 "contact_initials": "AM",
                 "time_label": "19:28",
-                "thread_title": "Agent Moreau · desk problem",
-                "scene_anchor": "A service desk with a line forming behind you",
-                "dispatch_note": "Explain the problem politely and secure the next step.",
-                "inbox_context": "The agent can help only if your request is specific.",
+                "thread_title": "Agent Moreau · un problème",
+                "scene_anchor": "À l'accueil, des gens attendent derrière vous",
+                "dispatch_note": "Expliquez le problème poliment et demandez la suite.",
+                "inbox_context": "L'agent peut aider si votre demande est claire.",
                 "opening_message": "Bonjour, dites-moi le problème et je regarde ce que je peux faire.",
-                "ambient_cues": ["queue behind you", "ticket or reservation ready", "polite register matters"],
+                "ambient_cues": ["des gens derrière vous", "votre billet", "on dit « vous »"],
                 "quick_replies": [
                     "Bonjour, j'ai un problème avec...",
                     "Est-ce que c'est possible de...",
@@ -2341,15 +2612,15 @@ class MissionGenerator:
             "conversation": {
                 **defaults,
                 "contact_name": "Noémie",
-                "contact_role": "scenario partner",
+                "contact_role": "une amie",
                 "contact_initials": "NO",
                 "time_label": "21:06",
-                "thread_title": "Noémie · live roleplay",
-                "scene_anchor": "A spontaneous chat with one time constraint",
-                "dispatch_note": "Keep the exchange alive with details, questions, and reactions.",
-                "inbox_context": "Noémie will respond naturally if you give her something real to work with.",
+                "thread_title": "Noémie · on se parle",
+                "scene_anchor": "Une petite conversation, avec peu de temps",
+                "dispatch_note": "Continuez l'échange avec des détails et des questions.",
+                "inbox_context": "Noémie répond si vous lui donnez un vrai détail.",
                 "opening_message": "On parle un peu : tu arrives et tu n'as pas beaucoup de temps. Tu me dis quoi ?",
-                "ambient_cues": ["time pressure", "one human reaction", "a natural follow-up question"],
+                "ambient_cues": ["peu de temps", "une vraie réaction", "une autre question"],
                 "quick_replies": [
                     "Je n'ai pas beaucoup de temps...",
                     "Je préfère...",
@@ -3644,8 +3915,31 @@ class MissionScheduler:
         # pick up a pen about it. Both are seeded, both are capped, and neither is
         # allowed to fail the day: the Courrier must open even when the story cannot.
         self._sweep_correspondence(user)
-        story_mission = await self._ensure_ad_hoc_letter(user)
-        weekly = await self.ensure_weekly(user)
+        story_mission: RealWorldMission | None = None
+        weekly: RealWorldMission | None
+        if self._standalone_count(user=user) == 0:
+            # WP-99 (W13): the very first letter is the cast's, and it arrives
+            # alone — story-born from Romy or Margaux when a scene gives them
+            # something to write about (an ad-hoc letter, so the journey can
+            # answer it), else the week's letter, authored for the band.
+            candidate, _authored = self._first_letter(user)
+            if candidate:
+                story_mission = await self.create(
+                    user=user,
+                    mission_type="message",
+                    cadence="ad_hoc",
+                    use_news=False,
+                    story_letter=candidate,
+                )
+                weekly = None
+            else:
+                weekly = await self.ensure_weekly(user)
+        elif self._first_letter_waiting(user):
+            # The week's letter waits until the first one is answered: one letter.
+            weekly = self._this_weeks_letter(user)
+        else:
+            story_mission = await self._ensure_ad_hoc_letter(user)
+            weekly = await self.ensure_weekly(user)
         active = (
             self.db.query(RealWorldMission)
             .filter(
@@ -3691,7 +3985,7 @@ class MissionScheduler:
             .all()
         )
         return {
-            "weekly_mission": serialize_mission(weekly),
+            "weekly_mission": serialize_mission(weekly) if weekly else None,
             "post_session_recommendation": serialize_mission(post_session) if post_session else None,
             "active_mission": serialize_mission(active or story_mission) if (active or story_mission) else None,
             "recent_completed": [serialize_mission(row, include_children=False) for row in recent],
@@ -3749,9 +4043,9 @@ class MissionScheduler:
             )
         return created
 
-    async def ensure_weekly(self, user: User) -> RealWorldMission:
+    def _this_weeks_letter(self, user: User) -> RealWorldMission | None:
         iso = date.today().isocalendar()
-        existing = (
+        return (
             self.db.query(RealWorldMission)
             .filter(
                 RealWorldMission.user_id == user.id,
@@ -3761,6 +4055,36 @@ class MissionScheduler:
             )
             .first()
         )
+
+    #: WP-99: how long an unanswered first letter keeps the week's letter back.
+    FIRST_LETTER_ALONE_DAYS = 7
+
+    def _first_letter_waiting(self, user: User) -> bool:
+        """The learner's story-born first letter is still open (and recent)."""
+
+        rows = (
+            self.db.query(RealWorldMission)
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.cadence == "ad_hoc",
+                RealWorldMission.status.in_(["available", "in_progress"]),
+                RealWorldMission.serial_thread_id.is_(None),
+            )
+            .all()
+        )
+        horizon = datetime.now(UTC) - timedelta(days=self.FIRST_LETTER_ALONE_DAYS)
+        for row in rows:
+            if not (row.prompt_payload or {}).get("first_letter"):
+                continue
+            created = row.created_at
+            if created is not None and created.tzinfo is None:
+                created = created.replace(tzinfo=UTC)
+            if created is None or created >= horizon:
+                return True
+        return False
+
+    async def ensure_weekly(self, user: User) -> RealWorldMission:
+        existing = self._this_weeks_letter(user)
         if existing:
             return existing
         return await self.create(
@@ -3768,7 +4092,28 @@ class MissionScheduler:
             mission_type="message",
             cadence="weekly",
             use_news=False,
+            # WP-99 (W13): the learner's very first letter is the cast's.
+            first_letter=self._standalone_count(user=user) == 0,
         )
+
+    def _first_letter(self, user: User) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """``(story_letter, authored_letter)`` for a learner's first letter — one is set.
+
+        A story-born letter from Romy or Margaux when the ledger has a scene one
+        of them witnessed; else the authored first letter for the learner's band.
+        """
+
+        candidate = None
+        with best_effort(self.db, "Courrier: first-letter candidate"):
+            candidate = courrier.first_letter_candidate(
+                self.db, user=user, writers=FIRST_LETTER_WRITERS
+            )
+        if candidate:
+            return candidate, None
+        thread = courrier.active_thread(self.db, user)
+        letter = first_letter_for(user, register="vous")
+        register = courrier.learner_register(thread, letter["character_id"])
+        return None, first_letter_for(user, register=register)
 
     async def create(
         self,
@@ -3789,7 +4134,18 @@ class MissionScheduler:
         episode_index: int | None = None,
         stakes_level: int | None = None,
         story_letter: dict[str, Any] | None = None,
+        first_letter: bool = False,
     ) -> RealWorldMission:
+        authored_letter: dict[str, Any] | None = None
+        if (
+            first_letter
+            and not story_letter
+            and serial_thread_id is None
+            and not _compact_text(custom_scenario)
+        ):
+            story_letter, authored_letter = self._first_letter(user)
+        else:
+            first_letter = False
         # WP-64 — a story-born letter: a character who was in yesterday's scene
         # writes about it. The scenario is built from the stored event, never from
         # a model's memory of one, so the letter cannot invent a past.
@@ -3806,6 +4162,11 @@ class MissionScheduler:
             "relationship": relationship,
             "register": register,
         }
+        if story_letter:
+            # WP-99: the letter is the cast member's, printed in French only.
+            custom_context["source"] = "story_born"
+            custom_context["character_name"] = story_letter.get("character_name")
+            custom_context["summary_fr"] = story_letter.get("summary_fr")
         has_custom_context = bool(_compact_text(custom_scenario))
         serial_thread = self.db.get(SerialThread, serial_thread_id) if serial_thread_id else None
         if serial_thread and serial_thread.user_id != user.id:
@@ -3862,11 +4223,19 @@ class MissionScheduler:
         if chain_step:
             stakes_level = stakes_level or int(chain_step.get("stakes_level") or 2)
             active_category = None
+        if authored_letter:
+            chain_step = None
+            active_category = None
         correspondence = self._correspondence_context(
             user=user,
             chain_step=chain_step,
-            story_letter=story_letter,
-            origin="story_born" if story_letter else ("chain" if chain_step else "courrier"),
+            story_letter=story_letter
+            or (
+                {"character_id": authored_letter["character_id"], "character_name": authored_letter["contact_name"]}
+                if authored_letter
+                else None
+            ),
+            origin="story_born" if story_letter else ("cast" if authored_letter else ("chain" if chain_step else "courrier")),
         )
         ordinal = self._standalone_count(user=user) if standalone else 0
         seed = (
@@ -3891,8 +4260,14 @@ class MissionScheduler:
             seed=seed,
             chain=chain_step,
             correspondence=correspondence,
+            authored_letter=authored_letter,
         )
-        iso = date.today().isocalendar() if cadence == "weekly" and not has_custom_context else None
+        # The first letter is still the week's letter when it is story-born.
+        iso = (
+            date.today().isocalendar()
+            if cadence == "weekly" and (not has_custom_context or first_letter)
+            else None
+        )
         mission = RealWorldMission(
             user_id=user.id,
             atelier_session_id=atelier_session.id if atelier_session else None,
@@ -3915,6 +4290,7 @@ class MissionScheduler:
             story_letter=story_letter,
             standalone=standalone,
             has_custom_context=has_custom_context,
+            author_id=(authored_letter or {}).get("character_id"),
         )
         if serial_thread:
             self._apply_serial_mission_contract(
@@ -3993,6 +4369,7 @@ class MissionScheduler:
         story_letter: dict[str, Any] | None,
         standalone: bool,
         has_custom_context: bool,
+        author_id: str | None = None,
     ) -> None:
         """Give the freshly built letter its identity, its affair and its deadline.
 
@@ -4007,14 +4384,17 @@ class MissionScheduler:
         # slug of their display name would open a second, parallel thread with the
         # same person, which is exactly the amnesia this package removes.
         mission.correspondent_id = (
-            str((story_letter or {}).get("character_id") or "") or correspondent.get("id") or None
+            str((story_letter or {}).get("character_id") or "")
+            or str(author_id or "")
+            or correspondent.get("id")
+            or None
         )
         if chain_step:
             mission.chain_id = str(chain_step.get("chain_id"))
             mission.chain_index = int(chain_step.get("index") or 2)
             mission.chain_total = int(chain_step.get("total") or 2)
             courrier.close_chain(self.db, user=user, chain_id=mission.chain_id)
-        elif standalone and not has_custom_context and mission.correspondent_id:
+        elif standalone and not has_custom_context and mission.correspondent_id and not author_id:
             opened = courrier.plan_chain(
                 user=user,
                 correspondent_id=mission.correspondent_id,
@@ -4049,6 +4429,10 @@ class MissionScheduler:
             }
         mission.prompt_payload = prompt
         self.db.add(mission)
+        if (story_letter or {}).get("first_letter") or author_id:
+            # WP-99 (W13): the learner's first letter, the cast's.
+            prompt["first_letter"] = True
+            mission.prompt_payload = prompt
         if story_letter:
             courrier.note_story_letter(self.db, user=user, candidate=story_letter, mission_id=mission.id)
         self.db.commit()

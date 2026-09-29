@@ -247,8 +247,24 @@ class CharacterPush:
     #: ``engine`` when the story wrote the line, ``authored`` otherwise.
     source: str
     route: str = JOURNEY_DEEP_LINK
+    #: WP-99: the face the portrait wears (``happy`` · ``neutral`` · ``cross``).
+    mood: str | None = None
+    #: WP-99: ``tu`` or ``vous`` — the register the line speaks in.
+    register: str | None = None
+    #: WP-99: the engine teaser's own date (``next_teaser.date``), when it has one.
+    teaser_date: str | None = None
 
     def data(self, kind: str, notification_id: str) -> dict[str, Any]:
+        """The push's ``data`` block (WP-80, extended by WP-99).
+
+        ``{route, kind, notification_id, teaser_source, character_id?, image?,
+        image_url?, mood?, register?, teaser_date?, mission_id?}``. ``image`` is
+        what the service worker (``web-frontend/public/sw.js``) shows as the
+        notification icon — a path under the web app's public root; ``image_url``
+        is the same path, named for a native layer that wants an explicit key
+        (APNs spreads ``data`` into the payload root).
+        """
+
         payload: dict[str, Any] = {
             "route": self.route,
             "kind": kind,
@@ -259,6 +275,13 @@ class CharacterPush:
             payload["character_id"] = self.character_id
         if self.image:
             payload["image"] = self.image
+            payload["image_url"] = self.image
+        if self.mood:
+            payload["mood"] = self.mood
+        if self.register:
+            payload["register"] = self.register
+        if self.teaser_date:
+            payload["teaser_date"] = self.teaser_date
         return payload
 
 
@@ -280,9 +303,45 @@ def portrait_character(character_id: Any) -> str | None:
     return PORTRAIT_CHARACTERS.get(raw.split("_", 1)[0])
 
 
-def portrait_path(character_id: Any) -> str | None:
+def portrait_path(character_id: Any, mood: str | None = None) -> str | None:
+    """The character's portrait, in the face their mood calls for (WP-99)."""
+
     key = portrait_character(character_id)
-    return f"/assets/serial/characters/{key}/portrait-neutral.webp" if key else None
+    face = mood if mood in PORTRAIT_FACES else "neutral"
+    return f"/assets/serial/characters/{key}/portrait-{face}.webp" if key else None
+
+
+#: The drawn faces every cast member has (``portrait-<face>.webp``).
+PORTRAIT_FACES = ("happy", "neutral", "cross")
+
+
+def mood_face(mood: Any) -> str:
+    """The engine's mood (−2..+2) as a face — the Courrier seal's rule:
+    happy from +1, cross from −1, neutral otherwise (and when unknown)."""
+
+    try:
+        value = int(mood)
+    except (TypeError, ValueError):
+        return "neutral"
+    return "happy" if value >= 1 else "cross" if value <= -1 else "neutral"
+
+
+def character_mood(db: Session, user: User, character_id: Any) -> str:
+    """How this character feels about the learner right now, as a face.
+
+    Read from the living story's ``moods`` ledger on the active thread (the id
+    as stored, or its portrait key); ``neutral`` when the engine has no opinion.
+    """
+
+    thread = _active_thread(db, user)
+    live = (getattr(thread, "state", None) or {}).get("living_story") if thread else None
+    moods = live.get("moods") if isinstance(live, dict) and isinstance(live.get("moods"), dict) else {}
+    raw = str(character_id or "")
+    for key in (raw, portrait_character(raw)):
+        entry = moods.get(key) if key else None
+        if isinstance(entry, dict) and "mood" in entry:
+            return mood_face(entry.get("mood"))
+    return "neutral"
 
 
 def _active_thread(db: Session, user: User):
@@ -362,6 +421,8 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
             "text_fr": _compact(teaser.get("text_fr"), 160),
             "character_id": str(teaser.get("character_id") or ""),
             "character_name": str(teaser.get("character_name") or ""),
+            # WP-99: the story writes ``date`` with the teaser; kept for the push.
+            "date": str(teaser.get("date") or ""),
         }
     journey = _latest_journey(db, user)
     recap = dict(getattr(journey, "recap_snapshot", None) or {}) if journey else {}
@@ -372,8 +433,46 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
             "text_fr": text,
             "character_id": str(scenario.get("character_id") or ""),
             "character_name": str(scenario.get("character_name") or ""),
+            "date": journey.local_date.isoformat() if getattr(journey, "local_date", None) else "",
         }
     return None
+
+
+#: WP-99 «Dépêches»: the ledger event every sent morning push is written under
+#: (``app.tasks.notifications.MORNING_EVENT`` is this name).
+MORNING_PUSH_EVENT = "morning_edition_sent"
+#: A teaser is never pushed twice inside this many days: a line the learner
+#: has already read on their lock screen is not news.
+TEASER_REPEAT_DAYS = 14
+
+
+def _teaser_key(text: Any) -> str:
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKC", str(text or "")).casefold()
+    folded = folded.replace("’", "'").replace("‘", "'")
+    return " ".join(folded.split()).strip(" .!?…")
+
+
+def recent_push_lines(db: Session, user: User, *, today: date, days: int = TEASER_REPEAT_DAYS) -> set[str]:
+    """The (folded) morning lines pushed to this learner in the last ``days`` days.
+
+    Keyed on the ledger's ``entity_id`` — the learner's *local* date the push
+    was for — rather than on ``occurred_at``, so the window is the learner's
+    calendar and a test clock moves it.
+    """
+
+    from app.db.models.pilot_event import PilotEvent
+
+    window = [(today - timedelta(days=offset)).isoformat() for offset in range(1, max(1, days) + 1)]
+    rows = db.scalars(
+        select(PilotEvent.payload).where(
+            PilotEvent.user_id == user.id,
+            PilotEvent.event_type == MORNING_PUSH_EVENT,
+            PilotEvent.entity_id.in_(window),
+        )
+    ).all()
+    return {_teaser_key((payload or {}).get("message")) for payload in rows if (payload or {}).get("message")}
 
 
 def _journey_today(db: Session, user: User, today: date, statuses: tuple[str, ...]) -> DailyJourney | None:
@@ -418,31 +517,43 @@ def daily_journey_morning_push(
     group = band_group(user)
     resumable = _journey_today(db, user, today, ("preparing", "active", "paused"))
     teaser = None if resumable is not None else engine_teaser(db, user)
+    if teaser is not None and _teaser_key(teaser["text_fr"]) in recent_push_lines(db, user, today=today):
+        # WP-99: the story has not written a new line since the last push that
+        # used this one; saying it again is not a dépêche, it is a nag.
+        teaser = None
     if teaser is not None:
         key = portrait_character(teaser["character_id"])
         fallback_id, fallback_name = _speaker(db, user)
         character_id = key or fallback_id
         name = teaser["character_name"] or CHARACTER_NAMES.get(character_id) or fallback_name
+        mood = character_mood(db, user, character_id)
         return CharacterPush(
             title=name,
             message=teaser["text_fr"],
             character_id=character_id,
-            image=portrait_path(character_id),
+            image=portrait_path(character_id, mood),
             source="engine",
+            mood=mood,
+            register=character_register(db, user, character_id),
+            teaser_date=teaser.get("date") or None,
         )
     character_id, name = _speaker(db, user)
+    register = character_register(db, user, character_id)
     if resumable is not None:
         message = RESUME_LINES[group]
-    elif character_register(db, user, character_id) == "tu":
+    elif register == "tu":
         message = MORNING_LINES_TU.get(character_id, DEFAULT_MORNING_LINE_TU)[group]
     else:
         message = MORNING_LINES.get(character_id, DEFAULT_MORNING_LINE)[group]
+    mood = character_mood(db, user, character_id)
     return CharacterPush(
         title=name,
         message=message,
         character_id=character_id,
-        image=portrait_path(character_id),
+        image=portrait_path(character_id, mood),
         source="authored",
+        mood=mood,
+        register=register,
     )
 
 
@@ -462,14 +573,74 @@ def streak_at_risk_push(db: Session, user: User, *, days: int) -> CharacterPush:
     """The evening push for a live streak (≥ 2) whose day is not yet practised."""
 
     character_id, name = _speaker(db, user)
-    lines = STREAK_LINES_TU if character_register(db, user, character_id) == "tu" else STREAK_LINES
+    register = character_register(db, user, character_id)
+    lines = STREAK_LINES_TU if register == "tu" else STREAK_LINES
     line = lines.get(character_id, DEFAULT_STREAK_LINE)[band_group(user)]
+    mood = character_mood(db, user, character_id)
     return CharacterPush(
         title=name,
         message=line.format(days=int(days)),
         character_id=character_id,
-        image=portrait_path(character_id),
+        image=portrait_path(character_id, mood),
         source="authored",
+        mood=mood,
+        register=register,
+    )
+
+
+# ---------------------------------------------------------------------------
+# WP-99 «Le facteur est passé» — the Courrier's two pushes
+# ---------------------------------------------------------------------------
+
+#: Where a Courrier push opens: the letter itself (``pages/missions.tsx`` reads
+#: ``?mission=<id>``).
+COURRIER_ROUTE = "/missions"
+LETTER_ARRIVED_TITLE = "Le facteur est passé"
+LETTER_DEADLINE_TITLE = "Dernier jour pour répondre à {name}"
+#: The writer's own line, in the register the two of them use. A1-plain, no
+#: emoji, never a threat: an ignored letter cools a person, it fails nobody.
+LETTER_ARRIVED_LINES = {
+    "vous": "Je vous ai écrit. Vous me répondez ?",
+    "tu": "Je t’ai écrit. Tu me réponds ?",
+}
+LETTER_DEADLINE_LINES = {
+    "vous": "J’attends toujours votre réponse. Un petit mot suffit.",
+    "tu": "J’attends toujours ta réponse. Un petit mot suffit.",
+}
+
+
+def courrier_push(db: Session, user: User, *, mission: Any, kind: str) -> CharacterPush:
+    """The push for a letter that ``arrived`` or whose deadline is tomorrow.
+
+    Title: «Le facteur est passé» or «Dernier jour pour répondre à {name}». Body:
+    the correspondent speaking, in their register with the learner (``tu`` once
+    a cast member and the learner agreed on it, WP-97). A cast member's portrait
+    in their current mood is the image; anyone else has none.
+    """
+
+    from app.services import story_correspondence as courrier
+
+    identity = courrier.correspondent_of(mission)
+    correspondent_id = str(getattr(mission, "correspondent_id", None) or identity.get("id") or "")
+    key = portrait_character(correspondent_id)
+    name = str(identity.get("name") or CHARACTER_NAMES.get(key or "", "") or "").strip() or "Quelqu’un"
+    register = courrier.letter_register(db, user=user, mission=mission)
+    mood = character_mood(db, user, key) if key else None
+    if kind == "deadline":
+        title = LETTER_DEADLINE_TITLE.format(name=name)
+        message = LETTER_DEADLINE_LINES[register]
+    else:
+        title = LETTER_ARRIVED_TITLE
+        message = f"{name} : « {LETTER_ARRIVED_LINES[register]} »"
+    return CharacterPush(
+        title=title,
+        message=message,
+        character_id=key or (correspondent_id or None),
+        image=portrait_path(key, mood) if key else None,
+        source="authored",
+        route=f"{COURRIER_ROUTE}?mission={mission.id}",
+        mood=mood,
+        register=register,
     )
 
 
@@ -522,7 +693,11 @@ __all__ = [
     "JOURNEY_DEEP_LINK",
     "REHEARSAL_READY_TITLE",
     "CharacterPush",
+    "character_mood",
     "character_register",
+    "courrier_push",
+    "mood_face",
+    "recent_push_lines",
     "daily_journey_morning_copy",
     "daily_journey_morning_push",
     "engine_teaser",

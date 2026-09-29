@@ -76,7 +76,7 @@ HOLD_LAG_SAMPLES = 400
 FORECAST_TRIALS = 200
 
 
-def _held_after(accuracy: float, rng: random.Random) -> int:
+def _held_after(accuracy: float, rng: random.Random, avoidance: float = 0.0) -> int:
     """Days from one unit's introduction until WP-L4's «Tenue» first holds it."""
 
     from app.core.srs.memory import Evidence, EvidenceFormat, MemoryState, review
@@ -106,12 +106,17 @@ def _held_after(accuracy: float, rng: random.Random) -> int:
     observe(EvidenceFormat.PRODUCE)  # Emploi, the reply
     while life.held_at is None and day < 365:
         day += interval
-        observe(rappel_format(state.stability))
+        fmt = rappel_format(state.stability, spaced_done=life.spaced_success_at is not None)
+        # WP-99: a free-use Rappel the learner answers *around* the unit (the
+        # pilot's measured avoidance) counts as a transform, not as free use.
+        if avoidance > 0 and fmt is EvidenceFormat.PRODUCE and rng.random() < avoidance:
+            fmt = EvidenceFormat.TRANSFORM
+        observe(fmt)
     return day
 
 
-@lru_cache(maxsize=32)
-def hold_lag_samples(accuracy_percent: int) -> tuple[int, ...]:
+@lru_cache(maxsize=64)
+def hold_lag_samples(accuracy_percent: int, avoidance_percent: int = 0) -> tuple[int, ...]:
     """How long units take to be held at this accuracy (sorted, seeded sample).
 
     Replays the memory model: guided Essai + Emploi on the day of introduction,
@@ -121,17 +126,24 @@ def hold_lag_samples(accuracy_percent: int) -> tuple[int, ...]:
     free use on two days ≥ 7 apart plus a spaced item ≥ 14 days in. Free use
     here comes only from the Rappel's production format, so the lag is
     conservative for a learner whose scenes weave the unit into replies.
+
+    ``avoidance_percent`` (WP-99): the share of those free-use Rappels in which
+    the learner avoids the unit — measured on the pilot
+    (``journey_learning.measured_avoidance_rate``) — which then count as a
+    transform and cannot hold the unit.
     """
 
     accuracy = max(RETENTION_FLOOR, min(1.0, accuracy_percent / 100.0))
-    rng = random.Random(f"hold-lag:{accuracy_percent}")  # noqa: S311 - a seeded model
-    return tuple(sorted(_held_after(accuracy, rng) for _ in range(HOLD_LAG_SAMPLES)))
+    avoidance = max(0.0, min(1.0, avoidance_percent / 100.0))
+    seed = f"hold-lag:{accuracy_percent}" + (f":avoid:{avoidance_percent}" if avoidance_percent else "")
+    rng = random.Random(seed)  # noqa: S311 - a seeded model
+    return tuple(sorted(_held_after(accuracy, rng, avoidance) for _ in range(HOLD_LAG_SAMPLES)))
 
 
-def hold_lag_days(accuracy: float = 1.0) -> int:
-    """Median days from a unit's introduction to «held» (41 on a clean run)."""
+def hold_lag_days(accuracy: float = 1.0, *, avoidance: float = 0.0) -> int:
+    """Median days from a unit's introduction to «held» (27 on a clean run since O-4)."""
 
-    samples = hold_lag_samples(_percent(accuracy))
+    samples = hold_lag_samples(_percent(accuracy), _avoidance_percent(avoidance))
     return samples[len(samples) // 2]
 
 
@@ -139,6 +151,27 @@ def _percent(value: float) -> int:
     """Accuracy bucketed to 5 points, so the lag samples stay cached."""
 
     return int(round(max(RETENTION_FLOOR, min(1.0, value)) * 20)) * 5
+
+
+def _avoidance_percent(value: float | None) -> int:
+    """Avoidance bucketed to 5 points (0 when unmeasured)."""
+
+    return int(round(max(0.0, min(1.0, float(value or 0.0))) * 20)) * 5
+
+
+def measured_avoidance(db: Session) -> float | None:
+    """The pilot's measured avoidance rate, or ``None`` under its sample floor.
+
+    WP-99 / O-4: fed into every forecast's hold-lag samples. Read-only, and a
+    failure reads as unmeasured rather than costing the forecast.
+    """
+
+    from app.db.savepoint import run_best_effort
+    from app.services.journey_learning import measured_avoidance_rate
+
+    view = run_best_effort(db, "level_forecast: avoidance rate", lambda: measured_avoidance_rate(db), default={})
+    rate = (view or {}).get("rate")
+    return float(rate) if isinstance(rate, int | float) else None
 
 
 @dataclass(frozen=True)
@@ -159,6 +192,8 @@ class ForecastInputs:
     checkpoint_floor_days: float = 0.0
     #: Days since introduction of each band unit introduced but not yet held.
     pending_elapsed_days: tuple[float, ...] = ()
+    #: WP-99: the pilot's measured avoidance rate (0 when unmeasured).
+    avoidance: float = 0.0
 
 
 def forecast_days(inputs: ForecastInputs) -> tuple[float, bool]:
@@ -206,7 +241,7 @@ def _units_days(inputs: ForecastInputs) -> float | None:
         remaining = 0
     if pending + remaining < needed:
         return None
-    samples = hold_lag_samples(_percent(inputs.unit_retention))
+    samples = hold_lag_samples(_percent(inputs.unit_retention), _avoidance_percent(inputs.avoidance))
     rng = random.Random(  # noqa: S311 - a seeded model, not security
         f"forecast:{needed}:{pending}:{remaining}:{per_day:.3f}:{len(samples)}"
     )
@@ -271,7 +306,8 @@ def forecast_payload(
             "units_per_week": round(inputs.units_per_week, 2),
             "word_retention": round(inputs.word_retention, 3),
             "unit_retention": round(inputs.unit_retention, 3),
-            "hold_lag_days": hold_lag_days(inputs.unit_retention),
+            "hold_lag_days": hold_lag_days(inputs.unit_retention, avoidance=inputs.avoidance),
+            "avoidance_rate": round(inputs.avoidance, 3),
             "checkpoint_floor_days": round(inputs.checkpoint_floor_days, 1),
         },
     }
@@ -454,6 +490,8 @@ def build_forecast(
         "units_total": coverage.units_total,
         "units_introduced": len(introduced & band_units),
         "checkpoint_floor_days": floor,
+        # WP-99 / O-4: the measured avoidance slows every unit's «Tenue».
+        "avoidance": measured_avoidance(db) or 0.0,
     }
     if active_days < MIN_ACTIVE_DAYS:
         words_per_day, units_per_week = PRIOR_INTAKE[rhythm]
@@ -510,6 +548,7 @@ __all__ = [
     "forecast_range",
     "hold_lag_days",
     "hold_lag_samples",
+    "measured_avoidance",
     "measured_intake",
     "shrunk_retention",
     "rhythm_prior",

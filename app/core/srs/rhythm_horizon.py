@@ -48,6 +48,7 @@ from app.core.srs.simulation import (
     new_unit_life,
     note_unit_life,
     rappel_format,
+    spaced_done_of,
 )
 
 HORIZON_DAYS = 126
@@ -251,7 +252,7 @@ def simulate_rhythm_horizon(
 
         for item in due_units:
             correct = rng.random() < accuracy
-            fmt = rappel_format(item.state.stability)
+            fmt = rappel_format(item.state.stability, spaced_done=spaced_done_of(item.life))
             if avoidance > 0 and fmt is EvidenceFormat.PRODUCE and rng.random() < avoidance:
                 fmt = EvidenceFormat.TRANSFORM
             observe(item, day, Evidence(fmt, correct=correct))

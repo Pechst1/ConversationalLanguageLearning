@@ -72,6 +72,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.notifications.send_daily_srs_reminders",
         "schedule": crontab(minute="*/15"),
     },
+    # WP-99: «Le facteur est passé» — the learner's own midday, their own zone.
+    "send-courrier-pushes": {
+        "task": "app.tasks.notifications.send_courrier_pushes",
+        "schedule": crontab(minute="*/15"),
+    },
     "sync-anki-cards-daily": {
         "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",
         "schedule": crontab(hour=4, minute=0),  # 4 AM daily

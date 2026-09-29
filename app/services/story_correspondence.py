@@ -962,6 +962,59 @@ def story_letter_candidate(
     }
 
 
+def first_letter_candidate(
+    db: Session,
+    *,
+    user: User,
+    writers: Sequence[str],
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """WP-99 (W13): the story-born letter a learner's *first* letter is.
+
+    Like :func:`story_letter_candidate`, but not left to the dice and limited to
+    ``writers`` (Romy, Margaux): the newest ledger event one of them witnessed
+    and that has not produced a letter yet. ``None`` when the story has no such
+    material — then the Courrier serves the authored first letter.
+    """
+
+    thread = living_story_thread(db, user)
+    if thread is None:
+        return None
+    now = now or datetime.now(UTC)
+    courrier = correspondence_state(thread)
+    used = {str(item.get("event_id")) for item in courrier.get("story_born") or [] if isinstance(item, dict)}
+    live = (thread.state or {}).get(STATE_KEY) or {}
+    allowed = {str(writer) for writer in writers}
+
+    def writer_of(value: Any) -> str | None:
+        raw = str(value or "")
+        if raw in allowed:
+            return raw
+        head = raw.split("_", 1)[0]
+        return next((writer for writer in sorted(allowed) if writer.split("_", 1)[0] == head), None)
+
+    for event in reversed(list(live.get("events") or [])):
+        if not isinstance(event, dict) or not event.get("scene_id") or not event.get("id"):
+            continue
+        if str(event["id"]) in used:
+            continue
+        present = [raw for raw in (event.get("witnesses") or []) if writer_of(raw)]
+        if not present:
+            continue
+        character_id = sorted(str(raw) for raw in present)[0]
+        return {
+            "event_id": str(event.get("id")),
+            "character_id": character_id,
+            "character_name": _cast_name(thread, character_id),
+            "register": learner_register(thread, character_id),
+            "summary_fr": _compact(event.get("summary_fr"), limit=240),
+            "source_quotes": [str(item) for item in (event.get("source_quotes") or [])][:2],
+            "week": iso_week_key(now),
+            "first_letter": True,
+        }
+    return None
+
+
 def note_story_letter(db: Session, *, user: User, candidate: dict[str, Any], mission_id: Any) -> None:
     """Record that this event has produced its letter, so it never produces two."""
 
@@ -1039,11 +1092,148 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
     return {
         "scenario": scenario,
         "desired_outcome": outcome,
+        "character_name": str(name),
         "relationship": str(candidate.get("character_id") or ""),
         # «vous» keeps the letter writer's own inference (``None``); «tu» is binding.
         "register": LETTER_REGISTERS["tu"] if register == "tu" else None,
         "source": "story_born",
     }
+
+
+# ---------------------------------------------------------------------------
+# WP-99 «Le facteur est passé» — which letter a push may announce
+# ---------------------------------------------------------------------------
+
+#: Stored on the letter's ``prompt_payload`` so one letter is announced once on
+#: arrival and reminded once the day before its soft deadline:
+#: ``{"arrived": "YYYY-MM-DD", "deadline": "YYYY-MM-DD"}`` (learner-local dates).
+PUSH_LEDGER_KEY = "courrier_push"
+#: A letter older than this is no longer «just arrived».
+ARRIVAL_FRESH_DAYS = 2
+
+
+def _local_date_of(user: User, moment: datetime | None):
+    from app.services.streak import local_now
+
+    if moment is None:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return local_now(user, moment).date()
+
+
+def _open_story_letters(db: Session, *, user: User) -> list[RealWorldMission]:
+    """Open letters a person is waiting on: chains and story-born, never the weekly."""
+
+    return (
+        db.query(RealWorldMission)
+        .filter(
+            RealWorldMission.user_id == user.id,
+            RealWorldMission.status.in_(["available", "in_progress"]),
+            RealWorldMission.cadence == "ad_hoc",
+            RealWorldMission.serial_thread_id.is_(None),
+        )
+        .order_by(RealWorldMission.created_at.desc())
+        .all()
+    )
+
+
+def deliver_pending_letter(db: Session, *, user: User) -> RealWorldMission | None:
+    """Put a waiting letter in the box before the learner opens the Courrier.
+
+    A chain's next instalment and a story-born letter used to be written only
+    when ``/missions/today`` was read, so a push could only ever announce a
+    letter the learner was already looking at. This runs the scheduler's own
+    ``_ensure_ad_hoc_letter`` (one open letter at a time, the weekly cap on
+    story-born letters, the same seeded candidate) from the push beat. Never
+    raises: a letter is not worth a failed beat.
+    """
+
+    import asyncio
+
+    from app.services.missions import MissionScheduler
+
+    try:
+        scheduler = MissionScheduler(db)
+        if scheduler._standalone_count(user=user) == 0:
+            # The first letter is the cast's and arrives with the first Courrier.
+            return None
+        if scheduler._open_ad_hoc_letter(user) is not None:
+            return None
+        if pending_chain_step(db, user=user) is None and story_letter_candidate(db, user=user) is None:
+            return None
+        # `_ensure_ad_hoc_letter` guards itself with a SAVEPOINT and commits.
+        return asyncio.run(scheduler._ensure_ad_hoc_letter(user))
+    except Exception:  # noqa: BLE001 - a letter is never worth the beat
+        db.rollback()
+        logger.exception("Courrier: a pending letter could not be delivered", user_id=str(user.id))
+        return None
+
+
+def courrier_push_candidate(
+    db: Session,
+    *,
+    user: User,
+    today: Any,
+) -> tuple[str, RealWorldMission] | None:
+    """``("deadline" | "arrived", letter)`` worth a push today, or ``None``.
+
+    * ``deadline`` — an open letter whose soft deadline falls **tomorrow** in the
+      learner's zone (today is the last full day to answer), reminded once;
+    * ``arrived`` — an open letter that came in today or yesterday, not yet
+      touched (``available``, no attempt) and not yet announced.
+
+    The deadline wins: a person about to stop waiting matters more than news.
+    """
+
+    from datetime import timedelta as _td
+
+    letters = _open_story_letters(db, user=user)
+    tomorrow = today + _td(days=1)
+    for mission in letters:
+        ledger = (mission.prompt_payload or {}).get(PUSH_LEDGER_KEY) or {}
+        if ledger.get("deadline"):
+            continue
+        if _local_date_of(user, mission.expires_at) == tomorrow:
+            return "deadline", mission
+    for mission in letters:
+        ledger = (mission.prompt_payload or {}).get(PUSH_LEDGER_KEY) or {}
+        if ledger.get("arrived") or mission.status != "available" or list(mission.attempts or []):
+            continue
+        arrived = _local_date_of(user, mission.created_at)
+        if arrived is not None and 0 <= (today - arrived).days < ARRIVAL_FRESH_DAYS:
+            return "arrived", mission
+    return None
+
+
+def note_courrier_push(db: Session, *, mission: RealWorldMission, kind: str, today: Any) -> None:
+    """Record that ``kind`` was pushed for this letter (so it is never pushed twice)."""
+
+    prompt = dict(mission.prompt_payload or {})
+    ledger = dict(prompt.get(PUSH_LEDGER_KEY) or {})
+    ledger[str(kind)] = today.isoformat()
+    prompt[PUSH_LEDGER_KEY] = ledger
+    mission.prompt_payload = prompt
+    db.add(mission)
+
+
+def letter_register(db: Session, *, user: User, mission: RealWorldMission) -> str:
+    """The register this letter's writer uses with the learner: ``tu`` or ``vous``.
+
+    A cast member's is the story's (WP-97); anyone else's is the letter's own.
+    """
+
+    correspondent_id = str(getattr(mission, "correspondent_id", None) or "")
+    thread = active_thread(db, user)
+    world = (thread.world_bible if thread is not None and isinstance(thread.world_bible, dict) else {}) or {}
+    cast = {str(member.get("id")) for member in world.get("cast") or [] if isinstance(member, dict)}
+    from app.services.serial_notifications import portrait_character
+
+    if correspondent_id and (correspondent_id in cast or portrait_character(correspondent_id)):
+        keys = {correspondent_id, portrait_character(correspondent_id) or correspondent_id}
+        return "tu" if any(learner_register(thread, key) == "tu" for key in keys) else "vous"
+    target = str((mission.prompt_payload or {}).get("target_register") or "").strip().lower()
+    return "tu" if target.startswith("tu") else "vous"
 
 
 # ---------------------------------------------------------------------------

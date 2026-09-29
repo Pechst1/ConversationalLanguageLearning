@@ -10,7 +10,7 @@ the result isolates the *scheduler's* load:
   concept: a guided Essai item, then its use in the reply (Emploi);
 * every due item is reviewed on its due day, with a Rappel format that scales
   with its stability (WP-L4: recognise under 3 days, guided under 7, transform
-  under 15, free production above);
+  under 10 (O-4, was 15), free production above);
 * each observation is correct with probability ``accuracy``; an error in
   production is a lapse, an error in an easier format a Hard.
 
@@ -37,16 +37,38 @@ from app.core.srs.memory import (
 SIMULATION_START = dt.datetime(2026, 1, 5, 8, 0, tzinfo=dt.UTC)
 
 
-def rappel_format(stability: float) -> EvidenceFormat:
-    """The Rappel format a concept of this stability gets (WP-L4's ladder)."""
+#: WP-99 / owner decision O-4 (2026-09-30): from this stability the Rappel poses
+#: the free-use coach mini-scene (was 15). The live planner's own threshold is
+#: ``grammar_items.REEMPLOI_STABILITY_DAYS`` — the ``high`` review band that gets
+#: ``journey_learning.coach_scene_review_task`` — and the two must stay equal
+#: (``tests/test_wp99_facteur_depeches.py`` pins it).
+FREE_USE_STABILITY_DAYS = 10.0
+
+
+def rappel_format(stability: float, *, spaced_done: bool = True) -> EvidenceFormat:
+    """The Rappel format a concept of this stability gets (WP-L4's ladder).
+
+    ``spaced_done`` (WP-99): whether the unit already has its «Tenue» spaced
+    item (``spaced_success_at``). A unit that grew past
+    :data:`FREE_USE_STABILITY_DAYS` before day 14 would otherwise only ever be
+    asked free use and never earn the spaced item «held» requires, so it keeps
+    the transform Rappel until it has one — as the live brief does
+    (``journey_learning.spaced_item_pending``).
+    """
 
     if stability < 3:
         return EvidenceFormat.RECOGNISE
     if stability < 7:
         return EvidenceFormat.GUIDED
-    if stability < 15:
+    if stability < FREE_USE_STABILITY_DAYS or not spaced_done:
         return EvidenceFormat.TRANSFORM
     return EvidenceFormat.PRODUCE
+
+
+def spaced_done_of(life: object | None) -> bool:
+    """``True`` without a life (no «Tenue» bookkeeping) or once the spaced item is in."""
+
+    return life is None or getattr(life, "spaced_success_at", None) is not None
 
 
 @dataclass
@@ -305,7 +327,8 @@ def simulate_band_coverage(
         for item in units:
             if item.due <= day:
                 correct = rng.random() < accuracy
-                observe(item, day, Evidence(rappel_format(item.state.stability), correct=correct), correct)
+                fmt = rappel_format(item.state.stability, spaced_done=spaced_done_of(item.life))
+                observe(item, day, Evidence(fmt, correct=correct), correct)
         for item in words:
             if item.due <= day:
                 correct = rng.random() < accuracy
@@ -560,7 +583,8 @@ def simulate_items_to_held(
                     continue
                 correct = rng.random() < accuracy
                 item.items += 1
-                apply(item, day, Evidence(rappel_format(item.state.stability), correct=correct), schedule=True)
+                fmt = rappel_format(item.state.stability, spaced_done=spaced_done_of(item.life))
+                apply(item, day, Evidence(fmt, correct=correct), schedule=True)
 
         if engine == "forge":
             units: list[forge_core.ForgeUnit] = []
@@ -698,6 +722,8 @@ __all__ = [
     "MAX_INTERVAL_DAYS",
     "SimulatedItem",
     "SimulationResult",
+    "FREE_USE_STABILITY_DAYS",
     "rappel_format",
+    "spaced_done_of",
     "simulate_learner",
 ]

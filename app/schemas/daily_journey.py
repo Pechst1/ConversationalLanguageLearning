@@ -746,6 +746,50 @@ class StreakView(JourneyModel):
     freeze_used_on: date | None = None
 
 
+class EntreTempsItem(JourneyModel):
+    """WP-99. One off-screen beat the cast lived while the learner was away."""
+
+    text_fr: str
+    date: str | None = None
+    character_id: str | None = None
+
+
+class LapsedLetter(JourneyModel):
+    """WP-99. A letter that went cold during the absence."""
+
+    mission_id: str
+    correspondent_name: str | None = None
+
+
+class AbsenceView(JourneyModel):
+    """WP-99 «Pendant votre absence». Present from two missed days, else ``null``.
+
+    ``greeting_fr`` is the scene's own line for the gap (the engine writes
+    ``script_payload.absence``), ``null`` when there is none; ``entre_temps`` is
+    at most five beats, oldest first, since the last finished day.
+    """
+
+    days: int
+    greeting_fr: str | None = None
+    entre_temps: list[EntreTempsItem] = Field(default_factory=list)
+    lapsed_letters: list[LapsedLetter] = Field(default_factory=list)
+
+
+class SeasonPremiereView(JourneyModel):
+    """WP-98/99. Today's scene opens a season: «Nouvelle saison»."""
+
+    number: int
+    title_fr: str
+    logline_fr: str | None = None
+
+
+class InterludeView(JourneyModel):
+    """WP-98/99. The story is between seasons, named honestly, with its return date."""
+
+    returns_on: str | None = None
+    reason_fr: str | None = None
+
+
 class MasteryToday(JourneyModel):
     """WP-S7: mastery earned on the journey's local day."""
 
@@ -793,6 +837,12 @@ class JourneySnapshot(JourneyModel):
     special: Literal["epreuve"] | None = None
     #: WP-94. What the épreuve asks: its band and can-dos, in the learner's language.
     epreuve: EpreuveView | None = None
+    #: WP-99. «Pendant votre absence» from two missed days, else ``None``.
+    absence: AbsenceView | None = None
+    #: WP-99. Set on the day whose scene opens a season.
+    season_premiere: SeasonPremiereView | None = None
+    #: WP-99. Set while the story is between seasons.
+    interlude: InterludeView | None = None
 
 
 class LegacyResume(JourneyModel):
@@ -868,6 +918,13 @@ class TodayEnvelope(JourneyModel):
     streak: StreakView | None = None
     #: WP-80. Whole local days with no practice before today.
     missed_days: int = 0
+    #: WP-99. «Pendant votre absence» from two missed days, else ``None``
+    #: (before today's journey exists too, so Home can say it first).
+    absence: AbsenceView | None = None
+    #: WP-99. Today's scene opens a season (``None`` before the journey exists).
+    season_premiere: SeasonPremiereView | None = None
+    #: WP-99. The story is between seasons, with its return date.
+    interlude: InterludeView | None = None
 
 
 # ---------------------------------------------------------------------------

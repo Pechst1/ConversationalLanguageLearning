@@ -845,6 +845,7 @@ def _with_grammar_briefs(
         if brief is None:
             out.append(candidate)
             continue
+        brief = spaced_item_pending(db, user=user, brief=brief)
         brief = _with_coach_scene(brief, language=str(language))
         out.append(
             replace(candidate, metadata={**dict(candidate.metadata or {}), "grammar_brief": brief})
@@ -2945,6 +2946,47 @@ def coach_scene_review_task(
     return None
 
 
+def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> dict[str, Any]:
+    """WP-99 / O-4: a strong unit still owed its «Tenue» spaced item keeps the transform Rappel.
+
+    From :data:`grammar_items.REEMPLOI_STABILITY_DAYS` the Rappel poses the
+    coach's free-use mini-scene. «Held» also needs one correct *spaced item*
+    at least 14 days after the introduction (``concept_life``), and a unit
+    whose stability passed 10 days before day 14 would otherwise never be
+    posed one again. Until ``spaced_success_at`` is set, the brief's stability
+    is held just under the threshold (the real one kept as
+    ``stability_measured``, and ``spaced_item_pending`` set), so the planner
+    poses the medium band's transform. The simulation does the same
+    (``simulation.rappel_format(..., spaced_done=...)``).
+    """
+
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services import grammar_items
+
+    try:
+        stability = float(brief.get("stability") or 0.0)
+    except (TypeError, ValueError):
+        return brief
+    if stability < grammar_items.REEMPLOI_STABILITY_DAYS or brief.get("concept_id") is None:
+        return brief
+    progress = (
+        db.query(UserGrammarProgress)
+        .filter(
+            UserGrammarProgress.user_id == user.id,
+            UserGrammarProgress.concept_id == int(brief["concept_id"]),
+        )
+        .first()
+    )
+    if progress is None or getattr(progress, "spaced_success_at", None) is not None:
+        return brief
+    return {
+        **brief,
+        "stability": round(grammar_items.REEMPLOI_STABILITY_DAYS - 0.1, 2),
+        "stability_measured": stability,
+        "spaced_item_pending": True,
+    }
+
+
 def _with_coach_scene(brief: dict[str, Any], *, language: str) -> dict[str, Any]:
     """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
 
@@ -3012,6 +3054,7 @@ def measured_avoidance_rate(db: Session, *, limit: int = 500) -> dict[str, Any]:
 __all__ = [
     "coach_scene_review_task",
     "measured_avoidance_rate",
+    "spaced_item_pending",
     "BACKGROUND_ERRATA_CAP",
     "CANDIDATE_HISTORY_LIMIT",
     "CANDIDATE_SECONDS",

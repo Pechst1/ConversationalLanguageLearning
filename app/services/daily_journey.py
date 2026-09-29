@@ -928,6 +928,16 @@ class DailyJourneyService:
             available = self._available_descriptor(user)
 
         forge_anchor = self._forge_anchor_id(user)
+        # WP-99: what Home can say honestly — the absence, a premiere, an interlude.
+        from app.services.journey_absence import story_frame_fields
+
+        frame = story_frame_fields(
+            self.db,
+            user_id=user.id,
+            local_date=today,
+            missed_days=int(streak_fields.get("missed_days") or 0),
+            journey=journey,
+        )
         return TodayEnvelope(
             enabled=enabled,
             control_language=control_language,
@@ -942,6 +952,7 @@ class DailyJourneyService:
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
             **streak_fields,
+            **frame,
         )
 
     def _because_for(self, journey: DailyJourney | None) -> JourneyBecause | None:
@@ -1886,6 +1897,7 @@ class DailyJourneyService:
 
         read_views = self._read_views(journey)
         scene_story = self._scene_story_fields(journey)
+        streak_fields = _streak_snapshot_fields(self.db, journey)
         steps = [
             {
                 "id": str(step.id),
@@ -1927,7 +1939,7 @@ class DailyJourneyService:
                 # WP-75: only the first day carries it; every other day, null.
                 "cast_intro": _stored_cast_intro(journey),
                 # WP-80: the streak and the absence, read, never written here.
-                **_streak_snapshot_fields(self.db, journey),
+                **streak_fields,
                 # WP-D4: the edition, once, so Home, the recap and the seal
                 # collection print the same Nº and press the same seal.
                 "edition_no": edition_no_for(self.db, journey),
@@ -1935,7 +1947,20 @@ class DailyJourneyService:
                 "mastery_today": mastery_today_for(self.db, journey),
                 # WP-94: «Numéro spécial» — the épreuve day, and what it asks.
                 **self._epreuve_snapshot_fields(journey),
+                # WP-99: «Pendant votre absence», «Nouvelle saison», the interlude.
+                **self._story_frame_fields(journey, int(streak_fields.get("missed_days") or 0)),
             }
+        )
+
+    def _story_frame_fields(self, journey: DailyJourney, missed_days: int) -> dict[str, Any]:
+        from app.services.journey_absence import story_frame_fields
+
+        return story_frame_fields(
+            self.db,
+            user_id=journey.user_id,
+            local_date=journey.local_date,
+            missed_days=missed_days,
+            journey=journey,
         )
 
     def _scene_story_fields(self, journey: DailyJourney) -> dict[str, Any]:
