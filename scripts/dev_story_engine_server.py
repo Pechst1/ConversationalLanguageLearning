@@ -85,9 +85,36 @@ class FakeStoryProvider:
             if schema == "SceneDraft":
                 value = self._draft(source, self.scenes)
                 self.scenes += 1
+                # WP-92: a compliant director says the day's new form twice and asks for it.
+                examples = ((source.get("grammar_plan") or {}).get("introduce") or {}).get("examples") or []
+                if examples and len(value["panels"]) >= 3:
+                    speaker = value["character_id"]
+                    for panel, example in zip(value["panels"][1:3], [examples[0], examples[-1]], strict=True):
+                        panel["dialogue"].append({"character_id": speaker, "text_fr": example})
+                    value["suggested_response_fr"] = examples[0]
             elif schema == "SemanticTurn":
                 value = self._turn(source, self.turns)
                 self.turns += 1
+            elif schema == "CoulissesDraft":
+                # WP-93 «Coulisses»: the same evening, from another cast member's eyes.
+                pov = source.get("pov_character_id") or "romy_tremblay"
+                value = {
+                    "title_fr": "Le même soir, en coulisses",
+                    "pov_character_id": pov,
+                    "panels": [
+                        {
+                            "narration_fr": text,
+                            "dialogue": [{"character_id": pov, "text_fr": line, "mood": "moved"}],
+                            "visual_direction": "Close-up of the character, later that evening.",
+                            "alt_native": "The character, alone, later that evening.",
+                        }
+                        for text, line in (
+                            ("Plus tard, le café est calme.", "Quelle soirée !"),
+                            ("Dehors, il pleut encore.", "Je pense à tout ça."),
+                            ("La lumière s'éteint.", "Demain, on verra."),
+                        )
+                    ],
+                }
             else:
                 value = {"accepted": True, "issues": []}
         return SimpleNamespace(
