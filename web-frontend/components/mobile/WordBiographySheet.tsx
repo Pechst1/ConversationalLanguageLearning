@@ -2,7 +2,9 @@ import React from 'react';
 import type { VocabularyBiography, VocabularyBiographyEvent, VocabularyBiographyExample } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { learnerGloss } from '@/lib/glosses';
-import { AtelierV2Root, BottomSheet, Row, StateBlock, Surface, WordToken } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, BottomSheet, Row, ShapeToken, StateBlock, Surface, WordToken } from '@/components/atelier-v2/ui';
+import { frenchQuote } from '@/lib/french-typography';
+import { revisitRows } from '@/lib/word-revisits';
 import { cahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { FragilityBadge, fragilityLabel } from './FragilityBadge';
@@ -85,6 +87,34 @@ function eventKicker(event: VocabularyBiographyEvent, t: BiographyCopy) {
   return PLACE_LABELS[event.source_type] || (key ? t[key] : '');
 }
 
+/* WP-93: the episodes that brought the word back — «Revu dans l’épisode du
+   12 sept.», newest first, three at most. The date is chrome (the learner's
+   locale); the episode's title is content and stays French. */
+function RevisitList({ biography, t, locale }: { biography: VocabularyBiography; t: BiographyCopy; locale: string }) {
+  const rows = revisitRows(biography.revisited_in, locale, t.revisited);
+  if (!rows.length) return null;
+  return (
+    <section className="lx-bio__section" aria-label={t.revisited_label}>
+      <p className="av2-label">{t.revisited_label}</p>
+      <ul className="lx-bio__revisits">
+        {rows.map((row) => (
+          <li key={row.key} className="lx-bio__revisit">
+            <ShapeToken kind="story" size="sm" />
+            <span className="lx-bio__revisit-text">
+              <span className="av2-body">{row.label}</span>
+              {row.title && (
+                <span className="av2-fr lx-bio__revisit-title" lang="fr">
+                  {frenchQuote(row.title)}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function ExampleList({ examples, t, locale }: { examples: VocabularyBiographyExample[]; t: BiographyCopy; locale: string }) {
   if (!examples.length) return null;
   return (
@@ -155,6 +185,8 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
 
                 <ExampleList examples={biography.examples} t={t} locale={locale} />
 
+                <RevisitList biography={biography} t={t} locale={locale} />
+
                 <section className="lx-bio__section" aria-label={t.thread}>
                   <p className="av2-label">{t.thread}</p>
                   <div className="av2-stack lx-bio__thread">
@@ -189,6 +221,11 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
           .av2 .lx-bio__example { display: flex; flex-direction: column; gap: 4px; }
           .av2 .lx-bio__quote { margin: 0; font-size: var(--av2-t-action); color: var(--av2-ink); }
           .av2 .lx-bio__desc { flex: 0 1 40%; text-align: right; }
+          .av2 .lx-bio__revisits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+          .av2 .lx-bio__revisit { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+          .av2 .lx-bio__revisit .av2-shape { flex: none; }
+          .av2 .lx-bio__revisit-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+          .av2 .lx-bio__revisit-title { color: var(--av2-ink-2); overflow-wrap: anywhere; }
           @media (min-width: 560px) {
             .av2 .lx-bio__ledger { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           }

@@ -67,6 +67,7 @@ import {
   RuleStepView,
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
+import { ReadStepView } from './ReadStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
@@ -311,6 +312,21 @@ export function JourneySession({
                   busy={busy}
                   language={chromeLanguage}
                   onContinue={actions.continueJourney}
+                  journeyId={journey?.id ?? null}
+                />
+              )}
+              {step.kind === 'read' && (
+                // WP-93: an optional page — yesterday's, or «Coulisses» —
+                // read in the reader, never answered.
+                <ReadStepView
+                  journeyId={journey?.id ?? null}
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  onExit={onExit}
+                  language={chromeLanguage}
+                  speaker={speaker}
                 />
               )}
               {step.kind === 'forge' && (

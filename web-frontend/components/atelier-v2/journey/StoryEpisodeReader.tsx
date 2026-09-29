@@ -48,6 +48,7 @@ import {
   radioReduce,
   radioStageOrdinal,
   storyEpisodeLabel,
+  storyRayonsTitle,
   storyStartIndex,
   storyStagesWithFinale,
   storyUsesSettingArt,
@@ -61,8 +62,13 @@ import type { LineVoice } from './useLineVoice';
 
 export type StoryEpisodeReaderProps = {
   episode: StoryEpisode;
-  /** `continue` hands the end of the panels to the daily journey; `replay` reads only. */
-  mode: 'continue' | 'replay';
+  /**
+   * `continue` hands the end of the panels to the daily journey; `replay`
+   * reads only. `reread` (WP-93, the READ step) reads a page that is already
+   * filed — yesterday's, or «Coulisses» — and still closes with the day's
+   * «Continuer»; it never saves a reading position.
+   */
+  mode: 'continue' | 'replay' | 'reread';
   /** The ✕. Absent: the reader draws none (the caller owns the way out). */
   onExit?: (() => void) | null;
   onContinue?: () => void;
@@ -98,6 +104,8 @@ export type StoryEpisodeReaderProps = {
   finaleWait?: React.ReactNode;
   /** The headline, when the caller knows better than the episode (the scenario's). */
   title?: string | null;
+  /** WP-93: the kicker, when the caller knows better («Relecture · la page d'hier»). */
+  eyebrow?: string | null;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -120,14 +128,22 @@ export function StoryEpisodeReader({
   finaleExtra = null,
   finaleWait = null,
   title = null,
+  eyebrow = null,
 }: StoryEpisodeReaderProps) {
+  const reread = mode === 'reread';
+  const keepsPosition = savePosition && !reread;
   const stages = useMemo(
     () => (finale ? storyStagesWithFinale(episode, finale) : buildStoryStages(episode)),
     [episode, finale],
   );
   const panelCount = episode.panels?.length ?? 0;
   // The finale opens on itself: the ending is what the learner came back for.
-  const start = finale ? Math.max(0, stages.length - 1) : storyStartIndex(episode, stages.length);
+  // A page re-read (WP-93) opens on its first panel, whatever was saved yesterday.
+  const start = finale
+    ? Math.max(0, stages.length - 1)
+    : reread
+      ? 0
+      : storyStartIndex(episode, stages.length);
   const [index, setIndex] = useState(start);
   const [furthest, setFurthest] = useState(start);
   const timer = useRef<number | null>(null);
@@ -154,7 +170,7 @@ export function StoryEpisodeReader({
       setFurthest((current) => Math.max(current, next));
       // Only a real panel index is a valid position: the server rejects an
       // index past its panels, and the resolution stage is not a panel.
-      if (!savePosition || next < 0 || next >= panelCount) return;
+      if (!keepsPosition || next < 0 || next >= panelCount) return;
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
         void saveStoryReadingPosition(episode.id, next).catch(() => {
@@ -162,13 +178,15 @@ export function StoryEpisodeReader({
         });
       }, POSITION_DEBOUNCE_MS);
     },
-    [episode.id, panelCount, savePosition],
+    [episode.id, panelCount, keepsPosition],
   );
 
   const noop = useCallback(() => {}, []);
   // The finale belongs to the day, not to the episode: a scene the server has
   // already filed still closes with the day's own «Continuer».
-  const replay = mode === 'replay' || (!finale && episode.status !== 'available');
+  const replay = mode === 'replay' || (!reread && !finale && episode.status !== 'available');
+  // WP-92: «Rayons X» — the day's rule, named in the reader's chrome language.
+  const rayonsTitle = storyRayonsTitle(episode, language);
 
   if (!stages.length) return null;
 
@@ -176,7 +194,7 @@ export function StoryEpisodeReader({
     <>
       <FeuilletonReaderStyles />
       <FeuilletonReader
-        episodeLabel={storyEpisodeLabel(episode)}
+        episodeLabel={eyebrow || storyEpisodeLabel(episode)}
         title={title || episode.title_fr || 'Le feuilleton'}
         stages={stages}
         index={index}
@@ -203,6 +221,8 @@ export function StoryEpisodeReader({
         listenLabel={listenLabel}
         finaleExtra={finaleExtra}
         finaleWait={finaleWait}
+        rayonsTitle={rayonsTitle}
+        rayonsReplay={reread}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
           location's art is a production fact, not a thing the learner has done

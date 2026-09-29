@@ -260,6 +260,8 @@ const FR = {
     tile_errata: 'Errata',
     thread: 'Le fil',
     no_trace: 'Ce mot n’a pas encore laissé de trace.',
+    revisited_label: 'Revu dans l’histoire',
+    revisited: 'Revu dans l’épisode du {date}',
   },
   fragility: {
     new: 'Nouveau',
@@ -515,6 +517,8 @@ const EN: CahierCopy = {
     tile_errata: 'Mistakes',
     thread: 'The thread',
     no_trace: 'This word has not left a trace yet.',
+    revisited_label: 'Seen again in the story',
+    revisited: 'Seen again in the episode of {date}',
   },
   fragility: {
     new: 'New',
@@ -768,6 +772,8 @@ const DE: CahierCopy = {
     tile_errata: 'Fehler',
     thread: 'Der Faden',
     no_trace: 'Dieses Wort hat noch keine Spur hinterlassen.',
+    revisited_label: 'Wiedergesehen in der Geschichte',
+    revisited: 'Wiedergesehen in der Folge vom {date}',
   },
   fragility: {
     new: 'Neu',

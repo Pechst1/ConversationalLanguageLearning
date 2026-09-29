@@ -302,6 +302,32 @@ export function FeuilletonReaderStyles() {
       .av2 .fr-word:hover { background: color-mix(in srgb, var(--fr-yellow) 34%, transparent); }
       .av2 .fr-word:focus-visible { outline: 2px solid var(--fr-focus); outline-offset: 2px; }
 
+      /* WP-92 «Rayons X»: the rule's form, underlined in the rule card's red
+         (the colour the card draws its form in), whole words only. The gap
+         between two words of one form carries the line too, so «suis allé»
+         reads as one mark. No motion: the marks simply appear. */
+      .av2 .fr-reader [data-mark='rule'] {
+        text-decoration-line: underline;
+        text-decoration-color: var(--fr-red);
+        text-decoration-thickness: 2px;
+        text-underline-offset: 0.24em;
+        text-decoration-skip-ink: none;
+      }
+      .av2 .fr-reader .fr-word[data-mark='rule'] { border-bottom-color: transparent; }
+      .av2 .fr-chip--rayons .av2-shape { flex: none; }
+      .av2 .fr-rayons-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 8px;
+        font-family: var(--fr-sans);
+        font-size: 0.8125rem;
+        line-height: 1.35;
+        color: var(--fr-ink-2);
+        overflow-wrap: anywhere;
+      }
+      .av2 .fr-rayons-legend .av2-shape { flex: none; }
+
       .av2 .fr-tools {
         display: flex;
         flex-wrap: wrap;

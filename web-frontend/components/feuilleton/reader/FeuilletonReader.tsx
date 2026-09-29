@@ -25,6 +25,7 @@ import {
   AtelierV2Root,
   CheckIcon,
   CrossIcon,
+  ShapeToken,
   SpinnerToken,
 } from '@/components/atelier-v2/ui';
 import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
@@ -37,6 +38,7 @@ import type { ControlLanguage } from '@/types/daily-journey';
 
 import { fillReaderCopy, portraitAlt, readerCopy, type ReaderCopy } from './reader-copy';
 import { FrenchLine, TappableFrench } from './TappableFrench';
+import { markedForms, rayonsUnlocked, readRayons, writeRayons } from './grammar-marks';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
 import {
   choiceOptions,
@@ -121,6 +123,14 @@ export type FeuilletonReaderProps = {
   finaleExtra?: React.ReactNode;
   /** WP-90: shown in the finale while its ending is still being written. */
   finaleWait?: React.ReactNode;
+  /**
+   * WP-92 «Rayons X»: the day's rule, named in the chrome language. Given
+   * (and some line carries marks), a toggle in the bar marks the rule's form
+   * in the page — after the first full read, or at once on a replay.
+   */
+  rayonsTitle?: string | null;
+  /** WP-92: the page is being re-read (a replay, or the READ step): the toggle is there at once. */
+  rayonsReplay?: boolean;
 };
 
 function prefersReducedMotion(): boolean {
@@ -165,6 +175,8 @@ export function FeuilletonReader({
   listenLabel = null,
   finaleExtra = null,
   finaleWait = null,
+  rayonsTitle = null,
+  rayonsReplay = false,
 }: FeuilletonReaderProps) {
   const base = readerCopy(language);
   /* WP-91: the face's label comes from the journey's own table when it hands
@@ -172,6 +184,12 @@ export function FeuilletonReader({
   const t: ReaderCopy = listenLabel ? { ...base, listen_to: listenLabel('{name}') } : base;
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
+  /* WP-92: «Rayons X» is off by default and remembered per device — read on
+     the client only, so the server render and the first paint agree. */
+  const [rayonsOn, setRayonsOn] = useState(false);
+  useEffect(() => {
+    setRayonsOn(readRayons());
+  }, []);
 
   /* This reader owns the whole screen while it is up: its own exit, its own
      progress rail, its own action bar. Anything else that draws one of those
@@ -319,6 +337,33 @@ export function FeuilletonReader({
     count,
   });
   const finale = stage.kind === 'resolution' ? stage.finale ?? null : null;
+  /* WP-92 «Rayons X»: only when the page has marks, and only once the page
+     has been read to its last panel (or is being re-read). */
+  const lastPanelIndex = stages.reduce((last, entry, i) => (entry.kind === 'panel' ? i : last), -1);
+  const rayonsAvailable =
+    Boolean(rayonsTitle)
+    && stages.some((entry) => entry.kind === 'panel' && entry.lines.some((line) => (line.marks?.length ?? 0) > 0))
+    && rayonsUnlocked({ furthest, lastPanelIndex, replay: filed || rayonsReplay });
+  const rayonsShown = rayonsAvailable && rayonsOn;
+  const rayons: RayonsView | null = rayonsShown
+    ? { formLabel: (form: string) => fillReaderCopy(t.rayons_form, { form }), lang: language ?? 'fr' }
+    : null;
+  const rayonsChip = rayonsAvailable ? (
+    <button
+      type="button"
+      className="fr-chip fr-chip--rayons"
+      aria-pressed={rayonsOn}
+      aria-label={t.rayons_label}
+      onClick={() => {
+        const next = !rayonsOn;
+        setRayonsOn(next);
+        writeRayons(next);
+      }}
+    >
+      <ShapeToken kind="action" size="sm" />
+      {t.rayons}
+    </button>
+  ) : null;
   /* The story reader keeps the chip in the bar: a fixed place, so a panel with
      a translation and one without are the same height — and there it is the
      short word, pressed or not, with the whole phrase as its name. */
@@ -360,8 +405,17 @@ export function FeuilletonReader({
         ) : (
           <span className="fr-running" aria-hidden="true" />
         )}
+        {rayonsChip}
         {chipInBar && translateChip}
       </div>
+
+      {rayonsShown && rayonsTitle && (
+        /* one line, in the chrome language: which rule the marks are */
+        <p className="fr-rayons-legend">
+          <ShapeToken kind="action" size="sm" />
+          <span>{fillReaderCopy(t.rayons_legend, { title: rayonsTitle })}</span>
+        </p>
+      )}
 
       {!folded && (
         <div className="fr-head">
@@ -417,6 +471,7 @@ export function FeuilletonReader({
             pageArt={pageArt}
             variant={panelVariant ? panelVariant(stage) : null}
             voice={lineVoice}
+            rayons={rayons}
             t={t}
           />
         ) : finale ? (
@@ -566,6 +621,20 @@ export function FeuilletonReader({
   );
 }
 
+/** WP-92: while «Rayons X» is on — how a marked line is announced, and in which language. */
+type RayonsView = { formLabel: (form: string) => string; lang: string };
+
+/** The marks for one line while «Rayons X» is on; nothing otherwise. */
+function lineRayons(line: ReaderLine, rayons: RayonsView | null | undefined) {
+  if (!rayons || !line.marks || line.marks.length === 0) return {};
+  const forms = markedForms(line.fr, line.marks);
+  return {
+    marks: line.marks,
+    marksLabel: forms.length ? rayons.formLabel(forms.join(' · ')) : '',
+    marksLang: rayons.lang,
+  };
+}
+
 type WordHandler = (
   word: { surface: string; term: string },
   context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
@@ -602,6 +671,7 @@ function SpeechBody({
   glyph = false,
   compact = false,
   voice = null,
+  rayons = null,
   t,
 }: {
   line: ReaderLine;
@@ -611,6 +681,7 @@ function SpeechBody({
   glyph?: boolean;
   compact?: boolean;
   voice?: LineVoice | null;
+  rayons?: RayonsView | null;
   t: ReaderCopy;
 }) {
   const french = (
@@ -618,6 +689,7 @@ function SpeechBody({
       text={line.fr}
       idPrefix={line.key}
       wordLabel={t.word_help}
+      {...lineRayons(line, rayons)}
       onWord={(word) =>
         onWord(word, {
           sentence: line.fr,
@@ -760,6 +832,7 @@ function PanelBody({
   pageArt,
   variant = null,
   voice = null,
+  rayons = null,
   t,
 }: {
   t: ReaderCopy;
@@ -769,6 +842,7 @@ function PanelBody({
   pageArt?: string | null;
   variant?: 'bubble' | 'line' | null;
   voice?: LineVoice | null;
+  rayons?: RayonsView | null;
 }) {
   const src = resolveMediaUrl(stage.imageUrl);
   const page = pageArt ? resolveMediaUrl(pageArt) : null;
@@ -790,6 +864,7 @@ function PanelBody({
         onWord={onWord}
         compact
         voice={voice}
+        rayons={rayons}
         t={t}
       />
     ));
@@ -816,6 +891,7 @@ function PanelBody({
                   text={bubbleLine.fr}
                   idPrefix={bubbleLine.key}
                   wordLabel={t.word_help}
+                  {...lineRayons(bubbleLine, rayons)}
                   onWord={(word) =>
                     onWord(word, {
                       sentence: bubbleLine.fr,
@@ -877,6 +953,7 @@ function PanelBody({
           onWord={onWord}
           glyph
           voice={voice}
+          rayons={rayons}
           t={t}
         />
       ))}

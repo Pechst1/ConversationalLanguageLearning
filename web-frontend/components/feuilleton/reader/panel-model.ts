@@ -60,6 +60,11 @@ export type ReaderLine = {
   audioKey?: string;
   /** WP-91: the speaker's canonical id as the payload sent it (voice lookup). */
   speakerId?: string | null;
+  /**
+   * WP-92 «Rayons X»: where the day's rule sits in `fr` (ranges into the
+   * trimmed line). Drawn only while the learner has the marks on.
+   */
+  marks?: Array<{ start: number; end: number }>;
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';

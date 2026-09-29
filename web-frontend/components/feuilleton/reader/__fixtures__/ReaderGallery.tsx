@@ -18,13 +18,21 @@
  *   translated  «Translate the panel» open on a ≤A2 line
  *   finale      the ending as the last panel — the «case finale»
  *   finale-wait the ending still being written: the speaker's face, no primary
+ *   rayons-off  WP-92: a re-read page with a rule focus — the «Rayons X» chip, off
+ *   rayons-on   the same page with the marks on: the form underlined, the legend
+ *   rule-scene  WP-92: the rule card, the scene's own line as its first anchor
+ *   read-ready  WP-93: «Relecture» — yesterday's page in the reader, read-only
+ *   read-writing  «Coulisses» still being written: Marin's face, «Continuer» on
+ *   read-unavailable  the page will not come today: one quiet line
  *
  * `&lang=fr|en|de` switches the chrome; the story stays French.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AtelierV2Root } from '@/components/atelier-v2/ui';
-import { ResolutionStepView } from '@/components/atelier-v2/journey/JourneySteps';
+import { ResolutionStepView, RuleStepView } from '@/components/atelier-v2/journey/JourneySteps';
+import { ReadStepView } from '@/components/atelier-v2/journey/ReadStep';
+import { writeRayons } from '@/components/feuilleton/reader/grammar-marks';
 import { StoryEpisodeReader } from '@/components/atelier-v2/journey/StoryEpisodeReader';
 import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
@@ -32,7 +40,10 @@ import { atelierCopy } from '@/lib/atelier-v2-copy';
 import type {
   ControlLanguage,
   JourneySnapshot,
+  ReadPrompt,
+  ReadStep,
   ResolutionStep,
+  RuleStep,
   StoryEpisode,
   StoryPanel,
 } from '@/types/daily-journey';
@@ -151,11 +162,109 @@ const JOURNEY = {
 
 const MARGAUX = { id: 'margaux_barman', name: 'Margaux' };
 
-export const READER_GALLERY_STATES = ['plate', 'arrive', 'drawn', 'running', 'translated', 'finale', 'finale-wait'] as const;
+/* WP-92: the page as the engine sends it with a rule focus — «je vous sers»,
+   the object pronoun before the verb, marked where Margaux says it. */
+const RX_LINE = 'Bonjour ! Qu’est-ce que je vous sers ?';
+const RX_FORM = 'vous sers';
+function rayonsEpisode(): StoryEpisode {
+  const start = RX_LINE.indexOf(RX_FORM);
+  return {
+    ...episodeAt(0),
+    status: 'completed',
+    grammar_focus: {
+      unit_id: 'pronom_cod',
+      title_fr: 'Le pronom avant le verbe',
+      title_native: 'The pronoun before the verb',
+      woven: true,
+    },
+    panels: episodeAt(0).panels.map((panel) =>
+      panel.index === 0
+        ? {
+            ...panel,
+            dialogue: panel.dialogue.map((line) => ({
+              ...line,
+              grammar_marks: [{ unit_id: 'pronom_cod', start, end: start + RX_FORM.length }],
+            })),
+          }
+        : panel,
+    ),
+  };
+}
+
+const RULE_STEP: RuleStep = {
+  id: 'g-rule',
+  kind: 'rule',
+  ordinal: 2,
+  status: 'active',
+  estimated_seconds: 40,
+  assistance_used: [],
+  prompt: {
+    concept_id: 21,
+    title_native: 'The pronoun before the verb',
+    title_fr: 'Le pronom avant le verbe',
+    rule_card: {
+      speaker: 'marin_leveque',
+      example: { fr: 'Je [te] vois demain ?', tr: { en: 'Shall I see you tomorrow?', de: 'Sehe ich dich morgen?' } },
+      rule: {
+        en: 'Me, te, le, la, nous, vous go before the verb.',
+        de: 'Me, te, le, la, nous, vous stehen vor dem Verb.',
+        fr: 'Me, te, le, la, nous, vous se placent avant le verbe.',
+      },
+      contrast: { wrong: 'Je sers vous.', right: 'Je [vous] sers.' },
+    },
+    scene_example_fr: 'Qu’est-ce que je [vous sers] ?',
+    scene_example_speaker: 'margaux_barman',
+  },
+};
+
+function readStepOf(prompt: Partial<ReadPrompt>): ReadStep {
+  return {
+    id: 'g-read',
+    kind: 'read',
+    ordinal: 1,
+    status: 'active',
+    estimated_seconds: 90,
+    assistance_used: [],
+    prompt: {
+      variant: 'relecture',
+      title_fr: 'Le Mistral',
+      scene_id: null,
+      status: 'ready',
+      audio_available: false,
+      ...prompt,
+    },
+  };
+}
+
+/* the gallery's page, as `GET /story-engine/episodes/{scene_id}` would send it */
+const loadGalleryEpisode = (): Promise<StoryEpisode> =>
+  Promise.resolve({ ...episodeAt(0), status: 'completed' as const });
+
+export const READER_GALLERY_STATES = [
+  'plate',
+  'arrive',
+  'drawn',
+  'running',
+  'translated',
+  'finale',
+  'finale-wait',
+  'rayons-off',
+  'rayons-on',
+  'rule-scene',
+  'read-ready',
+  'read-writing',
+  'read-unavailable',
+] as const;
 export type ReaderGalleryState = (typeof READER_GALLERY_STATES)[number];
 
 function Specimen({ state, language }: { state: ReaderGalleryState; language: ControlLanguage }) {
   const voice = useLineVoice();
+  // WP-92: «Rayons X» is remembered per device; the two specimens set it
+  // before the reader mounts and reads it.
+  useState(() => {
+    if (state === 'rayons-on' || state === 'rayons-off') writeRayons(state === 'rayons-on');
+    return null;
+  });
   const [arrived, setArrived] = useState(false);
   useEffect(() => {
     if (state !== 'arrive') return undefined;
@@ -187,6 +296,52 @@ function Specimen({ state, language }: { state: ReaderGalleryState; language: Co
   }, [state, arrived]);
 
   const copy = { ...atelierCopy(language), ...journeyCopy(language) };
+
+  if (state === 'rayons-off' || state === 'rayons-on') {
+    return (
+      <StoryEpisodeReader
+        episode={rayonsEpisode()}
+        mode="replay"
+        onExit={() => {}}
+        language={language}
+        savePosition={false}
+        footLink={null}
+        lineVoice={voice}
+      />
+    );
+  }
+  if (state === 'rule-scene') {
+    return (
+      <RuleStepView step={RULE_STEP} copy={copy} busy={false} language={language} onContinue={() => {}} />
+    );
+  }
+  if (state === 'read-ready' || state === 'read-writing' || state === 'read-unavailable') {
+    const step =
+      state === 'read-ready'
+        ? readStepOf({ status: 'ready', scene_id: 'gallery-episode' })
+        : state === 'read-writing'
+          ? readStepOf({
+              variant: 'coulisses',
+              status: 'writing',
+              title_fr: 'Le soir, chez Marin',
+              character_id: 'marin_leveque',
+              character_name: 'Marin',
+            })
+          : readStepOf({ status: 'unavailable' });
+    return (
+      <ReadStepView
+        journeyId={null}
+        step={step}
+        copy={copy}
+        busy={false}
+        onContinue={() => {}}
+        onExit={() => {}}
+        language={language}
+        speaker={MARGAUX}
+        loadEpisode={loadGalleryEpisode}
+      />
+    );
+  }
 
   if (state === 'finale' || state === 'finale-wait') {
     const step: ResolutionStep =

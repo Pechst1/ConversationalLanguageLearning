@@ -122,6 +122,15 @@ export type JourneyCopyKey =
   | 'forge_back'
   | 'forge_done'
   | 'forge_later'
+  // WP-93: the READ step — «Relecture», «Coulisses». `{name}` is the cast member.
+  | 'read_relecture'
+  | 'read_coulisses'
+  | 'read_coulisses_anon'
+  | 'read_writing'
+  | 'read_writing_anon'
+  | 'read_optional'
+  | 'read_unavailable'
+  | 'read_skip'
   // WP-16 / D-0: the recap's pointer into the «Plus de pratique» drill loop
   // for one target the scene actually practised.
   | 'practice_this'
@@ -300,6 +309,14 @@ const EN: CopyTable = {
   forge_back: 'Back to the scene',
   forge_done: 'Forged. The rule is a little more yours.',
   forge_later: 'Not now',
+  read_relecture: 'Re-read · yesterday’s page',
+  read_coulisses: 'Behind the scenes · {name}’s evening',
+  read_coulisses_anon: 'Behind the scenes · the same evening',
+  read_writing: '{name}’s evening is being written…',
+  read_writing_anon: 'This page is being written…',
+  read_optional: 'Optional — read it when it’s ready, or go on.',
+  read_unavailable: 'This page won’t be ready today. The story goes on without it.',
+  read_skip: 'Skip this page',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
   done_today: 'Done for today',
@@ -467,6 +484,14 @@ const DE: CopyTable = {
   forge_back: 'Zurück zur Szene',
   forge_done: 'Geschmiedet. Die Regel sitzt ein Stück besser.',
   forge_later: 'Nicht jetzt',
+  read_relecture: 'Nochmal lesen · die Seite von gestern',
+  read_coulisses: 'Hinter den Kulissen · der Abend von {name}',
+  read_coulisses_anon: 'Hinter den Kulissen · derselbe Abend',
+  read_writing: 'Der Abend von {name} wird geschrieben…',
+  read_writing_anon: 'Diese Seite wird geschrieben…',
+  read_optional: 'Freiwillig — lies sie, wenn sie fertig ist, oder mach weiter.',
+  read_unavailable: 'Diese Seite wird heute nicht fertig. Die Geschichte geht ohne sie weiter.',
+  read_skip: 'Seite überspringen',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
   done_today: 'Für heute erledigt',
@@ -634,6 +659,14 @@ const FR: CopyTable = {
   forge_back: 'Retour à la scène',
   forge_done: 'Forgée. La règle est un peu plus à vous.',
   forge_later: 'Pas maintenant',
+  read_relecture: 'Relecture · la page d’hier',
+  read_coulisses: 'Coulisses · la soirée de {name}',
+  read_coulisses_anon: 'Coulisses · la même soirée',
+  read_writing: 'La soirée de {name} s’écrit…',
+  read_writing_anon: 'Cette page s’écrit…',
+  read_optional: 'Facultatif — lisez-la quand elle sera prête, ou continuez.',
+  read_unavailable: 'Cette page ne sera pas prête aujourd’hui. L’histoire continue sans elle.',
+  read_skip: 'Passer cette page',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
   done_today: 'Journée bouclée',

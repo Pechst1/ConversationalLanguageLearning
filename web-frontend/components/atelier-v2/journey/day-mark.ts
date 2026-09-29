@@ -17,6 +17,10 @@
  * work — the yellow square (Rappel) counts it, so the square is done only when
  * the forge block is too, and the mark keeps its four shapes.
  *
+ * WP-93: a page to read (`read` — «Relecture», «Coulisses») is input, like the
+ * scene: a blue circle, counted with the Scène. It is optional, so skipping it
+ * resolves it like reading it does.
+ *
  * Pure: no React, no styling, no transport. It sits beside `journey-state.ts`
  * rather than inside it so the renderers and the node tests share it without
  * touching the controller's state machine.
@@ -26,7 +30,7 @@ import type { ControlLanguage, JourneySnapshot, PublicStep, StepKind } from '@/t
 
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
-export type DayMarkGroup = Exclude<StepKind, 'rule' | 'forge'>;
+export type DayMarkGroup = Exclude<StepKind, 'rule' | 'forge' | 'read'>;
 
 /**
  * `done` — every step of the group is resolved; `active` — the learner is in
@@ -56,12 +60,14 @@ export const STEP_SHAPE: Record<StepKind, ShapeKind> = {
   resolution: 'done',
   rule: 'story',
   forge: 'reward',
+  read: 'story',
 };
 
-/** The mark's group a step counts in: the Règle is part of the Scène, the Forge of the Rappel. */
+/** The mark's group a step counts in: the Règle and a page to read are part of the Scène, the Forge of the Rappel. */
 export function dayMarkGroupOf(kind: StepKind): DayMarkGroup {
   if (kind === 'rule') return 'scene';
   if (kind === 'forge') return 'recall';
+  if (kind === 'read') return 'scene';
   return kind;
 }
 

@@ -2850,6 +2850,12 @@
 .av2 .rc-listen[aria-busy='true'] { opacity: 0.55; }
 .av2 .rc-example { margin: 0; font-size: var(--av2-t-screen); line-height: 1.12; }
 .av2 .rc-example--inline { font-size: var(--av2-t-option); font-weight: 600; line-height: 1.3; color: var(--av2-ink); }
+/* WP-92: the scene's own line is the card's first anchor — the speaker's face,
+   their name, and a tiny «in today's scene» under it; the generic example
+   follows in the body face. */
+.av2 .rc-scene { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-bottom: 12px; border-bottom: 1px solid var(--av2-line); }
+.av2 .rc-scene__who { display: block; color: var(--av2-ink); }
+.av2 .rc-scene__label { display: block; font-weight: 500; color: var(--av2-blue); }
 .av2 .rc-mark { color: var(--av2-red); }
 .av2 .rc-silent { color: var(--av2-muted); opacity: 0.8; }
 .av2 .rc-translate { display: flex; flex-direction: column; gap: 4px; }

@@ -79,6 +79,15 @@ export type ReaderCopy = {
   running_head: string;
   /** The finale's eyebrow — the red-triangle last panel. */
   finale_label: string;
+  // WP-92 «Rayons X»
+  /** The toggle's short word in the bar. */
+  rayons: string;
+  /** The toggle's name: what it does. */
+  rayons_label: string;
+  /** The one-line legend while the marks are on: «Aujourd’hui : {title}». */
+  rayons_legend: string;
+  /** What a screen reader hears once per marked line: «La règle du jour : {form}». */
+  rayons_form: string;
   /** Portrait alt text: «{name}, {mood}». Moods follow. */
   portrait_alt: string;
   mood_happy: string;
@@ -143,6 +152,10 @@ const FR: ReaderCopy = {
   word_help: 'Aide pour « {word} »',
   running_head: '{title} · {n}/{count}',
   finale_label: 'Case finale',
+  rayons: 'Rayons X',
+  rayons_label: 'Montrer la règle du jour dans la page',
+  rayons_legend: 'Aujourd’hui : {title}',
+  rayons_form: 'La règle du jour : {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'ravi',
   mood_happy_f: 'ravie',
@@ -206,6 +219,10 @@ const EN: ReaderCopy = {
   word_help: 'Help with “{word}”',
   running_head: '{title} · {n}/{count}',
   finale_label: 'The last panel',
+  rayons: 'X-ray',
+  rayons_label: 'Show today’s rule in the page',
+  rayons_legend: 'Today: {title}',
+  rayons_form: 'Today’s rule: {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'pleased',
   mood_happy_f: 'pleased',
@@ -269,6 +286,10 @@ const DE: ReaderCopy = {
   word_help: 'Hilfe zu „{word}“',
   running_head: '{title} · {n}/{count}',
   finale_label: 'Das letzte Bild',
+  rayons: 'Röntgen',
+  rayons_label: 'Die Regel des Tages im Text zeigen',
+  rayons_legend: 'Heute: {title}',
+  rayons_form: 'Regel des Tages: {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'froh',
   mood_happy_f: 'froh',

@@ -6,6 +6,7 @@
  * that carries the rule (drawn red), `{x}` is written but silent (drawn grey).
  */
 
+import { castIdFor } from '@/lib/cast-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type RuleCardShape = 'square' | 'circle' | 'circles' | 'triangle' | 'none';
@@ -77,6 +78,8 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
   tryIt: string;
   back: string;
   pattern: string;
+  /** WP-92: the tiny label over the scene's own line. */
+  fromScene: string;
 }> = {
   en: {
     eyebrow: "Today's rule",
@@ -90,6 +93,7 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     tryIt: 'Essayer',
     back: 'Back to the exercise',
     pattern: 'The pattern',
+    fromScene: 'in today’s scene',
   },
   de: {
     eyebrow: 'Regel des Tages',
@@ -103,6 +107,7 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     tryIt: 'Essayer',
     back: 'Zurück zur Übung',
     pattern: 'Das Muster',
+    fromScene: 'in der heutigen Szene',
   },
   fr: {
     eyebrow: 'La règle du jour',
@@ -116,5 +121,48 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     tryIt: 'Essayer',
     back: 'Retour à l’exercice',
     pattern: 'Le schéma',
+    fromScene: 'dans la scène d’aujourd’hui',
   },
 };
+
+/**
+ * WP-92 — the card's first anchor: a line of today's scene that uses the rule,
+ * said by the cast member who said it there.
+ */
+export type RuleSceneAnchor = {
+  fr: string;
+  /** The drawn cast member (`lib/cast-faces` id), or null for anyone without a face. */
+  castId: string | null;
+  /** The name printed beside the face; empty when the payload named nobody. */
+  name: string;
+};
+
+const ANCHOR_NAMES: Record<string, string> = {
+  margaux_barman: 'Margaux',
+  marin_leveque: 'Marin',
+  romy_tremblay: 'Romy',
+  lila_bonnet: 'Lila',
+  augustin_de_roncourt: 'Gus',
+  landlord_marchand: 'M. Marchand',
+};
+
+/**
+ * The scene anchor from a RULE step's prompt, or `null` when the prompt has
+ * none (an older payload, or a scene that did not carry the form) — the card
+ * is then exactly what it was. The speaker may be a cast id («margaux_barman»,
+ * «margaux») or a display name; an unknown one keeps its own spelling.
+ */
+export function ruleSceneAnchor(
+  prompt: { scene_example_fr?: string | null; scene_example_speaker?: string | null } | null | undefined,
+): RuleSceneAnchor | null {
+  const fr = typeof prompt?.scene_example_fr === 'string' ? prompt.scene_example_fr.trim() : '';
+  if (!plainText(fr).trim()) return null;
+  const speaker = typeof prompt?.scene_example_speaker === 'string' ? prompt.scene_example_speaker.trim() : '';
+  const castId = speaker ? castIdFor(speaker) : null;
+  const name = castId
+    ? ANCHOR_NAMES[castId] ?? speaker
+    : speaker
+      ? speaker.charAt(0).toUpperCase() + speaker.slice(1).replace(/_/g, ' ')
+      : '';
+  return { fr, castId, name };
+}

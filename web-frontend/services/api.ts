@@ -952,6 +952,14 @@ export interface VocabularyBiography {
   linked_errata_count: number;
   context_event_count: number;
   timeline: VocabularyBiographyEvent[];
+  /** WP-93: the episodes that brought the word back, newest first (older payloads lack it). */
+  revisited_in?: VocabularyBiographyRevisit[] | null;
+}
+
+/** WP-93: one episode that reused the word — «Revu dans l’épisode du 12 sept.» */
+export interface VocabularyBiographyRevisit {
+  date: string;
+  scene_title_fr: string;
 }
 
 export interface VocabularyMasteryMapCell {

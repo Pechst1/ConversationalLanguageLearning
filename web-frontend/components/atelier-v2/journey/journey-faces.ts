@@ -23,6 +23,10 @@ export function journeySpeaker(
       return { id: step.prompt.character_id || null, name: step.prompt.character_name };
     }
   }
+  // WP-93: «Coulisses» is someone's evening — theirs is the face on screen.
+  if (step?.kind === 'read' && step.prompt.character_name) {
+    return { id: step.prompt.character_id || null, name: step.prompt.character_name };
+  }
   const scenario = journey?.scenario;
   if (scenario?.character_name) {
     return { id: scenario.character_id || null, name: scenario.character_name };

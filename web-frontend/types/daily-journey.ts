@@ -21,7 +21,8 @@ export type JourneyStatus =
   | 'preparing' | 'active' | 'paused' | 'completed' | 'ended_early' | 'unavailable';
 /** WP-L4: `rule` is the Règle — the day's new grammar unit as its rule card. */
 /** WP-S4: `forge` is La Forge folded into a Soutenu/Intensif day — a hand-off step. */
-export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule' | 'forge';
+/** WP-93: `read` is an optional page to read — yesterday's page, or «Coulisses». */
+export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule' | 'forge' | 'read';
 export type StepStatus = 'pending' | 'active' | 'completed' | 'skipped';
 export type InputMode = 'text' | 'voice';
 export type HelpKind = 'hint' | 'translation' | 'solution' | 'suggested_response';
@@ -293,6 +294,13 @@ export type RulePrompt = {
   title_native: string;
   title_fr: string;
   rule_card: RuleCardData & { from_scene?: boolean };
+  /**
+   * WP-92: a line of today's scene that uses the rule — the card's first
+   * anchor example — and who says it (a cast id or name). Absent on older
+   * payloads, and null when the scene did not carry the form.
+   */
+  scene_example_fr?: string | null;
+  scene_example_speaker?: string | null;
 };
 export type RuleStep = PublicStepBase & { kind: 'rule'; prompt: RulePrompt };
 
@@ -312,7 +320,35 @@ export type ForgePrompt = {
 };
 export type ForgeStep = PublicStepBase & { kind: 'forge'; prompt: ForgePrompt };
 
-export type PublicStep = SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep;
+/**
+ * WP-93 «Plus d'histoire»: a page to read, advanced (never answered) and
+ * always optional. `relecture` is yesterday's page again; `coulisses` is the
+ * same evening from another cast member's point of view, written in the
+ * background — `writing` until the page is `ready` (the snapshot is re-read
+ * meanwhile), `unavailable` when it will not come today.
+ */
+export type ReadVariant = 'relecture' | 'coulisses';
+export type ReadStatus = 'ready' | 'writing' | 'unavailable';
+export type ReadPrompt = {
+  variant: ReadVariant;
+  title_fr: string;
+  scene_id: string | null;
+  status: ReadStatus;
+  audio_available: boolean;
+  /** Whose evening «Coulisses» tells (read defensively; older payloads lack it). */
+  character_id?: string | null;
+  character_name?: string | null;
+};
+export type ReadStep = PublicStepBase & { kind: 'read'; prompt: ReadPrompt };
+
+export type PublicStep =
+  | SceneStep
+  | RecallStep
+  | RespondStep
+  | ResolutionStep
+  | RuleStep
+  | ForgeStep
+  | ReadStep;
 
 /**
  * WP-S4: where «Forge today's rule» opens. `folded` — Soutenu/Intensif carry
@@ -679,7 +715,13 @@ export interface StoryPanel {
   id: string;
   index: number;
   narration_fr: string;
-  dialogue: Array<{ character_id: string; character_name?: string | null; text_fr: string }>;
+  dialogue: Array<{
+    character_id: string;
+    character_name?: string | null;
+    text_fr: string;
+    /** WP-92: where the day's rule is in the line — char offsets into `text_fr`. */
+    grammar_marks?: GrammarMark[] | null;
+  }>;
   image_url: string | null;
   /**
    * `panel_art`: the panel's own drawing. `rendering`: the location plate while that
@@ -700,7 +742,18 @@ export interface StoryEpisode {
   panel_index: number;
   panels: StoryPanel[];
   resolution: { text_fr: string | null; summary_native: string | null } | null;
+  /** WP-92: the rule this page was written around (absent on older payloads). */
+  grammar_focus?: GrammarFocus | null;
 }
+/** WP-92: one span of the rule's form in a line, `[start, end)` into `text_fr`. */
+export type GrammarMark = { unit_id: string | number; start: number; end: number };
+/** WP-92: the day's rule, as the page carries it. `woven: false` = «non tissée». */
+export type GrammarFocus = {
+  unit_id: string | number;
+  title_fr: string;
+  title_native: string;
+  woven: boolean | null;
+};
 export interface StoryEpisodePage {
   episodes: StoryEpisode[];
   next_cursor: string | null;

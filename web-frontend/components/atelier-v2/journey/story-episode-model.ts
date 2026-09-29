@@ -18,7 +18,8 @@
  *     (`resolution` is null until the exchange actually settles).
  */
 
-import type { StoryEpisode, StoryPanel } from '@/types/daily-journey';
+import type { ControlLanguage, GrammarFocus, StoryEpisode, StoryPanel } from '@/types/daily-journey';
+import { lineMarkRanges } from '@/components/feuilleton/reader/grammar-marks';
 import {
   readerCharacterKey,
   type ReaderLine,
@@ -150,7 +151,53 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
       // WP-77: a face beside every line a drawn character speaks.
       faceId: castIdFor(line.character_id, line.character_name),
       faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
+      // WP-92: the day's rule in this line, for «Rayons X» (the focus unit only).
+      ...lineMarks(line, episode),
     }));
+}
+
+function lineMarks(line: StoryDialogueLine, episode?: StoryEpisode | null): { marks?: ReaderLine['marks'] } {
+  const marks = lineMarkRanges(line.text_fr, line.grammar_marks, storyGrammarFocus(episode)?.unit_id ?? null);
+  return marks.length ? { marks } : {};
+}
+
+/**
+ * WP-92: the rule this page was written around, read defensively — an older
+ * payload has none, and a focus without a title cannot be named in a legend.
+ */
+export function storyGrammarFocus(episode: StoryEpisode | null | undefined): GrammarFocus | null {
+  const focus = (episode as { grammar_focus?: unknown } | null | undefined)?.grammar_focus;
+  if (!focus || typeof focus !== 'object') return null;
+  const value = focus as Partial<GrammarFocus>;
+  const titleFr = typeof value.title_fr === 'string' ? value.title_fr.trim() : '';
+  const titleNative = typeof value.title_native === 'string' ? value.title_native.trim() : '';
+  if (!titleFr && !titleNative) return null;
+  return {
+    unit_id: value.unit_id ?? '',
+    title_fr: titleFr,
+    title_native: titleNative,
+    woven: typeof value.woven === 'boolean' ? value.woven : null,
+  };
+}
+
+/**
+ * WP-92 «Rayons X»: the rule's name for the legend, in the reader's chrome
+ * language — the learner's up to A2 (`title_native`), French from B1. `null`
+ * when the page has no focus or no line carries a mark: then there is no
+ * toggle at all.
+ */
+export function storyRayonsTitle(
+  episode: StoryEpisode | null | undefined,
+  language: ControlLanguage | null | undefined,
+): string | null {
+  const focus = storyGrammarFocus(episode);
+  if (!focus) return null;
+  const marked = buildStoryStages(episode).some(
+    (stage) => stage.kind === 'panel' && stage.lines.some((line) => (line.marks?.length ?? 0) > 0),
+  );
+  if (!marked) return null;
+  const french = !language || language === 'fr';
+  return (french ? focus.title_fr || focus.title_native : focus.title_native || focus.title_fr) || null;
 }
 
 /** WP-90: a line's translation for the learner, when the director sent one. */

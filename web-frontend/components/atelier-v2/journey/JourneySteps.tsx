@@ -58,7 +58,7 @@ import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
-import { usableCard } from '@/lib/rule-card';
+import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
@@ -1183,11 +1183,16 @@ export function RuleStepView({
   busy,
   language,
   onContinue,
-}: { step: RuleStep; language: ControlLanguage } & Pick<
+  journeyId = null,
+}: { step: RuleStep; language: ControlLanguage; journeyId?: string | null } & Pick<
   StepViewCommonProps,
   'copy' | 'busy' | 'onContinue'
 >) {
   const card = step.prompt.rule_card;
+  // WP-92: the day's own line using the rule, when the scene carried it — the
+  // card's first anchor, said by its speaker (their voice when there is one).
+  const anchor = ruleSceneAnchor(step.prompt);
+  const voice = useStepVoice(journeyId, step.id);
   const proceed = () => {
     if (!busy) onContinue();
   };
@@ -1214,6 +1219,9 @@ export function RuleStepView({
         variant="intro"
         conceptId={step.prompt.concept_id}
         onDone={proceed}
+        sceneAnchor={anchor}
+        sceneVoice={anchor ? voice : null}
+        sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}
       />
     </section>
   );

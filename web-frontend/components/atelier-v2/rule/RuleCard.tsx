@@ -14,6 +14,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
+import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import apiService from '@/services/api';
 import {
   RULE_CARD_COPY,
@@ -22,6 +24,7 @@ import {
   plainText,
   type RuleCardData,
   type RuleCardShape,
+  type RuleSceneAnchor,
 } from '@/lib/rule-card';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
@@ -105,9 +108,77 @@ export type RuleCardProps = {
    */
   coach?: { id: string; name: string } | null;
   coachMood?: PortraitMood;
+  /**
+   * WP-92: the day's own line using the rule — the FIRST anchor, with its
+   * speaker's face and «in today's scene». The card's generic example follows
+   * it (in the body face: the scene line is the screen's one Garamond line).
+   * Absent: the card is unchanged.
+   */
+  sceneAnchor?: RuleSceneAnchor | null;
+  /** WP-91: the face speaks the scene line when a voice is at hand. */
+  sceneVoice?: LineVoice | null;
+  /** «Écouter Margaux», in the learner's language. */
+  sceneListenLabel?: string;
 };
 
-export function RuleCard({ card, language, variant = 'intro', conceptId, onDone, coach, coachMood = 'neutral' }: RuleCardProps) {
+function SceneAnchor({
+  anchor,
+  variant,
+  label,
+  voice,
+  listenLabel,
+}: {
+  anchor: RuleSceneAnchor;
+  variant: 'intro' | 'inline';
+  label: string;
+  voice?: LineVoice | null;
+  listenLabel?: string;
+}) {
+  const text = plainText(anchor.fr);
+  return (
+    <div className="rc-scene" data-anchor="scene">
+      <div className="rc-source">
+        {anchor.castId && (
+          <SpeakingPortrait
+            characterId={anchor.castId}
+            name={anchor.name}
+            size="xs"
+            ring
+            line={{ key: 'rule-scene-anchor', text_fr: text, character_id: anchor.castId }}
+            voice={voice}
+            label={listenLabel || anchor.name}
+          />
+        )}
+        <span className="rc-source__name">
+          {anchor.name && <span className="rc-scene__who">{anchor.name}</span>}
+          <span className="rc-scene__label">{label}</span>
+        </span>
+      </div>
+      {variant === 'intro' ? (
+        <h2 className="av2-headline rc-example" lang="fr">
+          <Marked value={anchor.fr} />
+        </h2>
+      ) : (
+        <p className="rc-example rc-example--inline" lang="fr">
+          <Marked value={anchor.fr} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function RuleCard({
+  card,
+  language,
+  variant = 'intro',
+  conceptId,
+  onDone,
+  coach,
+  coachMood = 'neutral',
+  sceneAnchor = null,
+  sceneVoice = null,
+  sceneListenLabel,
+}: RuleCardProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
   const [showTranslation, setShowTranslation] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
@@ -129,6 +200,16 @@ export function RuleCard({ card, language, variant = 'intro', conceptId, onDone,
     <section className="rc" data-variant={variant} aria-label={copy.eyebrow}>
       {variant === 'intro' && <p className="av2-label av2-label--story rc-eyebrow">{copy.eyebrow}</p>}
 
+      {sceneAnchor && (
+        <SceneAnchor
+          anchor={sceneAnchor}
+          variant={variant}
+          label={copy.fromScene}
+          voice={sceneVoice}
+          listenLabel={sceneListenLabel}
+        />
+      )}
+
       <div className="rc-source">
         {speakerId && speakerName && (
           <CastPortrait characterId={speakerId} name={speakerName} mood={speakerMood} size="sm" ring />
@@ -148,7 +229,7 @@ export function RuleCard({ card, language, variant = 'intro', conceptId, onDone,
         </button>
       </div>
 
-      {variant === 'intro' ? (
+      {variant === 'intro' && !sceneAnchor ? (
         <h2 className="av2-headline rc-example" lang="fr">
           <Marked value={card.example.fr} />
         </h2>

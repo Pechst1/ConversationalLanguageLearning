@@ -183,13 +183,20 @@ export function endingLine(language: string | null | undefined): string {
  * the character's face and a short "…" line, never a spinner. The hook polls the
  * journey meanwhile; the server heals a dead lane with the authored ending.
  */
-export function StoryWriting({ speaker }: { speaker: ReplySpeaker }) {
+export function StoryWriting({
+  speaker,
+  line = null,
+}: {
+  speaker: ReplySpeaker;
+  /** WP-93: what is being written, when it is not the ending («La soirée de Marin s’écrit…»). */
+  line?: string | null;
+}) {
   const language = useControlLanguage();
   return (
     <div className="av2-reply av2-reply--typing" role="status" aria-live="polite">
       {speaker && <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="sm" />}
       <p className="av2-reply__typing">
-        <span>{endingLine(language)}</span>
+        <span>{line || endingLine(language)}</span>
         <span className="av2-reply__dots" aria-hidden="true">
           <i />
           <i />

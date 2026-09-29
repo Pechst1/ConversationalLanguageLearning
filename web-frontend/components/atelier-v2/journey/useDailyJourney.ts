@@ -91,6 +91,7 @@ import {
   type MutationOutcome,
 } from './journey-requests';
 import { loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import { READ_POLL_LIMIT, READ_POLL_MS, readPollTarget } from './read-step-model';
 import {
   shouldPollStoryArt,
   STORY_ART_POLL_MS,
@@ -492,6 +493,27 @@ export function useDailyJourney(
     }, STORY_POLL_MS);
     return () => clearTimeout(timer);
   }, [storyTarget, journey, applySnapshot]);
+
+  // WP-93: «Coulisses» is written in the background. While the current READ
+  // step says `writing`, re-read the journey gently (a safe GET) until it is
+  // `ready` or `unavailable`; bounded, and the step stays skippable meanwhile.
+  const readPollsRef = useRef(0);
+  const readTarget = readPollTarget(journey);
+  useEffect(() => {
+    if (!readTarget) {
+      readPollsRef.current = 0;
+      return undefined;
+    }
+    if (readPollsRef.current >= READ_POLL_LIMIT) return undefined;
+    const timer = setTimeout(() => {
+      readPollsRef.current += 1;
+      void dailyJourneyService
+        .get(readTarget)
+        .then((next) => applySnapshot(next))
+        .catch(() => undefined);
+    }, READ_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [readTarget, journey, applySnapshot]);
 
   // WP-90: the day's story episode. Read when the scene or the resolution
   // becomes current (the reader and the «case finale» both draw it), then

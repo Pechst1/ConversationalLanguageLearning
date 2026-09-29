@@ -15,6 +15,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { frenchSpacing } from '@/lib/french-typography';
 
 import { rovingWordTarget, tokenizeFrench } from './french-text';
+import { markTokens, type MarkRange } from './grammar-marks';
 
 const DEFAULT_WORD_LABEL = 'Aide pour « {word} »';
 
@@ -29,6 +30,7 @@ export function TappableFrench({
   disabled = false,
   wordLabel = DEFAULT_WORD_LABEL,
   roving = false,
+  marks = null,
 }: {
   text: string;
   idPrefix: string;
@@ -38,10 +40,21 @@ export function TappableFrench({
   wordLabel?: string;
   /** Inside a `FrenchLine`: the words leave the Tab order and rove by arrow. */
   roving?: boolean;
+  /**
+   * WP-92 «Rayons X»: the rule's form in this line (ranges into `text`). Marks
+   * snap to whole words, so a word button is marked whole, never split.
+   */
+  marks?: MarkRange[] | null;
 }) {
   // WP-82: « ? ! » stay on their word's line (U+202F). The narrow space is a
   // non-word run, so the tappable words — and their lookup terms — are unchanged.
-  const tokens = useMemo(() => tokenizeFrench(frenchSpacing(text), idPrefix), [idPrefix, text]);
+  const tokens = useMemo(
+    () =>
+      marks && marks.length
+        ? markTokens(text, marks, idPrefix)
+        : tokenizeFrench(frenchSpacing(text), idPrefix).map((token) => ({ ...token, marked: false })),
+    [idPrefix, text, marks],
+  );
   if (!tokens.length) return null;
   return (
     <>
@@ -52,6 +65,7 @@ export function TappableFrench({
             type="button"
             className="fr-word"
             data-word=""
+            data-mark={token.marked ? 'rule' : undefined}
             tabIndex={roving ? -1 : undefined}
             onClick={() => onWord({ surface: token.text, term: token.term })}
             aria-label={labelFor(wordLabel, token.text)}
@@ -59,7 +73,9 @@ export function TappableFrench({
             {token.text}
           </button>
         ) : (
-          <span key={token.key}>{token.text}</span>
+          <span key={token.key} data-mark={token.marked ? 'rule' : undefined}>
+            {token.text}
+          </span>
         ),
       )}
     </>
@@ -77,12 +93,24 @@ export function FrenchLine({
   onWord,
   wordLabel,
   className = 'fr-line',
+  marks = null,
+  marksLabel = '',
+  marksLang,
 }: {
   text: string;
   idPrefix: string;
   onWord: (word: { surface: string; term: string }) => void;
   wordLabel?: string;
   className?: string;
+  /** WP-92 «Rayons X»: the rule's form in this line, when the marks are on. */
+  marks?: MarkRange[] | null;
+  /**
+   * What a screen reader hears once for the line while the marks are on —
+   * «Today's rule: suis allé» — visually hidden, and the line's description.
+   */
+  marksLabel?: string;
+  /** The label's language (the reader's chrome); the line itself is French. */
+  marksLang?: string;
 }) {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLParagraphElement>) => {
@@ -101,6 +129,8 @@ export function FrenchLine({
     else words[next]?.focus();
   }, []);
   const sentence = frenchSpacing(text);
+  const marked = Boolean(marks && marks.length && marksLabel);
+  const describedBy = marked ? `${idPrefix}-rx` : undefined;
   return (
     <p
       ref={ref}
@@ -109,10 +139,24 @@ export function FrenchLine({
       role="group"
       tabIndex={0}
       aria-label={sentence}
+      aria-describedby={describedBy}
       data-roving-line=""
+      data-marked={marked ? 'true' : undefined}
       onKeyDown={onKeyDown}
     >
-      <TappableFrench text={text} idPrefix={idPrefix} onWord={onWord} wordLabel={wordLabel} roving />
+      <TappableFrench
+        text={text}
+        idPrefix={idPrefix}
+        onWord={onWord}
+        wordLabel={wordLabel}
+        roving
+        marks={marks}
+      />
+      {marked && (
+        <span className="fr-sr" id={describedBy} lang={marksLang}>
+          {` ${marksLabel}`}
+        </span>
+      )}
     </p>
   );
 }
