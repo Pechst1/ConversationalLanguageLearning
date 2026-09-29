@@ -335,6 +335,42 @@ learners with sub-500 ms p95 latency, as outlined in the roadmap.
 
 
 
+## Browser walk (E-3)
+
+A scripted 7-day walk in a real browser, so nobody has to click through the app to see what
+a learner sees. From `web-frontend/`:
+
+```bash
+npm install && npx playwright install chromium   # once
+npm run walk                                     # ~6 minutes; screenshots in e2e/out/<timestamp>/
+```
+
+It starts its **own** throwaway Postgres database (`atelier_walk_<timestamp>`, migrated with
+`alembic upgrade head`, dropped at the end), the API on `scripts/dev_walk_server.py` (the fake
+story provider, no paid call) and a Next dev server with its own build directory, all on free
+ports. It never uses 3000/8000/8010/8011 or your databases. Learners are registered through
+the API and signed in with a minted NextAuth cookie; no password is typed.
+
+- **Days 2..7** run in minutes because the API has a test-only clock:
+  `POST /api/v1/dev/test-clock {"offset_days": n}` (`app/core/test_clock.py`). It exists only
+  with `ATELIER_TEST_CLOCK_ENABLED=true` and the app refuses to start with it when
+  `APP_ENV=production`.
+- **What is played:** day 1 (authored) to day 7 for an English, a German and a French learner
+  side by side, plus a B1 learner for three days: the reader, the conversation, drills, the rule,
+  La Forge, the recap, Home, Courrier and Feuilleton. Dictation appears only when line audio is on
+  (it is off here).
+- **Output:** `d<day>-<n>-<screen>-light.png` / `-dark.png` at 375x812 per learner, `index.html`
+  (a contact sheet with the failed assertions on top) and `report.json`.
+- **Assertions** ask, per screen: does the learner know what to do, whether they were right, and
+  how to go on? (a goal line on every drill; no «not reached the server» banner while typing; Next
+  never moves in the reader; one verdict per question and never reversed, including after
+  «Je relis…»; no English on French B1+ screens; a way forward on every screen; no horizontal
+  scroll; no uncaught error or 5xx). A failed assertion exits 1: it is a finding, not a flake.
+- **Options:** `--langs en,de,fr`, `--days 7`, `--b1-days 3`, `--out DIR`, `--keep` (leave the
+  servers up). `WALK_SCALE=2` for retina screenshots. `--live` is not supported.
+- **CI:** `.github/workflows/walk.yml` runs it on pull requests and nightly and uploads the output
+  folder as an artifact (nightly: kept 7 days).
+
 ## Background Tasks & Scheduled Jobs
 
 The application uses Celery with Redis for background task processing and scheduled jobs.

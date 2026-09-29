@@ -17,6 +17,9 @@ const isStoryFeatureVisible = Boolean(launchFlags.storyFeatureVisible);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // E-3: the walk harness runs its own dev server beside the owner's; a separate
+  // build directory keeps the two from overwriting each other's manifests.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   swcMinify: true,
   output: isNativeStaticExport ? 'export' : undefined,

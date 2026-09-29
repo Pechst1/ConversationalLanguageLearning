@@ -51,7 +51,8 @@
     "test:respond-thread": "node --test components/atelier-v2/journey/respond-thread.test.js",
     "test:voices": "node --test components/atelier-v2/journey/voices.test.js",
     "test:home": "node --test components/atelier-v2/home/home.test.js",
-    "test:french-typography": "node --test lib/french-typography.test.js"
+    "test:french-typography": "node --test lib/french-typography.test.js",
+    "walk": "node e2e/walk.mjs"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",
@@ -79,6 +80,7 @@
     "yup": "^1.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
     "@types/node": "^20.9.4",
