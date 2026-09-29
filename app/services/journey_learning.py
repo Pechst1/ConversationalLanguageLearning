@@ -845,6 +845,7 @@ def _with_grammar_briefs(
         if brief is None:
             out.append(candidate)
             continue
+        brief = _with_coach_scene(brief, language=str(language))
         out.append(
             replace(candidate, metadata={**dict(candidate.metadata or {}), "grammar_brief": brief})
         )
@@ -1479,7 +1480,8 @@ def evaluate_recall(
         observation = None
     if observation is not None:
         # WP-L4: a grammar unit is credited with the weight of the format.
-        observation = replace(observation, task_format=task.task_type)
+        # WP-94: the Rappel's coach mini-scene proves free use, not a transform.
+        observation = replace(observation, task_format=task.evidence_format or task.task_type)
     correction = None
     if not is_correct:
         correction = build_correction(
@@ -2878,7 +2880,138 @@ def _uuid_or_none(value: Any) -> UUID | None:
         return None
 
 
+# --------------------------------------------------------------------------
+# WP-94 — the Rappel's coach mini-scene (free use elicited, not hoped for)
+# --------------------------------------------------------------------------
+
+_COACH_SCENE_INSTRUCTION: dict[str, str] = {
+    "en": "{name} is talking to you. Reply in French: “{meaning}”",
+    "de": "{name} spricht dich an. Antworte auf Französisch: „{meaning}“",
+    "fr": "{name} vous parle. Répondez en français : « {meaning} »",
+}
+
+
+def coach_scene_review_task(
+    brief: dict[str, Any], *, language: str, day_key: str
+) -> RecallTask | None:
+    """A strong unit's Rappel: the rule's coach says a line, the learner replies.
+
+    Past :data:`grammar_items.REEMPLOI_STABILITY_DAYS` (10 days) of stability
+    the Rappel used to pose nothing and *hope* the reply would use the unit.
+    WP-94 poses the Forge's two-line scene instead (``item_bank`` +
+    ``forge_coaches.mini_scene``, the same one ``item_bank.scene_item``
+    builds): the coach's line in French, the reply's meaning as the cue. It is
+    a ``short_answer`` on the wire (every client renders one), graded by
+    :func:`answer_matches` against the scene's reply and the frame's accepted
+    variants, and credited as free use (``evidence_format="conversation"``).
+    ``None`` when the unit has no bank templates, no coach, or no item that
+    can be a scene with that coach — then the reply asks for it, as before.
+    """
+
+    from app.services import forge_coaches, grammar_items, item_bank
+
+    external_id = str(brief.get("external_id") or "")
+    if not external_id or brief.get("concept_id") is None:
+        return None
+    units = item_bank.units_for_external_id(external_id)
+    coach = forge_coaches.coach_for_concept(external_id)
+    if not units or not coach:
+        return None
+    unit = units[0]
+    candidates = item_bank.default_bank().generate(
+        unit, 8, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+    )
+    for item in candidates:
+        scene = forge_coaches.mini_scene(item, coach)
+        if scene is None:
+            continue
+        line = scene["lines"][0]
+        name = str(coach.get("name") or "")
+        template = _COACH_SCENE_INSTRUCTION.get(language, _COACH_SCENE_INSTRUCTION["en"])
+        accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
+        return RecallTask(
+            task_type="short_answer",
+            instruction_native=template.format(name=name, meaning=scene["reply_en"]),
+            prompt_fr=f"{name} : « {line['fr']} »",
+            options=[],
+            target=grammar_items.grammar_target(brief),
+            optional=False,
+            accepted_answers=accepted,
+            solution_fr=scene["reply"],
+            translation_native=(str(line.get("en") or "") or None) if language == "en" else None,
+            estimated_seconds=40,
+            evidence_format="conversation",
+        )
+    return None
+
+
+def _with_coach_scene(brief: dict[str, Any], *, language: str) -> dict[str, Any]:
+    """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
+
+    JSON-safe (the planner stays pure: it rebuilds the ``RecallTask`` from this
+    and the brief's own target). Seeded by the day, so one day asks one scene.
+    """
+
+    from app.services import grammar_items
+
+    if grammar_items.review_band(brief.get("stability")) != "high":
+        return brief
+    try:
+        task = coach_scene_review_task(
+            brief, language=language, day_key=datetime.now(UTC).date().isoformat()
+        )
+    except Exception:  # pragma: no cover - a Rappel item is never worth the day
+        logger.exception("journey_coach_scene_unavailable")
+        task = None
+    if task is None:
+        return brief
+    return {
+        **brief,
+        "coach_scene": {
+            "task_type": task.task_type,
+            "instruction_native": task.instruction_native,
+            "prompt_fr": task.prompt_fr,
+            "options": [],
+            "optional": task.optional,
+            "accepted_answers": list(task.accepted_answers),
+            "solution_fr": task.solution_fr,
+            "translation_native": task.translation_native,
+            "estimated_seconds": task.estimated_seconds,
+            "evidence_format": task.evidence_format,
+        },
+    }
+
+
+def measured_avoidance_rate(db: Session, *, limit: int = 500) -> dict[str, Any]:
+    """WP-94 harness honesty: how often a reply asked for a unit and avoided it.
+
+    Reads WP-L4's ``concept_evidence`` on the most recent respond steps
+    (``correct`` / ``error`` / ``avoided``; ``undetected`` is left out — no
+    detector, no verdict). ``rate`` is ``None`` under 20 verdicts.
+    """
+
+    from app.db.models.daily_journey import DailyJourneyStep
+    from app.services.journey_contracts import StepKind
+
+    rows = db.scalars(
+        select(DailyJourneyStep.private_task)
+        .where(DailyJourneyStep.kind == str(StepKind.RESPOND))
+        .order_by(DailyJourneyStep.completed_at.desc().nullslast())
+        .limit(limit)
+    ).all()
+    counts = {"correct": 0, "error": 0, "avoided": 0}
+    for private in rows:
+        for item in (private or {}).get("concept_evidence") or []:
+            outcome = item.get("outcome") if isinstance(item, dict) else None
+            if outcome in counts:
+                counts[outcome] += 1
+    total = sum(counts.values())
+    return {**counts, "total": total, "rate": (counts["avoided"] / total) if total >= 20 else None}
+
+
 __all__ = [
+    "coach_scene_review_task",
+    "measured_avoidance_rate",
     "BACKGROUND_ERRATA_CAP",
     "CANDIDATE_HISTORY_LIMIT",
     "CANDIDATE_SECONDS",

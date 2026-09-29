@@ -108,6 +108,19 @@ class TargetRef(JourneyModel):
     concept_title: bool = False
 
 
+class EpreuveCanDo(JourneyModel):
+    id: str
+    title_fr: str | None = None
+    title_native: str | None = None
+
+
+class EpreuveView(JourneyModel):
+    """WP-94 «Numéro spécial» — the band the épreuve closes and its can-dos."""
+
+    band: str | None = None
+    can_dos: list[EpreuveCanDo] = Field(default_factory=list)
+
+
 class ScenarioDescriptor(JourneyModel):
     scenario_key: str
     content_version: str
@@ -124,6 +137,11 @@ class ScenarioDescriptor(JourneyModel):
     serial_thread_id: str | None = None
     serial_episode_id: str | None = None
     estimated_seconds: int
+    #: WP-94. On the offered scenario (``TodayEnvelope.available``) only: the
+    #: épreuve is due, so Home can show the special edition before Start.
+    #: ``None`` on a created journey's scenario — that one's are on the snapshot.
+    special: Literal["epreuve"] | None = None
+    epreuve: EpreuveView | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -690,19 +708,6 @@ class MasteryToday(JourneyModel):
 
     held_concept_ids: list[int] = Field(default_factory=list)
     tested_out_concept_ids: list[int] = Field(default_factory=list)
-
-
-class EpreuveCanDo(JourneyModel):
-    id: str
-    title_fr: str | None = None
-    title_native: str | None = None
-
-
-class EpreuveView(JourneyModel):
-    """WP-94 «Numéro spécial» — the band the épreuve closes and its can-dos."""
-
-    band: str | None = None
-    can_dos: list[EpreuveCanDo] = Field(default_factory=list)
 
 
 class JourneySnapshot(JourneyModel):

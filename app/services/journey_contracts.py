@@ -568,6 +568,10 @@ class RecallTask:
     translation_native: str | None = None
     solution_fr: str | None = None
     estimated_seconds: int = 45
+    #: WP-94: what a correct answer proves, when it is not what ``task_type``
+    #: proves (``memory.FORMAT_BY_NAME``): the Rappel's coach mini-scene is a
+    #: ``short_answer`` on the wire and a ``conversation`` (free use) in memory.
+    evidence_format: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -2786,6 +2786,11 @@ def fill_practice_items(
                     language=scenario.control_language,
                     day_key=day_key,
                 )
+                if task is None and grammar_items.review_band(brief.get("stability")) == "high":
+                    # WP-94: past 10 days of stability the Rappel is the coach's
+                    # mini-scene — free use elicited, not hoped for in the reply.
+                    # Built by the learning adapter (``coach_scene`` on the brief).
+                    task = _coach_scene_task(brief)
                 if task is None or not shape_allows_format(shape, task.task_type):
                     continue
                 if grammar_uses(items) >= 1 and _same_concept_last(items, entry.target):
@@ -4034,6 +4039,18 @@ def _rationale(
     parts.extend(notes)
     return "; ".join(parts)
 
+
+
+def _coach_scene_task(brief: dict[str, Any]) -> RecallTask | None:
+    """WP-94: the strong unit's coach mini-scene, as the learning adapter built it."""
+
+    scene = brief.get("coach_scene")
+    if not isinstance(scene, dict) or not scene.get("accepted_answers"):
+        return None
+    try:
+        return RecallTask(target=grammar_items.grammar_target(brief), **scene)
+    except (TypeError, KeyError, ValueError):
+        return None
 
 __all__ = [
     "AUDIO_PLAYBACK_SECONDS_PER_TOKEN",

@@ -396,6 +396,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         "translation_native": task.translation_native,
         "solution_fr": task.solution_fr,
         "estimated_seconds": task.estimated_seconds,
+        # WP-94: only when set, so every other stored task reads as before.
+        **({"evidence_format": task.evidence_format} if task.evidence_format else {}),
     }
 
 
@@ -414,6 +416,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         translation_native=payload.get("translation_native"),
         solution_fr=payload.get("solution_fr"),
         estimated_seconds=int(payload.get("estimated_seconds", 45)),
+        evidence_format=payload.get("evidence_format") or None,
     )
 
 
@@ -2314,7 +2317,48 @@ class DailyJourneyService:
         # learner's recent planned days, else the planner's prior — never the
         # rhythm's budget when the plan comes in under it.
         descriptor["estimated_seconds"] = self._expected_day_seconds(user)
+        # WP-94: the special edition is announced before Start.
+        descriptor.update(self._offered_epreuve(user))
         return ScenarioDescriptor.model_validate(descriptor)
+
+    def _offered_epreuve(self, user: User) -> dict[str, Any]:
+        """Is today's (not yet written) scene the band's épreuve? Read-only, no model call.
+
+        The engine's own rule, asked ahead: the checkpoint says ``checkpoint_ready``
+        and ``living_story.epreuve_plan`` would stage one over the band's
+        least-evidenced can-dos (``can_do_menu``). Only with the story engine on:
+        nothing else stages an épreuve.
+        """
+
+        none = {"special": None, "epreuve": None}
+        if not settings.ATELIER_STORY_ENGINE_ENABLED:
+            return none
+
+        def read() -> dict[str, Any]:
+            from app.services import living_story
+            from app.services.can_do import epreuve_snapshot_view
+
+            view = living_story.scene_checkpoint(self.db, user)
+            if not isinstance(view, dict) or not view.get("checkpoint_ready"):
+                return none
+            language = normalize_control_language(user.native_language)
+            menu = living_story.can_do_menu(
+                self.db, user, band=view.get("band"), control_language=str(language)
+            )
+            plan = living_story.epreuve_plan(view, menu, {}, {})
+            if not plan:
+                return none
+            return {
+                "special": "epreuve",
+                "epreuve": epreuve_snapshot_view(
+                    {"band": plan.get("band"), "can_do_ids": plan.get("can_do_ids")},
+                    user.native_language,
+                ),
+            }
+
+        return run_best_effort(
+            self.db, "daily_journey: offered épreuve", read, default=none, log=logger
+        )
 
     def _expected_day_seconds(self, user: User) -> int:
         from app.services.journey_planner import EXPECTED_DAY_SAMPLE, expected_day_seconds
@@ -4056,6 +4100,7 @@ class DailyJourneyService:
                 outcome=str((private.get("result") or {}).get("outcome") or ""),
                 turns=list(private.get("turns") or []),
                 concept_evidence=list(private.get("concept_evidence") or []),
+                now=_utcnow(),
             ),
             default=None,
             log=logger,

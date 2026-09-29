@@ -331,3 +331,138 @@ def test_the_checkpoint_view_says_whether_a_story_stages_the_epreuve(monkeypatch
     assert view["staged_in_story"] is False
     monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True, raising=False)
     assert checkpoints.checkpoint_view("A1.1", None, coverage_met=False, now=datetime.now(UTC))["staged_in_story"]
+
+
+# ---------------------------------------------------------------------------
+# WP-94 harness honesty — the Rappel's coach mini-scene, and avoidance
+# ---------------------------------------------------------------------------
+
+
+def _strong_brief(external_id: str = "FR2_A11_JE_VOUDRAIS") -> dict:
+    return {
+        "concept_id": 4242,
+        "external_id": external_id,
+        "title_fr": "je voudrais",
+        "title_native": "I would like",
+        "stability": 12.0,
+    }
+
+
+def test_a_strong_units_rappel_is_the_coachs_mini_scene_credited_as_free_use() -> None:
+    from app.core.srs.memory import EvidenceFormat, format_for_name
+    from app.services.daily_journey import _recall_task_from_json, _recall_task_to_json
+    from app.services.grammar_items import review_band, review_item
+    from app.services.journey_contracts import AssistanceLevel, AttemptAnswer, InputMode
+    from app.services.journey_learning import coach_scene_review_task, evaluate_recall
+
+    brief = _strong_brief()
+    assert review_band(brief["stability"]) == "high"
+    assert review_item(brief, sentences=[], language="en", day_key="d") is None, "before: nothing posed"
+    task = coach_scene_review_task(brief, language="de", day_key="2026-09-29")
+    assert task is not None and task.task_type == "short_answer"
+    assert task.prompt_fr and "«" in task.prompt_fr and task.instruction_native.endswith("“")
+    assert task.evidence_format == "conversation"
+    assert format_for_name(task.evidence_format) is EvidenceFormat.PRODUCE
+    # The reply is never printed in the prompt (no spoil).
+    assert task.solution_fr not in task.prompt_fr
+    # It survives the private-task round trip, and a plain task still reads as before.
+    assert _recall_task_from_json(_recall_task_to_json(task)).evidence_format == "conversation"
+    assert "evidence_format" not in _recall_task_to_json(
+        _recall_task_from_json({**_recall_task_to_json(task), "evidence_format": None})
+    )
+    evaluation = evaluate_recall(
+        None, user=None, task=task,
+        answer=AttemptAnswer(mode=InputMode.TEXT, text=task.solution_fr),
+        assistance=AssistanceLevel.NONE,
+    )
+    assert evaluation.outcome == "met"
+    assert evaluation.observations[0].task_format == "conversation"
+    # Deterministic per day; a unit without bank templates poses nothing.
+    assert coach_scene_review_task(brief, language="de", day_key="2026-09-29") == task
+    assert coach_scene_review_task(_strong_brief("FR2_UNKNOWN"), language="en", day_key="d") is None
+
+
+def test_measured_avoidance_slows_the_harness_hold() -> None:
+    from app.core.srs.rhythm_horizon import simulate_rhythm_horizon
+
+    bands = [("A1.1", 12, 60), ("A1.2", 12, 60)]
+
+    def held(avoidance: float) -> tuple[int, int]:
+        run = simulate_rhythm_horizon(
+            "regulier", 0.9, bands=bands, seance_seconds=540, seance_graded=8, days=90, avoidance=avoidance
+        )
+        return len(run.bands_closed), run.days[-1].percent
+
+    assert held(0.0) >= held(0.5) >= held(1.0)
+    assert held(0.0) > held(1.0), "a learner who always avoids the form is never held"
+
+
+def test_the_avoidance_rate_is_measured_from_concept_evidence(db_session: Session) -> None:
+    from app.services.journey_learning import measured_avoidance_rate
+
+    view = measured_avoidance_rate(db_session)
+    assert set(view) == {"correct", "error", "avoided", "total", "rate"}
+    assert view["rate"] is None or 0.0 <= view["rate"] <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# WP-94 — the special edition is announced on the offer, before Start
+# ---------------------------------------------------------------------------
+
+
+def test_the_offered_scenario_announces_the_epreuve_before_start(
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    from app.config import settings
+
+    user = make_user(db_session, f"wp94-offer-{uuid.uuid4().hex[:6]}@example.com", native_language="de")
+    service = _service(db_session)
+    # Nothing is due yet: an ordinary offer.
+    before = service.get_today(user)
+    assert before.available is not None
+    assert before.available.special is None and before.available.epreuve is None
+
+    _ready(db_session, user)
+    monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True, raising=False)
+    offered = service._offered_epreuve(user)
+    assert offered["special"] == "epreuve"
+    epreuve = offered["epreuve"]
+    assert epreuve["band"] == "A1.1", "the band the épreuve closes"
+    assert 2 <= len(epreuve["can_dos"]) <= 3
+    assert all(item["id"].startswith("CD_A11_") and item["title_native"] for item in epreuve["can_dos"])
+
+    # Wired into the envelope: `available` carries it (the offer itself is stubbed
+    # here — the engine's own offer needs a story thread).
+    monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False, raising=False)
+    monkeypatch.setattr(DailyJourneyService, "_offered_epreuve", lambda self, user: offered)
+    today = service.get_today(user)
+    assert today.available.special == "epreuve"
+    assert today.available.epreuve.band == "A1.1"
+    assert today.model_dump(mode="json")["available"]["epreuve"]["can_dos"][0]["title_native"]
+
+
+def test_no_epreuve_is_offered_without_the_story_engine_or_readiness(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.config import settings
+
+    user = make_user(db_session, f"wp94-nooffer-{uuid.uuid4().hex[:6]}@example.com")
+    service = _service(db_session)
+    monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", True, raising=False)
+    assert service._offered_epreuve(user) == {"special": None, "epreuve": None}, "not ready"
+    _ready(db_session, user)
+    monkeypatch.setattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False, raising=False)
+    assert service._offered_epreuve(user) == {"special": None, "epreuve": None}, "engine off"
+
+
+def test_the_planner_poses_the_coach_scene_the_learning_adapter_attached() -> None:
+    from app.services.journey_learning import _with_coach_scene
+    from app.services.journey_planner import _coach_scene_task
+
+    weak = {**_strong_brief(), "stability": 4.0}
+    assert "coach_scene" not in _with_coach_scene(weak, language="en")
+    brief = _with_coach_scene(_strong_brief(), language="en")
+    task = _coach_scene_task(brief)
+    assert task is not None and task.evidence_format == "conversation"
+    assert task.target.kind == "grammar" and task.target.id == "4242"
+    assert _coach_scene_task(_strong_brief()) is None

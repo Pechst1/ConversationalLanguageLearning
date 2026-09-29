@@ -177,8 +177,17 @@ def simulate_rhythm_horizon(
     seance_graded: int,
     days: int = HORIZON_DAYS,
     seed: int = 20260924,
+    avoidance: float = 0.0,
 ) -> RhythmHorizon:
-    """``bands``: ``[(label, units_total, words_total), …]`` in teaching order."""
+    """``bands``: ``[(label, units_total, words_total), …]`` in teaching order.
+
+    ``avoidance`` (WP-94 harness honesty): the share of free-use Rappels in
+    which the learner says something right *without* the unit — measured from
+    the pilot's WP-L4 ``concept_evidence`` (``journey_learning.
+    measured_avoidance_rate``). Such a Rappel still counts, as a transform, but
+    it is not free use, so it cannot move the unit towards «Tenue». ``0``
+    replays the old assumption (free use at every high-stability review).
+    """
 
     from app.services.intake_throttle import ThrottleSignals, decide
 
@@ -242,7 +251,10 @@ def simulate_rhythm_horizon(
 
         for item in due_units:
             correct = rng.random() < accuracy
-            observe(item, day, Evidence(rappel_format(item.state.stability), correct=correct))
+            fmt = rappel_format(item.state.stability)
+            if avoidance > 0 and fmt is EvidenceFormat.PRODUCE and rng.random() < avoidance:
+                fmt = EvidenceFormat.TRANSFORM
+            observe(item, day, Evidence(fmt, correct=correct))
             item.last_correct = correct
         for item in due_words:
             correct = rng.random() < accuracy

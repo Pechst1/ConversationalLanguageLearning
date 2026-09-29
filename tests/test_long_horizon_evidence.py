@@ -154,6 +154,25 @@ def _with_lexicon(schema: str, value: dict[str, Any]) -> dict[str, Any]:
     return {**value, "lexicon": lexicon}
 
 
+def _compliant_director(provider: Any):
+    """``_with_lexicon`` plus WP-95's can-do: a compliant director takes the first
+    can-do of ``can_dos.prefer`` (the least evidenced, unstamped first) when its
+    draft names none — what the DIRECTOR prompt asks of the real one."""
+
+    def transform(schema: str, value: dict[str, Any]) -> dict[str, Any]:
+        value = _with_lexicon(schema, value)
+        if schema != "SceneDraft" or value.get("can_do_id"):
+            return value
+        contexts = provider.director_contexts()
+        menu = (contexts[-1] if contexts else {}).get("can_dos") or {}
+        prefer = list(menu.get("prefer") or []) or [
+            option.get("id") for option in menu.get("options") or [] if isinstance(option, dict)
+        ]
+        return {**value, "can_do_id": prefer[0]} if prefer and prefer[0] else value
+
+    return transform
+
+
 # ---------------------------------------------------------------------------
 # One clock for six packages
 # ---------------------------------------------------------------------------
@@ -581,7 +600,8 @@ def horizon_run(
     provider.long_memory = True
     provider.season_engine = True
     # WP-86: the fake director also teaches words, as the DIRECTOR prompt asks.
-    provider.transform = _with_lexicon
+    # WP-95: and names the can-do its scene exercises, from the menu it was given.
+    provider.transform = _compliant_director(provider)
 
     dice: list[tuple[Any, Any]] = []
     real_choice = daily_journey_service.choose_day_shape
@@ -1230,3 +1250,36 @@ def test_the_run_is_written_down(horizon: Horizon, capsys) -> None:
                     if row["status"] == "lapsed"
                 ],
             )
+
+
+def test_the_first_thirty_days_press_six_can_dos_each_linked_to_its_episode(
+    horizon: Horizon, db_engine
+) -> None:
+    """WP-95 done-when: a harness learner's first 30 days press ≥ 6 can-dos."""
+
+    from app.db.models.cefr import UserCanDoStamp
+
+    life = horizon.first
+    first_month = {
+        row.local_date for row in life.days if row.played and row.ordinal <= 30
+    }
+    session = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)()
+    try:
+        journeys = {
+            row.id: row.local_date
+            for row in session.query(DailyJourney).filter(
+                DailyJourney.user_id == uuid.UUID(life.user_id)
+            )
+        }
+        stamps = (
+            session.query(UserCanDoStamp)
+            .filter(UserCanDoStamp.user_id == uuid.UUID(life.user_id))
+            .all()
+        )
+    finally:
+        session.close()
+    pressed = [stamp for stamp in stamps if journeys.get(stamp.journey_id) in first_month]
+    assert len(pressed) >= 6, [(s.can_do_id, s.source) for s in stamps]
+    for stamp in pressed:
+        # Each Seal points at the scene that earned it, with the learner's words.
+        assert stamp.scene_id and stamp.journey_id and stamp.quote_fr, stamp.can_do_id
