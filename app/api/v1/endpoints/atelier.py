@@ -84,7 +84,7 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cefr_progress import CEFRProgressService
+from app.services.cefr_progress import CEFRProgressService, with_can_do_line
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
@@ -1234,7 +1234,8 @@ async def get_today(
         library_episode=library_episode,
         concept_count=len(selections),
     )
-    cefr = CEFRProgressService(db).current(current_user)
+    # WP-95: Home's level line reads the next can-do from here.
+    cefr = with_can_do_line(db, current_user, CEFRProgressService(db).current(current_user))
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
     return AtelierTodayResponse(
         concepts=[

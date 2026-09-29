@@ -381,7 +381,15 @@ def _measure_up(db: Session, user: User) -> None:
         db.flush()
 
 
-def recap_level(db: Session, user: User, journey: DailyJourney) -> tuple[str | None, dict[str, Any] | None]:
+def recap_level(
+    db: Session, user: User, journey: DailyJourney, *, epreuve_band: str | None = None
+) -> tuple[str | None, dict[str, Any] | None]:
+    """The level, and ``level_up`` once when it moved up since the last recap.
+
+    WP-94: a day whose épreuve was passed (``epreuve_band``) compares against
+    that band when no earlier recap stored a level — the pass is the move.
+    """
+
     from app.services.cefr_progress import level_index
 
     try:
@@ -391,7 +399,7 @@ def recap_level(db: Session, user: User, journey: DailyJourney) -> tuple[str | N
     level = str(getattr(user, "cefr_estimate", None) or "").strip() or None
     if level is None:
         return None, None
-    previous = _previous_recap_level(db, user, journey)
+    previous = _previous_recap_level(db, user, journey) or epreuve_band
     payload = user.cefr_estimate_payload if isinstance(user.cefr_estimate_payload, dict) else {}
     if (
         previous
@@ -491,6 +499,7 @@ def recap_extras(
     journey: DailyJourney,
     practiced: list[Any],
     collectible_ids: list[str],
+    epreuve_band: str | None = None,
 ) -> dict[str, Any]:
     """The WP-79 recap fields, each one independently optional."""
 
@@ -517,7 +526,7 @@ def recap_extras(
             extras[key] = None
     teaser = extras.get("teaser") or {}
     extras["teaser_fr"] = teaser.get("text_fr") if teaser.get("source") in {"engine", "resolution"} else None
-    level, level_up = recap_level(db, user, journey)
+    level, level_up = recap_level(db, user, journey, epreuve_band=epreuve_band)
     extras["level"] = level
     extras["level_up"] = level_up
     for key, build in (

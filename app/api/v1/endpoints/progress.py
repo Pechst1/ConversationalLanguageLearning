@@ -35,7 +35,7 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.cefr_progress import CEFRProgressService
+from app.services.cefr_progress import CEFRProgressService, with_can_do_line
 from app.services.daily_words import DailyWordSlateService
 from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
@@ -51,7 +51,7 @@ def get_cefr_progress(
 ) -> CEFRProgressResponse:
     """Return the visible CEFR estimate and next-level forecast."""
 
-    return CEFRProgressResponse(**CEFRProgressService(db).current(current_user))
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, CEFRProgressService(db).current(current_user)))
 
 
 @router.post("/cefr/recompute", response_model=CEFRProgressResponse)
@@ -62,7 +62,8 @@ def recompute_cefr_progress(
 ) -> CEFRProgressResponse:
     """Recompute and persist a CEFR estimate snapshot."""
 
-    return CEFRProgressResponse(**CEFRProgressService(db).recompute(current_user, source="api"))
+    payload = CEFRProgressService(db).recompute(current_user, source="api")
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
 
 
 @router.get("/cefr/checkpoint")
@@ -115,7 +116,8 @@ def record_level_checkpoint(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": error.code, "message": error.message},
         ) from error
-    return CEFRProgressResponse(**service.recompute(current_user, source="checkpoint"))
+    payload = service.recompute(current_user, source="checkpoint")
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
 
 
 def _progress_due(progress: UserVocabularyProgress | None, now: datetime) -> bool:

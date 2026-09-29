@@ -147,7 +147,17 @@ def checkpoint_view(
         "passed_at": _iso(row.passed_at) if row is not None else None,
         "can_dos": band_can_dos(band),
         "retry_after_days": RETRY_AFTER_DAYS,
+        # WP-94 honesty: the épreuve is a «Numéro spécial» the story engine
+        # stages and the journey grades. With the engine off nothing stages it,
+        # so no surface may promise «l'épreuve dans l'histoire».
+        "staged_in_story": _epreuve_staged(),
     }
+
+
+def _epreuve_staged() -> bool:
+    from app.config import settings
+
+    return bool(getattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False))
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -258,6 +268,120 @@ def record_checkpoint_result(
     return row
 
 
+# ----------------------------------------------------------------------
+# WP-94 «Numéro spécial» — grading the épreuve a journey staged
+# ----------------------------------------------------------------------
+
+
+def epreuve_unit_ids(can_do_ids: list[str] | None, band: str) -> list[str]:
+    """The grammar units (fr-core-v2 external ids) the épreuve's can-dos exercise.
+
+    ``can_do_ids`` is the engine's list; when it is empty or names nothing of
+    the band's, the band's whole can-do list stands in.
+    """
+
+    by_id = {item["id"]: item for item in band_can_dos(band)}
+    chosen = [by_id[cid] for cid in (can_do_ids or []) if cid in by_id] or list(by_id.values())
+    units: list[str] = []
+    for item in chosen:
+        for unit in item.get("units") or []:
+            if unit not in units:
+                units.append(unit)
+    return units
+
+
+def _unit_patterns(unit_id: str) -> list[str]:
+    from app.services.grammar_units import _v2_rows_by_external_id, regex_patterns
+
+    row = _v2_rows_by_external_id().get(unit_id) or {}
+    detector = (row.get("syllabus") or {}).get("detector")
+    return regex_patterns([detector] if isinstance(detector, dict) else [])
+
+
+def _concept_external_ids(db: Session, concept_ids: list[int]) -> dict[int, set[str]]:
+    """concept id → the v2 external ids it stands for (itself, or its v1→v2 replacements)."""
+
+    from app.db.models.grammar import GrammarConcept
+    from app.services.grammar_catalog import load_v1_to_v2_mapping
+
+    if not concept_ids:
+        return {}
+    mapping = load_v1_to_v2_mapping()
+    out: dict[int, set[str]] = {}
+    for concept in db.query(GrammarConcept).filter(GrammarConcept.id.in_(concept_ids)).all():
+        external = str(concept.external_id or "")
+        out[concept.id] = {external, *mapping.get(external, [])} - {""}
+    return out
+
+
+def grade_epreuve(
+    db: Session,
+    *,
+    band: str,
+    can_do_ids: list[str] | None,
+    objective_met: bool,
+    turns: list[dict[str, Any]] | None,
+    concept_evidence: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """The épreuve's verdict. Pure reading; nothing is written.
+
+    **The rule (WP-94):** the épreuve is passed when
+
+    1. the scene's objective was **met** across the conversation (the respond
+       step's final outcome is ``met`` — ``partially_met`` is not a pass), and
+    2. the reply evidence shows **at least one** of the épreuve's grammar units
+       (the units of its can-dos, :func:`epreuve_unit_ids`) used **correctly**:
+       either WP-L4's ``concept_evidence`` on the step says ``correct`` for a
+       concept standing for one of them, or the unit's own regex detector finds
+       it in one of the learner's turns and that turn's correction does not
+       touch it (``concept_evidence.classify_reply``, the same classifier).
+
+    Units whose only detector is an ``llm:`` description cannot be read
+    deterministically; when **none** of the épreuve's units has a regex
+    detector (or the list is empty), condition 2 is waived and the objective
+    alone decides. The verdict carries its evidence for the checkpoint row.
+    """
+
+    from types import SimpleNamespace
+
+    from app.services.concept_evidence import OUTCOME_CORRECT, classify_reply
+    from app.services.journey_contracts import normalize_answer_text
+
+    units = epreuve_unit_ids(can_do_ids, band)
+    patterns = {unit: _unit_patterns(unit) for unit in units}
+    measurable = [unit for unit, pats in patterns.items() if pats]
+    used: set[str] = set()
+    evidence = [item for item in (concept_evidence or []) if isinstance(item, dict)]
+    correct_ids = [
+        int(item["concept_id"])
+        for item in evidence
+        if item.get("outcome") == OUTCOME_CORRECT and str(item.get("concept_id") or "").isdigit()
+    ]
+    for externals in _concept_external_ids(db, correct_ids).values():
+        used |= externals & set(units)
+    for turn in turns or []:
+        if not isinstance(turn, dict):
+            continue
+        text = normalize_answer_text(str(turn.get("learner") or ""))
+        if not text:
+            continue
+        raw = turn.get("correction") if isinstance(turn.get("correction"), dict) else None
+        correction = SimpleNamespace(**raw) if raw else None
+        for unit in measurable:
+            outcome, _span = classify_reply(patterns[unit], text, correction)
+            if outcome == OUTCOME_CORRECT:
+                used.add(unit)
+    units_ok = (not measurable) or bool(used)
+    return {
+        "passed": bool(objective_met and units_ok),
+        "objective_met": bool(objective_met),
+        "units": units,
+        "measurable_units": measurable,
+        "units_used": sorted(used),
+        "units_waived": not measurable,
+    }
+
+
 __all__ = [
     "CLOSED_STATES",
     "RETRY_AFTER_DAYS",
@@ -270,6 +394,8 @@ __all__ = [
     "CheckpointError",
     "band_can_dos",
     "checkpoint_view",
+    "epreuve_unit_ids",
+    "grade_epreuve",
     "credit_band",
     "current_checkpoint",
     "highest_closed_band",

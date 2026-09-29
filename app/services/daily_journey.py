@@ -775,6 +775,16 @@ def _coulisses_state(
     return status, scene_id, title, pov, name
 
 
+def _journey_story_context(journey: DailyJourney) -> dict[str, Any]:
+    """The pinned brief's ``story_context`` (the engine scene's id and draft), or ``{}``."""
+
+    for step in journey.steps:
+        payload = (step.private_task or {}).get("scenario_brief")
+        if isinstance(payload, dict) and isinstance(payload.get("story_context"), dict):
+            return dict(payload["story_context"])
+    return {}
+
+
 def _owned_engine_scene(db: Session, user_id: Any, scene_id: Any) -> Any:
     from app.db.models.graphic_novel import GraphicNovelScene
     from app.services.living_story import ENGINE_VERSION_PREFIX
@@ -1917,7 +1927,34 @@ class DailyJourneyService:
                 "edition_no": edition_no_for(self.db, journey),
                 # WP-S7: a Seal ring for each rule held on this day.
                 "mastery_today": mastery_today_for(self.db, journey),
+                # WP-94: «Numéro spécial» — the épreuve day, and what it asks.
+                **self._epreuve_snapshot_fields(journey),
             }
+        )
+
+    def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
+        from app.services.can_do import epreuve_snapshot_view, scene_script
+
+        context = _journey_story_context(journey)
+        if not context.get("scene_id") and not context.get("draft"):
+            return {"special": None, "epreuve": None}
+
+        def read() -> dict[str, Any]:
+            script = scene_script(self.db, context)
+            user = self.db.get(User, journey.user_id)
+            return {
+                "special": script["special"],
+                "epreuve": epreuve_snapshot_view(
+                    script["epreuve"], getattr(user, "native_language", None)
+                ),
+            }
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: épreuve view",
+            read,
+            default={"special": None, "epreuve": None},
+            log=logger,
         )
 
     # ------------------------------------------------------------------
@@ -3968,6 +4005,9 @@ class DailyJourneyService:
 
         self._store_step_result(step, evaluation, assistance)
         self.db.flush()
+        if step.status == str(StepStatus.COMPLETED):
+            # WP-94 / WP-95: grade the épreuve, press the scene's can-do.
+            self._settle_can_do(user, journey, step, brief)
         # After the turn's own flush, and inside a savepoint: a telemetry row
         # must not be able to take a graded turn down with it.
         self._record_feedback_decision(user, journey, step, evaluation)
@@ -3988,6 +4028,41 @@ class DailyJourneyService:
             pending=False,
             journey=self.snapshot(journey),
         )
+
+    def _settle_can_do(
+        self, user: User, journey: DailyJourney, step: DailyJourneyStep, brief: ScenarioBrief
+    ) -> None:
+        """WP-94 / WP-95: the completed respond step's can-do and épreuve.
+
+        Best effort, inside a savepoint: a Seal is never worth the day. What
+        was decided is kept on the step (``private_task["can_do"]``) for the
+        recap; the épreuve's result itself is the checkpoint row's.
+        """
+
+        from app.services.can_do import settle_respond
+
+        private = dict(step.private_task or {})
+        result = run_best_effort(
+            self.db,
+            "daily_journey: can-do and épreuve",
+            lambda: settle_respond(
+                self.db,
+                user,
+                journey=journey,
+                story_context=_journey_story_context(journey) or dict(brief.story_context or {}),
+                scenario_key=str(brief.scenario_key or ""),
+                title_fr=brief.title_fr,
+                character_id=brief.character_id,
+                outcome=str((private.get("result") or {}).get("outcome") or ""),
+                turns=list(private.get("turns") or []),
+                concept_evidence=list(private.get("concept_evidence") or []),
+            ),
+            default=None,
+            log=logger,
+        )
+        if result:
+            step.private_task = {**private, "can_do": result}
+            self.db.flush()
 
     def _with_concept_evidence(
         self, task: ResponseTask, answer: AttemptAnswer, evaluation: Any
@@ -4671,6 +4746,20 @@ class DailyJourneyService:
             except Exception:  # pragma: no cover - defensive
                 logger.exception("daily_journey: keepsake minting failed")
 
+        can_do_result: dict[str, Any] = {}
+        for step in journey.steps:
+            if StepKind(step.kind) is StepKind.RESPOND:
+                value = (step.private_task or {}).get("can_do")
+                if isinstance(value, dict):
+                    can_do_result = value
+        epreuve_result = can_do_result.get("epreuve_result")
+        extras = self._recap_extras(
+            user,
+            journey,
+            practiced,
+            collectible_ids,
+            epreuve_band=can_do_result.get("epreuve_band") if epreuve_result == "passed" else None,
+        )
         return JourneyRecap(
             completion_kind="complete" if finish_kind == "complete" else "early",
             objective_outcome=objective_outcome,
@@ -4685,7 +4774,12 @@ class DailyJourneyService:
             # WP-79: streak-free reward facts (the streak rides on the
             # snapshot): words, the character's mood, the keepsake, the
             # teaser and a level move — each read, none invented.
-            **self._recap_extras(user, journey, practiced, collectible_ids),
+            **extras,
+            # WP-94: the épreuve's verdict, when today was a «Numéro spécial».
+            epreuve_result=epreuve_result if epreuve_result in {"passed", "failed"} else None,
+            epreuve_line_fr=can_do_result.get("epreuve_line_fr") if epreuve_result else None,
+            # WP-95: the can-dos this day pressed into the Carnet.
+            can_dos_stamped=list(can_do_result.get("can_do_stamped") or []),
         )
 
     def _recap_extras(
@@ -4694,6 +4788,8 @@ class DailyJourneyService:
         journey: DailyJourney,
         practiced: list[PracticedTarget],
         collectible_ids: list[str],
+        *,
+        epreuve_band: str | None = None,
     ) -> dict[str, Any]:
         from app.services.achievement_recap import recap_extras
 
@@ -4704,6 +4800,7 @@ class DailyJourneyService:
                 journey=journey,
                 practiced=practiced,
                 collectible_ids=collectible_ids,
+                epreuve_band=epreuve_band,
             )
         except Exception:  # pragma: no cover - a reward is never worth the day
             logger.exception("daily_journey: WP-79 recap extras failed")

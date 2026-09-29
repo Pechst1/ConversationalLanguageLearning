@@ -135,6 +135,36 @@ class CEFRProgressResponse(BaseModel):
     rhythm_priors: dict[str, Any] | None = None
     today_delta: dict[str, Any] = Field(default_factory=dict)
     generated_at: str | None = None
+    #: WP-95: Home's level line — the band's next can-do, and how many are pressed.
+    next_can_do: dict[str, Any] | None = None
+    can_dos_stamped: int | None = None
+    can_dos_total: int | None = None
+
+
+class CarnetCanDo(BaseModel):
+    id: str
+    title_fr: str | None = None
+    title_native: str | None = None
+    stamped_at: str | None = None
+    #: scene | epreuve | authored
+    source: str | None = None
+    scene_id: str | None = None
+    scene_title_fr: str | None = None
+    character_id: str | None = None
+    quote_fr: str | None = None
+
+
+class CarnetBand(BaseModel):
+    band: str
+    title_native: str
+    can_dos: list[CarnetCanDo] = Field(default_factory=list)
+
+
+class CarnetResponse(BaseModel):
+    """WP-95 «Le Carnet» — ``GET /api/v1/can-dos``."""
+
+    current_band: str | None = None
+    bands: list[CarnetBand] = Field(default_factory=list)
 
 
 class LevelCheckpointResultRequest(BaseModel):

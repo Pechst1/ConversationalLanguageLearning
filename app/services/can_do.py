@@ -239,6 +239,181 @@ def next_can_do_summary(
     }
 
 
+# ----------------------------------------------------------------------
+# The day's scene: which can-do it asks for, and whether it is the épreuve
+# ----------------------------------------------------------------------
+
+SPECIAL_EPREUVE = "epreuve"
+
+
+def _engine_scene_payload(db: Session, scene_id: Any) -> dict[str, Any]:
+    import uuid
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+
+    try:
+        key = uuid.UUID(str(scene_id))
+    except (TypeError, ValueError):
+        return {}
+    scene = db.get(GraphicNovelScene, key)
+    payload = getattr(scene, "script_payload", None) if scene is not None else None
+    return payload if isinstance(payload, dict) else {}
+
+
+def scene_script(db: Session, story_context: dict[str, Any] | None) -> dict[str, Any]:
+    """What today's engine scene says about can-dos, read defensively.
+
+    The story engine's contract is ``script_payload.can_do_id`` (str|null),
+    ``script_payload.special == "epreuve"`` and ``script_payload.epreuve =
+    {band, can_do_ids, attempt, pass_line_fr, fail_line_fr}`` on the stored
+    scene; the brief's own ``draft`` / ``source`` stand in while the scene row
+    is not readable. Returns ``{scene_id, can_do_id, special, epreuve}``.
+    """
+
+    context = story_context if isinstance(story_context, dict) else {}
+    scene_id = context.get("scene_id")
+    payload = _engine_scene_payload(db, scene_id) if scene_id else {}
+    draft = context.get("draft") if isinstance(context.get("draft"), dict) else {}
+    source = context.get("source") if isinstance(context.get("source"), dict) else {}
+    can_do_id = payload.get("can_do_id") if "can_do_id" in payload else draft.get("can_do_id")
+    special = payload.get("special") or draft.get("special") or context.get("special")
+    epreuve_raw = payload.get("epreuve") or draft.get("epreuve") or context.get("epreuve")
+    if special != SPECIAL_EPREUVE and isinstance(source.get("epreuve"), dict) and payload.get("special") is None:
+        # The engine was asked for a «Numéro spécial» and wrote the scene.
+        special = SPECIAL_EPREUVE if draft.get("epreuve_pass_line_fr") else special
+        epreuve_raw = epreuve_raw or source.get("epreuve")
+    epreuve: dict[str, Any] | None = None
+    if special == SPECIAL_EPREUVE:
+        raw = epreuve_raw if isinstance(epreuve_raw, dict) else {}
+        ids = raw.get("can_do_ids")
+        if not isinstance(ids, list):
+            ids = [item.get("id") for item in raw.get("can_dos") or [] if isinstance(item, dict)]
+        epreuve = {
+            "band": str(raw.get("band") or "") or None,
+            "can_do_ids": [str(item) for item in ids if item],
+            "attempt": raw.get("attempt"),
+            "pass_line_fr": raw.get("pass_line_fr") or draft.get("epreuve_pass_line_fr"),
+            "fail_line_fr": raw.get("fail_line_fr") or draft.get("epreuve_fail_line_fr"),
+        }
+    return {
+        "scene_id": str(scene_id) if scene_id else None,
+        "can_do_id": str(can_do_id) if can_do_id else None,
+        "special": SPECIAL_EPREUVE if epreuve is not None else None,
+        "epreuve": epreuve,
+    }
+
+
+def epreuve_snapshot_view(epreuve: dict[str, Any] | None, native_language: str | None) -> dict[str, Any] | None:
+    """The journey snapshot's ``epreuve``: ``{band, can_dos: [{id, title_fr, title_native}]}``."""
+
+    if not epreuve:
+        return None
+    ids = list(epreuve.get("can_do_ids") or [])
+    band = epreuve.get("band")
+    if not ids and band:
+        ids = [item["id"] for item in catalog() if item["band"] == band]
+    can_dos = []
+    for cid in ids:
+        item = can_do_by_id(cid)
+        if item is not None:
+            can_dos.append(
+                {"id": item["id"], "title_fr": item.get("title_fr"), "title_native": native_title(item, native_language)}
+            )
+    return {"band": band, "can_dos": can_dos}
+
+
+def _learner_quote(turns: list[dict[str, Any]] | None) -> str | None:
+    """The learner's own words that did it: their longest turn."""
+
+    texts = [str(turn.get("learner") or "").strip() for turn in turns or [] if isinstance(turn, dict)]
+    texts = [text for text in texts if text]
+    return max(texts, key=len) if texts else None
+
+
+def settle_respond(
+    db: Session,
+    user: Any,
+    *,
+    journey: Any,
+    story_context: dict[str, Any] | None,
+    scenario_key: str | None,
+    title_fr: str | None,
+    character_id: str | None,
+    outcome: str,
+    turns: list[dict[str, Any]] | None,
+    concept_evidence: list[dict[str, Any]] | None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """A respond step just completed: grade an épreuve, press any can-do.
+
+    Returns what the journey keeps on the step (``can_do_stamped``,
+    ``epreuve_result``, ``epreuve_band``, ``epreuve_line_fr``). Never commits.
+    """
+
+    from app.services import level_checkpoint as checkpoints
+
+    now = now or datetime.now(UTC)
+    met = str(outcome) == "met"
+    script = scene_script(db, story_context)
+    quote = _learner_quote(turns)
+    common = {
+        "now": now,
+        "journey_id": getattr(journey, "id", None),
+        "scene_id": script["scene_id"],
+        "scene_title_fr": title_fr,
+        "character_id": character_id,
+        "quote_fr": quote,
+    }
+    out: dict[str, Any] = {"can_do_stamped": [], "epreuve_result": None}
+    epreuve = script["epreuve"]
+    if epreuve is not None:
+        band = epreuve.get("band")
+        if not band:
+            view = checkpoints.current_checkpoint(db, user)
+            band = view.get("band")
+        verdict = checkpoints.grade_epreuve(
+            db,
+            band=str(band or ""),
+            can_do_ids=epreuve.get("can_do_ids"),
+            objective_met=met,
+            turns=turns,
+            concept_evidence=concept_evidence,
+        )
+        try:
+            with db.begin_nested():
+                checkpoints.record_checkpoint_result(
+                    db, user, band=str(band), passed=verdict["passed"], now=now,
+                    evidence={**verdict, "journey_id": str(common["journey_id"] or "")},
+                    source="epreuve",
+                )
+        except checkpoints.CheckpointError as exc:
+            # The state machine refuses (already closed, not ready, retry too
+            # early): no verdict is claimed that was not recorded.
+            logger.info("can_do: épreuve result refused for %s: %s", band, exc.code)
+            return out
+        out["epreuve_band"] = band
+        out["epreuve_result"] = "passed" if verdict["passed"] else "failed"
+        out["epreuve_line_fr"] = epreuve.get("pass_line_fr") if verdict["passed"] else epreuve.get("fail_line_fr")
+        if verdict["passed"]:
+            ids = list(epreuve.get("can_do_ids") or []) or [
+                item["id"] for item in catalog() if item["band"] == band
+            ]
+            for cid in ids:
+                if stamp_can_do(db, user.id, cid, source=SOURCE_EPREUVE, **common) is not None:
+                    out["can_do_stamped"].append(cid)
+        return out
+    if not met:
+        return out
+    can_do_id = script["can_do_id"]
+    source = SOURCE_SCENE
+    if not can_do_id and not script["scene_id"]:
+        can_do_id = authored_can_do_id(scenario_key)
+        source = SOURCE_AUTHORED
+    if can_do_id and stamp_can_do(db, user.id, can_do_id, source=source, **common) is not None:
+        out["can_do_stamped"].append(can_do_id)
+    return out
+
+
 __all__ = [
     "AUTHORED_SCENARIO_CAN_DOS",
     "SOURCE_AUTHORED",
@@ -248,6 +423,9 @@ __all__ = [
     "can_do_by_id",
     "carnet_payload",
     "catalog",
+    "epreuve_snapshot_view",
+    "scene_script",
+    "settle_respond",
     "native_title",
     "next_can_do_summary",
     "stamp_can_do",

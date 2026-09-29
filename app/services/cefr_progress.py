@@ -704,6 +704,26 @@ class CEFRProgressService:
         }
 
 
+def with_can_do_line(db: Session, user: User, payload: dict[str, Any]) -> dict[str, Any]:
+    """WP-95: Home's level line — ``next_can_do``, ``can_dos_stamped``, ``can_dos_total``.
+
+    Read live (a stamp lands mid-day), for the band in force. Home shows the
+    next can-do instead of a day-1 «A1.1 · 0 %». Never raises.
+    """
+
+    from app.services.can_do import next_can_do_summary
+
+    band = str(payload.get("estimate") or getattr(user, "cefr_estimate", None) or "A1.1")
+    try:
+        line = next_can_do_summary(
+            db, user.id, band=band, native_language=getattr(user, "native_language", None)
+        )
+    except Exception:  # pragma: no cover - a level line must never 500 an endpoint
+        logger.exception("cefr_progress: can-do line could not be computed")
+        return payload
+    return {**payload, **line}
+
+
 def _band_below(level: str | None) -> str | None:
     if not level or level not in CEFR_LEVELS:
         return None
@@ -712,6 +732,7 @@ def _band_below(level: str | None) -> str | None:
 
 
 __all__ = [
+    "with_can_do_line",
     "CEFR_LEVELS",
     "CEFR_PROGRESS_VERSION",
     "DECLARED_LEVEL_EVIDENCE_ATTEMPTS",

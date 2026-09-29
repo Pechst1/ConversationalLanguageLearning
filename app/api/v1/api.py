@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     audio,
     audio_session,
     auth,
+    can_dos,
     daily_journey,
     dossier,
     episode_audio,
@@ -49,6 +50,7 @@ api_router.include_router(auth.router, dependencies=[Depends(auth_rate_limit)])
 api_router.include_router(feedback.router)
 api_router.include_router(users.router)
 api_router.include_router(progress.router)
+api_router.include_router(can_dos.router)
 api_router.include_router(sessions.router, dependencies=_paid)
 api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)

@@ -643,6 +643,12 @@ class JourneyRecap(JourneyModel):
     consolidating: bool = False
     #: WP-L8: once a week at the Seal, from a *measured* forecast only.
     forecast_line: RecapForecastLine | None = None
+    #: WP-94: ``passed`` / ``failed`` when today was a «Numéro spécial».
+    epreuve_result: Literal["passed", "failed"] | None = None
+    #: WP-94: the engine's pass (or kind fail) line, in a character's voice.
+    epreuve_line_fr: str | None = None
+    #: WP-95: can-do ids this day pressed into the Carnet (first stamps only).
+    can_dos_stamped: list[str] = Field(default_factory=list)
 
 
 class RetryHint(JourneyModel):
@@ -686,6 +692,19 @@ class MasteryToday(JourneyModel):
     tested_out_concept_ids: list[int] = Field(default_factory=list)
 
 
+class EpreuveCanDo(JourneyModel):
+    id: str
+    title_fr: str | None = None
+    title_native: str | None = None
+
+
+class EpreuveView(JourneyModel):
+    """WP-94 «Numéro spécial» — the band the épreuve closes and its can-dos."""
+
+    band: str | None = None
+    can_dos: list[EpreuveCanDo] = Field(default_factory=list)
+
+
 class JourneySnapshot(JourneyModel):
     id: str
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -722,6 +741,10 @@ class JourneySnapshot(JourneyModel):
     #: WP-S7. The rules that became held on this local day (a Seal ring each)
     #: and those among them that a test-out held. ``None`` with the flag off.
     mastery_today: MasteryToday | None = None
+    #: WP-94. ``"epreuve"`` on a «Numéro spécial» day, else ``None``.
+    special: Literal["epreuve"] | None = None
+    #: WP-94. What the épreuve asks: its band and can-dos, in the learner's language.
+    epreuve: EpreuveView | None = None
 
 
 class LegacyResume(JourneyModel):
