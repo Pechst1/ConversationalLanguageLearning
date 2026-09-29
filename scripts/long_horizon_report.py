@@ -195,6 +195,43 @@ def _day_strip(life: Any) -> list[str]:
     return rows
 
 
+def _archive_lines(life: Any) -> list[str]:
+    """WP-96/97: the life as the Feuilleton tab rereads it, and its margin notes."""
+
+    from app.services.living_story import margin_note_weeks
+    from tests.test_long_horizon_evidence import START, archive_days
+
+    days = archive_days(life)
+    out = [
+        f"{len(days)} planches, dont {sum(1 for day in days if day['authored'])} "
+        "écrite(s) d'avance (premier jour, jours de secours).",
+        "",
+        "| saison | chapitre | titre | jours | clos | notes en marge | résumé |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for season in life.archive:
+        for chapter in reversed(season["chapters"]):
+            notes = sum(len(day["margin_notes"]) for day in chapter["days"])
+            out.append(
+                f"| {season['number']} | {chapter['index']} | {chapter['title_fr']} | "
+                f"{len(chapter['days'])} | {'oui' if chapter['closed'] else '—'} | {notes} | "
+                f"{str(chapter.get('digest_fr') or '')[:60]} |"
+            )
+    weeks = margin_note_weeks(life.scene_payloads, start=START.date(), days=len(life.days))
+    out += [
+        "",
+        "Notes en marge par semaine après le jour 10 : "
+        + (", ".join(f"S{week + 1} {count}" for week, count in weeks.items()) or "—"),
+    ]
+    if not any(weeks.values()):
+        out.append("")
+        out.append(
+            "*Aucune note en marge : aucune scène ne porte `script_payload.margin_notes` "
+            "dans cette version.*"
+        )
+    return out
+
+
 def render(life: Any, *, days: int, generated: date) -> str:
     played = life.played
     shapes = Counter(life.shapes())
@@ -243,6 +280,10 @@ def render(life: Any, *, days: int, generated: date) -> str:
         "## Les chapitres",
         "",
         *_chapter_lines(life),
+        "",
+        "## Les Cahiers du feuilleton",
+        "",
+        *_archive_lines(life),
         "",
         "## Ce que la saison a retenu du tout début",
         "",

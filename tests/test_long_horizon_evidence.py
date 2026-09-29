@@ -263,6 +263,11 @@ class LifeRecord:
     world_bible: dict[str, Any]
     chapters: list[dict[str, Any]]
     letters: list[dict[str, Any]]
+    #: WP-96: ``GET /story-engine/archive``, one loaded season per entry
+    #: (newest first), exactly as the Feuilleton tab reads it.
+    archive: list[dict[str, Any]] = field(default_factory=list)
+    #: WP-97: ``[(local_date, script_payload)]`` of every bound engine scene.
+    scene_payloads: list[tuple[date, dict[str, Any]]] = field(default_factory=list)
 
     @property
     def played(self) -> list[DayRecord]:
@@ -484,6 +489,8 @@ def _play_life(
             if row["id"] == entry["mission_id"]:
                 row.setdefault("events", []).append(entry)
     return LifeRecord(
+        archive=_read_archive(client, d.headers),
+        scene_payloads=_scene_payloads(db, d.user_id),
         label=label,
         user_id=str(d.user_id),
         thread_id=str(thread.id),
@@ -495,6 +502,56 @@ def _play_life(
         chapters=story._chapter_rows(db, d),
         letters=letters,
     )
+
+
+def _read_archive(client: TestClient, headers: dict[str, str]) -> list[dict[str, Any]]:
+    """WP-96: every season of the archive, one request per season (the API's page)."""
+
+    response = client.get("/api/v1/story-engine/archive", headers=headers)
+    assert response.status_code == 200, response.text
+    first = response.json()
+    seasons = [row for row in first["seasons"] if row["loaded"]]
+    for row in first["seasons"]:
+        if row["loaded"]:
+            continue
+        page = client.get(
+            "/api/v1/story-engine/archive", headers=headers, params={"season": row["number"]}
+        )
+        assert page.status_code == 200, page.text
+        seasons.extend(item for item in page.json()["seasons"] if item["loaded"])
+    return seasons
+
+
+def _scene_payloads(db, user_id) -> list[tuple[date, dict[str, Any]]]:
+    """``[(journey.local_date, scene.script_payload)]`` for every bound engine scene."""
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+
+    dates = {
+        str(row.id): row.local_date
+        for row in db.query(DailyJourney).filter(DailyJourney.user_id == user_id)
+    }
+    rows = []
+    for scene in db.query(GraphicNovelScene).filter(
+        GraphicNovelScene.user_id == user_id,
+        GraphicNovelScene.prompt_version.like(f"{engine.ENGINE_VERSION_PREFIX}%"),
+    ):
+        when = dates.get(str((scene.source_snapshot or {}).get("journey_id") or ""))
+        if when is not None:
+            rows.append((when, dict(scene.script_payload or {})))
+    return sorted(rows, key=lambda row: row[0])
+
+
+def archive_days(life: LifeRecord) -> list[dict[str, Any]]:
+    """Every planche of the archive, oldest first."""
+
+    days = [
+        day
+        for season in life.archive
+        for chapter in season["chapters"]
+        for day in chapter["days"]
+    ]
+    return sorted(days, key=lambda day: day["date"])
 
 
 def _run_courrier_day(
@@ -1242,6 +1299,22 @@ def test_the_run_is_written_down(horizon: Horizon, capsys) -> None:
                     if row.get("kind") != "season" and row.get("side_story")
                 ),
             )
+            chapters = [c for season in life.archive for c in season["chapters"]]
+            print(
+                "  archive         :",
+                len(archive_days(life)),
+                "days in",
+                len(chapters),
+                "chapters over",
+                len(life.archive),
+                "season(s);",
+                sum(1 for day in archive_days(life) if day["authored"]),
+                "authored",
+            )
+            print(
+                "  margin notes/wk :",
+                engine.margin_note_weeks(life.scene_payloads, start=START.date(), days=HORIZON_DAYS),
+            )
             print(
                 "  lapsed          :",
                 [
@@ -1283,3 +1356,52 @@ def test_the_first_thirty_days_press_six_can_dos_each_linked_to_its_episode(
     for stamp in pressed:
         # Each Seal points at the scene that earned it, with the learner's words.
         assert stamp.scene_id and stamp.journey_id and stamp.quote_fr, stamp.can_do_id
+
+
+# ---------------------------------------------------------------------------
+# WP-96 / WP-97 — the life, reread as chapters, with its margin notes
+# ---------------------------------------------------------------------------
+
+
+def test_the_archive_renders_the_whole_life_as_chapters(horizon: Horizon) -> None:
+    """WP-96 done-when: a 126-day life renders as chapters, and every day is in it."""
+
+    for life in horizon.lives:
+        days = archive_days(life)
+        assert [date.fromisoformat(day["date"]) for day in days] == [
+            row.local_date for row in life.played
+        ], f"life {life.label}: the archive lost or invented a day"
+        assert len({day["journey_id"] for day in days}) == len(life.played)
+        chapters = [chapter for season in life.archive for chapter in season["chapters"]]
+        assert len(chapters) >= 3, f"life {life.label} reads as {len(chapters)} chapter(s)"
+        for season in life.archive:
+            # Newest chapter first, days oldest first inside a chapter.
+            order = [min(day["date"] for day in c["days"]) for c in season["chapters"] if c["days"]]
+            assert order == sorted(order, reverse=True)
+            for chapter in season["chapters"]:
+                dates = [day["date"] for day in chapter["days"]]
+                assert dates == sorted(dates)
+        # Every chapter but the one being read is over.
+        assert all(chapter["closed"] for chapter in chapters[1:])
+        # The learner's reply is printed on every page they answered.
+        assert all(day["learner_lines"] for day in days)
+
+
+def test_a_margin_note_every_week_after_day_ten(horizon: Horizon) -> None:
+    """WP-97 done-when: at least one margin note a week after day 10.
+
+    Margin notes are the story lane's (``script_payload.margin_notes``, written when
+    a scene pays back a callback, a plant or an escalation). A run whose lane writes
+    none yet is reported as the gap it is rather than asserted green."""
+
+    for life in horizon.lives:
+        weeks = engine.margin_note_weeks(
+            life.scene_payloads, start=START.date(), days=HORIZON_DAYS
+        )
+        assert weeks and min(weeks.values()) >= 1, (
+            f"life {life.label}: weeks without a margin note in {weeks}"
+        )
+        # The archive prints every note the scenes carry — none lost on the way.
+        printed = sum(len(day["margin_notes"]) for day in archive_days(life))
+        carried = sum(len(payload.get("margin_notes") or []) for _, payload in life.scene_payloads)
+        assert printed == carried, (printed, carried)
