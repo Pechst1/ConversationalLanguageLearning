@@ -19,6 +19,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -180,6 +181,23 @@ def test_cache_key_changes_with_prompt_version(
     first = scene_cache_key(db_session, user, input_mode=InputMode.TEXT)
     monkeypatch.setattr(living_story, "VERSION", "living-story-v3")
     assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) != first
+
+
+def test_cache_key_changes_when_the_epreuve_becomes_due(
+    db_session: Session, enabled: None, revision, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WP-94: a scene prefetched before the checkpoint turned ready is not the épreuve."""
+
+    import app.services.living_story as living_story
+
+    user = make_user(db_session, f"key-epreuve-{uuid4().hex[:6]}@example.com")
+    monkeypatch.setattr(living_story, "epreuve_cache_key", lambda db, u: None)
+    first = scene_cache_key(db_session, user, input_mode=InputMode.TEXT)
+    monkeypatch.setattr(living_story, "epreuve_cache_key", lambda db, u: "A1.1:1")
+    due = scene_cache_key(db_session, user, input_mode=InputMode.TEXT)
+    assert due != first
+    monkeypatch.setattr(living_story, "epreuve_cache_key", lambda db, u: "A1.1:2")
+    assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) != due
 
 
 def test_cache_key_changes_with_learner_context(

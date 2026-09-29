@@ -177,6 +177,9 @@ def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | 
             "max_attempts": int(settings.ATELIER_STORY_MAX_ATTEMPTS),
             # WP-92: the new rule the scene weaves is learner context too.
             "grammar_introduce": living_story.grammar_introduce_key(db, user, now=_utcnow()),
+            # WP-94: a scene drafted before the épreuve became ready (or for another
+            # attempt) is never served on the épreuve's day.
+            "epreuve": living_story.epreuve_cache_key(db, user),
         }
     )
 
