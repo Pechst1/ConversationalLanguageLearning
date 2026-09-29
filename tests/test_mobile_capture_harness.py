@@ -53,7 +53,8 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     feedback = read_web("components/feedback/FeedbackWidget.tsx")
     feuilleton = read_web("pages/graphic-novel.tsx")
     settings = read_web("pages/settings.tsx")
-    cast = read_web("pages/serial/cast.tsx")
+    # WP-96: the cast lives in «Le trombinoscope».
+    cast = read_web("components/feuilleton/archive/Trombinoscope.tsx")
 
     # WP-20 D-9: the feedback control speaks the av2 system — a 44px
     # `IconAction`, not the 36px neo-brutal box it used to be — and it stands
@@ -68,5 +69,5 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     assert "{t.compose_first}" in feuilleton
     assert "break-all" in settings
     # WP-82: the sheet line is chrome in the copy table («Fiche privée»).
-    assert "{avatarMode === 'avatar' ? t.sheet_avatar : t.sheet_pov}" in cast
+    assert "mode === 'avatar' ? t.sheet_avatar : t.sheet_pov" in cast
     assert "Model sheet asset" not in cast

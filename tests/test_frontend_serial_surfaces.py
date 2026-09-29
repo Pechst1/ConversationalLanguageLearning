@@ -12,29 +12,23 @@ def read_web(path: str) -> str:
 
 
 def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
-    archive = read_web("pages/serial/index.tsx")
-    cast = read_web("pages/serial/cast.tsx")
+    # WP-96: «La saison» and «Les personnages» moved into the Feuilleton's one
+    # surface — the archive («Archives du journal») and «Le trombinoscope».
+    # The old routes stay as redirects; the replay page stays.
+    archive_route = read_web("pages/serial/index.tsx")
+    cast_route = read_web("pages/serial/cast.tsx")
+    archive = read_web("components/feuilleton/archive/FeuilletonArchive.tsx")
+    cast = read_web("components/feuilleton/archive/Trombinoscope.tsx")
     replay = read_web("pages/serial/episode/[index].tsx")
     api = read_web("services/api.ts")
-    # WP-82: the pages' own words live in the Feuilleton copy table.
     copy = read_web("components/feuilleton/feuilleton-copy.ts")
 
-    assert "apiService.getSerialEpisodes()" in archive
-    # Claude-design Feuilleton index: one headline, a story hero, paper rows,
-    # the generated (story-engine) episodes, and the cast register row.
-    assert "Le feuilleton" in archive
-    assert "fr-row" in archive
-    assert "getStoryEpisodes()" in archive
-    assert "Les personnages" in archive
-    assert "href=\"/serial/cast\"" in archive
-    assert "apiService.getSerialCast()" in cast
+    assert "router.replace('/graphic-novel')" in archive_route
+    assert "router.replace('/graphic-novel?view=cast')" in cast_route
+    assert "getStoryArchive" in archive
     assert "apiService.setSerialAvatar" in cast
     assert "stay_pov: 'Rester en POV'" in copy
     assert "{t.stay_pov}" in cast
-    # Claude-design cast register: one card per member on the av2 surface.
-    assert "CastCard" in cast
-    assert "model_sheet_url" in cast
-    assert "relationship.closeness" in cast
     assert "apiService.getGraphicNovelScene" in replay
     assert "apiService.getMission" in replay
     assert "mission-replay" in replay
