@@ -83,6 +83,42 @@ def regex_patterns(detectors: list[dict[str, Any]] | None) -> list[str]:
     ]
 
 
+def detector_spans(patterns: list[str] | None, text: str | None) -> list[tuple[int, int]]:
+    """WP-92. Every place in ``text`` a regex detector recognises the form, as
+    ``(start, end)`` character offsets into ``text`` itself.
+
+    Same reading as :func:`detector_span` (apostrophes folded — one character for one,
+    so offsets survive —, case ignored, a match that is only a fixed expression
+    skipped), but all of them: the scene validator counts how often the cast says the
+    form, and «Rayons X» marks each one. Overlapping matches of several patterns are
+    merged, so one use of the form is one mark.
+    """
+
+    from app.services.grammar_items import _is_fixed_expression
+
+    folded = fold_apostrophes(text)
+    found: list[tuple[int, int]] = []
+    for pattern in patterns or []:
+        try:
+            matches = list(re.finditer(pattern, folded, re.IGNORECASE))
+        except re.error:
+            continue
+        for match in matches:
+            raw = match.group(0)
+            span = raw.strip()
+            if not span or _is_fixed_expression(span):
+                continue
+            start = match.start() + (len(raw) - len(raw.lstrip()))
+            found.append((start, start + len(span)))
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(found):
+        if merged and start < merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
 def contrast_pairs(concept: Any) -> list[dict[str, str]]:
     """Every ✗/✓ pair known for the unit, the authored card's first, plain text."""
 
@@ -289,6 +325,7 @@ __all__ = [
     "built_rule_card",
     "contrast_pairs",
     "detector_span",
+    "detector_spans",
     "examples",
     "is_noun_phrase_unit",
     "fold_apostrophes",

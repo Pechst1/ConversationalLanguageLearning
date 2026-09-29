@@ -175,6 +175,8 @@ def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | 
             # 4. prompt version, plus the attempt policy that shapes the output
             "prompt_version": living_story.VERSION,
             "max_attempts": int(settings.ATELIER_STORY_MAX_ATTEMPTS),
+            # WP-92: the new rule the scene weaves is learner context too.
+            "grammar_introduce": living_story.grammar_introduce_key(db, user, now=_utcnow()),
         }
     )
 
@@ -321,6 +323,9 @@ def prefetch_scene_for(
     from app.services.living_story import generate_scene
 
     started = time.monotonic()
+    # WP-92: the day this scene is for is the learner's today (an open or finished day
+    # refuses the prefetch above), so ``generate_scene``'s default ``now`` picks its
+    # grammar plan, and the cache key carries that plan's new unit.
     result = generate_scene(db, user=user, input_mode=input_mode)
     elapsed = time.monotonic() - started
     if isinstance(result, ContentUnavailable) or not isinstance(result, ScenarioBrief):

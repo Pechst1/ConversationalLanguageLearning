@@ -459,6 +459,24 @@ class Settings(BaseSettings):
             "the response. Off restores the single ACTOR + CRITIC turn."
         ),
     )
+    # ---- WP-92 / WP-93: the rule in the story, words from the story (begin) ---
+    ATELIER_STORY_GRAMMAR_PLAN_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-92: hand the director today's grammar_plan (introduce, weave, allowed, "
+            "avoid), require the new form twice in the cast's lines with one hinted "
+            "retry (then accept, woven=false), and mark it for «Rayons X»."
+        ),
+    )
+    ATELIER_COULISSES_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-93: on longer rhythms, write «Coulisses» after the day's scene is bound — "
+            "the same evening from another cast member's view, same words, no new plot "
+            "(app/services/coulisses.py). One cheap director call, after the commit."
+        ),
+    )
+    # ---- WP-92 / WP-93 (end) ------------------------------------------------
     # ---- WP-78: a real day's worth of practice -------------------------------
     ATELIER_JOURNEY_PRACTICE_DAY_ENABLED: bool = Field(
         True,

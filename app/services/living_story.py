@@ -681,6 +681,21 @@ to keep from earlier scenes, drilled_words the words this learner is practising 
 not hold yet (prefer these), and lexicon_history the words recent scenes taught: bring
 one or two of them back naturally in a line when the situation allows — a word met
 again is a word learned — and teach new ones in lexicon, not those.
+mots_a_placer, when present, lists five words of this learner's level that they have not
+met yet: put at least three of them into the cast's dialogue lines, each where the picture
+or the situation makes its meaning plain, and never as a list or a vocabulary lesson.
+GRAMMAR PLAN (the story is where the rule is met). grammar_plan, when present, is the
+grammar this learner meets today. grammar_plan.introduce is the ONE new form, with its
+rule and example sentences: cast members must SAY it at least twice across the panels'
+dialogue — naturally, as people talk in this story, never as a lesson, never naming or
+explaining the rule — and the addressed character's question to the learner
+(opening_line_fr) must invite an answer that needs that very form; suggested_response_fr
+uses it. When grammar_plan.introduce.coach_id is a character in this scene, that
+character says at least one of those lines. grammar_plan.weave lists up to two forms the
+learner is practising: use each once where it fits. grammar_plan.allowed is grammar this
+learner already handles — lean on it; grammar_plan.avoid lists structures above the
+learner's level — do not use them. A plan never outranks the story: the form serves what
+the characters want to say.
 FACES AND READING AIDS. Every dialogue line has mood: how the speaker feels saying it —
 neutral, happy, cross or moved (the reader's portrait plays it, so vary it with the
 scene). When line_translation names a language, every dialogue line also has
@@ -3077,7 +3092,19 @@ def _prompt_payload(context: dict) -> dict:
     errata out of ``_turn_payload`` (WP-28 §2).
     """
 
-    return {key: value for key, value in context.items() if key not in (LEXICON_KEY, COVERAGE_KEY)}
+    payload = {
+        key: value
+        for key, value in context.items()
+        if key not in (LEXICON_KEY, COVERAGE_KEY, GRAMMAR_OUTCOME_KEY, WORDS_OUTCOME_KEY)
+    }
+    # WP-92: the director reads the plan, never the detectors' regular expressions.
+    if payload.get(GRAMMAR_PLAN_KEY):
+        payload[GRAMMAR_PLAN_KEY] = grammar_plan_prompt(payload[GRAMMAR_PLAN_KEY])
+    else:
+        payload.pop(GRAMMAR_PLAN_KEY, None)
+    if not payload.get(MOTS_KEY):
+        payload.pop(MOTS_KEY, None)
+    return payload
 
 
 def _storable_context(context: dict) -> dict:
@@ -3091,6 +3118,16 @@ def _storable_context(context: dict) -> dict:
     placement / declared) and how much of it was the learner's own FSRS evidence.
     """
 
+    if GRAMMAR_PLAN_KEY in context:
+        # WP-92: provenance only — which units were planned — never the plan itself.
+        context = {**context, GRAMMAR_PLAN_KEY: grammar_plan_provenance(context[GRAMMAR_PLAN_KEY])}
+    if GRAMMAR_OUTCOME_KEY in context or WORDS_OUTCOME_KEY in context:
+        # Stored beside the source (``story_context``), not inside it.
+        context = {
+            key: value
+            for key, value in context.items()
+            if key not in (GRAMMAR_OUTCOME_KEY, WORDS_OUTCOME_KEY)
+        }
     lexicon = context.get(LEXICON_KEY)
     if not isinstance(lexicon, dict):
         return context
@@ -3969,9 +4006,16 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
             line.text_native = None
     untranslated = [line for line in lines if not line.text_native] if language else []
     undescribed = [panel for panel in draft.panels if not panel.alt_native]
-    if not untranslated and not undescribed:
+    # WP-92: the day's new form, said twice and asked for, rides the same one retry — a
+    # grammar plan is never the reason a learner loses a day.
+    grammar = grammar_weave_gap(draft, context)
+    if not untranslated and not undescribed and not grammar:
         return
+    if not untranslated and not undescribed:
+        raise SoftRejection("grammar_not_woven", hint=grammar, proposal=draft)
     wanted = []
+    if grammar:
+        wanted.append(grammar.rstrip("."))
     if untranslated:
         wanted.append(
             f"{len(untranslated)} of {len(lines)} dialogue lines have no text_native — give "
@@ -4057,6 +4101,9 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
             # WP-29 §5.2. `None` when the scene was too short to measure or the lexicon
             # would not load — "not measured", never zero.
             COVERAGE_KEY: context.get(COVERAGE_KEY),
+            # WP-92 / WP-93: what the accepted draft did with the plan and the words.
+            GRAMMAR_OUTCOME_KEY: context.get(GRAMMAR_OUTCOME_KEY),
+            WORDS_OUTCOME_KEY: context.get(WORDS_OUTCOME_KEY),
         },
     )
 
@@ -4175,7 +4222,485 @@ def _rank_lookup(db: Session, user: User):
     return rank_of
 
 
-def generate_scene(db: Session, *, user: User, input_mode: InputMode):
+# ---------------------------------------------------------------------------
+# WP-92 «La règle dans l'histoire» — the grammar plan (finishes WP-L5)
+# ---------------------------------------------------------------------------
+#
+# Chosen before the director writes: ``introduce`` is exactly the unit the day's Règle
+# step will pick (``concept_life.introduction_for_today``, read-only and deterministic),
+# ``weave`` at most two units the learner is practising and that are due, ``allowed`` what
+# the learner holds or has met at their band, ``avoid`` what sits above it. Director-only:
+# the actor's turn payload is built from ``story_context`` and never sees it, and the
+# stored context keeps only its provenance (``grammar_plan_provenance``).
+
+GRAMMAR_PLAN_KEY = "grammar_plan"
+#: ``brief.story_context`` keys written after validation (beside ``source``, not in it).
+GRAMMAR_OUTCOME_KEY = "grammar"
+WORDS_OUTCOME_KEY = "words"
+#: WP-93: the five words of the learner's band they have not met yet.
+MOTS_KEY = "mots_a_placer"
+GRAMMAR_MIN_USES = 2
+GRAMMAR_WEAVE_LIMIT = 2
+GRAMMAR_ALLOWED_LIMIT = 12
+GRAMMAR_AVOID_LIMIT = 8
+GRAMMAR_EXAMPLES = 3
+MOTS_COUNT = 5
+#: The first two hundred ranks of the core list are articles, pronouns, numbers and
+#: être/avoir/faire: grammar and scaffolding, not words to place.
+MOTS_MIN_RANK = 200
+PLACED_HISTORY_SCENES = 30
+_CEFR_ORDER = ("A1", "A2", "B1", "B2", "C1", "C2")
+#: Tokens that never make a word «recycled» on their own.
+_RECYCLE_FUNCTION_WORDS = frozenset(
+    {"le", "la", "les", "un", "une", "des", "de", "du", "d", "se", "s", "à", "au", "aux", "en"}
+)
+
+
+def _coarse_level(level: Any) -> str:
+    raw = str(level or "").strip().upper()
+    return next((band for band in _CEFR_ORDER if raw.startswith(band)), "A1")
+
+
+def _plan_unit(brief: dict, *, control_language: str) -> dict:
+    """One unit as the plan holds it: what the director reads, plus its detectors."""
+
+    from app.services.forge_coaches import coach_for_concept
+
+    rule = brief.get("rule_short_native")
+    card_rule = ((brief.get("rule_card") or {}).get("rule") or {}) if isinstance(brief.get("rule_card"), dict) else {}
+    if not rule and isinstance(card_rule, dict):
+        rule = card_rule.get(control_language) or card_rule.get("en")
+    try:
+        coach = coach_for_concept(brief.get("external_id"))
+    except Exception:  # pragma: no cover - a missing coach costs the hint, not the plan
+        coach = None
+    return {
+        "unit_id": str(brief.get("concept_id")),
+        "external_id": str(brief.get("external_id") or ""),
+        "title_fr": str(brief.get("title_fr") or ""),
+        "title_native": str(brief.get("title_native") or ""),
+        "rule": str(rule or "") or None,
+        "examples": [str(item) for item in (brief.get("examples") or [])[:GRAMMAR_EXAMPLES]],
+        "coach_id": (coach or {}).get("id"),
+        "detectors": list(brief.get("detectors") or []),
+    }
+
+
+def grammar_plan_for(
+    db: Session,
+    user: User,
+    *,
+    now: datetime | None = None,
+    level: str | None = None,
+    control_language: str = "en",
+) -> dict | None:
+    """``{introduce, weave, allowed, avoid}`` for the scene of the day ``now`` falls in.
+
+    ``None`` when the flag is off or nothing could be read: a plan is a hint, never a
+    reason to lose a scene. Read-only.
+    """
+
+    if not settings.ATELIER_STORY_GRAMMAR_PLAN_ENABLED:
+        return None
+    from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+    from app.services.concept_life import _aware, concept_brief, introduction_for_today
+    from app.services.grammar_units import localized_titles
+
+    now = _aware(now) or datetime.now(UTC)
+    band = _coarse_level(level or learner_level_band(user))
+    at_or_below = _CEFR_ORDER[: _CEFR_ORDER.index(band) + 1]
+    above = _CEFR_ORDER[_CEFR_ORDER.index(band) + 1 :]
+    introduce = None
+    # The planner only introduces on a practice day; the plan follows it exactly.
+    if settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+        try:
+            with db.begin_nested():
+                brief = introduction_for_today(
+                    db, user, now=now, control_language=control_language
+                )
+            if brief:
+                introduce = _plan_unit(brief, control_language=control_language)
+        except Exception:  # pragma: no cover - defensive: a plan is not a scene
+            logger.exception("living_story: grammar introduction unavailable")
+    weave: list[dict] = []
+    allowed: list[str] = []
+    avoid: list[str] = []
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
+                .filter(UserGrammarProgress.user_id == user.id, GrammarConcept.active.is_(True))
+                .all()
+            )
+            met = [
+                (progress, concept)
+                for progress, concept in rows
+                if progress.introduced_at is not None
+                or progress.held_at is not None
+                or int(progress.reps or 0) > 0
+            ]
+            due = sorted(
+                (
+                    (progress, concept)
+                    for progress, concept in met
+                    if progress.held_at is None
+                    and (introduce is None or str(concept.id) != introduce["unit_id"])
+                    and (_aware(progress.next_review) or now) <= now
+                ),
+                key=lambda row: (_aware(row[0].next_review) or now, row[1].id),
+            )
+            for progress, concept in due[:GRAMMAR_WEAVE_LIMIT]:
+                weave.append(
+                    _plan_unit(
+                        concept_brief(
+                            db,
+                            concept,
+                            control_language=control_language,
+                            stability=progress.stability,
+                        ),
+                        control_language=control_language,
+                    )
+                )
+            for _progress, concept in sorted(met, key=lambda row: (str(row[1].level), row[1].difficulty_order or 0)):
+                if _coarse_level(concept.level) in at_or_below:
+                    title = localized_titles(concept).get("fr") or concept.name
+                    if title and title not in allowed:
+                        allowed.append(str(title))
+            if above:
+                language = str(getattr(user, "target_language", None) or "fr")
+                ahead = (
+                    db.query(GrammarConcept)
+                    .filter(
+                        GrammarConcept.active.is_(True),
+                        GrammarConcept.language == language,
+                        GrammarConcept.level.in_(list(above)),
+                    )
+                    .order_by(GrammarConcept.level.asc(), GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                    .limit(GRAMMAR_AVOID_LIMIT * 3)
+                    .all()
+                )
+                for concept in ahead:
+                    title = localized_titles(concept).get("fr") or concept.name
+                    if title and title not in avoid:
+                        avoid.append(str(title))
+    except Exception:  # pragma: no cover - defensive: a plan is not a scene
+        logger.exception("living_story: grammar plan partly unavailable")
+    if introduce is None and not weave and not allowed and not avoid:
+        return None
+    return {
+        "introduce": introduce,
+        "weave": weave,
+        "allowed": allowed[:GRAMMAR_ALLOWED_LIMIT],
+        "avoid": avoid[:GRAMMAR_AVOID_LIMIT],
+    }
+
+
+def grammar_introduce_key(db: Session, user: User, *, now: datetime | None = None) -> str | None:
+    """The unit today's scene would be written to introduce (prefetch cache identity):
+    a scene prepared for one new rule is never served on a day that introduces another."""
+
+    if not (settings.ATELIER_STORY_GRAMMAR_PLAN_ENABLED and settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED):
+        return None
+    from app.services.concept_life import introduction_for_today
+
+    try:
+        with db.begin_nested():
+            brief = introduction_for_today(db, user, now=now)
+    except Exception:  # pragma: no cover - defensive: a key part is not a scene
+        logger.exception("living_story: grammar introduction key unavailable")
+        return None
+    return str(brief["concept_id"]) if brief else None
+
+
+def grammar_plan_prompt(plan: dict | None) -> dict | None:
+    """The plan as the director reads it: titles, rule, examples, coach — no regex."""
+
+    if not plan:
+        return None
+
+    def unit(item: dict | None, *, examples: int) -> dict | None:
+        if not item:
+            return None
+        return {
+            "title_fr": item.get("title_fr"),
+            "title_native": item.get("title_native"),
+            "rule": item.get("rule"),
+            "examples": list(item.get("examples") or [])[:examples],
+            "coach_id": item.get("coach_id"),
+        }
+
+    return {
+        "introduce": unit(plan.get("introduce"), examples=GRAMMAR_EXAMPLES),
+        "weave": [unit(item, examples=2) for item in plan.get("weave") or []],
+        "allowed": list(plan.get("allowed") or []),
+        "avoid": list(plan.get("avoid") or []),
+    }
+
+
+def grammar_plan_provenance(plan: dict | None) -> dict | None:
+    if not plan:
+        return None
+    introduce = plan.get("introduce") or {}
+    return {
+        "introduce": introduce.get("unit_id"),
+        "weave": [item.get("unit_id") for item in plan.get("weave") or []],
+        "allowed": len(plan.get("allowed") or []),
+        "avoid": len(plan.get("avoid") or []),
+    }
+
+
+def _dialogue_lines(draft: SceneDraft) -> list[tuple[int, int, Dialogue]]:
+    return [
+        (panel_index, line_index, line)
+        for panel_index, panel in enumerate(draft.panels)
+        for line_index, line in enumerate(panel.dialogue)
+    ]
+
+
+def grammar_uses(draft: SceneDraft, unit: dict | None) -> int:
+    """How many times the cast says the unit's form across the page's dialogue."""
+
+    from app.services.grammar_units import detector_spans
+
+    patterns = (unit or {}).get("detectors") or []
+    return sum(len(detector_spans(patterns, line.text_fr)) for _p, _l, line in _dialogue_lines(draft))
+
+
+def grammar_invited(draft: SceneDraft, unit: dict | None) -> bool:
+    """Does the question put to the learner invite the form? The question itself uses
+    it, or the private suggested answer — the answer the question is written for — does."""
+
+    from app.services.grammar_units import detector_spans
+
+    patterns = (unit or {}).get("detectors") or []
+    return bool(
+        detector_spans(patterns, draft.opening_line_fr)
+        or detector_spans(patterns, draft.suggested_response_fr)
+    )
+
+
+def grammar_weave_gap(draft: SceneDraft, context: dict) -> str | None:
+    """The precise hint for a draft that does not weave today's form, or ``None``.
+
+    Units whose detectors are ``llm:`` only cannot be counted: never a gap."""
+
+    unit = (context.get(GRAMMAR_PLAN_KEY) or {}).get("introduce")
+    if not unit or not unit.get("detectors"):
+        return None
+    uses = grammar_uses(draft, unit)
+    invited = grammar_invited(draft, unit)
+    if uses >= GRAMMAR_MIN_USES and invited:
+        return None
+    title = unit.get("title_fr") or unit.get("title_native") or "the new form"
+    example = next(iter(unit.get("examples") or []), "")
+    parts: list[str] = []
+    if uses < GRAMMAR_MIN_USES:
+        parts.append(
+            f"grammar_plan.introduce («{title}») is said {uses} time(s) in the cast's "
+            f"dialogue; cast members must say it at least {GRAMMAR_MIN_USES} times, "
+            "naturally, in what they want from each other"
+            + (f" (the form as in «{example}»)" if example else "")
+        )
+    if not invited:
+        parts.append(
+            "opening_line_fr must be a question whose natural answer needs that form, and "
+            "suggested_response_fr must use it"
+        )
+    coach = unit.get("coach_id")
+    speakers = {draft.character_id} | {line.character_id for _p, _l, line in _dialogue_lines(draft)}
+    if coach and coach in speakers:
+        parts.append(f"{coach} is this rule's coach: give {coach} one of those lines")
+    return "; ".join(parts) + "."
+
+
+def grammar_outcome(draft: SceneDraft, plan: dict | None) -> dict | None:
+    """After validation: the focus the scene stores, and «Rayons X» marks per line.
+
+    ``marks`` maps ``"<panel>:<line>"`` to ``[{unit_id, start, end}]``, character offsets
+    into that line's ``text_fr``, for the introduced and the woven units. ``woven`` is
+    ``None`` for a unit with no regex detector (not measured, never «false»)."""
+
+    if not plan:
+        return None
+    from app.services.grammar_units import detector_spans
+
+    introduce = plan.get("introduce")
+    units = [unit for unit in [introduce, *(plan.get("weave") or [])] if unit and unit.get("detectors")]
+    marks: dict[str, list[dict]] = {}
+    for panel_index, line_index, line in _dialogue_lines(draft):
+        found = [
+            {"unit_id": unit["unit_id"], "start": start, "end": end}
+            for unit in units
+            for start, end in detector_spans(unit["detectors"], line.text_fr)
+        ]
+        if found:
+            marks[f"{panel_index}:{line_index}"] = sorted(found, key=lambda m: (m["start"], m["end"]))
+    focus = None
+    uses = invited = None
+    if introduce:
+        measurable = bool(introduce.get("detectors"))
+        uses = grammar_uses(draft, introduce) if measurable else None
+        invited = grammar_invited(draft, introduce) if measurable else None
+        focus = {
+            "unit_id": introduce["unit_id"],
+            "title_fr": introduce.get("title_fr") or "",
+            "title_native": introduce.get("title_native") or "",
+            "woven": (bool(uses >= GRAMMAR_MIN_USES and invited) if measurable else None),
+        }
+    return {
+        "focus": focus,
+        "marks": marks,
+        "uses": uses,
+        "invited": invited,
+        "plan": grammar_plan_provenance(plan),
+    }
+
+
+# ---------------------------------------------------------------------------
+# WP-93 «Mots à placer» and recycled words
+# ---------------------------------------------------------------------------
+
+
+def _met_lemmas(db: Session, user: User) -> set[str]:
+    """Every word this learner has a vocabulary row for, as lexicon keys."""
+
+    from app.db.models.progress import UserVocabularyProgress
+    from app.db.models.vocabulary import VocabularyWord
+    from app.services.lexical_coverage import tokenize
+
+    rows = db.execute(
+        select(VocabularyWord.normalized_word, VocabularyWord.word)
+        .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+        .where(UserVocabularyProgress.user_id == user.id)
+    ).all()
+    met: set[str] = set()
+    for normalized, word in rows:
+        for surface in (normalized, word):
+            met.update(token.key for token in tokenize(str(surface or "")))
+    return met
+
+
+def _recently_placed(db: Session, user: User) -> set[str]:
+    rows = db.scalars(
+        select(GraphicNovelScene.script_payload)
+        .where(
+            GraphicNovelScene.user_id == user.id,
+            GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        )
+        .order_by(GraphicNovelScene.created_at.desc())
+        .limit(PLACED_HISTORY_SCENES)
+    ).all()
+    placed: set[str] = set()
+    for payload in rows:
+        if isinstance(payload, dict):
+            placed.update(str(item) for item in payload.get("placed_lemmas") or [])
+    return placed
+
+
+def _vocabulary_pool(context: dict) -> list[str]:
+    """The learner's own words a scene can bring back: kept, drilled, recently taught."""
+
+    words: list[str] = []
+    for item in context.get("kept_words") or []:
+        word = item.get("word") if isinstance(item, dict) else item
+        if word:
+            words.append(str(word))
+    words.extend(str(item) for item in context.get("drilled_words") or [] if item)
+    words.extend(str(item) for item in context.get("lexicon_history") or [] if item)
+    seen: set[str] = set()
+    out: list[str] = []
+    for word in words:
+        key = " ".join(word.casefold().split())
+        if key and key not in seen:
+            seen.add(key)
+            out.append(word)
+    return out
+
+
+def mots_a_placer(db: Session, user: User, context: dict, *, limit: int = MOTS_COUNT) -> list[str]:
+    """Five lemmas of the learner's band (French core list, frequency order) this
+    learner has not met: no vocabulary row, not kept, not drilled, not taught or placed by
+    a recent scene. ``[]`` when nothing can be read."""
+
+    from app.services.lexical_coverage import band_of, fold, load_lexicon, tokenize
+
+    try:
+        with db.begin_nested():
+            excluded = _met_lemmas(db, user) | _recently_placed(db, user)
+        for word in _vocabulary_pool(context):
+            excluded.update(token.key for token in tokenize(word))
+        lexicon = load_lexicon()
+        band = band_of(context.get("level") or learner_level_band(user))
+        candidates = sorted(
+            (
+                (str(entry.get("sub_band") or band), int(entry.get("rank") or 0), lemma)
+                for lemma, entry in lexicon.lemmas.items()
+                if str(entry.get("band")) == band
+                and int(entry.get("rank") or 0) >= MOTS_MIN_RANK
+                and len(lemma) >= 3
+                and " " not in lemma
+                and "'" not in lemma
+                and fold(lemma) not in excluded
+                # An inflected form the list also carries («tous» → «tout») is not a word.
+                and lexicon.forms.get(lemma, lemma) == lemma
+            )
+        )
+        return [lemma for _sub, _rank, lemma in candidates[:limit]]
+    except Exception:  # pragma: no cover - defensive: a word list is not a scene
+        logger.exception("living_story: mots à placer unavailable")
+        return []
+
+
+def _lemma_keys(texts: list[str]) -> set[str]:
+    """Every lemma candidate of every running word, by the coverage guard's lemmatiser."""
+
+    from app.services.lexical_coverage import default_resolver, tokenize
+
+    resolver = default_resolver()
+    keys: set[str] = set()
+    for text in texts:
+        for token in tokenize(text or ""):
+            keys.add(token.key)
+            keys.update(resolver.candidates(token.key))
+    return keys
+
+
+def word_outcome(draft: SceneDraft, context: dict) -> dict:
+    """``placed`` — the mots à placer the cast actually said; ``recycled`` — the
+    learner's own words (kept, drilled, recently taught) the scene brought back."""
+
+    from app.services.lexical_coverage import fold, tokenize
+
+    offered = [str(item) for item in context.get(MOTS_KEY) or []]
+    spoken = [line.text_fr for _p, _l, line in _dialogue_lines(draft)] + [draft.opening_line_fr]
+    spoken_keys = _lemma_keys(spoken)
+    placed = [lemma for lemma in offered if fold(lemma) in spoken_keys]
+    scene_keys = spoken_keys | _lemma_keys(
+        [draft.premise_fr, *[panel.narration_fr for panel in draft.panels]]
+    )
+    pool = _vocabulary_pool(context)
+    recycled: list[str] = []
+    for word in pool:
+        content = [
+            token.key for token in tokenize(word) if token.key not in _RECYCLE_FUNCTION_WORDS
+        ]
+        if content and all(key in scene_keys for key in content):
+            recycled.append(word)
+    return {
+        "offered": offered,
+        "placed": placed,
+        "recycled": recycled,
+        "pool": len(pool),
+    }
+
+
+def generate_scene(
+    db: Session, *, user: User, input_mode: InputMode, now: datetime | None = None
+):
+    """Write today's scene. ``now`` is the moment of the day the scene is for (the
+    prefetch passes the day it prepares); the grammar plan is chosen for that day."""
+
     try:
         context = story_context(db, user)
         errata = due_errata(db, user)
@@ -4197,6 +4722,21 @@ def generate_scene(db: Session, *, user: User, input_mode: InputMode):
         context[LEXICON_KEY]["rank_of"] = _rank_lookup(db, user)
         # WP-90. Director-only too: whether each line comes with a translation.
         context[LINE_TRANSLATION_KEY] = line_translation_language(context)
+        # WP-92. Director-only: the day's grammar, chosen before the director writes —
+        # the same unit the Règle step will introduce on the day this scene is for.
+        plan = grammar_plan_for(
+            db,
+            user,
+            now=now,
+            level=context.get("level"),
+            control_language=str(context.get("control_language") or "en"),
+        )
+        if plan:
+            context[GRAMMAR_PLAN_KEY] = plan
+        # WP-93. Director-only: five words of the band this learner has not met.
+        mots = mots_a_placer(db, user, context)
+        if mots:
+            context[MOTS_KEY] = mots
         draft, usage = _approved(
             DIRECTOR,
             _prompt_payload(context),
@@ -4209,6 +4749,13 @@ def generate_scene(db: Session, *, user: User, input_mode: InputMode):
             candidates=dual_draft_candidates(context),
             choose=lambda p: _scene_score(p, context),
         )
+        # Measured on the accepted draft: a scene that did not weave the form is served
+        # all the same, flagged ``woven: false`` for the metrics.
+        try:
+            context[GRAMMAR_OUTCOME_KEY] = grammar_outcome(draft, context.get(GRAMMAR_PLAN_KEY))
+            context[WORDS_OUTCOME_KEY] = word_outcome(draft, context)
+        except Exception:  # pragma: no cover - a measurement never costs the scene
+            logger.exception("living_story: grammar/word outcome unavailable")
         return _brief(draft, context, usage=usage)
     except StoryUnavailable as exc:
         return ContentUnavailable(reason=str(exc)[:100])
@@ -4304,6 +4851,19 @@ def bind_journey(
     )
     db.add(scene)
     db.flush()
+    # WP-92 «Rayons X»: per line, where the day's form is said (offsets into text_fr).
+    grammar = brief.story_context.get(GRAMMAR_OUTCOME_KEY) or None
+    line_marks = (grammar or {}).get("marks") or {}
+
+    def dialogue_payload(panel_index: int, panel_draft: Panel) -> list[dict]:
+        lines = []
+        for line_index, line in enumerate(panel_draft.dialogue):
+            payload = line.model_dump()
+            if grammar is not None:
+                payload["grammar_marks"] = list(line_marks.get(f"{panel_index}:{line_index}") or [])
+            lines.append(payload)
+        return lines
+
     for index, panel in enumerate(draft.panels):
         scene.panels.append(
             GraphicNovelPanel(
@@ -4315,7 +4875,8 @@ def bind_journey(
                 overlay_payload={
                     "narration_fr": panel.narration_fr,
                     # WP-90: each line carries `mood` and `text_native` (None above A2).
-                    "dialogue": [line.model_dump() for line in panel.dialogue],
+                    # WP-92: and `grammar_marks` when the scene had a grammar plan.
+                    "dialogue": dialogue_payload(index, panel),
                     "alt_native": panel.alt_native,
                 },
                 generation_metadata={
@@ -4446,6 +5007,15 @@ def bind_journey(
             "basis": f"{VERSION} usage metadata",
         },
     }
+    # WP-92 / WP-93: the rule the page carries, and the words it placed and brought back.
+    words = brief.story_context.get(WORDS_OUTCOME_KEY) or {}
+    focus = (grammar or {}).get("focus")
+    scene.script_payload = {
+        **scene.script_payload,
+        **({"grammar_focus": dict(focus)} if focus else {}),
+        "recycled_lemmas": list(words.get("recycled") or []),
+        "placed_lemmas": list(words.get("placed") or []),
+    }
     _record_cost(
         db,
         user,
@@ -4459,6 +5029,24 @@ def bind_journey(
             "chapter_id": chapter["id"],
             "character_id": brief.character_id,
             "location_id": brief.location_id,
+            # WP-92 / WP-93 metrics, on the one row every accepted scene writes.
+            "grammar": {
+                "plan": (grammar or {}).get("plan"),
+                "unit_id": (focus or {}).get("unit_id"),
+                "woven": (focus or {}).get("woven"),
+                "uses": (grammar or {}).get("uses"),
+                "invited": (grammar or {}).get("invited"),
+            }
+            if grammar
+            else None,
+            "word_reuse": {
+                "offered": len(words.get("offered") or []),
+                "placed": len(words.get("placed") or []),
+                "recycled": len(words.get("recycled") or []),
+                "pool": int(words.get("pool") or 0),
+            }
+            if words
+            else None,
         },
     )
     db.flush()
