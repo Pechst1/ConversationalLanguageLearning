@@ -280,3 +280,95 @@ episodes.
 | F-3 | The tabs | See WP-109 | «La Une · Feuilleton · Courrier · Cahier» |
 | F-4 | Branching depth | Foldback with flags, 3 endings per season | Yes. Full branching is unaffordable, and foldback is how the good ones do it |
 | F-5 | Tone boundaries | Comedy, romance, rivalry, mystery, small danger | Yes. No violence beyond a break-in, no politics, and romance stays PG |
+
+## 7. Owner direction (2026-09-30) — decisions F-1..F-5 taken
+
+**The biggest improvement is giving the player something to want, someone to
+care about, and a decision they dread making.** The continuous comic makes it
+coherent; the story has to supply the pull.
+
+### Season 1: three arcs that collide
+
+- **The key and the café — mystery and belonging.** You arrive to settle a small
+  inheritance and leave. The key opens the apartment above Le Mistral, preserved
+  around an unexplained departure. Everyone remembers your grandmother
+  differently. Eventually you discover that **she helped create the very dispute
+  now threatening the café.** The inheritance is an opportunity *and* an
+  unfinished conflict: discovering her history changes what you think the right
+  outcome is, and keeping everything as it was may hurt someone you care about.
+- **Lila's Berlin letter — a slow romance with a real conflict (a main storyline).**
+  Lila becomes your accomplice in exploring the apartment. Attraction grows
+  through shared experiences — a disastrous improvised dinner, getting caught
+  somewhere you shouldn't be, an argument and a hesitant apology. She has an
+  opportunity in Berlin she actually wants; as Paris becomes home to you, she is
+  preparing to leave it. «I want you here» and «I want this for you» are hard to
+  reconcile. **Her future remains hers to choose.**
+- **The future of Le Mistral — friendship and rivalry.** Gus wants to preserve
+  something tied to his family; Marin has a proposal that might make the café
+  viable but would change who feels at home there; Lila thinks the group uses
+  loyalty to keep each other from moving on. Each position is defensible, each
+  needs your support, and helping one changes what another can do.
+
+They collide: the most interesting discovery upstairs might support Marin's
+proposal while undermining Gus's account of his family; Lila might help you
+reveal it, then resent being asked to keep another secret.
+
+### Season 1 in eight tentpoles
+
+| Ep. | The event |
+|---|---|
+| 1 · The wrong welcome | Someone mistakes you for the person arranging the sale. First choice: whom to trust with the letter |
+| 2 · Upstairs | You and Lila explore the apartment; a funny, intimate discovery contradicts the story told downstairs |
+| 3 · Two promises | Gus and Marin separately ask for your help; you cannot fully promise both |
+| 4 · The photograph | **The reversal.** A public celebration goes wrong when your discovery implicates your grandmother: your inheritance may be part of the problem |
+| 5 · Berlin | Lila tells you about her opportunity — or you discover it first, depending on earlier choices; the conversation means something different in each version |
+| 6 · The other side | Someone you treated as an opponent gives a convincing account; you decide whether to share evidence that hurts your allies |
+| 7 · The last evening | The group attempts the plan your choices made possible — room for a confession, a kiss, a reconciliation, or a meaningful friendship scene |
+| 8 · What we keep | The café's future is decided, relationships respond to your actions, and the apartment yields a reason to keep following the story |
+
+Generated episodes fill the days between tentpoles.
+
+### Rules this adds
+
+- **Romance:** one excellent route first, with an **equally satisfying friendship
+  path**. A second romantic possibility later — someone rooted in Paris, whose
+  attraction grows through disagreement and earned respect. Nobody is instantly
+  available; affection is **never a visible score**.
+- **Consequences follow what you choose to express, not grammatical
+  perfection.** A clumsy, sincere confession can be a wonderful scene;
+  misunderstandings create chances to clarify and connect. (Grammar is corrected
+  in the margin, never punished in the plot.)
+- **Small, specific moments get panels and silence:** someone remembering your
+  usual order, an unfinished text, a private joke resurfacing in an argument, a
+  character asking you to stay after everyone leaves. Not every episode needs a
+  revelation.
+- **Revised rule (replaces «errands are refused»):** *episodes without meaningful
+  change are refused.* Buying bread can be memorable if it is your first awkward
+  morning together; a dramatic investigation can feel empty if nothing changes.
+- **The mechanics, in this story:** L'enquête — two accounts of your
+  grandmother's departure contradict each other; Convaincre — persuade a friend
+  to hear out someone they distrust; Le choix — reveal a secret that changes
+  tomorrow's meeting; Déchiffrer — is this message an invitation, an apology or a
+  goodbye?
+
+### Decisions
+
+| # | Decision taken |
+|---|---|
+| F-1 | Season 1 = the three arcs above (the key and the café · Lila's Berlin letter · the future of Le Mistral), eight tentpoles |
+| F-2 | Captions for characters; the learner's line drawn as a balloon in its panel |
+| F-3 | Tabs: La Une · Feuilleton · Courrier · Cahier |
+| F-4 | Foldback branching with flags; three endings; one romance route + a friendship path first |
+| F-5 | Comedy, romance, rivalry, mystery, small danger; romance stays tender, never explicit |
+
+### What comes first
+
+1. **WP-108** — the practical first move: the pages must draw.
+2. **Creative proof before the engine:** write **tentpole 4 (the reversal),
+   tentpole 5 (the Berlin conversation, in its variants) and the three endings**
+   first. They show whether the premise has the emotional depth to sustain
+   everything around it. Owner reads them; only then WP-110..113 build the engine
+   around the full season bible (WP-111).
+
+Note: season 3 «Les clés du Mistral» (authored 2026-09-29) shares the keys and
+the walls; once season 1 is rewritten, seasons 2–3 are re-cut to follow from it.
