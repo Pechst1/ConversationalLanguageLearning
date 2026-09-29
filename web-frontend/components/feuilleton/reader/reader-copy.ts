@@ -86,6 +86,8 @@ export type ReaderCopy = {
   rayons_label: string;
   /** The one-line legend while the marks are on: «Aujourd’hui : {title}». */
   rayons_legend: string;
+  /** WP-93: the same legend on a page from another day (the READ step's relecture). */
+  rayons_legend_past: string;
   /** What a screen reader hears once per marked line: «La règle du jour : {form}». */
   rayons_form: string;
   /** Portrait alt text: «{name}, {mood}». Moods follow. */
@@ -155,6 +157,7 @@ const FR: ReaderCopy = {
   rayons: 'Rayons X',
   rayons_label: 'Montrer la règle du jour dans la page',
   rayons_legend: 'Aujourd’hui : {title}',
+  rayons_legend_past: 'Ce jour-là : {title}',
   rayons_form: 'La règle du jour : {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'ravi',
@@ -222,6 +225,7 @@ const EN: ReaderCopy = {
   rayons: 'X-ray',
   rayons_label: 'Show today’s rule in the page',
   rayons_legend: 'Today: {title}',
+  rayons_legend_past: 'That day: {title}',
   rayons_form: 'Today’s rule: {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'pleased',
@@ -289,6 +293,7 @@ const DE: ReaderCopy = {
   rayons: 'Röntgen',
   rayons_label: 'Die Regel des Tages im Text zeigen',
   rayons_legend: 'Heute: {title}',
+  rayons_legend_past: 'An diesem Tag: {title}',
   rayons_form: 'Regel des Tages: {form}',
   portrait_alt: '{name}, {mood}',
   mood_happy: 'froh',

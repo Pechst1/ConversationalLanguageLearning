@@ -223,6 +223,7 @@ export function StoryEpisodeReader({
         finaleWait={finaleWait}
         rayonsTitle={rayonsTitle}
         rayonsReplay={reread}
+        rayonsPast={reread}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
           location's art is a production fact, not a thing the learner has done

@@ -129,6 +129,8 @@ export type FeuilletonReaderProps = {
    * in the page — after the first full read, or at once on a replay.
    */
   rayonsTitle?: string | null;
+  /** WP-93: the page is from another day, so the legend says «Ce jour-là». */
+  rayonsPast?: boolean;
   /** WP-92: the page is being re-read (a replay, or the READ step): the toggle is there at once. */
   rayonsReplay?: boolean;
 };
@@ -176,6 +178,7 @@ export function FeuilletonReader({
   finaleExtra = null,
   finaleWait = null,
   rayonsTitle = null,
+  rayonsPast = false,
   rayonsReplay = false,
 }: FeuilletonReaderProps) {
   const base = readerCopy(language);
@@ -413,7 +416,7 @@ export function FeuilletonReader({
         /* one line, in the chrome language: which rule the marks are */
         <p className="fr-rayons-legend">
           <ShapeToken kind="action" size="sm" />
-          <span>{fillReaderCopy(t.rayons_legend, { title: rayonsTitle })}</span>
+          <span>{fillReaderCopy(rayonsPast ? t.rayons_legend_past : t.rayons_legend, { title: rayonsTitle })}</span>
         </p>
       )}
 
