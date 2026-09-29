@@ -328,6 +328,8 @@ LINE_NATIVE_CHARS = 320
 PANEL_ALT_CHARS = 160
 #: The bands whose learners get every line translated («Traduire la case»).
 LINE_TRANSLATION_LEVELS = frozenset({"A1", "A2"})
+#: WP-94: the host's pass / fail line on an épreuve scene.
+EPREUVE_LINE_CHARS = 240
 
 
 class Dialogue(StrictModel):
@@ -444,6 +446,23 @@ class SceneDraft(StrictModel):
     # WP-86: three to five words this scene teaches, each named where it is said
     # (line_ref: "premise", "opening", "panel:<i>:narration", "panel:<i>:line:<j>").
     lexicon: list[LexiconEntry] = Field(default_factory=list, max_length=10)
+    # WP-95 «Le Carnet»: the ONE can-do of the learner's sub-band this scene's objective
+    # exercises, chosen from ``can_dos.options``; an id not on the list is dropped.
+    can_do_id: str | None = Field(default=None, max_length=80)
+    # WP-94 «Numéro spécial», épreuve scenes only: the host's line if the learner passes,
+    # and the kind one if not yet («on se revoit la semaine prochaine»). Lenient.
+    epreuve_pass_line_fr: str | None = Field(default=None, max_length=EPREUVE_LINE_CHARS)
+    epreuve_fail_line_fr: str | None = Field(default=None, max_length=EPREUVE_LINE_CHARS)
+
+    @field_validator("can_do_id", mode="before")
+    @classmethod
+    def _can_do(cls, value: Any) -> str | None:
+        return _lenient_text(value, 80)
+
+    @field_validator("epreuve_pass_line_fr", "epreuve_fail_line_fr", mode="before")
+    @classmethod
+    def _epreuve_line(cls, value: Any) -> str | None:
+        return _lenient_text(value, EPREUVE_LINE_CHARS)
 
 
 class Commitment(StrictModel):
@@ -696,6 +715,26 @@ learner is practising: use each once where it fits. grammar_plan.allowed is gram
 learner already handles — lean on it; grammar_plan.avoid lists structures above the
 learner's level — do not use them. A plan never outranks the story: the form serves what
 the characters want to say.
+CAN-DOS (what the learner can do in French). can_dos.options lists the can-dos of the
+learner's current sub-band, least practised first; can_dos.prefer names the ones this
+learner has not shown yet. Build the objective so that it genuinely exercises ONE of
+them — one from can_dos.prefer whenever the story allows — and set can_do_id to its id.
+When none of them fits the scene the story needs, set can_do_id to null rather than
+bending the story. Never name the can-do to the learner.
+NUMÉRO SPÉCIAL. epreuve, when present, means today is a special edition of the paper:
+the learner's level check, played as a story, never called a test, an exam or a level.
+Write it like a finale: everyone in epreuve.cast comes — a gathering at
+epreuve.suggested_location or wherever the story is — and every one of them is in the
+page, speaking a line or named in the narration. The objective asks the learner to do
+each can-do in epreuve.can_dos in their own free replies across the conversation (never
+a choice between given answers); set can_do_id to the first of them. epreuve.avoid, when
+present, is the situation of the last attempt: today is a NEW situation, in another
+place with another premise. epreuve_pass_line_fr is one line the addressed character
+says if the learner succeeds — warm, proud, at the learner's level;
+epreuve_fail_line_fr is the kind line if not yet, in the spirit of «on se revoit la
+semaine prochaine» — never shaming, never saying failed. On every other day both are
+null. The chapter goes on around it: keep chapter.required_beat and the chapter's
+question, and whatever chapter.shape says about voices, today everybody comes.
 FACES AND READING AIDS. Every dialogue line has mood: how the speaker feels saying it —
 neutral, happy, cross or moved (the reader's portrait plays it, so vary it with the
 scene). When line_translation names a language, every dialogue line also has
@@ -3633,11 +3672,17 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
-    _check_objective_scope(
-        draft.objective_native,
-        context.get("level"),
-        asked=(context.get("variety") or {}).get("used_objectives"),
-    )
+    epreuve = context.get(EPREUVE_KEY)
+    if not epreuve:
+        _check_objective_scope(
+            draft.objective_native,
+            context.get("level"),
+            asked=(context.get("variety") or {}).get("used_objectives"),
+        )
+    else:
+        # WP-94: the special edition asks for its 2–3 can-dos across the conversation —
+        # the one-act rule of an ordinary A1/A2 day does not apply to it.
+        _check_epreuve_situation(draft, context)
     _check_coverage(learner_text, context)
     # If a chapter is open and not yet exhausted, its question cannot silently disappear.
     chapter = context.get("chapter") or {}
@@ -3667,7 +3712,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     shape = str(
         chapter.get("shape") or (context.get("chapter_shape") or {}).get("shape") or DEFAULT_SHAPE
     )
-    if shape == "two_hander":
+    if shape == "two_hander" and not epreuve:
         voices = {draft.character_id} | {
             line.character_id for panel in draft.panels for line in panel.dialogue
         }
@@ -4009,11 +4054,19 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     # WP-92: the day's new form, said twice and asked for, rides the same one retry — a
     # grammar plan is never the reason a learner loses a day.
     grammar = grammar_weave_gap(draft, context)
-    if not untranslated and not undescribed and not grammar:
+    # WP-94: the special edition's cast and host lines ride the same one retry, and the
+    # accepted draft is completed (``complete_epreuve``) — an épreuve never loses a day.
+    special = epreuve_gap(draft, context)
+    if not untranslated and not undescribed and not grammar and not special:
         return
     if not untranslated and not undescribed:
-        raise SoftRejection("grammar_not_woven", hint=grammar, proposal=draft)
+        hint = " ".join(filter(None, [grammar, special]))
+        raise SoftRejection(
+            "grammar_not_woven" if grammar else "epreuve_incomplete", hint=hint, proposal=draft
+        )
     wanted = []
+    if special:
+        wanted.append(special.rstrip("."))
     if grammar:
         wanted.append(grammar.rstrip("."))
     if untranslated:
@@ -4695,6 +4748,358 @@ def word_outcome(draft: SceneDraft, context: dict) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# WP-95 «Le Carnet» (can_do_id) and WP-94 «Numéro spécial» (the épreuve)
+# ---------------------------------------------------------------------------
+
+#: Director-only context keys: the sub-band's can-dos, and today's épreuve when staged.
+CAN_DOS_KEY = "can_dos"
+EPREUVE_KEY = "epreuve"
+#: Kill switch for staging the épreuve (the can-do choice is always on).
+EPREUVE_ENABLED = True
+#: How many of the band's can-dos one épreuve asks for (2–3).
+EPREUVE_CAN_DOS = 3
+#: The gathering's first home: the café the story starts in.
+EPREUVE_HOME_LOCATION = "le_mistral"
+#: Engine scenes read back to count which can-dos were already exercised.
+CAN_DO_HISTORY_SCENES = 120
+#: Thread-state ledger of staged épreuves (``live["epreuves"]``), newest last.
+EPREUVE_HISTORY_LIMIT = 12
+#: A retried épreuve whose premise overlaps the last one this much is the same situation.
+EPREUVE_PREMISE_OVERLAP = 0.5
+_NAME_PARTICLES = frozenset({"de", "du", "des", "la", "le", "les", "van", "von", "di"})
+
+#: Authored stand-ins when the director leaves the host's lines out: never a lost day.
+EPREUVE_PASS_LINE_FR = "Bravo ! Tout le monde t'a compris ce soir. On fête ça ?"  # noqa: S105 - a line of dialogue
+EPREUVE_PASS_LINE_FR_VOUS = "Bravo ! Tout le monde vous a compris ce soir. On fête ça ?"  # noqa: S105
+EPREUVE_FAIL_LINE_FR = "Merci pour ce soir ! On se revoit la semaine prochaine, d'accord ?"
+
+
+def stamped_can_dos(db: Session, user: User) -> set[str]:
+    """The can-dos already pressed in this learner's Carnet (the services agent's
+    ``app.services.can_do.stamped_can_do_ids``). Empty when that module is not there
+    yet or cannot be read: a Carnet is never the reason a scene is lost."""
+
+    try:
+        from app.services.can_do import stamped_can_do_ids
+    except ImportError:
+        return set()
+    try:
+        with db.begin_nested():
+            return {str(item) for item in stamped_can_do_ids(db, user.id) or () if item}
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("living_story: stamped can-dos unavailable (%s)", type(exc).__name__)
+        return set()
+
+
+def scene_checkpoint(db: Session, user: User) -> dict | None:
+    """The band in force and its épreuve state (``level_checkpoint.current_checkpoint``),
+    read once per scene. ``None`` when it cannot be computed — then no épreuve today."""
+
+    try:
+        from app.services import level_checkpoint
+
+        with db.begin_nested():
+            view = level_checkpoint.current_checkpoint(db, user)
+        return dict(view) if isinstance(view, dict) else None
+    except Exception:  # pragma: no cover - defensive: a level read never costs a scene
+        logger.exception("living_story: checkpoint unavailable")
+        return None
+
+
+def _sub_band(view: dict | None, user: User, context: dict) -> str | None:
+    from app.services.level_coverage import SUB_BANDS
+
+    for candidate in (
+        (view or {}).get("band"),
+        getattr(user, "cefr_estimate", None),
+        f"{_coarse_level(context.get('level') or learner_level_band(user))}.1",
+    ):
+        if str(candidate or "") in SUB_BANDS:
+            return str(candidate)
+    return None
+
+
+def _engine_payloads(db: Session, user: User, *, limit: int = CAN_DO_HISTORY_SCENES) -> list[dict]:
+    try:
+        with db.begin_nested():
+            rows = db.scalars(
+                select(GraphicNovelScene.script_payload)
+                .where(
+                    GraphicNovelScene.user_id == user.id,
+                    GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+                )
+                .order_by(GraphicNovelScene.created_at.desc())
+                .limit(limit)
+            ).all()
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("living_story: scene history unavailable")
+        return []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def can_do_menu(
+    db: Session, user: User, *, band: str | None, control_language: str
+) -> dict | None:
+    """The sub-band's can-dos as the director chooses from them, least evidenced first:
+    not yet stamped before stamped, then the ones fewest earlier scenes exercised, then
+    the catalogue's own order."""
+
+    from collections import Counter
+
+    from app.services.level_checkpoint import band_can_dos
+
+    items = [item for item in band_can_dos(band) if item.get("id")] if band else []
+    if not items:
+        return None
+    stamped = stamped_can_dos(db, user)
+    exercised: Counter[str] = Counter()
+    for payload in _engine_payloads(db, user):
+        if payload.get("can_do_id"):
+            exercised[str(payload["can_do_id"])] += 1
+        for item in (payload.get(EPREUVE_KEY) or {}).get("can_do_ids") or []:
+            exercised[str(item)] += 1
+    ordered = [
+        item
+        for _index, item in sorted(
+            enumerate(items),
+            key=lambda pair: (pair[1]["id"] in stamped, exercised[pair[1]["id"]], pair[0]),
+        )
+    ]
+    language = control_language if control_language in ("en", "de", "fr") else "en"
+    options = [
+        {
+            "id": item["id"],
+            "title_fr": item.get("title_fr"),
+            "title": item.get(f"title_{language}") or item.get("title_en"),
+            "words": list(item.get("words") or [])[:8],
+            "stamped": item["id"] in stamped,
+        }
+        for item in ordered
+    ]
+    return {
+        "band": band,
+        "options": options,
+        "prefer": [option["id"] for option in options if not option["stamped"]],
+    }
+
+
+def _live_state(db: Session, user: User) -> dict:
+    thread = _active_thread(db, user)
+    return dict((thread.state or {}).get(STATE_KEY) or {}) if thread else {}
+
+
+def epreuve_history(live: dict, band: str | None = None) -> list[dict]:
+    rows = [row for row in live.get("epreuves") or [] if isinstance(row, dict)]
+    return [row for row in rows if band is None or row.get("band") == band]
+
+
+def epreuve_plan(view: dict | None, menu: dict | None, context: dict, live: dict) -> dict | None:
+    """Today's épreuve, when the checkpoint says the learner is ready for it.
+
+    Staged only on ``checkpoint_ready`` (a failed épreuve is not ready again before its
+    ``retry_after``): the band's 2–3 least evidenced can-dos, the whole cast, and — on a
+    retry — the last attempt's situation to stay away from."""
+
+    if not EPREUVE_ENABLED or not isinstance(view, dict) or not view.get("checkpoint_ready"):
+        return None
+    band = str(view.get("band") or "")
+    if not menu or menu.get("band") != band:
+        return None
+    options = list(menu.get("options") or [])[:EPREUVE_CAN_DOS]
+    if len(options) < 2:
+        return None
+    cast = [
+        {"id": str(member["id"]), "name": member.get("name")}
+        for member in (context.get("world") or {}).get("cast") or []
+        if member.get("id")
+    ]
+    locations = {
+        str(loc.get("id")) for loc in (context.get("world") or {}).get("locations") or [] if loc.get("id")
+    }
+    previous = epreuve_history(live, band)
+    last = previous[-1] if previous else None
+    home = EPREUVE_HOME_LOCATION if EPREUVE_HOME_LOCATION in locations else None
+    suggested = home if not last or last.get("location_id") != home else None
+    return {
+        "band": band,
+        "attempt": int(view.get("attempts") or 0) + 1,
+        "can_do_ids": [option["id"] for option in options],
+        "can_dos": [
+            {"id": option["id"], "title_fr": option["title_fr"], "title": option["title"]}
+            for option in options
+        ],
+        "cast": cast,
+        "suggested_location": suggested,
+        "avoid": {
+            "location_id": last.get("location_id"),
+            "premise_fr": last.get("premise_fr"),
+            "novelty_key": last.get("novelty_key"),
+        }
+        if last
+        else None,
+        "instruction": (
+            "Numéro spécial: everyone comes, the learner does each of these can-dos in "
+            "free replies across the conversation, and nobody calls it a test."
+        ),
+    }
+
+
+def _name_keys(member: dict) -> set[str]:
+    words = re.findall(r"[^\W\d_]+", str(member.get("name") or ""))
+    keys = {_folded(word) for word in words if len(word) >= 3 and word.casefold() not in _NAME_PARTICLES}
+    keys.add(str(member.get("id") or "").split("_")[0].casefold())
+    return {key for key in keys if key}
+
+
+def epreuve_absent_cast(draft: SceneDraft, plan: dict) -> list[dict]:
+    """The cast members the page leaves out: neither a line nor a name in the panels."""
+
+    speakers = {draft.character_id} | {
+        line.character_id for panel in draft.panels for line in panel.dialogue
+    }
+    shown = set(
+        _folded(
+            " ".join(
+                [draft.premise_fr]
+                + [panel.narration_fr for panel in draft.panels]
+                + [panel.visual_direction for panel in draft.panels]
+                + [line.text_fr for panel in draft.panels for line in panel.dialogue]
+            )
+        ).split()
+    )
+    return [
+        member
+        for member in plan.get("cast") or []
+        if member["id"] not in speakers and not (_name_keys(member) & shown)
+    ]
+
+
+def epreuve_gap(draft: SceneDraft, context: dict) -> str | None:
+    """What a special edition still misses (cast, the host's two lines), as the one
+    retry's hint — a soft rejection like the reading aids: then it is completed."""
+
+    plan = context.get(EPREUVE_KEY)
+    if not plan:
+        return None
+    wanted = []
+    absent = epreuve_absent_cast(draft, plan)
+    if absent:
+        wanted.append(
+            "this is the Numéro spécial and everyone comes: "
+            f"{[member['id'] for member in absent]} are not in the page — give each a line "
+            "or show them in a panel's narration"
+        )
+    if not draft.epreuve_pass_line_fr or not draft.epreuve_fail_line_fr:
+        wanted.append(
+            "write epreuve_pass_line_fr (the host's proud line if the learner succeeds) and "
+            "epreuve_fail_line_fr (a kind «on se revoit la semaine prochaine» line)"
+        )
+    return "; ".join(wanted) + "." if wanted else None
+
+
+def _check_epreuve_situation(draft: SceneDraft, context: dict) -> None:
+    """A retried épreuve is a NEW situation: not the last attempt's place (unless a
+    bottle chapter holds the story in one room) and not its premise."""
+
+    plan = context.get(EPREUVE_KEY) or {}
+    avoid = plan.get("avoid") or {}
+    if not avoid:
+        return
+    chapter = context.get("chapter") or {}
+    bottled = str(chapter.get("shape") or "") == "bottle" and chapter.get("location_id")
+    same_place = not bottled and avoid.get("location_id") == draft.location_id
+    same_premise = _premise_overlap(draft.premise_fr, str(avoid.get("premise_fr") or "")) >= (
+        EPREUVE_PREMISE_OVERLAP
+    ) or (avoid.get("novelty_key") and str(avoid["novelty_key"]).casefold() == draft.novelty_key.casefold())
+    if same_place or same_premise:
+        raise StoryUnavailable(
+            "epreuve_same_situation",
+            hint=(
+                "The last Numéro spécial was "
+                f"\"{_one_line(avoid.get('premise_fr'), 90)}\" at {avoid.get('location_id')}. "
+                "Stage this one as a new situation: "
+                + ("another place, " if same_place else "")
+                + "another premise, another reason for everyone to come."
+            ),
+        )
+
+
+def settle_can_do(draft: SceneDraft, context: dict) -> None:
+    """Keep ``can_do_id`` only when it is on the director's list (never a lost day);
+    on an épreuve it is one of the épreuve's can-dos, the first when the draft's is not."""
+
+    menu = context.get(CAN_DOS_KEY) or {}
+    allowed = {str(option.get("id")) for option in menu.get("options") or []}
+    if draft.can_do_id not in allowed:
+        draft.can_do_id = None
+    plan = context.get(EPREUVE_KEY)
+    if plan:
+        ids = list(plan.get("can_do_ids") or [])
+        if draft.can_do_id not in ids:
+            draft.can_do_id = ids[0] if ids else None
+    else:
+        draft.epreuve_pass_line_fr = None
+        draft.epreuve_fail_line_fr = None
+
+
+def complete_epreuve(draft: SceneDraft, context: dict) -> None:
+    """On the accepted draft: whoever the page still left out is named arriving in the
+    first panel, and missing host lines get the authored stand-ins."""
+
+    plan = context.get(EPREUVE_KEY)
+    if not plan:
+        return
+    absent = epreuve_absent_cast(draft, plan)
+    if absent and draft.panels:
+        names = [
+            re.sub(r"\s*«[^»]*»\s*", " ", str(member.get("name") or member["id"])).split()[0]
+            for member in absent
+        ]
+        listed = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " et " + names[-1]
+        arrival = f"{listed} {'arrive' if len(names) == 1 else 'arrivent'} aussi."
+        panel = draft.panels[0]
+        panel.narration_fr = " ".join(filter(None, [panel.narration_fr, arrival]))[:360]
+    address = (context.get("learner") or {}).get("address")
+    vous = _address_register([draft.opening_line_fr]) == "vous"
+    if not draft.epreuve_pass_line_fr:
+        draft.epreuve_pass_line_fr = EPREUVE_PASS_LINE_FR_VOUS if vous else EPREUVE_PASS_LINE_FR
+    if not draft.epreuve_fail_line_fr:
+        draft.epreuve_fail_line_fr = EPREUVE_FAIL_LINE_FR
+    for field in ("epreuve_pass_line_fr", "epreuve_fail_line_fr"):
+        text = getattr(draft, field)
+        if text:
+            setattr(draft, field, _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(text)), address))
+
+
+def epreuve_payload(draft: SceneDraft, context: dict) -> dict | None:
+    """``script_payload["epreuve"]`` of the bound scene (the services agent's contract)."""
+
+    plan = context.get(EPREUVE_KEY)
+    if not plan:
+        return None
+    return {
+        "band": plan["band"],
+        "can_do_ids": list(plan.get("can_do_ids") or []),
+        "attempt": int(plan.get("attempt") or 1),
+        "pass_line_fr": draft.epreuve_pass_line_fr,
+        "fail_line_fr": draft.epreuve_fail_line_fr,
+        "host_id": draft.character_id,
+        "location_id": draft.location_id,
+        "cast_ids": [member["id"] for member in plan.get("cast") or []],
+    }
+
+
+def epreuve_cache_key(db: Session, user: User) -> str | None:
+    """For the prefetch key: a scene drafted before the épreuve became ready (or for
+    another attempt) must not be served on the épreuve's day."""
+
+    view = scene_checkpoint(db, user)
+    if not EPREUVE_ENABLED or not view or not view.get("checkpoint_ready"):
+        return None
+    return f"{view.get('band')}:{int(view.get('attempts') or 0) + 1}"
+
+
 def generate_scene(
     db: Session, *, user: User, input_mode: InputMode, now: datetime | None = None
 ):
@@ -4737,6 +5142,20 @@ def generate_scene(
         mots = mots_a_placer(db, user, context)
         if mots:
             context[MOTS_KEY] = mots
+        # WP-95 / WP-94. Director-only: the sub-band's can-dos to choose the scene's one
+        # from, and — when the checkpoint says the learner is ready — the épreuve.
+        view = scene_checkpoint(db, user)
+        menu = can_do_menu(
+            db,
+            user,
+            band=_sub_band(view, user, context),
+            control_language=str(context.get("control_language") or "en"),
+        )
+        if menu:
+            context[CAN_DOS_KEY] = menu
+        epreuve = epreuve_plan(view, menu, context, _live_state(db, user))
+        if epreuve:
+            context[EPREUVE_KEY] = epreuve
         draft, usage = _approved(
             DIRECTOR,
             _prompt_payload(context),
@@ -4749,6 +5168,8 @@ def generate_scene(
             candidates=dual_draft_candidates(context),
             choose=lambda p: _scene_score(p, context),
         )
+        settle_can_do(draft, context)
+        complete_epreuve(draft, context)
         # Measured on the accepted draft: a scene that did not weave the form is served
         # all the same, flagged ``woven: false`` for the metrics.
         try:
@@ -4984,6 +5405,20 @@ def bind_journey(
             "chapter_title_fr": chapter.get("title_fr"),
         },
     ][-14:]
+    # WP-94: the staged épreuve's situation, so a retry is staged somewhere new.
+    if context.get(EPREUVE_KEY):
+        live["epreuves"] = [
+            *epreuve_history(live),
+            {
+                "band": context[EPREUVE_KEY].get("band"),
+                "attempt": int(context[EPREUVE_KEY].get("attempt") or 1),
+                "location_id": draft.location_id,
+                "premise_fr": draft.premise_fr,
+                "novelty_key": draft.novelty_key,
+                "day": int(live.get("day_index") or 0),
+                "scene_id": str(scene.id),
+            },
+        ][-EPREUVE_HISTORY_LIMIT:]
     state[STATE_KEY] = live
     thread.state = state
     # One cost row per accepted scene, inside this transaction: a rolled-back
@@ -5015,6 +5450,15 @@ def bind_journey(
         **({"grammar_focus": dict(focus)} if focus else {}),
         "recycled_lemmas": list(words.get("recycled") or []),
         "placed_lemmas": list(words.get("placed") or []),
+        # WP-95: the can-do this scene's objective exercises (the Carnet's evidence).
+        "can_do_id": draft.can_do_id,
+    }
+    # WP-94 «Numéro spécial»: the épreuve day, with the host's two lines for the recap.
+    special = epreuve_payload(draft, context)
+    scene.script_payload = {
+        **scene.script_payload,
+        "special": "epreuve" if special else None,
+        **({EPREUVE_KEY: special} if special else {}),
     }
     _record_cost(
         db,

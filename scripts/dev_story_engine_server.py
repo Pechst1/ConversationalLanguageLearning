@@ -92,6 +92,19 @@ class FakeStoryProvider:
                     for panel, example in zip(value["panels"][1:3], [examples[0], examples[-1]], strict=True):
                         panel["dialogue"].append({"character_id": speaker, "text_fr": example})
                     value["suggested_response_fr"] = examples[0]
+                # WP-95: the can-do the scene exercises, an unstamped one first.
+                menu = source.get("can_dos") or {}
+                value["can_do_id"] = (menu.get("prefer") or [None])[0]
+                # WP-94 «Numéro spécial»: everyone comes, and the host's two lines.
+                epreuve = source.get("epreuve")
+                if epreuve and len(value["panels"]) >= 2:
+                    value["can_do_id"] = epreuve["can_do_ids"][0]
+                    value["panels"][-1]["dialogue"] = [
+                        {"character_id": member["id"], "text_fr": "Bonsoir !"}
+                        for member in epreuve.get("cast") or []
+                    ][:3]
+                    value["epreuve_pass_line_fr"] = "Bravo ! On est tous très fiers."  # noqa: S105
+                    value["epreuve_fail_line_fr"] = "On se revoit la semaine prochaine, d'accord ?"
             elif schema == "SemanticTurn":
                 value = self._turn(source, self.turns)
                 self.turns += 1
