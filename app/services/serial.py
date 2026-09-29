@@ -1070,11 +1070,9 @@ class SerialThreadService:
                     "role": member.get("role"),
                     "dynamic_with_user": member.get("dynamic_with_user"),
                     # WP-D8: the drawn cast shows its approved portrait; only the learner keeps a model sheet.
-                    "model_sheet_url": (
-                        f"/assets/serial/characters/{character_id}/model-sheet.webp"
-                        if character_id == "user"
-                        else f"/assets/serial/characters/{character_id}/portrait-neutral.webp"
-                    ),
+                    # WP-98: a character added without art (`portrait_missing`, e.g.
+                    # season 3's Tiago) gets None, so the face falls back to initials.
+                    "model_sheet_url": _portrait_url(character_id, member),
                     "accent_colour": visual.get("accent_colour"),
                     # WP-97. `trust` 0..5 (None until the engine has met them);
                     # `known_about_you` [{text_fr, date, scene_id}], newest first;
@@ -2235,3 +2233,19 @@ class SerialThreadService:
 
 
 __all__ = ["SerialThreadService"]
+
+
+_WEB_PUBLIC = Path(__file__).resolve().parents[2] / "web-frontend" / "public"
+
+
+def _portrait_url(character_id: str, member: dict[str, Any]) -> str | None:
+    """The cast member's approved portrait, or None when there is no art for them."""
+
+    if character_id == "user":
+        return f"/assets/serial/characters/{character_id}/model-sheet.webp"
+    if member.get("portrait_missing"):
+        return None
+    relative = f"assets/serial/characters/{character_id}/portrait-neutral.webp"
+    if _WEB_PUBLIC.is_dir() and not (_WEB_PUBLIC / relative).is_file():
+        return None
+    return "/" + relative
