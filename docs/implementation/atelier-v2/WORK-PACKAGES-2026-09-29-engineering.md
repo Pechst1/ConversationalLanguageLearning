@@ -158,3 +158,32 @@ Each package has a "done when" line so an agent can prove it.
 | ED-3 | E-7's cap on real calls when a prompt changes | US$1 per run, owner-approved above it |
 | ED-4 | E-6's owner-call list | Reviewed in one sitting when the inventory is done |
 | ED-5 | Budget split between Opus and Sonnet | As in §2: Opus designs and reviews, Sonnet does the bulk |
+
+## 6. How to start a package (ready-made subagents)
+
+Each package has a subagent definition in `.claude/agents/` with its model and
+reasoning effort in the frontmatter (`model`, `effort`), the package brief, and
+the shared ground rules: shared checkout, commit only your own paths,
+outward-facing steps stop for the owner, no paid calls, test commands, and the
+report format.
+
+| Agent | Model · effort | Starts |
+|---|---|---|
+| `e-2-test-suite` | Opus · high | E-2 (run first) |
+| `e-1-land-branch` | Opus · high | E-1 — writes the landing plan, then stops for ED-1 |
+| `e-3-walk-harness` | Sonnet · high | E-3 |
+| `e-7-prompt-regression` | Opus · high | E-7 |
+| `e-4-split-monoliths` | Opus · xhigh | E-4, **one module per run** (name it in the task) |
+| `e-5-generated-types` | Sonnet · medium | E-5 |
+| `e-6-flag-cleanup` | Opus · medium | E-6 — inventory, then stops for ED-4 |
+| `e-8-package-workflow` | Opus · medium | E-8 (last) |
+| `e-bulk-executor` | Sonnet · medium | Bulk work a lead hands over (pattern + files + check) |
+
+To start one, ask in a Claude Code session, for example:
+
+- `@"e-2-test-suite (agent)" start E-2`
+- `Use the e-4-split-monoliths agent on app/services/journey_planner.py`
+- or in a session's own words: "run E-2 with its subagent".
+
+Run E-2 → E-1 → E-3 + E-7 → E-4/E-5/E-6 → E-8 (§4). At most four agents at a
+time; two agents must never edit the same module in the same round.
