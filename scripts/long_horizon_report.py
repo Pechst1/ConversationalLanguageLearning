@@ -232,7 +232,43 @@ def _archive_lines(life: Any) -> list[str]:
     return out
 
 
-def render(life: Any, *, days: int, generated: date) -> str:
+def _depeche_lines(life: Any, avoidance: dict[str, Any] | None) -> list[str]:
+    """WP-99: the teasers the pushes read, the returns after an absence, and
+    the avoidance rate the forecast's hold-lag samples now use."""
+
+    from tests.test_long_horizon_evidence import TEASER_REPEAT_DAYS, teaser_repeats
+
+    teasers = [payload.get("next_teaser_fr") for _, payload in life.scene_payloads if payload.get("next_teaser_fr")]
+    repeats = teaser_repeats(life)
+    returns = [row for row in life.played if row.absence]
+    out = [
+        f"- **{len(teasers)} teasers** écrits par l'histoire, "
+        f"{len(repeats)} répété(s) à moins de {TEASER_REPEAT_DAYS} jours.",
+        f"- **{len(returns)} retour(s)** après une absence d'au moins deux jours :",
+    ]
+    for row in returns:
+        absence = row.absence or {}
+        out.append(
+            f"  - j{row.ordinal} : {absence.get('days')} jour(s) d'absence, "
+            f"{len(absence.get('entre_temps') or [])} nouvelle(s) « Entre-temps », "
+            f"{len(absence.get('lapsed_letters') or [])} lettre(s) restée(s) sans réponse, "
+            f"salut : {absence.get('greeting_fr') or '—'}"
+        )
+    rate = (avoidance or {}).get("rate")
+    out.append(
+        "- **Taux d'évitement mesuré** (réponses qui contournent l'unité demandée) : "
+        + (
+            f"{rate * 100:.1f} % sur {(avoidance or {}).get('total')} verdicts — il alimente "
+            "les échantillons de délai de « Tenue » de la prévision."
+            if isinstance(rate, int | float)
+            else f"non mesuré ({(avoidance or {}).get('total', 0)} verdicts, il en faut 20) — "
+            "la prévision compte 0 %."
+        )
+    )
+    return out
+
+
+def render(life: Any, *, days: int, generated: date, avoidance: dict[str, Any] | None = None) -> str:
     played = life.played
     shapes = Counter(life.shapes())
     phases = [row.context["season"]["phase"] for row in played]
@@ -319,6 +355,10 @@ def render(life: Any, *, days: int, generated: date) -> str:
         "",
         *_letter_lines(life),
         "",
+        "## Dépêches, retours et évitement",
+        "",
+        *_depeche_lines(life, avoidance),
+        "",
         "## Ce que l'apprenant·e a rendu vrai",
         "",
         "| jour | sorte | poids | ce que c'était |",
@@ -343,6 +383,20 @@ def render(life: Any, *, days: int, generated: date) -> str:
 # ---------------------------------------------------------------------------
 
 
+def measured_avoidance(engine: Any) -> dict[str, Any]:
+    """WP-99: ``journey_learning.measured_avoidance_rate`` over the run's own replies."""
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.services.journey_learning import measured_avoidance_rate
+
+    session = sessionmaker(bind=engine)()
+    try:
+        return measured_avoidance_rate(session)
+    finally:
+        session.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -365,9 +419,17 @@ def main() -> None:
     today = date.today()
 
     with horizon_run(engine, days=days, labels=labels) as record:
+        avoidance = measured_avoidance(engine)
+        rate = avoidance.get("rate")
+        print(
+            "measured avoidance rate:",
+            f"{rate * 100:.1f} % of {avoidance.get('total')} verdicts"
+            if isinstance(rate, int | float)
+            else f"unmeasured ({avoidance.get('total', 0)} verdicts, 20 needed)",
+        )
         for life in record.lives:
             path = args.out_dir / f"long-horizon-{life.label}.md"
-            path.write_text(render(life, days=days, generated=today), encoding="utf-8")
+            path.write_text(render(life, days=days, generated=today, avoidance=avoidance), encoding="utf-8")
             print(f"wrote {path}")
     print("No provider was called and nothing was spent.")
 

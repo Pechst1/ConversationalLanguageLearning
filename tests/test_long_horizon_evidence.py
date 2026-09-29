@@ -93,6 +93,17 @@ HORIZON_DAYS = 126
 #: said inside the first five days and nowhere else.
 FIRST_WEEK_FACT = "Vous avez vidé la cave inondée avec deux seaux."
 
+#: WP-99: one longer absence — this many days in a row away — so the day the
+#: learner comes back can be asked for «Pendant votre absence» and «Entre-temps».
+#: It starts the day after the first played day (from ``RETURN_GAP_FROM``) whose
+#: chapter turn wrote an off-screen beat: the cast's week goes on while the
+#: learner is away, and the return day is where they hear about it.
+RETURN_GAP_LENGTH = 3
+RETURN_GAP_FROM = 40
+
+#: WP-99: a teaser the story writes is never repeated inside this many days.
+TEASER_REPEAT_DAYS = 14
+
 #: A Monday, so the ISO weeks the Courrier keys its letters on line up with the
 #: weeks the day-shape dice are dealt for.
 START = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
@@ -249,6 +260,9 @@ class DayRecord:
     context: dict[str, Any] = field(default_factory=dict)
     #: What the Courrier did on this day, outside the journey.
     courrier: list[str] = field(default_factory=list)
+    #: WP-99: the snapshot's ``absence`` block and ``missed_days`` as served.
+    absence: dict[str, Any] | None = None
+    missed_days: int = 0
 
 
 @dataclass
@@ -398,12 +412,16 @@ def _play_life(
     #: the table can still be picked up by a «jour de lettre» the next morning,
     #: so the run keeps walking away from letters until one of them lapses.
     cold: dict[str, set[str]] = {"ignored": set(), "lapsed": set()}
+    #: WP-99: days still to stay away, and whether the long absence was taken.
+    away = 0
+    gap_taken = False
 
     for day in range(1, days + 1):
         local = clock.moment.date()
         # A missed day, four times over the horizon: «jour court» is offered to
         # somebody coming back, and a lapsed letter needs a gap to lapse in.
-        if day % 31 == 0:
+        if day % 31 == 0 or away > 0:
+            away = max(0, away - 1)
             records.append(DayRecord(ordinal=day, local_date=local, played=False))
             clock.advance(days=1)
             continue
@@ -420,6 +438,8 @@ def _play_life(
             recall_formats=_recall_formats_of(d.journey),
             recall_target_kinds=_recall_targets_of(d.journey),
             context=provider.director_contexts()[-1],
+            absence=d.journey.get("absence"),
+            missed_days=int(d.journey.get("missed_days") or 0),
         )
         row = db.get(DailyJourney, uuid.UUID(d.journey["id"]))
         record.shape_reason = str((row.plan_selection or {}).get("shape_reason") or "")
@@ -436,6 +456,14 @@ def _play_life(
         response = d.finish("complete")
         assert response.status_code == 200, response.text
         records.append(record)
+        if not gap_taken and day >= RETURN_GAP_FROM:
+            events = (story.live_state(db, d).get("events") or [])
+            if any(
+                row.get("kind") == "meanwhile" and str(row.get("date") or "")[:10] == local.isoformat()
+                for row in events
+                if isinstance(row, dict)
+            ):
+                gap_taken, away = True, RETURN_GAP_LENGTH
 
         record.courrier.extend(
             _run_courrier_day(
@@ -1405,3 +1433,64 @@ def test_a_margin_note_every_week_after_day_ten(horizon: Horizon) -> None:
         printed = sum(len(day["margin_notes"]) for day in archive_days(life))
         carried = sum(len(payload.get("margin_notes") or []) for _, payload in life.scene_payloads)
         assert printed == carried, (printed, carried)
+
+
+# ---------------------------------------------------------------------------
+# WP-99 — «Le facteur et les dépêches»
+# ---------------------------------------------------------------------------
+
+
+def _folded_teaser(text: Any) -> str:
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKC", str(text or "")).casefold().replace("\u2019", "'")
+    return " ".join(folded.split()).strip(" .!?…")
+
+
+def teaser_repeats(life: LifeRecord, *, window: int = TEASER_REPEAT_DAYS) -> list[tuple[str, date, date]]:
+    """Pairs of scenes whose ``next_teaser_fr`` is the same line inside ``window`` days."""
+
+    seen: dict[str, date] = {}
+    repeats: list[tuple[str, date, date]] = []
+    for when, payload in life.scene_payloads:
+        key = _folded_teaser(payload.get("next_teaser_fr"))
+        if not key:
+            continue
+        before = seen.get(key)
+        if before is not None and (when - before).days < window:
+            repeats.append((key, before, when))
+        seen[key] = when
+    return repeats
+
+
+def test_no_teaser_is_repeated_within_fourteen_days(horizon: Horizon) -> None:
+    """WP-99 done-when: the harness shows no teaser repeated within 14 days.
+
+    The story writes ``script_payload.next_teaser_fr`` with each resolution; the
+    morning push reads it (``serial_notifications``), and refuses on its own a
+    line it pushed in the last 14 days (``test_wp99_facteur_depeches``)."""
+
+    for life in horizon.lives:
+        assert teaser_repeats(life) == [], life.label
+
+
+def test_a_returning_learner_is_told_what_happened_meanwhile(horizon: Horizon) -> None:
+    """WP-99 done-when: after three days away, the day's snapshot carries
+    «Pendant votre absence» with «Entre-temps»; a day after a one-day gap and an
+    ordinary day carry none."""
+
+    for life in horizon.lives:
+        returns = [row for row in life.played if row.missed_days >= RETURN_GAP_LENGTH]
+        assert returns, f"life {life.label}: no chapter turn wrote an off-screen beat after day {RETURN_GAP_FROM}"
+        back = returns[0]
+        absence = back.absence
+        assert absence is not None, life.label
+        assert absence["days"] == back.missed_days
+        assert set(absence) == {"days", "greeting_fr", "entre_temps", "lapsed_letters"}
+        assert 1 <= len(absence["entre_temps"]) <= 5, (life.label, absence)
+        for beat in absence["entre_temps"]:
+            assert beat["text_fr"].strip(), beat
+        ordinary = [row for row in life.played if row.missed_days == 0]
+        assert ordinary and all(row.absence is None for row in ordinary), life.label
+        one_day = [row for row in life.played if row.missed_days == 1]
+        assert all(row.absence is None for row in one_day), life.label

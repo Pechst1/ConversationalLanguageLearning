@@ -685,7 +685,10 @@ def test_steady_state_review_load_per_new_item() -> None:
         for accuracy in (0.70, 0.85, 0.95)
     }
     assert loads[0.70] > loads[0.85] > loads[0.95]
-    assert loads == {0.70: 13.5, 0.85: 8.1, 0.95: 5.9}
+    # WP-99 / O-4 (2026-09-30): free use from 10 days of stability (was 15) —
+    # a production error is a lapse, so the 70 % learner lapses more often
+    # (13.5 → 15.6; 85 %: 8.1 → 8.2; 95 % unchanged).
+    assert loads == {0.70: 15.6, 0.85: 8.2, 0.95: 5.9}
 
 
 def test_contrast_partners_are_read_from_the_v2_syllabus_block():
