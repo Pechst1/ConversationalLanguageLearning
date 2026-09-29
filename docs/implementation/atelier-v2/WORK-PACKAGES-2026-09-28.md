@@ -369,3 +369,16 @@ The reply is where a learner learns to *speak*; it has to feel like talking to a
 - **Reply before verdict** (typing indicator, then typed reply), and honest states that never dress an error as a result.
 - **The honest streak with the «jour de relâche»,** and long memory proven over 126 days (callbacks 101 days back).
 - **The Courrier's story mechanics:** chains, soft deadlines, and cooling on a lapse.
+
+## 8. Decisions delegated by the owner (2026-09-30)
+
+The owner asked Claude to decide the points left open by WP-92..97:
+
+| # | Decision | Reason |
+|---|---|---|
+| O-1 | The automatic switch to «tu» at closeness ≥ 3 stays **off** for story-engine characters; «On se tutoie ?» is staged as a scene (WP-97) | The automatic switch made the scene unreachable, and the scene is the better experience |
+| O-2 | `closeness` stays counted but deprecated; it is removed in E-6 | Only the legacy non-engine path still reads it |
+| O-3 | On introduction days the rule card stays **before** the scene (WP-93) | The reply asks for the form, and before the scene is the only slot that does not split the question from the answer |
+| O-4 | The Rappel poses the free-use coach mini-scene from **10** days of stability (was 15), and the measured avoidance rate feeds the live forecast (WP-94 deferral, done in WP-99) | Honest forecasts over flattering ones, even if dates move |
+| O-5 | The unused `SeasonPage.tsx` and its tests are deleted in E-6 | Dead code since WP-96's archive |
+| O-6 | Season 3 is authored now; the per-learner season writer ships behind `ATELIER_SEASON_WRITER_ENABLED` (off); without it, the interlude names its return date (WP-98, D-6) | A story that never runs out, without an unreviewed model writing whole seasons in production |
