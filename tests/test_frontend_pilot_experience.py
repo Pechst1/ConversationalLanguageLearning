@@ -113,7 +113,11 @@ def test_native_push_routes_taps_back_into_the_product():
     assert "listenForNativePushActions" in app
     assert "router.push(route)" in app
     assert "pushNotificationActionPerformed" in native_push
-    assert "route.startsWith('/')" in native_push
+    # WP-99: the in-app-only guard lives in lib/push-deep-link.ts (shared with
+    # the service worker); native-push routes every tap through it.
+    assert "pushDeepLink(" in native_push
+    deep_link = _source("lib/push-deep-link.ts")
+    assert "value.startsWith('/')" in deep_link and "value.startsWith('//')" in deep_link
     # WP-46: the card's title lives in the settings copy table now.
     assert "copy.card_device_title" in settings
     device_copy = _source("lib/settings-copy.ts")

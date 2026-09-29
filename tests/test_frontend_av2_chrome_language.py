@@ -35,7 +35,8 @@ Two deliberate exemptions, both from the contract itself:
   already guards its own rule, which is that every string is a table key.
 * **The gallery and the QA harness** (`pages/atelier-v2-gallery.tsx`,
   `pages/mobile-visual-qa.tsx`) are tooling for us, not a publication for a
-  learner.
+  learner — and so are the gallery's specimen components in
+  `components/atelier-v2/__fixtures__/`, whose captions describe states to us.
 """
 from __future__ import annotations
 
@@ -126,7 +127,12 @@ def offences(path: Path) -> list[str]:
 
 
 def scanned_files() -> list[Path]:
-    files = [path for directory in SCANNED_DIRECTORIES for path in sorted(directory.rglob("*.tsx"))]
+    files = [
+        path
+        for directory in SCANNED_DIRECTORIES
+        for path in sorted(directory.rglob("*.tsx"))
+        if "__fixtures__" not in path.parts
+    ]
     files.extend(page for page in SCANNED_PAGES if page.exists())
     return files
 
@@ -181,3 +187,4 @@ def test_reglages_and_the_gallery_are_not_scanned() -> None:
     assert "settings.tsx" not in scanned
     assert "atelier-v2-gallery.tsx" not in scanned
     assert "mobile-visual-qa.tsx" not in scanned
+    assert not any(name.endswith("Gallery.tsx") for name in scanned), "gallery specimens are tooling"
