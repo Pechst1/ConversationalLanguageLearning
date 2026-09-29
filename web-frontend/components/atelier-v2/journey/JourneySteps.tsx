@@ -119,6 +119,7 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
+import { drillGoalLine, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
 import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
 import { useStoryEpisodeEntry } from './story-episode-store';
@@ -126,6 +127,8 @@ import { listenLabel, useStepVoice } from './useStepVoice';
 import {
   closesConversation,
   continuesConversation,
+  correctionNotes,
+  exchangeCue,
   exchangeFromResult,
   exchangeProgress,
   parseLocalThread,
@@ -428,6 +431,29 @@ export function SceneStepView({
 // Recall
 // ---------------------------------------------------------------------------
 
+/**
+ * WP-103 T3. What the drill asks for, right under its instruction: the goal in
+ * the learner's language («Build: "A small white table is in the kitchen."»),
+ * or, when the server sent none, the scene line the item is cut from.
+ */
+export function DrillGoalLine({ goal, copy }: { goal: DrillGoal; copy: Pick<JourneyCopy, 'drill_from_scene'> }) {
+  if (goal.kind === 'goal') {
+    return (
+      <p className="av2-goal" data-goal="goal">
+        {goal.text}
+      </p>
+    );
+  }
+  return (
+    <div className="av2-goal" data-goal="source">
+      <p className="av2-label">{copy.drill_from_scene}</p>
+      <p className="av2-fr av2-goal__fr" lang="fr">
+        {frenchSpacing(goal.text)}
+      </p>
+    </div>
+  );
+}
+
 export function RecallStepView({
   step,
   copy,
@@ -554,6 +580,8 @@ export function RecallStepView({
     heard && !graded
       ? step.prompt.instruction_native
       : step.prompt.prompt_fr || step.prompt.instruction_native;
+  // A listening item keeps its phrase unprinted until graded: no goal that could print it.
+  const goal = (heard || dictating) && !graded ? null : drillGoalLine(step.prompt);
 
   return (
     <StepFrame
@@ -567,6 +595,8 @@ export function RecallStepView({
       {!step.prompt.prompt_fr && isMatch && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
       )}
+      {/* WP-103 T3: every drill says what it asks for. */}
+      {goal && <DrillGoalLine goal={goal} copy={copy} />}
       {heard && (
         <HeardLine audioUrl={step.prompt.audio_url} copy={copy} onUnavailable={() => setClipFailed(true)} />
       )}
@@ -938,16 +968,12 @@ export function RespondStepView({
           prompt_fr: sent?.prompt_fr ?? null,
           learner_fr: sent?.text ?? text,
           character_fr: reply,
-          // The closing turn's correction is in the verdict band; said once.
-          correction: continuing ? result?.correction ?? null : null,
+          // WP-103 T6: every turn's corrected form is printed under its line,
+          // the closing turn's too; the verdict band adds the explanation.
+          correction: result?.correction ?? null,
         }
       : null;
   let bubbles = letter ? [] : threadBubbles({ prompt: step.prompt, local, inFlight });
-  if (closing && inFlight) {
-    bubbles = bubbles.map((bubble) =>
-      bubble.kind === 'learner' && bubble.turn === inFlight.turn ? { ...bubble, correction: null } : bubble,
-    );
-  }
   // The reply that just arrived types in; whatever follows it waits for it.
   const typingIndex =
     reply && inFlight
@@ -966,6 +992,11 @@ export function RespondStepView({
     feedback.kind === 'replying',
   );
   const progress = exchangeProgress(step.prompt, closing);
+  // WP-103 T7: while the field is open, say whose turn it is and how far it goes.
+  const cue =
+    letter || graded || waitingForReply
+      ? null
+      : exchangeCue({ copy, name: replier?.name ?? step.prompt.character_name, progress });
 
   const answerArea = graded ? (
     // A letter keeps the sent answer in the field's block; in the thread the
@@ -1154,6 +1185,12 @@ export function RespondStepView({
         openNote={openNote}
         onToggleNote={(key) => setOpenNote((current) => (current === key ? null : key))}
       />
+      {cue && (
+        <p className="av2-thread__cue" data-last={cue.last ? 'true' : undefined}>
+          <span>{cue.lead}</span>
+          {cue.part && <span className="av2-thread__cue-part"> · {cue.part}</span>}
+        </p>
+      )}
       {answerArea}
       {aside}
     </section>
@@ -1532,6 +1569,8 @@ export function JourneyFeedbackView({
                 spanFr={result.correction.span_fr}
                 correctedFr={result.correction.corrected_fr}
                 noteNative={result.correction.note_native}
+                // WP-103: one line per issue, never the same explanation twice.
+                notesNative={correctionNotes(result.correction)}
               />
             )}
           </FeedbackBand>

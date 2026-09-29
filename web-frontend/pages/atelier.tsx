@@ -9,6 +9,18 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
+import { forgeCorrectionNotes } from '@/lib/correction-notes';
+import { classifyRepair } from '@/lib/forge-followup';
+import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
+import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
+import {
+  FOLLOW_UP_EMPTY,
+  ForgeCorrectedLine,
+  ForgeFollowUp,
+  ForgeGoalLine,
+  ForgeReading,
+  type FollowUpDraft,
+} from '@/components/epreuve/ForgeFollowUp';
 import apiService, {
   AtelierCollectible,
   AtelierAttemptRead,
@@ -258,6 +270,19 @@ function answerKey(round: RoundName, mode: string, conceptId?: number | null, it
 // bare English sentence to translate.
 function stripExpressPrefix(value: unknown): string {
   return String(value || '').replace(/^\s*express\s*:\s*/i, '').trim();
+}
+
+/**
+ * WP-103 T3. What a Forge item asks for — `goal_native`, else the scene line it
+ * is cut from (`source_fr`) — unless the screen already says it.
+ */
+function itemGoal(item: Record<string, any> | null | undefined, cue: unknown) {
+  return drillGoalLine({
+    goal_native: item?.goal_native,
+    source_fr: item?.source_fr,
+    instruction_native: cue,
+    prompt_fr: item?.prompt,
+  });
 }
 
 function isVagueOutputPrompt(value: unknown): boolean {
@@ -602,11 +627,10 @@ function correctionWithAiReview(result: AtelierAttemptResult | AtelierAttemptRea
   const correction = { ...(result.correction || {}) };
   const aiReview = correction.ai_review || (result as AtelierAttemptResult).ai_review || {};
   correction.ai_review = aiReview;
+  // WP-103 T9: the server's local verdict rides on the result; it belongs to the correction.
+  const localStatus = (result as Record<string, any>).local_status;
+  if (localStatus && !correction.local_status) correction.local_status = localStatus;
   return correction;
-}
-
-function aiReviewStatus(correction: Record<string, any> | null | undefined) {
-  return String(correction?.ai_review?.status || '');
 }
 
 function errataForAttempt(correction: Record<string, any>, attemptId?: string) {
@@ -716,7 +740,7 @@ export default function AtelierPage() {
       const retest = repairRetestFromAttempt(attempt, correction);
       if (retest) restoredRetests[retest.id] = retest;
       errataForAttempt(correction, attempt.attempt_id).forEach((item: AtelierErratum) => restoredErrata.unshift(item));
-      if (aiReviewStatus(correction) === 'pending') {
+      if (reviewIsPending(correction)) {
         scheduleAiReviewPollingRef.current(attempt.attempt_id, keys[0]);
       }
     });
@@ -1059,7 +1083,9 @@ export default function AtelierPage() {
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
     setAttemptIdsByKey((prev) => ({ ...prev, [key]: result.attempt_id }));
-    setCorrectionsByKey((prev) => ({ ...prev, [key]: correction }));
+    // WP-103 T9: a verdict shown is never reversed — a late model reading cannot
+    // turn a shown «Right» into corrections.
+    setCorrectionsByKey((prev) => ({ ...prev, [key]: settleShownCorrection(prev[key], correction) }));
     setRecentCorrection(correction);
     const nextErrata = errataForAttempt(correction, result.attempt_id);
     if (replaceErrata) {
@@ -1070,7 +1096,7 @@ export default function AtelierPage() {
     } else if (nextErrata.length) {
       setErrata((prev) => [...nextErrata, ...prev]);
     }
-    if (schedulePending && aiReviewStatus(correction) === 'pending') {
+    if (schedulePending && reviewIsPending(correction)) {
       scheduleAiReviewPolling(result.attempt_id, key);
     }
     return correction;
@@ -1088,7 +1114,7 @@ export default function AtelierPage() {
       try {
         const result = await apiService.getAtelierAttempt(attemptId);
         const correction = applyAttemptResult(key, result, true, false);
-        if (aiReviewStatus(correction) === 'pending' && remaining > 1) {
+        if (reviewIsPending(correction) && remaining > 1) {
           scheduleAiReviewPolling(attemptId, key, remaining - 1);
         } else {
           delete aiPollTimers.current[attemptId];
@@ -3417,6 +3443,11 @@ function SessionView({
   const currentFeedback = currentSubmitted
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection, t)
     : null;
+  // WP-103: free production waits for the model («Je relis…»); a classify item
+  // that was a wrong sentence has a sentence to correct.
+  const isProductionRound = round === 'sentence' || round === 'speak' || round === 'conversation' || round === 'produce';
+  const classifyItems: any[] = round === 'recognize' && mode === 'classify' ? activeSet?.recognize?.classify?.items || [] : [];
+  const classifyItem = classifyItems.length ? classifyItems[safeDrillItemIndex(activeItemIndex, classifyItems)] : null;
   // The design's primary cycles Vérifier → Continuer → Terminer.
   const feedbackNextLabel = isFinalConversation ? t.finish : t.continue;
   const feedbackRule = currentFeedback && !currentFeedback.correct
@@ -3712,6 +3743,8 @@ function SessionView({
                 onRetryAiReview={requestAiReview}
                 aiReviewSubmitting={aiReviewSubmitting}
                 coach={ruleCoach}
+                production={isProductionRound}
+                classifyItem={classifyItem}
               />
           </>)}
         </section>
@@ -3778,6 +3811,8 @@ function ExerciseFeedbackMoment({
   onRetryAiReview,
   aiReviewSubmitting,
   coach,
+  production = false,
+  classifyItem = null,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3797,9 +3832,21 @@ function ExerciseFeedbackMoment({
   aiReviewSubmitting?: boolean;
   /** WP-S5: the rule's coach reacts to the answer (happy, cross, moved). */
   coach?: ForgeCoach | null;
+  /** WP-103 T9: free production — its verdict waits for the model unless it is a real match. */
+  production?: boolean;
+  /** WP-103 T8: the classify item on screen, for its follow-up. */
+  classifyItem?: Record<string, any> | null;
 }) {
   const t = useEpCopy();
+  // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
+  const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   if (!submitted || !feedback) return null;
+  // WP-103 T9: until the model has read a free-production answer there is no
+  // verdict to show — the grading character says so, and a verdict shown later
+  // is never reversed.
+  if (production && productionPhase(correction) === 'checking') {
+    return <ForgeReading coach={coach} onSkip={onNext} />;
+  }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
     return (
@@ -3830,7 +3877,7 @@ function ExerciseFeedbackMoment({
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
   // unscored above, with its retry; a keyed answer keeps the key's verdict.)
-  const secondCheck = secondCheckChange(correction);
+  const secondCheck = production ? null : secondCheckChange(correction);
   const relecture = secondCheck
     ? <EpRelecture status="done">{secondCheck === 'better' ? t.second_check_better : t.second_check_worse}</EpRelecture>
     : null;
@@ -3842,15 +3889,32 @@ function ExerciseFeedbackMoment({
         .filter((gap: { french: string }) => gap.french)
     : [];
 
+  // WP-103 T8: after «À corriger» the learner corrects the sentence (a field, or
+  // tiles at A1); «Passer» shows the right one. Either way it is seen, and the
+  // primary waits for it — one short step, never a wall.
+  const repairOf = isLabelCompare ? classifyRepair(classifyItem, correction) : { followUp: null, correctedFr: null };
+  const followDraft = followUps[feedbackKey] ?? FOLLOW_UP_EMPTY;
+  const followGate = Boolean(repairOf.followUp) && followDraft.outcome === null;
+  const followUpBlock = repairOf.followUp
+    ? (
+      <ForgeFollowUp
+        followUp={repairOf.followUp}
+        draft={followDraft}
+        onDraft={(next) => setFollowUps((prev) => ({ ...prev, [feedbackKey]: next }))}
+      />
+    )
+    : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
+
   if (feedback.correct) {
     return (
       <div className="ep-feedback" data-verdict="correct">
         <EpCorrect said={feedback.target || feedback.learner || t.line_set} struck />
         {relecture}
+        {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
           <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
-          <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
         </EpFoot>
       </div>
     );
@@ -3902,6 +3966,7 @@ function ExerciseFeedbackMoment({
           </React.Fragment>
         );
       })}
+      {followUpBlock}
       {vocabularyGaps.length > 0 && (
         <div className="ep-notebook-add">
           <span className="nh">{t.notebook_added}</span>
@@ -3921,7 +3986,7 @@ function ExerciseFeedbackMoment({
       <EpFoot tone="wrong">
         <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood}>{t.verdict_wrong}</EpVerdict>
         {repairsComplete
-          ? <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
         <div className="ep-fb-links">
           {repairsComplete && onTryAgain && (
@@ -4009,6 +4074,8 @@ function RecognizePanel({
           <EpPrompt>
             <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
           </EpPrompt>
+          {/* WP-103 T3: every drill says what it asks for. */}
+          <ForgeGoalLine goal={itemGoal(item, '')} />
           <EpOpts>
             {(item.choices || []).map((choice: string) => (
               <EpOpt
@@ -4037,6 +4104,7 @@ function RecognizePanel({
               ))}
             </EpSetLine>
           </EpPrompt>
+          <ForgeGoalLine goal={itemGoal(item, stripExpressPrefix(item.meaning_cue) || item.prompt)} />
           <div className="ep-typecase" aria-label={t.typecase_label}>
             {sourceTokens.map((token: string, tokenIndex: number) => {
               const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
@@ -4059,6 +4127,7 @@ function RecognizePanel({
           <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
             {localizedCue(item, 'prompt', cueLanguage)}
           </EpPrompt>
+          <ForgeGoalLine goal={itemGoal(item, '')} />
           <EpCases boxes={(item.labels || []).map((label: string) => ({
             label,
             slugs: [
@@ -4104,6 +4173,7 @@ function TransformPanel({
       <EpPrompt cue={localizedCue(item, 'instruction', cueLanguage)}>
         {item.source}
       </EpPrompt>
+      <ForgeGoalLine goal={itemGoal(item, localizedCue(item, 'instruction', cueLanguage))} />
       <textarea
         className="ep-composed-input"
         value={answers[item.id] || ''}
@@ -4202,17 +4272,20 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   const cleanRewrite = correctionTargetText(correction?.corrected_answer);
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
   const shownTarget = rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
-  const whyLines = errata.map((item) => String(item?.why_wrong || '').trim()).filter(Boolean);
+  // WP-103 T9/T10: one explanation per distinct issue, never the same one three times.
+  const whyLines = forgeCorrectionNotes(correction);
   const assessment = seanceAssessment(correction);
   const correct = assessment === 'correct';
   const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
   const issues: AtelierErratum[] = correct ? [] : [{
-    display_label: errata.length > 1 ? fill(t.corrections_n, { n: errata.length }) : (errata[0]?.display_label || t.corrected_line),
+    display_label: whyLines.length > 1
+      ? fill(t.corrections_n, { n: whyLines.length })
+      : ((errata.length === 1 ? errata[0]?.display_label : '') || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
-    why_wrong: whyLines.join(' ') || t.task_default_why,
+    why_wrong: whyLines.join('\n') || t.task_default_why,
     task_error_type: taskOnly ? 'task_compliance' : undefined,
   } as AtelierErratum];
   if (!correct && !taskOnly) {
@@ -4466,6 +4539,7 @@ function OutputLadderPanel({
       <EpPrompt cue={item.instruction || instruction} lang={promptLocalized ? cueLanguage : 'fr'}>
         {promptText}
       </EpPrompt>
+      <ForgeGoalLine goal={itemGoal(item, item.instruction || instruction)} />
       {round === 'speak' && (
         <EpRecord
           status={isTranscribing ? 'transcribing' : isRecording ? 'recording' : 'idle'}
@@ -4489,7 +4563,7 @@ function OutputLadderPanel({
         {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && (() => {
-        const modelText = String(seanceAssessment(correction) === 'correct' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
+        const modelText = String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
         return modelText ? <EpreuveModelAudio text={modelText} /> : null;
       })()}
       {round === 'conversation' && submitted && worldReply.text && (

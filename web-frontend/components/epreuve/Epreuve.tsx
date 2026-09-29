@@ -1252,7 +1252,7 @@ export function LEpreuveStyles() {
 .av2 .ep-galley__anchor { margin: 0; }
 .av2 .ep-gline { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.35; color: var(--av2-ink); overflow-wrap: anywhere; }
 .av2 .ep-gline .av2-correction__span { color: var(--av2-ink-2); }
-.av2 .ep-why { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-why { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); white-space: pre-line; }
 .av2 .ep-repair-hint { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
 .av2 .ep-repair-hint .av2-shape { margin-top: 5px; }
 .av2 .ep-labelfix { display: flex; flex-direction: column; gap: 4px; }

@@ -20,7 +20,7 @@
 
 import React from 'react';
 
-import { Correction, ShapeToken } from '@/components/atelier-v2/ui';
+import { ShapeToken } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
@@ -33,6 +33,7 @@ import { replyFinishedTyping } from './voice-autoplay';
 import {
   exchangeLabel,
   markSpan,
+  printedFix,
   type ExchangeProgress,
   type LearnerBubble,
   type ThreadBubble,
@@ -57,6 +58,14 @@ export function ExchangeTokens({ progress, copy }: { progress: ExchangeProgress;
   );
 }
 
+/**
+ * WP-103 T6. The learner's own line, and — always visible under it — the
+ * corrected form in small green Garamond («ta place»). The slip in the line
+ * itself is only marked (a dotted red underline, nothing to tap); the corrected
+ * form is the control that opens the one-line explanation. The owner's test
+ * showed why: a mark that must be tapped to find out there is a correction at
+ * all goes unread.
+ */
 function LearnerLine({
   bubble,
   copy,
@@ -69,12 +78,12 @@ function LearnerLine({
   onToggle: (key: string) => void;
 }) {
   const correction = bubble.correction;
+  const fix = printedFix(correction);
   const noteId = `av2-thread-note-${bubble.key}`;
-  // The span is a real substring by contract; if a payload breaks that, the
-  // whole line carries the mark rather than the correction going missing.
-  const marked = correction
-    ? markSpan(bubble.text, correction.span_fr) ?? { before: '', mark: bubble.text, after: '' }
-    : null;
+  // The span is a real substring by contract; a payload that breaks that just
+  // leaves the line unmarked — the corrected form under it still says it all.
+  const marked = correction ? markSpan(bubble.text, correction.span_fr) : null;
+  const explained = Boolean(fix && fix.notes.length > 0);
 
   return (
     <>
@@ -83,36 +92,49 @@ function LearnerLine({
         lang="fr"
         data-pending={bubble.pending ? 'true' : undefined}
       >
-        {marked && correction ? (
+        {marked ? (
           <>
             {marked.before}
-            <button
-              type="button"
-              className="av2-thread__mark"
-              aria-expanded={open}
-              aria-controls={noteId}
-              onClick={() => onToggle(bubble.key)}
-            >
-              {marked.mark}
-              <span className="av2-sr">
-                {' '}
-                ({copy.thread_note_open})
-              </span>
-            </button>
+            <span className="av2-thread__slip">{marked.mark}</span>
             {marked.after}
           </>
         ) : (
           bubble.text
         )}
       </p>
-      {correction && open && (
-        <div className="av2-thread__note" id={noteId} role="note">
-          <Correction
-            label={copy.correction}
-            spanFr={correction.span_fr}
-            correctedFr={correction.corrected_fr}
-            noteNative={correction.note_native}
-          />
+      {fix && (
+        <div className="av2-thread__fix" data-open={open ? 'true' : undefined}>
+          {explained ? (
+            <button
+              type="button"
+              className="av2-thread__fixbtn"
+              aria-expanded={open}
+              aria-controls={noteId}
+              onClick={() => onToggle(bubble.key)}
+            >
+              <span className="av2-sr">{copy.thread_fix_sr}: </span>
+              <span aria-hidden="true">→ </span>
+              <span className="av2-thread__fixed" lang="fr">
+                {fix.fixed}
+              </span>
+              <span className="av2-sr"> ({open ? copy.thread_note_close : copy.thread_note_open})</span>
+            </button>
+          ) : (
+            <p className="av2-thread__fixline">
+              <span className="av2-sr">{copy.thread_fix_sr}: </span>
+              <span aria-hidden="true">→ </span>
+              <span className="av2-thread__fixed" lang="fr">
+                {fix.fixed}
+              </span>
+            </p>
+          )}
+          {open && explained && (
+            <div className="av2-thread__note" id={noteId} role="note">
+              {fix.notes.map((note, index) => (
+                <p key={index}>{note}</p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

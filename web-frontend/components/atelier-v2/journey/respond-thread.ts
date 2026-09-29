@@ -23,6 +23,8 @@ import type {
   ThreadExchange,
 } from '@/types/daily-journey';
 
+import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
+
 import type { JourneyFeedback } from './journey-state';
 
 // ---------------------------------------------------------------------------
@@ -69,7 +71,14 @@ function correctionOf(value: unknown): JourneyCorrection | null {
   const span = line(raw.span_fr);
   const fixed = line(raw.corrected_fr);
   if (!span || !fixed) return null;
-  return { span_fr: span, corrected_fr: fixed, note_native: line(raw.note_native) };
+  const notes = Array.isArray(raw.notes_native) ? dedupeNotes(raw.notes_native.map(line)) : [];
+  return {
+    span_fr: span,
+    corrected_fr: fixed,
+    note_native: line(raw.note_native),
+    // Kept only when the server sent it (WP-103): older payloads stay as they were.
+    ...(notes.length ? { notes_native: notes } : {}),
+  };
 }
 
 function exchangeOf(value: unknown): LocalExchange | null {
@@ -400,4 +409,71 @@ export function markSpan(text: string, span: string | null | undefined): MarkedL
     mark: text.slice(at, at + needle.length),
     after: text.slice(at + needle.length),
   };
+}
+
+// ---------------------------------------------------------------------------
+// WP-103 T6 — one note per issue, never the same explanation twice
+// ---------------------------------------------------------------------------
+
+// The deduplication itself is shared with La Forge (`lib/correction-notes.ts`).
+export { correctionNotes, dedupeNotes };
+
+// ---------------------------------------------------------------------------
+// WP-103 T7 — «À vous — répondez à Marin · échange 2 sur 3»
+// ---------------------------------------------------------------------------
+
+export type ExchangeCue = {
+  /** «À vous — répondez à Marin». */
+  lead: string;
+  /** «Échange 2 sur 3», or «Dernier échange»; `null` when there is one exchange only. */
+  part: string | null;
+  /** The last planned exchange: the field is about to close the conversation. */
+  last: boolean;
+  /** Both, as one line. */
+  text: string;
+};
+
+type CueCopy = {
+  exchange_your_turn_to: string;
+  exchange_your_turn: string;
+  exchange_last: string;
+  exchange_of: string;
+};
+
+/**
+ * What the learner is told, under the latest line, the whole time the field is
+ * open: whose turn it is, to whom, and how far the conversation goes. In the
+ * learner's chrome language — the caller passes that table.
+ */
+export function exchangeCue(input: {
+  copy: CueCopy;
+  name: string | null | undefined;
+  progress: ExchangeProgress;
+}): ExchangeCue {
+  const { copy, progress } = input;
+  const name = String(input.name ?? '').trim();
+  const lead = name ? copy.exchange_your_turn_to.replace('{name}', name) : copy.exchange_your_turn;
+  const last = progress.total >= 2 && progress.position >= progress.total;
+  const part =
+    progress.total < 2 ? null : last ? copy.exchange_last : exchangeLabel(copy.exchange_of, progress);
+  return { lead, part, last, text: part ? `${lead} · ${part}` : lead };
+}
+
+// ---------------------------------------------------------------------------
+// WP-103 T6 — the corrected form under the learner's line
+// ---------------------------------------------------------------------------
+
+/** What is printed under a learner's line: the corrected form, and what opens. */
+export type PrintedFix = {
+  /** «ta place» — always visible. */
+  fixed: string;
+  /** One line per issue; empty when the server explained nothing (then nothing opens). */
+  notes: string[];
+};
+
+export function printedFix(correction: JourneyCorrection | null | undefined): PrintedFix | null {
+  if (!correction) return null;
+  const fixed = words(correction.corrected_fr);
+  if (!fixed) return null;
+  return { fixed, notes: correctionNotes(correction) };
 }

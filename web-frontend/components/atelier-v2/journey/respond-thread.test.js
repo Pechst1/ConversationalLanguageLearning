@@ -392,9 +392,13 @@ test('turn 1 of 3: an ordered list with speaker labels, the field under the curr
   assert.equal((html.match(/av2-headline/g) || []).length, 1);
   assert.ok(html.indexOf('</ol>') < html.indexOf('<textarea'), 'the field sits under the thread');
   assert.ok(html.indexOf('av2-thread__tokens') < html.indexOf('<ol'), 'tokens under the name, above the thread');
-  // The mark: a red dotted underline on the slip, the note closed until tapped.
-  assert.match(html, /<button type="button" class="av2-thread__mark" aria-expanded="false"[^>]*>un café noire/);
-  assert.ok(!html.includes('av2-thread__note'), 'the margin note waits for the tap');
+  // WP-103 T6: the slip is marked in the line (nothing to tap), and the corrected
+  // form is printed under it — always visible; only its explanation waits for the tap.
+  assert.match(html, /<span class="av2-thread__slip">un café noire<\/span>/);
+  assert.ok(!html.includes('av2-thread__mark'), 'the old tap-to-find-out mark is gone');
+  assert.match(html, /<button type="button" class="av2-thread__fixbtn" aria-expanded="false"[^>]*>/);
+  assert.match(html, /<span class="av2-thread__fixed" lang="fr">un café noir<\/span>/);
+  assert.ok(!html.includes('av2-thread__note'), 'the explanation waits for the tap');
   // A mark is never a verdict.
   for (const forbidden of [EN.correct, EN.wrong, EN.supported]) {
     assert.ok(!html.includes(`>${forbidden}<`), `no «${forbidden}» mid-conversation`);

@@ -688,6 +688,62 @@ export function radioStageOrdinal(stage: RadioStage): number {
 }
 
 // ---------------------------------------------------------------------------
+// WP-103 T2 — the text is hidden by default, and never a wall
+// ---------------------------------------------------------------------------
+
+/**
+ * The owner's test: the words are hidden while you listen — by design — with
+ * no way to show them. Hidden stays the default (that is the exercise), but at
+ * every stage the learner can show the text of the whole page, and, where the
+ * lines are listed, of one line. Pure: the stage machine above is untouched.
+ */
+export type RadioText = {
+  /** The whole page's text, shown. */
+  all: boolean;
+  /** Line keys shown one by one (while `all` is off). */
+  lines: string[];
+};
+
+export const RADIO_TEXT_INITIAL: RadioText = { all: false, lines: [] };
+
+export type RadioTextEvent = { type: 'all' } | { type: 'line'; key: string };
+
+/** A toggle either way. Switching the page off hides every line again. */
+export function radioTextReduce(state: RadioText, event: RadioTextEvent): RadioText {
+  if (event.type === 'all') return state.all ? RADIO_TEXT_INITIAL : { all: true, lines: state.lines };
+  const key = String(event.key || '');
+  if (!key) return state;
+  return state.lines.includes(key)
+    ? { ...state, lines: state.lines.filter((item) => item !== key) }
+    : { ...state, lines: [...state.lines, key] };
+}
+
+export function radioLineShown(state: RadioText, key: string): boolean {
+  return state.all || state.lines.includes(key);
+}
+
+/**
+ * Which text controls a stage draws. The page-wide toggle is at every stage;
+ * the per-line ones sit on the stages that list the lines.
+ */
+export function radioTextControls(stage: RadioStage): { page: true; lines: boolean } {
+  return { page: true, lines: stage === 'ecouter' || stage === 'verifier' };
+}
+
+/**
+ * The listening question, before and after the audio: how does it end, and what
+ * the learner guessed (French, as the guesses are). The question itself is
+ * chrome, so its words come from the copy table.
+ */
+export function radioTask(
+  episode: StoryEpisode | null | undefined,
+  guess: EpisodeGuessId | null,
+): { guessFr: string | null } {
+  if (!guess) return { guessFr: null };
+  return { guessFr: buildEpisodeGuesses(episode).find((item) => item.id === guess)?.fr ?? null };
+}
+
+// ---------------------------------------------------------------------------
 // The remembered preference
 // ---------------------------------------------------------------------------
 

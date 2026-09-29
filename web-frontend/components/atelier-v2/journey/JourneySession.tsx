@@ -54,7 +54,6 @@ import type { PublicStep } from '@/types/daily-journey';
 import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
-  joinMeta,
   journeyHeaderCaption,
   type JourneyPhase,
 } from './journey-state';
@@ -70,7 +69,8 @@ import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
-import { continuesConversation } from './respond-thread';
+import { closesConversation, continuesConversation } from './respond-thread';
+import { stepHeaderLine } from './drill-frame';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
@@ -267,6 +267,18 @@ export function JourneySession({
   // WP-94: a «Numéro spécial» — the session and the reader carry the kicker.
   const specialKicker = epreuveOf(journey) ? canDoCopy(chromeLanguage).special_kicker : null;
 
+  // WP-103 T3: the caption names the drill on a drill («Rappel · Genre et
+  // nombre»); the place and the day's objective belong to the scene and the reply.
+  const headerLine = journey
+    ? stepHeaderLine({
+        step,
+        language: chromeLanguage,
+        copy,
+        location: journey.scenario.location_name,
+        objective: journey.scenario.objective_native,
+      })
+    : '';
+
   return (
     <SpecialKickerContext.Provider value={specialKicker}>
     <AtelierV2Root as="main" language={chromeLanguage} className="journey-shell">
@@ -303,20 +315,20 @@ export function JourneySession({
             <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
           )}
 
-          {journey && phase.kind === 'session' && !immersive && (
+          {journey && phase.kind === 'session' && !immersive && (specialKicker || headerLine) && (
             /* One separator between two real parts. The story engine ships an
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
-            <p className="av2-label">
+            <p className="av2-label" data-header={headerLine ? 'step' : undefined}>
               {specialKicker && (
                 <>
                   <span className="av2-special__kicker" lang="fr" data-special-kicker="">
                     {specialKicker}
                   </span>
-                  {joinMeta(journey.scenario.location_name, journey.scenario.objective_native) ? ' · ' : ''}
+                  {headerLine ? ' · ' : ''}
                 </>
               )}
-              {joinMeta(journey.scenario.location_name, journey.scenario.objective_native)}
+              {headerLine}
             </p>
           )}
 
@@ -470,7 +482,9 @@ export function JourneySession({
               {/* Third tier. Quiet by construction, so the step's own primary
                   stays the only primary in the composition. Hidden under the
                   immersive reader, which owns its whole screen. */}
-              {!immersive && !showCastIntro && (
+              {/* WP-103 T7: once the conversation is closed, «Continuer» is the
+                  only action on the screen. */}
+              {!immersive && !showCastIntro && !(step.kind === 'respond' && closesConversation(feedback)) && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"

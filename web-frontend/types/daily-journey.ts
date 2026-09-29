@@ -194,6 +194,14 @@ export type RecallPrompt = {
    * never handed to `<audio src>`.
    */
   audio_url?: string | null;
+  /**
+   * WP-103 T3: what the learner is asked to produce, in their own language
+   * («Build: "A small white table is in the kitchen."»). Every drill states its
+   * goal; absent on older payloads.
+   */
+  goal_native?: string | null;
+  /** WP-103 T3: the scene line the item is cut from, in French; the goal's fallback. */
+  source_fr?: string | null;
 };
 
 /** WP-91 «Les voix»: ask for one line of a step, spoken in its character's voice. */
@@ -661,6 +669,11 @@ export type JourneyCorrection = {
   /** Must differ from span_fr. */
   corrected_fr: string;
   note_native: string;
+  /**
+   * WP-103: one note per issue, already deduplicated, in the learner's
+   * language. Absent on older payloads, which carry `note_native` alone.
+   */
+  notes_native?: string[] | null;
 };
 
 export type NextTurn = { step_id: string; prompt: RespondPrompt };

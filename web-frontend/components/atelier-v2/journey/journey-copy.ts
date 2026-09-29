@@ -206,7 +206,28 @@ export type JourneyCopyKey =
   | 'dictation_unavailable'
   | 'dictation_label'
   | 'dictation_placeholder'
-  | 'listen_unavailable_read';
+  | 'listen_unavailable_read'
+  // WP-103 T3: a drill's header names the drill; a scene-cut item says where from.
+  | 'drill_recall'
+  | 'drill_rule'
+  | 'drill_forge'
+  | 'drill_from_scene'
+  // WP-103 T7: «À vous — répondez à {name}» under the latest line; `exchange_of`
+  // supplies «Échange {n} sur {total}», `exchange_last` the last one.
+  | 'exchange_your_turn_to'
+  | 'exchange_your_turn'
+  | 'exchange_last'
+  // WP-103 T6: the corrected form under the learner's line, and the closing
+  // verdict's list of what the conversation corrected.
+  | 'thread_fix_sr'
+  | 'thread_note_close'
+  | 'conversation_fixes'
+  // WP-103 T2: «Afficher le texte» at every stage of the listening cycle, and
+  // the question the learner is listening for.
+  | 'radio_text_show'
+  | 'radio_text_hide'
+  | 'radio_task_label'
+  | 'radio_task_question';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -383,6 +404,20 @@ const EN: CopyTable = {
   dictation_label: 'What you hear',
   dictation_placeholder: 'Write what you hear, in French',
   listen_unavailable_read: 'No sound right now — read the line instead.',
+  drill_recall: 'Recall',
+  drill_rule: 'Rule',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'From the scene',
+  exchange_your_turn_to: 'Your turn — reply to {name}',
+  exchange_your_turn: 'Your turn',
+  exchange_last: 'Last exchange',
+  thread_fix_sr: 'Corrected form',
+  thread_note_close: 'Hide the explanation',
+  conversation_fixes: 'What was corrected',
+  radio_text_show: 'Show the text',
+  radio_text_hide: 'Hide the text',
+  radio_task_label: 'Your listening question',
+  radio_task_question: 'How does it end?',
 };
 
 const DE: CopyTable = {
@@ -558,6 +593,20 @@ const DE: CopyTable = {
   dictation_label: 'Was du hörst',
   dictation_placeholder: 'Schreib auf Französisch, was du hörst',
   listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
+  drill_recall: 'Wiederholung',
+  drill_rule: 'Regel',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'Aus der Szene',
+  exchange_your_turn_to: 'Du bist dran — antworte {name}',
+  exchange_your_turn: 'Du bist dran',
+  exchange_last: 'Letzter Austausch',
+  thread_fix_sr: 'Korrigierte Form',
+  thread_note_close: 'Erklärung verbergen',
+  conversation_fixes: 'Was korrigiert wurde',
+  radio_text_show: 'Text anzeigen',
+  radio_text_hide: 'Text verbergen',
+  radio_task_label: 'Deine Hörfrage',
+  radio_task_question: 'Wie geht es aus?',
 };
 
 const FR: CopyTable = {
@@ -733,6 +782,20 @@ const FR: CopyTable = {
   dictation_label: 'Ce que vous entendez',
   dictation_placeholder: 'Écrivez ce que vous entendez',
   listen_unavailable_read: 'Pas de son pour l’instant : lisez la phrase.',
+  drill_recall: 'Rappel',
+  drill_rule: 'Règle',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'Dans la scène',
+  exchange_your_turn_to: 'À vous — répondez à {name}',
+  exchange_your_turn: 'À vous',
+  exchange_last: 'Dernier échange',
+  thread_fix_sr: 'Forme corrigée',
+  thread_note_close: 'Masquer l’explication',
+  conversation_fixes: 'Ce qui a été corrigé',
+  radio_text_show: 'Afficher le texte',
+  radio_text_hide: 'Masquer le texte',
+  radio_task_label: 'Votre question d’écoute',
+  radio_task_question: 'Comment ça finit ?',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };

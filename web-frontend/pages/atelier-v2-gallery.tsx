@@ -52,6 +52,7 @@ import {
 import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
 import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
 import { SeasonReturnGallerySections } from '@/components/atelier-v2/__fixtures__/SeasonReturnGallery';
+import { TestFeedbackGallerySections } from '@/components/atelier-v2/__fixtures__/TestFeedbackGallery';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import {
   CrCorrespondent,
@@ -668,6 +669,10 @@ export default function AtelierV2Gallery() {
 
           {/* WP-98 «La saison suivante» + WP-99 «Le facteur et les dépêches». */}
           <SeasonReturnGallerySections language={language} Section={Section} />
+
+          {/* WP-103 «Retour d'essai»: the goal line, «Afficher le texte», the printed
+              corrections, the exchange cue, «Je relis…» and «Corrigez la phrase». */}
+          <TestFeedbackGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar

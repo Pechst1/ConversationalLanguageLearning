@@ -73,10 +73,16 @@ export type CorrectionProps = {
   spanFr: string;
   correctedFr: string;
   noteNative?: string | null;
+  /**
+   * WP-103: one note per issue, already deduplicated. When given (and not
+   * empty) it replaces `noteNative`; each note is its own line.
+   */
+  notesNative?: string[] | null;
 };
 
 /** At most one correction, under the verdict, never a second headline. */
-export function Correction({ label, spanFr, correctedFr, noteNative }: CorrectionProps) {
+export function Correction({ label, spanFr, correctedFr, noteNative, notesNative }: CorrectionProps) {
+  const notes = (notesNative ?? []).filter((note) => typeof note === 'string' && note.trim());
   return (
     <div className="av2-correction">
       <p className="av2-label">{label}</p>
@@ -89,7 +95,15 @@ export function Correction({ label, spanFr, correctedFr, noteNative }: Correctio
           {correctedFr}
         </span>
       </p>
-      {noteNative && <p style={{ margin: '6px 0 0' }}>{noteNative}</p>}
+      {notes.length > 0 ? (
+        <ul className="av2-correction__notes">
+          {notes.map((note, index) => (
+            <li key={index}>{note}</li>
+          ))}
+        </ul>
+      ) : (
+        noteNative && <p style={{ margin: '6px 0 0' }}>{noteNative}</p>
+      )}
     </div>
   );
 }

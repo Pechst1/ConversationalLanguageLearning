@@ -31,7 +31,9 @@ import {
   Action,
   Byline,
   ChoiceList,
+  Chip,
   Notice,
+  ShapeToken,
   StateBlock,
   StepProgress,
   Surface,
@@ -45,13 +47,18 @@ import type { JourneyCopy } from './journey-copy';
 import {
   RADIO_INITIAL,
   RADIO_STAGES,
+  RADIO_TEXT_INITIAL,
   buildEpisodeGuesses,
   buildStoryStages,
   episodeListenLines,
   episodeRetainPhrase,
   panelReaderVariant,
+  radioLineShown,
   radioReduce,
   radioStageOrdinal,
+  radioTask,
+  radioTextControls,
+  radioTextReduce,
   storyEpisodeLabel,
   storyRayonsTitle,
   storyStartIndex,
@@ -60,7 +67,11 @@ import {
   verifyEpisodeGuess,
   type EpisodeGuessId,
   type EpisodeVerification,
+  type RadioEvent,
   type RadioStage,
+  type RadioState,
+  type RadioText,
+  type RadioTextEvent,
 } from './story-episode-model';
 import type { UseEpisodeAudio } from './useEpisodeAudio';
 import type { LineVoice } from './useLineVoice';
@@ -321,16 +332,15 @@ export function EpisodeRadio({
   onPrediction?: (guess: EpisodeGuessId, verification: EpisodeVerification) => void;
 }) {
   const [state, dispatch] = useReducer(radioReduce, RADIO_INITIAL);
-  const guesses = useMemo(() => buildEpisodeGuesses(episode), [episode]);
-  const lines = useMemo(() => episodeListenLines(episode), [episode]);
+  // WP-103 T2: the text, hidden until asked for — at every stage.
+  const [text, dispatchText] = useReducer(radioTextReduce, RADIO_TEXT_INITIAL);
   const verification = useMemo(
     () => verifyEpisodeGuess(episode, state.guess),
     [episode, state.guess],
   );
-  const retain = useMemo(() => episodeRetainPhrase(episode), [episode]);
   const recorded = useRef(false);
 
-  const { state: audioState, prepare, play, playFrom, stop, heard } = audio;
+  const { state: audioState, prepare, heard } = audio;
   const unavailable = audioState.kind === 'unavailable' ? audioState.reason : null;
 
   // Reading the cache is free; synthesis only happens when there is nothing
@@ -353,6 +363,62 @@ export function EpisodeRadio({
     recorded.current = true;
     onPrediction?.(state.guess, verification);
   }, [state.stage, state.guess, verification, onPrediction]);
+
+  return (
+    <EpisodeRadioView
+      episode={episode}
+      copy={copy}
+      audio={audio}
+      state={state}
+      text={text}
+      verification={verification}
+      continuing={continuing}
+      onContinue={onContinue}
+      onReadInstead={onReadInstead}
+      dispatch={dispatch}
+      dispatchText={dispatchText}
+    />
+  );
+}
+
+/**
+ * The cycle as one screen for a given state. Split from `EpisodeRadio` so each
+ * stage can be rendered without driving audio (the node suite and the gallery
+ * do exactly that); it holds no state of its own.
+ */
+export function EpisodeRadioView({
+  episode,
+  copy,
+  audio,
+  state,
+  text,
+  verification,
+  continuing = false,
+  onContinue,
+  onReadInstead,
+  dispatch,
+  dispatchText,
+}: {
+  episode: StoryEpisode;
+  copy: JourneyCopy;
+  audio: UseEpisodeAudio;
+  state: RadioState;
+  text: RadioText;
+  verification: EpisodeVerification;
+  continuing?: boolean;
+  onContinue: () => void;
+  onReadInstead: () => void;
+  dispatch: (event: RadioEvent) => void;
+  dispatchText: (event: RadioTextEvent) => void;
+}) {
+  const guesses = useMemo(() => buildEpisodeGuesses(episode), [episode]);
+  const lines = useMemo(() => episodeListenLines(episode), [episode]);
+  const retain = useMemo(() => episodeRetainPhrase(episode), [episode]);
+  const task = radioTask(episode, state.guess);
+  const controls = radioTextControls(state.stage);
+
+  const { state: audioState, play, playFrom, stop, heard } = audio;
+  const unavailable = audioState.kind === 'unavailable' ? audioState.reason : null;
 
   const stageSteps = RADIO_STAGES.map((stage) => ({
     id: stage,
@@ -379,6 +445,62 @@ export function EpisodeRadio({
     empty: copy.radio_audio_empty,
   };
 
+  // One line of the scene: who says it, and its words when they are shown.
+  const lineWords = (line: (typeof lines)[number]) => (
+    <p className="av2-fr" lang="fr" data-radio-line-text="">
+      {frenchSpacing(line.fr)}
+    </p>
+  );
+
+  // A per-line toggle: «Afficher le texte» / «Masquer le texte».
+  const lineToggle = (line: (typeof lines)[number], index: number) => {
+    const shown = radioLineShown(text, line.key);
+    return (
+      <Action
+        tone="quiet"
+        inline
+        disabled={text.all}
+        aria-pressed={shown}
+        data-radio-line-toggle=""
+        onClick={() => dispatchText({ type: 'line', key: line.key })}
+      >
+        {shown ? copy.radio_text_hide : copy.radio_text_show}
+        <span className="av2-sr">
+          {' · '}
+          {line.who || stageLabel.ecouter} {index + 1}
+        </span>
+      </Action>
+    );
+  };
+
+  // The whole page's text, for the stages that do not list the lines already.
+  const pageText = text.all && !controls.lines && lines.length > 0 && (
+    <ol className="av2-stack" data-radio-page-text="">
+      {lines.map((line) => (
+        <li key={line.key}>
+          <Surface>
+            {line.who && <Byline name={line.who} characterId={line.characterId} />}
+            {lineWords(line)}
+          </Surface>
+        </li>
+      ))}
+    </ol>
+  );
+
+  // The listening question: shown before the audio and again after it.
+  const question = (
+    <Surface tone="outline" data-radio-task="">
+      <p className="av2-label">{copy.radio_task_label}</p>
+      <p className="av2-headline av2-headline--rule">{copy.radio_task_question}</p>
+      {task.guessFr && (
+        <p className="av2-body">
+          <span className="av2-label">{copy.radio_guess_label}</span>{' '}
+          <span lang="fr">{frenchSpacing(task.guessFr)}</span>
+        </p>
+      )}
+    </Surface>
+  );
+
   return (
     <section className="av2-stack av2-step wp44-radio" data-radio-stage={state.stage}>
       <p className="av2-label av2-label--story">
@@ -394,6 +516,18 @@ export function EpisodeRadio({
       <h2 className="av2-headline" lang="fr">
         {frenchSpacing(episode.title_fr || storyEpisodeLabel(episode))}
       </h2>
+
+      {/* WP-103 T2: at every stage, the whole page's text is one tap away. */}
+      <div className="wp44-radio__text">
+        <Chip
+          icon={<ShapeToken kind="story" size="sm" />}
+          aria-pressed={text.all}
+          data-radio-text-toggle=""
+          onClick={() => dispatchText({ type: 'all' })}
+        >
+          {text.all ? copy.radio_text_hide : copy.radio_text_show}
+        </Chip>
+      </div>
 
       {state.stage === 'predire' && (
         <>
@@ -418,6 +552,7 @@ export function EpisodeRadio({
           {/* the one line in the learner's own language: what is about to
               happen, said once, as body copy and never as chrome */}
           <p className="av2-body">{copy.radio_predire_native}</p>
+          {pageText}
           <div className="wp44-radio__foot av2-screen__foot">
             <Action
               tone="primary"
@@ -435,6 +570,7 @@ export function EpisodeRadio({
 
       {state.stage === 'ecouter' && (
         <>
+          {question}
           <p className="av2-body av2-body--lg">{copy.radio_ecouter_body}</p>
 
           {unavailable ? (
@@ -446,25 +582,34 @@ export function EpisodeRadio({
               {audioState.kind === 'preparing' && (
                 <StateBlock tone="loading" title={copy.radio_preparing} />
               )}
-              <ol className="av2-stack" data-radio-lines="hidden">
+              <ol className="av2-stack" data-radio-lines={text.all ? 'shown' : 'hidden'}>
                 {lines.map((line, index) => {
                   const active = audioState.kind === 'playing' && audioState.index === index;
+                  const shown = radioLineShown(text, line.key);
                   return (
                     <li key={line.key}>
                       <Surface tone={active ? 'blue' : 'paper'}>
                         <p className="av2-label">
                           {line.who || stageLabel.ecouter}
-                          {' · '}
-                          <span className="av2-body">{copy.radio_words_hidden}</span>
+                          {!shown && (
+                            <>
+                              {' · '}
+                              <span className="av2-body">{copy.radio_words_hidden}</span>
+                            </>
+                          )}
                         </p>
-                        <Action
-                          tone="quiet"
-                          inline
-                          disabled={audioState.kind !== 'ready' && audioState.kind !== 'played'}
-                          onClick={() => playFrom(index)}
-                        >
-                          {copy.radio_replay}
-                        </Action>
+                        {shown && lineWords(line)}
+                        <div className="wp44-radio__line-actions">
+                          <Action
+                            tone="quiet"
+                            inline
+                            disabled={audioState.kind !== 'ready' && audioState.kind !== 'played'}
+                            onClick={() => playFrom(index)}
+                          >
+                            {copy.radio_replay}
+                          </Action>
+                          {lineToggle(line, index)}
+                        </div>
                       </Surface>
                     </li>
                   );
@@ -486,6 +631,7 @@ export function EpisodeRadio({
             </>
           )}
 
+          {/* With the words shown and no audio to wait for, the text is the way on. */}
           <Action
             tone={unavailable ? 'primary' : 'secondary'}
             disabled={!state.heard}
@@ -501,6 +647,7 @@ export function EpisodeRadio({
 
       {state.stage === 'verifier' && (
         <>
+          {question}
           <Notice tone="quiet" shape="story">
             {verification.verdict === 'confirmed'
               ? copy.radio_guess_confirmed
@@ -524,27 +671,12 @@ export function EpisodeRadio({
                 <Surface>
                   {/* WP-77: the speaker's face with their name; narration has none. */}
                   {line.who && <Byline name={line.who} characterId={line.characterId} />}
-                  {index < state.revealed ? (
-                    <p className="av2-fr" lang="fr">
-                      {frenchSpacing(line.fr)}
-                    </p>
-                  ) : (
-                    <Action tone="quiet" inline onClick={() => dispatch({ type: 'reveal' })}>
-                      {copy.radio_reveal}
-                    </Action>
-                  )}
+                  {radioLineShown(text, line.key) ? lineWords(line) : null}
+                  {lineToggle(line, index)}
                 </Surface>
               </li>
             ))}
           </ol>
-          {state.revealed < lines.length && (
-            <Action
-              tone="secondary"
-              onClick={() => dispatch({ type: 'revealAll', count: lines.length })}
-            >
-              {copy.radio_reveal_all}
-            </Action>
-          )}
           <Action tone="primary" onClick={() => dispatch({ type: 'retain' })}>
             {stageLabel.retenir}
           </Action>
@@ -563,6 +695,7 @@ export function EpisodeRadio({
               <p className="av2-body">{copy.radio_retain_none}</p>
             )}
           </Surface>
+          {pageText}
           <Action
             tone="primary"
             pending={continuing}

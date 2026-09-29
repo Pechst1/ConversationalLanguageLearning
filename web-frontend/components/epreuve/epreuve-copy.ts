@@ -94,6 +94,16 @@ export type EpreuveCopy = {
   task_default_why: string;
   unscored: string;
   skip_unscored: string;
+  // WP-103: the goal's scene label, «Je relis…», and the follow-up after «À corriger»
+  from_scene: string;
+  reading: string;
+  follow_title: string;
+  follow_wrong_label: string;
+  follow_placeholder: string;
+  follow_skip: string;
+  follow_right: string;
+  follow_not_quite: string;
+  corrected_sentence: string;
   retry_line: string;
   retry: string;
   skip: string;
@@ -265,6 +275,15 @@ const FR: EpreuveCopy = {
   task_default_why: 'La réponse ne suit pas encore la consigne. Relisez-la et réessayez.',
   unscored: 'Réponse enregistrée, pas encore vérifiée.',
   skip_unscored: 'Passer sans évaluation',
+  from_scene: 'Dans la scène',
+  reading: 'Je relis…',
+  follow_title: 'Corrigez la phrase',
+  follow_wrong_label: 'La phrase à corriger',
+  follow_placeholder: 'Écrivez la phrase corrigée…',
+  follow_skip: 'Passer',
+  follow_right: 'C’est bien la bonne phrase',
+  follow_not_quite: 'Pas tout à fait. La bonne phrase :',
+  corrected_sentence: 'La bonne phrase',
   retry_line: 'Réessayer la ligne',
   retry: 'Réessayer',
   skip: 'Passer cet exercice',
@@ -428,6 +447,15 @@ const EN: EpreuveCopy = {
   task_default_why: 'The answer does not follow the task yet. Read it again and retry.',
   unscored: 'Answer saved, not checked yet.',
   skip_unscored: 'Skip without a check',
+  from_scene: 'From the scene',
+  reading: 'Let me read it again…',
+  follow_title: 'Correct the sentence',
+  follow_wrong_label: 'The sentence to correct',
+  follow_placeholder: 'Write the corrected sentence…',
+  follow_skip: 'Skip',
+  follow_right: 'That is the right sentence',
+  follow_not_quite: 'Not quite. The right sentence:',
+  corrected_sentence: 'The right sentence',
   retry_line: 'Try the line again',
   retry: 'Try again',
   skip: 'Skip this exercise',
@@ -591,6 +619,15 @@ const DE: EpreuveCopy = {
   task_default_why: 'Die Antwort erfüllt die Aufgabe noch nicht. Lies sie noch einmal und versuch es erneut.',
   unscored: 'Antwort gespeichert, noch nicht geprüft.',
   skip_unscored: 'Ohne Prüfung weiter',
+  from_scene: 'Aus der Szene',
+  reading: 'Ich lese es noch einmal …',
+  follow_title: 'Korrigiere den Satz',
+  follow_wrong_label: 'Der Satz zum Korrigieren',
+  follow_placeholder: 'Schreib den korrigierten Satz …',
+  follow_skip: 'Überspringen',
+  follow_right: 'Das ist der richtige Satz',
+  follow_not_quite: 'Nicht ganz. Der richtige Satz:',
+  corrected_sentence: 'Der richtige Satz',
   retry_line: 'Zeile neu versuchen',
   retry: 'Erneut versuchen',
   skip: 'Übung überspringen',
