@@ -62,6 +62,12 @@ export type RehearsalScreenProps = {
   onDebrief: (rehearsalId: string, outcome: DebriefOutcome, freeLine: string) => void;
   onAbandon: (rehearsalId: string) => void;
   onLeave: () => void;
+  /**
+   * WP-95: «Essayez-le pour de vrai» from the Carnet opens this screen with
+   * the can-do as the situation. It only pre-fills the field; nothing is
+   * declared until the learner sends it.
+   */
+  initialDeclaration?: string | null;
 };
 
 /** The screen's scaffold, on Repetition.dc.html and the canvas note
@@ -152,7 +158,12 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
   const copy = rehearsalCopy(language);
   const chrome: Chrome = { language, copy };
 
-  const [declaration, setDeclaration] = React.useState('');
+  const [declaration, setDeclaration] = React.useState(props.initialDeclaration ?? '');
+  // The query arrives after the first render on a static export.
+  React.useEffect(() => {
+    const seed = (props.initialDeclaration ?? '').trim();
+    if (seed) setDeclaration((current) => current || seed);
+  }, [props.initialDeclaration]);
   const [answer, setAnswer] = React.useState('');
   const [freeLine, setFreeLine] = React.useState('');
   const [outcome, setOutcome] = React.useState<DebriefOutcome | null>(null);

@@ -117,7 +117,11 @@ test('Home does one thing: ≤ 5 elements and ≤ 25 words, in every learner lan
     assert.ok(sections <= 5, `${language}: ${sections} elements`);
     // WP-L7: the level figure («A1.1 · 60 %») is a figure, not prose — it sits
     // outside the word budget, the way the streak's number does not add a sentence.
-    const prose = html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' ');
+    // WP-95: the next-step line replaces that figure in the same slot; it is
+    // held to its own budget (≤ 9 words) in the WP-95 test below.
+    const prose = html
+      .replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' ')
+      .replace(/<a [^>]*data-next-step=""[^>]*>[\s\S]*?<\/a>/g, ' ');
     const count = words(visibleText(prose)).length;
     if (process.env.HOME_WORDS) console.log(language, sections, count, visibleText(html));
     assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
@@ -152,20 +156,40 @@ test('with the journey on, nothing but the day is drawn', () => {
   assert.match(html, /aria-label="Review 3 words"/);
 });
 
-test('WP-L7: the level is back in the masthead, compact, as a label and never a headline', () => {
+const NEXT = {
+  fr: { band: 'A1.1', line: 'Prochaine étape : demander un prix et payer', ariaLabel: 'Niveau A1.1. Prochaine étape : demander un prix et payer. Ouvrir le Carnet', href: '/notebook?mode=carnet' },
+  en: { band: 'A1.1', line: 'Next step: ask a price and pay', ariaLabel: 'Level A1.1. Next step: ask a price and pay. Open the Carnet', href: '/notebook?mode=carnet' },
+  de: { band: 'A1.1', line: 'Nächster Schritt: ask a price and pay', ariaLabel: 'Niveau A1.1. Nächster Schritt: ask a price and pay. Carnet öffnen', href: '/notebook?mode=carnet' },
+};
+
+test('WP-95 / W12: the masthead shows the band and the next can-do, never a percentage', () => {
   for (const language of ['en', 'de', 'fr']) {
-    const html = home(language);
-    assert.match(visibleText(html), /A1\.1 · 60 %/, language); // the narrow space folds to one
-    assert.match(html, /60\u202f%/, `${language}: a narrow no-break space before %`);
+    const html = home(language, { nextStep: NEXT[language], level: { band: 'A1.1', percent: 0 } });
+    const text = visibleText(html);
+    assert.doesNotMatch(text, /%/, `${language}: no percentage on Home`);
+    assert.match(text, new RegExp(`A1\\.1 · ${NEXT[language].line}`), language);
+    assert.match(html, /<a class="av2-carnet__home-link"[^>]*href="\/notebook\?mode=carnet"/);
+    const link = html.match(/<a [^>]*data-next-step=""[^>]*>([\s\S]*?)<\/a>/)[1];
+    assert.ok(words(visibleText(link)).length <= 9, `${language}: the next step is one short line`);
     assert.match(html, /class="av2-home__kicker av2-home__level"/);
     // One Garamond line on the masthead (the date): the level is a label, not a headline.
     const mast = html.slice(html.indexOf('av2-home__mast"'), html.indexOf('</header>'));
     assert.equal((mast.match(/av2-headline[ "]/g) || []).length, 1, `${language}: one headline in the masthead`);
+    // Still one press and ≤ 25 words of prose.
+    assert.equal((html.match(/av2-btn--primary/g) || []).length, 1);
   }
-  assert.match(home('fr'), /Votre niveau : A1\.1, parcouru à 60 %/);
-  assert.match(home('de'), /Ihr Niveau: A1\.1, zu 60 % geschafft/);
-  // No coverage from the server, no level line.
+  // An older server (coverage but no can-do): the band code alone — the «0 %» is gone.
+  const old = visibleText(home('fr', { level: { band: 'A1.1', percent: 0 } }));
+  assert.match(old, /A1\.1/);
+  assert.doesNotMatch(old, /%/);
+  assert.match(home('fr'), /Votre niveau : A1\.1/);
+  // Nothing from the server, no level line.
   assert.doesNotMatch(home('en', { level: null }), /av2-home__level/);
+});
+
+test('WP-94: a special edition double-rules the masthead; an ordinary day does not', () => {
+  assert.match(home('fr', { special: true }), /<header class="av2-home__mast" data-special="">/);
+  assert.doesNotMatch(home('fr'), /data-special/);
 });
 
 test('WP-L6: «Cette semaine, on consolide.» on Home while the throttle is on, in the chrome language', () => {

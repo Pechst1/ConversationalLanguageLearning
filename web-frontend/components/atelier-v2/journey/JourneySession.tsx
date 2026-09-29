@@ -75,6 +75,9 @@ import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
 import { JourneyRecap } from './JourneyRecap';
+import { SpecialKickerContext } from './special-edition';
+import { canDoCopy } from '@/lib/can-do-copy';
+import { epreuveOf } from '@/lib/can-dos';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneySessionProps = {
@@ -222,7 +225,11 @@ export function JourneySession({
     // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
     firstSceneStepId(journey) === step.id;
 
+  // WP-94: a «Numéro spécial» — the session and the reader carry the kicker.
+  const specialKicker = epreuveOf(journey) ? canDoCopy(chromeLanguage).special_kicker : null;
+
   return (
+    <SpecialKickerContext.Provider value={specialKicker}>
     <AtelierV2Root as="main" language={chromeLanguage} className="journey-shell">
       <div className="av2-screen">
         {/* The design's session header: close, then the progress rule. The
@@ -262,6 +269,14 @@ export function JourneySession({
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
             <p className="av2-label">
+              {specialKicker && (
+                <>
+                  <span className="av2-special__kicker" lang="fr" data-special-kicker="">
+                    {specialKicker}
+                  </span>
+                  {joinMeta(journey.scenario.location_name, journey.scenario.objective_native) ? ' · ' : ''}
+                </>
+              )}
               {joinMeta(journey.scenario.location_name, journey.scenario.objective_native)}
             </p>
           )}
@@ -410,6 +425,7 @@ export function JourneySession({
         </div>
       </div>
     </AtelierV2Root>
+    </SpecialKickerContext.Provider>
   );
 }
 

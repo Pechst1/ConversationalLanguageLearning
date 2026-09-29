@@ -165,12 +165,15 @@ export function Seal({
   label,
   rings = 0,
   ringsLabel,
+  topLine = 'Atelier · le feuilleton',
+  caption: captionOverride,
 }: {
   variant?: SealVariant;
   no?: number | null;
   date?: string;
   stamp?: boolean;
-  size?: 'md' | 'lg';
+  /** WP-94: `xl` is the épreuve's oversized seal (the band just closed). */
+  size?: 'md' | 'lg' | 'xl';
   tone?: 'ink' | 'gilt';
   /** Accessible name; defaults to «Sceau Nº 47 · 22 sept.». */
   label?: string;
@@ -178,9 +181,13 @@ export function Seal({
   rings?: number;
   /** WP-S7: the rings' accessible words («2 rings: rules held today»). */
   ringsLabel?: string | null;
+  /** WP-94: the upper ring line; «Numéro spécial» on the épreuve's seal. */
+  topLine?: string;
+  /** WP-94: the lower ring line in place of «Nº 47 · 22 sept.» («A1.2 · 28 sept.»). */
+  caption?: string | null;
 }) {
   const uid = useId().replace(/:/g, '');
-  const caption = sealCaption(no, date);
+  const caption = captionOverride ?? sealCaption(no, date);
   const ringCount = Math.max(0, Math.min(SEAL_MAX_RINGS, Math.floor(Number(rings) || 0)));
   const baseLabel = label || ['Sceau', caption].filter(Boolean).join(' ');
   return (
@@ -203,7 +210,7 @@ export function Seal({
           </defs>
           <text className="av2-seal__line" textAnchor="middle">
             <textPath href={`#st${uid}`} startOffset="50%">
-              Atelier · le feuilleton
+              {topLine}
             </textPath>
           </text>
           {caption && (

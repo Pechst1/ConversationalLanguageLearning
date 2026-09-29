@@ -151,6 +151,7 @@ import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleC
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
+import { epreuveOf, nextCanDoOf, nextStepView } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
@@ -1976,6 +1977,7 @@ export default function AtelierPage() {
               dayJourney={journey.journey}
               // WP-D4: the journey's own edition, so Home and the recap agree.
               journeyEditionNo={journey.envelope?.journey?.edition_no ?? null}
+              dayEnvelope={journey.envelope}
               // WP-82: Home's own words follow the one language rule.
               chromeLanguage={journeyChromeLanguage(journey)}
               noticeLanguage={pageChromeLanguage}
@@ -2320,6 +2322,7 @@ function TodayView({
   dayJourney = null,
   journeyCard = null,
   journeyEditionNo = null,
+  dayEnvelope = null,
   chromeLanguage = 'fr',
   noticeLanguage,
 }: {
@@ -2360,6 +2363,8 @@ function TodayView({
   journeyCard?: React.ReactNode;
   /** WP-D4: `journey.edition_no` from the day's journey, when there is one. */
   journeyEditionNo?: number | null;
+  /** WP-94: today's envelope — a «Numéro spécial» is read from it before the journey starts. */
+  dayEnvelope?: unknown;
   /**
    * WP-82: the chrome language of Home's own words while the journey owns the
    * day (the learner's up to A2, French from B1). The flag-off Home is French.
@@ -2586,6 +2591,13 @@ function TodayView({
     cefr?.coverage && typeof cefr.coverage.percent === 'number' && cefr.coverage.band
       ? { band: String(cefr.coverage.band), percent: Number(cefr.coverage.percent) }
       : null;
+  // WP-95 / W12: the next can-do replaces the percentage on Home.
+  const homeNextStep = nextStepView(
+    { band: homeLevel?.band ?? null, ...nextCanDoOf(cefr, today) },
+    chromeLanguage,
+  );
+  // WP-94: today is a «Numéro spécial» — the masthead is double-ruled.
+  const specialEdition = Boolean(epreuveOf(dayJourney) ?? epreuveOf(dayEnvelope));
   // For engine-managed learners `/serial/today` answers `journey_required`
   // with no scene: the story is today's journey (its card is above), so the
   // page does not draw an episode it cannot open.
@@ -2812,6 +2824,8 @@ function TodayView({
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       level={homeLevel}
+      nextStep={homeNextStep}
+      special={specialEdition}
       consolidating={Boolean(today?.intake?.consolidating)}
       streak={streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.

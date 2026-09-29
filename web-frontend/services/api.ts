@@ -673,6 +673,10 @@ export interface CEFRProgress {
   coverage?: LevelCoverage | null;
   checkpoint?: LevelCheckpoint | null;
   release_floor?: string | null;
+  /** WP-95: the next can-do to stamp (Home's «Prochaine étape»). Absent on older servers. */
+  next_can_do?: { id: string; title_fr: string; title_native: string | null; band: string } | null;
+  can_dos_stamped?: number | null;
+  can_dos_total?: number | null;
   /** WP-L8: each rhythm's planning prior for finishing A1 (Réglages' cards). */
   rhythm_priors?: Record<string, { rhythm?: string; target?: string; range_days?: number[]; range_months?: number[] }> | null;
   today_delta?: Record<string, any>;
@@ -687,6 +691,10 @@ export interface LevelCoverage {
   units: { held: number; total: number; required: number; met: boolean };
   words: { known: number; total: number; required: number; met: boolean };
   coverage_met: boolean;
+  /** WP-95: the services agent may put the next can-do on the coverage instead. */
+  next_can_do?: { id: string; title_fr: string; title_native: string | null; band: string } | null;
+  can_dos_stamped?: number | null;
+  can_dos_total?: number | null;
 }
 
 /** WP-L7 — the band's épreuve (the story engine stages it once `checkpoint_ready`). */
@@ -2558,6 +2566,11 @@ class ApiService {
 
   async getCefrProgress() {
     return this.atelierGet<CEFRProgress>('/progress/cefr');
+  }
+
+  /** WP-95 «Le Carnet»: every sub-band's can-dos, stamped or not. */
+  async getCanDos() {
+    return this.atelierGet<unknown>('/can-dos');
   }
 
   async startAtelierSession(data?: {

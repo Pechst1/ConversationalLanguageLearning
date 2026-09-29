@@ -35,6 +35,8 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { canDoCopy } from '@/lib/can-do-copy';
+import { epreuveOf, specialListLine } from '@/lib/can-dos';
 import { frenchSpacing } from '@/lib/french-typography';
 import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
@@ -72,6 +74,16 @@ export function JourneyTodayCard({
 
   if (phase.kind === 'disabled' || phase.kind === 'loading') return null;
 
+  // WP-94: a «Numéro spécial» — the band's épreuve is today. The card says so
+  // and lists what it asks, in the chrome language. Calm, editorial.
+  const epreuve = epreuveOf(controller.journey) ?? epreuveOf(controller.envelope);
+  const special: SpecialEdition | null = epreuve
+    ? {
+        kicker: canDoCopy(chromeLanguage).special_kicker,
+        line: specialListLine(epreuve.canDos, chromeLanguage),
+      }
+    : null;
+
   return (
     <AtelierV2Root language={chromeLanguage} className="journey-today">
       <div className="av2-stack">
@@ -90,6 +102,7 @@ export function JourneyTodayCard({
           onRefresh={() => void actions.refresh()}
           onRetryGeneration={() => void actions.retryGeneration()}
           controlLanguage={chromeLanguage}
+          special={special}
         />
 
         {/* WP-43 — the nouvelles-pages artboard: the card carries the scene
@@ -117,6 +130,9 @@ export function JourneyTodayCard({
     </AtelierV2Root>
   );
 }
+
+/** WP-94: the special edition's kicker and its can-do line. */
+type SpecialEdition = { kicker: string; line: string | null };
 
 function JourneyPrimary({
   phase,
@@ -187,7 +203,9 @@ function JourneyTodayBody({
   onResume,
   onRefresh,
   onRetryGeneration,
+  special = null,
 }: {
+  special?: SpecialEdition | null;
   phase: JourneyPhase;
   copy: AtelierCopy;
   statusCopy: AtelierCopy;
@@ -231,6 +249,7 @@ function JourneyTodayBody({
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
           preparing={busy}
+          special={special}
           byline={
             scenario.character_name ? (
               <Byline
@@ -268,6 +287,7 @@ function JourneyTodayBody({
           lang="fr"
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
+          special={special}
           byline={
             scenario.character_name ? <Byline name={scenario.character_name} /> : null
           }
@@ -291,6 +311,7 @@ function JourneyTodayBody({
           lang="fr"
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
+          special={special}
           byline={scenario.character_name ? <Byline name={scenario.character_name} /> : null}
         >
           <p className="av2-body av2-body--lg">{copy.awaiting_finish_body}</p>
@@ -371,8 +392,10 @@ function Card({
   byline,
   done,
   preparing = false,
+  special = null,
   children,
 }: {
+  special?: SpecialEdition | null;
   copy: AtelierCopy;
   eyebrow: string;
   title: string;
@@ -391,6 +414,7 @@ function Card({
       shape="episode"
       className={preparing ? 'journey-today-card journey-today-card--preparing' : 'journey-today-card'}
       aria-busy={preparing || undefined}
+      data-special={special ? 'epreuve' : undefined}
     >
       {imageUrl && (
         <Artwork
@@ -403,12 +427,26 @@ function Card({
       )}
       <div className="journey-today-card__body av2-stack">
         <p className="av2-label av2-label--story">
-          {done && <ShapeToken kind="done" size="sm" />} {eyebrow}
+          {done && <ShapeToken kind="done" size="sm" />}{' '}
+          {special && (
+            <>
+              <span className="av2-special__kicker" lang="fr" data-special-kicker="">
+                {special.kicker}
+              </span>
+              {eyebrow ? ' · ' : ''}
+            </>
+          )}
+          {eyebrow}
         </p>
         <h2 className="av2-headline av2-headline--title" lang={lang}>
           {lang === 'fr' ? frenchSpacing(title) : title}
         </h2>
         {byline}
+        {special?.line && (
+          <p className="av2-body av2-special__list" data-special-list="">
+            {special.line}
+          </p>
+        )}
         {children}
       </div>
     </Surface>

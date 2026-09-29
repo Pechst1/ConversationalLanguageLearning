@@ -42,6 +42,13 @@ function messageFor(error: unknown): string | null {
   return null;
 }
 
+/** `?situation=` from the Carnet, trimmed and capped; anything else → `null`. */
+function situationFromQuery(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const text = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+  return text || null;
+}
+
 export default function RepetitionPage() {
   const router = useRouter();
   const language = useChromeLanguage();
@@ -107,6 +114,8 @@ export default function RepetitionPage() {
           }
           onAbandon={(id) => void run(() => api.abandonRehearsal(id))}
           onLeave={leave}
+          // WP-95: the Carnet's «Essayez-le pour de vrai» names the situation.
+          initialDeclaration={situationFromQuery(router.query.situation)}
         />
         <RehearsalStyles />
       </AtelierV2Root>

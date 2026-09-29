@@ -22,6 +22,8 @@ import React, {
 } from 'react';
 
 import { FeuilletonReader, FeuilletonReaderStyles } from '@/components/feuilleton/reader';
+
+import { useSpecialKicker } from './special-edition';
 import {
   Action,
   Byline,
@@ -130,6 +132,8 @@ export function StoryEpisodeReader({
   title = null,
   eyebrow = null,
 }: StoryEpisodeReaderProps) {
+  // WP-94: a «Numéro spécial» day names itself in the reader's kicker too.
+  const specialKicker = useSpecialKicker();
   const reread = mode === 'reread';
   const keepsPosition = savePosition && !reread;
   const stages = useMemo(
@@ -194,7 +198,7 @@ export function StoryEpisodeReader({
     <>
       <FeuilletonReaderStyles />
       <FeuilletonReader
-        episodeLabel={eyebrow || storyEpisodeLabel(episode)}
+        episodeLabel={specialKicker ? `${specialKicker} · ${eyebrow || storyEpisodeLabel(episode)}` : eyebrow || storyEpisodeLabel(episode)}
         title={title || episode.title_fr || 'Le feuilleton'}
         stages={stages}
         index={index}

@@ -414,6 +414,10 @@ export type JourneyRecap = {
   consolidating?: boolean;
   /** WP-L8: once a week at the Seal, from a measured forecast only. */
   forecast_line?: RecapForecastLine | null;
+  /** WP-94: the day was a «Numéro spécial»; absent on every other day and older servers. */
+  epreuve_result?: 'passed' | 'failed' | null;
+  /** WP-94: the host's line on the result (French content). */
+  epreuve_line_fr?: string | null;
 };
 
 /** WP-L8 — «At this rhythm: A1.2 around <month>»; the client writes the words. */
@@ -504,6 +508,16 @@ export type JourneySnapshot = {
   edition_no?: number | null;
   /** WP-S7: rules held on this local day (one Seal ring each). Absent with the flag off. */
   mastery_today?: { held_concept_ids: number[]; tested_out_concept_ids: number[] } | null;
+  /** WP-94: «Numéro spécial» — the band's épreuve is today. Absent on older servers. */
+  special?: 'epreuve' | null;
+  /** WP-94: the band the épreuve closes and the can-dos it asks for. */
+  epreuve?: JourneyEpreuve | null;
+};
+
+/** WP-94: what a special edition asks the learner to show. */
+export type JourneyEpreuve = {
+  band: string;
+  can_dos: Array<{ id: string; title_fr: string; title_native: string | null }>;
 };
 
 /**

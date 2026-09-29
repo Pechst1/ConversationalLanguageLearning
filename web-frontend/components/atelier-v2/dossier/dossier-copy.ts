@@ -189,7 +189,7 @@ const FR: DossierCopy = {
   row_checkpoint: 'Épreuve',
   row_value: '{have} / {required} (sur {total})',
   coverage_rule:
-    'Pour passer {band} : tenir 85 % de ses notions, connaître 80 % de ses mots, puis réussir l’épreuve de fin de niveau dans l’histoire.',
+    'Pour passer {band} : tenir 85 % de ses notions et connaître 80 % de ses mots. L’épreuve arrive dans l’histoire quand le niveau est couvert.',
   cp_ready: 'prête — elle arrive dans l’histoire',
   cp_failed_dated: 'à repasser à partir du {date}',
   cp_failed: 'à repasser après une semaine de consolidation',
@@ -204,7 +204,7 @@ const FR: DossierCopy = {
     'Estimation : à votre rythme actuel, {target} demanderait plus de deux ans. Un peu de régularité change vite ce chiffre.',
   forecast_prior:
     'Estimation avant mesure, d’après votre rythme : {target} dans {span}. Elle sera recalculée sur votre propre rythme après sept jours actifs.',
-  forecast_measured: 'Estimation sur vos quatorze derniers jours : {target} dans {span}, épreuve comprise.',
+  forecast_measured: 'Estimation sur vos quatorze derniers jours : {target} dans {span}. L’épreuve arrive quand le niveau est couvert.',
   rules_speed: 'Vos règles : {n} tenues, {days} en médiane pour en tenir une. Mesuré sur votre propre pratique.',
   rules_speed_count: 'Vos règles : {n} tenues. Mesuré sur votre propre pratique.',
   unit_day: '{n} jour',
@@ -323,7 +323,7 @@ const EN: DossierCopy = {
   row_checkpoint: 'Level test',
   row_value: '{have} / {required} (of {total})',
   coverage_rule:
-    'To pass {band}: hold 85% of its rules, know 80% of its words, then pass the end-of-level test in the story.',
+    'To pass {band}: hold 85% of its rules and know 80% of its words. The level test comes up in the story once the level is covered.',
   cp_ready: 'ready — it comes up in the story',
   cp_failed_dated: 'retake from {date}',
   cp_failed: 'retake after a week of consolidation',
@@ -338,7 +338,7 @@ const EN: DossierCopy = {
     'Estimate: at your current pace, {target} would take more than two years. A little regularity changes this number fast.',
   forecast_prior:
     'Estimate before measuring, from your chosen pace: {target} in {span}. It is recalculated on your own pace after seven active days.',
-  forecast_measured: 'Estimate from your last fourteen days: {target} in {span}, level test included.',
+  forecast_measured: 'Estimate from your last fourteen days: {target} in {span}. The level test comes once the level is covered.',
   rules_speed: 'Your rules: {n} held, a median of {days} to hold one. Measured on your own practice.',
   rules_speed_count: 'Your rules: {n} held. Measured on your own practice.',
   unit_day: '{n} day',
@@ -457,7 +457,7 @@ const DE: DossierCopy = {
   row_checkpoint: 'Niveauprüfung',
   row_value: '{have} / {required} (von {total})',
   coverage_rule:
-    'Um {band} abzuschließen: 85 % der Regeln sicher beherrschen, 80 % der Wörter kennen und dann die Abschlussprüfung in der Geschichte bestehen.',
+    'Um {band} abzuschließen: 85 % der Regeln sicher beherrschen und 80 % der Wörter kennen. Die Prüfung kommt in der Geschichte, sobald das Niveau abgedeckt ist.',
   cp_ready: 'bereit — sie kommt in der Geschichte',
   cp_failed_dated: 'Wiederholung ab {date}',
   cp_failed: 'Wiederholung nach einer Woche Festigung',
@@ -472,7 +472,7 @@ const DE: DossierCopy = {
     'Schätzung: Bei Ihrem aktuellen Tempo würde {target} mehr als zwei Jahre dauern. Etwas Regelmäßigkeit ändert diese Zahl schnell.',
   forecast_prior:
     'Schätzung vor der Messung, nach Ihrem Rhythmus: {target} in {span}. Nach sieben aktiven Tagen wird sie nach Ihrem eigenen Tempo neu berechnet.',
-  forecast_measured: 'Schätzung aus Ihren letzten vierzehn Tagen: {target} in {span}, Prüfung inbegriffen.',
+  forecast_measured: 'Schätzung aus Ihren letzten vierzehn Tagen: {target} in {span}. Die Prüfung kommt, sobald das Niveau abgedeckt ist.',
   rules_speed: 'Ihre Regeln: {n} sitzen, im Median {days} bis eine sitzt. Gemessen an Ihrer eigenen Übung.',
   rules_speed_count: 'Ihre Regeln: {n} sitzen. Gemessen an Ihrer eigenen Übung.',
   unit_day: '{n} Tag',

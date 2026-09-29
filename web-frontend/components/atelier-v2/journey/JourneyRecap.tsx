@@ -23,7 +23,10 @@ import React from 'react';
 import { Action, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
 import { Seal } from '@/components/ui/Seal';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { castName, epreuveRecapView } from '@/lib/can-dos';
+import { canDoCopy } from '@/lib/can-do-copy';
 import { frenchQuote, frenchSpacing } from '@/lib/french-typography';
+import { CAST_WITH_PORTRAITS } from '@/lib/onboarding-portraits';
 import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnapshot } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
@@ -66,6 +69,13 @@ export function JourneyRecap({
   const seal = partial ? null : view?.seal ?? null;
   const chrome = recapChrome(language);
   const keepsakeTitle = seal && keepsake?.title_fr?.trim() ? keepsake.title_fr.trim() : null;
+  // WP-94: the «Numéro spécial» result. Passed: the oversized seal stamped with
+  // the band just closed replaces the day's seal. Failed: a kind line and the
+  // next special edition's date — no shame, no red.
+  const epreuve = partial ? null : epreuveRecapView(journey, recap, language);
+  const passed = epreuve?.result === 'passed' ? epreuve : null;
+  const failed = epreuve?.result === 'failed' ? epreuve : null;
+  const specialCopy = canDoCopy(language);
 
   // «Plus de pratique» opens the drill loop on what today practised when the
   // server named a place for it; otherwise the general entry.
@@ -85,8 +95,25 @@ export function JourneyRecap({
       data-state={partial ? 'partial' : 'complete'}
       aria-label={partial ? copy.finished_partial_title : copy.finished_title}
     >
-      <Surface tone={partial ? 'outline' : 'paper'} shape="hero" className="av2-recap__header">
-        {seal && (
+      <Surface
+        tone={partial ? 'outline' : 'paper'}
+        shape="hero"
+        className={passed ? 'av2-recap__header av2-epreuve--passed' : 'av2-recap__header'}
+        data-epreuve={epreuve?.result}
+      >
+        {passed && (
+          <figure className="av2-recap__seal av2-epreuve__seal" data-band={passed.band ?? undefined}>
+            <Seal
+              stamp
+              size="xl"
+              variant="quad"
+              topLine={passed.sealTop}
+              caption={passed.sealCaption}
+              label={passed.sealLabel}
+            />
+          </figure>
+        )}
+        {seal && !passed && (
           <figure
             className="av2-recap__seal"
             data-edition={seal.no ?? undefined}
@@ -113,7 +140,11 @@ export function JourneyRecap({
         {/* WP-82: one Garamond headline. With a keepsake it is the keepsake's
             French title (the day's own name); without one, «Scene finished».
             The section's accessible name still says the day is finished. */}
-        {keepsakeTitle ? (
+        {passed ? (
+          <h2 className="av2-headline" data-epreuve-title="">
+            {passed.title}
+          </h2>
+        ) : keepsakeTitle ? (
           <h2 className="av2-headline" lang="fr" data-keepsake-title>
             {frenchSpacing(keepsakeTitle)}
           </h2>
@@ -121,7 +152,40 @@ export function JourneyRecap({
           <h2 className="av2-headline">{partial ? copy.finished_partial_title : copy.finished_title}</h2>
         )}
         {partial && <p className="av2-body av2-body--lg">{copy.finished_partial_body}</p>}
+        {passed && passed.lineFr && (
+          <p className="av2-fr av2-body av2-body--lg" lang="fr" data-epreuve-line="">
+            {frenchQuote(passed.lineFr)}
+          </p>
+        )}
+        {passed && (
+          // The whole cast, delighted, in one row — the reward is their faces.
+          <ul className="av2-epreuve__cast" aria-label={specialCopy.epreuve_cast_label}>
+            {CAST_WITH_PORTRAITS.map((id) => (
+              <li key={id}>
+                <CastPortrait characterId={id} name={castName(id) ?? undefined} mood="happy" size="sm" alt={castName(id) ?? ''} />
+              </li>
+            ))}
+          </ul>
+        )}
       </Surface>
+
+      {failed && (
+        <Surface tone="outline" className="av2-epreuve--failed" data-epreuve-failed="">
+          <p className="av2-label">
+            <span lang="fr">{specialCopy.special_kicker}</span>
+          </p>
+          <p className="av2-body av2-body--lg"><strong>{failed.title}</strong></p>
+          {failed.lineFr && (
+            <p className="av2-fr av2-body av2-body--lg" lang="fr">
+              {frenchQuote(failed.lineFr)}
+            </p>
+          )}
+          <p className="av2-body">{failed.body}</p>
+          <p className="av2-label" data-epreuve-next="">
+            {failed.next}
+          </p>
+        </Surface>
+      )}
 
       {view && view.facts.length > 0 && (
         <dl className="av2-reward__facts">

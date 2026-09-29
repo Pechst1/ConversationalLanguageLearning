@@ -36,8 +36,11 @@
  */
 
 import React from 'react';
+import Link from 'next/link';
 
-import { Action, Notice, ScreenFoot, Skeleton, Surface, textAnswerField } from '@/components/atelier-v2/ui';
+import { Action, ArrowRightIcon, Notice, ScreenFoot, Skeleton, Surface, textAnswerField } from '@/components/atelier-v2/ui';
+import { canDoCopy } from '@/lib/can-do-copy';
+import { CARNET_HREF } from '@/lib/can-dos';
 import { useChromeLanguage } from '@/lib/learner-language';
 import type {
   DossierCapability,
@@ -174,6 +177,18 @@ function LevelSection({
       {/* WP-S8: the learner's own measured speed, from three held rules. */}
       {rulesSpeed && <p className="av2-body">{rulesSpeed}</p>}
       <p className="av2-body">{levelLadderSentence(level, language)}</p>
+      {/* WP-95: what the level means in practice — the can-dos, stamped by the story. */}
+      <Link className="av2-row ds-carnet" href={CARNET_HREF} data-carnet-link="">
+        <span className="av2-row__main">
+          <span className="av2-label" lang="fr">
+            {canDoCopy(language).dossier_carnet}
+          </span>
+          <span className="av2-label" style={{ display: 'block', fontWeight: 400 }}>
+            {canDoCopy(language).dossier_carnet_hint}
+          </span>
+        </span>
+        <ArrowRightIcon size={18} />
+      </Link>
       <EvidenceLine>{evidenceSentence(level?.evidence, language)}</EvidenceLine>
       {onOpenPlacement && (
         <Action tone="quiet" inline onClick={onOpenPlacement}>

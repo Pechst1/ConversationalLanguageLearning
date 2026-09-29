@@ -31,7 +31,7 @@ import { ArrowLeftIcon, Chip } from '@/components/atelier-v2/ui';
 
 import { useCahierCopy, type CahierCopy } from './cahier-copy';
 
-export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library';
+export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'carnet' | 'library';
 
 /* WP-82 — the pill's labels are chrome, read from the Cahier copy table in the
    language of the surrounding `AtelierV2Root`. WP-30's «Journal» is the recap
@@ -41,6 +41,7 @@ const CAHIER_MODE_KEYS: Record<CahierMode, keyof CahierCopy['cahier']> = {
   vocabulary: 'mode_vocabulary',
   journal: 'mode_journal',
   releve: 'mode_releve',
+  carnet: 'mode_carnet',
   library: 'mode_library',
 };
 
@@ -86,7 +87,9 @@ export function NotebookModeTabs({
   hrefFor?: (mode: CahierMode) => string;
 }) {
   const copy = useCahierCopy();
-  const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve'];
+  // WP-95: «Carnet» sits beside «Relevé» — the ledger of what went wrong,
+  // then the ledger of what you can do.
+  const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve', 'carnet'];
   if (library) modes.push('library');
   return (
     <div className="nb-modes" role="tablist" aria-label={copy.cahier.modes_label}>

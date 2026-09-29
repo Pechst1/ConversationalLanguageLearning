@@ -22,6 +22,7 @@ import {
   type CahierMode,
 } from '@/components/cahiers/CahierV2';
 import { cahierCopy, countLabel, fill, useCahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
+import CarnetTab from '@/components/cahiers/CarnetTab';
 import JournalTab from '@/components/cahiers/JournalTab';
 import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
 import Releve from '@/components/releve/Releve';
@@ -80,6 +81,7 @@ function storedNotebookMode(): NotebookMode {
     if (stored === 'vocabulary') return 'vocabulary';
     if (stored === 'journal') return 'journal';
     if (stored === 'releve') return 'releve';
+    if (stored === 'carnet') return 'carnet';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
   } catch {
@@ -103,6 +105,7 @@ function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
     || explicitMode === 'vocabulary'
     || explicitMode === 'journal'
     || explicitMode === 'releve'
+    || explicitMode === 'carnet'
   ) return explicitMode;
   if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
   if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
@@ -120,7 +123,7 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
-  } else if (mode === 'releve' || mode === 'journal') {
+  } else if (mode === 'releve' || mode === 'journal' || mode === 'carnet') {
     // Le Relevé is a read-only ledger and Le journal de bord is the learner's
     // own writing; neither carries deep-link parameters.
     return nextQuery;
@@ -145,6 +148,7 @@ const MODE_TITLE_KEYS: Record<NotebookMode, keyof CahierCopy['notebook']> = {
   vocabulary: 'title_vocabulary',
   journal: 'title_journal',
   releve: 'title_releve',
+  carnet: 'title_carnet',
   library: 'title_library',
 };
 
@@ -303,6 +307,8 @@ export default function NotebookEntryPage() {
               <JournalTab />
             ) : visibleMode === 'releve' ? (
               <Releve />
+            ) : visibleMode === 'carnet' ? (
+              <CarnetTab />
             ) : (
               <LibraryNotebookSurface
                 bookId={firstQueryValue(queryBook)}

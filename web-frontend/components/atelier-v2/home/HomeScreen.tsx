@@ -47,7 +47,9 @@ import {
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
 import { atelierChrome, atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
-import { NNBSP, frenchQuote } from '@/lib/french-typography';
+import { canDoCopy } from '@/lib/can-do-copy';
+import type { NextStepView } from '@/lib/can-dos';
+import { frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type HomeTileMark = 'story' | 'reward' | 'done' | 'action';
@@ -171,6 +173,17 @@ export type HomeScreenProps = {
    */
   level?: { band: string; percent: number } | null;
   /**
+   * WP-95 / W12: the next can-do («Prochaine étape : demander un prix et
+   * payer»), linking to the Carnet. It replaces the percentage, which read
+   * «A1.1 · 0 %» after a finished first day. The band code stays, small.
+   */
+  nextStep?: NextStepView | null;
+  /**
+   * WP-94: today is a «Numéro spécial» (the band's épreuve). The masthead is
+   * double-ruled; the day's card carries the kicker and the can-dos.
+   */
+  special?: boolean;
+  /**
    * WP-L6 §2.2: the auto-throttle is on (the server's `intake.consolidating`):
    * one quiet label, «Cette semaine, on consolide.», under the level.
    */
@@ -241,6 +254,8 @@ export function HomeScreen({
   editionLabel,
   streak,
   level = null,
+  nextStep = null,
+  special = false,
   consolidating = false,
   dayDone = false,
   settingsHref = '/settings',
@@ -268,9 +283,10 @@ export function HomeScreen({
   const oneThing = Boolean(day);
   const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
+  const levelBand = nextStep?.band || level?.band || null;
   return (
     <AtelierV2Root as="main" language={language} className="av2-home" aria-label={copy.home_label}>
-      <header className="av2-home__mast">
+      <header className="av2-home__mast" data-special={special && oneThing ? '' : undefined}>
         <div className="av2-home__mast-main">
           {day ? (
             // WP-D1: the mark is the day's only gauge — no goal ring.
@@ -283,15 +299,29 @@ export function HomeScreen({
           {!oneThing && <p className="av2-home__kicker">{editionLabel}</p>}
           {/* WP-L7: the level, back as one quiet label — never a second
               Garamond line (the date is the screen's one headline). */}
-          {oneThing && level && (
+          {/* WP-95 / W12: the band code, small, and the next can-do linking
+              to the Carnet — never a percentage («A1.1 · 0 %» after day 1). */}
+          {oneThing && (levelBand || nextStep) && (
             <p className="av2-home__kicker av2-home__level">
-              <span className="av2-sr">
-                {copy.home_level_aria.replace('{band}', level.band).replace('{percent}', String(level.percent))}
-              </span>
-              <span aria-hidden="true" data-level-figure="">
-                {level.band} · {level.percent}
-                {NNBSP}%
-              </span>
+              {levelBand && (
+                <>
+                  <span className="av2-sr">{canDoCopy(language).level_band_aria.replace('{band}', levelBand)}</span>
+                  <span aria-hidden="true" data-level-figure="">
+                    {levelBand}
+                  </span>
+                </>
+              )}
+              {levelBand && nextStep && <span aria-hidden="true"> · </span>}
+              {nextStep && (
+                <Link
+                  className="av2-carnet__home-link"
+                  href={nextStep.href}
+                  aria-label={nextStep.ariaLabel}
+                  data-next-step=""
+                >
+                  {nextStep.line}
+                </Link>
+              )}
             </p>
           )}
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>

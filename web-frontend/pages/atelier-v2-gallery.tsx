@@ -49,6 +49,7 @@ import {
   WordTiles,
   type TabKey,
 } from '@/components/atelier-v2/ui';
+import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import {
   CrCorrespondent,
@@ -656,6 +657,9 @@ export default function AtelierV2Gallery() {
             <CrLetterRow name="Samira" hint="2ᵉ lettre sur 3, de Samira · répondez avant jeudi" />
             <CrLetterRow name="Romy" hint="Romy vous écrit après l’épisode." />
           </Section>
+
+          {/* WP-94 «Numéro spécial» + WP-95 «Le Carnet». */}
+          <CanDoGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar

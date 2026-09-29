@@ -2939,6 +2939,11 @@
 .av2 .av2-seal[data-size='lg'] {
   --av2-seal-size: 216px;
 }
+/* WP-94: the épreuve's oversized seal — the band just closed. Never wider
+   than the column at 320 px. */
+.av2 .av2-seal[data-size='xl'] {
+  --av2-seal-size: min(264px, 72vw);
+}
 
 .av2 .av2-seal__disc {
   position: relative;
@@ -3260,3 +3265,102 @@
 }
 .av2 .av2-thread__note .av2-correction { margin: 0; padding: 0; background: none; }
 /* end WP-89 */
+
+/* ===========================================================================
+   WP-94 «Numéro spécial» — the épreuve's edition. Calm and editorial: the La Une
+   masthead is double-ruled (two ink hairlines), the kicker says what the
+   edition is, the can-dos are one line of text. No new colour, no gauge.
+   =========================================================================== */
+.av2 .av2-home__mast[data-special] {
+  position: relative;
+  padding-bottom: 14px;
+}
+.av2 .av2-home__mast[data-special]::after {
+  content: '';
+  position: absolute;
+  left: var(--av2-gutter);
+  right: var(--av2-gutter);
+  bottom: 0;
+  height: 4px;
+  border-top: 1px solid var(--av2-ink);
+  border-bottom: 1px solid var(--av2-ink);
+  pointer-events: none;
+}
+.av2 .av2-special__kicker {
+  color: var(--av2-ink);
+  font-weight: 600;
+}
+.av2 .av2-special__list {
+  margin: 0;
+  color: var(--av2-ink);
+}
+
+/* The pass: the oversized seal, the band closed, the whole cast in one row. */
+.av2 .av2-epreuve__seal { margin: 4px auto 6px; }
+.av2 .av2-epreuve__cast {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.av2 .av2-epreuve--failed { display: grid; gap: 6px; }
+
+/* ===========================================================================
+   WP-95 «Le Carnet» — Cahier → Carnet. Unstamped can-dos are a quiet dotted
+   disc; stamped ones are pressed as small seals with the scene, the face, the
+   date and the learner's own words.
+   =========================================================================== */
+.av2 .av2-carnet { display: grid; gap: 14px; min-width: 0; }
+.av2 .av2-carnet__lead { margin: 0; color: var(--av2-muted); }
+.av2 .av2-carnet__bands {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0;
+  padding: 2px 0 4px;
+  list-style: none;
+}
+.av2 .av2-carnet__bands::-webkit-scrollbar { display: none; }
+.av2 .av2-carnet__band {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--av2-tap);
+  padding: 0 14px;
+  border: 1px solid var(--av2-line-2);
+  border-radius: var(--av2-r-pill);
+  background: transparent;
+  color: var(--av2-ink);
+  font: inherit;
+  font-size: var(--av2-t-meta);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.av2 .av2-carnet__band[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); border-color: var(--av2-ink); }
+.av2 .av2-carnet__band[data-locked] { color: var(--av2-muted); border-style: dashed; }
+.av2 .av2-carnet__band-note { font-weight: 400; opacity: 0.8; }
+.av2 .av2-carnet__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.av2 .av2-carnet__item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: var(--av2-r-card, 16px);
+  background: var(--av2-card);
+}
+.av2 .av2-carnet__item[data-stamped='false'] { background: transparent; box-shadow: inset 0 0 0 1px var(--av2-line); }
+.av2 .av2-carnet__item[data-locked] { opacity: 0.75; }
+.av2 .av2-carnet__mark { width: 44px; }
+.av2 .av2-carnet__body { display: grid; gap: 4px; min-width: 0; }
+.av2 .av2-carnet__title { margin: 0; font-weight: 600; color: var(--av2-ink); }
+.av2 .av2-carnet__title-fr { margin: 0; }
+.av2 .av2-carnet__stamp { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--av2-muted); font-size: var(--av2-t-meta); }
+.av2 .av2-carnet__quote { margin: 0; font-family: var(--av2-serif); font-style: italic; color: var(--av2-ink); }
+.av2 .av2-carnet__try { justify-self: start; }
+.av2 .av2-carnet__home-link { display: inline-block; padding: 4px 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
