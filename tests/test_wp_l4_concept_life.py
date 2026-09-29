@@ -285,9 +285,14 @@ def test_an_introduction_day_stays_inside_the_regulier_budget(db_session: Sessio
     assert [step.ordinal for step in guided] == list(range(rule_at + 1, rule_at + 1 + len(guided)))
     formats = [step.private_task.task_type for step in guided]
     assert formats[:2] == ["choice", "choice"], "recognise, then choose"
-    assert formats[2] in {"word_bank", "tiles"}, "then build"
+    # WP-103 T3: then build — when the sentence's meaning can be said — then transform.
+    assert formats[2] in {"word_bank", "tiles", "transform"}, "then build or transform"
     if len(formats) == 4:
-        assert formats[3] == "transform"
+        assert formats[2] in {"word_bank", "tiles"} and formats[3] == "transform"
+    for step in guided:
+        if step.private_task.task_type in {"word_bank", "tiles", "transform"}:
+            assert step.private_task.goal_native, "every drill says what to produce"
+            assert step.public_prompt["goal_native"] == step.private_task.goal_native
     # No prompt prints its own answer.
     for step in guided:
         task = step.private_task
@@ -404,10 +409,11 @@ def _brief_with(stability: float) -> dict:
     return {
         "concept_id": 7, "title_fr": "Être", "title_native": "Être",
         "detectors": [r"\b(?:je suis|il est)\b"],
-        "examples": ["Je suis étudiante.", "Il est à Lyon."],
+        "examples": ["Je suis étudiante.", "Il est à Lyon.", "Je suis ici."],
         "contrast_pairs": [{"wrong": "Je es français.", "right": "Je suis français."}],
         "pattern_forms": [], "rule_short_native": None, "stability": stability,
-        "rule_card": {"example": {"fr": "[Je suis] ici."}, "rule": {"en": "r"}},
+        # WP-103 T3: a build needs a sentence whose meaning can be said — the card's.
+        "rule_card": {"example": {"fr": "[Je suis] ici.", "tr": {"en": "I am here."}}, "rule": {"en": "r"}},
     }
 
 
@@ -424,6 +430,26 @@ def test_rappel_formats_scale_with_stability(stability: float, formats: set[str]
         if task is not None:
             seen.add(task.task_type)
     assert seen == formats
+
+
+def test_a_build_names_the_sentence_or_is_not_posed() -> None:
+    """WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.»).
+    A build says what it builds; a unit whose sentences nobody translated is asked
+    another way."""
+
+    task = grammar_items.build_item(_brief_with(5.0), sentences=[], language="en")
+    assert task is not None and task.goal_native == 'Build: "I am here."'
+    assert task.solution_fr == "Je suis ici."
+    untranslated = {**_brief_with(5.0), "rule_card": {"example": {"fr": "[Je suis] ici."}, "rule": {"en": "r"}}}
+    assert grammar_items.build_item(untranslated, sentences=[], language="en") is None
+    # Today's scene lines carry their translations: they can be built too.
+    scene = grammar_items.build_item(
+        untranslated, sentences=["Il est au café."], language="en",
+        meanings={"Il est au café.": "He is at the café."},
+    )
+    assert scene is not None and scene.goal_native == 'Build: "He is at the café."'
+    transform = grammar_items.transform_item(untranslated, language="en")
+    assert transform.goal_native.startswith("Correct the sentence") and transform.source_fr == "Je es français."
 
 
 def test_a_strong_unit_is_asked_for_in_the_reply_not_drilled() -> None:

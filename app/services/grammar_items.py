@@ -35,7 +35,13 @@ import re
 import unicodedata
 from typing import Any
 
-from app.services.journey_contracts import ControlLanguage, RecallTask, TargetKind, TargetRef
+from app.services.journey_contracts import (
+    ControlLanguage,
+    RecallTask,
+    TargetKind,
+    TargetRef,
+    recall_goal,
+)
 
 #: Stability (days) below which a due unit is posed as a pick.
 LOW_STABILITY_DAYS = 3.0
@@ -259,6 +265,24 @@ def _words(sentence: str) -> list[str]:
     return words
 
 
+def sentence_meanings(
+    brief: dict[str, Any], language: str | None, extra: dict[str, str] | None = None
+) -> dict[str, str]:
+    """What the unit's sentences mean in the learner's language, by folded French
+    (WP-103 T3): the rule card's example (``tr``) and ``extra`` — today's scene lines
+    with their translations. A sentence nobody translated has no entry: it cannot
+    be the goal of a build."""
+
+    meanings = {_fold(key): str(value).strip() for key, value in (extra or {}).items() if str(value or "").strip()}
+    card = brief.get("rule_card") if isinstance(brief.get("rule_card"), dict) else {}
+    example = card.get("example") if isinstance(card.get("example"), dict) else {}
+    translations = example.get("tr") if isinstance(example.get("tr"), dict) else {}
+    meaning = str(translations.get(str(language or "")) or "").strip()
+    if example.get("fr") and meaning:
+        meanings.setdefault(_fold(plain(example["fr"])), meaning)
+    return meanings
+
+
 def grammar_target(brief: dict[str, Any]) -> TargetRef:
     """The unit as a journey target (a concept, not a phrase to recall)."""
 
@@ -457,10 +481,19 @@ def build_item(
     language: ControlLanguage,
     avoid: list[str] | None = None,
     optional: bool = False,
+    meanings: dict[str, str] | None = None,
 ) -> RecallTask | None:
+    """Rebuild a sentence that uses the rule — only one whose meaning the learner
+    can be told (WP-103 T3: «Build the sentence» with no sentence named is not a
+    question). ``meanings`` maps folded French to its translation
+    (:func:`sentence_meanings`)."""
+
     avoid_folded = {_fold(item) for item in avoid or []}
+    known = sentence_meanings(brief, str(language), meanings)
     candidates = [
-        text for text in form_sentences(brief, sentences) if 3 <= len(_words(text)) <= 10
+        text
+        for text in form_sentences(brief, sentences)
+        if 3 <= len(_words(text)) <= 10 and known.get(_fold(text))
     ]
     if not candidates:
         return None
@@ -519,6 +552,7 @@ def build_item(
         translation_native=None,
         solution_fr=sentence,
         estimated_seconds=0,
+        goal_native=recall_goal("build", language, meaning=known[_fold(sentence)]),
     )
 
 
@@ -528,6 +562,7 @@ def transform_item(
     language: ControlLanguage,
     prefer_second_pair: bool = False,
     optional: bool = False,
+    meanings: dict[str, str] | None = None,
 ) -> RecallTask | None:
     pairs = list(brief.get("contrast_pairs") or [])
     if not pairs:
@@ -537,6 +572,7 @@ def transform_item(
     if not right or not wrong or _fold(right) == _fold(wrong):
         return None
     target = grammar_target(brief)
+    meaning = sentence_meanings(brief, str(language), meanings).get(_fold(right))
     return RecallTask(
         task_type="transform",
         instruction_native=_localized(_TRANSFORM, language),
@@ -549,11 +585,21 @@ def transform_item(
         translation_native=None,
         solution_fr=right,
         estimated_seconds=0,
+        goal_native=(
+            recall_goal("fix_meaning", language, meaning=meaning)
+            if meaning
+            else recall_goal("fix_rule", language)
+        ),
+        source_fr=wrong,
     )
 
 
 def guided_items(
-    brief: dict[str, Any], *, sentences: list[str], language: ControlLanguage
+    brief: dict[str, Any],
+    *,
+    sentences: list[str],
+    language: ControlLanguage,
+    meanings: dict[str, str] | None = None,
 ) -> list[RecallTask]:
     """The introduction day's Essai: recognise → choose → build → transform."""
 
@@ -565,10 +611,10 @@ def guided_items(
     if choose is not None:
         items.append(choose)
     shown = [str(recognise.solution_fr)] if recognise is not None else []
-    build = build_item(brief, sentences=sentences, language=language, avoid=shown)
+    build = build_item(brief, sentences=sentences, language=language, avoid=shown, meanings=meanings)
     if build is not None:
         items.append(build)
-    transform = transform_item(brief, language=language, prefer_second_pair=True)
+    transform = transform_item(brief, language=language, prefer_second_pair=True, meanings=meanings)
     if transform is not None:
         items.append(transform)
     return items
@@ -591,6 +637,7 @@ def review_item(
     sentences: list[str],
     language: ControlLanguage,
     day_key: str,
+    meanings: dict[str, str] | None = None,
 ) -> RecallTask | None:
     """One Rappel item for a due unit, its format scaled by stability.
 
@@ -609,8 +656,8 @@ def review_item(
         ]
     else:
         builders = [
-            lambda: transform_item(brief, language=language),
-            lambda: build_item(brief, sentences=sentences, language=language),
+            lambda: transform_item(brief, language=language, meanings=meanings),
+            lambda: build_item(brief, sentences=sentences, language=language, meanings=meanings),
         ]
     if int(_digest(brief.get("concept_id"), day_key)[:2], 16) % 2:
         builders.reverse()
@@ -644,5 +691,6 @@ __all__ = [
     "review_band",
     "review_item",
     "scene_rule_card",
+    "sentence_meanings",
     "transform_item",
 ]

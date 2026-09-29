@@ -398,6 +398,9 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         "estimated_seconds": task.estimated_seconds,
         # WP-94: only when set, so every other stored task reads as before.
         **({"evidence_format": task.evidence_format} if task.evidence_format else {}),
+        # WP-103 T3: likewise.
+        **({"goal_native": task.goal_native} if task.goal_native else {}),
+        **({"source_fr": task.source_fr} if task.source_fr else {}),
     }
 
 
@@ -417,6 +420,8 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         solution_fr=payload.get("solution_fr"),
         estimated_seconds=int(payload.get("estimated_seconds", 45)),
         evidence_format=payload.get("evidence_format") or None,
+        goal_native=payload.get("goal_native") or None,
+        source_fr=payload.get("source_fr") or None,
     )
 
 

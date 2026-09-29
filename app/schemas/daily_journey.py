@@ -15,7 +15,7 @@ from datetime import date
 from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -294,6 +294,14 @@ class RecallPrompt(JourneyModel):
     #: synthesised on its first request and cached — and a listen-and-tap
     #: item's ``prompt_fr`` is then ``None`` (the phrase is heard, not read).
     audio_url: str | None = None
+    #: WP-103 T3 (additive): what to produce, in the learner's language — the
+    #: meaning of the sentence to build, or which line of the scene to rebuild.
+    #: Always set for word_bank, tiles, unscramble and transform; ``None`` elsewhere
+    #: and on steps planned before WP-103.
+    goal_native: str | None = None
+    #: WP-103 T3 (additive): the French the item starts from when it is shown (the
+    #: sentence to correct, the learner's own wording to repair). Never the answer.
+    source_fr: str | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any) -> Any:
@@ -328,6 +336,18 @@ class JourneyCorrection(JourneyModel):
     span_fr: str
     corrected_fr: str
     note_native: str
+    #: WP-103 (additive): one note per issue, deduplicated, at most two sentences
+    #: each, in the learner's language — a journey correction is one issue, so one
+    #: note: ``note_native`` with any sentence it repeats removed.
+    notes_native: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_note_per_issue(self) -> JourneyCorrection:
+        if not self.notes_native and self.note_native:
+            from app.services.forge_grading import notes_native
+
+            self.notes_native = notes_native([{"why_wrong": self.note_native}])
+        return self
 
 
 class ThreadExchange(JourneyModel):

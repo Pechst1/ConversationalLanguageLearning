@@ -572,6 +572,94 @@ class RecallTask:
     #: proves (``memory.FORMAT_BY_NAME``): the Rappel's coach mini-scene is a
     #: ``short_answer`` on the wire and a ``conversation`` (free use) in memory.
     evidence_format: str | None = None
+    #: WP-103 T3: what to produce, in the learner's language — the meaning of the
+    #: sentence to build («Build: "A small white table is in the kitchen."»), or
+    #: which line of the scene to rebuild. Public (``RecallPrompt.goal_native``);
+    #: required for :data:`GOAL_REQUIRED_RECALL_FORMATS`. Never the French answer.
+    goal_native: str | None = None
+    #: WP-103 T3: the French the item starts from, when it is shown — the sentence
+    #: to correct, the learner's own wording to repair. Never the answer.
+    source_fr: str | None = None
+
+
+#: WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.» —
+#: which sentence?). A drill in these formats must say what to produce.
+GOAL_REQUIRED_RECALL_FORMATS: frozenset[str] = frozenset(
+    {"word_bank", "tiles", "unscramble", "transform"}
+)
+
+#: WP-103 T3: the goal lines of the journey's drills, in the three chrome languages.
+RECALL_GOALS: dict[str, dict[str, str]] = {
+    "build": {
+        "en": 'Build: "{meaning}"',
+        "de": "Bau den Satz: „{meaning}“",
+        "fr": "Construisez : « {meaning} »",
+    },
+    "rebuild_line": {
+        "en": 'Rebuild what {speaker} said: "{meaning}"',
+        "de": "Bau nach, was {speaker} gesagt hat: „{meaning}“",
+        "fr": "Reconstruisez ce qu'a dit {speaker} : « {meaning} »",
+    },
+    "rebuild_speaker": {
+        "en": "Rebuild what {speaker} said in today's scene.",
+        "de": "Bau nach, was {speaker} in der Szene von heute gesagt hat.",
+        "fr": "Reconstruisez ce qu'a dit {speaker} dans la scène du jour.",
+    },
+    "rebuild_scene": {
+        "en": 'Rebuild the sentence from the scene: "{meaning}"',
+        "de": "Bau den Satz aus der Szene nach: „{meaning}“",
+        "fr": "Reconstruisez la phrase de la scène : « {meaning} »",
+    },
+    "rebuild_word": {
+        "en": 'Rebuild the sentence from today\'s scene that has «{word}» in it.',
+        "de": "Bau den Satz aus der Szene von heute nach, in dem «{word}» vorkommt.",
+        "fr": "Reconstruisez la phrase de la scène du jour où se trouve « {word} ».",
+    },
+    "complete_line": {
+        "en": 'Complete what {speaker} said: "{meaning}"',
+        "de": "Ergänze, was {speaker} gesagt hat: „{meaning}“",
+        "fr": "Complétez ce qu'a dit {speaker} : « {meaning} »",
+    },
+    "fix_meaning": {
+        "en": 'Correct it so that it says: "{meaning}"',
+        "de": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+        "fr": "Corrigez la phrase pour dire : « {meaning} »",
+    },
+    "fix_rule": {
+        "en": "Correct the sentence: fix the part that breaks today's rule, keep the rest.",
+        "de": "Korrigiere den Satz: Ändere den Teil, der gegen die Regel von heute verstößt.",
+        "fr": "Corrigez la phrase : changez la partie qui enfreint la règle du jour.",
+    },
+    "repair_own": {
+        "en": "Write what you said, correctly.",
+        "de": "Schreib richtig, was du gesagt hast.",
+        "fr": "Écrivez correctement ce que vous avez dit.",
+    },
+    "readdress": {
+        "en": 'Say the same thing to someone you call "{pronoun}".',
+        "de": "Sag dasselbe zu jemandem, den du mit „{pronoun}“ ansprichst.",
+        "fr": "Dites la même chose à quelqu'un que vous appelez « {pronoun} ».",
+    },
+}
+
+
+def recall_goal(kind: str, language: Any, **fields: Any) -> str:
+    """One goal line (WP-103 T3) in the learner's chrome language."""
+
+    table = RECALL_GOALS[kind]
+    template = table.get(str(language or "en")[:2]) or table["en"]
+    return template.format(**{key: str(value or "").strip() for key, value in fields.items()})
+
+
+def recall_goal_gap(step: Any) -> str | None:
+    """The contract check (WP-103 T3): a drill in a goal-required format with no
+    goal, named, else ``None``."""
+
+    task = getattr(step, "private_task", None)
+    task_type = str(getattr(task, "task_type", "") or "")
+    if task_type in GOAL_REQUIRED_RECALL_FORMATS and not str(getattr(task, "goal_native", "") or "").strip():
+        return f"a {task_type} recall must say what to produce (goal_native)"
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -856,6 +944,10 @@ class PlannedJourney:
                     raise ValueError(
                         f"a {shape} day cannot pose a {task_type} recall"
                     )
+        for step in self.steps:
+            gap = recall_goal_gap(step) if step.kind is StepKind.RECALL else None
+            if gap:
+                raise ValueError(gap)
 
         mandatory = sum(
             step.estimated_seconds for step in self.steps if not step.optional
@@ -953,6 +1045,9 @@ class PlannedJourney:
             ) and index < scene_at:
                 # The sentence is the scene's: it cannot be rebuilt before it is read.
                 raise ValueError("an unscramble cannot come before the scene")
+            gap = recall_goal_gap(step)
+            if gap:
+                raise ValueError(gap)
         total = sum(step.estimated_seconds for step in self.steps)
         if total > self.budget_seconds:
             raise ValueError(f"estimate {total}s exceeds budget {self.budget_seconds}s")

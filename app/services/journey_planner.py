@@ -42,6 +42,7 @@ from app.services.journey_content import (
 )
 from app.services.journey_contracts import (
     CLASSIC_RECALL_FORMATS,
+    recall_goal,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
     INPUT_FLOOR_SHARE,
@@ -77,7 +78,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
-from app.services.scene_items import draft_of, lexicon_of, scene_lines
+from app.services.scene_items import draft_of, lexicon_of, line_meanings, meaning_of, scene_lines
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -808,6 +809,7 @@ def build_recall_task(
     prompt_fr: str | None = None
     instruction_override: str | None = None
 
+    goal: str | None = None
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
         if not learner or _fold(learner) == _fold(label_fr):
@@ -820,10 +822,14 @@ def build_recall_task(
         prompt_fr = learner
         instruction_override = _localized(_ERROR_INSTRUCTION, language)
         gloss = None
+        goal = recall_goal("repair_own", language)
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
-    elif len(tokens) >= 2:
+    elif len(tokens) >= 2 and gloss:
+        # WP-103 T3: tiles say what they build; a phrase nobody glossed has no goal
+        # to give, and gets no tiles.
         task_type = "tiles"
+        goal = recall_goal("build", language, meaning=gloss)
     elif gloss:
         task_type = "short_answer"
     else:
@@ -878,6 +884,8 @@ def build_recall_task(
             correct_tile_order=correct_order,
             accepted_answers=[label_fr],
             estimated_seconds=0,
+            goal_native=goal,
+            source_fr=prompt_fr,
             **common,
         )
 
@@ -889,6 +897,8 @@ def build_recall_task(
         options=[],
         accepted_answers=[label_fr],
         estimated_seconds=0,
+        goal_native=goal,
+        source_fr=prompt_fr,
         **common,
     )
 
@@ -951,6 +961,10 @@ def build_word_bank_task(
     if not extras:
         return None
     gloss = (target.label_native or "").strip() or None
+    if gloss is None or target.kind is TargetKind.ERROR:
+        # WP-103 T3 (the owner's test): «Some chips are not needed» — of which
+        # phrase? A word bank says what it builds, or it is not posed.
+        return None
 
     answer = [
         {"id": "tile_" + _digest(target.id, str(index), token)[:8], "text_fr": token}
@@ -986,6 +1000,7 @@ def build_word_bank_task(
         translation_native=gloss,
         solution_fr=label_fr,
         estimated_seconds=0,
+        goal_native=recall_goal("build", control_language, meaning=gloss),
     )
 
 
@@ -1130,6 +1145,8 @@ def build_transform_task(
         translation_native=None,
         solution_fr=expected,
         estimated_seconds=0,
+        goal_native=recall_goal("readdress", control_language, pronoun=wanted),
+        source_fr=label_fr,
     )
 
 
@@ -1337,6 +1354,7 @@ def build_unscramble_task(
     sentences: list[str] | tuple[str, ...],
     optional: bool,
     control_language: ControlLanguage,
+    meanings: dict[str, str] | None = None,
 ) -> RecallTask | None:
     """Rebuild the scene's sentence that holds today's word.
 
@@ -1384,6 +1402,13 @@ def build_unscramble_task(
         translation_native=None,
         solution_fr=chosen,
         estimated_seconds=0,
+        # WP-103 T3: which sentence — its meaning when the scene translated it,
+        # else the word it holds (every tile is on screen: naming one spoils nothing).
+        goal_native=(
+            recall_goal("rebuild_scene", control_language, meaning=meaning)
+            if (meaning := meaning_of(meanings or {}, chosen))
+            else recall_goal("rebuild_word", control_language, word=label)
+        ),
     )
 
 
@@ -1543,7 +1568,8 @@ def build_recall_task_in_format(
         )
     if task_type == str(RecallFormat.UNSCRAMBLE):
         return build_unscramble_task(
-            target=target, sentences=sentences, optional=optional, control_language=language
+            target=target, sentences=sentences, optional=optional, control_language=language,
+            meanings=line_meanings(scenario),
         )
     if task_type == str(RecallFormat.WORD_BANK):
         return build_word_bank_task(
@@ -2360,6 +2386,9 @@ def plan_journey(
                     "target": public_recall_target(recall.target),
                     "optional": recall.optional,
                     "help_available": _recall_help(recall),
+                    # WP-103 T3: what to produce, and what it starts from.
+                    "goal_native": recall.goal_native,
+                    "source_fr": recall.source_fr,
                 },
                 private_task=replace(recall, estimated_seconds=cost),
                 target=entry.target,
@@ -2785,6 +2814,7 @@ def fill_practice_items(
                     sentences=list(safe_sentences),
                     language=scenario.control_language,
                     day_key=day_key,
+                    meanings=line_meanings(scenario),
                 )
                 if task is None and grammar_items.review_band(brief.get("stability")) == "high":
                     # WP-94: past 10 days of stability the Rappel is the coach's
@@ -3086,7 +3116,10 @@ def _introduction_items(
     guided = [
         (task, grammar_item_seconds(task, spt=spt, multiplier=multiplier))
         for task in grammar_items.guided_items(
-            brief, sentences=sentences, language=scenario.control_language
+            brief,
+            sentences=sentences,
+            language=scenario.control_language,
+            meanings=line_meanings(scenario),
         )
         # A «jour d'écoute» poses only what can be taken down by ear.
         if shape_allows_format(shape, task.task_type)
@@ -3364,6 +3397,9 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         "target": public_recall_target(recall.target),
         "optional": recall.optional,
         "help_available": _recall_help(recall),
+        # WP-103 T3: what to produce, and what it starts from.
+        "goal_native": recall.goal_native,
+        "source_fr": recall.source_fr,
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
         # WP-91: with a clip the phrase (or the dictated line) is heard, not

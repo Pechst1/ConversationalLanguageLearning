@@ -223,6 +223,46 @@ def lexicon_of(scenario: Any) -> list[dict[str, Any]]:
     return [entry for entry in draft_of(scenario).get("lexicon") or [] if isinstance(entry, dict)]
 
 
+def line_meanings(scenario: Any) -> dict[str, str]:
+    """``{French line: its translation}`` for the lines the scene translated (WP-90's
+    «Traduire la case», A1/A2): the dialogue's ``text_native`` and the opening line's
+    ``translation_native``. WP-103 T3: a drill cut from a line says what it means."""
+
+    draft = draft_of(scenario)
+    meanings: dict[str, str] = {}
+    for panel in draft.get("panels") or []:
+        for line in (panel or {}).get("dialogue") or []:
+            if not isinstance(line, dict):
+                continue
+            text, native = str(line.get("text_fr") or "").strip(), str(line.get("text_native") or "").strip()
+            if text and native:
+                meanings.setdefault(text, native)
+    opening = str(draft.get("opening_line_fr") or "").strip()
+    native = str(draft.get("translation_native") or "").strip()
+    if opening and native:
+        meanings.setdefault(opening, native)
+    return meanings
+
+
+def meaning_of(meanings: dict[str, str], text: str) -> str | None:
+    """The translation of ``text`` (typography and accents folded), or ``None``."""
+
+    wanted = fold(text).strip(" .!?…«»\"")
+    for french, native in meanings.items():
+        if fold(french).strip(" .!?…«»\"") == wanted:
+            return native
+    return None
+
+
+def short_name(name: str) -> str:
+    """«Romane « Romy » Tremblay» → «Romy»; «Marin Lévêque» → «Marin»."""
+
+    nickname = re.search(r"«\s*([^»]+?)\s*»", str(name or ""))
+    if nickname:
+        return nickname.group(1)
+    return (str(name or "").split() or [""])[0]
+
+
 def cast_names(scenario: Any) -> dict[str, str]:
     """``{character_id: name}`` for the cast the scene's world knows."""
 
@@ -317,10 +357,13 @@ def build_cloze_task(
     distractors: Iterable[str],
     optional: bool,
     control_language: Any,
+    meaning: str | None = None,
+    speaker_name: str | None = None,
 ) -> Any | None:
-    """A lexicon word blanked out of its own scene sentence; pick it back."""
+    """A lexicon word blanked out of its own scene sentence; pick it back.
+    WP-103 T3: with the line's translation, the goal says what it means."""
 
-    from app.services.journey_contracts import RecallTask
+    from app.services.journey_contracts import RecallTask, recall_goal
 
     prompt = _blanked(sentence, surface)
     if not prompt or BLANK not in prompt:
@@ -347,15 +390,36 @@ def build_cloze_task(
         accepted_answers=[surface],
         solution_fr=sentence,
         estimated_seconds=0,
+        # A cloze shows its line: without a translation, the line is the goal.
+        goal_native=(
+            recall_goal("complete_line", control_language, speaker=short_name(speaker_name), meaning=meaning)
+            if meaning and speaker_name
+            else (
+                _localized(CLOZE_INSTRUCTION, control_language).rstrip(".") + f' : "{meaning}"'
+                if meaning and str(control_language or "en")[:2] == "fr"
+                else (
+                    _localized(CLOZE_INSTRUCTION, control_language).rstrip(".") + f': "{meaning}"'
+                    if meaning
+                    else _localized(CLOZE_INSTRUCTION, control_language)
+                )
+            )
+        ),
     )
 
 
 def build_line_unscramble_task(
-    *, target: Any, line: SceneLine, speaker_name: str, optional: bool, control_language: Any
+    *,
+    target: Any,
+    line: SceneLine,
+    speaker_name: str,
+    optional: bool,
+    control_language: Any,
+    meaning: str | None = None,
 ) -> Any | None:
-    """A character's line (three to eight words) rebuilt as tiles."""
+    """A character's line (three to eight words) rebuilt as tiles. WP-103 T3: the
+    goal names the speaker, and the line's meaning when the scene translated it."""
 
-    from app.services.journey_contracts import RecallTask
+    from app.services.journey_contracts import RecallTask, recall_goal
 
     tokens = [token.strip("«»“”\"„") for token in line.text_fr.split()]
     tokens = [token for token in tokens if token]
@@ -386,6 +450,11 @@ def build_line_unscramble_task(
         accepted_answers=[sentence],
         solution_fr=sentence,
         estimated_seconds=0,
+        goal_native=(
+            recall_goal("rebuild_line", control_language, speaker=short_name(speaker_name), meaning=meaning)
+            if meaning
+            else recall_goal("rebuild_speaker", control_language, speaker=short_name(speaker_name))
+        ),
     )
 
 
@@ -425,6 +494,7 @@ def floor_tasks(
     lexicon = lexicon_of(scenario)
     draft = draft_of(scenario)
     glossed = [t for t, _m in targets if getattr(t, "label_native", None)]
+    meanings = line_meanings(scenario)
 
     def owner(text: str) -> tuple[Any, str] | None:
         for target, metadata in targets:
@@ -451,6 +521,7 @@ def floor_tasks(
             speaker_name=names.get(line.character_id, line.character_id),
             optional=True,
             control_language=language,
+            meaning=meaning_of(meanings, line.text_fr),
         )
         if task is not None:
             rebuilt.append((target, task))
@@ -472,6 +543,7 @@ def floor_tasks(
             distractors=others,
             optional=True,
             control_language=language,
+            meaning=meaning_of(meanings, sentence),
         )
         if task is not None:
             clozes.append((target, task))
@@ -491,6 +563,8 @@ __all__ = [
     "band_fit",
     "build_cloze_task",
     "build_line_unscramble_task",
+    "line_meanings",
+    "meaning_of",
     "build_who_said_task",
     "cast_names",
     "contains_surface",

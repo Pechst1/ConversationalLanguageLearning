@@ -14,6 +14,7 @@ import pytest
 from app.db.models import User
 from app.services import journey_content
 from app.services.journey_contracts import (
+    GOAL_REQUIRED_RECALL_FORMATS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
     AssistanceLevel,
@@ -527,11 +528,12 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
             [],
         ),
         "tiles": (
+            # WP-103 T3: tiles say what they build — a phrase with no gloss gets none.
             TargetRef(
                 kind=TargetKind.VOCABULARY, id="p2", label_fr="un grand café",
-                label_native=None,
+                label_native="a large coffee",
             ),
-            scene,
+            [],
         ),
         "word_bank": (
             TargetRef(
@@ -593,6 +595,8 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
         )
         assert task is not None, f"{task_type} could not be posed at all"
         assert task.task_type == task_type
+        if task_type in GOAL_REQUIRED_RECALL_FORMATS:
+            assert task.goal_native, f"{task_type} does not say what to produce"
         prompt = RecallPrompt.model_validate(
             {
                 "task_type": task.task_type,
@@ -602,6 +606,8 @@ def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
                 "target": public_recall_target(task.target),
                 "optional": task.optional,
                 "help_available": [],
+                "goal_native": task.goal_native,
+                "source_fr": task.source_fr,
             }
         )
         serialized = json.dumps(prompt.model_dump(mode="json"), ensure_ascii=False)

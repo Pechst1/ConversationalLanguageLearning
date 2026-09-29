@@ -628,6 +628,9 @@ def test_a_glossed_scene_word_becomes_a_choice_with_real_distractors() -> None:
         "target",
         "optional",
         "help_available",
+        # WP-103 T3: additive — what to produce, and what it starts from.
+        "goal_native",
+        "source_fr",
     }
     assert recall.public_prompt["help_available"] == ["hint", "translation", "solution"]
 
@@ -944,7 +947,8 @@ def test_the_real_wp03_brief_and_wp05_queue_plan_a_real_five_minute_day(db_sessi
         [SCENE_FITTING, POLITE],
         [_candidate(kind=TargetKind.GRAMMAR, identifier="g-futur",
                     label_fr="je vais être en retard", label_native="near future")],
-        [_candidate(identifier="v-gloss-only", label_fr="une noisette", label_native=None)],
+        # WP-103 T3: a phrase with no gloss has no goal to give and is not posed.
+        [_candidate(identifier="v-gloss-only", label_fr="une noisette", label_native="a macchiato")],
     ],
 )
 def test_no_recall_prompt_contains_its_own_answer(candidates) -> None:
