@@ -67,13 +67,15 @@ RHYTHM_BUDGETS: tuple[int, ...] = (300, 600, 1200, 1800)
 class RhythmCaps:
     """How big a practice day may get at one budget.
 
-    The 300-second row is exactly the WP-78 envelope (the constants above), so
-    every plan persisted before WP-L6 validates as it did. The larger rows grow
-    the Rappel (warm-ups before the scene, ≈ 35 % of the budget), the Scène's
-    guided items (between the scene and the reply, ≈ 30 % with the scene
-    itself) and the Bouclé retrieval after the reply (≈ 10 % with the ending);
-    the Réponse grows by exchanges (≈ 25 %). The counts are ceilings — the
-    planner still fills only what the budget's seconds and today's pool allow.
+    The 300-second row is exactly the WP-78 envelope (the constants above).
+    WP-93 «Plus d'histoire, moins d'exercices»: a longer rhythm buys input
+    (a longer page, heard lines, the «Lecture» step), not more drills, so the
+    recall ceiling is about 6 · 12 · 20 · 28 items (Léger · Régulier · Soutenu
+    · Intensif) and at least :data:`INPUT_FLOOR_SHARE` of the budget is kept
+    for reading and listening. ``max_mid`` is kept as a name: those builds now
+    come *after* the reply (W5 — nothing sits between a character's question
+    and the learner's answer). The counts are ceilings — the planner still
+    fills only what the budget's seconds and today's pool allow.
     """
 
     budget_seconds: int
@@ -100,10 +102,19 @@ class RhythmCaps:
 RHYTHM_CAPS: dict[int, RhythmCaps] = {
     300: RhythmCaps(300, MAX_PRACTICE_STEPS, MAX_PRACTICE_RECALL_STEPS,
                     MAX_WARMUP_RECALL_STEPS, 2, 1, 5, 8, 2, 2, 2),
-    600: RhythmCaps(600, 30, 26, 14, 10, 2, 20, 16, 2, 3, 4),
-    1200: RhythmCaps(1200, 62, 58, 28, 26, 4, 44, 32, 3, 4, 8),
-    1800: RhythmCaps(1800, 92, 88, 42, 40, 6, 70, 48, 3, 4, 12),
+    # WP-93: steps = recall + scene, reply, ending, rule, forge and «Lecture».
+    600: RhythmCaps(600, 18, 12, 5, 5, 2, 10, 16, 2, 3, 4),
+    1200: RhythmCaps(1200, 26, 20, 8, 8, 4, 16, 32, 3, 4, 8),
+    1800: RhythmCaps(1800, 34, 28, 11, 11, 6, 24, 48, 3, 4, 12),
 }
+
+#: WP-93. At least this share of a day's budget is reading or listening — the
+#: page (its panels and lines, and their audio when the deployment speaks),
+#: the heard items and the «Lecture» step. The planner keeps it free of drills.
+INPUT_FLOOR_SHARE = 0.35
+#: WP-93. The «Lecture» step (a second page to read) is planned only from this
+#: budget up: Soutenu and Intensif buy input, not more drills.
+READ_MIN_BUDGET_SECONDS = 1200
 
 
 def rhythm_caps(budget_seconds: int | None) -> RhythmCaps:
@@ -159,15 +170,22 @@ class StepKind(StrEnum):
     RECALL = "recall"
     RESPOND = "respond"
     RESOLUTION = "resolution"
-    #: WP-L4 «Règle»: the day's new grammar unit, as its rule card, read after
-    #: the scene and before its guided items. Not answered: it is advanced,
-    #: like the scene, and advancing it introduces the unit.
+    #: WP-L4 «Règle»: the day's new grammar unit, as its rule card, followed by
+    #: its guided items. WP-93 (W5): read *before* the scene — the reply asks
+    #: for the unit, and nothing may sit between the scene's closing question
+    #: and the reply. Not answered: it is advanced, like the scene, and
+    #: advancing it introduces the unit.
     RULE = "rule"
-    #: WP-S4 «La Forge», folded into a Soutenu/Intensif day: a hand-off step in
-    #: the Scène movement that opens the forge block on today's rule and comes
-    #: back to the day. Not answered here: the forge credits its own items; the
-    #: step is advanced when the learner returns (its time is the block's).
+    #: WP-S4 «La Forge», folded into a Soutenu/Intensif day: a hand-off step
+    #: that opens the forge block on today's rule and comes back to the day.
+    #: WP-93: with the rule, before the scene. Not answered here: the forge
+    #: credits its own items; the step is advanced when the learner returns.
     FORGE = "forge"
+    #: WP-93 «Lecture»: a second page to read on a long rhythm — yesterday's
+    #: page again («relecture», heard when audio is on) or today's evening from
+    #: another cast member's side («coulisses»). Optional, advanced not
+    #: answered, at most one a day, after the ending.
+    READ = "read"
 
 
 class DayShape(StrEnum):
@@ -771,6 +789,17 @@ class PlannedJourney:
             raise ValueError("only a practice day introduces a rule")
         if StepKind.FORGE in kinds:
             raise ValueError("only a practice day folds in the forge")
+        if StepKind.READ in kinds:
+            raise ValueError("only a practice day plans a «Lecture»")
+        if (
+            self.shape_reason == "first_day"
+            and kinds.count(StepKind.RESPOND) == 1
+            and kinds.index(StepKind.RESPOND) != 1
+        ):
+            # WP-93 (W5): the first day's page ends on Margaux's question; the
+            # reply answers it next, never after an exercise. (The classic
+            # non-first day is the pre-WP-78 kill switch and keeps its shape.)
+            raise ValueError("nothing may sit between the scene and the reply")
         recalls = kinds.count(StepKind.RECALL)
         if recalls > MAX_RECALL_STEPS:
             raise ValueError(f"at most {MAX_RECALL_STEPS} recall steps are allowed")
@@ -808,11 +837,15 @@ class PlannedJourney:
     def _validate_practice(self) -> None:
         """WP-78 — the practice day's envelope.
 
-        Still one scene, one reply, one ending, and the ending last. What
-        changes: up to :data:`MAX_WARMUP_RECALL_STEPS` recall steps may come
-        *before* the scene, recall steps may follow the reply, and the whole
-        day — not only its mandatory part — has to fit the stated budget,
-        because the learner is told the whole day's minutes.
+        Still one scene, one reply, one ending. What changes: warm-up recall
+        steps may come *before* the scene, recall steps may follow the reply,
+        and the whole day — not only its mandatory part — has to fit the stated
+        budget, because the learner is told the whole day's minutes.
+
+        WP-93 (W5): the reply comes straight after the scene — its closing
+        line is the question the reply answers. The rule card, its guided
+        items and the forge come before the scene; the only step allowed
+        after the ending is one optional «Lecture».
         """
 
         rule = practice_day_shape_rule(self.day_shape, self.budget_seconds)
@@ -825,27 +858,37 @@ class PlannedJourney:
             raise ValueError("a plan needs exactly one scene step")
         if kinds.count(StepKind.RESPOND) != 1:
             raise ValueError("a plan needs exactly one respond step")
-        if kinds.count(StepKind.RESOLUTION) != 1 or kinds[-1] is not StepKind.RESOLUTION:
+        if kinds.count(StepKind.READ) > 1:
+            raise ValueError("a day plans at most one «Lecture»")
+        body = kinds[:-1] if kinds and kinds[-1] is StepKind.READ else kinds
+        if kinds.count(StepKind.RESOLUTION) != 1 or body[-1] is not StepKind.RESOLUTION:
             raise ValueError("a plan must end with the resolution step")
+        if StepKind.READ in body:
+            raise ValueError("the «Lecture» comes after the ending")
+        for step in self.steps:
+            if step.kind is StepKind.READ and not step.optional:
+                raise ValueError("the «Lecture» is optional")
         scene_at = kinds.index(StepKind.SCENE)
-        if any(kind is not StepKind.RECALL for kind in kinds[:scene_at]):
-            raise ValueError("only warm-up recall steps may come before the scene")
-        if scene_at > caps.max_warmups:
+        respond_at = kinds.index(StepKind.RESPOND)
+        allowed_before = (StepKind.RECALL, StepKind.RULE, StepKind.FORGE)
+        if any(kind not in allowed_before for kind in kinds[:scene_at]):
+            raise ValueError("only warm-ups, the rule and the forge may come before the scene")
+        # Warm-ups are the recall steps before the rule; the rule's guided
+        # items follow it.
+        rule_at = kinds.index(StepKind.RULE) if StepKind.RULE in kinds else scene_at
+        warmups = sum(1 for kind in kinds[: min(rule_at, scene_at)] if kind is StepKind.RECALL)
+        if warmups > caps.max_warmups:
             raise ValueError(f"at most {caps.max_warmups} warm-ups before the scene")
-        if kinds.index(StepKind.RESPOND) < scene_at:
-            raise ValueError("the reply comes after the scene")
+        if respond_at != scene_at + 1:
+            raise ValueError("nothing may sit between the scene and the reply")
         if kinds.count(StepKind.RULE) > 1:
             raise ValueError("a day introduces at most one rule")
-        if StepKind.RULE in kinds and not (
-            scene_at < kinds.index(StepKind.RULE) < kinds.index(StepKind.RESPOND)
-        ):
-            raise ValueError("the rule card comes after the scene and before the reply")
+        if StepKind.RULE in kinds and not rule_at < scene_at:
+            raise ValueError("the rule card comes before the scene")
         if kinds.count(StepKind.FORGE) > 1:
             raise ValueError("a day folds in at most one forge block")
-        if StepKind.FORGE in kinds and not (
-            scene_at < kinds.index(StepKind.FORGE) < kinds.index(StepKind.RESPOND)
-        ):
-            raise ValueError("the forge block sits in the Scène movement, before the reply")
+        if StepKind.FORGE in kinds and not kinds.index(StepKind.FORGE) < scene_at:
+            raise ValueError("the forge block comes before the scene, with the rule")
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
         recalls = kinds.count(StepKind.RECALL)

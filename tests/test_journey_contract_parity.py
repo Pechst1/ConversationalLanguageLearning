@@ -775,7 +775,12 @@ def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session,
     brief = journey_content.first_day_brief(db_session, user=learner)
     assert brief.public_descriptor() == frozen["scenario"]
     candidates = journey_content.first_day_candidates(db_session, user=learner, brief=brief)
-    plan = journey_planner.plan_journey(scenario=brief, candidates=candidates, first_day=True)
+    # WP-93: the page is priced by what is on it, so the frozen first day is the
+    # default rhythm's (Régulier, 600 s); Léger keeps one of the two wins.
+    plan = journey_planner.plan_journey(
+        scenario=brief, candidates=candidates, first_day=True,
+        budget_seconds=frozen["budget_seconds"],
+    )
     assert [str(step.kind) for step in plan.steps] == [step["kind"] for step in frozen["steps"]]
     for step, fixture_step in zip(plan.steps, frozen["steps"], strict=True):
         prompt = dict(step.public_prompt)
@@ -791,7 +796,8 @@ def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session,
             # fresh database assigns differently: the count is the contract.
             if prompt["task_type"] == "tiles":
                 # Either first-day phrase, split into its own words.
-                phrases = {"un café", "s'il vous plaît"}
+                # WP-93: day 1 no longer repeats the taste's words.
+                phrases = {"au comptoir", "à emporter"}
                 tiles = sorted(o["text_fr"] for o in prompt["options"])
                 assert tiles in [sorted(p.split()) for p in phrases]
             else:

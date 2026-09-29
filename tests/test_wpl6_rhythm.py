@@ -54,6 +54,7 @@ from tests.test_journey_end_to_end import (
 )
 from tests.test_journey_events import build_journey, make_user
 from tests.test_journey_planner import _brief, _candidate
+from tests.wp93_briefs import engine_brief
 
 #: A realistic queue a few weeks in, long enough for a Soutenu day's pool.
 WORDS = (
@@ -79,15 +80,23 @@ def _queue(size: int) -> list[LearningCandidate]:
     ]
 
 
-def _plan(budget: int, *, shape: DayShape = DayShape.STANDARD, pool: int | None = None):
+def _plan(
+    budget: int,
+    *,
+    shape: DayShape = DayShape.STANDARD,
+    pool: int | None = None,
+    scenario=None,
+    **extra,
+):
     size = rhythm_caps(budget).candidate_limit if pool is None else pool
     return planner.plan_journey(
-        scenario=_brief(),
+        scenario=scenario or _brief(),
         candidates=_queue(size),
         budget_seconds=budget,
         practice=True,
         dice=DayShapeInputs(user_id="learner-l6", local_date=date(2026, 9, 23)),
         day_shape=shape,
+        **extra,
     )
 
 
@@ -114,20 +123,27 @@ def test_leger_still_fits_five_minutes_and_is_the_wp78_day() -> None:
     ]
 
 
-def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace() -> None:
-    plan = _plan(600)
+@pytest.mark.parametrize("audio", [False, True])
+def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace(audio: bool) -> None:
+    # WP-93: a real day has a page (the story engine's four to six panels),
+    # and the page is priced by what is on it.
+    plan = _plan(600, scenario=engine_brief(), audio_available=audio)
     plan.validate()
     assert 480 <= plan.estimated_active_seconds <= 600, plan.rationale
     kinds = [step.kind for step in plan.steps]
-    # The four movements, in order: Rappel (warm-ups), Scène (+ guided
-    # items), Réponse, Bouclé (a word from today, then the ending).
+    # The movements, in order: Rappel (warm-ups), Scène, Réponse — straight
+    # after the scene's question (W5) — then the builds and a word from
+    # today, then the ending.
     scene_at = kinds.index(StepKind.SCENE)
     respond_at = kinds.index(StepKind.RESPOND)
     assert scene_at > 3, "Régulier's Rappel is longer than Léger's three warm-ups"
-    assert respond_at - scene_at - 1 > 2, "and so are the Scène's guided items"
-    assert kinds[respond_at + 1] is StepKind.RECALL
+    assert respond_at == scene_at + 1, "nothing between the question and the reply"
+    assert kinds[respond_at + 1:-1].count(StepKind.RECALL) > 2, "the builds come after it"
     assert kinds[-1] is StepKind.RESOLUTION
-    assert plan.steps[respond_at].public_prompt["max_turns"] == 2
+    # WP-93: ~12 items, and the reply keeps its three exchanges (a longer
+    # rhythm buys story, not drills).
+    assert planner.recall_count(plan) <= 12
+    assert plan.steps[respond_at].public_prompt["max_turns"] == 3
 
 
 @pytest.mark.parametrize("budget", [1200, 1800])
@@ -167,9 +183,10 @@ def test_a_thin_pool_makes_a_shorter_day_never_a_padded_one() -> None:
 
 
 def test_a_trusted_slow_pace_plans_fewer_items_inside_the_same_budget() -> None:
-    prior = _plan(600)
+    # WP-93: on a paged day the recall cap no longer binds first — the seconds do.
+    prior = _plan(600, scenario=engine_brief())
     slow = planner.plan_journey(
-        scenario=_brief(),
+        scenario=engine_brief(),
         candidates=_queue(16),
         budget_seconds=600,
         practice=True,

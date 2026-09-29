@@ -408,9 +408,19 @@ def test_the_forge_step_may_only_sit_before_the_reply() -> None:
     steps = [step for step in plan.steps if step.kind is not StepKind.FORGE]
     moved = [*steps[:-1], plan.steps[kinds.index(StepKind.FORGE)], steps[-1]]
     moved = [replace(step, ordinal=index) for index, step in enumerate(moved)]
-    with pytest.raises(ValueError, match="before the reply"):
+    # WP-93 (W5): the forge sits before the scene, with the rule — never
+    # between the scene's question and the reply, never after it.
+    with pytest.raises(ValueError, match="before the scene"):
         replace(plan, steps=moved).validate()
-    with pytest.raises(ValueError, match="practice day"):
+    others =[step for step in plan.steps if step.kind is not StepKind.FORGE]
+    at = [step.kind for step in others].index(StepKind.SCENE) + 1
+    split = [*others[:at], plan.steps[kinds.index(StepKind.FORGE)], *others[at:]]
+    split = [replace(step, ordinal=index) for index, step in enumerate(split)]
+    with pytest.raises(ValueError, match="between the scene and the reply"):
+        replace(plan, steps=split).validate()
+    # A classic day has no room for it (its forge now sits before the scene,
+    # which the classic envelope refuses first).
+    with pytest.raises(ValueError, match="practice day|open with the scene"):
         replace(plan, practice=False).validate()
 
 

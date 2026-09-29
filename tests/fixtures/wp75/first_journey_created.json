@@ -11,8 +11,8 @@
     "status": "active",
     "local_date": "2026-03-10",
     "timezone": "Europe/Paris",
-    "budget_seconds": 300,
-    "estimated_active_seconds": 248,
+    "budget_seconds": 600,
+    "estimated_active_seconds": 334,
     "current_step_id": "00000000-0000-4000-8000-000000000002",
     "scenario": {
       "scenario_key": "order_at_cafe",
@@ -35,7 +35,7 @@
         "id": "00000000-0000-4000-8000-000000000002",
         "ordinal": 0,
         "status": "active",
-        "estimated_seconds": 39,
+        "estimated_seconds": 125,
         "assistance_used": [],
         "kind": "scene",
         "prompt": {
@@ -50,86 +50,8 @@
         }
       },
       {
-        "id": "00000000-0000-4000-8000-000000000003",
-        "ordinal": 1,
-        "status": "pending",
-        "estimated_seconds": 34,
-        "assistance_used": [],
-        "kind": "recall",
-        "prompt": {
-          "task_type": "choice",
-          "instruction_native": "Which French phrase means \"a coffee\"?",
-          "prompt_fr": null,
-          "options": [
-            {
-              "id": "opt_6428cc9c",
-              "text_fr": "un café"
-            },
-            {
-              "id": "opt_41150344",
-              "text_fr": "en terrasse"
-            },
-            {
-              "id": "opt_2110f227",
-              "text_fr": "un chocolat chaud"
-            }
-          ],
-          "target": {
-            "kind": "vocabulary",
-            "id": "4101",
-            "label_fr": "",
-            "label_native": "a coffee"
-          },
-          "optional": false,
-          "help_available": [
-            "hint",
-            "translation",
-            "solution"
-          ]
-        }
-      },
-      {
-        "id": "00000000-0000-4000-8000-000000000004",
-        "ordinal": 2,
-        "status": "pending",
-        "estimated_seconds": 41,
-        "assistance_used": [],
-        "kind": "recall",
-        "prompt": {
-          "task_type": "tiles",
-          "instruction_native": "Put the words in order to say \"please\".",
-          "prompt_fr": null,
-          "options": [
-            {
-              "id": "tile_524755b0",
-              "text_fr": "plaît"
-            },
-            {
-              "id": "tile_4895eaaa",
-              "text_fr": "vous"
-            },
-            {
-              "id": "tile_bae107e3",
-              "text_fr": "s'il"
-            }
-          ],
-          "target": {
-            "kind": "vocabulary",
-            "id": "4102",
-            "label_fr": "",
-            "label_native": "please"
-          },
-          "optional": false,
-          "help_available": [
-            "hint",
-            "translation",
-            "solution"
-          ]
-        }
-      },
-      {
         "id": "00000000-0000-4000-8000-000000000005",
-        "ordinal": 3,
+        "ordinal": 1,
         "status": "pending",
         "estimated_seconds": 82,
         "assistance_used": [],
@@ -166,6 +88,80 @@
             "suggested_response"
           ],
           "letter": null
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "ordinal": 2,
+        "status": "pending",
+        "estimated_seconds": 34,
+        "assistance_used": [],
+        "kind": "recall",
+        "prompt": {
+          "task_type": "choice",
+          "instruction_native": "Which French phrase means \"at the counter\"?",
+          "prompt_fr": null,
+          "options": [
+            {
+              "id": "opt_6428cc9c",
+              "text_fr": "au comptoir"
+            },
+            {
+              "id": "opt_41150344",
+              "text_fr": "en terrasse"
+            },
+            {
+              "id": "opt_2110f227",
+              "text_fr": "un chocolat chaud"
+            }
+          ],
+          "target": {
+            "kind": "vocabulary",
+            "id": "4101",
+            "label_fr": "",
+            "label_native": "at the counter"
+          },
+          "optional": false,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "ordinal": 3,
+        "status": "pending",
+        "estimated_seconds": 41,
+        "assistance_used": [],
+        "kind": "recall",
+        "prompt": {
+          "task_type": "tiles",
+          "instruction_native": "Put the words in order to say \"to take away\".",
+          "prompt_fr": null,
+          "options": [
+            {
+              "id": "tile_524755b0",
+              "text_fr": "emporter"
+            },
+            {
+              "id": "tile_bae107e3",
+              "text_fr": "à"
+            }
+          ],
+          "target": {
+            "kind": "vocabulary",
+            "id": "4102",
+            "label_fr": "",
+            "label_native": "to take away"
+          },
+          "optional": false,
+          "help_available": [
+            "hint",
+            "translation",
+            "solution"
+          ]
         }
       },
       {

@@ -406,6 +406,13 @@ class RulePrompt(JourneyModel):
     title_native: str = ""
     title_fr: str = ""
     rule_card: RuleCardPayload
+    #: WP-92: a cast line of today's scene that uses the unit (its
+    #: ``grammar_marks`` name it, or the unit's detector finds it), the form in
+    #: the card's ``[…]`` marks («Je [suis allé] au marché»), and the cast id of
+    #: who says it — the form as the learner is about to meet it. ``None`` when
+    #: the scene holds none (or the day was planned before WP-92).
+    scene_example_fr: str | None = None
+    scene_example_speaker: str | None = None
 
 
 class ForgePrompt(JourneyModel):
@@ -422,6 +429,30 @@ class ForgePrompt(JourneyModel):
     budget_seconds: int
     href: str = FORGE_HREF
     forged: bool = False
+
+
+class ReadPrompt(JourneyModel):
+    """WP-93 «Lecture»: a second page on a long rhythm, after the ending.
+
+    ``relecture`` is yesterday's page again (heard when ``audio_available``);
+    ``coulisses`` is today's evening from another cast member's side, written
+    after the day is planned. ``scene_id`` opens it through
+    ``GET /api/v1/story-engine/episodes/{scene_id}`` once ``status`` is
+    ``ready``; ``writing`` means poll the journey, ``unavailable`` means there
+    is nothing to read today (the step is optional). Advanced, not answered.
+    Projected on every read, never trusted from the stored plan alone.
+    """
+
+    variant: Literal["relecture", "coulisses"]
+    title_fr: str
+    scene_id: str | None = None
+    status: Literal["ready", "writing", "unavailable"]
+    audio_available: bool = False
+    #: «coulisses»: the cast member whose evening it is (the page's point of
+    #: view), once the page is written; ``None`` while it is being written and
+    #: on a «relecture».
+    character_id: str | None = None
+    character_name: str | None = None
 
 
 class _PublicStepBase(JourneyModel):
@@ -462,8 +493,13 @@ class ForgeStep(_PublicStepBase):
     prompt: ForgePrompt
 
 
+class ReadStep(_PublicStepBase):
+    kind: Literal[StepKind.READ] = StepKind.READ
+    prompt: ReadPrompt
+
+
 PublicStep = Annotated[
-    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep,
+    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep | ReadStep,
     Field(discriminator="kind"),
 ]
 

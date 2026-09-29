@@ -352,7 +352,9 @@ def test_the_first_journey_is_authored_instant_and_makes_no_provider_call(
     assert journey["scenario"]["location_id"] == "le_mistral"
     assert journey["scenario"]["level_band"] == band
     kinds = [step["kind"] for step in journey["steps"]]
-    assert kinds == ["scene", "recall", "recall", "respond", "resolution"]
+    # WP-93 (W5): the page ends on Margaux's question and the reply answers it
+    # next; the two quick wins come straight after the reply.
+    assert kinds == ["scene", "respond", "recall", "recall", "resolution"]
     graded = [step for step in journey["steps"] if step["kind"] in ("recall", "respond")]
     assert len(graded) >= 3
     # Quick wins, not homework: required, and never typed.
@@ -546,15 +548,25 @@ def test_first_day_planning_keeps_two_new_words_and_makes_them_required(
     db_session.commit()
     brief = journey_content.first_day_brief(db_session, user=user)
     candidates = journey_content.first_day_candidates(db_session, user=user, brief=brief)
-    assert [c.target.label_fr for c in candidates] == ["un café", "s'il vous plaît"]
+    # WP-93 (W11): not the taste's words («un café», «s'il vous plaît»).
+    assert [c.target.label_fr for c in candidates] == ["au comptoir", "à emporter"]
     assert all(isinstance(c, LearningCandidate) and c.is_new for c in candidates)
 
     ordinary = journey_planner.plan_journey(scenario=brief, candidates=candidates)
     assert sum(1 for step in ordinary.steps if step.kind == "recall") <= 1
 
-    first = journey_planner.plan_journey(scenario=brief, candidates=candidates, first_day=True)
+    # WP-93: the café page is priced by its four panels, so the two wins fit
+    # the default rhythm (Régulier); the five-minute day keeps one of them.
+    first = journey_planner.plan_journey(
+        scenario=brief, candidates=candidates, first_day=True, budget_seconds=600
+    )
     recalls = [step for step in first.steps if step.kind == "recall"]
     assert len(recalls) == 2
+    kinds = [str(step.kind) for step in first.steps]
+    assert kinds.index("respond") == kinds.index("scene") + 1, "W5: nothing interrupts the question"
+    leger = journey_planner.plan_journey(scenario=brief, candidates=candidates, first_day=True)
+    assert [str(step.kind) for step in leger.steps].count("recall") >= 1
+    assert leger.estimated_active_seconds <= 300
     assert all(not step.optional for step in recalls)
     assert first.shape_reason == "first_day"
     # The catalogue rows are reused, never duplicated.

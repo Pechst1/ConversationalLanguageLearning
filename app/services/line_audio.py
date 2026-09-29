@@ -177,7 +177,9 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
     * scene: the bound scene's dialogue and narration and its panels;
     * respond: the character's line, every reply in the thread, and the
       latest one (the respond prompt's ``character_line_fr``);
-    * resolution: the ending's line.
+    * resolution: the ending's line;
+    * rule (WP-92): the scene's line on the card (``scene_example_fr``);
+    * read (WP-93): the lines of the page the «Lecture» shows.
     Any other step speaks nothing through this door.
     """
 
@@ -197,6 +199,46 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
     if kind == "resolution":
         _add(lines, _brief(journey).get("character_id"), prompt.get("character_line_fr"))
         return lines
+    if kind == "rule":
+        # WP-92: the scene's own line on the rule card, said by its speaker.
+        example = str(prompt.get("scene_example_fr") or "").replace("[", "").replace("]", "")
+        _add(lines, prompt.get("scene_example_speaker") or NARRATOR_ID, example)
+        return lines
+    if kind == "read":
+        return _read_lines(db, journey, step)
+    return lines
+
+
+def _read_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> list[StepLine]:
+    """WP-93 «Lecture»: the page the READ step may show — yesterday's page it
+    named, or today's «Coulisses» once written — and only this learner's."""
+
+    prompt = step.public_prompt if isinstance(step.public_prompt, dict) else {}
+    private = step.private_task if isinstance(step.private_task, dict) else {}
+    relecture = private.get("relecture") if isinstance(private.get("relecture"), dict) else {}
+    ids = [prompt.get("scene_id"), relecture.get("scene_id")]
+    if private.get("variant") == "coulisses" or prompt.get("variant") == "coulisses":
+        try:
+            from app.services.coulisses import coulisses_scene_for
+
+            side = coulisses_scene_for(db, journey.id)
+        except Exception:  # noqa: BLE001 - no «Coulisses», no lines from it
+            side = None
+        if side is not None:
+            ids.append(side.id)
+    lines: list[StepLine] = []
+    seen: set[str] = set()
+    for scene_id in ids:
+        if not scene_id or str(scene_id) in seen:
+            continue
+        seen.add(str(scene_id))
+        try:
+            scene = db.get(GraphicNovelScene, uuid.UUID(str(scene_id)))
+        except (ValueError, TypeError):
+            scene = None
+        if scene is not None and scene.user_id == journey.user_id:
+            for line in episode_lines(scene):
+                _add(lines, line.character_id, line.text_fr)
     return lines
 
 

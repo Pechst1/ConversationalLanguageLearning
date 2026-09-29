@@ -112,6 +112,15 @@ class VocabularyBiographyEvent(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class VocabularyBiographyRevisit(BaseModel):
+    """WP-93 «revu dans l'épisode du 12»: a story page that brought the word back."""
+
+    #: ``YYYY-MM-DD``, the learner's local day of the journey the page was written for.
+    date: str
+    scene_title_fr: str
+    scene_id: str | None = None
+
+
 class VocabularyBiographyResponse(BaseModel):
     """A compact, resilient biography for a vocabulary word."""
 
@@ -122,6 +131,9 @@ class VocabularyBiographyResponse(BaseModel):
     linked_errata_count: int = 0
     context_event_count: int = 0
     timeline: list[VocabularyBiographyEvent] = Field(default_factory=list)
+    #: WP-93: story-engine pages whose director recycled or placed this word
+    #: (``script_payload.recycled_lemmas`` / ``placed_lemmas``), newest first.
+    revisited_in: list[VocabularyBiographyRevisit] = Field(default_factory=list)
 
 
 class DailyWordEntry(BaseModel):

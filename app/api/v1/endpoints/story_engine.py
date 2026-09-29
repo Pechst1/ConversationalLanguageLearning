@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -25,11 +25,22 @@ class Position(BaseModel):
     panel_index: int = Field(ge=0, strict=True)
 
 
-def owned_scene(db, user, scene_id, *, lock=False):
+#: WP-93: a «Coulisses» side page (``app/services/coulisses.py``) is stored with a
+#: prompt version outside the engine prefix, so it never lists as a day's episode;
+#: the READ step still opens it by id.
+SIDE_PAGE_VERSION_PREFIX = "coulisses-"
+
+
+def owned_scene(db, user, scene_id, *, lock=False, side_pages=False):
+    versions = GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%")
+    if side_pages:
+        versions = or_(
+            versions, GraphicNovelScene.prompt_version.like(f"{SIDE_PAGE_VERSION_PREFIX}%")
+        )
     query = select(GraphicNovelScene).where(
         GraphicNovelScene.id == scene_id,
         GraphicNovelScene.user_id == user.id,
-        GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        versions,
     )
     if lock:
         query = query.with_for_update().execution_options(populate_existing=True)
@@ -72,6 +83,25 @@ def panel_image_status(panel) -> str:
     return "setting_reference"
 
 
+def public_grammar_focus(scene) -> dict | None:
+    """WP-92: the unit the scene was written to show, as the story lane stored it
+    (``script_payload.grammar_focus`` = ``{unit_id, title_fr, title_native, woven}``).
+
+    Read defensively: a scene written before WP-92 has none, and a malformed
+    value is dropped rather than shipped.
+    """
+
+    focus = (scene.script_payload or {}).get("grammar_focus")
+    if not isinstance(focus, dict) or focus.get("unit_id") in (None, ""):
+        return None
+    return {
+        "unit_id": str(focus.get("unit_id")),
+        "title_fr": str(focus.get("title_fr") or ""),
+        "title_native": str(focus.get("title_native") or ""),
+        "woven": bool(focus.get("woven")),
+    }
+
+
 def public_scene(scene, names: dict[str, str] | None = None):
     source = scene.source_snapshot or {}
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
@@ -86,6 +116,8 @@ def public_scene(scene, names: dict[str, str] | None = None):
         "status": scene.status,
         "chapter": source.get("chapter"),
         "panel_index": source.get("panel_index", 0),
+        # WP-92: the form this page shows («Rayons X» marks it in the lines).
+        "grammar_focus": public_grammar_focus(scene),
         "panels": [
             {
                 "id": str(p.id),
@@ -128,7 +160,7 @@ def episodes(
     if before:
         previous = owned_scene(db, user, before)
         # UUID tie-breaker gives deterministic pagination within a transaction.
-        from sqlalchemy import and_, or_
+        from sqlalchemy import and_
 
         query = query.where(
             or_(
@@ -155,7 +187,10 @@ def episodes(
 
 @router.get("/episodes/{scene_id}")
 def episode(scene_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scene = owned_scene(db, user, scene_id)
+    """One of the owner's pages with its panels — a day's episode, or (WP-93) the
+    «Lecture» page a READ step names (yesterday's episode, or today's «Coulisses»).
+    Anyone else's page, or an unknown id, is a 404."""
+    scene = owned_scene(db, user, scene_id, side_pages=True)
     return public_scene(scene, cast_names(db, [scene]))
 
 

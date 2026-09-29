@@ -28,6 +28,7 @@ from app.schemas.vocabulary import (
     VocabularyBiographyOrigin,
     VocabularyBiographyProgress,
     VocabularyBiographyResponse,
+    VocabularyBiographyRevisit,
     VocabularyListResponse,
     VocabularyWordRead,
 )
@@ -336,6 +337,100 @@ def _example_payloads(db: Session, *, user: User, word: Any) -> list[VocabularyB
         if len(examples) >= 4:
             break
     return examples
+
+
+#: WP-93: how many of the learner's latest story pages «revu dans» looks at.
+#: Bounded: a season of daily pages, read newest first, filtered in Python
+#: (the lemma lists are JSON, and SQLite has no portable containment test).
+REVISIT_SCENE_LIMIT = 120
+REVISIT_MAX = 12
+_ARTICLES = ("le ", "la ", "les ", "l'", "un ", "une ", "des ", "du ", "de la ", "de l'")
+
+
+def _lemma_keys(value: Any) -> set[str]:
+    """A word's folded forms: as written, and without its article."""
+
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(value or "")).casefold().replace("’", "'")
+    text = " ".join("".join(c for c in text if not unicodedata.combining(c)).split())
+    keys = {text} if text else set()
+    for article in _ARTICLES:
+        if text.startswith(article) and len(text) > len(article):
+            keys.add(text[len(article):].strip())
+    return keys
+
+
+def _story_revisits(db: Session, *, user: User, word: Any) -> list[VocabularyBiographyRevisit]:
+    """WP-93 «revu dans l'épisode du 12»: the story pages that brought this word back."""
+
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    wanted = _lemma_keys(getattr(word, "word", None)) | _lemma_keys(
+        getattr(word, "normalized_word", None)
+    )
+    if not wanted:
+        return []
+    try:
+        rows = (
+            db.query(GraphicNovelScene)
+            .filter(
+                GraphicNovelScene.user_id == user.id,
+                GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+            )
+            .order_by(GraphicNovelScene.created_at.desc())
+            .limit(REVISIT_SCENE_LIMIT)
+            .all()
+        )
+    except Exception:  # noqa: BLE001 - a biography never fails for its story line
+        return []
+    hits = []
+    for scene in rows:
+        payload = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+        lemmas = [
+            *(payload.get("recycled_lemmas") or []),
+            *(payload.get("placed_lemmas") or []),
+        ]
+        if any(_lemma_keys(lemma) & wanted for lemma in lemmas if isinstance(lemma, str)):
+            hits.append(scene)
+            if len(hits) >= REVISIT_MAX:
+                break
+    # The page's day is the learner's local day of the journey it was written for.
+    local_days: dict[str, str] = {}
+    journey_ids = []
+    for scene in hits:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        try:
+            journey_ids.append(UUID(str(source.get("journey_id"))))
+        except (TypeError, ValueError):
+            continue
+    if journey_ids:
+        from app.db.models.daily_journey import DailyJourney
+
+        try:
+            for journey_id, local_date in (
+                db.query(DailyJourney.id, DailyJourney.local_date)
+                .filter(DailyJourney.id.in_(journey_ids), DailyJourney.user_id == user.id)
+                .all()
+            ):
+                local_days[str(journey_id)] = local_date.isoformat()
+        except Exception:  # noqa: BLE001 - fall back to the page's own date
+            local_days = {}
+    revisits: list[VocabularyBiographyRevisit] = []
+    for scene in hits:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        created = _as_aware_datetime(scene.created_at)
+        day = local_days.get(str(source.get("journey_id") or "")) or (
+            created.date().isoformat() if created else ""
+        )
+        revisits.append(
+            VocabularyBiographyRevisit(
+                date=day,
+                scene_title_fr=str(scene.title or ""),
+                scene_id=str(scene.id),
+            )
+        )
+    return revisits
 
 
 def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[VocabularyBiographyEvent]:
@@ -1023,6 +1118,7 @@ def get_vocabulary_word_biography(
         linked_errata_count=linked_errata_count,
         context_event_count=context_event_count,
         timeline=timeline,
+        revisited_in=_story_revisits(db, user=current_user, word=word),
     )
 
 

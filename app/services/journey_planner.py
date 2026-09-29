@@ -44,10 +44,12 @@ from app.services.journey_contracts import (
     CLASSIC_RECALL_FORMATS,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
+    INPUT_FLOOR_SHARE,
     LISTENING_RECALL_FORMATS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
+    READ_MIN_BUDGET_SECONDS,
     ControlLanguage,
     DayShape,
     HelpKind,
@@ -75,7 +77,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
-from app.services.scene_items import scene_lines
+from app.services.scene_items import draft_of, lexicon_of, scene_lines
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -133,6 +135,22 @@ MIN_PACE_OBSERVATIONS = 3
 
 #: Orientation, looking at the art, deciding to begin.
 SCENE_BASE_SECONDS = 12
+#: WP-93 «Price the input». A page is priced by what is on it: each panel is
+#: looked at (its art, then «Suivant»), each line of narration or dialogue may
+#: send the learner to a word's help, and the French itself is read at a
+#: learner's pace — story text in the target language, not a mixed prompt, so
+#: the reading pace is scaled by :data:`PAGE_READING_FACTOR` (0.45 × 2 = 0.9 s
+#: a word ≈ 67 words a minute, an A1–A2 reader of L2 prose). A painted panel
+#: is looked at before it is read: eight seconds.
+SCENE_PANEL_SECONDS = 8
+SCENE_LINE_HELP_SECONDS = 2
+PAGE_READING_FACTOR = 2.0
+#: WP-93 (W5/W11). What the landing page's taste («Romy», then «Commandez un
+#: café.») already taught, as in ``web-frontend/lib/onboarding-taste.ts``: the
+#: learner answered «Bonjour !» / «Merci !» to Romy and built «Un café, s'il vous
+#: plaît» for Margaux. Day 1 never drills them again. Kept in sync by hand: the
+#: taste is authored client-side and has no server copy.
+TASTE_WORDS_FR: tuple[str, ...] = ("un café", "s'il vous plaît", "bonjour", "merci")
 #: Reading the ending, the summary, and closing the day.
 RESOLUTION_BASE_SECONDS = 45
 #: Answering cost per recall renderer. WP-66's three additions are priced from
@@ -631,9 +649,68 @@ def _erratum_reply_fit(
     return on_scene
 
 
+#: WP-93: a story-engine scene whose lexicon names at least this many phrases
+#: poses its choices and word banks from them alone (closes WP-68 L-1).
+STORY_AFFORDANCES_MIN = 3
+
+
+def _story_words(scenario: ScenarioBrief, kind: str) -> list[str]:
+    """The engine's «mots à placer» (``placed``) or recycled words (``recycled``).
+
+    Read from the story context's ``words`` outcome (what the engine measured
+    on the accepted draft), the draft's own ``<kind>_lemmas`` or the stored
+    ``script_payload`` copy — whichever the scene carries.
+    """
+
+    story = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    sources = [
+        (story.get("words") or {}).get(kind) if isinstance(story.get("words"), dict) else None,
+        draft_of(scenario).get(f"{kind}_lemmas"),
+        (story.get("script_payload") or {}).get(f"{kind}_lemmas")
+        if isinstance(story.get("script_payload"), dict)
+        else None,
+    ]
+    for values in sources:
+        if isinstance(values, list) and values:
+            return [" ".join(str(value or "").split()) for value in values if str(value or "").strip()]
+    return []
+
+
+def story_affordances(scenario: ScenarioBrief) -> list[str]:
+    """WP-93 — what a story-engine scene affords: the words it teaches.
+
+    ``SceneDraft.lexicon`` (validated against the page, WP-86) first, then the
+    «mots à placer» and recycled words the director was handed, when the draft
+    records them. Empty for an authored scene.
+    """
+
+    phrases: list[str] = [str(entry.get("surface_fr") or "") for entry in lexicon_of(scenario)]
+    for values in (*_story_words(scenario, "placed"), *_story_words(scenario, "recycled")):
+        phrases.append(str(values or ""))
+    unique: list[str] = []
+    seen: set[str] = set()
+    for phrase in phrases:
+        text = " ".join(phrase.split())
+        if text and _fold(text) not in seen:
+            seen.add(_fold(text))
+            unique.append(text)
+    return unique
+
+
 def _affordances_for(scenario: ScenarioBrief) -> list[str]:
+    """The phrases a recall item may lean on (distractors, extra chips, fit).
+
+    WP-93 (WP-68 L-1): on a story-engine day these are the scene's own words —
+    a choice whose wrong options come from another scene is not a question
+    about this story. The authored family's phrases fill in only when the
+    scene's lexicon is too thin to pose from.
+    """
+
+    story = story_affordances(scenario)
+    if len(story) >= STORY_AFFORDANCES_MIN:
+        return story
     try:
-        return scenario_target_affordances(
+        authored = scenario_target_affordances(
             scenario.scenario_key,
             level_band=scenario.level_band,
             content_version=scenario.content_version,
@@ -641,7 +718,9 @@ def _affordances_for(scenario: ScenarioBrief) -> list[str]:
     except (OSError, ValueError, KeyError, TypeError):
         # A scenario family with no authored data simply affords nothing; that
         # is a thinner recall task, not a planner failure.
-        return []
+        authored = []
+    seen = {_fold(phrase) for phrase in story}
+    return [*story, *(phrase for phrase in authored if _fold(phrase) not in seen)]
 
 
 # --------------------------------------------------------------------------
@@ -1590,18 +1669,93 @@ def _playback_seconds(audio_url: str | None, *texts: str | None) -> float:
     return _tokens(*texts) * AUDIO_PLAYBACK_SECONDS_PER_TOKEN
 
 
-def scene_seconds(scenario: ScenarioBrief, *, spt: float, multiplier: float) -> int:
-    """Orientation plus reading the setup, the objective and the opening line."""
+def scene_page(scenario: ScenarioBrief) -> list[dict[str, Any]]:
+    """The page the scene step shows: an authored scene's panels, or the
+    story-engine draft's (published as the episode the reader opens)."""
+
+    if scenario.panels:
+        return [panel for panel in scenario.panels if isinstance(panel, dict)]
+    return [panel for panel in draft_of(scenario).get("panels") or [] if isinstance(panel, dict)]
+
+
+def page_texts(panels: list[dict[str, Any]]) -> list[str]:
+    """Every French text a page prints: narration, then each line, in order."""
+
+    texts: list[str] = []
+    for panel in panels:
+        narration = str(panel.get("narration_fr") or "").strip()
+        if narration:
+            texts.append(narration)
+        for line in panel.get("dialogue") or []:
+            text = str((line or {}).get("text_fr") or "").strip() if isinstance(line, dict) else ""
+            if text:
+                texts.append(text)
+    return texts
+
+
+def page_seconds(
+    texts: list[str], *, panels: int, spt: float, multiplier: float, audio: bool
+) -> float:
+    """WP-93: looking at ``panels`` panels, reading ``texts`` at a learner's
+    pace with a word's help now and then, and — when the deployment speaks —
+    hearing every line once."""
+
+    orientation = SCENE_PANEL_SECONDS * panels + SCENE_LINE_HELP_SECONDS * len(texts)
+    reading = _reading_seconds(spt, *texts) * PAGE_READING_FACTOR
+    playback = _tokens(*texts) * AUDIO_PLAYBACK_SECONDS_PER_TOKEN if audio else 0.0
+    return orientation * multiplier + reading + playback
+
+
+def scene_seconds(
+    scenario: ScenarioBrief, *, spt: float, multiplier: float, audio: bool = False
+) -> int:
+    """Orientation, the setup and the objective, then the page itself.
+
+    WP-93: the page is priced by what is on it — its panels and every line of
+    narration and dialogue (plus the closing question when the page does not
+    print it), and their audio when ``audio`` says the deployment speaks. A
+    page-less brief (legacy content) keeps the pre-WP-93 price: the setup,
+    the objective and the opening line.
+    """
 
     reading = _reading_seconds(
-        spt,
-        scenario.setup_fr,
-        scenario.setup_native,
-        scenario.objective_native,
-        scenario.opening_line_fr,
+        spt, scenario.setup_fr, scenario.setup_native, scenario.objective_native
     )
-    reading += _playback_seconds(None, scenario.opening_line_fr)
-    return max(1, round(SCENE_BASE_SECONDS * multiplier + reading))
+    panels = scene_page(scenario)
+    if not panels:
+        reading += _reading_seconds(spt, scenario.opening_line_fr)
+        return max(1, round(SCENE_BASE_SECONDS * multiplier + reading))
+    texts = page_texts(panels)
+    opening = " ".join(str(scenario.opening_line_fr or "").split())
+    if opening and not any(_fold(opening) in _fold(text) for text in texts):
+        texts.append(opening)
+    page = page_seconds(texts, panels=len(panels), spt=spt, multiplier=multiplier, audio=audio)
+    return max(1, round(SCENE_BASE_SECONDS * multiplier + reading + page))
+
+
+def reading_step_seconds(
+    reading: dict[str, Any], scenario: ScenarioBrief, *, spt: float, multiplier: float,
+    audio: bool,
+) -> int:
+    """WP-93 «Lecture»: a second page. A «relecture» is priced from yesterday's
+    page as stored; «coulisses» is written after the plan, so it is priced as
+    today's page (the same evening, from another side, the same length)."""
+
+    texts = [str(text) for text in reading.get("texts_fr") or [] if str(text or "").strip()]
+    panels = int(reading.get("panel_count") or 0)
+    if not texts:
+        page = scene_page(scenario)
+        texts = page_texts(page) or [scenario.setup_fr]
+        panels = panels or len(page)
+    panels = panels or max(1, len(texts) // 2)
+    heard = audio and bool(reading.get("audio_available", audio))
+    return max(
+        1,
+        round(
+            SCENE_BASE_SECONDS * multiplier
+            + page_seconds(texts, panels=panels, spt=spt, multiplier=multiplier, audio=heard)
+        ),
+    )
 
 
 def recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> int:
@@ -1821,8 +1975,20 @@ def plan_journey(
     practice: bool = False,
     introduction: dict[str, Any] | None = None,
     forge: dict[str, Any] | None = None,
+    reading: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    WP-93 «Plus d'histoire, moins d'exercices»: the page is priced by what is
+    on it (:func:`scene_seconds`), at least :data:`INPUT_FLOOR_SHARE` of a
+    paged practice day's budget is kept for reading and listening, recall is
+    capped per rhythm, and nothing sits between the scene's closing question
+    and the reply (W5): warm-ups, the rule card, its guided items and the
+    forge come before the scene; every other item comes after the reply.
+    ``reading`` (Soutenu and Intensif) is today's «Lecture» offer —
+    ``{"variant": "relecture"|"coulisses", "title_fr", "scene_id", "status",
+    "audio_available", "texts_fr", "panel_count"}`` — planned as one optional
+    step after the ending when the budget holds it.
 
     ``forge`` (WP-S4) folds La Forge into a practice day (Soutenu and Intensif,
     owner decision 3): ``{"concept_id", "title_native", "title_fr",
@@ -1908,6 +2074,13 @@ def plan_journey(
         candidate for candidate in candidates if not (candidate.metadata or {}).get("partner_only")
     ]
     candidates = merge_errata_candidates(candidates, errata_targets)
+    if first_day:
+        # WP-93 (W11): the taste already taught these; day 1 teaches new words.
+        taste = {_fold(word) for word in TASTE_WORDS_FR}
+        kept = [c for c in candidates if _fold(c.target.label_fr) not in taste]
+        if len(kept) != len(candidates):
+            notes.append(f"first day: {len(candidates) - len(kept)} taste word(s) not drilled again")
+        candidates = kept
     reasons_by_identity = {
         target_identity(candidate.target): reason
         for candidate in candidates
@@ -1936,13 +2109,23 @@ def plan_journey(
         # WP-75: the first reply is one turn (a repair is still allowed), so
         # the two quick recall wins fit in front of it inside five minutes.
         turns = 1
-    scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier)
+    # WP-93: the page is heard as well as read when the deployment speaks —
+    # priced from Régulier up; the five-minute day reads it (its audio is a
+    # replay the learner may take, not a cost the day promises).
+    scene_audio = bool(audio_available) and budget_seconds > RHYTHM_FIVE_MINUTES
+    scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier, audio=scene_audio)
     resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
     respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
     while scene_cost + respond_cost + resolution_cost > budget_seconds and turns > 1:
         turns -= 1
         respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
         notes.append("response reduced to one turn to keep the plan inside the budget")
+    if scene_cost + respond_cost + resolution_cost > budget_seconds and scene_audio:
+        # The lines' audio is a replay the learner may skip; a five-minute day
+        # that cannot also hold it is priced as read.
+        scene_audio = False
+        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier)
+        notes.append("scene priced without its audio to keep the plan inside the budget")
     if scene_cost + respond_cost + resolution_cost > budget_seconds and (
         spt != DEFAULT_SECONDS_PER_TOKEN or multiplier != 1.0
     ):
@@ -1951,7 +2134,7 @@ def plan_journey(
         # pace rather than silently deleting the objective or the resolution.
         spt = DEFAULT_SECONDS_PER_TOKEN
         multiplier = 1.0
-        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier)
+        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier, audio=scene_audio)
         resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
         respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
         notes.append("measured pace set aside to the base pace: the core plan did not fit")
@@ -1987,82 +2170,110 @@ def plan_journey(
             partners=partners,
             introduction=introduction,
             forge=forge,
+            reading=reading,
+            scene_audio=scene_audio,
         )
 
     # --- shape the recall steps inside whatever headroom is left -----------
-    headroom = budget_seconds - (scene_cost + respond_cost + resolution_cost)
-    recalls: list[tuple[SelectedTarget, RecallTask, int, bool]] = []
-    used_targets: list[SelectedTarget] = []
-    dropped: list[LearningCandidate] = []
-    reasons = dict(selection.omission_reasons)
-    for entry in selection.selected:
-        identity = target_identity(entry.target)
-        # The shape may ask for fewer recall steps than the contract allows;
-        # it may never ask for more.
-        if len(recalls) >= min(rule.max_recall, MAX_RECALL_STEPS):
-            # Still selected: it is elicited in the reply, it just gets no drill.
+    def shape_recalls(
+        headroom: int,
+    ) -> tuple[
+        list[Any], list[SelectedTarget], list[LearningCandidate], dict[str, str], list[str]
+    ]:
+        notes: list[str] = []
+        recalls: list[tuple[SelectedTarget, RecallTask, int, bool]] = []
+        used_targets: list[SelectedTarget] = []
+        dropped: list[LearningCandidate] = []
+        reasons = dict(selection.omission_reasons)
+        for entry in selection.selected:
+            identity = target_identity(entry.target)
+            # The shape may ask for fewer recall steps than the contract allows;
+            # it may never ask for more.
+            if len(recalls) >= min(rule.max_recall, MAX_RECALL_STEPS):
+                # Still selected: it is elicited in the reply, it just gets no drill.
+                used_targets.append(entry)
+                if rule.max_recall == 0 and shape is DayShape.SHORT:
+                    notes.append(f"{identity}: short day, no recall step")
+                continue
+            planned_real = sum(1 for _e, _t, _c, was_skipped in recalls if not was_skipped)
+            optional = entry.demonstrated or entry.candidate.is_new or planned_real >= 1
+            if first_day:
+                optional = bool(entry.demonstrated)
+            metadata = entry.candidate.metadata or {}
+            learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            if first_day:
+                recall = _first_day_recall(
+                    target=entry.target,
+                    scenario=scenario,
+                    affordances=affordances,
+                    optional=optional,
+                    position=len(recalls),
+                )
+            elif dice is None:
+                recall = build_recall_task(
+                    target=entry.target,
+                    scenario=scenario,
+                    affordances=affordances,
+                    optional=optional,
+                    learner_text=learner_wording,
+                )
+                if recall is not None and not shape_allows_format(shape, recall.task_type):
+                    recall = None
+            else:
+                formats = rotate_recall_formats(
+                    inputs=dice,
+                    shape=shape,
+                    target_kind=str(entry.target.kind),
+                    target_id=identity,
+                    eligible=CLASSIC_RECALL_FORMATS,
+                )
+                recall = build_rotated_recall_task(
+                    target=entry.target,
+                    scenario=scenario,
+                    affordances=affordances,
+                    optional=optional,
+                    formats=formats,
+                    day_shape=shape,
+                    learner_text=learner_wording,
+                )
+            if recall is None:
+                used_targets.append(entry)
+                notes.append(f"{identity}: no recall form could be posed without revealing it")
+                continue
+            if entry.demonstrated:
+                recalls.append((entry, recall, 0, True))
+                used_targets.append(entry)
+                notes.append(f"{identity}: already produced independently, recall step skipped")
+                continue
+            cost = recall_seconds(recall, spt=spt, multiplier=multiplier)
+            if cost > headroom:
+                dropped.append(entry.candidate)
+                reasons[identity] = "no_budget_headroom"
+                continue
+            headroom -= cost
+            recalls.append((entry, recall, cost, False))
             used_targets.append(entry)
-            if rule.max_recall == 0 and shape is DayShape.SHORT:
-                notes.append(f"{identity}: short day, no recall step")
-            continue
-        planned_real = sum(1 for _e, _t, _c, was_skipped in recalls if not was_skipped)
-        optional = entry.demonstrated or entry.candidate.is_new or planned_real >= 1
-        if first_day:
-            optional = bool(entry.demonstrated)
-        metadata = entry.candidate.metadata or {}
-        learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
-        if first_day:
-            recall = _first_day_recall(
-                target=entry.target,
-                scenario=scenario,
-                affordances=affordances,
-                optional=optional,
-                position=len(recalls),
-            )
-        elif dice is None:
-            recall = build_recall_task(
-                target=entry.target,
-                scenario=scenario,
-                affordances=affordances,
-                optional=optional,
-                learner_text=learner_wording,
-            )
-            if recall is not None and not shape_allows_format(shape, recall.task_type):
-                recall = None
-        else:
-            formats = rotate_recall_formats(
-                inputs=dice,
-                shape=shape,
-                target_kind=str(entry.target.kind),
-                target_id=identity,
-                eligible=CLASSIC_RECALL_FORMATS,
-            )
-            recall = build_rotated_recall_task(
-                target=entry.target,
-                scenario=scenario,
-                affordances=affordances,
-                optional=optional,
-                formats=formats,
-                day_shape=shape,
-                learner_text=learner_wording,
-            )
-        if recall is None:
-            used_targets.append(entry)
-            notes.append(f"{identity}: no recall form could be posed without revealing it")
-            continue
-        if entry.demonstrated:
-            recalls.append((entry, recall, 0, True))
-            used_targets.append(entry)
-            notes.append(f"{identity}: already produced independently, recall step skipped")
-            continue
-        cost = recall_seconds(recall, spt=spt, multiplier=multiplier)
-        if cost > headroom:
-            dropped.append(entry.candidate)
-            reasons[identity] = "no_budget_headroom"
-            continue
-        headroom -= cost
-        recalls.append((entry, recall, cost, False))
-        used_targets.append(entry)
+        return recalls, used_targets, dropped, reasons, notes
+
+    recalls, used_targets, dropped, reasons, recall_notes = shape_recalls(
+        budget_seconds - (scene_cost + respond_cost + resolution_cost)
+    )
+    if (
+        not first_day
+        and turns > 1
+        and dropped
+        and not any(not skipped for _e, _t, _c, skipped in recalls)
+    ):
+        # WP-93: a page priced by its panels can leave a five-minute day no
+        # room for a single recall; the reply gives up its second turn (it
+        # keeps its repair) — the trade WP-75 made for day one.
+        shorter = respond_seconds(task, turns=turns - 1, spt=spt, multiplier=multiplier)
+        retry = shape_recalls(budget_seconds - (scene_cost + shorter + resolution_cost))
+        if any(not skipped for _e, _t, _c, skipped in retry[0]):
+            turns, respond_cost = turns - 1, shorter
+            recalls, used_targets, dropped, reasons, recall_notes = retry
+            recall_notes.append("reply reduced to one turn so a recall step fits the budget")
+    notes.extend(recall_notes)
 
     # WP-66. A shape that needs a recall step and could not get one is not a
     # failure and is certainly not a reason to refuse the learner's day: the
@@ -2129,10 +2340,15 @@ def plan_journey(
         )
     )
     ordinal += 1
+    # WP-93 (W5): the first day's page ends on Margaux's question and the
+    # reply answers it next; its recall comes back after the reply. The
+    # classic non-first day is the pre-WP-78 kill switch (the practice-day
+    # flag off) and keeps its old order.
+    recall_steps: list[PlannedStep] = []
     for entry, recall, cost, skipped in recalls:
-        steps.append(
+        recall_steps.append(
             PlannedStep(
-                ordinal=ordinal,
+                ordinal=0,
                 kind=StepKind.RECALL,
                 estimated_seconds=cost,
                 public_prompt={
@@ -2150,7 +2366,11 @@ def plan_journey(
                 initial_status=StepStatus.SKIPPED if skipped else StepStatus.PENDING,
             )
         )
-        ordinal += 1
+
+    if not first_day:
+        for recall_step in recall_steps:
+            steps.append(replace(recall_step, ordinal=ordinal))
+            ordinal += 1
 
     elicited = [entry.target for entry in used_targets if entry.is_elicitable]
     respond_task = replace(
@@ -2187,6 +2407,10 @@ def plan_journey(
         )
     )
     ordinal += 1
+    if first_day:
+        for recall_step in recall_steps:
+            steps.append(replace(recall_step, ordinal=ordinal))
+            ordinal += 1
     steps.append(
         PlannedStep(
             ordinal=ordinal,
@@ -2658,7 +2882,102 @@ def rule_card_seconds(card: dict[str, Any] | None, *, spt: float, multiplier: fl
     return max(1, round(RULE_CARD_SECONDS * multiplier + _reading_seconds(spt, *texts) * 0.5))
 
 
-def _rule_step(ordinal: int, *, brief: dict[str, Any], card: dict[str, Any], cost: int) -> PlannedStep:
+def _unit_ids(brief: dict[str, Any]) -> set[str]:
+    """Every id a scene may name the unit by: the concept id and its catalogue id."""
+
+    return {
+        str(value).strip()
+        for value in (brief.get("concept_id"), brief.get("external_id"))
+        if value not in (None, "") and str(value).strip()
+    }
+
+
+def rule_scene_example(
+    brief: dict[str, Any] | None, scenario: ScenarioBrief
+) -> tuple[str | None, str | None]:
+    """WP-92 — a cast line of today's scene that uses the day's unit, and who says it.
+
+    A line whose ``grammar_marks`` (the story engine's, WP-92) name the unit
+    wins; otherwise the first cast line the unit's detector finds (the same
+    trustworthy match the card's headline uses, :func:`grammar_items.rule_span`).
+    The form is wrapped in the rule card's marks — «Je [suis allé] au marché»
+    — from the mark's span or the detector's. The speaker is the cast id (the
+    client draws the face and prints the name). Narration is never the
+    example: the card shows a person saying the form. ``(None, None)`` when
+    the scene holds none.
+    """
+
+    if not isinstance(brief, dict):
+        return None, None
+    ids = _unit_ids(brief)
+    # The story engine measures the marks after validation and keeps them in
+    # the story context (``grammar.marks``: "<panel>:<line>" → spans); a bound
+    # scene's lines carry them as ``grammar_marks``. Either is read.
+    story = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    grammar = story.get("grammar") if isinstance(story.get("grammar"), dict) else {}
+    outcome_marks = grammar.get("marks") if isinstance(grammar.get("marks"), dict) else {}
+    lines: list[dict[str, Any]] = []
+    for panel_index, panel in enumerate(scene_page(scenario)):
+        for line_index, line in enumerate(panel.get("dialogue") or []):
+            if isinstance(line, dict) and str(line.get("text_fr") or "").strip():
+                marks = outcome_marks.get(f"{panel_index}:{line_index}")
+                if isinstance(marks, list) and not line.get("grammar_marks"):
+                    line = {**line, "grammar_marks": marks}
+                lines.append(line)
+    if scenario.opening_line_fr and scenario.character_id:
+        lines.append({"character_id": scenario.character_id, "text_fr": scenario.opening_line_fr})
+
+    def marked(text: str, start: int, end: int) -> str:
+        return f"{text[:start]}[{text[start:end]}]{text[end:]}"
+
+    cast = [line for line in lines if str(line.get("character_id") or "") not in ("", NARRATOR_ID)]
+    for line in cast:
+        marks = line.get("grammar_marks")
+        if not isinstance(marks, list):
+            continue
+        for mark in marks:
+            if not isinstance(mark, dict) or str(mark.get("unit_id") or "").strip() not in ids:
+                continue
+            raw = str(line["text_fr"]).strip()
+            try:
+                start, end = int(mark.get("start")), int(mark.get("end"))
+            except (TypeError, ValueError):
+                start, end = -1, -1
+            if 0 <= start < end <= len(raw) and raw[start:end].strip():
+                return marked(raw, start, end), str(line["character_id"])
+            return _detector_marked(brief, raw) or raw, str(line["character_id"])
+    for line in cast:
+        text = _detector_marked(brief, str(line["text_fr"]))
+        if text is not None:
+            return text, str(line["character_id"])
+    return None, None
+
+
+def _detector_marked(brief: dict[str, Any], text: str) -> str | None:
+    """``text`` with the unit's trustworthy use in ``[…]``, or ``None``."""
+
+    plain = grammar_items.plain(" ".join(str(text or "").split()))
+    try:
+        found = grammar_items.rule_span(brief, plain)
+    except Exception:  # noqa: BLE001 - a detector that cannot run finds nothing
+        found = None
+    if found is None:
+        return None
+    start, end = found
+    return f"{plain[:start]}[{plain[start:end]}]{plain[end:]}"
+
+
+def _rule_step(
+    ordinal: int,
+    *,
+    brief: dict[str, Any],
+    card: dict[str, Any],
+    cost: int,
+    scenario: ScenarioBrief | None = None,
+) -> PlannedStep:
+    example, example_speaker = (
+        rule_scene_example(brief, scenario) if scenario is not None else (None, None)
+    )
     return PlannedStep(
         ordinal=ordinal,
         kind=StepKind.RULE,
@@ -2668,6 +2987,9 @@ def _rule_step(ordinal: int, *, brief: dict[str, Any], card: dict[str, Any], cos
             "title_native": str(brief.get("title_native") or ""),
             "title_fr": str(brief.get("title_fr") or ""),
             "rule_card": card,
+            # WP-92: the form as the learner is about to meet it in the story.
+            "scene_example_fr": example,
+            "scene_example_speaker": example_speaker,
         },
         target=grammar_items.grammar_target(brief),
     )
@@ -3071,13 +3393,24 @@ def _plan_practice_day(
     partners: list[TargetRef] | None = None,
     introduction: dict[str, Any] | None = None,
     forge: dict[str, Any] | None = None,
+    reading: dict[str, Any] | None = None,
+    scene_audio: bool = False,
 ) -> PlannedJourney:
-    """WP-78 — warm-ups → scene → build → reply → a word from today → ending.
+    """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
 
-    WP-L4: with an ``introduction``, the Scène movement is scene → rule card →
-    three or four guided items → the day's other builds; its budget is
-    reserved first, and the guided items are dropped from the strongest end
-    (transform, then build) before the introduction is given up.
+    WP-93 (W5): the scene's page ends on the question the reply answers, so
+    nothing sits between them — the builds that used to come between the
+    scene and the reply come after it. With an ``introduction`` (WP-L4) the
+    rule card and its three or four guided items come *before* the scene
+    (the reply asks for the unit, and the scene then shows it in use), and so
+    does a folded forge block (WP-S4). The rule's budget is reserved first,
+    and the guided items are dropped from the strongest end (transform, then
+    build) before the introduction is given up.
+
+    WP-93: on a paged scene at least :data:`INPUT_FLOOR_SHARE` of the budget
+    is reading or listening — the page, the heard items and the «Lecture»
+    (``reading``, Soutenu/Intensif, after the ending) — and drills never
+    take that room.
 
     WP-L6: the same day at every rhythm, with the movements sized by
     :func:`~app.services.journey_contracts.rhythm_caps` of the budget.
@@ -3085,6 +3418,50 @@ def _plan_practice_day(
 
     caps = rhythm_caps(budget_seconds)
     forge_reserve = forge_reserve_seconds(forge)
+    # WP-93 «Lecture»: one optional second page on a long rhythm, reserved
+    # before any drill.
+    read_step: PlannedStep | None = None
+    read_cost = 0
+    if (
+        isinstance(reading, dict)
+        and budget_seconds >= READ_MIN_BUDGET_SECONDS
+        and str(reading.get("variant") or "") in ("relecture", "coulisses")
+    ):
+        heard = bool(reading.get("audio_available", audio_available)) and bool(audio_available)
+        cost = reading_step_seconds(
+            reading, scenario, spt=spt, multiplier=multiplier, audio=heard
+        )
+        core = scene_cost + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
+        if core + resolution_cost + cost <= budget_seconds:
+            read_cost = cost
+            variant = str(reading["variant"])
+            status = str(reading.get("status") or ("ready" if variant == "relecture" else "writing"))
+            read_step = PlannedStep(
+                ordinal=0,
+                kind=StepKind.READ,
+                estimated_seconds=cost,
+                public_prompt={
+                    "variant": variant,
+                    "title_fr": str(reading.get("title_fr") or scenario.title_fr),
+                    "scene_id": (str(reading["scene_id"]) if reading.get("scene_id") else None),
+                    "status": status if status in ("ready", "writing", "unavailable") else "writing",
+                    "audio_available": heard,
+                },
+                optional=True,
+            )
+            notes.append(f"lecture planned: {variant}, {cost}s")
+        else:
+            notes.append("lecture skipped: the day's budget does not hold a second page")
+    # WP-93: the input floor. The page (and the «Lecture») count; what they
+    # leave short of the floor is kept free of drills — only a heard item may
+    # use it. A page-less (legacy) brief has no page to price and keeps the
+    # pre-WP-93 fill.
+    input_gap = 0
+    if scene_page(scenario):
+        floor = round(INPUT_FLOOR_SHARE * budget_seconds)
+        input_gap = max(0, floor - scene_cost - read_cost)
+        if input_gap:
+            notes.append(f"input floor: {input_gap}s kept for reading and listening")
     entries = practice_entries(scenario, selection, affordances)
     # WP-86: the floor may lean on any word of today the scene prints — a word
     # already produced is not drilled, but its line can still be rebuilt or
@@ -3134,7 +3511,10 @@ def _plan_practice_day(
         if not intro_card:
             return []
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
-        room = budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
+        room = (
+            budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
+            - read_cost - input_gap
+        )
         # The rule step and its items share the day's step envelope.
         kept = list(intro_items)[: max(0, min(caps.max_recall, caps.max_steps - 5))]
         while kept and sum(item_cost for _task, item_cost in kept) > room:
@@ -3143,8 +3523,11 @@ def _plan_practice_day(
 
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
-        # WP-S4: the folded forge keeps its room free of quick items.
-        headroom = budget_seconds - (scene_cost + cost + resolution_cost) - forge_reserve
+        # WP-S4: the folded forge keeps its room free of quick items; WP-93:
+        # so do the «Lecture» and the input floor (only heard items use it).
+        headroom = (
+            budget_seconds - (scene_cost + cost + resolution_cost) - forge_reserve - read_cost
+        )
         reserved = intro_reserve(turn_count)
         max_items: int | None = None
         target_items: int | None = None
@@ -3152,6 +3535,7 @@ def _plan_practice_day(
             headroom -= intro_card_cost + sum(item_cost for _task, item_cost in reserved)
             max_items = max(0, min(caps.max_recall, caps.max_steps - 5) - len(reserved))
             target_items = max(0, caps.target_items - len(reserved))
+        drills = headroom - input_gap
         filled = fill_practice_items(
             scenario=scenario,
             shape=shape,
@@ -3160,7 +3544,7 @@ def _plan_practice_day(
             sentences=sentences,
             safe_sentences=safe_sentences,
             dice=dice,
-            headroom=max(0, headroom),
+            headroom=max(0, drills),
             spt=spt,
             multiplier=multiplier,
             partners=partners or [],
@@ -3174,7 +3558,7 @@ def _plan_practice_day(
             entries=floor_entries,
             items=filled,
             expected_reply=expected,
-            headroom=max(0, headroom - sum(item.cost for item in filled)),
+            headroom=max(0, drills - sum(item.cost for item in filled)),
             spt=spt,
             multiplier=multiplier,
             caps=caps,
@@ -3203,11 +3587,16 @@ def _plan_practice_day(
         turns -= 1
         respond_cost, items = attempt(turns)
         notes.append("reply reduced to one turn so the new rule fits the budget")
-    if len(items) + len(intro_reserve(turns)) < caps.target_items and turns > 1 and not (
-        intro_card and not intro_reserve(turns - 1)
+    if (
+        caps.budget_seconds <= RHYTHM_FIVE_MINUTES
+        and len(items) + len(intro_reserve(turns)) < caps.target_items
+        and turns > 1
+        and not (intro_card and not intro_reserve(turns - 1))
     ):
         # The reply keeps its repair; it gives up its second turn so the day
         # can hold its quick items — the same trade WP-75 made for day one.
+        # WP-93: only the five-minute day makes it. A longer rhythm keeps its
+        # exchanges: a conversation is input and output, a drill is neither.
         shorter_cost, shorter = attempt(turns - 1)
         if len(shorter) > len(items):
             turns, respond_cost, items = turns - 1, shorter_cost, shorter
@@ -3264,34 +3653,21 @@ def _plan_practice_day(
     def placed(slot: str) -> list[PracticeItem]:
         return sorted((item for item in items if item.slot == slot), key=lambda item: item.position)
 
+    # WP-93 (W5): Rappel → Règle + Essai (+ Forge) → Scène → Réponse →
+    # Bouclé → Fin (→ Lecture). Ordinals are numbered once, at the end.
     steps: list[PlannedStep] = []
     for item in placed("warmup"):
         steps.append(_recall_step(len(steps), item))
-    steps.append(
-        PlannedStep(
-            ordinal=len(steps),
-            kind=StepKind.SCENE,
-            estimated_seconds=scene_cost,
-            public_prompt={
-                "setup_fr": scenario.setup_fr,
-                "setup_native": scenario.setup_native,
-                "objective_native": scenario.objective_native,
-                "character_line_fr": scene_line,
-                "character_line_audio_url": None,
-                "image_url": scenario.image_url,
-                "listen_first": bool(shape is DayShape.LISTENING and audio_available),
-                # An authored scene's graphic-novel page; absent when it has none.
-                **({"panels": [dict(panel) for panel in scenario.panels]} if scenario.panels else {}),
-            },
-        )
-    )
     intro_target: TargetRef | None = None
     intro_entry: SelectedTarget | None = None
     reserved = intro_reserve(turns)
     if intro_card and reserved and introduction is not None:
         intro_target = grammar_items.grammar_target(introduction)
         steps.append(
-            _rule_step(len(steps), brief=introduction, card=intro_card, cost=intro_card_cost)
+            _rule_step(
+                len(steps), brief=introduction, card=intro_card, cost=intro_card_cost,
+                scenario=scenario,
+            )
         )
         intro_entry = SelectedTarget(
             candidate=LearningCandidate(
@@ -3320,29 +3696,29 @@ def _plan_practice_day(
         notes.append(
             f"introduction: {intro_target.kind}:{intro_target.id}, rule card + "
             + ", ".join(guided.task_type for guided, _cost in reserved)
+            + " (before the scene)"
         )
     elif introduction is not None:
         notes.append("introduction skipped: its rule and guided items did not fit")
-    for item in placed("mid"):
-        steps.append(_recall_step(len(steps), item))
-
-    if forge:
-        # WP-S4: La Forge, folded into the Scène movement — after the guided
-        # items, before the reply that asks for the rule. Sized from what the
-        # rest of the day leaves.
-        still_to_come = respond_cost + sum(item.cost for item in placed("post")) + resolution_cost
-        room = budget_seconds - sum(step.estimated_seconds for step in steps) - still_to_come
-        forge_step = _forge_step(
-            len(steps),
-            forge=forge,
-            introduction=introduction if intro_target is not None else None,
-            room=room,
+    forge_at = len(steps)
+    steps.append(
+        PlannedStep(
+            ordinal=len(steps),
+            kind=StepKind.SCENE,
+            estimated_seconds=scene_cost,
+            public_prompt={
+                "setup_fr": scenario.setup_fr,
+                "setup_native": scenario.setup_native,
+                "objective_native": scenario.objective_native,
+                "character_line_fr": scene_line,
+                "character_line_audio_url": None,
+                "image_url": scenario.image_url,
+                "listen_first": bool(shape is DayShape.LISTENING and audio_available),
+                # An authored scene's graphic-novel page; absent when it has none.
+                **({"panels": [dict(panel) for panel in scenario.panels]} if scenario.panels else {}),
+            },
         )
-        if forge_step is not None:
-            steps.append(forge_step)
-            notes.append(f"forge folded in: {forge_step.estimated_seconds}s")
-        else:
-            notes.append(f"forge skipped: {max(0, room)}s left, {FORGE_MIN_SECONDS}s needed")
+    )
 
     elicited = [entry.target for entry in selection.selected if entry.is_elicitable]
     # WP-L4 «Emploi» / «Réemploi»: the reply's grammar targets — the new unit
@@ -3392,7 +3768,9 @@ def _plan_practice_day(
             private_task=respond_task,
         )
     )
-    for item in placed("post"):
+    # WP-93 (W5): the builds that used to sit between the question and the
+    # reply come after it, then the word from today.
+    for item in [*placed("mid"), *placed("post")]:
         steps.append(_recall_step(len(steps), item))
     steps.append(
         PlannedStep(
@@ -3418,6 +3796,35 @@ def _plan_practice_day(
             },
         )
     )
+    if read_step is not None:
+        steps.append(read_step)
+
+    if forge:
+        # WP-S4: La Forge, folded in with the rule — before the scene, so the
+        # scene's question is answered next (W5). Sized from what the rest of
+        # the day leaves — never the input floor's room (WP-93: a forge is
+        # drills, and a longer rhythm buys input, not more drills).
+        heard = sum(
+            step.estimated_seconds
+            for step in steps
+            if step.kind is StepKind.RECALL and (step.public_prompt or {}).get("audio_url")
+        )
+        room = (
+            budget_seconds - sum(step.estimated_seconds for step in steps)
+            - max(0, input_gap - heard)
+        )
+        forge_step = _forge_step(
+            forge_at,
+            forge=forge,
+            introduction=introduction if intro_target is not None else None,
+            room=room,
+        )
+        if forge_step is not None:
+            steps.insert(forge_at, forge_step)
+            notes.append(f"forge folded in: {forge_step.estimated_seconds}s")
+        else:
+            notes.append(f"forge skipped: {max(0, room)}s left, {FORGE_MIN_SECONDS}s needed")
+    steps = [replace(step, ordinal=index) for index, step in enumerate(steps)]
 
     if intro_entry is not None:
         items = [
@@ -3461,6 +3868,61 @@ def graded_interactions(plan: PlannedJourney) -> int:
         if step.kind is StepKind.RESPOND
         or (step.kind is StepKind.RECALL and step.initial_status is not StepStatus.SKIPPED)
     )
+
+
+def input_seconds(plan: PlannedJourney) -> int:
+    """WP-93: the day's reading and listening — the page, the heard items (a
+    recall step that carries a clip) and the «Lecture»."""
+
+    total = 0
+    for step in plan.steps:
+        if step.kind in (StepKind.SCENE, StepKind.READ):
+            total += step.estimated_seconds
+        elif step.kind is StepKind.RECALL and (step.public_prompt or {}).get("audio_url"):
+            total += step.estimated_seconds
+    return total
+
+
+def input_share(plan: PlannedJourney) -> float:
+    """WP-93: :func:`input_seconds` as a share of the day's budget."""
+
+    return round(input_seconds(plan) / max(1, plan.budget_seconds), 4)
+
+
+def recall_count(plan: PlannedJourney) -> int:
+    return sum(1 for step in plan.steps if step.kind is StepKind.RECALL)
+
+
+def scene_reuse(
+    scenario: ScenarioBrief, *, lemma_keys: Any = None
+) -> tuple[int, int]:
+    """WP-93: ``(asked, found)`` — the recycled words the director was handed
+    (``recycled_lemmas``) and how many of them the page actually prints.
+
+    Read from the draft (plan time) or the stored ``script_payload`` copy the
+    story context carries. Matching is whole-word and accent-folded; pass
+    ``lemma_keys`` (text → lemma keys, e.g. the :mod:`lexical_coverage`
+    lemmatiser) to also count an inflected use. The planner itself stays pure
+    and imports no lemmatiser.
+    """
+
+    asked = _story_words(scenario, "recycled")
+    if not asked:
+        return 0, 0
+    from app.services.scene_items import contains_surface
+
+    texts = page_texts(scene_page(scenario))
+    texts.append(str(scenario.opening_line_fr or ""))
+    keys: set[str] = set()
+    if lemma_keys is not None:
+        keys = {key for text in texts for key in lemma_keys(text)}
+    found = sum(
+        1
+        for lemma in asked
+        if any(contains_surface(text, lemma) for text in texts)
+        or (lemma_keys is not None and set(lemma_keys(lemma)) <= keys and lemma_keys(lemma))
+    )
+    return len(asked), found
 
 
 def _require_plannable(scenario: ScenarioBrief) -> str:
@@ -3599,6 +4061,21 @@ __all__ = [
     "supported_input_modes",
     "target_identity",
     "target_reason",
+    # WP-93 / WP-92
+    "PAGE_READING_FACTOR",
+    "SCENE_LINE_HELP_SECONDS",
+    "SCENE_PANEL_SECONDS",
+    "TASTE_WORDS_FR",
+    "input_seconds",
+    "input_share",
+    "page_seconds",
+    "page_texts",
+    "reading_step_seconds",
+    "recall_count",
+    "rule_scene_example",
+    "scene_page",
+    "scene_reuse",
+    "story_affordances",
     # WP-75
     "SPOILER_SAFE_OPENING_FR",
     "SPOILER_SIMILARITY",

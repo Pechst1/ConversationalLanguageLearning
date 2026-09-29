@@ -108,7 +108,10 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
     scene_at = kinds.index(StepKind.SCENE)
     respond_at = kinds.index(StepKind.RESPOND)
     assert 2 <= scene_at <= MAX_WARMUP_RECALL_STEPS, "two or three warm-ups before the scene"
-    assert 1 <= respond_at - scene_at - 1 <= 2, "one or two items between scene and reply"
+    # WP-93 (W5): nothing between the scene's question and the reply; the
+    # builds and the word from today come after it.
+    assert respond_at == scene_at + 1, "the reply answers the scene's question next"
+    assert 2 <= kinds[respond_at + 1:-1].count(StepKind.RECALL) <= 3
     assert kinds[respond_at + 1] is StepKind.RECALL, "one word from today after the reply"
     assert kinds[-1] is StepKind.RESOLUTION
     for step in plan.steps:

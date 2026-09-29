@@ -1,17 +1,17 @@
 {
   "version": "first-day-v1",
-  "note": "WP-75. The learner's first day: authored, instant, no model call. The scene is the authored café family at Le Mistral (the world bible's neutral ground, where the friends gather); the two recall items are words that scene and its reply need, so the learner walks into the reply already holding them. Lives beside the content versions as a file, not a directory, so it is never read as one.",
+  "note": "WP-75. The learner's first day: authored, instant, no model call. The scene is the authored café family at Le Mistral (the world bible's neutral ground, where the friends gather); the two recall items are words that scene and its reply need; WP-93 brings them back right after the reply (never between Margaux's question and the answer) and never repeats the landing taste's words (un café, s'il vous plaît, bonjour, merci). Lives beside the content versions as a file, not a directory, so it is never read as one.",
   "scenario_key": "order_at_cafe",
   "recall_words": {
     "A1": [
       {
-        "word": "un café",
-        "gloss": {"en": "a coffee", "de": "ein Kaffee", "fr": "un café"},
-        "part_of_speech": "noun"
+        "word": "au comptoir",
+        "gloss": {"en": "at the counter", "de": "am Tresen", "fr": "au comptoir"},
+        "part_of_speech": "phrase"
       },
       {
-        "word": "s'il vous plaît",
-        "gloss": {"en": "please", "de": "bitte", "fr": "s'il vous plaît"},
+        "word": "à emporter",
+        "gloss": {"en": "to take away", "de": "zum Mitnehmen", "fr": "à emporter"},
         "part_of_speech": "phrase"
       }
     ],

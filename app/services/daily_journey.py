@@ -89,6 +89,7 @@ from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
+    READ_MIN_BUDGET_SECONDS,
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
@@ -678,6 +679,170 @@ def _journey_input_mode(journey: DailyJourney) -> InputMode:
             if str(InputMode.VOICE) in [str(mode) for mode in modes]:
                 return InputMode.VOICE
     return InputMode.TEXT
+
+
+def _coulisses_module() -> Any:
+    """WP-93: the story lane's «coulisses» module, when this build has it."""
+
+    try:
+        from app.services import coulisses  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - absent or broken: no «coulisses» today
+        return None
+    return coulisses if callable(getattr(coulisses, "request_coulisses", None)) else None
+
+
+def _coulisses_enabled() -> bool:
+    return bool(getattr(settings, "ATELIER_COULISSES_ENABLED", False)) and (
+        _coulisses_module() is not None
+    )
+
+
+#: WP-93: the names the story lane's status helper may carry (the contract names
+#: the three states, not the function); tried in order.
+_COULISSES_STATUS_HELPERS = ("coulisses_status", "coulisses_status_for", "status_for", "status")
+_READ_STATUSES = frozenset({"ready", "writing", "unavailable"})
+
+
+def _cast_name(db: Session, scene: Any, character_id: str | None) -> str | None:
+    """A cast member's display name, from the scene's thread world bible."""
+
+    if not character_id:
+        return None
+    from app.db.models.serial import SerialThread
+
+    thread_id = getattr(scene, "serial_thread_id", None)
+    thread = db.get(SerialThread, thread_id) if thread_id else None
+    for member in ((thread.world_bible or {}) if thread is not None else {}).get("cast") or []:
+        if isinstance(member, dict) and str(member.get("id") or "") == character_id:
+            return str(member.get("name") or "") or None
+    return None
+
+
+def _coulisses_state(
+    db: Session, journey: DailyJourney, private: dict[str, Any]
+) -> tuple[str, str | None, str | None, str | None, str | None]:
+    """``(status, scene_id, title_fr, pov_character_id, pov_name)`` of today's
+    «coulisses», read defensively."""
+
+    module = _coulisses_module()
+    if module is None or not getattr(settings, "ATELIER_COULISSES_ENABLED", False):
+        return "unavailable", None, None, None, None
+    scene: Any = None
+    finder = getattr(module, "coulisses_scene_for", None)
+    if callable(finder):
+        scene = finder(db, journey.id)
+    status: str | None = None
+    for name in _COULISSES_STATUS_HELPERS:
+        helper = getattr(module, name, None)
+        if not callable(helper):
+            continue
+        try:
+            value = helper(db, journey.id)
+        except TypeError:
+            value = helper(db, journey_id=journey.id)
+        value = str(getattr(value, "value", value) or "")
+        if value in _READ_STATUSES:
+            status = value
+            break
+    scene_id: str | None = None
+    title: str | None = None
+    pov: str | None = None
+    if scene is not None:
+        if isinstance(scene, dict):
+            scene_id = str(scene.get("id") or scene.get("scene_id") or "") or None
+            title = str(scene.get("title_fr") or scene.get("title") or "") or None
+            pov = str(scene.get("pov_character_id") or "") or None
+        elif isinstance(scene, (str, uuid.UUID)):
+            scene_id = str(scene)
+        else:
+            scene_id = str(getattr(scene, "id", "") or "") or None
+            title = str(getattr(scene, "title", "") or "") or None
+            for payload in (scene.source_snapshot, scene.script_payload):
+                if isinstance(payload, dict) and payload.get("pov_character_id"):
+                    pov = str(payload["pov_character_id"])
+                    break
+    if status is None:
+        if scene_id:
+            status = "ready"
+        else:
+            status = "writing" if private.get("coulisses_requested") else "unavailable"
+    if status == "ready" and not scene_id:
+        status = "writing"
+    if status != "ready":
+        return status, None, title, None, None
+    name = _cast_name(db, scene, pov) if pov and not isinstance(scene, (dict, str)) else None
+    return status, scene_id, title, pov, name
+
+
+def _owned_engine_scene(db: Session, user_id: Any, scene_id: Any) -> Any:
+    from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    try:
+        key = uuid.UUID(str(scene_id))
+    except (TypeError, ValueError):
+        return None
+    scene = db.get(GraphicNovelScene, key)
+    if scene is None or scene.user_id != user_id:
+        return None
+    if not str(scene.prompt_version or "").startswith(ENGINE_VERSION_PREFIX):
+        return None
+    return scene
+
+
+def _is_side_page(scene: Any) -> bool:
+    """A «coulisses» page is not a day's scene: it is never «yesterday's page»."""
+
+    source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+    payload = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+    return bool(
+        source.get("coulisses")
+        or payload.get("coulisses")
+        or source.get("kind") == "coulisses"
+        or payload.get("kind") == "coulisses"
+    )
+
+
+def _previous_engine_scene(db: Session, user: User, journey: DailyJourney) -> Any:
+    """The learner's most recent story-engine page before today's journey."""
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    rows = db.scalars(
+        select(GraphicNovelScene)
+        .where(
+            GraphicNovelScene.user_id == user.id,
+            GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        )
+        .order_by(GraphicNovelScene.created_at.desc())
+        .limit(10)
+    ).all()
+    today = str(journey.id)
+    for scene in rows:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        if str(source.get("journey_id") or "") == today or _is_side_page(scene):
+            continue
+        if scene.panels:
+            return scene
+    return None
+
+
+def _scene_page_texts(scene: Any) -> tuple[list[str], int]:
+    """The French a stored page prints, and how many panels it has."""
+
+    panels = sorted(scene.panels, key=lambda panel: panel.panel_index)
+    texts: list[str] = []
+    for panel in panels:
+        overlay = panel.overlay_payload if isinstance(panel.overlay_payload, dict) else {}
+        narration = str(overlay.get("narration_fr") or "").strip()
+        if narration:
+            texts.append(narration)
+        for line in overlay.get("dialogue") or []:
+            text = str((line or {}).get("text_fr") or "").strip() if isinstance(line, dict) else ""
+            if text:
+                texts.append(text)
+    return texts, len(panels)
 
 
 class _GenerationFailure(Exception):
@@ -1281,6 +1446,172 @@ class DailyJourneyService:
         )
         return prompt
 
+    # ------------------------------------------------------------------
+    # WP-93 — «Lecture»: a second page on a long rhythm
+    # ------------------------------------------------------------------
+
+    def _reading_for_today(
+        self, user: User, journey: DailyJourney, brief: ScenarioBrief
+    ) -> dict[str, Any] | None:
+        """Today's «Lecture» offer, or ``None``.
+
+        Soutenu and Intensif only (budget ≥ ``READ_MIN_BUDGET_SECONDS``), on a
+        practice day. «coulisses» when the story lane can write today's side
+        page (a story-engine day, the ``coulisses`` module present and
+        ``ATELIER_COULISSES_ENABLED`` on) — with yesterday's page kept as its
+        stand-in; otherwise «relecture» of yesterday's engine page. A read
+        that fails costs the step, never the day.
+        """
+
+        if int(journey.budget_seconds or 0) < READ_MIN_BUDGET_SECONDS:
+            return None
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        previous = run_best_effort(
+            self.db,
+            "daily_journey: yesterday's page",
+            lambda: _previous_engine_scene(self.db, user, journey),
+            default=None,
+            log=logger,
+        )
+        relecture: dict[str, Any] | None = None
+        if previous is not None:
+            texts, panel_count = _scene_page_texts(previous)
+            relecture = {
+                "variant": "relecture",
+                "title_fr": str(previous.title or ""),
+                "scene_id": str(previous.id),
+                "status": "ready",
+                "audio_available": audio,
+                "texts_fr": texts,
+                "panel_count": panel_count,
+            }
+        if brief.story_context and _coulisses_enabled():
+            return {
+                "variant": "coulisses",
+                "title_fr": str(brief.title_fr or ""),
+                "scene_id": None,
+                "status": "writing",
+                "audio_available": audio,
+                "fallback": relecture,
+            }
+        return relecture
+
+    def _bind_reading_step(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        reading: dict[str, Any] | None,
+    ) -> None:
+        """Store what the «Lecture» offers; ask the story lane for «coulisses»."""
+
+        step = next(
+            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)), None
+        )
+        if step is None:
+            return
+        prompt = dict(step.public_prompt or {})
+        offer = reading if isinstance(reading, dict) else {}
+        fallback = offer.get("fallback") if isinstance(offer.get("fallback"), dict) else None
+        private: dict[str, Any] = {"variant": prompt.get("variant")}
+        if prompt.get("variant") == "relecture":
+            private["relecture"] = {
+                "scene_id": prompt.get("scene_id"),
+                "title_fr": prompt.get("title_fr"),
+            }
+        elif fallback:
+            private["relecture"] = {
+                "scene_id": fallback.get("scene_id"),
+                "title_fr": fallback.get("title_fr"),
+            }
+        if prompt.get("variant") == "coulisses":
+            module = _coulisses_module()
+            scene_id = str((brief.story_context or {}).get("scene_id") or "")
+            requested = False
+            if module is not None and scene_id:
+                from app.db.models.graphic_novel import GraphicNovelScene
+
+                def ask() -> bool:
+                    scene = self.db.get(GraphicNovelScene, uuid.UUID(scene_id))
+                    if scene is None:
+                        return False
+                    return bool(
+                        module.request_coulisses(
+                            self.db, user=user, journey_id=journey.id, scene=scene
+                        )
+                    )
+
+                requested = bool(
+                    run_best_effort(
+                        self.db,
+                        "daily_journey: coulisses request",
+                        ask,
+                        default=False,
+                        log=logger,
+                    )
+                )
+            private["coulisses_requested"] = requested
+        step.private_task = private
+
+    def _read_prompt_view(self, journey: DailyJourney, step: DailyJourneyStep) -> dict[str, Any]:
+        """WP-93: the «Lecture» as it stands *now* — re-read on every snapshot.
+
+        «coulisses» reports the story lane's status (``writing`` → ``ready``
+        with its scene, or ``unavailable``); an unavailable «coulisses» falls
+        back to yesterday's page when the day had one. A «relecture» whose page
+        is gone is ``unavailable``. ``audio_available`` is the deployment's
+        switch at projection time.
+        """
+
+        stored = dict(step.public_prompt or {})
+        private = dict(step.private_task or {})
+        prompt: dict[str, Any] = {
+            "variant": stored.get("variant") or "relecture",
+            "title_fr": str(stored.get("title_fr") or ""),
+            "scene_id": stored.get("scene_id"),
+            "status": stored.get("status") or "unavailable",
+            "audio_available": bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
+            "character_id": None,
+            "character_name": None,
+        }
+        relecture = private.get("relecture") if isinstance(private.get("relecture"), dict) else None
+        if prompt["variant"] == "coulisses":
+            status, scene_id, title, pov, pov_name = run_best_effort(
+                self.db,
+                "daily_journey: coulisses status",
+                lambda: _coulisses_state(self.db, journey, private),
+                default=("unavailable", None, None, None, None),
+                log=logger,
+            )
+            prompt.update(
+                status=status, scene_id=scene_id, character_id=pov, character_name=pov_name
+            )
+            if title:
+                prompt["title_fr"] = title
+            if status != "unavailable" or not (relecture and relecture.get("scene_id")):
+                return prompt
+            prompt.update(
+                variant="relecture",
+                title_fr=str(relecture.get("title_fr") or ""),
+                scene_id=relecture.get("scene_id"),
+            )
+        scene_id = prompt.get("scene_id")
+        exists = bool(scene_id) and bool(
+            run_best_effort(
+                self.db,
+                "daily_journey: relecture page",
+                lambda: _owned_engine_scene(self.db, journey.user_id, scene_id) is not None,
+                default=False,
+                log=logger,
+            )
+        )
+        prompt["status"] = "ready" if exists else "unavailable"
+        if not exists:
+            prompt["scene_id"] = None
+        return prompt
+
     def _mark_rule_read(self, user: User, step: DailyJourneyStep) -> None:
         """WP-L4: the Règle was read — the unit is introduced (visible to WP-L7)."""
 
@@ -1506,6 +1837,8 @@ class DailyJourneyService:
                 "assistance_used": list(step.assistance_used or []),
                 "prompt": self._forge_prompt_view(journey, step)
                 if StepKind(step.kind) is StepKind.FORGE
+                else self._read_prompt_view(journey, step)
+                if StepKind(step.kind) is StepKind.READ
                 else _public_prompt_view(step),
             }
             for step in sorted(journey.steps, key=lambda item: item.ordinal)
@@ -2492,6 +2825,8 @@ class DailyJourneyService:
                 candidates = self._select_candidates(user, fresh, result)
             introduction = None if first_day else self._introduction_for_today(user, result)
             forge = None if first_day else self._forge_for_today(user, introduction)
+            # WP-93 «Lecture»: Soutenu and Intensif buy a second page.
+            reading = None if first_day else self._reading_for_today(user, fresh, result)
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
@@ -2511,6 +2846,7 @@ class DailyJourneyService:
                 first_day=first_day,
                 introduction=introduction,
                 forge=forge,
+                reading=reading,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -2567,6 +2903,9 @@ class DailyJourneyService:
             except StoryUnavailable as exc:
                 raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
         self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
+        # WP-93: the «Lecture» remembers what it offers; «coulisses» is asked
+        # for now that today's scene is bound (the story lane writes it).
+        self._bind_reading_step(user, fresh, result, reading)
         # WP-78: what the dice dealt, so tomorrow's dice do not deal a shape
         # that could not be built today straight back (`previous_dealt_shape`).
         fresh.plan_selection = {
@@ -3169,6 +3508,7 @@ class DailyJourneyService:
         first_day: bool = False,
         introduction: Any = None,
         forge: Any = None,
+        reading: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -3213,6 +3553,9 @@ class DailyJourneyService:
             if forge and "forge" in accepted:
                 # WP-S4: Soutenu/Intensif fold La Forge into the Scène movement.
                 base["forge"] = forge
+            if reading and "reading" in accepted:
+                # WP-93: the «Lecture», one optional page after the ending.
+                base["reading"] = reading
         return plan_journey(
             **base,
             day_shape=decision.shape,

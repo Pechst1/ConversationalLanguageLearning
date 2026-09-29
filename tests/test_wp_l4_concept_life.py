@@ -277,7 +277,9 @@ def test_an_introduction_day_stays_inside_the_regulier_budget(db_session: Sessio
     scene_at, rule_at, respond_at = (
         kinds.index(StepKind.SCENE), kinds.index(StepKind.RULE), kinds.index(StepKind.RESPOND)
     )
-    assert scene_at < rule_at < respond_at
+    # WP-93 (W5): the rule and its guided items come before the scene, and the
+    # reply answers the scene's question straight after it.
+    assert rule_at < scene_at and respond_at == scene_at + 1
     guided = _grammar_steps(plan, brief["concept_id"])
     assert 3 <= len(guided) <= 4
     assert [step.ordinal for step in guided] == list(range(rule_at + 1, rule_at + 1 + len(guided)))
