@@ -550,6 +550,15 @@ class Settings(BaseSettings):
     )
     # ---- WP-75 (end) -------------------------------------------------------
 
+    ATELIER_TEST_CLOCK_ENABLED: bool = Field(
+        False,
+        description=(
+            "E-3: a TEST-ONLY server clock that can be advanced by whole days "
+            "(POST /api/v1/dev/test-clock) so the browser walk harness plays days 2-7 in "
+            "minutes. Never a product switch: the app refuses to start with it on when "
+            "APP_ENV=production, and the endpoint is not mounted otherwise."
+        ),
+    )
     ATELIER_DAILY_JOURNEY_COHORT: str = Field(
         "",
         description="Comma-separated user emails or ids allowed into the V2 pilot.",

@@ -39,6 +39,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise RuntimeError("PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE must be false in production.")
         if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
             raise RuntimeError("SMTP_HOST and SMTP_FROM_EMAIL are required for password reset in production.")
+        if settings.ATELIER_TEST_CLOCK_ENABLED:
+            raise RuntimeError("ATELIER_TEST_CLOCK_ENABLED must be false in production (E-3 test clock).")
         # WP-88: an empty cohort in production silently serves the daily journey to
         # nobody. Blank must never be how a pilot is paused, so it is refused here.
         if settings.ATELIER_DAILY_JOURNEY_ENABLED and not (settings.ATELIER_DAILY_JOURNEY_COHORT or "").strip():
@@ -133,6 +135,16 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    # --- E-3 test clock (begin) ------------------------------------------
+    # Walk-harness only: never mounted (and never patched in) unless the flag is
+    # on, and the flag is refused at startup in production.
+    if settings.ATELIER_TEST_CLOCK_ENABLED and settings.APP_ENV.strip().lower() != "production":
+        from app.core import test_clock
+
+        test_clock.install()
+        app.include_router(test_clock.router, prefix=settings.API_V1_STR)
+    # --- E-3 test clock (end) --------------------------------------------
 
     # --- WP-72 legal pages (begin) ---------------------------------------
     # Public /privacy and /terms on the API host (the App Store Connect privacy
