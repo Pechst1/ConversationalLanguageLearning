@@ -231,3 +231,22 @@ the story's contribution can be proven rather than assumed.
    projection from the learner's own pace. An optional reminder, off by default.
 6. **The pilot** is the optional per-word switch in §4.5. The scheduler is one either
    way; it only measures whether story delivery earns its place. It can be skipped.
+
+## 8. Status — 115a built (2026-09-30)
+
+| Piece | Where |
+|---|---|
+| FSRS-4.5 for every vocabulary card (elapsed time, retrievability, target 0.87) | `app/services/vocab_fsrs.py`; used by `ProgressService` (the day's credit) and `EnhancedSRSService` (the drill). Grammar, conjugation and errata keep theirs; imported Anki decks keep SM-2 |
+| Earned grades | the day: recalled = Good, recognised = Hard; the drill: a typed/cloze/audio answer sends its result and the server grades it (`earned_rating`); an unanswered card stays a self-rated flashcard. The drill shows one «Next» after an answered card |
+| One daily limit | FSRS itself: a second review the same day barely moves a word (R ≈ 1). The journey's once-a-day fold stays |
+| What a review was | `review_logs.source / format / direction` (migration `f7b9d1e3a5c7`) |
+| Where a word was met | `user_vocabulary_progress.context`: sentence, speaker, panel, line audio key, journey, date — written by «Garder» from the reader |
+| Anki-like caps | new words per day up to 100; `users.max_reviews_per_day` (default 200), in Réglages; the drill stops at the cap |
+
+**Not yet (115b onwards):**
+- chunks as card units;
+- the drill's card format chosen by stability instead of `proficiency_score`;
+- scene-lexicon words becoming cards on the day they are met (today only «Garder»
+  and practice create cards);
+- «Easy» earned from answer speed.
+

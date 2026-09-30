@@ -61,6 +61,8 @@ class User(Base):
     daily_goal_minutes = Column(Integer, default=10)
     daily_goal_xp = Column(Integer, default=50)
     new_words_per_day = Column(Integer, default=10)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day = Column(Integer, default=200, server_default="200", nullable=False)
     default_vocab_direction = Column(String(20), default="fr_to_de")
     preferred_session_time = Column(Time)  # Deprecated in favor of reminder_time string for simplicity, but kept for schema compact? No, let's just add new ones.
 

@@ -40,7 +40,17 @@ export function rhythmForMinutes(minutes: number | null | undefined): Rhythm {
 export const REVIEWS_PER_NEW_WORD: readonly [number, number] = [8, 10];
 export const SECONDS_PER_REVIEW = 6;
 export const NEW_WORDS_MIN = 1;
-export const NEW_WORDS_MAX = 50;
+/** WP-115a (owner, 2026-09-30): up to 100 new words a day, for learners who want more. */
+export const NEW_WORDS_MAX = 100;
+/** WP-115a: Anki's «Maximum reviews/day». */
+export const MAX_REVIEWS_MIN = 1;
+export const MAX_REVIEWS_MAX = 9999;
+export const DEFAULT_MAX_REVIEWS = 200;
+
+export function clampMaxReviews(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_MAX_REVIEWS;
+  return Math.min(MAX_REVIEWS_MAX, Math.max(MAX_REVIEWS_MIN, Math.round(value)));
+}
 
 export type ReviewLoad = { low: number; high: number; minLow: number; minHigh: number };
 

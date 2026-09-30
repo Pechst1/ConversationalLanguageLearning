@@ -37,10 +37,18 @@ test('the review load is an estimate of 8–10 reviews per new word a day', () =
   );
 });
 
-test('the pace stays inside 1–50', () => {
+test('the pace stays inside 1–100 (WP-115a: the owner raised the ceiling)', () => {
   assert.equal(clampNewWords(0), 1);
-  assert.equal(clampNewWords(80), 50);
+  assert.equal(clampNewWords(80), 80);
+  assert.equal(clampNewWords(180), 100);
   assert.equal(clampNewWords(Number.NaN), 10);
+});
+
+test('WP-115a: the learner caps reviews per day, as in Anki', () => {
+  const { clampMaxReviews } = require('./rhythm.ts');
+  assert.equal(clampMaxReviews(0), 1);
+  assert.equal(clampMaxReviews(500), 500);
+  assert.equal(clampMaxReviews(Number.NaN), 200);
 });
 
 test('WP-L8: a rhythm card prints its prior as a range of whole months, as an estimate', () => {

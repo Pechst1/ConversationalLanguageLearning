@@ -102,6 +102,18 @@ async function playDayInner(l, day) {
   l.pages = l.pages || [];
   l.pages.push({ day, text: walk.dayText || '' });
   if (label.startsWith('season-') || day === 1 || day === l.dayCount) await readPage(l, day);
+  if (day === l.dayCount && !label.startsWith('season-')) {
+    // WP-115a: the learner's caps, and the word drill (graded answers).
+    await walk.visit('/settings?section=practice', 'settings');
+    const caps = walk.page.locator('#st-reviews-label');
+    const shown = await caps.count().then((n) => n > 0, () => false);
+    findings.check('settings-has-anki-like-caps', shown, 'no «maximum reviews per day» row in Réglages', walk.where({ kind: 'settings' }));
+    if (shown) {
+      await caps.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+      await walk.shoot('settings-caps');
+    }
+    await walk.visit('/vocabulary/review', 'drill');
+  }
   if (day === 1 || day === l.dayCount) {
     await walk.visit('/missions', 'courrier');
     await walk.visit('/graphic-novel', 'feuilleton');

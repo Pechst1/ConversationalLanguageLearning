@@ -368,8 +368,24 @@ def submit_anki_review(
             db.add(progress)
             db.flush([progress])
 
+        from app.services.vocab_fsrs import earned_rating
+
+        # WP-115a: an answered card earns its grade; a self-rated flashcard (and an
+        # imported Anki deck, which keeps SM-2 and self-rating) keeps the button.
+        rating = (
+            payload.rating
+            if progress.scheduler == "anki"
+            else earned_rating(payload.format, payload.correct, payload.rating)
+        )
         srs = EnhancedSRSService(db)
-        srs.process_review(progress=progress, rating=payload.rating, response_time_ms=payload.response_time_ms)
+        srs.process_review(
+            progress=progress,
+            rating=rating,
+            response_time_ms=payload.response_time_ms,
+            source="drill",
+            review_format=payload.format or "flashcard",
+            direction=payload.direction,
+        )
         DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
         db.commit()
         db.refresh(progress)

@@ -141,3 +141,15 @@ class VocabularyFSRS:
             state=new_state,
             next_review=next_review,
         )
+
+
+#: WP-115a: the grade an answer earns, by how it was given. Recalling the word
+#: (typed, cloze, spoken) is «Good»; picking it among options is «Hard»; a wrong
+#: answer is «Again». A self-rated flashcard keeps the learner's own rating.
+_EARNED = {"typed": 2, "cloze": 2, "audio": 2, "choice": 1}
+
+
+def earned_rating(review_format: str | None, correct: bool | None, rating: int) -> int:
+    if review_format in _EARNED and correct is not None:
+        return _EARNED[review_format] if correct else 0
+    return rating

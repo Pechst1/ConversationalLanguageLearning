@@ -326,10 +326,11 @@ def test_new_words_per_day_is_bounded_on_every_input() -> None:
     import pytest
     from pydantic import ValidationError
 
+    # WP-115a (owner, 2026-09-30): the ceiling rose from 50 to 100.
     for schema in (UserSettingsUpdate, UserUpdate):
-        assert schema(new_words_per_day=50).new_words_per_day == 50
-        for bad in (0, 51):
+        assert schema(new_words_per_day=100).new_words_per_day == 100
+        for bad in (0, 101):
             with pytest.raises(ValidationError):
                 schema(new_words_per_day=bad)
     with pytest.raises(ValidationError):
-        UserCreate(email="a@example.com", password="long-enough-pw", new_words_per_day=80)
+        UserCreate(email="a@example.com", password="long-enough-pw", new_words_per_day=180)

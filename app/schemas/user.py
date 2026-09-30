@@ -74,6 +74,8 @@ class UserBase(BaseModel):
     # pace (new words introduced per day). No upper bound here, since UserRead
     # inherits it and older rows were accepted up to 100; the inputs cap at 50.
     new_words_per_day: int = Field(default=10, ge=1)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day: int = Field(default=200, ge=1)
     # None = derive from native_language at registration (fr_to_de only for German natives).
     default_vocab_direction: str | None = Field(default=None, max_length=20)
     
@@ -127,7 +129,7 @@ class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
     starting_point: StartingPoint | None = None
     # Same bounds as the Réglages field; WP-L6 wires it as the vocabulary pace.
-    new_words_per_day: int = Field(default=10, ge=1, le=50)
+    new_words_per_day: int = Field(default=10, ge=1, le=100)
 
     _normalize_email = field_validator("email", mode="before")(normalize_email_input)
     _password_bytes = field_validator("password")(check_new_password_bytes)
@@ -261,7 +263,8 @@ class UserUpdate(BaseModel):
     speaking_comfort: str | None = Field(default=None, max_length=20)
     daily_goal_minutes: int | None = Field(default=None, ge=0)
     daily_goal_xp: int | None = Field(default=None, ge=0)
-    new_words_per_day: int | None = Field(default=None, ge=1, le=50)  # WP-L6 wires it
+    new_words_per_day: int | None = Field(default=None, ge=1, le=100)  # WP-L6 wires it
+    max_reviews_per_day: int | None = Field(default=None, ge=1, le=9999)
     default_vocab_direction: str | None = Field(default=None, max_length=20)
     
     notifications_enabled: bool | None = None
@@ -317,6 +320,8 @@ class UserSettingsRead(BaseModel):
     rhythm: Literal["leger", "regulier", "soutenu", "intensif"] = "regulier"
     daily_goal_xp: int
     new_words_per_day: int
+    #: WP-115a (owner, 2026-09-30): Anki-like caps the learner sets.
+    max_reviews_per_day: int = 200
     default_vocab_direction: str
     preferred_session_time: time | None = None
 
@@ -378,7 +383,10 @@ class UserSettingsUpdate(BaseModel):
     daily_goal_xp: int | None = Field(default=None, ge=0, le=2000)
     #: WP-L6: the vocabulary pace — new words introduced per day, by the day
     #: and the word drill together (one intake pool).
-    new_words_per_day: int | None = Field(default=None, ge=1, le=50)
+    #: WP-115a: up to 100 (owner: «an option to set the max new words higher»).
+    new_words_per_day: int | None = Field(default=None, ge=1, le=100)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day: int | None = Field(default=None, ge=1, le=9999)
     default_vocab_direction: VocabDirection | None = None
     preferred_session_time: time | None = None
 

@@ -36,6 +36,10 @@ export type WordHelpRequest = {
   speaker?: string;
   /** WP-78: today's journey, when the word was tapped inside its scene. */
   journeyId?: string | null;
+  /** WP-115a: who said the line, its panel and audio key — a kept word remembers them. */
+  speakerId?: string | null;
+  panelId?: string;
+  lineKey?: string;
 };
 
 type GlossState =
@@ -186,6 +190,9 @@ export function WordHelpSheet({
         sentence: request.sentence,
         surface: request.surface,
         journey_id: request.journeyId ?? null,
+        speaker_id: request.speakerId ?? null,
+        panel_id: request.panelId ?? null,
+        line_key: request.lineKey ?? null,
       });
       setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
     } catch (error) {

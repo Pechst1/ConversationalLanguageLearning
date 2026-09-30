@@ -47,6 +47,8 @@ export type LexiqueCopy = {
   deck_good: string;
   deck_easy: string;
   deck_know: string;
+  /** WP-115a: an answered card is graded by the answer; one button files it. */
+  deck_graded_next: string;
   // part of speech, whitelisted
   pos_noun: string;
   pos_verb: string;
@@ -287,6 +289,7 @@ const EN: LexiqueCopy = {
   deck_good: 'Good',
   deck_easy: 'Easy',
   deck_know: 'I know it',
+  deck_graded_next: 'Next',
   pos_noun: 'noun',
   pos_verb: 'verb',
   pos_adjective: 'adjective',
@@ -520,6 +523,7 @@ const DE: LexiqueCopy = {
   deck_good: 'Gut',
   deck_easy: 'Leicht',
   deck_know: 'Weiß ich',
+  deck_graded_next: 'Weiter',
   pos_noun: 'Nomen',
   pos_verb: 'Verb',
   pos_adjective: 'Adjektiv',
@@ -753,6 +757,7 @@ const FR: LexiqueCopy = {
   deck_good: 'Bien',
   deck_easy: 'Facile',
   deck_know: 'Je sais',
+  deck_graded_next: 'Suivant',
   pos_noun: 'nom',
   pos_verb: 'verbe',
   pos_adjective: 'adjectif',

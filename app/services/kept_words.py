@@ -138,6 +138,19 @@ def _session_for(db: Session, user: User, journey_id: UUID | None) -> LearningSe
     return session
 
 
+def met_context(*, sentence: str, journey_id: UUID | None, met: dict | None, now: datetime) -> dict:
+    """WP-115a: where a word was met — the sentence, who said it, the day's journey,
+    the panel and the line's audio key. Only what was sent is kept."""
+
+    fields = {key: str(value)[:120] for key, value in (met or {}).items() if value}
+    return {
+        "sentence_fr": sentence,
+        **({"journey_id": str(journey_id)} if journey_id else {}),
+        **fields,
+        "met_on": now.date().isoformat(),
+    }
+
+
 def keep_word(
     db: Session,
     *,
@@ -147,6 +160,7 @@ def keep_word(
     surface: str | None = None,
     journey_id: UUID | None = None,
     now: datetime | None = None,
+    met: dict | None = None,
 ) -> KeptWord:
     """Keep one tapped word. Idempotent per (learner, word, sentence).
 
@@ -226,6 +240,9 @@ def keep_word(
         # in from their own document stays theirs-by-document.
         progress.provenance = KEPT_PROVENANCE
         progress.provenance_ref = str(existing.id)
+    if not progress.context:
+        # WP-115a: the first meeting is the one a review brings back.
+        progress.context = met_context(sentence=sentence, journey_id=journey_id, met=met, now=now)
     db.flush()
     return KeptWord(
         word_id=int(word.id),

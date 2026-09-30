@@ -1,7 +1,7 @@
 """Anki import and synchronization schemas."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -166,6 +166,12 @@ class AnkiReviewRequest(BaseModel):
     word_id: int = Field(..., ge=1)
     rating: int = Field(..., ge=0, le=3, description="Anki rating 0=Again,1=Hard,2=Good,3=Easy")
     response_time_ms: int | None = Field(None, ge=0)
+    #: WP-115a: how the card was answered. ``flashcard`` is self-rated (the rating
+    #: stands); ``typed``/``cloze``/``audio``/``choice`` are graded by the answer
+    #: itself (``correct``), and the rating is then earned, not chosen.
+    format: Literal["flashcard", "typed", "cloze", "audio", "choice"] | None = None
+    correct: bool | None = None
+    direction: Literal["fr_to_native", "native_to_fr"] | None = None
 
 
 class AnkiReviewResponse(BaseModel):

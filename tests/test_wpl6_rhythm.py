@@ -237,7 +237,7 @@ def test_settings_expose_and_change_the_rhythm(assembled_client: TestClient) -> 
     )
     assert pace.status_code == 200 and pace.json()["new_words_per_day"] == 20
     too_many = assembled_client.patch(
-        "/api/v1/users/me/settings", headers=headers, json={"new_words_per_day": 51}
+        "/api/v1/users/me/settings", headers=headers, json={"new_words_per_day": 101}
     )
     assert too_many.status_code == 422
 

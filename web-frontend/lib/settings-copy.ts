@@ -161,6 +161,8 @@ export type SettingsCopyKey =
   | 'field_other_xp'
   | 'row_new_words'
   | 'row_new_words_hint'
+  | 'row_max_reviews'
+  | 'row_max_reviews_hint'
   | 'row_direction'
   | 'row_direction_hint'
   | 'direction_mixed'
@@ -372,6 +374,8 @@ const EN: SettingsCopy = {
   field_other_xp: 'Another marker (10 to 500)',
   row_new_words: 'New words per day',
   row_new_words_hint: '≈ {low}–{high} reviews a day.',
+  row_max_reviews: 'Maximum reviews per day',
+  row_max_reviews_hint: 'Words past the limit wait for tomorrow.',
   row_direction: 'Card direction',
   row_direction_hint: 'Glosses: German or English only.',
   direction_mixed: 'Alternating',
@@ -581,6 +585,8 @@ const DE: SettingsCopy = {
   field_other_xp: 'Anderer Richtwert (10 bis 500)',
   row_new_words: 'Neue Wörter pro Tag',
   row_new_words_hint: '≈ {low}–{high} Wiederholungen pro Tag.',
+  row_max_reviews: 'Höchstens Wiederholungen pro Tag',
+  row_max_reviews_hint: 'Was darüber liegt, wartet bis morgen.',
   row_direction: 'Richtung der Karten',
   row_direction_hint: 'Übersetzungen: nur Deutsch oder Englisch.',
   direction_mixed: 'Abwechselnd',
@@ -795,6 +801,8 @@ const FR: SettingsCopy = {
   field_other_xp: 'Autre repère (10 à 500)',
   row_new_words: 'Nouveaux mots par jour',
   row_new_words_hint: '≈ {low}–{high} révisions par jour.',
+  row_max_reviews: 'Révisions par jour, au plus',
+  row_max_reviews_hint: 'Au-delà, les mots attendent demain.',
   row_direction: 'Sens des cartes',
   row_direction_hint: 'Traductions : allemand ou anglais seulement.',
   direction_mixed: 'Alterné',

@@ -726,6 +726,16 @@ def get_vocabulary_due_context(
     # pace leaves after today's journey (one intake pool), and never a word
     # the journey has reserved.
     new_limit, reserved_new = vocabulary_pace_limit(db, current_user, new_limit)
+    # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
+    try:
+        from app.services.vocabulary_pace import reviews_left_today
+
+        reviews_left = reviews_left_today(db, current_user)
+    except Exception:  # noqa: BLE001 - a cap that cannot be read never costs the deck
+        reviews_left = None
+    if reviews_left is not None:
+        due_limit = min(due_limit, reviews_left)
+        fragile_limit = min(fragile_limit, max(0, reviews_left - due_limit))
 
     service = ProgressService(db)
     payload = service.get_vocabulary_due_context(
@@ -897,6 +907,11 @@ class KeepWordRequest(BaseModel):
     sentence: str = Field(..., min_length=1, max_length=2000)
     surface: str | None = Field(default=None, max_length=80)
     journey_id: UUID | None = None
+    #: WP-115a — where the word was met, so its reviews can bring the scene back.
+    speaker_id: str | None = Field(default=None, max_length=80)
+    panel_id: str | None = Field(default=None, max_length=80)
+    #: The line's audio key (``{panel_id}:l{index}``).
+    line_key: str | None = Field(default=None, max_length=120)
 
 
 #: What the sheet says when a word cannot be kept. French: this is chrome.
@@ -930,6 +945,11 @@ def keep_vocabulary_word(
             sentence=payload.sentence,
             surface=payload.surface,
             journey_id=payload.journey_id,
+            met={
+                "speaker_id": payload.speaker_id,
+                "panel_id": payload.panel_id,
+                "line_key": payload.line_key,
+            },
         )
     except KeepRefused as exc:
         db.rollback()

@@ -46,8 +46,12 @@ import {
 import { resolveSettingsLanguage, settingsCopy, type SettingsCopy } from '@/lib/settings-copy';
 import {
     DEFAULT_RHYTHM,
+    DEFAULT_MAX_REVIEWS,
+    MAX_REVIEWS_MAX,
+    MAX_REVIEWS_MIN,
     NEW_WORDS_MAX,
     NEW_WORDS_MIN,
+    clampMaxReviews,
     RHYTHMS,
     clampNewWords,
     formatReviewLoad,
@@ -80,6 +84,8 @@ interface UserSettings {
     // as its minutes and plans from it.
     rhythm: Rhythm;
     newWordsPerDay: number;
+    /** WP-115a: Anki's «Maximum reviews/day». */
+    maxReviewsPerDay: number;
     defaultVocabDirection: string;
 
     // Notifications
@@ -120,6 +126,7 @@ const defaultSettings: UserSettings = {
     interests: [],
     rhythm: DEFAULT_RHYTHM,
     newWordsPerDay: 10,
+    maxReviewsPerDay: DEFAULT_MAX_REVIEWS,
     defaultVocabDirection: 'fr_to_de',
     practiceReminders: true,
     reminderTime: '09:00',
@@ -549,6 +556,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         ? user.rhythm
                         : rhythmForMinutes(user.daily_goal_minutes),
                     newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
+                    maxReviewsPerDay: user.max_reviews_per_day || prev.maxReviewsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
                         user.default_vocab_direction || prev.defaultVocabDirection,
                         user.native_language || prev.nativeLanguage,
@@ -629,6 +637,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
                 rhythm: settings.rhythm,
                 new_words_per_day: clampNewWords(settings.newWordsPerDay),
+                max_reviews_per_day: clampMaxReviews(settings.maxReviewsPerDay),
                 default_vocab_direction: settings.defaultVocabDirection,
 
                 notifications_enabled: true, // Master switch implicitly true if specific ones are used
@@ -1324,6 +1333,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     max={NEW_WORDS_MAX}
                                     value={settings.newWordsPerDay}
                                     onChange={(e) => updateSetting('newWordsPerDay', parseInt(e.target.value) || 10)}
+                                />
+                            </Row>
+                            {/* WP-115a: Anki's «Maximum reviews/day», set by the learner. */}
+                            <Row label={copy.row_max_reviews} id="st-reviews-label" hint={copy.row_max_reviews_hint}>
+                                <input
+                                    type="number"
+                                    className="av2-field__control st-number"
+                                    aria-labelledby="st-reviews-label"
+                                    min={MAX_REVIEWS_MIN}
+                                    max={MAX_REVIEWS_MAX}
+                                    value={settings.maxReviewsPerDay}
+                                    onChange={(e) =>
+                                        updateSetting('maxReviewsPerDay', parseInt(e.target.value) || DEFAULT_MAX_REVIEWS)
+                                    }
                                 />
                             </Row>
                             <Row

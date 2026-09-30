@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.services.progress import vocabulary_due_filter
-from app.services.srs import FSRSScheduler, SchedulerState
+from app.services.srs import SchedulerState
 
 logger = logging.getLogger(__name__)
 
@@ -307,9 +307,14 @@ class EnhancedSRSService:
         progress: UserVocabularyProgress,
         rating: int,
         response_time_ms: int | None = None,
-        now: datetime | None = None
+        now: datetime | None = None,
+        source: str | None = None,
+        review_format: str | None = None,
+        direction: str | None = None,
     ) -> None:
         """Process a vocabulary review using the appropriate scheduler."""
+
+        self._log_fields = {"source": source, "format": review_format, "direction": direction}
         
         now = now or datetime.now(UTC)
         if now.tzinfo is None:
@@ -377,7 +382,8 @@ class EnhancedSRSService:
             rating=fsrs_rating,
             response_time_ms=response_time_ms,
             state_transition=f"{state.state} -> {outcome.state}",
-            scheduler_type="fsrs"
+            scheduler_type="fsrs",
+            **{k: v for k, v in getattr(self, "_log_fields", {}).items() if v},
         )
         review_log.set_schedule_transition(previous_schedule, outcome.scheduled_days)
         

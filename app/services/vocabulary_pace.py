@@ -107,6 +107,32 @@ def introduced_today(db: Session, user: Any, *, now: datetime | None = None) -> 
     return {int(row[0]) for row in rows if row[0] is not None}
 
 
+DEFAULT_MAX_REVIEWS_PER_DAY = 200
+
+
+def reviews_left_today(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """WP-115a: how many word reviews the learner's own cap still allows today
+    (Anki's «Maximum reviews/day»): the cap minus today's review log, all surfaces."""
+
+    from sqlalchemy import func
+
+    from app.db.models.progress import ReviewLog
+
+    now = now or datetime.now(UTC)
+    cap = int(getattr(user, "max_reviews_per_day", None) or DEFAULT_MAX_REVIEWS_PER_DAY)
+    start, end = _local_window(user, now)
+    done = db.execute(
+        select(func.count(ReviewLog.id))
+        .join(UserVocabularyProgress, ReviewLog.progress_id == UserVocabularyProgress.id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            ReviewLog.review_date >= start,
+            ReviewLog.review_date < end,
+        )
+    ).scalar_one()
+    return max(0, cap - int(done or 0))
+
+
 def todays_journey(db: Session, user: Any, *, now: datetime | None = None) -> DailyJourney | None:
     now = now or datetime.now(UTC)
     return db.execute(

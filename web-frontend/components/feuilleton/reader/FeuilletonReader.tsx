@@ -306,7 +306,7 @@ export function FeuilletonReader({
           : 'next';
 
   const openHelp = useCallback(
-    (word: { surface: string; term: string }, context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string }) => {
+    (word: { surface: string; term: string }, context: WordContext) => {
       setHelp({
         surface: word.surface,
         term: word.term,
@@ -314,6 +314,9 @@ export function FeuilletonReader({
         sentenceEn: context.sentenceEn,
         character: context.character,
         speaker: context.speaker,
+        speakerId: context.speakerId ?? null,
+        panelId: context.panelId,
+        lineKey: context.lineKey,
       });
     },
     [],
@@ -645,9 +648,21 @@ function lineRayons(line: ReaderLine, rayons: RayonsView | null | undefined) {
   };
 }
 
+/** Where a tapped word was: its line, and — for a spoken line — who said it, in
+ *  which panel, under which audio key (WP-115a: a kept word remembers it). */
+type WordContext = {
+  sentence: string;
+  sentenceEn?: string;
+  character?: string;
+  speaker?: string;
+  speakerId?: string | null;
+  panelId?: string;
+  lineKey?: string;
+};
+
 type WordHandler = (
   word: { surface: string; term: string },
-  context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
+  context: WordContext,
 ) => void;
 
 /* WP-77: a drawn cast member's face, small, beside the name. WP-90/91: the
@@ -706,6 +721,9 @@ function SpeechBody({
           sentenceEn: line.en,
           character: line.character || stage.character,
           speaker: line.who,
+          speakerId: line.speakerId ?? null,
+          panelId: stage.panelId,
+          lineKey: line.audioKey,
         })
       }
     />
@@ -912,6 +930,9 @@ function PanelBody({
                       sentenceEn: bubbleLine.en,
                       character: bubbleLine.character || stage.character,
                       speaker: bubbleLine.who,
+                      speakerId: bubbleLine.you ? null : bubbleLine.speakerId ?? null,
+                      panelId: stage.panelId,
+                      lineKey: bubbleLine.audioKey,
                     })
                   }
                 />
@@ -1104,7 +1125,7 @@ function TaskCard({
   press: boolean;
   onWord: (
     word: { surface: string; term: string },
-    context: { sentence: string; sentenceEn?: string; character?: string; speaker?: string },
+    context: WordContext,
   ) => void;
   character?: string;
   note?: string;

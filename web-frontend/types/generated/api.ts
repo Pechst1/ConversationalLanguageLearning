@@ -4609,6 +4609,12 @@ export interface components {
          * @description Payload for submitting an Anki-style review.
          */
         AnkiReviewRequest: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Direction */
+            direction?: ("fr_to_native" | "native_to_fr") | null;
+            /** Format */
+            format?: ("flashcard" | "typed" | "cloze" | "audio" | "choice") | null;
             /**
              * Rating
              * @description Anki rating 0=Again,1=Hard,2=Good,3=Easy
@@ -7955,8 +7961,14 @@ export interface components {
         KeepWordRequest: {
             /** Journey Id */
             journey_id?: string | null;
+            /** Line Key */
+            line_key?: string | null;
+            /** Panel Id */
+            panel_id?: string | null;
             /** Sentence */
             sentence: string;
+            /** Speaker Id */
+            speaker_id?: string | null;
             /** Surface */
             surface?: string | null;
             /** Term */
@@ -10866,6 +10878,11 @@ export interface components {
              */
             learning_motivation?: string;
             /**
+             * Max Reviews Per Day
+             * @default 200
+             */
+            max_reviews_per_day?: number;
+            /**
              * Native Language
              * @default en
              */
@@ -11081,6 +11098,11 @@ export interface components {
             /** Longest Streak */
             longest_streak: number;
             /**
+             * Max Reviews Per Day
+             * @default 200
+             */
+            max_reviews_per_day?: number;
+            /**
              * Native Language
              * @default en
              */
@@ -11240,6 +11262,11 @@ export interface components {
             is_verified: boolean;
             /** Learning Motivation */
             learning_motivation: string;
+            /**
+             * Max Reviews Per Day
+             * @default 200
+             */
+            max_reviews_per_day?: number;
             /** Native Language */
             native_language: string;
             /** New Words Per Day */
@@ -11319,6 +11346,8 @@ export interface components {
             interests?: string | null;
             /** Learning Motivation */
             learning_motivation?: string | null;
+            /** Max Reviews Per Day */
+            max_reviews_per_day?: number | null;
             /** Native Language */
             native_language?: string | null;
             /** New Words Per Day */
@@ -11387,6 +11416,8 @@ export interface components {
             interests?: string | null;
             /** Learning Motivation */
             learning_motivation?: string | null;
+            /** Max Reviews Per Day */
+            max_reviews_per_day?: number | null;
             /** Native Language */
             native_language?: string | null;
             /** New Words Per Day */

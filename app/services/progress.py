@@ -1169,8 +1169,14 @@ class ProgressService:
         word: VocabularyWord,
         rating: int,
         now: datetime | None = None,
+        source: str | None = None,
+        review_format: str | None = None,
+        direction: str | None = None,
     ) -> tuple[UserVocabularyProgress, ReviewLog, ReviewOutcome]:
-        """Persist a learner review and return the updated progress."""
+        """Persist a learner review and return the updated progress.
+
+        WP-115a: ``source``/``format``/``direction`` say what the review was, so
+        retention can be read per kind of answer and per place."""
 
         now = now or datetime.now(UTC)
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
@@ -1196,6 +1202,9 @@ class ProgressService:
             rating=rating,
             review_date=now,
             state_transition=f"{state.state}->{outcome.state}",
+            source=(source or None) and str(source)[:24],
+            format=(review_format or None) and str(review_format)[:24],
+            direction=(direction or None) and str(direction)[:16],
         )
         review_log.set_schedule_transition(before=previous_schedule, after=outcome.scheduled_days)
 
@@ -1211,10 +1220,13 @@ class ProgressService:
         word: VocabularyWord,
         event_type: str,
         now: datetime | None = None,
+        source: str | None = None,
+        review_format: str | None = None,
     ) -> UserVocabularyProgress:
         """Apply lightweight vocabulary credit from contextual use outside flashcards."""
 
         now = now or datetime.now(UTC)
+        logged = {"source": source}
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
         event = str(event_type or "seen_context").lower()
 
@@ -1222,14 +1234,20 @@ class ProgressService:
         # unaided is «Good»; recognising it among options is weaker evidence and is
         # «Hard». «Easy» needs the answer's speed and is not earned yet.
         if event in {"produced_correct", "used_correctly", "free_production_correct"}:
-            progress, _, _ = self.record_review(user=user, word=word, rating=2, now=now)
+            progress, _, _ = self.record_review(
+                user=user, word=word, rating=2, now=now, review_format=review_format or "production", **logged
+            )
             progress.record_usage(correct=True, is_new=(progress.reps or 0) <= 1)
         elif event in {"recognized", "translated", "recognition"}:
-            progress, _, _ = self.record_review(user=user, word=word, rating=1, now=now)
+            progress, _, _ = self.record_review(
+                user=user, word=word, rating=1, now=now, review_format=review_format or "recognition", **logged
+            )
             progress.times_seen = (progress.times_seen or 0) + 1
             progress.adjust_proficiency(5)
         elif event in {"produced_incorrect", "used_incorrectly", "incorrect"}:
-            progress, _, _ = self.record_review(user=user, word=word, rating=0, now=now)
+            progress, _, _ = self.record_review(
+                user=user, word=word, rating=0, now=now, review_format=review_format or "production", **logged
+            )
             progress.record_usage(correct=False)
             progress.state = "relearning"
             progress.phase = "relearn"

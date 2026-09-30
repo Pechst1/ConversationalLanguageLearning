@@ -124,6 +124,10 @@ class VocabularyCreditService:
                 word=word,
                 event_type=progress_event,
                 now=now or datetime.now(UTC),
+                # WP-115a: where the review happened and, when the caller said, the
+                # exercise format (``task_type``) — logged per review.
+                source=source_type,
+                review_format=str((source_payload or {}).get("task_type") or "") or None,
             )
         if source_type == "atelier" and not folded and credit_kind in {
             "recognized", "produced_correct", "produced_supported",

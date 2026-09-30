@@ -317,6 +317,13 @@ function formatDueLabel(t: LexiqueCopy, item: VocabularyRecommendationItem) {
   return label ? fill(t.due_on, { date: label }) : bucketLabel(t, item.bucket);
 }
 
+/** WP-115a: the format an answered card reports, so the server can earn its grade. */
+function gradedFormat(mode: 'recognition' | 'production' | 'audio' | 'cloze'): 'typed' | 'audio' | 'cloze' {
+  if (mode === 'audio') return 'audio';
+  if (mode === 'cloze') return 'cloze';
+  return 'typed';
+}
+
 function ratingToneLabel(t: LexiqueCopy, rating: number) {
   const option = reviewOptions.find((item) => item.rating === rating);
   return option ? t[option.label] : t.rating_fallback;
@@ -422,7 +429,8 @@ function VocabularyReviewContinuation({
         <div className="lx-done__actions">
           {/* the one tactile 3D press on the empty deck */}
           <Action tone="done" pending={returning} pendingLabel={t.returning} onClick={onReturn}>
-            L’Atelier
+            {/* WP-109: the front page is «La Une». */}
+            La Une
           </Action>
           <div className="lx-done__quiet">
             <Action tone="quiet" inline onClick={onRefresh}>{t.refresh}</Action>
@@ -742,7 +750,12 @@ export default function VocabularyReviewPage() {
     if (!current || reviewing) return;
     setReviewing(true);
     try {
-      const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating });
+      // WP-115a: a card the learner answered is graded by the answer (the server
+      // earns the grade); a card only turned over stays a self-rated flashcard.
+      const answered = graded
+        ? { format: gradedFormat(mode), correct: typedMatches }
+        : { format: 'flashcard' as const };
+      const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
       toast.success(reviewMessage(t, response));
       setReviewedIds((prev) => new Set(prev).add(current.word_id));
       setLastRating(rating);
@@ -828,6 +841,7 @@ export default function VocabularyReviewPage() {
     ? [meaning, example].filter(Boolean).join(' · ')
     : example || (current ? `${french} - ${meaning}` : '');
   const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
+  const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
   const hint = current ? cardHint(t, current) : '';
   const direction = current ? queueDirection(current) : '';
 
@@ -1092,6 +1106,20 @@ export default function VocabularyReviewPage() {
                     files grade 0 and Je sais grade 2 (Bien); Dur (1) and
                     Facile (3) stay reachable underneath as quiet actions, so
                     the four-grade FSRS scale is unchanged. */}
+                {graded && revealed ? (
+                  /* WP-115a: the answer graded itself — one button files it. */
+                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
+                    <button
+                      type="button"
+                      className="av2-btn av2-btn--primary lx-rate"
+                      data-graded={typedMatches ? 'correct' : 'wrong'}
+                      disabled={reviewing}
+                      onClick={() => void submitRating(typedMatches ? 2 : 0)}
+                    >
+                      {t.deck_graded_next}
+                    </button>
+                  </div>
+                ) : (
                 <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
                   <div className="lx-review__pair">
                     <button
@@ -1135,6 +1163,7 @@ export default function VocabularyReviewPage() {
                     ))}
                   </div>
                 </div>
+                )}
               </>
             )}
           </div>

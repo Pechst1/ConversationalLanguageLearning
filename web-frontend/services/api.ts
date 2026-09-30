@@ -2171,6 +2171,10 @@ class ApiService {
     sentence: string;
     surface?: string;
     journey_id?: string | null;
+    /** WP-115a: where the word was met. */
+    speaker_id?: string | null;
+    panel_id?: string | null;
+    line_key?: string | null;
   }): Promise<{ word_id: number; word: string; gloss: string; example_fr: string; already_kept: boolean }> {
     return this.post('/vocabulary/keep', payload, { suppressGlobalError: true } as SilentRequestConfig);
   }
@@ -2426,7 +2430,14 @@ class ApiService {
     return this.post('/progress/review', data);
   }
 
-  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<AnkiReviewResponse> {
+  async submitAnkiReview(data: {
+    word_id: number;
+    rating: number;
+    response_time_ms?: number;
+    /** WP-115a: an answered card's format and result — the server earns the grade. */
+    format?: 'flashcard' | 'typed' | 'cloze' | 'audio' | 'choice';
+    correct?: boolean;
+  }): Promise<AnkiReviewResponse> {
     return this.atelierPost('/anki/review', data);
   }
 
