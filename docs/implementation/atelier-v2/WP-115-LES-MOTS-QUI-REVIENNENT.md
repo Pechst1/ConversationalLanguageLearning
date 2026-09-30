@@ -119,6 +119,12 @@ grammar practice distracts.
 1. **The director receives the due set.** At most 2 due words per generated day, each
    with a **"need"**: a character must need that word from the learner. For example,
    Gus: «Comment on dit déjà, ce truc pour ouvrir la porte… ?»
+   - **Which words (owner, 2026-09-30): the ones that don't stick.** The story's two
+     come from the due words the learner finds hardest: most lapses, or FSRS
+     difficulty high, with at least 2 lapses. A word that keeps failing in the drill
+     needs a *different* encounter, not more of the same (leech research). A scene
+     where someone needs it is that encounter: a speaker, a place, a reason. The drill
+     keeps the easy bulk; the story takes the stubborn few.
    - Tentpoles are authored and stay as written.
    - Gap days carry the due words, as the WP-111 director brief already carries small
      moments.
@@ -152,7 +158,8 @@ A1 learners stay longer on receptive recall; B1 learners move to production soon
   - **new words per day** and **maximum reviews per day** are learner settings;
   - the defaults are moderate, and the ceilings are high for learners who want more;
   - the target retention stays at 0.87.
-  - The story takes at most 2 due words a day; the rest are the drill's.
+  - The story takes at most 2 due words a day, the hardest ones (§4.2); the rest are
+    the drill's.
 - **Drill to go faster** (replaces the evening review). An offer, never a nag, computed
   from the learner's own numbers: «Avec 10 mots de plus par jour, tu atteins A2.2 environ
   30 % plus tôt», from the level's word target, the words held and the current pace. An
@@ -160,7 +167,8 @@ A1 learners stay longer on receptive recall; B1 learners move to production soon
 - **Objective grading**, using the panel and voice as cues.
 - **Successive relearning inside a session:** an item answered wrongly comes back at the
   end of the session until it is right once.
-- **Leech rescue.** After 5 lapses the card changes method, not frequency:
+- **Leech rescue.** Its first step is the story (§4.2): a stubborn word is handed to
+  the next generated day. After 5 lapses the card also changes method in the drill:
   - «Gus a une astuce»: an image or mnemonic;
   - a minimal-pair audio contrast;
   - a fresh context.
@@ -177,7 +185,8 @@ A1 learners stay longer on receptive recall; B1 learners move to production soon
 - **Transfer:** unprompted correct use of scheduled words in chat.
 - **Engagement:** D1, D7 and D30 return; due vs done; backlog.
 - **Does the story help? (optional, 4 weeks).** The scheduler stays one. The only switch
-  is *where* a due word may be retrieved: for a random half of each learner's words,
+  is *where* a due word may be retrieved: for a random half of each learner's *hard*
+  words,
   the story is allowed to carry them; for the other half, only the practice and the
   drill are. The learner sees nothing different. Comparing 30-day retention of the two
   halves tells us whether story retrieval is worth its cost in director instructions.
