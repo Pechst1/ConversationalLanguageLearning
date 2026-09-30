@@ -4087,14 +4087,33 @@ class MissionScheduler:
         existing = self._this_weeks_letter(user)
         if existing:
             return existing
-        return await self.create(
+        first_letter = self._standalone_count(user=user) == 0
+        # WP-115d «La lettre à répondre»: the week's letter needs the learner's due
+        # words — the hardest first. The ribbon shows their meaning, never the French,
+        # so using a word in the reply is recalling it (the composition task).
+        recall_ids: list[int] = []
+        if not first_letter:
+            with best_effort(self.db, "Courrier: the week's due words"):
+                from app.services.story_words import letter_due_words
+
+                recall_ids = letter_due_words(self.db, user=user)
+        mission = await self.create(
             user=user,
             mission_type="message",
             cadence="weekly",
             use_news=False,
             # WP-99 (W13): the learner's very first letter is the cast's.
-            first_letter=self._standalone_count(user=user) == 0,
+            first_letter=first_letter,
+            preferred_vocabulary_ids=recall_ids or None,
         )
+        if recall_ids:
+            payload = dict(mission.prompt_payload or {})
+            asked = {int(item.get("word_id") or 0) for item in payload.get("target_vocabulary") or [] if isinstance(item, dict)}
+            if asked & set(recall_ids):
+                payload["recall_ribbon"] = True
+                mission.prompt_payload = payload
+                self.db.commit()
+        return mission
 
     def _first_letter(self, user: User) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         """``(story_letter, authored_letter)`` for a learner's first letter — one is set.

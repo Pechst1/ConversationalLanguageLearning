@@ -342,3 +342,14 @@ test('at 320 px the name wins the header line: the status folds to a dot', () =>
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/missions.tsx'), 'utf8');
   assert.equal((page.match(/className="cr-status"/g) || []).length, 2, 'both status chips fold; the count chip stays');
 });
+
+test('WP-115d: a word to recall shows its meaning until the reply uses it', () => {
+  const html = renderToStaticMarkup(
+    h(AtelierV2Root, { as: 'main', language: 'en', className: 'cr' },
+      h(Cr.CrRibbon, { words: [{ t: 'la serrure', recall: 'the lock' }, { t: 'le palier', recall: 'the landing', used: true }] }),
+    ),
+  );
+  assert.match(html, /data-recall="true">the lock</, 'the meaning, not the French, while it is to be recalled');
+  assert.doesNotMatch(html, /la serrure/, 'the French is not handed over');
+  assert.match(html, /lang="fr">le palier</, 'a used word shows its French');
+});

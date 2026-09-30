@@ -163,4 +163,19 @@ def retention_report(
             **pilot(rows),
         },
         "load": load(db, since=since, user_ids=user_ids, now=now),
+        "transfer": transfer(db, since=since, user_ids=user_ids),
     }
+
+
+def transfer(db: Session, *, since: datetime, user_ids: list[Any] | None) -> dict[str, Any]:
+    """WP-115d: reviewed words used unprompted in a reply (``vocab_transfer`` events)."""
+
+    from app.db.models.pilot_event import PilotEvent
+
+    query = select(PilotEvent.user_id, PilotEvent.entity_id).where(
+        PilotEvent.event_type == "vocab_transfer", PilotEvent.occurred_at >= since
+    )
+    if user_ids:
+        query = query.where(PilotEvent.user_id.in_(user_ids))
+    rows = list(db.execute(query).all())
+    return {"events": len(rows), "learners": len({row[0] for row in rows}), "words": len({(row[0], row[1]) for row in rows})}

@@ -899,6 +899,10 @@ learner about their own wording: the scene does NOT end on this reply, so set
 needs_clarification true, give no correction and write no ending. Do not ask that
 question yourself, do not answer it for the learner, and do not say which form is right —
 the learner has to produce it.
+turn_plan.noticed_word, when not null, is a word the learner has been learning and just
+used on their own: if it fits, react to it once, briefly and in character — pleased,
+maybe a little teasing («Tiens, "la clé" ! Tu l'as retenu.») — never as a lesson, never
+correcting it.
 The reply is emotional truth, not customer service: show, in the character's own
 voice, how the learner's words land on them (relief, disappointment, a joke to cover
 hurt, warmth) so the learner feels the relationship move. resolution_fr may be
@@ -6076,7 +6080,7 @@ GRAMMAR_PLAN_KEY = "grammar_plan"
 GRAMMAR_OUTCOME_KEY = "grammar"
 WORDS_OUTCOME_KEY = "words"
 #: WP-115c: the hardest due words today's story carries (director context and brief).
-from app.services.story_words import STORY_WORDS_KEY  # noqa: E402
+STORY_WORDS_KEY = "story_words"  # = app.services.story_words.STORY_WORDS_KEY
 #: WP-93: the five words of the learner's band they have not met yet.
 MOTS_KEY = "mots_a_placer"
 GRAMMAR_MIN_USES = 2
@@ -7660,6 +7664,9 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         "turn_plan": {
             "closing_turn": turns_left <= 0,
             "clarify_form_fr": self_repair.question_fr if self_repair is not None else None,
+            # WP-115d: a word the learner has been reviewing, used here unprompted —
+            # a fact about this turn (the learner wrote it), not their vocabulary.
+            "noticed_word": _noticed_word(db, user, task, answer),
             # A scene is a conversation of `max_turns` exchanges, not one line: until
             # the last one the character answers and moves the scene on.
             "keep_talking": keeps_talking(task, turn_index, self_repair=self_repair),
@@ -7898,6 +7905,67 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         reply_soft_check(turn, story.get("level"), lexical)
 
 
+def _transfer_target_ids(task: Any) -> set[int]:
+    ids: set[int] = set()
+    for target in getattr(task, "targets", None) or []:
+        if str(getattr(target, "kind", "")) in ("vocabulary", "TargetKind.VOCABULARY"):
+            try:
+                ids.add(int(target.id))
+            except (TypeError, ValueError):
+                continue
+    return ids
+
+
+def _noticed_word(db: Session, user: User, task: Any, answer: Any) -> str | None:
+    """WP-115d. The lemma the character may notice, or ``None``; never costs the turn."""
+
+    try:
+        from app.services.story_words import transfer_words
+
+        with db.begin_nested():
+            found = transfer_words(
+                db, user=user, text=getattr(answer, "text", "") or "", exclude_ids=_transfer_target_ids(task)
+            )
+        return found[0]["lemma"] if found else None
+    except Exception:  # pragma: no cover - a reaction is not a turn
+        logger.exception("living_story: transfer word unavailable")
+        return None
+
+
+def credit_transfer(db: Session, *, user: User, task: Any, answer: Any) -> list[int]:
+    """WP-115d: a reviewed word used unprompted is a production review (logged as
+    ``transfer``) and a ``vocab_transfer`` event — the 115e measure of transfer.
+    Idempotent per day through the credit fold; never costs the turn."""
+
+    try:
+        from app.db.models.vocabulary import VocabularyWord
+        from app.services.pilot_events import PilotEventService
+        from app.services.story_words import transfer_words
+        from app.services.vocabulary_credit import VocabularyCreditService
+
+        credited: list[int] = []
+        with db.begin_nested():
+            for row in transfer_words(
+                db, user=user, text=getattr(answer, "text", "") or "", exclude_ids=_transfer_target_ids(task)
+            ):
+                word = db.get(VocabularyWord, row["word_id"])
+                if word is None:
+                    continue
+                VocabularyCreditService(db).apply(
+                    user=user, word=word, event_type="produced_correct", source_type="atelier",
+                    learner_text=getattr(answer, "text", None), source_payload={"task_type": "transfer"},
+                )
+                PilotEventService(db).record(
+                    "vocab_transfer", user_id=user.id, entity_type="vocabulary",
+                    entity_id=str(word.id), payload={"lemma": row["lemma"]}, cost_usd=0.0,
+                )
+                credited.append(int(word.id))
+        return credited
+    except Exception:  # pragma: no cover - a credit is not a turn
+        logger.exception("living_story: transfer credit unavailable")
+        return []
+
+
 def evaluate_turn(
     db: Session,
     *,
@@ -7912,6 +7980,8 @@ def evaluate_turn(
 ) -> ResponseEvaluation:
     from app.services.season import runtime as season_runtime
 
+    if not answer.is_blank:
+        credit_transfer(db, user=user, task=task, answer=answer)
     if season_runtime.is_tentpole(scenario.story_context):
         # WP-111: the owner-approved page answers — the learner's reply is routed to
         # the bible's likely reply it expresses; nothing is generated.

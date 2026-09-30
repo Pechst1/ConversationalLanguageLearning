@@ -196,7 +196,7 @@ export function CrPS({ text }: { text?: string | null }) {
 /* ---------- word ribbon ← target_vocabulary (≤3) as reward chips ----------
    A word already placed flips to the ink square (= done), with the word said
    out loud so the state is never colour alone. */
-export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean }[] }) {
+export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean; recall?: string }[] }) {
   const t = useCrCopy();
   if (!words.length) return null;
   return (
@@ -205,7 +205,12 @@ export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean }
       {words.map((w) => (
         <span role="listitem" key={w.t}>
           <Chip tone={w.used ? 'plain' : 'reward'} icon={<ShapeToken kind={w.used ? 'done' : 'reward'} size="sm" />}>
-            <span lang="fr">{w.t}</span>
+            {/* WP-115d: a word to recall shows its meaning until the reply uses it. */}
+            {w.recall && !w.used ? (
+              <span data-recall="true">{w.recall}</span>
+            ) : (
+              <span lang="fr">{w.t}</span>
+            )}
             {w.used && <span className="av2-sr"> · {t.ribbon_used_sr}</span>}
           </Chip>
         </span>

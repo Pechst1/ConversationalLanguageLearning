@@ -125,3 +125,83 @@ def spoiled_story_words(texts: list[str], story_words: list[dict[str, Any]]) -> 
         if head and f" {head} " in folded:
             spoiled.append(str(row.get("lemma")))
     return spoiled
+
+
+#: WP-115d: the weekly letter asks for this many of the learner's due words.
+LETTER_WORDS = 3
+
+
+def letter_due_words(db: Session, *, user: Any, now: datetime | None = None, limit: int = LETTER_WORDS) -> list[int]:
+    """WP-115d: the word ids the week's letter asks the learner to use — the hardest due
+    words first, then the longest-due others. Only the app's own FSRS cards, only words
+    with a meaning in the learner's language (the letter shows the meaning, never the
+    French: using the word means recalling it)."""
+
+    from app.services.glosses import normalize_language, resolve_gloss
+
+    now = now or datetime.now(UTC)
+    chosen = [row["word_id"] for row in story_due_words(db, user=user, now=now, limit=limit)]
+    if len(chosen) >= limit:
+        return chosen[:limit]
+    due = or_(
+        UserVocabularyProgress.due_at <= now,
+        and_(UserVocabularyProgress.due_at.is_(None), UserVocabularyProgress.next_review_date <= now),
+    )
+    rows = db.execute(
+        select(UserVocabularyProgress, VocabularyWord)
+        .join(VocabularyWord, VocabularyWord.id == UserVocabularyProgress.word_id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            or_(UserVocabularyProgress.scheduler.is_(None), UserVocabularyProgress.scheduler != "anki"),
+            UserVocabularyProgress.reps > 0,
+            due,
+        )
+        .order_by(UserVocabularyProgress.due_at.asc().nullslast(), VocabularyWord.id.asc())
+        .limit(limit * 4)
+    ).all()
+    native = normalize_language(getattr(user, "native_language", None))
+    for _progress, word in rows:
+        if len(chosen) >= limit:
+            break
+        gloss, language = resolve_gloss(word, native)
+        if word.id not in chosen and gloss and language == native:
+            chosen.append(int(word.id))
+    return chosen
+
+
+def transfer_words(
+    db: Session, *, user: Any, text: str, exclude_ids: set[int] | None = None, limit: int = 1
+) -> list[dict[str, Any]]:
+    """WP-115d: words the learner has been reviewing that their reply uses *unprompted*
+    (not a target of the reply) — transfer, the use research counts most. Read-only."""
+
+    from app.services.living_story import _folded
+
+    folded = f" {_folded(text or '')} "
+    if not folded.strip():
+        return []
+    rows = db.execute(
+        select(VocabularyWord.id, VocabularyWord.word)
+        .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.reps > 0,
+            or_(UserVocabularyProgress.scheduler.is_(None), UserVocabularyProgress.scheduler != "anki"),
+        )
+        .order_by(UserVocabularyProgress.lapses.desc(), VocabularyWord.id.asc())
+        .limit(400)
+    ).all()
+    found: list[dict[str, Any]] = []
+    for word_id, lemma in rows:
+        if int(word_id) in (exclude_ids or set()) or not lemma:
+            continue
+        head = _folded(str(lemma))
+        parts = head.split(" ", 1)
+        if len(parts) == 2 and parts[0] in {"le", "la", "les", "l", "un", "une"}:
+            head = parts[1]
+        if len(head) >= 4 and f" {head} " in folded:
+            found.append({"word_id": int(word_id), "lemma": str(lemma)})
+            if len(found) >= limit:
+                break
+    return found
+

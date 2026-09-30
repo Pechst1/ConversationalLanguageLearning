@@ -304,3 +304,18 @@ the story's contribution can be proven rather than assumed.
   learner's to drill; the mission phrase bank stays out.
 - **Not yet:** chunks as card units; «Easy» from answer speed.
 
+## 12. Status — 115d built (2026-09-30)
+
+- **The week's letter** (`MissionScheduler.ensure_weekly`) asks for up to three of the
+  learner's due words, the hardest first (`story_words.letter_due_words`); the letter
+  is written to need them (the existing vocabulary focus) and its «À placer» ribbon
+  shows their *meaning* until the reply uses them — then the French. Using them is
+  the composition task; the Courrier's existing check credits each use.
+- **Transfer:** a reviewed word the learner uses unprompted in a reply (not one of its
+  targets) is credited as a production review (logged `transfer`), recorded as a
+  `vocab_transfer` event, and handed to the reply as `turn_plan.noticed_word`, so the
+  character may notice it once («Tiens, "la clé" ! Tu l'as retenu.»). The report
+  (`vocab_metrics.retention_report`) counts transfer.
+- **Not yet:** the letter-day version of the journey shows no ribbon (the Courrier
+  page does).
+
