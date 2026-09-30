@@ -1,6 +1,6 @@
 # WP-115 · Les mots qui reviennent — vocabulary inside the story
 
-*2026-09-30. The owner asked whether vocabulary review sits in the right place and is the
+*2026-09-30, revised the same day with the owner's answers (§7). The owner asked whether vocabulary review sits in the right place and is the
 best version it can be, and how Anki-style review could become disruptive, effective and
 fun. This is the answer: a map of what exists, the evidence, and a proposed package. It
 is a proposal; nothing is built.*
@@ -13,10 +13,15 @@ flat, self-rated Anki clone in the Cahier (`/vocabulary/review`). An owner decis
 outside the story, which is the one thing the product has that nobody else does. Its
 scheduler is also weaker than it looks.
 
-The disruptive move is to **make the story the scheduler's delivery vehicle**. When a
-word is due, a character needs it. The learner retrieves it inside the scene, graded, in
-the voice of the character they learned it with. The Cahier becomes the safety net, not
-the main place.
+The disruptive move is to **make the story one of the scheduler's delivery vehicles**.
+When a word is due, a character needs it, and the learner retrieves it inside the scene,
+graded, in the voice of the character they learned it with.
+
+**One memory, several places.** One scheduler decides what is due. The story, the
+day's practice and the Cahier's drill are places where a due word can be retrieved, and
+all of them credit the same card. The drill stays a first-class accelerator (owner,
+2026-09-30): the story alone would be too slow for new words, and mixing words into
+grammar practice distracts.
 
 ## 2. What exists (mapped 2026-09-30)
 
@@ -142,12 +147,19 @@ The format follows memory stability:
 
 A1 learners stay longer on receptive recall; B1 learners move to production sooner.
 
-### 4.4 The Cahier, rebuilt as the safety net
+### 4.4 The Cahier's drill: the accelerator (and the safety net)
+- **The learner sets the pace, as in Anki** (owner, 2026-09-30):
+  - **new words per day** and **maximum reviews per day** are learner settings;
+  - the defaults are moderate, and the ceilings are high for learners who want more;
+  - the target retention stays at 0.87.
+  - The story takes at most 2 due words a day; the rest are the drill's.
+- **Drill to go faster** (replaces the evening review). An offer, never a nag, computed
+  from the learner's own numbers: «Avec 10 mots de plus par jour, tu atteins A2.2 environ
+  30 % plus tôt», from the level's word target, the words held and the current pace. An
+  optional reminder, off by default.
 - **Objective grading**, using the panel and voice as cues.
 - **Successive relearning inside a session:** an item answered wrongly comes back at the
   end of the session until it is right once.
-- **An opt-in evening review of at most 5 items**, with the morning relearn in the day's
-  warm-up.
 - **Leech rescue.** After 5 lapses the card changes method, not frequency:
   - «Gus a une astuce»: an image or mnemonic;
   - a minimal-pair audio contrast;
@@ -164,11 +176,15 @@ A1 learners stay longer on receptive recall; B1 learners move to production soon
 - **Efficiency:** words retained at 30 days per minute of review.
 - **Transfer:** unprompted correct use of scheduled words in chat.
 - **Engagement:** D1, D7 and D30 return; due vs done; backlog.
-- **Design:** randomise *within each learner, per word*. Half the due words come back in
-  the story, half only in the practice and Cahier. A small pilot then has power.
+- **Does the story help? (optional, 4 weeks).** The scheduler stays one. The only switch
+  is *where* a due word may be retrieved: for a random half of each learner's words,
+  the story is allowed to carry them; for the other half, only the practice and the
+  drill are. The learner sees nothing different. Comparing 30-day retention of the two
+  halves tells us whether story retrieval is worth its cost in director instructions.
+  Without it, "the story helps" stays an assumption. The switch is removed after the
+  pilot.
   - Keep a no-probe control subset.
   - Analyse intention-to-treat.
-  - Run for at least 4 weeks.
 
 ## 5. Where it lives after this
 - **The day** (WP-109): warm-ups are the morning relearn and due words; the episode
@@ -190,13 +206,19 @@ A1 learners stay longer on receptive recall; B1 learners move to production soon
 Suggested order: **115a → 115e → 115b → 115c → 115d.** Measurement comes second so that
 the story's contribution can be proven rather than assumed.
 
-## 7. Decisions for the owner
-1. **Revisit the 09-23 decision** that "word reviews live mostly in the word drill"?
-   Proposed: they live mostly in the day and the story, with the Cahier as the safety
-   net.
-2. **Retention target and daily cap.** Proposed: 0.87 and at most 20 reviews a day.
-3. **Self-rating.** Retire it for Atelier words (earned grades only), keeping it for
-   imported Anki decks?
-4. **Spoken answers** as a graded format, with typing always offered.
-5. **An opt-in evening review** notification: at most 5 items, off by default.
-6. **The pilot design:** per-word randomisation between story and Cahier for 4 weeks.
+## 7. Decisions (owner, 2026-09-30)
+1. **The 09-23 decision is revised.** Due words are carried by the day and the story, and
+   the drill stays a first-class way to go faster (the story alone is too slow for new
+   words, and grammar practice must not be crowded with words).
+2. **Anki-like settings:** the learner sets new words per day and maximum reviews per
+   day, with high ceilings. The target retention is 0.87.
+3. **Self-rating** (decided by me as the implementer): grades are earned from answers
+   everywhere for the app's own words (typed, chosen, spoken). The drill keeps an
+   optional **flashcard mode** with Anki's four buttons for fast learners, and imported
+   Anki decks keep self-rating. A self-rated answer never counts as production.
+4. **Spoken answers** (decided by me): a graded production format, lenient (quotes and
+   accents folded), with typing always offered. It is not required.
+5. **The evening review becomes «drill to go faster»:** an in-app offer with an honest
+   projection from the learner's own pace. An optional reminder, off by default.
+6. **The pilot** is the optional per-word switch in §4.5. The scheduler is one either
+   way; it only measures whether story delivery earns its place. It can be skipped.
