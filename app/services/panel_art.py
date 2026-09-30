@@ -72,7 +72,10 @@ FAILED = "failed"
 #: come within ``RENDERING_TIMEOUT_SECONDS`` is served as its plate, so a lost job or a
 #: restarted process can never leave a page «sous presse» forever.
 RENDERING_SINCE_KEY = "rendering_since"
-RENDERING_TIMEOUT_SECONDS = 180.0
+#: Default only: the live value is ``settings.ATELIER_PANEL_ART_RENDER_TIMEOUT_SECONDS`` (read
+#: through :func:`rendering_timeout_seconds`). Four panels take ~95 s with reference pacing
+#: and more under load, so the heal must not fire on a drawing that is still coming.
+RENDERING_TIMEOUT_SECONDS = 240.0
 TIMEOUT_REASON = "timeout"
 
 PENDING_KEY = "panel_art_pending"
@@ -169,6 +172,13 @@ def enabled() -> bool:
 
 def panel_cost_usd() -> float:
     return max(0.0, float(settings.ATELIER_PANEL_ART_COST_USD_PER_PANEL))
+
+
+def rendering_timeout_seconds() -> float:
+    try:
+        return max(1.0, float(settings.ATELIER_PANEL_ART_RENDER_TIMEOUT_SECONDS))
+    except (AttributeError, TypeError, ValueError):
+        return RENDERING_TIMEOUT_SECONDS
 
 
 def _band_allowed(level_band: str | None) -> bool:
@@ -319,6 +329,7 @@ def heal_stale_rendering(db: Session, scenes, *, now: float | None = None) -> in
     (written before WP-108) counts from its creation. Returns how many were released."""
 
     stamp = time.time() if now is None else now
+    timeout = rendering_timeout_seconds()
     healed = 0
     for scene in scenes:
         for panel in scene.panels:
@@ -331,7 +342,7 @@ def heal_stale_rendering(db: Session, scenes, *, now: float | None = None) -> in
                 if created is not None and created.tzinfo is None:
                     created = created.replace(tzinfo=UTC)  # SQLite hands back naive UTC
                 since = created.timestamp() if created is not None else None
-            if since is None or stamp - float(since) < RENDERING_TIMEOUT_SECONDS:
+            if since is None or stamp - float(since) < timeout:
                 continue
             meta = {k: v for k, v in meta.items() if k not in (AWAITING_KEY, RENDERING_SINCE_KEY)}
             meta.update(image_status=FAILED, image_error=TIMEOUT_REASON)
@@ -342,8 +353,22 @@ def heal_stale_rendering(db: Session, scenes, *, now: float | None = None) -> in
     return healed
 
 
+def savepoint_released(session: Session) -> bool:
+    """True when ``after_commit`` is only a SAVEPOINT release, not the real commit.
+
+    SQLAlchemy fires ``after_commit`` (and ``after_rollback``) for ``begin_nested()`` too.
+    The journey binds a scene inside a savepoint (WP-69), so treating the release as the
+    commit dispatched the drawing while the outer transaction was still open: on PostgreSQL
+    the worker thread could not see the scene yet, found nothing and returned silently, and
+    the panels sat ``rendering`` until the heal (2026-09-30)."""
+
+    return session.in_nested_transaction()
+
+
 @event.listens_for(Session, "after_commit")
 def _dispatch_after_commit(session: Session) -> None:
+    if savepoint_released(session):
+        return  # the job stays queued for the real commit
     for job in session.info.pop(PENDING_KEY, []):
         try:
             if dispatcher is not None:
@@ -360,6 +385,11 @@ def _dispatch_after_commit(session: Session) -> None:
 
 @event.listens_for(Session, "after_rollback")
 def _discard_after_rollback(session: Session) -> None:
+    if savepoint_released(session):
+        # A savepoint rolled back; earlier work in the transaction (and its queued
+        # drawings) is still going to commit. A job for the rolled-back scene finds
+        # nothing to draw and ends as «missing».
+        return
     session.info.pop(PENDING_KEY, None)
 
 
@@ -593,6 +623,10 @@ def _write_back(factory, job: PanelJob, stored: dict | None, error: str | None) 
         if stored is not None and str(stored.get("url") or "").startswith(("/", "http")):
             panel.image_url = stored["url"]
             panel.image_payload = {k: v for k, v in stored.items() if k != "prompt"}
+            # A drawing that lands after the timeout heal still wins: the panel is READY and
+            # the stale ``timeout`` reason goes with it.
+            for stale in ("image_error", RENDERING_SINCE_KEY, AWAITING_KEY):
+                meta.pop(stale, None)
             meta.update(image_source=ART_SOURCE, image_status=READY, image_prompt_sent=job.prompt)
             scene.image_model = settings.OPENAI_IMAGE_MODEL
             scene.image_quality = settings.OPENAI_IMAGE_QUALITY

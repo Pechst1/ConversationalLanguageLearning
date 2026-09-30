@@ -216,6 +216,8 @@ def _executor() -> ThreadPoolExecutor:
 
 @event.listens_for(Session, "after_commit")
 def _dispatch_after_commit(session: Session) -> None:
+    if session.in_nested_transaction():
+        return  # a SAVEPOINT release, not the commit (see panel_art.savepoint_released)
     for job in session.info.pop(PENDING_KEY, []):
         try:
             if dispatcher is not None:
@@ -228,6 +230,8 @@ def _dispatch_after_commit(session: Session) -> None:
 
 @event.listens_for(Session, "after_rollback")
 def _discard_after_rollback(session: Session) -> None:
+    if session.in_nested_transaction():
+        return
     session.info.pop(PENDING_KEY, None)
 
 

@@ -124,7 +124,7 @@ def test_a_broker_failure_still_draws_in_process(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# The three-minute timeout, healed on read
+# The timeout, healed on read
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +142,7 @@ class _Db:
 
 def test_heal_only_releases_panels_past_the_timeout():
     now = 10_000.0
-    old = _panel({"image_status": "rendering", "rendering_since": now - 181})
+    old = _panel({"image_status": "rendering", "rendering_since": now - 241})
     fresh = _panel({"image_status": "rendering", "rendering_since": now - 60})
     waiting = _panel({"image_status": "rendering", "rendering_since": now - 500, "awaiting_prefetch": "p"})
     ready = _panel({"image_status": "ready", "rendering_since": now - 900})
@@ -199,7 +199,7 @@ def test_the_episode_read_serves_a_stale_rendering_panel_as_its_plate(
         .all()
     )
     assert len(rows) == len(first["panels"])
-    stale = time.time() - 4 * 60
+    stale = time.time() - 5 * 60
     for row in rows[:-1]:
         row.generation_metadata = {**row.generation_metadata, "rendering_since": stale}
     db_session.commit()
@@ -211,7 +211,7 @@ def test_the_episode_read_serves_a_stale_rendering_panel_as_its_plate(
         episode = read()
         statuses = [p["image_status"] for p in episode["panels"]]
         assert statuses[:-1] == ["setting_reference"] * (len(statuses) - 1), "the plate, not «sous presse»"
-        assert statuses[-1] == "rendering", "a panel inside its three minutes keeps drawing"
+        assert statuses[-1] == "rendering", "a panel inside its timeout keeps drawing"
         assert all(p["image_url"] for p in episode["panels"])
 
     db_session.expire_all()

@@ -327,6 +327,14 @@ class Settings(BaseSettings):
         ),
     )
     # ---- WP-88: panel art made production-safe (begin) -------------------
+    ATELIER_PANEL_ART_RENDER_TIMEOUT_SECONDS: float = Field(
+        240.0,
+        ge=1,
+        description=(
+            "A panel still «rendering» after this long is served as its plate (heal on read). "
+            "Four panels take ~95 s with reference pacing and more under load."
+        ),
+    )
     ATELIER_PANEL_ART_COST_USD_PER_PANEL: float = Field(
         0.06,
         ge=0,
