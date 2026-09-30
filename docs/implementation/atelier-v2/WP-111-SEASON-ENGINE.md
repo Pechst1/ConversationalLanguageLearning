@@ -42,6 +42,10 @@ reaction and the lines leading into the next question said in the thread, other 
 («Margaux : Elle prenait ça.»); the day's hook as the ending. Solves are not posed yet (WP-112):
 the story takes the solve's default (or the flag's). The full page is already stored on the scene.
 
+*Since WP-110:* once the day is finished, the episode reads as the whole page — every
+panel, the learner's lines as balloons, the reactions they routed to, the solves' cards,
+the hook — in the reader and in the Feuilleton archive (`WP-110-LA-PLANCHE-VIVANTE.md`).
+
 ## 4. Interpretations (owner to confirm)
 
 *Owner, 2026-09-30: 1–3 approved. A real-model read of the first ten days approved with a US$1 cap.*

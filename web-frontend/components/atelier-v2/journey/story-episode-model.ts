@@ -136,7 +136,21 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
     // The raw index is kept before filtering: it is the line's audio key.
     .map((line, rawIndex) => ({ line, rawIndex }))
     .filter(({ line }) => line && String(line.text_fr || '').trim())
-    .map(({ line, rawIndex }, index) => ({
+    .map(({ line, rawIndex }, index) => {
+      const you = (line as { you?: unknown }).you === true;
+      if (you) {
+        // WP-110: the learner's own line — a balloon, no face, no clip.
+        return {
+          key: `${panel.id}-l${index}`,
+          who: storyCharacterName('toi', null),
+          fr: String(line.text_fr).trim(),
+          en: '',
+          character: 'toi',
+          faceId: null,
+          you: true,
+        } satisfies ReaderLine;
+      }
+      return {
       key: `${panel.id}-l${index}`,
       who: storyCharacterName(line.character_id, line.character_name),
       fr: String(line.text_fr).trim(),
@@ -153,7 +167,30 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
       faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
       // WP-92: the day's rule in this line, for «Rayons X» (the focus unit only).
       ...lineMarks(line, episode),
-    }));
+      };
+    });
+}
+
+/**
+ * WP-110 «La planche vivante»: a finished day's page as the reader's panels — the
+ * scene, the turn with the learner's line in it, the reactions, the solve, the
+ * drawn ending. Null while the day is unfinished (the server sends no page).
+ */
+export function storyPagePanels(
+  episode: StoryEpisode | null | undefined,
+): Array<StoryPanel & { movement: string }> | null {
+  const rows = episode?.page?.rows;
+  if (!rows || !rows.length) return null;
+  return rows.map((row, index) => ({
+    id: row.id,
+    index,
+    narration_fr: row.narration_fr,
+    alt_native: row.alt_native ?? null,
+    image_url: row.image_url,
+    image_status: row.image_status,
+    dialogue: row.dialogue as unknown as StoryPanel['dialogue'],
+    movement: row.movement,
+  }));
 }
 
 function lineMarks(line: StoryDialogueLine, episode?: StoryEpisode | null): { marks?: ReaderLine['marks'] } {
@@ -227,7 +264,9 @@ export function storyPanelAlt(panel: StoryPanel | null | undefined): string {
 /** The reader's stage list for one story-engine episode, in panel order. */
 export function buildStoryStages(episode: StoryEpisode | null | undefined): ReaderStage[] {
   if (!episode) return [];
-  const panels = [...(episode.panels || [])].sort((a, b) => a.index - b.index);
+  const page = storyPagePanels(episode);
+  const panels: Array<StoryPanel & { movement?: string }> =
+    page ?? [...(episode.panels || [])].sort((a, b) => a.index - b.index);
   const stages: ReaderStage[] = panels.map((panel, ordinal) => {
     const lines = panelLines(panel, episode);
     const character = lines.map((line) => line.character).find(Boolean) || '';
@@ -248,6 +287,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       lines,
       caption: stripPanelPrefix(panel.narration_fr),
       tasks: [],
+      ...(panel.movement ? { movement: panel.movement } : {}),
     };
   });
 
@@ -261,6 +301,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       hookQuestion: String(episode.resolution.text_fr || '').trim(),
       hookBeat: String(episode.resolution.summary_native || '').trim(),
       tasks: [],
+      ...(episode.page?.a_suivre_fr ? { aSuivre: String(episode.page.a_suivre_fr).trim() } : {}),
     });
   }
   return stages;
@@ -373,12 +414,15 @@ export function panelReaderVariant(
   stage: ReaderStage | null | undefined,
   variant: 'auto' | 'bubble' | 'line' = READER_VARIANT,
 ): PanelVariant {
-  if (variant === 'line') return 'line';
   if (!stage || stage.kind !== 'panel') return 'line';
   const hasArt = stage.artStatus === 'ready' && Boolean(stage.imageUrl);
   if (!hasArt) return 'line';
   const spoken = (stage.lines || []).filter((line) => String(line.fr || '').trim());
   if (!spoken.length) return 'line';
+  // WP-110 (brief of 2026-09-30, S-2/F-2): the learner's own line is the balloon in
+  // its panel whatever the switch says; the characters keep their captions.
+  if (spoken.some((line) => line.you)) return 'bubble';
+  if (variant === 'line') return 'line';
   if (variant === 'bubble') return 'bubble';
   if (spoken.length !== 1) return 'line';
   return String(spoken[0].who || '').trim() ? 'bubble' : 'line';
@@ -918,7 +962,12 @@ export function storyStagesWithFinale(
   finale: ReaderResolutionStage,
 ): ReaderStage[] {
   const panels = buildStoryStages(episode).filter((stage) => stage.kind === 'panel');
-  return [...panels, { ...finale, ordinal: panels.length + 1 }];
+  // WP-110: a finished page closes on its «À suivre…».
+  const aSuivre = String(episode?.page?.a_suivre_fr || '').trim();
+  return [
+    ...panels,
+    { ...finale, ordinal: panels.length + 1, ...(aSuivre && !finale.aSuivre ? { aSuivre } : {}) },
+  ];
 }
 
 type JourneyLike = {

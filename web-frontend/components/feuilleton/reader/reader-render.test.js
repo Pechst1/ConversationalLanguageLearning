@@ -452,3 +452,33 @@ test('WP-90: the ending is the last panel — the case finale', () => {
   assert.ok(/wait-face/.test(wait), 'the wait has a face');
   assert.ok(!/fr-next/.test(wait), 'and no dead primary');
 });
+
+// ---------------------------------------------------------------------------
+// WP-110 — the learner's own line is the balloon in its panel
+// ---------------------------------------------------------------------------
+
+test('WP-110: your line is the balloon on the art; the character keeps a caption', () => {
+  const turn = {
+    kind: 'panel', key: 'panel:turn', ordinal: 1, panelId: 'turn', panelIndex: 0, title: '', beat: '',
+    imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: 'gus',
+    caption: '', tasks: [], movement: 'turn',
+    lines: [
+      { key: 'l0', who: 'Gus', fr: 'Vous êtes qui, exactement ?', en: '', character: 'gus' },
+      { key: 'l1', who: 'Vous', fr: 'Ma grand-mère était Odile.', en: '', character: 'toi', you: true },
+    ],
+  };
+  const markup = renderStory({ stages: [turn], index: 0, panelVariant: () => 'bubble' });
+  const bubble = markup.slice(markup.indexOf('class="fr-bubble"'), markup.indexOf('</figure>'));
+  assert.ok(/data-you="true"/.test(bubble), 'the balloon is marked as yours');
+  assert.ok(/grand-mère/.test(bubble), 'your words are in the balloon');
+  assert.ok(!/exactement/.test(bubble), 'the character is not');
+  const captions = markup.slice(markup.indexOf('</figure>'));
+  assert.ok(/exactement/.test(captions), 'the character keeps a caption under the art');
+});
+
+test('WP-110: the replay closes on «À suivre…» with tomorrow’s line', () => {
+  const ending = { kind: 'resolution', key: 'resolution:x', ordinal: 1, character: 'toi', hookQuestion: 'Fin.', hookBeat: '', tasks: [], aSuivre: 'Demain, Camille.' };
+  const markup = renderStory({ stages: [ending], index: 0 });
+  assert.ok(/data-a-suivre="true"/.test(markup));
+  assert.ok(/Demain, Camille\./.test(markup));
+});

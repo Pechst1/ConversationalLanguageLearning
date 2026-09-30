@@ -693,6 +693,37 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-ink);
       }
 
+      /* WP-110 — the learner's own line: the balloon rises from the bottom
+         right, where the panels draw Toi from behind the shoulder; the tail
+         corner points down-right at them, and the press is red — the one
+         colour the page keeps for you. */
+      .av2 .fr-bubble[data-you] {
+        top: auto;
+        bottom: 14px;
+        left: 60px;
+        right: 14px;
+        border-radius: 16px 16px 4px 16px;
+        box-shadow: 0 3px 0 var(--fr-red);
+      }
+      .av2 .fr-bubble[data-you] .fr-speaker {
+        color: var(--fr-red);
+        text-align: right;
+      }
+      .av2 .fr-bubble[data-you] .fr-line {
+        font-style: normal;
+      }
+      .av2 .fr-a-suivre__label {
+        margin-top: 16px;
+      }
+      .av2 .fr-a-suivre {
+        margin: 4px 0 0;
+        font-family: var(--fr-serif);
+        font-style: italic;
+        font-size: 1.0625rem;
+        line-height: 1.35;
+        color: var(--fr-ink);
+      }
+
       /* variant B — the replies under the art. WP-90: compact captions — the
          speaker's face (xs, the play button) beside the name and the line —
          so a three-line panel fits a phone without scrolling. */

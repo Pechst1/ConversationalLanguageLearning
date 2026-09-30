@@ -310,6 +310,46 @@ export class LearnerWalk {
     return kinds;
   }
 
+  /**
+   * WP-110: the day just played, re-read from the Feuilleton as one page — every
+   * panel shot, the learner's own line looked for as a balloon, the page read to its
+   * «À suivre…». Returns what was seen.
+   */
+  async readThePage() {
+    const page = this.page;
+    await page.goto(`${this.stack.web}/graphic-novel`, { waitUntil: 'domcontentloaded' });
+    await page.locator('a[data-planche]').first().waitFor({ timeout: 20000 });
+    const planches = await page.locator('a[data-planche]').evaluateAll((nodes) =>
+      nodes.map((n) => ({ key: n.getAttribute('data-planche') || '', href: n.getAttribute('href') || '' })),
+    );
+    const latest = planches.sort((a, b) => (a.key < b.key ? 1 : -1))[0];
+    await page.goto(`${this.stack.web}${latest.href}`, { waitUntil: 'domcontentloaded' });
+    const stage = page.locator('.fr-stage');
+    await stage.first().waitFor({ timeout: 20000 });
+    await sleep(800);
+    // An authored stand-in day (the café fallback) has no engine page: it keeps
+    // its plain panels and the reply box under them.
+    const authored = (await page.locator('.fa-day[data-authored]').count()) > 0;
+    const seen = { movements: [], you: [], aSuivre: false, panels: 0, authored, replyBox: (await page.locator('[data-reply]').count()) > 0 };
+    for (let i = 0; i < 40; i += 1) {
+      const movement = (await stage.getAttribute('data-movement').catch(() => null)) || (await stage.getAttribute('data-kind'));
+      seen.movements.push(movement);
+      seen.panels += 1;
+      for (const text of await page.locator('.fr-bubble[data-you]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
+      if (await page.locator('[data-a-suivre]').count()) seen.aSuivre = true;
+      await this.shoot(`page-${movement}`);
+      const position = (await stage.getAttribute('aria-label')) || '';
+      const [, at, of] = position.match(/(\d+)\D+(\d+)/) || [];
+      if (!at || Number(at) >= Number(of)) break;
+      // The reader pages with the arrow keys (its own shortcut); the day view's nav
+      // row can sit under the phone's tab bar.
+      await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+      await page.keyboard.press('ArrowRight');
+      await sleep(500);
+    }
+    return seen;
+  }
+
   async visit(routePath, label) {
     const page = this.page;
     await page.goto(`${this.stack.web}${routePath}`, { waitUntil: 'domcontentloaded' });

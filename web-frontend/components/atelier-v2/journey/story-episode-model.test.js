@@ -428,3 +428,61 @@ test('WP-90: the episode cache — one request at a time, and a failed re-read k
   store.clearStoryEpisodes();
   assert.equal(store.getStoryEpisodeEntry('j1'), undefined);
 });
+
+// ---------------------------------------------------------------------------
+// WP-110 «La planche vivante»
+// ---------------------------------------------------------------------------
+
+const finished = {
+  ...episode,
+  status: 'completed',
+  resolution: { text_fr: 'Deux clés pour la même porte.', summary_native: 'Two keys.' },
+  page: {
+    a_suivre_fr: 'Demain, Camille.',
+    rows: [
+      {
+        id: 'act:a.p1:0', movement: 'act', narration_fr: 'Paris. Il pleut.',
+        dialogue: [], image_url: '/assets/serial/locations/marche_canal.webp', image_status: 'setting_reference',
+      },
+      {
+        id: 'turn:a.p6:1', movement: 'turn', narration_fr: '',
+        dialogue: [
+          { character_id: 'gus', character_name: 'Augustin « Gus » de Roncourt', text_fr: 'Vous êtes qui, exactement ?', kind: 'speech', you: false },
+          { character_id: 'toi', character_name: null, text_fr: "Odile, c'est ma grand-mère.", kind: 'you', you: true },
+        ],
+        image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'setting_reference',
+      },
+      {
+        id: 'reaction:r1:2', movement: 'reaction', narration_fr: '',
+        dialogue: [{ character_id: 'margaux', character_name: 'Margaux', text_fr: 'Elle prenait ça.', kind: 'speech', you: false }],
+        image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'setting_reference',
+      },
+    ],
+  },
+};
+
+test('WP-110: a finished day reads as its page — the scene, your line, the reactions, then the ending', () => {
+  const stages = model.buildStoryStages(finished);
+  assert.deepEqual(stages.map((stage) => stage.movement ?? stage.kind), ['act', 'turn', 'reaction', 'resolution']);
+  const turn = stages[1];
+  const mine = turn.lines.filter((line) => line.you);
+  assert.equal(mine.length, 1);
+  assert.equal(mine[0].fr, "Odile, c'est ma grand-mère.");
+  assert.equal(mine[0].faceId, null, 'the learner has no drawn face');
+  assert.equal(model.panelReaderVariant(turn, 'auto'), 'bubble', 'your line is the balloon in its panel');
+  assert.equal(model.panelReaderVariant(turn), 'bubble', 'even with the owner’s captions switch (variant B)');
+  assert.equal(model.panelReaderVariant(stages[2]), 'line', 'a character keeps a caption');
+  assert.equal(stages[3].aSuivre, 'Demain, Camille.');
+});
+
+test('WP-110: an unfinished day keeps its scene panels (no page, nothing said yet)', () => {
+  const stages = model.buildStoryStages({ ...finished, status: 'available', resolution: null, page: null });
+  assert.deepEqual(stages.map((stage) => stage.panelId), ['p1', 'p2']);
+});
+
+test('WP-110: the ending step closes the finished page on «À suivre…»', () => {
+  const finale = model.storyFinaleStage('res-1', { character_line_fr: 'Deux clés.' }, { id: 'margaux', name: 'Margaux' });
+  const stages = model.storyStagesWithFinale(finished, finale);
+  assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
+  assert.equal(stages[3].aSuivre, 'Demain, Camille.');
+});

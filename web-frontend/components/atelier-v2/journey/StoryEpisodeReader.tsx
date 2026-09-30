@@ -182,6 +182,17 @@ export function StoryEpisodeReader({
     setFurthest(startRef.current);
   }, [episode.id, finale?.key]);
 
+  // WP-110: the finished page arrives while the ending is open (it has more
+  // panels than the scene did). A learner still on the ending stays on it.
+  const stageCount = useRef(stages.length);
+  useEffect(() => {
+    const before = stageCount.current;
+    stageCount.current = stages.length;
+    if (!finale || before === stages.length) return;
+    setIndex((current) => (current === before - 1 ? stages.length - 1 : current));
+    setFurthest((current) => (current === before - 1 ? stages.length - 1 : current));
+  }, [stages.length, finale]);
+
   useEffect(
     () => () => {
       if (timer.current) window.clearTimeout(timer.current);

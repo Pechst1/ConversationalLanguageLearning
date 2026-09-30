@@ -443,6 +443,7 @@ export function FeuilletonReader({
         className="fr-stage"
         data-char={stage.character || undefined}
         data-kind={stage.kind}
+        data-movement={stage.kind === 'panel' ? stage.movement : undefined}
         role="group"
         aria-roledescription={t.roledescription}
         aria-label={positionLabel}
@@ -863,8 +864,11 @@ function PanelBody({
      variant moves the single reply onto the picture it belongs to; nothing
      else about the panel changes, and the words are the same words. */
   if (variant) {
-    const bubbleLine = variant === 'bubble' ? stage.lines[0] : null;
-    const speech = (variant === 'bubble' ? stage.lines.slice(1) : stage.lines).map((line) => (
+    // WP-110: when the learner spoke in this panel, their line is the balloon;
+    // the characters keep their captions (S-2/F-2).
+    const bubbleLine =
+      variant === 'bubble' ? stage.lines.find((line) => line.you) ?? stage.lines[0] : null;
+    const speech = stage.lines.filter((line) => line !== bubbleLine).map((line) => (
       <SpeechBody
         key={line.key}
         line={line}
@@ -891,6 +895,7 @@ function PanelBody({
               <div
                 className="fr-bubble"
                 data-char={bubbleLine.character || stage.character || undefined}
+                data-you={bubbleLine.you ? 'true' : undefined}
               >
                 <p className="fr-speaker" data-face={bubbleLine.faceId ? 'true' : undefined}>
                   {bubbleLine.faceId && <SpeakerFace line={bubbleLine} voice={voice} t={t} />}
@@ -1034,6 +1039,15 @@ function FinaleBody({
             </div>
           )}
           {finale.summary && <p className="fr-finale__summary">{finale.summary}</p>}
+          {/* WP-110: «À suivre…» — tomorrow's line closes the page. */}
+          {stage.aSuivre && (
+            <div className="fr-notice" data-a-suivre-box="true">
+              <p className="fr-eyebrow">{t.to_follow}</p>
+              <p className="fr-a-suivre" lang="fr" data-a-suivre="true">
+                {frenchSpacing(stage.aSuivre)}
+              </p>
+            </div>
+          )}
           {extra}
         </>
       )}
@@ -1042,12 +1056,25 @@ function FinaleBody({
 }
 
 function ResolutionBody({ stage, t }: { stage: Extract<ReaderStage, { kind: 'resolution' }>; t: ReaderCopy }) {
-  if (!stage.hookQuestion && !stage.hookBeat) return null;
+  if (!stage.hookQuestion && !stage.hookBeat && !stage.aSuivre) return null;
+  if (!stage.aSuivre) {
+    return (
+      <div className="fr-notice" data-char={stage.character || undefined}>
+        <p className="fr-eyebrow">{t.to_follow}</p>
+        {stage.hookQuestion && <h2>{stage.hookQuestion}</h2>}
+        {stage.hookBeat && <p>{stage.hookBeat}</p>}
+      </div>
+    );
+  }
+  // WP-110: the ending, then «À suivre…» with tomorrow's line — the page's last words.
   return (
     <div className="fr-notice" data-char={stage.character || undefined}>
-      <p className="fr-eyebrow">{t.to_follow}</p>
       {stage.hookQuestion && <h2>{stage.hookQuestion}</h2>}
       {stage.hookBeat && <p>{stage.hookBeat}</p>}
+      <p className="fr-eyebrow fr-a-suivre__label">{t.to_follow}</p>
+      <p className="fr-a-suivre" lang="fr" data-a-suivre="true">
+        {frenchSpacing(stage.aSuivre)}
+      </p>
     </div>
   );
 }

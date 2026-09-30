@@ -65,6 +65,8 @@ export type ReaderLine = {
    * trimmed line). Drawn only while the learner has the marks on.
    */
   marks?: Array<{ start: number; end: number }>;
+  /** WP-110: the learner's own line, drawn as the balloon in its panel. */
+  you?: boolean;
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';
@@ -91,6 +93,8 @@ export type ReaderPanelStage = {
   lines: ReaderLine[];
   caption: string;
   tasks: ReaderTask[];
+  /** WP-110: which movement of the page this panel is (act, turn, reaction, solve, ending). */
+  movement?: string;
 };
 
 /**
@@ -116,6 +120,8 @@ export type ReaderResolutionStage = {
   hookBeat: string;
   tasks: ReaderTask[];
   finale?: ReaderFinale | null;
+  /** WP-110: tomorrow's line, under «À suivre…». */
+  aSuivre?: string;
 };
 
 export type ReaderStage = ReaderPanelStage | ReaderResolutionStage;

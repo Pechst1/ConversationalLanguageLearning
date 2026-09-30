@@ -97,13 +97,35 @@ async function playDayInner(l, day) {
   findings.check('day-reaches-the-recap', kinds.includes('recap') || kinds.includes('home-done'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());
   await walk.visit('/atelier', 'home-after');
   if (day >= 2 && day % 2 === 0) await walk.playJourney({ entry: '/atelier?mode=forge', maxSeconds: 60, label: 'forge-' });
+  l.pages = l.pages || [];
+  l.pages.push({ day, text: walk.dayText || '' });
+  if (label.startsWith('season-') || day === 1 || day === l.dayCount) await readPage(l, day);
   if (day === 1 || day === l.dayCount) {
     await walk.visit('/missions', 'courrier');
     await walk.visit('/graphic-novel', 'feuilleton');
   }
   timings.push({ label, day, seconds: +((Date.now() - d0) / 1000).toFixed(1) });
-  l.pages = l.pages || [];
-  l.pages.push({ day, text: walk.dayText || '' });
+}
+
+// WP-110: a whole episode reads as one page on a phone, with the learner's lines in it.
+async function readPage(l, day) {
+  let seen;
+  try {
+    seen = await l.walk.readThePage();
+  } catch (e) {
+    findings.check('page-reads-through', false, `day ${day}: ${String(e.message).split('\n')[0].slice(0, 160)}`, l.walk.where({ kind: 'page' }));
+    await l.walk.shoot('page-error').catch(() => {});
+    return;
+  }
+  const where = l.walk.where({ kind: 'page' });
+  if (seen.authored) {
+    findings.check('authored-day-keeps-its-replies', seen.replyBox, `day ${day}: an authored day without its reply box`, where);
+    return;
+  }
+  findings.check('page-draws-your-line', seen.you.length >= 1, `day ${day}: no balloon of yours in ${seen.panels} panels (${seen.movements.join(' > ')})`, where);
+  findings.check('page-has-the-six-movements', seen.movements.includes('turn') && seen.movements.includes('reaction'), `day ${day}: ${seen.movements.join(' > ')}`, where);
+  findings.check('page-ends-a-suivre', seen.aSuivre || seen.movements[seen.movements.length - 1] === 'resolution', `day ${day}: the page never reached its ending (${seen.movements.join(' > ')})`, where);
+  if (seen.you.length) l.covered.add('page');
 }
 
 // WP-111: the tentpoles of season 1 the season learner must meet, each once, as the

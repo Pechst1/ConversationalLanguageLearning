@@ -23,7 +23,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
+import Router, { useRouter } from 'next/router';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { StoryEpisodeReader } from '@/components/atelier-v2/journey/StoryEpisodeReader';
@@ -561,7 +561,14 @@ export function ArchiveDayPage({
   }, [authored, day.scene_id, givenEpisode]);
 
   const episode = givenEpisode !== undefined ? givenEpisode : fetched ?? authored;
+  // WP-110: a finished day is one page with the learner's lines in it — the page is
+  // the record, so the replies are not repeated underneath it.
+  const isPage = Boolean(episode?.page?.rows?.length);
   const t = archiveCopy(language);
+  // The singleton, not the hook: the day page also renders outside a mounted router.
+  const toArchive = useCallback(() => {
+    void Router.push(ARCHIVE_HREF);
+  }, []);
   const toReply = useCallback(() => {
     const node = replyRef.current;
     if (!node) return;
@@ -572,7 +579,11 @@ export function ArchiveDayPage({
   }, []);
 
   return (
-    <div className="fa-day" data-archive-day={day.date || day.scene_id || ''}>
+    <div
+      className="fa-day"
+      data-archive-day={day.date || day.scene_id || ''}
+      data-authored={episode && episode === authored ? 'true' : undefined}
+    >
       <BackLink language={language} />
       {state === 'loading' ? (
         <LoadingBlock label={t.archive_loading} />
@@ -584,8 +595,8 @@ export function ArchiveDayPage({
             title={day.title_fr || null}
             eyebrow={plancheKicker(day, language) || null}
             onExit={onExit ?? null}
-            onContinue={toReply}
-            continueLabel={t.to_reply}
+            onContinue={isPage ? toArchive : toReply}
+            continueLabel={isPage ? t.back_archive : t.to_reply}
             language={language}
             savePosition={false}
             marginNotes={day.margin_notes}
@@ -595,6 +606,7 @@ export function ArchiveDayPage({
         <PlancheCard day={day} language={language} />
       )}
 
+      {!isPage && (
       <section
         className="fa-reply"
         ref={replyRef}
@@ -623,6 +635,7 @@ export function ArchiveDayPage({
         {/* In the reader the notes sit on their panel; without it, here. */}
         {!episode && <MarginNotes notes={day.margin_notes} language={language} archive={archive} />}
       </section>
+      )}
     </div>
   );
 }

@@ -364,6 +364,26 @@ test('a planche reread: the reply in Garamond italic, the ending, the notes', ()
   assert.match(text(quiet), /An diesem Tag hast du nichts geantwortet\./);
 });
 
+test('WP-110: a finished page is the record — the replies are not repeated under it', () => {
+  const d = model.findArchiveDay(ARCHIVE, { date: '2026-09-15' });
+  const episode = {
+    id: 's', scene_id: 's', serial_thread_id: 't', serial_episode_id: null, journey_id: 'j', title_fr: 'Jour',
+    status: 'completed', chapter: null, panel_index: 0, grammar_focus: null,
+    panels: [{ id: 'p1', index: 0, narration_fr: 'Au zinc.', dialogue: [], image_url: '/a.webp', image_status: 'setting_reference' }],
+    resolution: { text_fr: 'Fin.', summary_native: 'End.' },
+    page: {
+      a_suivre_fr: null,
+      rows: [
+        { id: 'turn:0', movement: 'turn', narration_fr: '', image_url: '/a.webp', image_status: 'setting_reference',
+          dialogue: [{ character_id: 'toi', character_name: null, text_fr: 'Je peux vous aider ?', kind: 'you', you: true }] },
+      ],
+    },
+  };
+  const html = decode(inRoot(h(surface.ArchiveDayPage, { day: d, archive: ARCHIVE, language: 'en', episode })));
+  assert.doesNotMatch(html, /data-reply=""/, 'no second copy of the replies');
+  assert.match(html, /data-you="true"/, 'the reply is the balloon in its panel');
+});
+
 test('le trombinoscope: face, register, one trust meter, what they know — no closeness pips', () => {
   const member = {
     id: 'marin', name: 'Marin', role: 'le voisin', accent_colour: null,
