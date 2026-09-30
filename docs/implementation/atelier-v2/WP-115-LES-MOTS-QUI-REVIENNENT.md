@@ -250,3 +250,18 @@ the story's contribution can be proven rather than assumed.
   and practice create cards);
 - «Easy» earned from answer speed.
 
+## 9. Status — 115c built (2026-09-30)
+
+- **Which words** (`app/services/story_words.py`): up to 2 *due* words the learner finds
+  hardest (≥ 2 lapses, or difficulty ≥ 7 after ≥ 3 reviews), most lapses first; FSRS
+  cards only, with a meaning in the learner's language.
+- **The director** (generated days; tentpoles stay as written) gets them as
+  `story_words`: a cast member must need each word, describing it in French without
+  saying it, so the learner's reply gives it. A scene that prints the word is asked
+  once more (`story_word_printed`, soft: the retry is served either way).
+- **The planner** ranks them first and makes them targets the reply is graded on (the
+  tutor's `demonstrated_target_ids` credit a recall); the day's practice takes them too,
+  so a word the reply missed is still retrieved that day.
+- **Not yet:** the transfer moment (a character noticing a due word used unprompted) is
+  115d; measuring whether the story helps is 115e.
+

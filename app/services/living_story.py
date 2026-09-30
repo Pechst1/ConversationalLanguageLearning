@@ -766,6 +766,14 @@ to keep from earlier scenes, drilled_words the words this learner is practising 
 not hold yet (prefer these), and lexicon_history the words recent scenes taught: bring
 one or two of them back naturally in a line when the situation allows — a word met
 again is a word learned — and teach new ones in lexicon, not those.
+STORY WORDS (the words that don't stick). story_words, when present, are one or two words
+this learner keeps forgetting, due for review today. For EACH, one cast member must NEED
+it from the learner: they cannot find the word and describe it in French, in their own
+voice, without saying it («Comment on dit, déjà… le truc pour ouvrir la porte ?»), in a
+panel line or in the opening line, so the learner's reply can give it. Use gloss_native
+and sentence_fr to understand the word; never print the word itself anywhere in the
+scene (premise, narration, dialogue, opening line), never list it, never make it a quiz.
+One such moment per word, woven into what the scene is about.
 mots_a_placer, when present, lists five words of this learner's level that they have not
 met yet: put at least three of them into the cast's dialogue lines, each where the picture
 or the situation makes its meaning plain, and never as a list or a vocabulary lesson.
@@ -5742,6 +5750,37 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # scene that is servable as it stands.
     _check_addressee(draft, context)
     _check_reading_aids(draft, context)
+    _check_story_words(draft, context)
+
+
+def _check_story_words(draft: SceneDraft, context: dict) -> None:
+    """WP-115c (soft): a story word printed in the scene hands the learner the answer.
+    Refused once with the reason; the retry is served either way."""
+
+    story_words = context.get(STORY_WORDS_KEY) or []
+    if not story_words:
+        return
+    from app.services.story_words import spoiled_story_words
+
+    spoiled = spoiled_story_words(
+        [
+            draft.premise_fr,
+            draft.opening_line_fr,
+            *[panel.narration_fr for panel in draft.panels],
+            *[line.text_fr for panel in draft.panels for line in panel.dialogue],
+        ],
+        story_words,
+    )
+    if spoiled:
+        raise SoftRejection(
+            "story_word_printed",
+            hint=(
+                f"The scene prints {', '.join(spoiled)}, a word the learner must find "
+                "themselves. A character needs it: they search for it and describe it "
+                "without saying it, so the learner's reply gives it."
+            ),
+            proposal=draft,
+        )
 
 
 LINE_TRANSLATION_KEY = "line_translation"
@@ -5888,6 +5927,8 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
             # WP-92 / WP-93: what the accepted draft did with the plan and the words.
             GRAMMAR_OUTCOME_KEY: context.get(GRAMMAR_OUTCOME_KEY),
             WORDS_OUTCOME_KEY: context.get(WORDS_OUTCOME_KEY),
+            # WP-115c: the planner makes each a target the reply is graded on.
+            **({STORY_WORDS_KEY: context[STORY_WORDS_KEY]} if context.get(STORY_WORDS_KEY) else {}),
         },
     )
 
@@ -5991,6 +6032,19 @@ def _director_vocabulary(db: Session, user: User) -> dict:
         return empty
 
 
+def _story_words(db: Session, user: User) -> list[dict]:
+    """WP-115c. The hardest due words for the director; empty when unreadable."""
+
+    try:
+        from app.services.story_words import story_due_words
+
+        with db.begin_nested():
+            return story_due_words(db, user=user)
+    except Exception:  # pragma: no cover - defensive: a review is not a scene
+        logger.exception("living_story: story words unavailable")
+        return []
+
+
 def _rank_lookup(db: Session, user: User):
     from app.services.kept_words import rank_lookup
 
@@ -6021,6 +6075,8 @@ GRAMMAR_PLAN_KEY = "grammar_plan"
 #: ``brief.story_context`` keys written after validation (beside ``source``, not in it).
 GRAMMAR_OUTCOME_KEY = "grammar"
 WORDS_OUTCOME_KEY = "words"
+#: WP-115c: the hardest due words today's story carries (director context and brief).
+from app.services.story_words import STORY_WORDS_KEY  # noqa: E402
 #: WP-93: the five words of the learner's band they have not met yet.
 MOTS_KEY = "mots_a_placer"
 GRAMMAR_MIN_USES = 2
@@ -6867,6 +6923,10 @@ def generate_scene(
         # prompted, never stored — `_storable_context` keeps only provenance).
         context.update(_director_vocabulary(db, user))
         context[LEXICON_KEY]["rank_of"] = _rank_lookup(db, user)
+        # WP-115c: the learner's hardest due words, carried by today's story as needs.
+        story_words = _story_words(db, user)
+        if story_words:
+            context[STORY_WORDS_KEY] = story_words
         # WP-90. Director-only too: whether each line comes with a translation.
         context[LINE_TRANSLATION_KEY] = line_translation_language(context)
         # WP-92. Director-only: the day's grammar, chosen before the director writes —

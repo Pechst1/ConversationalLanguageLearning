@@ -553,6 +553,15 @@ def drilled_not_held(candidate: LearningCandidate) -> bool:
     return state not in {"", "new"} and stability < HELD_STABILITY_DAYS
 
 
+def _mark_story_need(candidate: LearningCandidate) -> LearningCandidate:
+    """WP-115c: a word today's story needs from the learner — fully relevant, so the
+    planner ranks it first and the reply may require it."""
+
+    from dataclasses import replace
+
+    return replace(candidate, relevance=1.0, metadata={**(candidate.metadata or {}), "story_need": True})
+
+
 def select_learning_candidates(
     db: Session,
     *,
@@ -645,6 +654,22 @@ def select_learning_candidates(
             )
         )
 
+    # WP-115c: the words today's story was written to need come first, and the reply
+    # may require them — the scene is built around retrieving them.
+    story_ids = {
+        str(row.get("word_id"))
+        for row in ((getattr(scenario, "story_context", None) or {}).get("story_words") or [])
+        if isinstance(row, dict) and row.get("word_id") is not None
+    }
+    if story_ids:
+        scored = [
+            (
+                (-1.0, -1, *row[2:5], _mark_story_need(row[5]))
+                if row[5].target.kind is TargetKind.VOCABULARY and row[5].target.id in story_ids
+                else row
+            )
+            for row in scored
+        ]
     practice = limit > MAX_DUE_CANDIDATES + MAX_NEW_CANDIDATES
     kept = _kept_words(db, user=user, now=now) if practice else {}
     if kept:

@@ -925,6 +925,37 @@ def test_a_critic_refusal_whose_retry_fails_the_guards_never_costs_the_day(assem
     assert "journey_story_critic_override" in kinds
 
 
+def test_the_story_carries_the_words_that_dont_stick(assembled_client, db_session, journey_enabled, clock, season_on):
+    """WP-115c: a hard due word reaches the director as a word a character must need,
+    becomes a target the reply is graded on, and is practised again after the ending."""
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.db.models.user import User
+    from app.services.season.admin import jump_to_day
+    from tests.test_daily_words import _make_due_word
+
+    provider = season_on
+    email = f"s1-words-{uuid.uuid4()}@example.com"
+    d = support.Driver(assembled_client, support.register(assembled_client, email, cefr="A2.1"), db=db_session)
+    user = db_session.scalar(select(User).where(User.email == email))
+    user.native_language = "en"
+    stubborn = _make_due_word(db_session, user, "la serrure", rank=900)
+    jump_to_day(db_session, user, day=3)
+    db_session.commit()
+    provider.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La journée se termine.", callback_fr="Vous avez parlé.")
+    d.create()
+    words = (provider.director_contexts()[-1] or {}).get("story_words") or []
+    assert [row["lemma"] for row in words] == ["la serrure"], "the hardest due word is the story's"
+    assert words[0]["gloss_native"] == "la serrure-en"
+    journey = db_session.get(DailyJourney, uuid.UUID(d.journey["id"]))
+    steps = sorted(journey.steps, key=lambda step: step.ordinal)
+    respond = next(step for step in steps if step.kind == "respond")
+    targets = [str(t.get("id")) for t in (respond.public_prompt or {}).get("targets") or []]
+    assert str(stubborn.id) in targets, f"the reply is graded on it: {targets}"
+    practice = " ".join(str(step.private_task) for step in steps if step.kind == "recall")
+    assert "serrure" in practice, f"the day's practice takes it too: {[step.kind for step in steps]}"
+
+
 class SpendCapReached(RuntimeError):
     pass
 
