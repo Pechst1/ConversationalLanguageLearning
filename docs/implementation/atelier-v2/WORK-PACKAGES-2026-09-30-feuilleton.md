@@ -390,3 +390,13 @@ these recommendations:
 | S-8 | Weight (Odile's memory, the fire's debt) | Accepted as the emotional depth asked for |
 
 Next: the full season bible (WP-111), by the same writers' room.
+
+### Owner decisions on the full season bible (2026-09-30, 07808be)
+
+| # | Decision |
+|---|---|
+| S-9 | Camille's gender arises in-story in tentpole 1 (the learner addresses the landlord's child — «Vous êtes son fils ? / sa fille ?») — no menu, no settings field |
+| S-10 | Selling the flat stays offered after the lease is signed in tentpole 7, with its consequence spelled out |
+| S-11 | The fire is in 2023; Odile's flat is on the first floor |
+| S-12 | The engine runs the season on the learner's own day count; date-bound scenes (New Year's Eve, Christmas) get neutral variants (e.g. «le dernier soir avant le vote») — part of WP-111 |
+| S-13 | Plausibility read of the fire/insurance premise: a native French reader (owner's choice) |
