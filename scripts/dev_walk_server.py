@@ -22,6 +22,9 @@ os.environ["APP_ENV"] = "development"
 os.environ.setdefault("ATELIER_DAILY_JOURNEY_COHORT", "*")
 os.environ.setdefault("SCHEMA_GUARD_ENABLED", "true")
 os.environ["ATELIER_CORRECTION_LLM_ENABLED"] = "false"
+# WP-111: new learners begin on season 1 «La clé d'Odile» — the walk shows what a
+# learner meets. ``WALK_SEASON=`` (empty) walks the generated serial instead.
+os.environ.setdefault("ATELIER_SEASON_SCRIPT", os.environ.get("WALK_SEASON", "s1"))
 
 import dev_story_engine_server  # noqa: E402
 

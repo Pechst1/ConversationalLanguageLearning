@@ -43,17 +43,19 @@ export class LearnerWalk {
 
   classify(s) {
     if (s.recap) return 'recap';
+    if (s.homeDone) return 'home-done';
     if (s.reader.length) return 'reader';
     if (s.thread) return 'thread';
     if (s.dictation) return 'dictation';
     if (s.dataStep.includes('read')) return 'read';
     if (s.match) return 'match';
     if (s.tilesBox) return 'tiles';
-    if (s.choices) return 'choice';
+    if (s.choices || s.whoSaid) return 'choice';
     if (s.dataStep.includes('rule')) return 'rule';
     if (s.forgeStep) return 'forge-offer';
     if (s.textarea) return 'field';
-    if (/Cast|Characters|Personnages|Figuren|Die Figuren/i.test(s.text.slice(0, 200)) || /« .* »/.test(s.text.slice(0, 300)) && s.buttons.length < 8) return 'cast';
+    // The cast intro, by its own element: a «guillemet» in a name or a teaser is not it.
+    if (s.castIntro || /^(Cast|Characters|Personnages|Figuren|Die Figuren)\b/i.test(s.text.slice(0, 60))) return 'cast';
     return 'screen';
   }
 
@@ -173,6 +175,17 @@ export class LearnerWalk {
       if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
       return true;
     }
+    // «Qui a dit ça ?»: the faces are cards, not .av2-choice buttons.
+    const faces = page.locator('.av2-who-said__card:not([disabled])');
+    if (await faces.count()) {
+      const n = await faces.count();
+      await faces.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
+      state.itemIndex += 1;
+      await sleep(150);
+      const check = page.locator('.av2-btn--primary:not([disabled])').first();
+      if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
     const bank = page.locator('.av2-tiles__bank button.av2-tile:not([disabled])');
     if (await bank.count()) {
       for (let i = 0; i < 14 && (await bank.count()); i += 1) {
@@ -185,10 +198,21 @@ export class LearnerWalk {
     }
     const cards = page.locator('.av2-match__card:not([disabled])');
     if (await cards.count()) {
-      for (let i = 0; i < 12 && (await cards.count()); i += 1) {
-        await cards.nth(0).click({ timeout: 1500 }).catch(() => {});
-        await cards.nth(0).click({ timeout: 1500 }).catch(() => {});
-        await sleep(80);
+      // Pairs: the first idle French card, tried against each idle meaning until it
+      // is matched (keyed: a wrong pair flashes and returns to idle).
+      const french = page.locator('.av2-match__col').nth(0).locator('.av2-match__card[data-state="idle"]');
+      const meanings = page.locator('.av2-match__col').nth(1).locator('.av2-match__card[data-state="idle"]');
+      for (let round = 0; round < 12 && (await french.count()); round += 1) {
+        const before = await french.count();
+        const n = await meanings.count();
+        let paired = false;
+        for (let j = 0; j < n && !paired; j += 1) {
+          await french.first().click({ timeout: 1500 }).catch(() => {});
+          await meanings.nth(j).click({ timeout: 1500 }).catch(() => {});
+          await sleep(600);
+          paired = (await french.count()) < before;
+        }
+        if (!paired) break;
       }
       return true;
     }
@@ -228,6 +252,9 @@ export class LearnerWalk {
     }
 
     const t0 = Date.now();
+    // WP-111: every line the story put on screen today (reader and thread), so the
+    // walk can tell which season page a day served.
+    if (!entry) this.dayText = '';
     let lastSig = '';
     let sameFor = 0;
     let shotSig = '';
@@ -239,6 +266,9 @@ export class LearnerWalk {
       const sig = `${kind}|${s.text.slice(0, 160)}|${s.graded.map((g) => g.state).join()}|${s.reader.map((r) => r.text).join()}`;
       this.trackVerdicts(s, kind);
       if (kind === 'reader') this.readerChecks(s, state);
+      if (!entry && (kind === 'reader' || kind === 'thread') && !this.dayText.includes(s.text.slice(0, 200))) {
+        this.dayText += `\n${s.text}`;
+      }
       if (sig !== lastSig) {
         lastSig = sig;
         sameFor = 0;
@@ -261,7 +291,7 @@ export class LearnerWalk {
           await this.shoot(label + kind + (verdict ? `-${verdict}` : ''));
         }
       } else sameFor += 1;
-      if (kind === 'recap') break;
+      if (kind === 'recap' || kind === 'home-done') break;
       const acted = await this.act(s, kind, state);
       if (!acted && sameFor > 40 && !entry) {
         this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));

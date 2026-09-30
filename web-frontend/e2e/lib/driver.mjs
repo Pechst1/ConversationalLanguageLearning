@@ -27,6 +27,7 @@ export const SNAPSHOT_FN = () => {
     nonFrText: frOnly(main),
     buttons,
     choices: q('.av2-choice').length,
+    whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
@@ -45,7 +46,10 @@ export const SNAPSHOT_FN = () => {
       return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), disabled: !!n.disabled, text: n.innerText.trim() };
     }),
     thread: q('.av2-step--thread').length,
-    recap: document.querySelectorAll('.journey-recap').length,
+    recap: document.querySelectorAll('.journey-recap, .av2-reward').length,
+    castIntro: q('.cast-intro__member').length,
+    // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»).
+    homeDone: location.pathname.startsWith('/atelier') && /Done for today|Fini pour aujourd|Für heute (fertig|geschafft)/i.test((document.querySelector('main') || document.body).innerText || ''),
     forgeStep: q('[data-step=forge]').length,
     epFeedback: q('.ep-feedback').map((n) => ({ verdict: n.getAttribute('data-verdict'), text: n.innerText.trim() })),
     frTexts: q('[lang=fr]').map((n) => n.innerText.trim()).filter(Boolean),

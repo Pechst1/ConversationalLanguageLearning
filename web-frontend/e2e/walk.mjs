@@ -12,6 +12,10 @@
 //   --langs en,de,fr   chrome languages of the A1 learners   (default en,de,fr)
 //   --days 7           days per learner                      (default 7)
 //   --b1-days 3        days for the B1 learner (French chrome; default 3, 0 = skip)
+//   --season-days 10   days for the season learner (English, A2; default 10, 0 = skip):
+//                      T1 A/B, gap 1, T2 A/B and the first day of gap 2 of season 1
+//                      «La clé d'Odile» (WP-111). The server starts every new learner on
+//                      the season unless WALK_SEASON= (empty) is set.
 //   --out DIR          output folder                         (default e2e/out/<stamp>)
 //   --keep             leave the servers and database up (for debugging)
 //   --token-minutes 1  expire access tokens during the walk (WP-107)
@@ -38,6 +42,7 @@ if (argv.includes('--live')) {
 const langs = opt('langs', 'en,de,fr').split(',').filter(Boolean);
 const days = Number(opt('days', 7));
 const b1Days = Number(opt('b1-days', 3));
+const seasonDays = process.env.WALK_SEASON === '' ? 0 : Number(opt('season-days', 10));
 const tokenMinutes = Number(opt('token-minutes', 1));
 if (!Number.isInteger(tokenMinutes) || tokenMinutes < 1) throw new Error('--token-minutes must be a positive integer');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -64,7 +69,7 @@ async function makeLearner({ native, level, dayCount, tag }) {
     locale: native === 'fr' ? 'fr-FR' : native === 'de' ? 'de-DE' : 'en-GB',
   });
   await context.addCookies([{ name: 'next-auth.session-token', value: learner.cookie, url: stack.web }]);
-  const label = tag === 'b1' ? `${native}-${level}` : native;
+  const label = tag === 'b1' ? `${native}-${level}` : tag === 'season' ? `season-${native}` : native;
   const walk = new LearnerWalk({ page: null, findings, outDir: path.join(outDir, label), lang: native, level, stack, shots, scale });
   await walk.newSession(context);
   return { label, walk, context, dayCount, covered: new Set() };
@@ -89,7 +94,7 @@ async function playDayInner(l, day) {
   console.log(`[walk] ${label} day ${day}`);
   const kinds = await walk.playJourney();
   kinds.forEach((k) => l.covered.add(k));
-  findings.check('day-reaches-the-recap', kinds.includes('recap'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());
+  findings.check('day-reaches-the-recap', kinds.includes('recap') || kinds.includes('home-done'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());
   await walk.visit('/atelier', 'home-after');
   if (day >= 2 && day % 2 === 0) await walk.playJourney({ entry: '/atelier?mode=forge', maxSeconds: 60, label: 'forge-' });
   if (day === 1 || day === l.dayCount) {
@@ -97,6 +102,29 @@ async function playDayInner(l, day) {
     await walk.visit('/graphic-novel', 'feuilleton');
   }
   timings.push({ label, day, seconds: +((Date.now() - d0) / 1000).toFixed(1) });
+  l.pages = l.pages || [];
+  l.pages.push({ day, text: walk.dayText || '' });
+}
+
+// WP-111: the tentpoles of season 1 the season learner must meet, each once, as the
+// bible wrote them (A2 lines). The weekend flex may move T2 by a day, never more.
+const SEASON_PAGES = [
+  { key: 't1.a', line: 'Tu as une valise, une lettre et une clé.', days: [1] },
+  { key: 't1.b', line: 'Mon grand-père a tout l\'immeuble', days: [2] },
+  { key: 't2.a', line: 'Tu devais partir aujourd\'hui. Tu es encore là.', days: [7, 8, 9] },
+  { key: 't2.b', line: 'Architecte d\'intérieur.', days: [8, 9, 10] },
+];
+
+function seasonChecks(l) {
+  for (const page of SEASON_PAGES) {
+    const where = (l.pages || []).filter((row) => row.text.includes(page.line)).map((row) => row.day);
+    findings.check(
+      'season-tentpole-on-its-day',
+      where.length >= 1 && where.every((day) => page.days.includes(day)) && new Set(where).size === 1,
+      `${page.key}: «${page.line}» seen on day(s) ${where.join(', ') || 'none'} (expected one of ${page.days.join(', ')})`,
+      l.walk.where({ kind: 'reader' }),
+    );
+  }
 }
 
 let exitCode = 0;
@@ -117,10 +145,13 @@ try {
   const learners = [];
   for (const native of langs) learners.push(await makeLearner({ native, level: 'A1.1', dayCount: days, tag: 'walk' }));
   if (b1Days > 0) learners.push(await makeLearner({ native: 'en', level: 'B1.1', dayCount: b1Days, tag: 'b1' }));
-  for (let day = 1; day <= days; day += 1) {
+  if (seasonDays > 0) learners.push(await makeLearner({ native: 'en', level: 'A2.1', dayCount: seasonDays, tag: 'season' }));
+  const lastDay = Math.max(days, b1Days, seasonDays);
+  for (let day = 1; day <= lastDay; day += 1) {
     await stack.setClock(day - 1);
     await Promise.all(learners.filter((l) => day <= l.dayCount).map((l) => playDay(l, day)));
   }
+  for (const l of learners.filter((row) => row.label.startsWith('season-'))) seasonChecks(l);
   for (const l of learners) {
     for (const need of ['reader', 'thread', 'recap']) {
       findings.check('walk-covers-' + need, l.covered.has(need), `${l.label}: no ${need} screen in ${l.dayCount} days (saw ${[...l.covered].join(', ')})`, l.walk.where());
@@ -161,7 +192,7 @@ try {
 } finally {
   if (browser) await browser.close().catch(() => {});
   const seconds = Math.round((Date.now() - t00) / 1000);
-  const meta = `${new Date().toISOString()} · ${langs.join('/')} × ${days} days + B1 × ${b1Days} · fake provider · ${seconds}s`;
+  const meta = `${new Date().toISOString()} · ${langs.join('/')} × ${days} days + B1 × ${b1Days} + season × ${seasonDays} · fake provider · ${seconds}s`;
   writeContactSheet({ outDir, shots: shots.list, findings, meta });
   writeFileSync(
     path.join(outDir, 'report.json'),
