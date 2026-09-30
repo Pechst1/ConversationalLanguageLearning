@@ -31,6 +31,12 @@ const NAME_TOKENS: Array<[CastId, string[]]> = [
 
 const IDS = new Set<string>(CAST_WITH_PORTRAITS);
 
+/**
+ * WP-111: season-1 people who have no portrait yet. «Camille Marchand» shares a
+ * surname with the landlord and must never borrow his face; they get an initial.
+ */
+const NO_PORTRAIT_TOKENS = new Set(['camille', 'odile', 'bastien', 'diallo', 'vasseur']);
+
 function fold(value: unknown): string {
   return String(value ?? '')
     .normalize('NFD')
@@ -49,6 +55,7 @@ export function castIdFor(...seeds: unknown[]): CastId | null {
     const asId = raw.replace(/[\s-]+/g, '_');
     if (IDS.has(asId)) return asId as CastId;
     const tokens = new Set(raw.split(/[^a-z0-9]+/).filter(Boolean));
+    if (Array.from(tokens).some((token) => NO_PORTRAIT_TOKENS.has(token))) return null;
     for (const [id, names] of NAME_TOKENS) {
       if (names.some((name) => tokens.has(name))) return id;
     }

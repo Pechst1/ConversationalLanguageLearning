@@ -394,6 +394,10 @@ test('every way a payload names a cast member resolves to one face, strangers to
     assert.equal(faces.castIdFor(seed), null, String(seed));
   }
   assert.equal(faces.castIdFor(null, 'Lila'), 'lila_bonnet', 'the name stands in for a missing id');
+  // WP-111: season 1's Camille shares the landlord's surname and never borrows his face.
+  for (const seed of ['camille_marchand', 'Camille Marchand', 'odile', 'bastien_roux', 'Mme Diallo', 'Maître Vasseur']) {
+    assert.equal(faces.castIdFor(seed, 'Monsieur Marchand'), null, String(seed));
+  }
 });
 
 test('moods and verdicts map onto the three drawn expressions', () => {
