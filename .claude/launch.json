@@ -44,7 +44,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-lc",
-        "CELERY_TASK_ALWAYS_EAGER=true ATELIER_EPISODE_AUDIO_ENABLED=true DATABASE_URL=postgresql+psycopg2://vincentpechstein@localhost:5432/atelier_e2e_0926 venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011 --timeout-keep-alive 75"
+        "CELERY_TASK_ALWAYS_EAGER=true ATELIER_EPISODE_AUDIO_ENABLED=true ATELIER_SEASON_SCRIPT=s1 DATABASE_URL=postgresql+psycopg2://vincentpechstein@localhost:5432/atelier_e2e_0926 venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8011 --timeout-keep-alive 75"
       ],
       "port": 8011
     }
