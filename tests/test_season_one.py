@@ -21,6 +21,7 @@ import re
 import uuid
 from copy import deepcopy
 from datetime import date, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -592,6 +593,58 @@ def test_a_whole_season_plays_its_tentpoles_on_their_days(assembled_client, db_s
         assert (gap_id, premise) in premises, f"{gap_id} never staged its required moment {premise}"
 
 
+def _episode_of(d, journey: dict) -> dict:
+    response = d.client.get(f"/api/v1/story-engine/episodes?journey_id={journey['id']}", headers=d.headers)
+    assert response.status_code == 200, response.text
+    (episode,) = response.json()["episodes"]
+    return episode
+
+
+def test_a_finished_day_reads_as_one_page_with_the_learners_lines_in_it(assembled_client, db_session, journey_enabled, clock, season_on):
+    """WP-110: after the day, the episode is one page — the scene, the learner's own
+    line as a balloon in the panel it was said in, the reactions it routed to, the
+    drawn ending — on a tentpole day and on a generated day alike."""
+
+    from app.schemas.story_projection import StoryEpisodeRead
+
+    provider = season_on
+    answer = "Odile, c'est ma grand-mère."
+    provider.routes = {answer: "a"}
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1p-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+
+    d.create()
+    assert d.journey["status"] == "active"
+    before = _episode_of(d, d.journey)
+    assert before["page"] is None, "no page before the learner has said their lines"
+    provider.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La journée se termine.", callback_fr="Vous avez parlé.")
+    d.play(answer=answer)
+    assert d.finish("complete").status_code == 200
+    tentpole = _episode_of(d, d.journey)
+    StoryEpisodeRead.model_validate(tentpole)
+    page = tentpole["page"]
+    movements = [row["movement"] for row in page["rows"]]
+    assert movements[0] == "act" and "turn" in movements and "reaction" in movements
+    assert movements[-1] == "ending"
+    turn = next(row for row in page["rows"] if row["movement"] == "turn")
+    balloon = [line for line in turn["dialogue"] if line["you"]]
+    assert [line["text_fr"] for line in balloon] == [answer], "the learner's line is drawn in the turn's panel"
+    assert all(row["image_url"] for row in page["rows"]), "every panel stands on its place's plate"
+    said = " ".join(line["text_fr"] for row in page["rows"] for line in row["dialogue"])
+    assert "Margaux" in " ".join(str(line["character_name"]) for row in page["rows"] for line in row["dialogue"]) or said
+    clock.advance(days=1)
+
+    _play(d, provider, clock, "Oui, je reste une semaine.")  # T1 Day B
+    gap = _play(d, provider, clock, "Je voudrais un café, s'il vous plaît.")  # the first generated day
+    episode = _episode_of(d, gap)
+    StoryEpisodeRead.model_validate(episode)
+    rows = episode["page"]["rows"]
+    assert [row["movement"] for row in rows[: len(episode["panels"])]] == ["act"] * len(episode["panels"])
+    assert rows[len(episode["panels"])]["movement"] == "turn"
+    mine = [line["text_fr"] for row in rows for line in row["dialogue"] if line["you"]]
+    assert mine and mine[0] == "Je voudrais un café, s'il vous plaît."
+    assert any(row["movement"] == "reaction" for row in rows), "the answer the learner got is drawn"
+
+
 def _user_id_of(db, journey: dict):
     from app.db.models.daily_journey import DailyJourney
 
@@ -632,22 +685,29 @@ def _respond_turns(db, journey_id: str) -> list[dict]:
 
 
 @pytest.mark.skipif(not os.environ.get("SEASON_REPORT"), reason="writes the owner's transcript; set SEASON_REPORT=<path>")
-def test_write_the_first_days_for_the_owner(assembled_client, db_session, journey_enabled, clock, season_on):
+def test_write_the_first_days_for_the_owner(assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch):
     from app.services.season.transcript import render_generated_day, render_tentpole_day
 
     provider = season_on
     provider.critic_refusals_left = 0
     provider.spoil_once = False
+    spend = _live_model(monkeypatch) if os.environ.get("SEASON_REPORT_LIVE") else None
     days = int(os.environ.get("SEASON_REPORT_DAYS", "10"))
     band = os.environ.get("SEASON_REPORT_BAND", "A2.1")
     d = support.Driver(assembled_client, support.register(assembled_client, f"s1-report-{uuid.uuid4()}@example.com", cefr=band), db=db_session)
     lines = [
-        "# Saison 1 · «La clé d'Odile» — les premiers jours d'une vie (fake provider)",
+        "# Saison 1 · «La clé d'Odile» — les premiers jours d'une vie"
+        + (" (modèle réel)" if spend is not None else " (fake provider)"),
         "",
         f"*Joué par le harnais (`tests/test_season_one.py`), niveau {band}, langue de l'interface : anglais.*",
-        "*Les jours de tentpole sont les pages de la bible, telles qu'un apprenant les rencontre. Les jours générés "
-        "viennent ici d'un faux réalisateur (plomberie seulement, jamais la qualité) : leur vraie prose demande un "
-        "passage payant avec l'accord du propriétaire.*",
+        "*Les jours de tentpole sont les pages de la bible, telles qu'un apprenant les rencontre. "
+        + (
+            "Les jours générés sont écrits par le vrai modèle (réalisateur, critique, voies de réponse). Les "
+            "réponses de l'apprenant sont des phrases toutes faites du harnais, pas une vraie conversation.*"
+            if spend is not None
+            else "Les jours générés viennent ici d'un faux réalisateur (plomberie seulement, jamais la qualité) : "
+            "leur vraie prose demande un passage payant avec l'accord du propriétaire.*"
+        ),
         "",
     ]
     user_id = None
@@ -693,7 +753,14 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
         scene = _latest_scene(db_session, user_id)
         payload = scene.script_payload or {}
         season = payload.get("season") or {}
-        if payload.get("season_page"):
+        if (scene.source_snapshot or {}).get("journey_id") != journey_id:
+            # The director lost the day: the authored café scene stood in, and the
+            # season did not move (tomorrow retries the same season day).
+            lines.append(f"## Jour {day} — jour perdu : scène d'auteur «{brief.get('scenario_key')}» (la saison n'avance pas)")
+            lines.append("")
+            for turn in _respond_turns(db_session, journey_id):
+                lines += [f"**Toi** — «{turn.get('learner')}»", f"**Réponse** — «{turn.get('character')}»", ""]
+        elif payload.get("season_page"):
             page = payload["season_page"]
             lines.append(f"## Jour {day} — T{page['number']} · {page['tentpole_title_fr']} · jour {page['day'].upper()} · {page['story_date_fr']}")
             lines.append("")
@@ -703,9 +770,18 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
             resolution = next((step for step in d.journey["steps"] if step["kind"] == "resolution"), {})
             lines.append(f"## Jour {day} — {season.get('key', '?')} (jour généré) · {draft.get('title_fr')}")
             lines.append("")
-            lines.extend(render_generated_day(draft, _respond_turns(db_session, journey_id), resolution.get("prompt") or {}))
+            names = {
+                str(member.get("id")): str(member.get("name"))
+                for member in (_thread(db_session, user_id).world_bible or {}).get("cast") or []
+                if member.get("id") and member.get("name")
+            }
+            lines.extend(
+                render_generated_day(draft, _respond_turns(db_session, journey_id), resolution.get("prompt") or {}, names=names)
+            )
         clock.advance(days=1)
     state = _season_state(db_session, user_id)
+    if spend is not None:
+        lines += ["---", "", f"**Coût du passage :** US${spend['usd']:.4f} en {spend['calls']} appels (plafond US${spend['cap']:.2f}).", ""]
     lines += ["---", "", "**Drapeaux après ces jours** (jamais montrés à l'apprenant) :", "", "```json",
               json.dumps(state.get("flags") or {}, ensure_ascii=False, indent=1), "```", ""]
     from pathlib import Path
@@ -767,3 +843,84 @@ def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assemble
         seed=str(user.id),
     )
     assert (brief["today"]["required_premise"] or {}).get("id") == "le_diner_rate", "the dinner is still owed"
+
+
+def test_a_critic_refusal_whose_retry_fails_the_guards_never_costs_the_day(assembled_client, db_session, journey_enabled, clock, season_on):
+    """Live read 2026-09-30: the critic refused g1.3, the retry it bought was refused by
+    a guard, and the learner lost the day to the café fallback. The refused draft had
+    passed every guard: it is served, and the reading is logged as an override."""
+
+    from app.db.models.pilot_event import PilotEvent
+    from app.db.models.user import User
+    from app.services.season.admin import jump_to_day
+
+    provider = season_on
+    original = provider._season_draft
+    drafts = {"n": 0}
+
+    def spoils_after_the_first(context):
+        provider.spoil_once = drafts["n"] > 0  # every retry makes a forbidden reveal
+        drafts["n"] += 1
+        return original(context)
+
+    provider._season_draft = spoils_after_the_first
+    email = f"s1-critic-{uuid.uuid4()}@example.com"
+    d = support.Driver(assembled_client, support.register(assembled_client, email, cefr="A2.1"), db=db_session)
+    user = db_session.scalar(select(User).where(User.email == email))
+    jump_to_day(db_session, user, day=3)
+    db_session.commit()
+    journey = _play(d, provider, clock, "Je reste encore un peu.")
+    scene = _latest_scene(db_session, _user_id_of(db_session, journey))
+    assert (scene.script_payload or {}).get("season", {}).get("key") == "g1.1", "the day was served, not lost"
+    assert "Berlin" not in " ".join(str(p.overlay_payload) for p in scene.panels), "the served draft is the clean one"
+    assert drafts["n"] >= 2, "the critic's refusal bought a retry"
+    kinds = [
+        row.event_type
+        for row in db_session.scalars(select(PilotEvent).where(PilotEvent.user_id == user.id))
+        if row.event_type.startswith("journey_story_critic")
+    ]
+    assert "journey_story_critic_override" in kinds
+
+
+class SpendCapReached(RuntimeError):
+    pass
+
+
+def _live_model(monkeypatch) -> dict:
+    """The owner-approved paid read: the real model everywhere, as in production
+    (lanes, two drafts, the critic), with every LLM call counted against a hard cap."""
+
+    from app.services import llm_service
+
+    cap = float(os.environ.get("SEASON_REPORT_MAX_USD", "1.0"))
+    spend = {"usd": 0.0, "calls": 0, "cap": cap}
+    original = llm_service.LLMService.generate_chat_completion
+
+    def guarded(self, *args, **kwargs):
+        if spend["usd"] >= cap:
+            raise SpendCapReached(f"spend cap US${cap} reached")
+        result = original(self, *args, **kwargs)
+        spend["usd"] += float(getattr(result, "cost", 0.0) or 0.0)
+        spend["calls"] += 1
+        return result
+
+    monkeypatch.setattr(llm_service.LLMService, "generate_chat_completion", guarded)
+    # The suite runs on a dummy key; this read uses the owner's own (never printed).
+    from dotenv import dotenv_values
+
+    key = dotenv_values(Path(__file__).resolve().parents[1] / ".env").get("OPENAI_API_KEY")
+    if not key:
+        pytest.skip("no OPENAI_API_KEY in .env for the live read")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", key)
+    monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", True)
+    monkeypatch.setattr(settings, "ATELIER_STORY_TURN_LANES_ENABLED", True)
+    monkeypatch.setattr(settings, "ATELIER_CORRECTION_LLM_ENABLED", False, raising=False)
+    # Images and speech bypass LLMService: never in this read.
+    monkeypatch.setattr(settings, "ATELIER_PANEL_ART_ENABLED", False, raising=False)
+    monkeypatch.setattr(settings, "ATELIER_EPISODE_AUDIO_ENABLED", False, raising=False)
+    monkeypatch.setattr(engine, "DUAL_DRAFTS_ENABLED", True)
+    monkeypatch.setattr(engine, "_client", lambda: llm_service.LLMService())
+    from app.services import story_lanes
+
+    monkeypatch.setattr(story_lanes, "dispatcher", lambda job: story_lanes.run_story_job(job))
+    return spend

@@ -1239,8 +1239,12 @@ def _approved(
         )
 
     reason = "story_generation_unavailable"
-    # WP-114: how many story-critic refusals this generation has already spent.
+    # WP-114: how many story-critic refusals this generation has already spent, and the
+    # guard-approved draft the critic refused: if the retry it bought fails the guards,
+    # that draft is served — the critic never costs a learner a day (live read
+    # 2026-09-30: a refusal followed by a guard rejection lost g1.3).
     critic_refusals = 0
+    critic_kept: Any = None
     # WP-90: a draft refused only for missing reading aids (``SoftRejection``) is kept
     # here. The next attempt carries the hint; an attempt after that accepts the aids as
     # they come; and if no later attempt succeeds, this draft is served.
@@ -1343,6 +1347,7 @@ def _approved(
                     feedback = list(dict.fromkeys([*feedback, *(verdict.get("issues") or ["story_critic_refused"])]))
                     reason = "story_critic_refused"
                     if critic_refusals <= 1:
+                        critic_kept = critic_kept or proposal
                         continue
             if not CRITIC_ENABLED or schema.__name__ not in CRITIC_STAGES:
                 # A/B only (scripts/longitudinal_story_review.py --critic). The
@@ -1368,6 +1373,15 @@ def _approved(
         except StoryUnavailable as exc:
             reason = str(exc)
             feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+    if critic_kept is not None:
+        logger.warning(
+            "living_story: the retry the story critic bought failed (%s); serving the refused draft",
+            reason,
+        )
+        override = getattr(story_review, "override", None)
+        if callable(override):
+            override()
+        return critic_kept, usage
     if soft["fallback"] is not None:
         # WP-90: every later attempt failed, but an earlier draft was only missing
         # reading aids — serve it, with those aids left empty, rather than lose the day.
@@ -1386,7 +1400,9 @@ def _approved(
         )
     # The token stays the machine reason; every attempt's refusal rides along as the
     # hint, so a lost day can be explained from the record instead of re-bought.
-    raise StoryUnavailable(reason, hint=" | ".join(feedback)[:1200] or None)
+    hint = " | ".join(feedback)[:1200] or None
+    logger.warning("living_story: every %s attempt refused (%s): %s", schema.__name__, reason, hint)
+    raise StoryUnavailable(reason, hint=hint)
 
 
 def _active_thread(db: Session, user: User, *, lock=False):
@@ -3236,6 +3252,39 @@ def _learner_lines(journey: Any) -> list[str]:
             if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
                 lines.append(str(turn["learner"]))
     return lines
+
+
+def _page_thread(journey: Any, brief: Any) -> dict[str, Any] | None:
+    """WP-110: a generated day's conversation, for the finished page — who turned to
+    the learner, what they asked, and each reply with the answer it got.
+
+    None on a tentpole day (its page is the season's, with the routed replies) and on
+    a day with no reply.
+    """
+
+    context = getattr(brief, "story_context", None) or {}
+    if (context.get("season") or {}).get("kind") == "tentpole":
+        return None
+    exchanges: list[dict[str, str]] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond":
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
+                exchanges.append(
+                    {
+                        "learner": str(turn["learner"]),
+                        "character": str(turn.get("character") or ""),
+                    }
+                )
+    if not exchanges:
+        return None
+    draft = context.get("draft") or {}
+    return {
+        "character_id": getattr(brief, "character_id", None),
+        "opening_fr": str(draft.get("opening_line_fr") or ""),
+        "exchanges": exchanges,
+    }
 
 
 def _journey_date(journey: Any) -> str | None:
@@ -6767,20 +6816,23 @@ def generate_scene(
         if epreuve:
             context[EPREUVE_KEY] = epreuve
         reviews: list[dict] = []
-        draft, usage = _approved(
-            DIRECTOR,
-            _prompt_payload(context),
-            SceneDraft,
-            # The validator closes over the *unfiltered* context: it needs the lexicon,
-            # and the coverage it writes back must not leak into the retry's prompt.
-            lambda p: _validate_scene(p, context),
-            db=db,
-            user=user,
-            candidates=dual_draft_candidates(context),
-            choose=lambda p: _scene_score(p, context),
-            story_review=_season_story_review(context, reviews),
-        )
-        _record_story_reviews(db, user, context, reviews)
+        try:
+            draft, usage = _approved(
+                DIRECTOR,
+                _prompt_payload(context),
+                SceneDraft,
+                # The validator closes over the *unfiltered* context: it needs the lexicon,
+                # and the coverage it writes back must not leak into the retry's prompt.
+                lambda p: _validate_scene(p, context),
+                db=db,
+                user=user,
+                candidates=dual_draft_candidates(context),
+                choose=lambda p: _scene_score(p, context),
+                story_review=_season_story_review(context, reviews),
+            )
+        finally:
+            # A lost day's readings are the metric too.
+            _record_story_reviews(db, user, context, reviews)
         settle_can_do(draft, context)
         complete_epreuve(draft, context)
         season_day = _season_gap_day(context, draft)
@@ -6875,6 +6927,15 @@ def _season_story_review(context: dict, reviews: list[dict]):
             }
         )
         return {"accepted": accepted or final, "issues": list(verdict.issues)}
+
+    def override() -> None:
+        """The refused draft is served after all: its reading is the override."""
+        for row in reversed(reviews):
+            if not row.get("accepted", True):
+                row["override"] = True
+                return
+
+    review.override = override  # type: ignore[attr-defined]
 
     return review
 
@@ -8261,6 +8322,8 @@ def settle_resolution(
         **({"chapter": chapter_block} if chapter_block else {}),
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
         **({"next_teaser_fr": teaser["text_fr"]} if teaser else {}),
+        # WP-110: the conversation as it was had, so the finished page draws it.
+        **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief)) else {}),
         "estimated_cost": {
             **cost,
             "story_generation_usd": round(

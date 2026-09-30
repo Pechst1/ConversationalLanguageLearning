@@ -370,7 +370,9 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
             "possible_developments": hooks,
         },
         "beat": "setup" if today.pos.tentpole_day == "a" else "resolution",
-        "problem_key": f"{today.season.id}-{today.pos.segment.id if today.pos.segment else 'end'}",
+        # A tentpole is not one of the director's practical problems: it records none,
+        # so a generated day is never refused as a «stale problem» against it.
+        "problem_key": "",
         "arc_id": None,
         "panels": panels,
         "opening_line_fr": opening_fr[:320],

@@ -44,6 +44,8 @@ the story takes the solve's default (or the flag's). The full page is already st
 
 ## 4. Interpretations (owner to confirm)
 
+*Owner, 2026-09-30: 1–3 approved. A real-model read of the first ten days approved with a US$1 cap.*
+
 1. **S-9, Camille.** T1 Day B opens with the learner's own balloon, «Vous êtes son fils ?» /
    «Vous êtes sa fille ?», and Camille answers «Son petit-fils.» / «Sa petite-fille.» (two lines
    I wrote). Until WP-112 poses it, a seeded 50/50 stands in.
@@ -62,3 +64,32 @@ the story takes the solve's default (or the flag's). The full page is already st
    day. It is not a season day: the season does not advance, and tomorrow retries the same day.
 8. **After day 59.** Season 2 is not re-cut yet (the brief says «not now»): the generated serial
    continues in the season-1 world.
+
+## 5. The real-model read of the first ten days (2026-09-30)
+
+`WP-111-FIRST-10-DAYS-LIVE.md`: gpt-5-mini (director, critic, reply lanes), A2.1, English
+chrome, US$0.37 in all (cap US$1: a 3-day pipeline check at US$0.04, then the 10 days at
+US$0.32 in 109 calls). Replay: `SEASON_REPORT_LIVE=1 SEASON_REPORT_MAX_USD=… SEASON_REPORT=…
+pytest tests/test_season_one.py -k owner` (the key is read from `.env`, never printed).
+
+- **Tentpoles** (days 1–2) are the bible, as written. No model call.
+- **Generated days** stage the gap's schedule: g1.1 le billet, g1.2 Romy enquête, g1.3 la
+  tradition du comptoir, g1.4 la faveur (la même chose), g1.5 la soupe de Marin. The
+  director's checklist names a real change each day. The critic refused once and was
+  overridden once.
+- **Three days lost** (5–7): g1.3 failed twice on `invalid_story_output` and once on a
+  critic refusal whose retry a guard refused. The café fallback stood in; the season
+  waited (as designed), and day 8 played g1.3.
+  - *Fixed:* the draft the critic refused is served when the retry it bought fails the
+    guards (logged as `journey_story_critic_override`). The critic's readings are
+    recorded even on a lost day. Every lost generation now logs its refusal hints.
+  - The two `invalid_story_output` reasons were not logged then; finding them needs one
+    more paid day.
+- **Reply lanes.** Three of seven generated days end on the authored «X doit partir avant
+  de répondre» (WP-58): the lanes' corrections wrote «perdu(e)» for a learner whose gender
+  the story does not know, and the release guard refused them. This is a reply-lane
+  finding, not a season one.
+- **Self-repair.** «Pardon, On commence maintenant ou quand ? ?» — the forced choice kept the
+  sentence's own «?» and capital. *Fixed* (`journey_conversation._mid_sentence`).
+- **Level.** The director still slips B1 connectives into A2 lines («lorsque», «afin de»).
+  The coverage guard observes them but does not enforce.

@@ -10070,8 +10070,18 @@ export interface components {
              * @default null
              */
             grammar_marks?: components["schemas"]["GrammarMarkRead"][] | null;
+            /**
+             * Mood
+             * @default null
+             */
+            mood?: string | null;
             /** Text Fr */
             text_fr: string;
+            /**
+             * Text Native
+             * @default null
+             */
+            text_native?: string | null;
         };
         /** StoryEpisodePageRead */
         StoryEpisodePageRead: {
@@ -10088,6 +10098,8 @@ export interface components {
             id: string;
             /** Journey Id */
             journey_id: string | null;
+            /** @default null */
+            page?: components["schemas"]["StoryPageRead"] | null;
             /** Panel Index */
             panel_index: number;
             /** Panels */
@@ -10169,6 +10181,85 @@ export interface components {
             serial_episode_id: string | null;
             /** Serial Thread Id */
             serial_thread_id: string | null;
+        };
+        /** StoryPageLineRead */
+        StoryPageLineRead: {
+            /** Character Id */
+            character_id: string;
+            /**
+             * Character Name
+             * @default null
+             */
+            character_name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "speech" | "you" | "sms" | "letter" | "card";
+            /**
+             * Mood
+             * @default null
+             */
+            mood?: string | null;
+            /** Text Fr */
+            text_fr: string;
+            /**
+             * Text Native
+             * @default null
+             */
+            text_native?: string | null;
+            /** You */
+            you: boolean;
+        };
+        /**
+         * StoryPageRead
+         * @description WP-110: a completed day as one page — the scene, the learner's lines as
+         *     balloons, the reactions, the solve, the drawn ending — and «À suivre…».
+         */
+        StoryPageRead: {
+            /**
+             * A Suivre Fr
+             * @default null
+             */
+            a_suivre_fr?: string | null;
+            /** Rows */
+            rows: components["schemas"]["StoryPageRowRead"][];
+        };
+        /** StoryPageRowRead */
+        StoryPageRowRead: {
+            /**
+             * Alt Native
+             * @default null
+             */
+            alt_native?: string | null;
+            /** Dialogue */
+            dialogue: components["schemas"]["StoryPageLineRead"][];
+            /**
+             * Flashback
+             * @default false
+             */
+            flashback?: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Image Status
+             * @enum {string}
+             */
+            image_status: "panel_art" | "rendering" | "setting_reference" | "unavailable";
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * Movement
+             * @enum {string}
+             */
+            movement: "act" | "turn" | "reaction" | "solve" | "ending";
+            /** Narration Fr */
+            narration_fr: string;
+            /**
+             * Silence
+             * @default false
+             */
+            silence?: boolean;
         };
         /** StoryPanelRead */
         StoryPanelRead: {

@@ -114,6 +114,24 @@ def public_scene(scene, names: dict[str, str] | None = None):
         from app.services.season.world import season_cast_names
 
         names = {**season_cast_names(str(season_id)), **names}
+    public_panels = [
+        {
+            "id": str(p.id),
+            "index": p.panel_index,
+            "narration_fr": (p.overlay_payload or {}).get("narration_fr", ""),
+            # WP-90: one sentence describing the picture, for VoiceOver.
+            "alt_native": (p.overlay_payload or {}).get("alt_native"),
+            "dialogue": [
+                {**line, "character_name": names.get(str(line.get("character_id")))}
+                for line in (p.overlay_payload or {}).get("dialogue", [])
+            ],
+            "image_url": p.image_url,
+            "image_status": panel_image_status(p),
+        }
+        for p in panels
+    ]
+    from app.services.story_page import episode_page
+
     return {
         "id": str(scene.id),
         "scene_id": str(scene.id),
@@ -126,22 +144,9 @@ def public_scene(scene, names: dict[str, str] | None = None):
         "panel_index": source.get("panel_index", 0),
         # WP-92: the form this page shows («Rayons X» marks it in the lines).
         "grammar_focus": public_grammar_focus(scene),
-        "panels": [
-            {
-                "id": str(p.id),
-                "index": p.panel_index,
-                "narration_fr": (p.overlay_payload or {}).get("narration_fr", ""),
-                # WP-90: one sentence describing the picture, for VoiceOver.
-                "alt_native": (p.overlay_payload or {}).get("alt_native"),
-                "dialogue": [
-                    {**line, "character_name": names.get(str(line.get("character_id")))}
-                    for line in (p.overlay_payload or {}).get("dialogue", [])
-                ],
-                "image_url": p.image_url,
-                "image_status": panel_image_status(p),
-            }
-            for p in panels
-        ],
+        "panels": public_panels,
+        # WP-110: the finished day as one page, the learner's lines in it.
+        "page": episode_page(scene, public_panels, names),
         "resolution": {
             "text_fr": (scene.recap_payload or {}).get("resolution_fr"),
             "summary_native": (scene.recap_payload or {}).get("summary_native"),

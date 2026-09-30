@@ -104,7 +104,18 @@ def render_tentpole_day(page: dict[str, Any], routing: list[dict[str, Any]]) -> 
     return out
 
 
-def render_generated_day(draft: dict[str, Any], exchanges: list[dict[str, Any]], ending: dict[str, Any]) -> list[str]:
+def render_generated_day(
+    draft: dict[str, Any],
+    exchanges: list[dict[str, Any]],
+    ending: dict[str, Any],
+    *,
+    names: dict[str, str] | None = None,
+) -> list[str]:
+    names = names or {}
+
+    def name(who: Any) -> str:
+        return names.get(str(who)) or str(who)
+
     out: list[str] = [f"> *{draft.get('premise_fr')}*", ""]
     for index, panel in enumerate(draft.get("panels") or [], start=1):
         head = f"**P{index}** — *{panel.get('visual_direction')}*"
@@ -112,14 +123,14 @@ def render_generated_day(draft: dict[str, Any], exchanges: list[dict[str, Any]],
         if panel.get("narration_fr"):
             out.append(f"> *{panel['narration_fr']}*")
         for line in panel.get("dialogue") or []:
-            out.append(f"**{line.get('character_id')}** — «{line.get('text_fr')}»")
+            out.append(f"**{name(line.get('character_id'))}** — «{line.get('text_fr')}»")
         out.append("")
-    out.append(f"**{draft.get('character_id')}** (se tourne vers toi) — «{draft.get('opening_line_fr')}»")
+    out.append(f"**{name(draft.get('character_id'))}** (se tourne vers toi) — «{draft.get('opening_line_fr')}»")
     out.append(f"*Ta tâche : {draft.get('objective_native')}*")
     out.append("")
     for exchange in exchanges:
         out.append(f"**Toi** — «{exchange.get('learner')}»")
-        out.append(f"**{draft.get('character_id')}** — «{exchange.get('character')}»")
+        out.append(f"**{name(draft.get('character_id'))}** — «{exchange.get('character')}»")
         out.append("")
     if ending.get("character_line_fr"):
         out.append(f"> *{ending['character_line_fr']}*")
