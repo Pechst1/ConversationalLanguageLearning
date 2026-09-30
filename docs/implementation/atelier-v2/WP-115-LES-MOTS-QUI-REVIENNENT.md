@@ -265,3 +265,23 @@ the story's contribution can be proven rather than assumed.
 - **Not yet:** the transfer moment (a character noticing a due word used unprompted) is
   115d; measuring whether the story helps is 115e.
 
+## 10. Status — 115e built (2026-09-30)
+
+- **Every vocabulary review logs what the scheduler predicted and the lag**
+  (`review_logs.predicted_r`, `elapsed_days_exact`; migration `a8c0e2f4b6d8`), and the
+  day's credit logs its exercise format (`reply` for the reply).
+- **The report** (`app/services/vocab_metrics.py`,
+  `scripts/vocab_retention_report.py --database-url … --days 28`): calibration
+  (predicted vs actual recall by bin), the forgetting curve by lag (≈ 1 / 7 / 30 /
+  90+ days) overall, per format and per place, the pilot, and load (reviews per learner
+  day, backlog). Only delayed reviews count (lag ≥ 12 h): same-session accuracy is never
+  the headline. It refuses `language_learning` without `--allow-live`.
+- **The pilot** (optional, `VOCAB_STORY_PILOT_ENABLED`, off): each learner's words are
+  split in two stable halves (`story_words.pilot_arm`); only the «story» half may ride
+  the story. The report compares week-or-later recall of hard words between the halves.
+- **Decided differently from §4.5:** no separate held-out probe items yet. The
+  scheduler's own reviews *are* delayed retrievals at known lags; with the prediction
+  logged, they give the curve and the calibration without adding a test the learner did
+  not ask for. Held-out probes (with a no-probe control) remain available if the
+  calibration drifts or the pilot needs words outside their schedule.
+

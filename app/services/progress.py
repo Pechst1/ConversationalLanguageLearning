@@ -1182,6 +1182,9 @@ class ProgressService:
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
         previous_schedule = progress.scheduled_days
         state = self._state_from_progress(progress)
+        from app.services.vocab_fsrs import prediction
+
+        predicted_r, elapsed_exact = prediction(progress.stability, progress.reps, progress.last_review_date, now)
         outcome = self.scheduler.review(
             state=state,
             rating=rating,
@@ -1205,6 +1208,8 @@ class ProgressService:
             source=(source or None) and str(source)[:24],
             format=(review_format or None) and str(review_format)[:24],
             direction=(direction or None) and str(direction)[:16],
+            predicted_r=predicted_r,
+            elapsed_days_exact=elapsed_exact,
         )
         review_log.set_schedule_transition(before=previous_schedule, after=outcome.scheduled_days)
 

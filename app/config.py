@@ -511,6 +511,15 @@ class Settings(BaseSettings):
             "Higher means more reviews: 0.90 → 0.95 roughly doubles them."
         ),
     )
+    VOCAB_STORY_PILOT_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-115e: the optional 4-week pilot. On: each learner's words are split in "
+            "half by a stable hash, and only the 'story' half may be carried by the story "
+            "(WP-115c); the 'cahier' half comes back in the practice and the drill only. "
+            "The scheduler is one either way. Compare with scripts/vocab_retention_report.py."
+        ),
+    )
     ATELIER_STORY_TURN_LANES_ENABLED: bool = Field(
         True,
         description=(

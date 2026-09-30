@@ -1978,7 +1978,12 @@ def _apply_vocabulary_credit(
         learner_text=observation.learner_text,
         corrected_text=observation.corrected_text,
         session=session,
-        source_payload={"source_key": source_key, "policy_version": JOURNEY_LEARNING_POLICY_VERSION},
+        source_payload={
+            "source_key": source_key,
+            "policy_version": JOURNEY_LEARNING_POLICY_VERSION,
+            # WP-115e: the review log records the format (``reply`` for the reply).
+            "task_type": observation.task_format or "reply",
+        },
     )
     return _CreditOutcome(True, result.to_dict())
 

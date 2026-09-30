@@ -38,6 +38,16 @@ MIN_REPS_FOR_DIFFICULTY = 3
 STORY_WORDS_KEY = "story_words"
 
 
+def pilot_arm(user_id: Any, word_id: Any) -> str:
+    """WP-115e: the pilot arm of one learner's word — ``story`` or ``cahier`` — stable
+    for the pair, half and half, and meaningless outside the pilot."""
+
+    import hashlib
+
+    digest = hashlib.sha256(f"wp115e:{user_id}:{word_id}".encode()).digest()
+    return "story" if digest[0] % 2 == 0 else "cahier"
+
+
 def story_due_words(
     db: Session, *, user: Any, now: datetime | None = None, limit: int = MAX_STORY_WORDS
 ) -> list[dict[str, Any]]:
@@ -75,9 +85,14 @@ def story_due_words(
         )
         .limit(limit * 4)
     ).all()
+    from app.config import settings
+
+    pilot = bool(getattr(settings, "VOCAB_STORY_PILOT_ENABLED", False))
     native = normalize_language(getattr(user, "native_language", None))
     words: list[dict[str, Any]] = []
     for progress, word in rows:
+        if pilot and pilot_arm(user.id, word.id) != "story":
+            continue  # WP-115e: the pilot's «cahier» half never rides the story
         gloss, language = resolve_gloss(word, native)
         if not gloss or language != native or not word.word:
             continue

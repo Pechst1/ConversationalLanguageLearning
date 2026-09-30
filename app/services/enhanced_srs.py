@@ -356,6 +356,9 @@ class EnhancedSRSService:
             state=progress.state or "new"
         )
         previous_schedule = progress.scheduled_days or state.scheduled_days
+        from app.services.vocab_fsrs import prediction
+
+        predicted_r, elapsed_exact = prediction(progress.stability, progress.reps, progress.last_review_date, now)
         
         # Process review
         outcome = self.fsrs_scheduler.review(
@@ -383,6 +386,8 @@ class EnhancedSRSService:
             response_time_ms=response_time_ms,
             state_transition=f"{state.state} -> {outcome.state}",
             scheduler_type="fsrs",
+            predicted_r=predicted_r,
+            elapsed_days_exact=elapsed_exact,
             **{k: v for k, v in getattr(self, "_log_fields", {}).items() if v},
         )
         review_log.set_schedule_transition(previous_schedule, outcome.scheduled_days)

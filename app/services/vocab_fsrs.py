@@ -153,3 +153,19 @@ def earned_rating(review_format: str | None, correct: bool | None, rating: int) 
     if review_format in _EARNED and correct is not None:
         return _EARNED[review_format] if correct else 0
     return rating
+
+
+def prediction(
+    stability: float | None, reps: int | None, last_review_at: datetime | None, now: datetime
+) -> tuple[float | None, float | None]:
+    """WP-115e: ``(predicted recall, days since the last review)`` at a review, for the
+    calibration and the forgetting curve. ``None`` for a card never reviewed."""
+
+    if last_review_at is None or not reps or not stability or stability <= 0:
+        return None, None
+    if last_review_at.tzinfo is None:
+        last_review_at = last_review_at.replace(tzinfo=UTC)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    elapsed = max(0.0, (now - last_review_at).total_seconds() / 86400)
+    return round(retrievability(float(stability), elapsed), 4), round(elapsed, 4)

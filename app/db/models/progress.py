@@ -168,6 +168,10 @@ class ReviewLog(Base):
     source = Column(String(24), nullable=True, index=True)
     format = Column(String(24), nullable=True)
     direction = Column(String(16), nullable=True)
+    # WP-115e — measurement: what the scheduler predicted (recall probability when the
+    # review happened) and how long it had been since the last review, in days.
+    predicted_r = Column(Float, nullable=True)
+    elapsed_days_exact = Column(Float, nullable=True)
 
     # Anki-specific fields
     scheduler_type = Column(String(20), default="fsrs")  # "fsrs" or "anki"
