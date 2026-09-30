@@ -4614,7 +4614,7 @@ export interface components {
             /** Direction */
             direction?: ("fr_to_native" | "native_to_fr") | null;
             /** Format */
-            format?: ("flashcard" | "typed" | "cloze" | "audio" | "choice") | null;
+            format?: ("flashcard" | "typed" | "cloze" | "audio" | "choice" | "spoken") | null;
             /**
              * Rating
              * @description Anki rating 0=Again,1=Hard,2=Good,3=Easy
@@ -11847,6 +11847,8 @@ export interface components {
              * @default false
              */
             is_new?: boolean;
+            /** Ladder */
+            ladder?: string | null;
             /** Language */
             language: string;
             /**
@@ -11856,6 +11858,11 @@ export interface components {
             lapses?: number;
             /** Last Review */
             last_review?: string | null;
+            /**
+             * Leech
+             * @default false
+             */
+            leech?: boolean;
             /** Next Review */
             next_review?: string | null;
             /** Part Of Speech */
@@ -11875,8 +11882,16 @@ export interface components {
             recommendation_reason?: {
                 [key: string]: unknown;
             } | null;
+            /** Rescue Cue */
+            rescue_cue?: {
+                [key: string]: unknown;
+            } | null;
             /** Retrievability */
             retrievability?: number | null;
+            /** Scene Cue */
+            scene_cue?: {
+                [key: string]: unknown;
+            } | null;
             /** Scheduled Days */
             scheduled_days?: number | null;
             /** Scheduler */

@@ -225,6 +225,12 @@ class VocabularyRecommendationItem(BaseModel):
     translations: VocabularyRecommendationTranslations
     example_sentence: str | None = None
     example_translation: str | None = None
+    #: WP-115b — the recall ladder: recognition | production | audio | cloze, or
+    #: ``scene`` (the word's own line, first two reviews) / ``rescue`` (a leech).
+    ladder: str | None = None
+    scene_cue: dict[str, Any] | None = None
+    leech: bool = False
+    rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
 

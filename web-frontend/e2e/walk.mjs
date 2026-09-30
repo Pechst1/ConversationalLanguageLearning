@@ -72,7 +72,7 @@ async function makeLearner({ native, level, dayCount, tag }) {
   const label = tag === 'b1' ? `${native}-${level}` : tag === 'season' ? `season-${native}` : native;
   const walk = new LearnerWalk({ page: null, findings, outDir: path.join(outDir, label), lang: native, level, stack, shots, scale });
   await walk.newSession(context);
-  return { label, walk, context, dayCount, covered: new Set() };
+  return { label, walk, context, dayCount, covered: new Set(), userId: learner.id };
 }
 
 async function playDay(l, day) {
@@ -104,6 +104,21 @@ async function playDayInner(l, day) {
   if (label.startsWith('season-') || day === 1 || day === l.dayCount) await readPage(l, day);
   if (day === l.dayCount && !label.startsWith('season-')) {
     // WP-115a: the learner's caps, and the word drill (graded answers).
+    // WP-115b: the word kept from the story comes back on its own line. The walk's
+    // clock does not move the vocabulary scheduler, and the day's practice has already
+    // reviewed the word, so the kept card is staged here as due and seen once — test
+    // data on the walk's own database, for the screenshot of the «scene» rung.
+    if (l.userId && /^[0-9a-f-]{36}$/.test(l.userId)) {
+      stack.sql(
+        `UPDATE user_vocabulary_progress SET due_at = now() - interval '30 days', `
+        + `next_review_date = now() - interval '30 days', due_date = (now() - interval '30 days')::date, `
+        + `reps = 1, lapses = 0, stability = 2 `
+        + `WHERE user_id = '${l.userId}' AND context IS NOT NULL`,
+      );
+    }
+    await walk.visit('/vocabulary/review', 'drill');
+    const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);
+    findings.check('drill-brings-a-kept-word-back-on-its-line', rung === 'scene', `the drill's first card is on the «${rung}» rung`, walk.where({ kind: 'drill' }));
     await walk.visit('/settings?section=practice', 'settings');
     const caps = walk.page.locator('#st-reviews-label');
     const shown = await caps.count().then((n) => n > 0, () => false);
@@ -112,7 +127,6 @@ async function playDayInner(l, day) {
       await caps.evaluate((node) => node.scrollIntoView({ block: 'center' }));
       await walk.shoot('settings-caps');
     }
-    await walk.visit('/vocabulary/review', 'drill');
   }
   if (day === 1 || day === l.dayCount) {
     await walk.visit('/missions', 'courrier');

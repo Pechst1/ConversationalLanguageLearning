@@ -397,7 +397,10 @@ class ProgressService:
         bucket: str,
         now: datetime,
         native_language: str | None = None,
+        level: str | None = None,
     ) -> dict[str, Any]:
+        from app.services.recall_ladder import card_ladder
+
         priority_score, retrievability = self._recommendation_priority(
             progress=progress,
             word=word,
@@ -434,6 +437,8 @@ class ProgressService:
             **gloss_payload(word, native_language),
             "example_sentence": word.example_sentence,
             "example_translation": word.example_translation,
+            # WP-115b: the recall ladder — the card's format follows its memory.
+            **card_ladder(progress, word, level=level),
         }
 
     def get_vocabulary_recommendations(
@@ -460,10 +465,30 @@ class ProgressService:
         now = now or datetime.now(UTC)
         stopwords = self._queue_stopwords()
         target_language = (user.target_language or "fr").strip() or "fr"
+        # WP-115b: a word the story taught (its catalogue row is tagged scene_lexicon,
+        # with no deck and no direction) or one the learner kept from it is theirs to
+        # drill. The filters below keep the old mission phrase bank out; they kept
+        # the story's own words out too, so a word met in the story never reached the
+        # drill (found by the walk, 2026-09-30).
+        from sqlalchemy import Text, cast
+
+        from app.services.kept_words import KEPT_PROVENANCE, SCENE_LEXICON_TAG
+
+        story_word = or_(
+            UserVocabularyProgress.provenance == KEPT_PROVENANCE,
+            cast(VocabularyWord.topic_tags, Text).like(f"%{SCENE_LEXICON_TAG}%"),
+        )
         direction_filter = (
             self._shared_direction_filter(direction)
             if include_shared_phrases
             else (VocabularyWord.direction == direction if direction else None)
+        )
+        # Only the learner's own cards (the query that joins their progress) may admit
+        # a story word with no direction; the catalogue's new words keep the old rule.
+        own_direction_filter = (
+            or_(direction_filter, and_(VocabularyWord.direction.is_(None), story_word))
+            if direction_filter is not None and not include_shared_phrases
+            else direction_filter
         )
         deck_filter = self._shared_deck_filter(deck_name)
 
@@ -477,9 +502,9 @@ class ProgressService:
             .where(func.lower(VocabularyWord.word).notin_(stopwords))
         )
         if not include_shared_phrases:
-            progress_stmt = progress_stmt.where(VocabularyWord.is_anki_card.is_(True))
-        if direction_filter is not None:
-            progress_stmt = progress_stmt.where(direction_filter)
+            progress_stmt = progress_stmt.where(or_(VocabularyWord.is_anki_card.is_(True), story_word))
+        if own_direction_filter is not None:
+            progress_stmt = progress_stmt.where(own_direction_filter)
         if deck_filter is not None:
             progress_stmt = progress_stmt.where(deck_filter)
         progress_stmt = progress_stmt.order_by(
@@ -531,6 +556,7 @@ class ProgressService:
                         bucket="due",
                         now=now,
                         native_language=user.native_language,
+                        level=getattr(user, "proficiency_level", None),
                     )
                 )
             elif fragile:
@@ -585,6 +611,7 @@ class ProgressService:
                 bucket="new",
                 now=now,
                 native_language=user.native_language,
+                level=getattr(user, "proficiency_level", None),
             )
             for word in self.db.scalars(new_stmt)
         ]
@@ -616,6 +643,7 @@ class ProgressService:
             bucket=bucket,
             now=now,
             native_language=user.native_language,
+            level=getattr(user, "proficiency_level", None),
         )
 
     def _context_word_query(

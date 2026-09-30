@@ -839,6 +839,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # WP-91: who speaks with which voice, and a line's clip id — a table
         # and a hash, no I/O, so a listening item names its clip at plan time.
         "app.services.cast_voices",
+        # WP-115b: the recall ladder's rung from a stability already on the
+        # candidate — thresholds and a comparison, no ORM and no scheduler.
+        "app.services.recall_ladder",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

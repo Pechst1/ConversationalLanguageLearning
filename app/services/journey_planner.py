@@ -2736,6 +2736,25 @@ def practice_task(
     )
 
 
+_RECOGNITION_FORMATS = frozenset({"choice", "classify", "match_pairs", "listen_tap", "who_said"})
+_PRODUCTION_FORMATS = frozenset({"short_answer", "transform"})
+
+
+def _vocabulary_rung(entry: SelectedTarget, band: str) -> str | None:
+    """WP-115b: the recall ladder's rung for a vocabulary target of the day."""
+
+    if entry.target.kind is not TargetKind.VOCABULARY or entry.candidate.is_new:
+        return None
+    metadata = entry.candidate.metadata or {}
+    try:
+        stability = float(metadata.get("stability"))
+    except (TypeError, ValueError):
+        return None
+    from app.services.recall_ladder import rung
+
+    return rung(stability=stability, reps=1, lapses=None, level=band, has_example=False)
+
+
 def _slot_formats(
     slot: str,
     *,
@@ -2746,6 +2765,7 @@ def _slot_formats(
     used_by_target: set[str],
     learner_band: str = "A1",
     recognition_used: int = 0,
+    rung: str | None = None,
 ) -> list[str]:
     declared = PRACTICE_SLOT_FORMATS[slot]
     if learner_band in {"B1", "B2", "C1", "C2"}:
@@ -2759,13 +2779,23 @@ def _slot_formats(
         if shape_allows_format(shape, task_type) and task_type not in used_by_target
     ]
 
-    def key(task_type: str) -> tuple[int, str]:
+    def ladder(task_type: str) -> int:
+        """WP-115b: a word still fragile is recognised first; a word held long enough
+        is produced first. Unknown memory (grammar, a new word) keeps the old order."""
+
+        if rung == "recognition":
+            return 0 if task_type in _RECOGNITION_FORMATS else 1
+        if rung in {"production", "audio", "cloze"}:
+            return 0 if task_type in _PRODUCTION_FORMATS else 1
+        return 0
+
+    def key(task_type: str) -> tuple[int, int, str]:
         tie = (
             _digest(*dice.seed_parts, identity, slot, task_type)
             if dice is not None
             else f"{declared.index(task_type):04d}"
         )
-        return (used_today.get(task_type, 0), tie)
+        return (ladder(task_type), used_today.get(task_type, 0), tie)
 
     return sorted(allowed, key=key)
 
@@ -2896,6 +2926,7 @@ def fill_practice_items(
                 used_by_target=formats_by_target.get(identity, set()),
                 learner_band=scenario.level_band,
                 recognition_used=1 if caps.budget_seconds == 300 else sum(item.task.task_type in {"choice", "classify", "match_pairs", "listen_tap", "who_said"} for item in items),
+                rung=_vocabulary_rung(entry, str(scenario.level_band or "A1")),
             ):
                 task = practice_task(
                     task_type,

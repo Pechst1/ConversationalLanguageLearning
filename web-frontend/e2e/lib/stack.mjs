@@ -84,6 +84,8 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
   const webPort = await freePort();
   const children = [];
   const stack = { dbName, apiPort, webPort, children };
+  // Test data only, on the walk's own throwaway database (the name is checked below).
+  stack.sql = (statement) => pgAdmin(dbUrl, statement);
 
   const log = (name) => createWriteStream(path.join(logDir, `${name}.log`));
   const stop = async () => {

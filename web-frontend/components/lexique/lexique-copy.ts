@@ -49,6 +49,11 @@ export type LexiqueCopy = {
   deck_know: string;
   /** WP-115a: an answered card is graded by the answer; one button files it. */
   deck_graded_next: string;
+  /** WP-115b: the word's own line from the story, blanked. */
+  ladder_scene_hint: string;
+  /** WP-115b: a word that keeps failing, with a cue: {letter}, {n}. */
+  ladder_rescue_hint: string;
+  ladder_speak: string;
   // part of speech, whitelisted
   pos_noun: string;
   pos_verb: string;
@@ -290,6 +295,9 @@ const EN: LexiqueCopy = {
   deck_easy: 'Easy',
   deck_know: 'I know it',
   deck_graded_next: 'Next',
+  ladder_scene_hint: 'From the story — which word is missing?',
+  ladder_rescue_hint: 'A stubborn word: it starts with «{letter}», {n} letters.',
+  ladder_speak: 'Say it',
   pos_noun: 'noun',
   pos_verb: 'verb',
   pos_adjective: 'adjective',
@@ -524,6 +532,9 @@ const DE: LexiqueCopy = {
   deck_easy: 'Leicht',
   deck_know: 'Weiß ich',
   deck_graded_next: 'Weiter',
+  ladder_scene_hint: 'Aus der Geschichte — welches Wort fehlt?',
+  ladder_rescue_hint: 'Ein hartnäckiges Wort: Es beginnt mit «{letter}», {n} Buchstaben.',
+  ladder_speak: 'Sprich es',
   pos_noun: 'Nomen',
   pos_verb: 'Verb',
   pos_adjective: 'Adjektiv',
@@ -758,6 +769,9 @@ const FR: LexiqueCopy = {
   deck_easy: 'Facile',
   deck_know: 'Je sais',
   deck_graded_next: 'Suivant',
+  ladder_scene_hint: 'Dans l’histoire — quel mot manque ?',
+  ladder_rescue_hint: 'Un mot têtu : il commence par «{letter}», {n} lettres.',
+  ladder_speak: 'Dis-le',
   pos_noun: 'nom',
   pos_verb: 'verbe',
   pos_adjective: 'adjectif',

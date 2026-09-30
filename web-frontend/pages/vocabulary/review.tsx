@@ -12,6 +12,13 @@ import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
+  gradedFormat,
+  ladderCue,
+  ladderRung,
+  nextAgainQueue,
+  type CardMode,
+} from '@/components/lexique/recall-ladder';
+import {
   fill,
   formatDate,
   formatNumber,
@@ -290,8 +297,19 @@ function clozeIsBlanked(item: VocabularyRecommendationItem) {
   return Boolean(prompt) && prompt.includes('_____');
 }
 
-function cardMode(item: VocabularyRecommendationItem | null): 'recognition' | 'production' | 'audio' | 'cloze' {
+/** WP-115b: the server's rung of the recall ladder, when it sent one. */
+function ladderOf(item: VocabularyRecommendationItem | null): CardMode | null {
+  return ladderRung(item as never, item ? clozeIsBlanked(item) : false);
+}
+
+function sceneOrRescueCue(item: VocabularyRecommendationItem | null) {
+  return ladderCue(item as never);
+}
+
+function cardMode(item: VocabularyRecommendationItem | null): CardMode {
   if (!item) return 'recognition';
+  const ladder = ladderOf(item);
+  if (ladder) return ladder;
   if ((item.proficiency_score || 0) >= 90 && item.example_sentence && clozeIsBlanked(item)) return 'cloze';
   if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
   if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
@@ -315,13 +333,6 @@ function formatDueLabel(t: LexiqueCopy, item: VocabularyRecommendationItem) {
   if (item.bucket === 'new') return t.bucket_new_deck;
   const label = formatDate(t, item.due_at || item.next_review);
   return label ? fill(t.due_on, { date: label }) : bucketLabel(t, item.bucket);
-}
-
-/** WP-115a: the format an answered card reports, so the server can earn its grade. */
-function gradedFormat(mode: 'recognition' | 'production' | 'audio' | 'cloze'): 'typed' | 'audio' | 'cloze' {
-  if (mode === 'audio') return 'audio';
-  if (mode === 'cloze') return 'cloze';
-  return 'typed';
 }
 
 function ratingToneLabel(t: LexiqueCopy, rating: number) {
@@ -469,6 +480,11 @@ export default function VocabularyReviewPage() {
   const t = lexiqueCopy(language);
   const chrome = atelierChrome(language);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
+  // WP-115b «successive relearning»: a card answered wrong comes back at the end of
+  // the session, until it is right once.
+  const [againIds, setAgainIds] = useState<number[]>([]);
+  // WP-115b: the answer came from the microphone (a spoken production).
+  const [spokenAnswer, setSpokenAnswer] = useState(false);
   const [lastRating, setLastRating] = useState<number | null>(null);
   const [lastReviewedItem, setLastReviewedItem] = useState<VocabularyRecommendationItem | null>(null);
   const [biographyOpen, setBiographyOpen] = useState(false);
@@ -543,10 +559,12 @@ export default function VocabularyReviewPage() {
       ...ordered.filter((item) => item.word_id !== resumeWordId),
     ];
   }, [context, resumeWordId, slateById]);
-  const remainingItems = useMemo(
-    () => allItems.filter((item) => !reviewedIds.has(item.word_id)),
-    [allItems, reviewedIds],
-  );
+  const remainingItems = useMemo(() => {
+    const main = allItems.filter((item) => !reviewedIds.has(item.word_id));
+    const byId = new Map(allItems.map((item) => [item.word_id, item]));
+    const again = againIds.map((id) => byId.get(id)).filter(Boolean) as typeof allItems;
+    return [...main, ...again];
+  }, [allItems, reviewedIds, againIds]);
   const current = remainingItems[0] || null;
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
   const completed = reviewedIds.size;
@@ -684,6 +702,7 @@ export default function VocabularyReviewPage() {
       }
       if (transcript.trim()) {
         setTypedAnswer(transcript.trim());
+        setSpokenAnswer(Boolean(transcript.trim()));
       } else {
         toast(chrome.transcription_empty);
       }
@@ -753,11 +772,15 @@ export default function VocabularyReviewPage() {
       // WP-115a: a card the learner answered is graded by the answer (the server
       // earns the grade); a card only turned over stays a self-rated flashcard.
       const answered = graded
-        ? { format: gradedFormat(mode), correct: typedMatches }
+        ? { format: gradedFormat(mode, spokenAnswer), correct: typedMatches }
         : { format: 'flashcard' as const };
       const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
       toast.success(reviewMessage(t, response));
       setReviewedIds((prev) => new Set(prev).add(current.word_id));
+      // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
+      const wrong = graded ? !typedMatches : rating === 0;
+      setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
+      setSpokenAnswer(false);
       setLastRating(rating);
       setLastReviewedItem(current);
       setContext((prev) => optimisticallyDecrementSummary(prev, current));
@@ -828,7 +851,9 @@ export default function VocabularyReviewPage() {
       ? queueMeaning(current) || queueFrench(current)
       : mode === 'cloze'
         ? clozePrompt(current)
-        : queueWord(current)
+        : mode === 'scene' || mode === 'rescue'
+          ? sceneOrRescueCue(current)?.sentence_fr || queueMeaning(current) || queueFrench(current)
+          : queueWord(current)
     : '';
   const answer = current ? (mode === 'recognition' ? queueTranslation(current) : queueFrench(current)) : '';
   const french = current ? queueFrench(current) : '';
@@ -843,6 +868,14 @@ export default function VocabularyReviewPage() {
   const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
   const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
   const hint = current ? cardHint(t, current) : '';
+  // WP-115b: the ladder's own cue on the scene and rescue rungs.
+  const ladderCue = sceneOrRescueCue(current);
+  const ladderHint =
+    mode === 'scene'
+      ? t.ladder_scene_hint
+      : mode === 'rescue' && ladderCue?.first_letter
+        ? fill(t.ladder_rescue_hint, { letter: ladderCue.first_letter, n: ladderCue.length ?? '' })
+        : '';
   const direction = current ? queueDirection(current) : '';
 
   // "Mot du jour · French 5000": the tag half is the deck the card came from,
@@ -1039,8 +1072,31 @@ export default function VocabularyReviewPage() {
                       ) : (
                         <>
                           {/* the one Garamond-italic headline on this screen */}
-                          <p className="av2-headline lx-card__word review-prompt-term">{prompt}</p>
-                          {hint && <p className="lx-card__hint">{hint}</p>}
+                          <p
+                            className={`av2-headline lx-card__word review-prompt-term${mode === 'scene' || mode === 'rescue' ? ' lx-card__word--line' : ''}`}
+                            lang={mode === 'scene' || mode === 'rescue' ? 'fr' : undefined}
+                          >
+                            {prompt}
+                          </p>
+                          {ladderHint ? (
+                            <p className="lx-card__hint" data-ladder={mode}>{ladderHint}</p>
+                          ) : (
+                            hint && <p className="lx-card__hint">{hint}</p>
+                          )}
+                          {mode !== 'recognition' && (
+                            /* WP-115b: say it — a spoken answer is graded like a typed one. */
+                            <div className="lx-card__audio" onClick={(event) => event.stopPropagation()}>
+                              <IconAction
+                                label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : t.ladder_speak}
+                                tone={recording ? 'recording' : 'action'}
+                                pressable
+                                pending={transcribing}
+                                onClick={recording ? stopRecording : startRecording}
+                              >
+                                {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
+                              </IconAction>
+                            </div>
+                          )}
                         </>
                       )}
                       {mode !== 'recognition' && (
@@ -1048,7 +1104,10 @@ export default function VocabularyReviewPage() {
                           className="av2-field__control lx-input lx-card__input"
                           lang="fr"
                           value={typedAnswer}
-                          onChange={(event) => setTypedAnswer(event.target.value)}
+                          onChange={(event) => {
+                            setTypedAnswer(event.target.value);
+                            setSpokenAnswer(false);
+                          }}
                           onClick={(event) => event.stopPropagation()}
                           placeholder={mode === 'audio' ? t.input_placeholder_audio : t.input_placeholder}
                           aria-label={t.input_aria}
@@ -1252,6 +1311,11 @@ export default function VocabularyReviewPage() {
         .av2 .lx-card__middle { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
         .av2 .lx-card__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; }
         .av2 .lx-card__marks:empty { display: none; }
+        /* WP-115b: a whole line from the story reads as a line, not a headword. */
+        .av2 .lx-card__word.lx-card__word--line {
+          font-size: 1.75rem;
+          line-height: 1.2;
+        }
         .av2 .lx-card__word {
           font-size: 2.875rem; /* design 46px */
           line-height: 1;

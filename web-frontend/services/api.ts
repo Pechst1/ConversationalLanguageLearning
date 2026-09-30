@@ -2435,7 +2435,7 @@ class ApiService {
     rating: number;
     response_time_ms?: number;
     /** WP-115a: an answered card's format and result — the server earns the grade. */
-    format?: 'flashcard' | 'typed' | 'cloze' | 'audio' | 'choice';
+    format?: 'flashcard' | 'typed' | 'cloze' | 'audio' | 'choice' | 'spoken';
     correct?: boolean;
   }): Promise<AnkiReviewResponse> {
     return this.atelierPost('/anki/review', data);

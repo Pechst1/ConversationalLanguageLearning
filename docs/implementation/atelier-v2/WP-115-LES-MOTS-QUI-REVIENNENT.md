@@ -285,3 +285,22 @@ the story's contribution can be proven rather than assumed.
   not ask for. Held-out probes (with a no-probe control) remain available if the
   calibration drifts or the pilot needs words outside their schedule.
 
+## 11. Status — 115b built (2026-09-30)
+
+- **The ladder** (`app/services/recall_ladder.py`): a card's rung follows FSRS stability
+  and the band — recognition → production (meaning → type the French) → audio → cloze
+  in a new sentence. A1 stays receptive longer; B1 produces sooner.
+- **The scene rung:** a word kept from the story comes back on its own line, blanked,
+  for its first two reviews; from the third, new contexts.
+- **Rescue:** a word with ≥ 5 lapses changes method — its line (or a catalogue sentence)
+  blanked, with first letter and length («un mot têtu»).
+- **The drill** reads the rung, offers the microphone on every typed rung (a spoken
+  answer is graded, logged as `spoken`), and brings a wrong card back at the end of
+  the session until it is right once (successive relearning).
+- **The day's practice** prefers recognition formats for a fragile word and
+  production formats for a held one.
+- **Found by the walk and fixed:** the drill only took Anki-flagged catalogue rows, so a
+  word taught by the story never reached it. Story words (and kept words) are now the
+  learner's to drill; the mission phrase bank stays out.
+- **Not yet:** chunks as card units; «Easy» from answer speed.
+

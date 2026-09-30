@@ -169,7 +169,7 @@ class AnkiReviewRequest(BaseModel):
     #: WP-115a: how the card was answered. ``flashcard`` is self-rated (the rating
     #: stands); ``typed``/``cloze``/``audio``/``choice`` are graded by the answer
     #: itself (``correct``), and the rating is then earned, not chosen.
-    format: Literal["flashcard", "typed", "cloze", "audio", "choice"] | None = None
+    format: Literal["flashcard", "typed", "cloze", "audio", "choice", "spoken"] | None = None
     correct: bool | None = None
     direction: Literal["fr_to_native", "native_to_fr"] | None = None
 
