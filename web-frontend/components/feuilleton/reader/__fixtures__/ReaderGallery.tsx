@@ -134,6 +134,7 @@ function episodeAt(panelIndex: number, rendering: number | null = null): StoryEp
         : panel,
     ) as unknown as StoryPanel[],
     resolution: null,
+    grammar_focus: null,
   };
 }
 
@@ -145,6 +146,8 @@ const RESOLUTION: ResolutionStep = {
   estimated_seconds: 30,
   assistance_used: [],
   prompt: {
+    chapter_recap_fr: null,
+    story_pending: false,
     outcome_key: 'served',
     character_line_fr: 'Votre café, et un croissant offert. À demain !',
     summary_native: 'You ordered politely, and Margaux remembered you.',
@@ -231,6 +234,8 @@ function readStepOf(prompt: Partial<ReadPrompt>): ReadStep {
       scene_id: null,
       status: 'ready',
       audio_available: false,
+      character_id: null,
+      character_name: null,
       ...prompt,
     },
   };

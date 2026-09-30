@@ -79,7 +79,10 @@ function recallStep(extra: Partial<RecallStep['prompt']>): RecallStep {
         { id: 'e', text_fr: 'est' },
         { id: 'f', text_fr: 'grand' },
       ],
-      target: { kind: 'grammar', id: 'g-12', label_fr: 'Genre et nombre', label_native: 'Gender and number' },
+      target: { kind: 'grammar', id: 'g-12', label_fr: 'Genre et nombre', label_native: 'Gender and number', concept_title: false },
+      answer_key: null,
+      goal_native: null,
+      source_fr: null,
       optional: false,
       help_available: [],
       ...extra,
@@ -104,6 +107,8 @@ function respondPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
     input_modes: ['text'],
     targets: [],
     help_available: [],
+    letter: null,
+    thread: [],
     ...extra,
   };
 }
@@ -200,6 +205,7 @@ const EPISODE: StoryEpisode = {
     },
   ],
   resolution: null,
+  grammar_focus: null,
 };
 
 const AUDIO: UseEpisodeAudio = {

@@ -85,7 +85,8 @@ BudgetSeconds = Literal[300, 600, 1200, 1800]
 class JourneyModel(BaseModel):
     """Response base: no extra keys may sneak into a public payload."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Responses serialize defaults too; OpenAPI must describe the emitted keys.
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
 
 
 class JourneyRequest(BaseModel):
@@ -213,6 +214,8 @@ class ScenePrompt(JourneyModel):
 class RecallOption(JourneyModel):
     """Never carries correctness: an option id says nothing about the answer."""
 
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+
     id: str
     text_fr: str
     #: WP-78. Which language the card's text is in: ``"fr"`` or ``"native"``
@@ -225,7 +228,7 @@ class RecallOption(JourneyModel):
     character_id: str | None = None
 
     @model_serializer(mode="wrap")
-    def _omit_absent_side(self, handler: Any) -> Any:
+    def _omit_absent_side(self, handler: Any):
         # WP-78: additive means byte-identical for every older format.
         data = handler(self)
         if isinstance(data, dict) and data.get("side") is None:
@@ -249,6 +252,13 @@ class RecallAnswerKey(JourneyModel):
 
 
 class RecallPrompt(JourneyModel):
+    # This serializer drops audio_url on silent formats, leaving all other defaults.
+    model_config = ConfigDict(
+        json_schema_extra=lambda schema: (
+            schema["required"].remove("audio_url")
+            if "audio_url" in schema.get("required", []) else None
+        ),
+    )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
     #: still validates. `classify` renders as a two-label pick and is answered
@@ -304,7 +314,7 @@ class RecallPrompt(JourneyModel):
     source_fr: str | None = None
 
     @model_serializer(mode="wrap")
-    def _omit_absent_audio(self, handler: Any) -> Any:
+    def _omit_absent_audio(self, handler: Any):
         # WP-78: only a listening item speaks of audio at all.
         data = handler(self)
         if (
@@ -333,6 +343,8 @@ class RespondLetter(JourneyModel):
 
 
 class JourneyCorrection(JourneyModel):
+    # Persisted corrections predating WP-103 do not carry the additive notes list.
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
     span_fr: str
     corrected_fr: str
     note_native: str
@@ -408,8 +420,10 @@ class ResolutionPrompt(JourneyModel):
 class _RuleCardModel(JourneyModel):
     """A WP-L10 card field. ``None`` fields are omitted on the wire."""
 
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+
     @model_serializer(mode="wrap")
-    def _omit_none(self, handler: Any) -> Any:
+    def _omit_none(self, handler: Any):
         data = handler(self)
         if isinstance(data, dict):
             return {key: value for key, value in data.items() if value is not None}
@@ -1013,6 +1027,7 @@ class CapabilityProgress(JourneyModel):
 
 
 class JourneyErrorDetail(JourneyModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
     code: JourneyErrorCode
     message: str
     current_revision: int | None = None
@@ -1130,6 +1145,8 @@ class LineAudioResult(JourneyModel):
     learner's daily cap near). The four other fields are present only when
     ``ready``."""
 
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+
     status: Literal["ready", "disabled"]
     clip_id: str | None = None
     content_type: str | None = None
@@ -1137,7 +1154,7 @@ class LineAudioResult(JourneyModel):
     cached: bool | None = None
 
     @model_serializer(mode="wrap")
-    def _only_what_the_status_carries(self, handler: Any) -> Any:
+    def _only_what_the_status_carries(self, handler: Any):
         data = handler(self)
         if isinstance(data, dict) and self.status != "ready":
             return {"status": self.status}

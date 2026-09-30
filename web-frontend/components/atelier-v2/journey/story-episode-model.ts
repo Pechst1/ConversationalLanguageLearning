@@ -165,7 +165,9 @@ function lineMarks(line: StoryDialogueLine, episode?: StoryEpisode | null): { ma
  * WP-92: the rule this page was written around, read defensively — an older
  * payload has none, and a focus without a title cannot be named in a legend.
  */
-export function storyGrammarFocus(episode: StoryEpisode | null | undefined): GrammarFocus | null {
+// UI state preserves unknown weaving on older pages; the current wire sends a boolean.
+type ReaderGrammarFocus = Omit<GrammarFocus, 'woven'> & { woven: boolean | null };
+export function storyGrammarFocus(episode: StoryEpisode | null | undefined): ReaderGrammarFocus | null {
   const focus = (episode as { grammar_focus?: unknown } | null | undefined)?.grammar_focus;
   if (!focus || typeof focus !== 'object') return null;
   const value = focus as Partial<GrammarFocus>;
@@ -839,6 +841,7 @@ export function authoredPageEpisode(
     panel_index: 0,
     panels,
     resolution: null,
+    grammar_focus: null,
   };
 }
 
@@ -957,5 +960,6 @@ export function finaleOnlyEpisode(journeyId: string, stepId: string): StoryEpiso
     panel_index: 0,
     panels: [],
     resolution: null,
+    grammar_focus: null,
   };
 }

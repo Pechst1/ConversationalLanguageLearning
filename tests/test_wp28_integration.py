@@ -362,7 +362,6 @@ def test_the_because_line_is_wired_from_the_envelope_to_home() -> None:
     helper = read(WEB / "lib" / "atelier-next.ts")
     page = read(WEB / "pages" / "atelier.tsx")
     home = read(WEB / "components" / "atelier-v2" / "home" / "HomeScreen.tsx")
-    types = read(WEB / "types" / "daily-journey.ts")
 
     assert "export function journeyBecause(" in helper
     # An unknown kind prints nothing rather than guessing at French for it.
@@ -371,7 +370,7 @@ def test_the_because_line_is_wired_from_the_envelope_to_home() -> None:
     assert "becauseLine={becauseLine}" in page
     assert "because={becauseLine}" in page
     assert "<BecauseLine because={because} />" in home
-    assert "because: JourneyBecause | null;" in types
+    # E-5: generated TodayEnvelope covers the field; retain the renderer wiring.
 
 
 def test_the_client_is_told_the_draft_is_warm_instead_of_timing_it() -> None:

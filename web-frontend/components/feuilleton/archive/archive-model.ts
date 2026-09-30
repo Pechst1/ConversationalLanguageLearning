@@ -279,6 +279,7 @@ export function archiveDayEpisode(day: ArchiveDay | null | undefined): StoryEpis
     panel_index: 0,
     panels: day.panels,
     resolution: null,
+    grammar_focus: null,
   };
 }
 

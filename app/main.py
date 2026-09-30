@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.api.openapi import install_projection_schemas
 from app.api.v1 import api_router
 from app.config import settings
 from app.services import story_correspondence
@@ -186,6 +187,7 @@ def create_app() -> FastAPI:
         # --- WP-69 schema guard (end) -------------------------------------
         return {"status": "ready"}
 
+    install_projection_schemas(app, settings.API_V1_STR)
     return app
 
 

@@ -143,6 +143,8 @@ function filPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
     input_modes: ['text'],
     targets: [],
     help_available: ['hint'],
+    letter: null,
+    thread: [],
     ...extra,
   };
 }

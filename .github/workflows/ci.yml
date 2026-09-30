@@ -11,6 +11,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  generated-types:
+    name: OpenAPI · generated types are current
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web-frontend/package-lock.json
+      - run: pip install .
+      - run: npm ci
+        working-directory: web-frontend
+      - name: Reject stale generated types
+        run: npm run types:check
+        working-directory: web-frontend
+
   backend:
     name: Backend · ruff + pytest
     runs-on: ubuntu-latest

@@ -103,6 +103,17 @@ const JOURNEY = {
 
 function recapFor(result: 'passed' | 'failed'): Recap {
   return {
+    can_dos_stamped: [],
+    chapter_closed: null,
+    consolidating: false,
+    forecast_line: null,
+    keepsake: null,
+    margin_notes: [],
+    mood: null,
+    season_finished: null,
+    teaser: null,
+    teaser_fr: null,
+    words: [],
     completion_kind: 'complete',
     objective_outcome: result === 'passed' ? 'met' : 'partially_met',
     practiced_targets: [],

@@ -1,849 +1,95 @@
-/**
- * Atelier V2 daily journey wire types (contract_version 1).
- *
- * Transcribed from `docs/implementation/atelier-v2/CONTRACT-FREEZE.md`, including
- * contract revision 1 (`transcript_ref` is optional and nullable). These are the
- * only shapes downstream packages should use — no `Record<string, any>` for a
- * core payload, and the discriminated unions are real so `switch (step.kind)`
- * narrows the prompt.
- */
+/** Wire aliases generated from the backend. Regenerate with npm run types:generate. */
+import type { components } from './generated/api';
 
-import type { RuleCardData } from '@/lib/rule-card';
-
+type Schemas = components['schemas'];
 export const DAILY_JOURNEY_CONTRACT_VERSION = 1;
-/** WP-L6: the five-minute rhythm. The server sizes each day from the learner's rhythm. */
 export const DAILY_JOURNEY_BUDGET_SECONDS = 300;
-/** WP-L6: Léger 5, Régulier 10, Soutenu 20, Intensif 30 minutes. */
-export type BudgetSeconds = 300 | 600 | 1200 | 1800;
 
-export type ControlLanguage = 'en' | 'de' | 'fr';
-export type JourneyStatus =
-  | 'preparing' | 'active' | 'paused' | 'completed' | 'ended_early' | 'unavailable';
-/** WP-L4: `rule` is the Règle — the day's new grammar unit as its rule card. */
-/** WP-S4: `forge` is La Forge folded into a Soutenu/Intensif day — a hand-off step. */
-/** WP-93: `read` is an optional page to read — yesterday's page, or «Coulisses». */
-export type StepKind = 'scene' | 'recall' | 'respond' | 'resolution' | 'rule' | 'forge' | 'read';
-export type StepStatus = 'pending' | 'active' | 'completed' | 'skipped';
-export type InputMode = 'text' | 'voice';
-export type HelpKind = 'hint' | 'translation' | 'solution' | 'suggested_response';
-export type AssistanceLevel =
-  | 'none' | 'hint' | 'translation' | 'solution' | 'suggested_response';
-export type TaskOutcome = 'met' | 'partially_met' | 'not_yet' | 'unscored';
-/**
- * The three scenario objectives, plus WP-33's `register` — a dimension re-read
- * from the same respond turns by the same rubric, which WP-37 put on the wire
- * (`app/services/journey_contracts.py`). It arrives last in the list and
- * renders through `title_native` like the others.
- */
-export type CapabilityKey = 'order_at_cafe' | 'arrange_meeting' | 'explain_delay' | 'register';
-export type CapabilityState =
-  | 'not_tried' | 'with_support' | 'independent_once' | 'used_again_later';
-/** Opaque generated situation identity, separate from assessed capabilities. */
-export type ScenarioKey = string;
-export type EvidenceKind =
-  | 'recognized' | 'produced_supported' | 'produced_independent' | 'not_yet' | 'unscored';
-
-export type TargetRef = {
-  kind: 'vocabulary' | 'grammar' | 'error';
-  /** Canonical existing record id (uuid or external id). */
-  id: string;
-  label_fr: string;
-  label_native: string | null;
-};
-
-export type ScenarioDescriptor = {
-  scenario_key: ScenarioKey;
-  content_version: string;
-  title_fr: string;
-  objective_key: string;
-  objective_native: string;
-  level_band: 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
-  character_id: string;
-  character_name: string;
-  location_id: string;
-  location_name: string;
-  /** Resolved existing media URL; `null` is a valid, renderable state. */
-  image_url: string | null;
-  serial_thread_id: string | null;
-  serial_episode_id: string | null;
-  estimated_seconds: number;
-};
-
-export type ScenePrompt = {
-  setup_fr: string;
-  setup_native: string;
-  objective_native: string;
-  character_line_fr: string | null;
-  character_line_audio_url: string | null;
-  image_url: string | null;
-  /** WP-49: «Écouter d'abord» is offered only when the server can honour it. */
-  audio_available?: boolean;
-  /**
-   * WP-66 «jour d'écoute»: the planner dealt a listening day, so the scene
-   * opens on the audio instead of on the text. Optional — a server built
-   * before WP-66 omits it entirely, and that is a standard day.
-   *
-   * Still subject to `audio_available`: the server turns this off again at
-   * projection time when the deployment's audio has since been switched off,
-   * so the client never opens a player that will never play.
-   */
-  listen_first?: boolean;
-  /**
-   * An authored scene's graphic-novel page (2026-09-25). Story-engine scenes publish
-   * theirs as an episode instead. Absent on older scenes: the plain scene renders.
-   */
-  panels?: StoryPanel[] | null;
-  /** WP-96 «Précédemment»: up to three chronicle lines (French). Absent on authored days. */
-  previously_fr?: string[] | null;
-  /** WP-97: the consequences this page pays back, printed in its margin. */
-  margin_notes?: StoryMarginNote[] | null;
-};
-
-/**
- * WP-97 «Les suites»: a consequence or callback paid back on a page, printed as
- * a dated margin note («Parce que vous avez dit à Marin « vas-y » — Nº 4»).
- */
-export type StoryMarginNote = {
-  text_fr: string;
-  cause_scene_id: string | null;
-  cause_date: string | null;
-  character_id: string | null;
-  cause_edition_no?: number | null;
-  panel_id?: string | null;
-};
-
-/**
- * WP-66: the five kinds of day the planner deals.
- *
- * Deliberately widened with `(string & {})`: a client that meets a shape a
- * newer server deals must render the steps it was sent rather than refuse the
- * day, so this is a hint, never an exhaustive switch.
- */
-export type DayShape =
-  | 'standard'
-  | 'letter'
-  | 'listening'
-  | 'reprise'
-  | 'short'
-  | (string & Record<never, never>);
-
-/**
- * Never carries correctness. WP-78: `side` says which language the card is in
- * (`'native'` = the learner's language) for matching and listen-and-tap;
- * absent on every older format, whose cards are all French.
- */
-export type RecallOption = {
-  id: string;
-  text_fr: string;
-  side?: 'fr' | 'native' | null;
-  /** WP-86: «Qui a dit ça ?» — the cast member this card names (their face). */
-  character_id?: string | null;
-};
-
-/**
- * WP-66. Six ways to pose one recall opportunity.
- *
- * The three additions reuse the renderers that already exist, which is also
- * how they are answered: a `classify` is a two-label pick answered like a
- * `choice`, a `word_bank` is tiles with chips that are *not* part of the
- * answer and is answered like `tiles`, and a `transform` is a written answer
- * over a printed source sentence.
- */
-export type RecallFormat =
-  | 'choice'
-  | 'tiles'
-  | 'short_answer'
-  | 'transform'
-  | 'classify'
-  | 'word_bank'
-  /** WP-78: four French cards, four meanings, tap to pair (sent as tiles). */
-  | 'match_pairs'
-  /** WP-78: a French phrase heard (or read, with no audio) → tap its meaning. */
-  | 'listen_tap'
-  /** WP-78: rebuild a sentence from the scene (sent as tiles). */
-  | 'unscramble'
-  /** WP-86: «Qui a dit ça ?» — a line of the scene, tap the face (sent as a pick). */
-  | 'who_said'
-  /**
-   * WP-91: a line of today's scene is heard (never printed); the learner
-   * types what they hear. Sent as text, graded like `short_answer`.
-   */
-  | 'dictation';
-
-export type RecallPrompt = {
-  task_type: RecallFormat;
-  instruction_native: string;
-  prompt_fr: string | null;
-  /** `[]` for short_answer. */
-  options: RecallOption[];
-  target: TargetRef;
-  /** Only optional recall may be dropped for budget. */
-  optional: boolean;
-  help_available: HelpKind[];
-  /**
-   * WP-76. A key a pick can be checked against on the device but not read
-   * from: SHA-256 of `salt + ":" + material`. Choice, classify, tiles and word
-   * bank only; absent from written formats and older servers. A preview — the
-   * server's verdict stays authoritative.
-   */
-  answer_key?: RecallAnswerKey | null;
-  /**
-   * WP-78. A listen-and-tap clip; `null`/absent means read-and-tap. WP-91: a
-   * listen_tap or dictation clip is the authenticated path
-   * `/api/v1/daily-journeys/line-audio/{clip_id}` — fetched with the session,
-   * never handed to `<audio src>`.
-   */
-  audio_url?: string | null;
-  /**
-   * WP-103 T3: what the learner is asked to produce, in their own language
-   * («Build: "A small white table is in the kitchen."»). Every drill states its
-   * goal; absent on older payloads.
-   */
-  goal_native?: string | null;
-  /** WP-103 T3: the scene line the item is cut from, in French; the goal's fallback. */
-  source_fr?: string | null;
-};
-
-/** WP-91 «Les voix»: ask for one line of a step, spoken in its character's voice. */
-export type LineAudioBody = {
-  text_fr: string;
-  character_id: string | null;
-};
-
-/**
- * `disabled` when the server speaks nothing (audio off, cap near): the device
- * voice reads the line instead. A 404 means the text is not a line of the step.
- */
-export type LineAudioResult =
-  | { status: 'ready'; clip_id: string; content_type: string; voice: string; cached: boolean }
-  | { status: 'disabled' };
-
-export type RecallAnswerKey = { version: number; salt: string; digests: string[] };
-
-export type RespondPrompt = {
-  /** 0-based. */
-  turn_index: number;
-  /**
-   * The exchanges this conversation is planned to hold. The day's rhythm plans
-   * 2, 3, 4 or 4 (WP-89); the client draws one token per planned exchange.
-   */
-  max_turns: number;
-  repair_allowed: boolean;
-  character_id: string;
-  character_name: string;
-  character_line_fr: string;
-  character_line_audio_url: string | null;
-  objective_native: string;
-  /** `['text']` when voice is unavailable. */
-  input_modes: InputMode[];
-  targets: TargetRef[];
-  help_available: HelpKind[];
-  /**
-   * WP-66 «jour de lettre»: the Courrier letter being answered. `null` (or
-   * absent) on every other shape, which is every day until WP-64 registers a
-   * letter provider.
-   */
-  letter?: RespondLetter | null;
-  /**
-   * WP-89 «Le fil»: the exchanges of THIS respond step already played, oldest
-   * first — `thread[i]` is turn `i`. Empty or absent on turn 0 and on servers
-   * that predate WP-89 (the client then keeps its own copy of the thread).
-   */
-  thread?: ThreadExchange[];
-};
-
-/** WP-89: one played exchange — what the learner said and what came back. */
-export type ThreadExchange = {
-  learner_fr: string;
-  character_fr: string;
-  correction: JourneyCorrection | null;
-};
-
-/** The public half of a Courrier letter. Never carries a rubric. */
-export type RespondLetter = {
-  mission_id: string;
-  correspondent_id: string;
-  correspondent_name: string;
-  subject_fr: string;
-  body_fr: string;
-  objective_native: string;
-};
-
-export type ResolutionPrompt = {
-  outcome_key: string;
-  character_line_fr: string;
-  summary_native: string;
-  image_url: string | null;
-  /** WP-66 «jour de reprise»: the chapter that just closed, in French. */
-  chapter_recap_fr?: string | null;
-  /**
-   * WP-33 / WP-66: the graded register dimension, finally shown. One French
-   * line, plus why it matters in the learner's own language.
-   *
-   * Both are absent together whenever register was *not evaluated*. That is
-   * never a pass and never a failure, and it renders as nothing at all.
-   */
-  register_note_fr?: string | null;
-  register_reason_native?: string | null;
-  /**
-   * WP-87: the story lane is still writing this ending; the line and summary are
-   * empty until it turns false. Poll `GET /daily-journeys/{id}` meanwhile.
-   */
-  story_pending?: boolean;
-};
-
-type PublicStepBase = {
-  id: string;
-  ordinal: number;
-  status: StepStatus;
-  estimated_seconds: number;
-  /** Server-recorded, never client-asserted. */
-  assistance_used: AssistanceLevel[];
-};
-
-export type SceneStep = PublicStepBase & { kind: 'scene'; prompt: ScenePrompt };
-export type RecallStep = PublicStepBase & { kind: 'recall'; prompt: RecallPrompt };
-export type RespondStep = PublicStepBase & { kind: 'respond'; prompt: RespondPrompt };
-export type ResolutionStep = PublicStepBase & {
-  kind: 'resolution';
-  prompt: ResolutionPrompt;
-};
-
-/**
- * WP-L4 «Règle»: the day's new grammar unit, as its WP-L10 rule card (every
- * authored language at once; `RuleCard` picks the learner's). Advanced, never
- * answered — advancing it introduces the unit.
- */
-export type RulePrompt = {
-  concept_id: number;
-  title_native: string;
-  title_fr: string;
-  rule_card: RuleCardData & { from_scene?: boolean };
-  /**
-   * WP-92: a line of today's scene that uses the rule — the card's first
-   * anchor example — and who says it (a cast id or name). Absent on older
-   * payloads, and null when the scene did not carry the form.
-   */
-  scene_example_fr?: string | null;
-  scene_example_speaker?: string | null;
-};
-export type RuleStep = PublicStepBase & { kind: 'rule'; prompt: RulePrompt };
-
-/**
- * WP-S4 «La Forge», folded into the day (Soutenu, Intensif): the step opens the
- * forge block on today's rule (`href`) and comes back to the day. `forged` is
- * true once a block started from this step was completed. Advanced, never
- * answered here — the forge credits its own items.
- */
-export type ForgePrompt = {
-  concept_id: number | null;
-  title_native: string;
-  title_fr: string;
-  budget_seconds: number;
-  href: string;
-  forged: boolean;
-};
-export type ForgeStep = PublicStepBase & { kind: 'forge'; prompt: ForgePrompt };
-
-/**
- * WP-93 «Plus d'histoire»: a page to read, advanced (never answered) and
- * always optional. `relecture` is yesterday's page again; `coulisses` is the
- * same evening from another cast member's point of view, written in the
- * background — `writing` until the page is `ready` (the snapshot is re-read
- * meanwhile), `unavailable` when it will not come today.
- */
-export type ReadVariant = 'relecture' | 'coulisses';
-export type ReadStatus = 'ready' | 'writing' | 'unavailable';
-export type ReadPrompt = {
-  variant: ReadVariant;
-  title_fr: string;
-  scene_id: string | null;
-  status: ReadStatus;
-  audio_available: boolean;
-  /** Whose evening «Coulisses» tells (read defensively; older payloads lack it). */
-  character_id?: string | null;
-  character_name?: string | null;
-};
-export type ReadStep = PublicStepBase & { kind: 'read'; prompt: ReadPrompt };
-
-export type PublicStep =
-  | SceneStep
-  | RecallStep
-  | RespondStep
-  | ResolutionStep
-  | RuleStep
-  | ForgeStep
-  | ReadStep;
-
-/**
- * WP-S4: where «Forge today's rule» opens. `folded` — Soutenu/Intensif carry
- * the forge inside the day; Léger/Régulier get it as the after-day chip.
- */
-export type ForgeEntry = {
-  href: string;
-  concept_id: number | null;
-  budget_seconds: number;
-  folded: boolean;
-};
-
-export type PracticedTarget = {
-  target: TargetRef;
-  evidence_kind: EvidenceKind;
-  assistance_level: AssistanceLevel;
-  /**
-   * WP-16: where the drill loop («Plus de pratique») opens for this target.
-   * `null` for a target the legacy loop cannot seat (it is keyed by grammar
-   * concept or by the errata queue, never by a bare vocabulary id).
-   */
-  practice_href: string | null;
-};
-
-export type CapabilityEvidence = {
-  capability_key: CapabilityKey;
-  state: CapabilityState;
-  modality: InputMode;
-  /** YYYY-MM-DD, learner-local. */
-  observed_on: string;
-  context_native: string;
-};
-
-export type JourneyRecap = {
-  completion_kind: 'complete' | 'early';
-  objective_outcome: TaskOutcome;
-  practiced_targets: PracticedTarget[];
-  capability_evidence: CapabilityEvidence[];
-  next_focus: { target: TargetRef; reason_native: string } | null;
-  collectible_ids: string[];
-  story_outcome: {
-    serial_thread_id: string | null;
-    serial_episode_id: string | null;
-    outcome_key: string;
-    callback_fr: string | null;
-  } | null;
-  /** Measured; `null` when the runtime was not measurable. */
-  active_seconds: number | null;
-  // WP-79 — all additive; absent on recaps written before WP-79.
-  /** Steps completed (not skipped): the honest fallback when minutes are unmeasured. */
-  steps_done?: number;
-  /** Vocabulary the day's graded steps observed, minus the "not yet"s. */
-  words?: RecapWord[];
-  mood?: RecapMood | null;
-  keepsake?: RecapKeepsake | null;
-  teaser?: RecapTeaser | null;
-  /** The story-written teaser only (engine or resolution). */
-  teaser_fr?: string | null;
-  /** WP-99: the engine's guarded teaser for tomorrow; preferred over `teaser`. */
-  next_teaser_fr?: string | null;
-  /** The CEFR estimate when the recap was written. */
-  level?: string | null;
-  level_up?: RecapLevelUp | null;
-  /** WP-L6 §2.2: the auto-throttle is on — «Cette semaine, on consolide.» */
-  consolidating?: boolean;
-  /** WP-L8: once a week at the Seal, from a measured forecast only. */
-  forecast_line?: RecapForecastLine | null;
-  /** WP-94: the day was a «Numéro spécial»; absent on every other day and older servers. */
-  epreuve_result?: 'passed' | 'failed' | null;
-  /** WP-94: the host's line on the result (French content). */
-  epreuve_line_fr?: string | null;
-  /** WP-97: the margin notes today's page printed. */
-  margin_notes?: StoryMarginNote[] | null;
-  /** WP-96: today closed a chapter — «Fin du chapitre». */
-  chapter_closed?: { index: number; title_fr: string; digest_fr: string | null } | null;
-  /** WP-96: today closed the season — «Tome N». */
-  season_finished?: { number: number; title_fr: string } | null;
-};
-
-/** WP-L8 — «At this rhythm: A1.2 around <month>»; the client writes the words. */
-export type RecapForecastLine = {
-  target: string;
-  band?: string | null;
-  /** `YYYY-MM`. */
-  month: string;
-  range_days?: number[];
-  rhythm?: string | null;
-  measured: boolean;
-};
-
-/** WP-79: one word the day practised. */
-export type RecapWord = {
-  id: string;
-  label_fr: string;
-  label_native: string | null;
-  evidence_kind: EvidenceKind;
-};
-
-/**
- * WP-79: the day's character in the living story's mood ledger. `shift` is
- * `null` unless the ledger's last move was this day's exchange.
- */
-export type RecapMood = {
-  character_id: string;
-  character_name: string;
-  /** −2 … +2 */
-  mood: number;
-  shift: 'warmer' | 'colder' | 'steady' | null;
-};
-
-/** WP-79: the vignette minted for a completed day. */
-export type RecapKeepsake = {
-  collectible_id: string;
-  title_fr: string;
-  location_name: string | null;
-  image_url: string | null;
-  /** YYYY-MM-DD */
-  local_date: string;
-};
-
-/** WP-79: «La suite demain» — engine, resolution or an authored line. */
-export type RecapTeaser = {
-  text_fr: string;
-  character_id: string | null;
-  character_name: string | null;
-  source: 'engine' | 'resolution' | 'authored';
-};
-
-/** WP-79: the CEFR estimate moved up since the previous recap. */
-export type RecapLevelUp = {
-  from_level: string;
-  to_level: string;
-  mastered_vocabulary: number;
-  mastered_grammar: number;
-};
-
-export type JourneySnapshot = {
-  learner_level?: string | null;
-  id: string;
-  contract_version: 1;
-  revision: number;
-  status: JourneyStatus;
-  /** YYYY-MM-DD. */
-  local_date: string;
-  /** IANA. */
-  timezone: string;
-  budget_seconds: BudgetSeconds;
-  estimated_active_seconds: number;
-  current_step_id: string | null;
-  scenario: ScenarioDescriptor;
-  steps: PublicStep[];
-  recap: JourneyRecap | null;
-  retry: { allowed: boolean; after_seconds: number } | null;
-  /** WP-66: which kind of day this is. Absent on a pre-WP-66 server. */
-  day_shape?: DayShape;
-  /**
-   * WP-75: three faces, one line each, on the learner's first (authored) day
-   * only. `null` on every other day; absent on a pre-WP-75 server.
-   */
-  cast_intro?: CastIntroEntry[] | null;
-  /** WP-80: the practice streak on the journey's local day. Absent on older servers. */
-  streak?: StreakView | null;
-  /** WP-80: whole local days with no practice before this day. From 2: «Reprise en douceur». */
-  missed_days?: number;
-  /** WP-D4: the edition this day played; its seal composition is fixed by it. */
-  edition_no?: number | null;
-  /** WP-S7: rules held on this local day (one Seal ring each). Absent with the flag off. */
-  mastery_today?: { held_concept_ids: number[]; tested_out_concept_ids: number[] } | null;
-  /** WP-94: «Numéro spécial» — the band's épreuve is today. Absent on older servers. */
-  special?: 'epreuve' | null;
-  /** WP-94: the band the épreuve closes and the can-dos it asks for. */
-  epreuve?: JourneyEpreuve | null;
-  /** WP-99: «Pendant votre absence» — a returning learner's «Entre-temps». Absent on older servers. */
-  absence?: JourneyAbsence | null;
-  /** WP-98: today opens a new season — its front page. Absent on older servers. */
-  season_premiere?: SeasonPremiere | null;
-  /** WP-98: between two seasons (read from the envelope first). */
-  interlude?: JourneyInterlude | null;
-};
-
-/** WP-99: what happened while the learner was away (no model call on the server). */
-export type JourneyAbsence = {
-  /** Whole local days away. */
-  days: number;
-  /** The character's greeting, fitted to the length of the absence (French). */
-  greeting_fr: string | null;
-  /** Optional: whose greeting it is; the day's counterpart otherwise. */
-  character_id?: string | null;
-  character_name?: string | null;
-  /** «meanwhile» events, French, dated. The client prints at most five. */
-  entre_temps: Array<{ text_fr: string; date: string | null; character_id: string | null }>;
-  /** Letters whose answer window closed while away — «courrier en souffrance». */
-  lapsed_letters: Array<{ mission_id: string; correspondent_name: string | null }>;
-};
-
-/** WP-98: a season's front page. */
-export type SeasonPremiere = { number: number; title_fr: string; logline_fr: string | null };
-
-/** WP-98: no new season is ready — named honestly, with a return date. */
-export type JourneyInterlude = {
-  /** YYYY-MM-DD, learner-local; `null` when no return date is known yet. */
-  returns_on: string | null;
-  reason_fr: string | null;
-};
-
-/** WP-94: what a special edition asks the learner to show. */
-export type JourneyEpreuve = {
-  band: string;
-  can_dos: Array<{ id: string; title_fr: string; title_native: string | null }>;
-};
-
-/**
- * WP-80: the practice streak, checked against the learner's local date on the
- * server — `days` is 0 the moment a day was missed without a banked «jour de
- * relâche». Never computed on the client.
- */
-export type StreakView = {
-  days: number;
-  today_done: boolean;
-  freeze_available: boolean;
-  /** YYYY-MM-DD, the local day the last «jour de relâche» covered. */
-  freeze_used_on: string | null;
-};
-
-/** WP-75: one character introduced on the first day. */
-export type CastIntroEntry = {
-  /** A directory under `public/assets/serial/characters/`. */
-  character_id: string;
-  name: string;
-  /** One short line in the learner's language: who this is. */
-  role_native: string;
-  /** One short A1 French line the character says (≤ 8 words). */
-  line_fr: string;
-  /** Its translation, in the learner's language. */
-  line_native: string;
-};
-
-export type TodayEnvelope = {
-  learner_level?: string | null;
-  contract_version: 1;
-  enabled: boolean;
-  control_language: ControlLanguage;
-  local_date: string;
-  timezone: string;
-  journey: JourneySnapshot | null;
-  available: ScenarioDescriptor | null;
-  legacy_resume: { href: string; session_id: string } | null;
-  /**
-   * WP-16 / D-0: the entry to the legacy exercise Séance as the explicit
-   * «Plus de pratique» activity — `/atelier?mode=practice[&concept=<id>]`.
-   * Always present; the concept is the server's own current focus when it has
-   * one. Never the day's primary action.
-   */
-  practice_href: string;
-  /** WP-S4: La Forge's entry for today (absent on an older server). */
-  forge?: ForgeEntry | null;
-  /**
-   * WP-24 / WP-28: why today's scene is this scene, when the plan actually kept
-   * a target that exists because of a mistake the learner made. `null` means
-   * today owes nothing to an erratum and no line is printed. Structured, never
-   * a rendered sentence — the French lives in `HomeScreen`.
-   */
-  because: JourneyBecause | null;
-  /**
-   * WP-26 / WP-28: a prefetched scene is waiting, so today's draft will be
-   * warm. Told by the server rather than inferred from how fast the answer
-   * came back. A warm scene whose preconditions changed is still discarded and
-   * generated as usual, so this delays the wait copy — it never suppresses it.
-   */
-  is_warm: boolean;
-  /** WP-80: the streak on this read. Absent on older servers. */
-  streak?: StreakView | null;
-  /** WP-80: whole local days with no practice before today. */
-  missed_days?: number;
-  /** WP-98: between two seasons — no scene today, or a quiet authored interlude. */
-  interlude?: JourneyInterlude | null;
-  /** WP-98: today's offer opens a new season (before the journey exists). */
-  season_premiere?: SeasonPremiere | null;
-};
-
-/** The because-line payload. `kind` is the only field a renderer may branch on. */
-export type JourneyBecause = {
-  /** `'erratum'` today. An unknown kind must print nothing rather than guess. */
-  kind: string;
-  /** Machine-readable, e.g. `erratum:2f9c…`. Telemetry, never printed. */
-  reason?: string | null;
-  label: string;
-  /** `« une homme → un homme »`, when both halves were recorded. */
-  example?: string | null;
-};
-
-export type JourneyCorrection = {
-  /** Must be a real substring of the learner answer. */
-  span_fr: string;
-  /** Must differ from span_fr. */
-  corrected_fr: string;
-  note_native: string;
-  /**
-   * WP-103: one note per issue, already deduplicated, in the learner's
-   * language. Absent on older payloads, which carry `note_native` alone.
-   */
-  notes_native?: string[] | null;
-};
-
-export type NextTurn = { step_id: string; prompt: RespondPrompt };
-
-/**
- * Where `character_reply_fr` came from. An authored line must never be
- * presented to the learner as a live model response (WP-06; ratified as an
- * additive field 2026-09-05). `"none"` when there is no reply at all.
- */
-export type ReplySource = 'authored' | 'model' | 'none';
-
-export type AttemptResult = {
-  contract_version: 1;
-  /** Canonical learning record reference; empty while `pending`. */
-  evidence_ref: string;
-  task_outcome: TaskOutcome;
-  assistance_level: AssistanceLevel;
-  /** At most ONE foreground correction. */
-  correction: JourneyCorrection | null;
-  character_reply_fr: string | null;
-  reply_source: ReplySource;
-  next_turn: NextTurn | null;
-  /** `true` => retryable grading, outcome `unscored`. Reuse the same mutation_id. */
-  pending: boolean;
-  journey: JourneySnapshot;
-};
-
-export type HelpResult = {
-  contract_version: 1;
-  step_id: string;
-  help_kind: HelpKind;
-  content_fr: string | null;
-  content_native: string | null;
-  /** Recorded BEFORE the content is returned. */
-  assistance_level: AssistanceLevel;
-  journey: JourneySnapshot;
-};
-
-export type CapabilityProgress = {
-  contract_version: 1;
-  rubric_version: string;
-  capabilities: Array<{
-    capability_key: CapabilityKey;
-    title_native: string;
-    state: CapabilityState | 'unknown';
-    modalities: InputMode[];
-    latest_qualifying_on: string | null;
-    evidence: CapabilityEvidence[];
-  }>;
-};
-
-export type JourneyErrorCode =
-  | 'journey_version_conflict' | 'idempotency_conflict' | 'step_not_active'
-  | 'journey_not_active' | 'empty_answer' | 'journey_disabled'
-  | 'generation_unavailable' | 'processing';
-
-export type JourneyErrorDetail = {
-  code: JourneyErrorCode;
-  message: string;
-  current_revision?: number;
-  refresh_href?: string;
-  retry_after_seconds?: number;
-};
-
-export type JourneyErrorBody = { detail: JourneyErrorDetail };
-
-/**
- * Contract revision 1 (2026-09-05): `transcript_ref` is optional and nullable —
- * `POST /audio/transcribe` is stateless and persists no transcript row, so
- * there is no id to reference. Voice attempts submit the returned text with
- * `mode: 'voice'` recording the modality.
- */
-export type AttemptInput =
-  | { mode: 'choice'; option_id: string }
-  | { mode: 'tiles'; tile_ids: string[] }
-  | { mode: 'text'; text: string }
-  | { mode: 'voice'; text: string; transcript_ref?: string | null };
-
-export type CreateJourneyBody = {
-  mutation_id: string;
-  timezone: string;
-  /**
-   * WP-L6: no longer sent. The server sizes the day from the learner's
-   * rhythm and ignores this field when an older build still sends it.
-   */
-  budget_seconds?: BudgetSeconds;
-  preferred_input_mode: InputMode;
-};
-
-export type HelpBody = {
-  mutation_id: string;
-  expected_revision: number;
-  help_kind: HelpKind;
-};
-
-export type AttemptBody = {
-  mutation_id: string;
-  expected_revision: number;
-  input: AttemptInput;
-};
-
-export type AdvanceBody = {
-  mutation_id: string;
-  expected_revision: number;
-  current_step_id: string;
-};
-
-export type RevisionBody = {
-  mutation_id: string;
-  expected_revision: number;
-};
-
-export type FinishBody = {
-  mutation_id: string;
-  expected_revision: number;
-  finish_kind: 'complete' | 'early';
-};
-
-export type RetryBody = { mutation_id: string };
-
-/** A journey POST whose HTTP status is part of the contract (201/200/202). */
+export type BudgetSeconds = NonNullable<Schemas['JourneySnapshot']['budget_seconds']>;
+export type ControlLanguage = NonNullable<Schemas['TodayEnvelope']['control_language']>;
+export type JourneyStatus = Schemas['JourneyStatus'];
+export type StepKind = PublicStep['kind'];
+export type StepStatus = Schemas['StepStatus'];
+export type InputMode = Schemas['InputMode'];
+export type HelpKind = Schemas['HelpKind'];
+export type AssistanceLevel = Schemas['AssistanceLevel'];
+export type TaskOutcome = Schemas['TaskOutcome'];
+export type CapabilityKey = Schemas['CapabilityKey'];
+export type CapabilityState = Schemas['CapabilityState'];
+export type ScenarioKey = NonNullable<Schemas['ScenarioDescriptor']['scenario_key']>;
+export type EvidenceKind = Schemas['EvidenceKind'];
+export type TargetRef = Schemas['TargetRef'];
+export type ScenarioDescriptor = Schemas['ScenarioDescriptor'];
+export type ScenePrompt = Schemas['ScenePrompt'];
+export type StoryMarginNote = Schemas['MarginNote'];
+export type DayShape = NonNullable<Schemas['JourneySnapshot']['day_shape']>;
+export type RecallOption = Schemas['RecallOption'];
+export type RecallFormat = NonNullable<Schemas['RecallPrompt']['task_type']>;
+export type RecallPrompt = Schemas['RecallPrompt'];
+export type LineAudioBody = Schemas['LineAudioRequest'];
+type AudioResult = Schemas['LineAudioResult'];
+/** The UI plays ready audio only; the serializer omits clip fields when disabled. */
+export type LineAudioResult = (AudioResult & { status: 'ready' } & {
+  [K in Exclude<keyof AudioResult, 'status'>]-?: NonNullable<AudioResult[K]>;
+}) | (Pick<AudioResult, 'status'> & { status: 'disabled' });
+export type RecallAnswerKey = Schemas['RecallAnswerKey'];
+export type RespondPrompt = Schemas['RespondPrompt'];
+export type ThreadExchange = Schemas['ThreadExchange'];
+export type RespondLetter = Schemas['RespondLetter'];
+export type ResolutionPrompt = Schemas['ResolutionPrompt'];
+export type SceneStep = Schemas['SceneStep'];
+export type RecallStep = Schemas['RecallStep'];
+export type RespondStep = Schemas['RespondStep'];
+export type ResolutionStep = Schemas['ResolutionStep'];
+export type RulePrompt = Schemas['RulePrompt'];
+export type RuleStep = Schemas['RuleStep'];
+export type ForgePrompt = Schemas['ForgePrompt'];
+export type ForgeStep = Schemas['ForgeStep'];
+export type ReadVariant = NonNullable<Schemas['ReadPrompt']['variant']>;
+export type ReadStatus = NonNullable<Schemas['ReadPrompt']['status']>;
+export type ReadPrompt = Schemas['ReadPrompt'];
+export type ReadStep = Schemas['ReadStep'];
+export type PublicStep = JourneySnapshot['steps'][number];
+export type ForgeEntry = Schemas['ForgeEntry'];
+export type PracticedTarget = Schemas['PracticedTarget'];
+export type CapabilityEvidence = Schemas['CapabilityEvidence'];
+export type JourneyRecap = Schemas['JourneyRecap'];
+export type RecapForecastLine = Schemas['RecapForecastLine'];
+export type RecapWord = Schemas['RecapWord'];
+export type RecapMood = Schemas['RecapMood'];
+export type RecapKeepsake = Schemas['RecapKeepsake'];
+export type RecapTeaser = Schemas['RecapTeaser'];
+export type RecapLevelUp = Schemas['RecapLevelUp'];
+export type JourneySnapshot = Schemas['JourneySnapshot'];
+export type JourneyAbsence = Schemas['AbsenceView'];
+export type SeasonPremiere = Schemas['SeasonPremiereView'];
+export type JourneyInterlude = Schemas['InterludeView'];
+export type JourneyEpreuve = Schemas['EpreuveView'];
+export type StreakView = Schemas['StreakView'];
+export type CastIntroEntry = Schemas['CastIntroEntry'];
+export type TodayEnvelope = Schemas['TodayEnvelope'];
+export type JourneyBecause = Schemas['JourneyBecause'];
+export type JourneyCorrection = Schemas['JourneyCorrection'];
+export type NextTurn = Schemas['NextTurn'];
+export type ReplySource = NonNullable<Schemas['AttemptResult']['reply_source']>;
+export type AttemptResult = Schemas['AttemptResult'];
+export type HelpResult = Schemas['HelpResult'];
+export type CapabilityProgress = Schemas['CapabilityProgress'];
+export type JourneyErrorCode = NonNullable<Schemas['JourneyErrorDetail']['code']>;
+export type JourneyErrorDetail = Schemas['JourneyErrorDetail'];
+export type JourneyErrorBody = Schemas['JourneyErrorBody'];
+export type AttemptInput = NonNullable<Schemas['JourneyAttemptRequest']['input']>;
+export type CreateJourneyBody = Schemas['JourneyCreateRequest'];
+export type HelpBody = Schemas['JourneyHelpRequest'];
+export type AttemptBody = Schemas['JourneyAttemptRequest'];
+export type AdvanceBody = Schemas['JourneyAdvanceRequest'];
+export type RevisionBody = Schemas['JourneyRevisionRequest'];
+export type FinishBody = Schemas['JourneyFinishRequest'];
+export type RetryBody = Schemas['JourneyRetryRequest'];
+/** Axios response envelope, not part of the JSON wire schema. */
 export type JourneyHttpResult<T> = { data: T; status: number };
-
-/** Published graphic-novel view of the same canonical daily story. */
-export interface StoryPanel {
-  id: string;
-  index: number;
-  narration_fr: string;
-  dialogue: Array<{
-    character_id: string;
-    character_name?: string | null;
-    text_fr: string;
-    /** WP-92: where the day's rule is in the line — char offsets into `text_fr`. */
-    grammar_marks?: GrammarMark[] | null;
-  }>;
-  image_url: string | null;
-  /**
-   * `panel_art`: the panel's own drawing. `rendering`: the location plate while that
-   * drawing is on its way (poll the episode). `setting_reference`: the plate.
-   */
-  image_status: 'panel_art' | 'rendering' | 'setting_reference' | 'unavailable';
-}
-export interface StoryEpisode {
-  /** The immutable scene id used by /story-engine/episodes/{id}. */
-  id: string;
-  scene_id: string;
-  serial_thread_id: string;
-  serial_episode_id: string | null;
-  journey_id: string;
-  title_fr: string;
-  status: 'available' | 'completed' | 'abandoned';
-  chapter: { id: string; title_fr: string } | null;
-  panel_index: number;
-  panels: StoryPanel[];
-  resolution: { text_fr: string | null; summary_native: string | null } | null;
-  /** WP-92: the rule this page was written around (absent on older payloads). */
-  grammar_focus?: GrammarFocus | null;
-}
-/** WP-92: one span of the rule's form in a line, `[start, end)` into `text_fr`. */
-export type GrammarMark = { unit_id: string | number; start: number; end: number };
-/** WP-92: the day's rule, as the page carries it. `woven: false` = «non tissée». */
-export type GrammarFocus = {
-  unit_id: string | number;
-  title_fr: string;
-  title_native: string;
-  woven: boolean | null;
-};
-export interface StoryEpisodePage {
-  episodes: StoryEpisode[];
-  next_cursor: string | null;
-}
+export type StoryPanel = Schemas['StoryPanelRead'];
+export type StoryEpisode = Schemas['StoryEpisodeRead'];
+export type GrammarMark = Schemas['GrammarMarkRead'];
+export type GrammarFocus = Schemas['GrammarFocusRead'];
+export type StoryEpisodePage = Schemas['StoryEpisodePageRead'];

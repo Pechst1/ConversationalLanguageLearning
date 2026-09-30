@@ -1,3 +1,4 @@
+import type { components } from '@/types/generated/api';
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import type { RuleCardData } from '@/lib/rule-card';
@@ -40,24 +41,9 @@ import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
  * `ready`, or `failed`. A `failed` manifest carries no clips on purpose: half a
  * scene played aloud is a comprehension test nobody can pass.
  */
-export interface EpisodeAudioClipRef {
-  id: string;
-  line_key: string;
-  ordinal: number;
-  character_id: string;
-  voice: string;
-  content_type: string;
-  char_count: number;
-  text_fr: string;
-}
+export type EpisodeAudioClipRef = components['schemas']['EpisodeAudioClipRead'];
 
-export interface EpisodeAudioManifest {
-  status: 'disabled' | 'absent' | 'empty' | 'ready' | 'failed';
-  revision: string;
-  clips: EpisodeAudioClipRef[];
-  truncated: boolean;
-  reason: string;
-}
+export type EpisodeAudioManifest = components['schemas']['EpisodeAudioManifestRead'];
 
 export interface EpisodePredictionRecord {
   guess: string;
@@ -880,28 +866,7 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   feuilleton_scene_id?: string;
 }
 
-export interface VocabularyWord {
-  id: number;
-  language: string;
-  word: string;
-  normalized_word: string;
-  part_of_speech?: string | null;
-  gender?: string | null;
-  frequency_rank?: number | null;
-  english_translation?: string | null;
-  definition?: string | null;
-  example_sentence?: string | null;
-  example_translation?: string | null;
-  usage_notes?: string | null;
-  difficulty_level?: number | null;
-  german_translation?: string | null;
-  french_translation?: string | null;
-  topic_tags: string[];
-  /** Resolved server-side for the signed-in learner — render this, not the raw
-   * columns above (see lib/glosses.ts). */
-  translation?: string | null;
-  translation_language?: string | null;
-}
+export type VocabularyWord = components['schemas']['VocabularyWordRead'];
 
 export interface VocabularyBiographyOrigin {
   label: string;
