@@ -23,6 +23,21 @@ import type {
   ThreadExchange,
 } from '@/types/daily-journey';
 
+/** One speaker's line of a many-voiced reply (an authored season page). */
+export type SpokenLine = { speaker_id?: string | null; speaker_name?: string | null; text_fr: string };
+
+function spokenLines(value: unknown): SpokenLine[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => (row && typeof row === 'object' ? (row as Record<string, unknown>) : null))
+    .filter((row): row is Record<string, unknown> => Boolean(row && words(row.text_fr)))
+    .map((row) => ({
+      speaker_id: typeof row.speaker_id === 'string' ? row.speaker_id : null,
+      speaker_name: typeof row.speaker_name === 'string' ? row.speaker_name : null,
+      text_fr: words(row.text_fr),
+    }));
+}
+
 import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
 
 import type { JourneyFeedback } from './journey-state';
@@ -32,7 +47,9 @@ import type { JourneyFeedback } from './journey-state';
 // ---------------------------------------------------------------------------
 
 /** One exchange as the client keeps it: which turn, and the line it answered. */
-export type LocalExchange = ThreadExchange & {
+export type LocalExchange = Omit<ThreadExchange, 'character_lines'> & {
+  /** Every speaker of a many-voiced reply (optional: older servers send none). */
+  character_lines?: SpokenLine[];
   turn: number;
   /** The character's line this answer replied to, when the client saw it. */
   prompt_fr: string | null;
@@ -88,12 +105,14 @@ function exchangeOf(value: unknown): LocalExchange | null {
   if (typeof turn !== 'number' || !Number.isInteger(turn) || turn < 0 || turn > 32) return null;
   const learner = line(raw.learner_fr);
   if (!learner) return null;
+  const lines = spokenLines(raw.character_lines);
   return {
     turn,
     prompt_fr: line(raw.prompt_fr) || null,
     learner_fr: learner,
     character_fr: line(raw.character_fr),
     correction: correctionOf(raw.correction),
+    ...(lines.length ? { character_lines: lines } : {}),
   };
 }
 
@@ -177,6 +196,7 @@ export function exchangeFromResult(input: {
     learner_fr: sent?.text ?? input.fallbackText ?? '',
     character_fr: result.character_reply_fr ?? '',
     correction: result.correction ?? null,
+    character_lines: result.character_lines ?? [],
   });
 }
 
@@ -189,6 +209,8 @@ export type CharacterBubble = {
   key: string;
   turn: number;
   text: string;
+  /** Who says it, when a reply has several speakers; else the step's character. */
+  speaker?: { id: string | null; name: string } | null;
   /** The character's reply to turn `turn` (rather than the line that opened it). */
   reply: boolean;
   /** The last character line: the one said beside the md face, as the headline. */
@@ -214,6 +236,7 @@ export type InFlightExchange = {
   learner_fr: string;
   character_fr: string | null;
   correction: JourneyCorrection | null;
+  character_lines?: SpokenLine[] | null;
 };
 
 /** Same line, whatever the spacing or the apostrophe the keyboard picked. */
@@ -234,6 +257,7 @@ type Slot = {
   character_fr: string;
   correction: JourneyCorrection | null;
   pending: boolean;
+  lines: SpokenLine[];
 };
 
 /**
@@ -259,6 +283,7 @@ export function threadBubbles(input: {
       character_fr: words(exchange.character_fr),
       correction: correctionOf(exchange.correction),
       pending: false,
+      lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
     });
   });
 
@@ -271,6 +296,7 @@ export function threadBubbles(input: {
         character_fr: exchange.character_fr,
         correction: exchange.correction,
         pending: false,
+        lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
       });
     } else if (!held.prompt_fr && exchange.prompt_fr) {
       held.prompt_fr = exchange.prompt_fr;
@@ -289,6 +315,7 @@ export function threadBubbles(input: {
         character_fr: reply,
         correction: correctionOf(flight.correction),
         pending: !reply,
+        lines: spokenLines(flight.character_lines),
       });
     } else if (!held.prompt_fr && flight.prompt_fr) {
       held.prompt_fr = flight.prompt_fr;
@@ -319,7 +346,24 @@ export function threadBubbles(input: {
       pending: slot.pending,
     });
     lastCharacter = null;
-    say(slot.character_fr, turn, true);
+    if (slot.lines.length > 1) {
+      // A many-voiced reply: every speaker is their own bubble, with their face.
+      slot.lines.forEach((spoken, index) => {
+        bubbles.push({
+          kind: 'character',
+          key: `c${turn}r${index}`,
+          turn,
+          text: spoken.text_fr,
+          reply: true,
+          latest: false,
+          speaker: { id: spoken.speaker_id ?? null, name: spoken.speaker_name ?? '' },
+        });
+      });
+      // The next line may repeat the joined reply: said once.
+      lastCharacter = words(slot.character_fr) || slot.lines[slot.lines.length - 1].text_fr;
+    } else {
+      say(slot.character_fr, turn, true);
+    }
   });
 
   if (!slots.has(prompt.turn_index)) say(prompt.character_line_fr, prompt.turn_index, false);

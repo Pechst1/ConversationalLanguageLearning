@@ -18,6 +18,7 @@
  * itself once when «Les personnages parlent à voix haute» is on.
  */
 
+import { shortSpeakerName } from '@/components/feuilleton/reader/panel-model';
 import React from 'react';
 
 import { ShapeToken } from '@/components/atelier-v2/ui';
@@ -175,10 +176,10 @@ export function RespondThread({
 }) {
   const name = speaker?.name ?? '';
   const voice = useStepVoice(journeyId, stepId, sharedVoice);
-  const lineFor = (bubble: { key: string; text: string }): VoiceLine => ({
+  const lineFor = (bubble: { key: string; text: string; speaker?: { id: string | null } | null }): VoiceLine => ({
     key: `${stepId ?? ''}:${bubble.key}`,
     text_fr: bubble.text,
-    character_id: speaker?.id ?? null,
+    character_id: bubble.speaker?.id ?? speaker?.id ?? null,
   });
   // The reply that just arrived speaks once, when its words have typed in.
   const typingBubble = typingKey
@@ -208,6 +209,16 @@ export function RespondThread({
           );
         }
         const typing = typingKey === bubble.key && typedText.length < bubble.text.length;
+        // A many-voiced reply draws each speaker with their own face; a speaker
+        // other than the one the learner addresses is also named.
+        const who =
+          bubble.speaker && (bubble.speaker.id || bubble.speaker.name)
+            ? { id: bubble.speaker.id || '', name: bubble.speaker.name || '' }
+            : speaker;
+        const other = Boolean(bubble.speaker && speaker && bubble.speaker.id !== speaker.id);
+        const whoLabel = other && who ? (
+          <span className="av2-label av2-thread__who">{shortSpeakerName(who.name)}</span>
+        ) : null;
         const shown = typingKey === bubble.key ? typedText : bubble.text;
         const words = typing ? (
           <>
@@ -224,18 +235,18 @@ export function RespondThread({
             data-speaker="character"
             data-latest={bubble.latest ? 'true' : undefined}
           >
-            {name && <span className="av2-sr">{name}: </span>}
+            {(who?.name || name) && <span className="av2-sr">{who?.name || name}: </span>}
             {bubble.latest ? (
               <div className="av2-speech" data-mood={mood}>
-                {speaker && (
+                {who && (
                   /* Keyed on the mood, so the closing verdict's face pops in (at-pop). */
                   <span key={mood} className="av2-speech__face">
                     <SpeakingPortrait
                       line={lineFor(bubble)}
                       voice={voice}
                       label={label}
-                      characterId={speaker.id || ''}
-                      name={speaker.name}
+                      characterId={who.id || ''}
+                      name={who.name}
                       mood={mood}
                       size="md"
                       ring
@@ -246,6 +257,7 @@ export function RespondThread({
                   className="av2-speech__bubble"
                   data-long={bubble.text.length > 48 ? 'true' : undefined}
                 >
+                  {whoLabel}
                   <h2 className="av2-headline" lang="fr">
                     {words}
                   </h2>
@@ -253,19 +265,20 @@ export function RespondThread({
               </div>
             ) : (
               <div className="av2-speech av2-speech--past" data-mood="neutral">
-                {speaker && (
+                {who && (
                   <span className="av2-speech__face">
                     <SpeakingPortrait
                       line={lineFor(bubble)}
                       voice={voice}
                       label={label}
-                      characterId={speaker.id || ''}
-                      name={speaker.name}
+                      characterId={who.id || ''}
+                      name={who.name}
                       size="xs"
                     />
                   </span>
                 )}
                 <div className="av2-speech__bubble">
+                  {whoLabel}
                   <p className="av2-fr av2-thread__text" lang="fr">
                     {words}
                   </p>

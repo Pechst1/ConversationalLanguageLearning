@@ -624,13 +624,17 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # Until WP-110 draws the page, the rest of the day is said here; the
         # ending is the «À suivre…» caption alone.
         beats += list(season_ctx.get("tail") or [])
-    reply_fr = reaction_text(beats, addressee=str(scenario.character_id))
+    from app.services.season.turns import reaction_lines
+
+    addressee = str(scenario.character_id)
+    reply_fr = reaction_text(beats, addressee=addressee)
+    spoken_lines_out = reaction_lines(beats, addressee=addressee)
     if not closing:
         upcoming = turns[next_index] if next_index != index else turn
         lead = list(upcoming.get("lead_in") or []) if next_index != index else []
-        question = reaction_text([*lead, upcoming["panel"]], addressee=str(scenario.character_id))
-        if next_index == index:
-            question = ""
+        asked = [*lead, upcoming["panel"]] if next_index != index else []
+        question = reaction_text(asked, addressee=addressee) if asked else ""
+        spoken_lines_out += reaction_lines(asked, addressee=addressee)
         reply_fr = "\n".join(part for part in (reply_fr, question) if part)
     reply_fr = reply_fr or "…"
     proposal = None
@@ -647,15 +651,23 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # The story answers every reply; the verdict only says whether the learner's words
     # were understood as one of the scene's replies (never «right» or «wrong» plot).
     understood = choice.confidence >= MATCH_THRESHOLD
+    # The page answers what the learner meant; the form is corrected in the margin
+    # (never punished in the plot — the bible's rule).
+    from app.services.story_lanes import margin_correction
+
+    correction = margin_correction(
+        db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+    )
     return ResponseEvaluation(
         outcome=TaskOutcome.MET if understood else TaskOutcome.PARTIALLY_MET,
         assistance=assistance,
         observations=[],
         character_reply_fr=reply_fr,
-        correction=None,
+        correction=correction,
         consequence=proposal,
         needs_repair=not closing,
         failure_reason="reply_source:authored_season",
+        reply_lines=spoken_lines_out,
     )
 
 

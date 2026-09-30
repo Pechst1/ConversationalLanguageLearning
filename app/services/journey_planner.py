@@ -826,9 +826,10 @@ def build_recall_task(
         goal = recall_goal("repair_own", language)
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
-    elif len(tokens) >= 2 and gloss:
+    elif _is_phrase(tokens) and gloss:
         # WP-103 T3: tiles say what they build; a phrase nobody glossed has no goal
-        # to give, and gets no tiles.
+        # to give, and gets no tiles. Owner test 2026-09-30: «la» + «clé» in two
+        # tiles is not an exercise — a word with its article is typed, not built.
         task_type = "tiles"
         goal = recall_goal("build", language, meaning=gloss)
     elif gloss:
@@ -936,6 +937,18 @@ def _extra_chips(target: TargetRef, affordances: list[str], answer_tokens: list[
     return pool[:2]
 
 
+_ARTICLES = frozenset({"le", "la", "les", "l'", "l’", "un", "une", "des", "du", "de", "d'", "d’"})
+
+
+def _is_phrase(tokens: list[str]) -> bool:
+    """Worth building from pieces: three words or more, or two that are not just an
+    article and its noun («la clé» is typed, «bonne nuit» may be built)."""
+
+    if len(tokens) >= 3:
+        return True
+    return len(tokens) == 2 and tokens[0].casefold() not in _ARTICLES
+
+
 def build_word_bank_task(
     *,
     target: TargetRef,
@@ -956,7 +969,8 @@ def build_word_bank_task(
         return None
     label_fr = (target.label_fr or "").strip()
     tokens = label_fr.split()
-    if len(tokens) < 2:
+    if not _is_phrase(tokens):
+        # A word with its article is not built from chips (owner test 2026-09-30).
         return None
     extras = _extra_chips(target, affordances, tokens)
     if not extras:
@@ -1635,6 +1649,29 @@ def build_rotated_recall_task(
         learner_text=learner_text,
     )
     if fallback is not None and not shape_allows_format(day_shape, fallback.task_type):
+        if (
+            shape_allows_format(day_shape, str(RecallFormat.SHORT_ANSWER))
+            and target.kind is not TargetKind.ERROR
+            and _glossed(target) is not None
+        ):
+            # A word the shape cannot pose as its first choice is typed from its
+            # meaning — never dropped (a day must keep its practice).
+            label = target.label_fr.strip()
+            return RecallTask(
+                task_type="short_answer",
+                instruction_native=_localized(
+                    _SHORT_ANSWER_INSTRUCTION, scenario.control_language
+                ).format(native=_glossed(target)),
+                prompt_fr=None,
+                options=[],
+                target=target,
+                optional=optional,
+                accepted_answers=[label],
+                hint_native=_hint_for(target, scenario.control_language),
+                translation_native=None,
+                solution_fr=label,
+                estimated_seconds=0,
+            )
         return None
     return fallback
 

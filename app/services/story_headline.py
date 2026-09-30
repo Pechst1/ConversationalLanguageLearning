@@ -47,8 +47,8 @@ def _ordered(ids: list[str]) -> list[str]:
     return seen[:MAX_CAST]
 
 
-def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool]:
-    """The day's scene: (title, speakers, finished)."""
+def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool, str | None]:
+    """The day's scene: (title, speakers, finished, the first panel's picture)."""
 
     from sqlalchemy import select
 
@@ -65,32 +65,38 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool]
         .order_by(GraphicNovelScene.created_at.desc())
     ).first()
     if scene is None:
-        return None, [], False
+        return None, [], False, None
+    panels = sorted(scene.panels, key=lambda p: p.panel_index)
     speakers = [
         str(line.get("character_id") or "")
-        for panel in sorted(scene.panels, key=lambda p: p.panel_index)
+        for panel in panels
         for line in (panel.overlay_payload or {}).get("dialogue") or []
     ]
-    return scene.title or None, _ordered(speakers), scene.status in ("completed", "abandoned")
+    image = next((panel.image_url for panel in panels if panel.image_url), None)
+    return scene.title or None, _ordered(speakers), scene.status in ("completed", "abandoned"), image
 
 
-def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None]:
-    """A season tentpole day: (title, speakers, season title). Gap days: (None, [], season)."""
+def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None, str | None]:
+    """A season tentpole day: (title, speakers, season title, the opening place's
+    picture). Gap days: (None, [], season, None)."""
 
     from app.services.season import runtime as season_runtime
+    from app.services.season.world import plate_for
 
     today = season_runtime.today_for(live, user=user, seed=str(user.id))
     if today is None:
-        return None, [], None
+        return None, [], None, None
     if not today.pos.is_tentpole:
-        return None, [], today.season.title_fr
+        return None, [], today.season.title_fr, None
     page = season_runtime.page_for(today) or {}
     speakers: list[str] = []
+    image: str | None = None
     for movement in page.get("movements") or []:
         panels = [movement] if movement.get("kind") == "panel" else [movement.get("panel") or {}]
         for panel in panels:
             speakers += [str(line.get("who") or "") for line in panel.get("lines") or []]
-    return page.get("title_fr"), _ordered(speakers), today.season.title_fr
+            image = image or plate_for(panel.get("location_id"))
+    return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
 def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date: Any = None) -> dict[str, Any] | None:
@@ -111,11 +117,12 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
 
         title: str | None = None
         cast: list[str] = []
+        image: str | None = None
         edition_no: int | None = None
         if journey is not None:
             if str(getattr(journey, "status", "")) in ("completed", "ended_early"):
                 return None
-            title, cast, finished = _scene_cast(db, journey)
+            title, cast, finished, image = _scene_cast(db, journey)
             if finished:
                 return None
             from app.services.seals import edition_no_for
@@ -123,11 +130,13 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             edition_no = edition_no_for(db, journey)
         season_title: str | None = None
         if title is None:
-            planned_title, planned_cast, season_title = _tentpole(live, user)
+            planned_title, planned_cast, season_title, planned_image = _tentpole(live, user)
             title = planned_title
             cast = cast or planned_cast
+            image = image or planned_image
         else:
-            _unused, _cast, season_title = _tentpole(live, user)
+            _unused, _cast, season_title, planned_image = _tentpole(live, user)
+            image = image or planned_image
         if edition_no is None:
             edition_no = int((thread.current_episode_index if thread else 0) or 0) + 1
 
@@ -150,6 +159,9 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             "title_fr": title,
             "teaser_fr": teaser_fr,
             "season_title_fr": season_title,
+            # The episode's picture for Home's card: the scene's first panel, else
+            # the tentpole's opening place.
+            "image_url": image,
             "cast": [{"id": who, "name": names.get(who) or more.get(who) or who.split("_")[0].title()} for who in cast],
         }
     except Exception:  # noqa: BLE001 - a headline never costs Home

@@ -310,7 +310,9 @@ function JourneyTodayBody({
           lang="fr"
           headline={headline}
           controlLanguage={controlLanguage}
-          imageUrl={scenario.image_url}
+          // Owner test 2026-09-30: the episode's picture heads the card (the
+          // engine's generic offer has none of its own).
+          imageUrl={scenario.image_url || headline?.image_url || null}
           imageAlt={scenario.objective_native}
           preparing={busy}
           special={special}
@@ -365,7 +367,9 @@ function JourneyTodayBody({
           lang="fr"
           headline={headline}
           controlLanguage={controlLanguage}
-          imageUrl={scenario.image_url}
+          // Owner test 2026-09-30: the episode's picture heads the card (the
+          // engine's generic offer has none of its own).
+          imageUrl={scenario.image_url || headline?.image_url || null}
           imageAlt={scenario.objective_native}
           special={special}
           byline={
@@ -442,6 +446,9 @@ function JourneyTodayBody({
           title={titleFr || copy.done_today}
           lang={titleFr ? 'fr' : undefined}
           done
+          // Owner test 2026-09-30: the day's episode, pictured above «Look again».
+          imageUrl={phase.journey?.scenario?.image_url || null}
+          imageAlt={titleFr || ''}
         >
           {teaser && (
             <p className="av2-body journey-today-card__teaser" data-teaser={teaser.source}>

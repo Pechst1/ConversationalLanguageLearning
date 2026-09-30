@@ -1143,6 +1143,10 @@ class ResponseEvaluation:
     #: use — ``[{concept_id, outcome: correct | error | avoided, span}]``.
     #: «avoided» is neutral: no lapse, no credit.
     concept_evidence: list[dict[str, Any]] = field(default_factory=list)
+    #: The reply as spoken lines, when more than one person answers (an authored
+    #: season page): ``[{speaker_id, speaker_name, text_fr}]``. Each is drawn as its
+    #: own bubble with its own face; ``character_reply_fr`` stays the joined text.
+    reply_lines: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)

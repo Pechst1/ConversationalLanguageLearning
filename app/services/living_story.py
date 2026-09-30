@@ -8589,6 +8589,9 @@ def settle_resolution(
         "outcome_key": proposal.outcome_key,
         "character_line_fr": turn.resolution_fr,
         "summary_native": turn.summary_native,
+        # An authored season page ends on its «À suivre…» caption: narration, said
+        # by nobody — never under the addressed character's face.
+        **({"narrated": True} if (brief.story_context.get("season") or {}).get("kind") == "tentpole" else {}),
     }
     private.update(
         resolution_settled=True,

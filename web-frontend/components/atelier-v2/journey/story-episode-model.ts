@@ -905,6 +905,8 @@ export type StoryFinaleSource = {
   story_pending?: boolean | null;
   mood?: unknown;
   alt_native?: string | null;
+  /** The ending is narration (an authored page's caption): nobody's face. */
+  narrated?: boolean | null;
 };
 
 /**
@@ -920,6 +922,8 @@ export function storyFinaleStage(
 ): ReaderResolutionStage {
   const lineFr = String(prompt?.character_line_fr || '').trim();
   const summary = String(prompt?.summary_native || '').trim();
+  // A narrated ending is said by nobody: no name, no face.
+  if (prompt?.narrated) speaker = null;
   const name = String(speaker?.name || '').trim();
   const line: ReaderLine | null = lineFr
     ? {

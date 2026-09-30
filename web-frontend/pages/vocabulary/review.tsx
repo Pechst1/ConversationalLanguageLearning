@@ -549,10 +549,20 @@ export default function VocabularyReviewPage() {
   }, [wordSlate]);
   const allItems = useMemo(() => {
     const items = queueItems(context);
-    const ordered = slateById.size === 0 ? items : [
-      ...items.filter((item) => slateById.has(item.word_id)),
-      ...items.filter((item) => !slateById.has(item.word_id)),
-    ];
+    // WP-115b (owner test 2026-09-30): reviews before new words, as in Anki — and
+    // among the reviews, the words that don't stick and the story's own lines
+    // first. The day's slate words follow, then the rest.
+    const rung = (item: (typeof items)[number]) => (item as { ladder?: string | null }).ladder;
+    const rank = (item: (typeof items)[number]) =>
+      rung(item) === 'rescue' ? 0
+        : rung(item) === 'scene' ? 1
+          : item.bucket === 'due' || item.bucket === 'fragile' ? 2
+            : slateById.has(item.word_id) ? 3
+              : 4;
+    const ordered = items
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => rank(a.item) - rank(b.item) || a.index - b.index)
+      .map(({ item }) => item);
     if (!resumeWordId) return ordered;
     return [
       ...ordered.filter((item) => item.word_id === resumeWordId),

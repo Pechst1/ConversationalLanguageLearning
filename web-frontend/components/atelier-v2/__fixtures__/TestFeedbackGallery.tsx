@@ -132,23 +132,23 @@ const SLIP = {
 };
 
 const TURN_SLIP = respondStep('gallery-103-slip', {
-  thread: [{ learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP }],
+  thread: [{ learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP, character_lines: [] }],
 });
 
 const TURN_LAST = respondStep('gallery-103-last', {
   turn_index: 2,
   character_line_fr: 'Et avec ça ?',
   thread: [
-    { learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP },
-    { learner_fr: 'Oui, un café, merci.', character_fr: 'Et avec ça ?', correction: null },
+    { learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP, character_lines: [] },
+    { learner_fr: 'Oui, un café, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
   ],
 });
 
 const TURN_CLOSED = respondStep('gallery-103-closed', {
   turn_index: 2,
   thread: [
-    { learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP },
-    { learner_fr: 'Oui, un café, merci.', character_fr: 'Et avec ça ?', correction: null },
+    { learner_fr: 'Je peux prendre ton place ?', character_fr: 'Bien sûr. Vous prenez un café ?', correction: SLIP, character_lines: [] },
+    { learner_fr: 'Oui, un café, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
   ],
 });
 

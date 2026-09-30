@@ -362,6 +362,14 @@ class JourneyCorrection(JourneyModel):
         return self
 
 
+class ThreadLine(JourneyModel):
+    """One spoken line of a many-voiced reply: who says it and what."""
+
+    speaker_id: str | None = None
+    speaker_name: str | None = None
+    text_fr: str
+
+
 class ThreadExchange(JourneyModel):
     """WP-89 «Le fil»: one exchange of the reply conversation, as it happened.
 
@@ -373,6 +381,9 @@ class ThreadExchange(JourneyModel):
     learner_fr: str
     character_fr: str
     correction: JourneyCorrection | None = None
+    #: The reply as its speakers' lines, when several people answer (an authored
+    #: season page); empty for a one-voiced reply.
+    character_lines: list[ThreadLine] = Field(default_factory=list)
 
 
 class RespondPrompt(JourneyModel):
@@ -415,6 +426,9 @@ class ResolutionPrompt(JourneyModel):
     #: waiting state and polls ``GET /daily-journeys/{id}``; the line and summary are
     #: empty until it turns false (the lane's ending, or today's authored one).
     story_pending: bool = False
+    #: The ending is narration (an authored page's «À suivre…» caption): drawn
+    #: without a speaker's name or face.
+    narrated: bool = False
 
 
 class _RuleCardModel(JourneyModel):
@@ -936,6 +950,8 @@ class EpisodeHeadline(JourneyModel):
     #: Yesterday's «À suivre…».
     teaser_fr: str | None = None
     season_title_fr: str | None = None
+    #: The episode's picture: the scene's first panel, else its opening place.
+    image_url: str | None = None
     cast: list[HeadlineCastMember] = Field(default_factory=list)
 
 
@@ -1007,6 +1023,8 @@ class AttemptResult(JourneyModel):
     assistance_level: AssistanceLevel
     correction: JourneyCorrection | None = None
     character_reply_fr: str | None = None
+    #: The reply as its speakers' lines, when several people answer; empty otherwise.
+    character_lines: list[ThreadLine] = Field(default_factory=list)
     #: Where ``character_reply_fr`` came from. ``"none"`` when there is no reply.
     reply_source: ReplySource = "none"
     next_turn: NextTurn | None = None

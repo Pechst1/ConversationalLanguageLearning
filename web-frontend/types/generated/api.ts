@@ -5485,6 +5485,8 @@ export interface components {
         /** AttemptResult */
         AttemptResult: {
             assistance_level: components["schemas"]["AssistanceLevel"];
+            /** Character Lines */
+            character_lines: components["schemas"]["ThreadLine"][];
             /** Character Reply Fr */
             character_reply_fr: string | null;
             /**
@@ -6454,6 +6456,8 @@ export interface components {
             cast: components["schemas"]["HeadlineCastMember"][];
             /** Edition No */
             edition_no: number | null;
+            /** Image Url */
+            image_url: string | null;
             /** Season Title Fr */
             season_title_fr: string | null;
             /** Teaser Fr */
@@ -9234,6 +9238,11 @@ export interface components {
             character_line_fr: string;
             /** Image Url */
             image_url: string | null;
+            /**
+             * Narrated
+             * @default false
+             */
+            narrated: boolean;
             /** Outcome Key */
             outcome_key: string;
             /** Register Note Fr */
@@ -10614,9 +10623,23 @@ export interface components {
         ThreadExchange: {
             /** Character Fr */
             character_fr: string;
+            /** Character Lines */
+            character_lines: components["schemas"]["ThreadLine"][];
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+        };
+        /**
+         * ThreadLine
+         * @description One spoken line of a many-voiced reply: who says it and what.
+         */
+        ThreadLine: {
+            /** Speaker Id */
+            speaker_id: string | null;
+            /** Speaker Name */
+            speaker_name: string | null;
+            /** Text Fr */
+            text_fr: string;
         };
         /** TilesAttemptInput */
         TilesAttemptInput: {

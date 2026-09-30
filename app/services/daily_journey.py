@@ -564,11 +564,21 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
                 correction = None
         else:
             correction = None
+        lines = [
+            {
+                "speaker_id": row.get("speaker_id"),
+                "speaker_name": row.get("speaker_name"),
+                "text_fr": str(row.get("text_fr") or ""),
+            }
+            for row in turn.get("lines") or []
+            if isinstance(row, dict) and str(row.get("text_fr") or "").strip()
+        ]
         thread.append(
             {
                 "learner_fr": learner,
                 "character_fr": str(turn.get("character") or ""),
                 "correction": correction,
+                **({"character_lines": lines} if lines else {}),
             }
         )
     return thread
@@ -4094,6 +4104,8 @@ class DailyJourneyService:
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # Every speaker of a many-voiced reply, so each gets their bubble.
+                **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
             }
         )
         private["turns"] = history
@@ -4152,6 +4164,7 @@ class DailyJourneyService:
             assistance_level=assistance,
             correction=public_correction,
             character_reply_fr=evaluation.character_reply_fr,
+            character_lines=list(evaluation.reply_lines or []),
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,

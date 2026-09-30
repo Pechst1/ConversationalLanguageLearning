@@ -536,3 +536,29 @@ for (const [name, s] of [['letter', letterStep()], ['ordinary reply', step({ tar
     }
   });
 }
+
+test('a many-voiced reply is one bubble per speaker, each with who says it', () => {
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const prompt = {
+    turn_index: 1, max_turns: 3, repair_allowed: false, character_id: 'augustin_de_roncourt',
+    character_name: 'Gus', character_line_fr: 'Ah.\nMargaux : Elle prenait ça.\nMargaux : Tu vas monter ?', objective_native: '', input_modes: ['text'],
+    thread: [{
+      learner_fr: 'Je suis la petite-fille d’Odile.',
+      character_fr: 'Ah.\nMargaux : Elle prenait ça.\nMargaux : Tu vas monter ?',
+      correction: null,
+      character_lines: [
+        { speaker_id: 'augustin_de_roncourt', speaker_name: 'Augustin « Gus » de Roncourt', text_fr: 'Ah.' },
+        { speaker_id: 'margaux_barman', speaker_name: 'Margaux', text_fr: 'Elle prenait ça.' },
+        { speaker_id: 'margaux_barman', speaker_name: 'Margaux', text_fr: 'Tu vas monter ?' },
+      ],
+    }],
+  };
+  const replies = bubblesOf({ prompt }).filter((b) => b.kind === 'character' && b.reply);
+  assert.deepEqual(replies.map((b) => [b.speaker && b.speaker.id, b.text]), [
+    ['augustin_de_roncourt', 'Ah.'],
+    ['margaux_barman', 'Elle prenait ça.'],
+    ['margaux_barman', 'Tu vas monter ?'],
+  ]);
+  assert.equal(replies[2].latest, true, 'the last speaker is the headline');
+  assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
+});

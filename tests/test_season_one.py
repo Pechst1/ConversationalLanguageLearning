@@ -654,6 +654,7 @@ def test_home_headlines_todays_episode(assembled_client, db_session, journey_ena
     headline = d.today()["headline"]
     assert headline["title_fr"] == "Le mauvais accueil", "a tentpole's title is known before the day starts"
     assert headline["edition_no"] == 1
+    assert str(headline["image_url"]).startswith("/assets/"), "Home shows the episode's picture before it starts"
     names = " ".join(member["name"] for member in headline["cast"])
     assert all(who in names for who in ("Gus", "Marin", "Lila")), names
     _play(d, provider, clock, "Odile, c'est ma grand-mère.")  # T1 Day A; the clock moves on
@@ -676,6 +677,46 @@ def test_home_headlines_todays_episode(assembled_client, db_session, journey_ena
     db_session.commit()
     bare = d.today()["headline"]
     assert bare["edition_no"] == 3 and bare["teaser_fr"] is None and bare["title_fr"] is None
+
+
+def test_a_season_page_corrects_the_form_in_the_margin(assembled_client, db_session, journey_enabled, clock, season_on):
+    """Owner test 2026-09-30: «Odile est mon grand-mere» passed uncorrected. The page
+    still answers what the learner meant; the tutor corrects the form in the margin,
+    and every speaker of the reaction comes with their own line."""
+
+    provider = season_on
+    original = provider.generate_chat_completion
+
+    def with_correction(messages, **kwargs):
+        data = json.loads(messages[0]["content"])
+        if data["output_schema"]["title"] == "TutorVerdict":
+            text = str(data["data"].get("learner_text") or "")
+            if "mon grand-mere" in text:
+                value = {"outcome": "met", "evidence_quotes": [text], "correction_span_fr": "mon grand-mere",
+                         "correction_fr": "ma grand-mère", "correction_note_native": "Grand-mère is feminine: ma."}
+                return SimpleNamespace(content=json.dumps(value), model="fake", provider="test", total_tokens=10, cost=0.0)
+        return original(messages, **kwargs)
+
+    provider.generate_chat_completion = with_correction
+    provider.routes = {"Odile est mon grand-mere": "a"}
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1c-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    d.create()
+    step = None
+    for _ in range(40):
+        step = d.current()
+        if step is None or step["kind"] == "respond":
+            break
+        if step["kind"] == "recall":
+            d.attempt(d.recall_answer(step, correct=True))
+            if d.journey.get("current_step_id") == step["id"]:
+                d.advance()
+        else:
+            d.advance()
+    assert step and step["kind"] == "respond"
+    body = d.attempt({"mode": "text", "text": "Odile est mon grand-mere"}).json()
+    assert (body.get("correction") or {}).get("corrected_fr") == "ma grand-mère"
+    speakers = {line["speaker_id"] for line in body.get("character_lines") or []}
+    assert len(speakers) >= 2, f"each speaker has their own line: {body.get('character_lines')}"
 
 
 def _user_id_of(db, journey: dict):

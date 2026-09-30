@@ -172,6 +172,27 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str) -> str:
     return "\n".join(parts)
 
 
+def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    """The reaction as spoken lines, each with who says it — so the conversation draws
+    every speaker with their own face instead of one bubble naming the others."""
+
+    lines: list[dict[str, Any]] = []
+    for panel in panels:
+        for line in panel.get("lines") or []:
+            text = str(line.get("text_fr") or "").strip()
+            if not text or line.get("kind") not in ("speech", "all"):
+                continue
+            who = str(line.get("who") or addressee)
+            lines.append(
+                {
+                    "speaker_id": who,
+                    "speaker_name": str(line.get("name") or (names or {}).get(who) or who),
+                    "text_fr": text,
+                }
+            )
+    return lines
+
+
 def reaction_native(panels: list[dict[str, Any]], *, addressee: str) -> str | None:
     parts: list[str] = []
     for panel in panels:

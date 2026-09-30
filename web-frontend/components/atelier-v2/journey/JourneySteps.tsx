@@ -974,12 +974,15 @@ export function RespondStepView({
           // WP-103 T6: every turn's corrected form is printed under its line,
           // the closing turn's too; the verdict band adds the explanation.
           correction: result?.correction ?? null,
+          character_lines: result?.character_lines ?? null,
         }
       : null;
+  // A reply several people say is drawn at once, one bubble each (no typing-in).
+  const manyVoiced = (result?.character_lines?.length ?? 0) > 1;
   let bubbles = letter ? [] : threadBubbles({ prompt: step.prompt, local, inFlight });
   // The reply that just arrived types in; whatever follows it waits for it.
   const typingIndex =
-    reply && inFlight
+    reply && inFlight && !manyVoiced
       ? bubbles.findIndex(
           (bubble) => bubble.kind === 'character' && bubble.reply && bubble.turn === inFlight.turn,
         )

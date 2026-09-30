@@ -148,6 +148,7 @@ const RESOLUTION: ResolutionStep = {
   prompt: {
     chapter_recap_fr: null,
     story_pending: false,
+    narrated: false,
     outcome_key: 'served',
     character_line_fr: 'Votre café, et un croissant offert. À demain !',
     summary_native: 'You ordered politely, and Margaux remembered you.',

@@ -767,6 +767,40 @@ def _scene_of(db: Session, scenario: ScenarioBrief):
 # ---------------------------------------------------------------------------
 
 
+def margin_correction(
+    db: Session, *, user, scenario: ScenarioBrief, task: ResponseTask, answer: AttemptAnswer,
+    turn_index: int, history=None,
+) -> Correction | None:
+    """The tutor lane alone, for an authored season page (owner test 2026-09-30:
+    «Odile est mon grand-mere» passed uncorrected). The page answers the learner; the
+    tutor only corrects the form, in the margin. Any failure is no correction."""
+
+    try:
+        payload = engine._turn_payload(db, user, scenario, task, answer, history, turn_index)
+        usage: list[dict] = []
+        verdict = _run_lane(
+            TUTOR, tutor_payload(payload), TutorVerdict,
+            lambda v: validate_tutor(v, payload),
+            deadline=time.monotonic() + LANE_REQUEST_TIMEOUT_SECONDS, collected=usage,
+            max_tokens=TUTOR_OUTPUT_TOKENS + LANE_REASONING_HEADROOM,
+            window=LANE_REQUEST_TIMEOUT_SECONDS, attempts=1,
+        )
+        book_lane(db, user, scene=_scene_of(db, scenario), lane="tutor", usage=usage, seconds=None,
+                  payload={"turn_index": turn_index, "season": True})
+    except Exception as exc:  # noqa: BLE001 - a correction is never worth the turn
+        logger.info("story_lanes: no margin correction on the season page (%s)", exc)
+        return None
+    if verdict.correction_span_fr and verdict.correction_fr and verdict.correction_note_native:
+        candidate = Correction(
+            span_fr=verdict.correction_span_fr,
+            corrected_fr=verdict.correction_fr,
+            note_native=verdict.correction_note_native,
+        )
+        if candidate.is_valid_for(answer.text):
+            return candidate
+    return None
+
+
 def evaluate_turn_lanes(
     db: Session,
     *,

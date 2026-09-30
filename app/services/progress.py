@@ -436,7 +436,11 @@ class ProgressService:
             "topic_tags": word.topic_tags or [],
             **gloss_payload(word, native_language),
             "example_sentence": word.example_sentence,
-            "example_translation": word.example_translation,
+            # The catalogue's example translations are German: shown to a German
+            # learner only (owner test 2026-09-30 — an English learner read German).
+            "example_translation": word.example_translation
+            if str(native_language or "").lower().startswith("de")
+            else None,
             # WP-115b: the recall ladder — the card's format follows its memory.
             **card_ladder(progress, word, level=level),
         }
