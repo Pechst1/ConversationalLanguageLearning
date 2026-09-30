@@ -49,8 +49,6 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.user import User
-from app.services.journey_content import learner_level_band
-from app.services.chrome_language import user_chrome_language
 from app.db.savepoint import best_effort, run_best_effort, session_is_usable
 from app.schemas.daily_journey import (
     PRACTICE_ERRATA_HREF,
@@ -82,12 +80,14 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
+from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
     preview_scenario,
 )
 from app.services.journey_capabilities import build_journey_register_line
+from app.services.journey_content import learner_level_band
 from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
@@ -116,11 +116,11 @@ from app.services.journey_contracts import (
     TaskOutcome,
     effect_source_key,
     normalize_answer_text,
-    normalize_control_language,
     rhythm_caps,
     strongest_assistance,
 )
 from app.services.journey_day_shapes import (
+    DayShapeDecision,
     DayShapeInputs,
     choose_day_shape,
     letter_offer_for,
@@ -3022,6 +3022,14 @@ class DailyJourneyService:
         # errata queue is holding. No provider call, no second content source.
         dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
         decision = choose_day_shape(dice)
+        from app.services.season.runtime import is_tentpole
+
+        if is_tentpole(result.story_context):
+            # WP-111: a tentpole's reply IS the authored page — never a letter day,
+            # a short day or a listening day in its place.
+            decision = DayShapeDecision(
+                shape=DEFAULT_DAY_SHAPE, reason="season_tentpole", eligible=decision.eligible
+            )
         try:
             if first_day:
                 # WP-75: the scene's own words, not the (empty) queue of a
@@ -3160,6 +3168,10 @@ class DailyJourneyService:
 
         if not getattr(settings, "ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", False):
             return False
+        if self._starts_on_season(user):
+            # WP-111: a learner who begins on the authored season meets the cast in
+            # its first tentpole (T1 Day A, instant, no model call) — not the café.
+            return False
         content = self.adapters.content
         if not all(
             callable(getattr(content, name, None))
@@ -3181,6 +3193,18 @@ class DailyJourneyService:
             .limit(1)
         ).first()
         return earlier is None
+
+    def _starts_on_season(self, user: User) -> bool:
+        """Would this learner's story be the authored season (WP-111)?"""
+
+        if not getattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False):
+            return False
+        from app.services.living_story import STATE_KEY, _active_thread
+        from app.services.season.runtime import season_id_for
+
+        thread = _active_thread(self.db, user)
+        live = ((thread.state or {}) if thread else {}).get(STATE_KEY) or {}
+        return season_id_for(live) is not None
 
     def _first_day_brief(
         self, user: User, journey: DailyJourney, input_mode: InputMode

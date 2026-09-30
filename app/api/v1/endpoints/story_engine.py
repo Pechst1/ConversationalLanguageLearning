@@ -107,6 +107,13 @@ def public_scene(scene, names: dict[str, str] | None = None):
     source = scene.source_snapshot or {}
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
     names = names or {}
+    season_id = ((scene.script_payload or {}).get("season") or {}).get("id")
+    if season_id:
+        # WP-111: an authored page's minor voices (the clerk, Odile in a flashback)
+        # are named by the season, not the director's world.
+        from app.services.season.world import season_cast_names
+
+        names = {**season_cast_names(str(season_id)), **names}
     return {
         "id": str(scene.id),
         "scene_id": str(scene.id),

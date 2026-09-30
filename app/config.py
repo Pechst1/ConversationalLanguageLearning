@@ -491,6 +491,16 @@ class Settings(BaseSettings):
             "interlude with a return date, then a reprise season built without a model."
         ),
     )
+    ATELIER_SEASON_SCRIPT: str = Field(
+        "",
+        description=(
+            "WP-111: the authored season a learner who has not started a story yet begins "
+            "on (\"s1\" = «La clé d'Odile», app/data/season/s1/). Its tentpoles are served "
+            "as written and the days between them are generated inside the season's gap "
+            "rules. Empty: the generated serial, as before. A life already under way keeps "
+            "its story either way."
+        ),
+    )
     ATELIER_STORY_TURN_LANES_ENABLED: bool = Field(
         True,
         description=(

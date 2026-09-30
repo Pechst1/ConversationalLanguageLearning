@@ -284,6 +284,9 @@ def recap_teaser(user: User, journey: DailyJourney, live: dict[str, Any]) -> dic
     if isinstance(teaser, dict) and _clean(teaser.get("text_fr")):
         # A teaser the engine wrote for an earlier day is not tomorrow's.
         source_event = teaser.get("source_event_id")
+        if teaser.get("kind") == "season" and (not source_event or source_event == _event_id(journey)):
+            # WP-111: a tentpole's «À suivre…» is the page's caption — nobody says it.
+            return {"text_fr": _clean(teaser.get("text_fr"), 160), "character_id": None, "character_name": None, "source": "engine"}
         if not source_event or source_event == _event_id(journey):
             teaser_id = str(teaser.get("character_id") or "").strip() or raw_id
             return {

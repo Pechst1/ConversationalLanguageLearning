@@ -280,6 +280,21 @@ def cast_names(scenario: Any) -> dict[str, str]:
     return names
 
 
+def minor_ids(scenario: Any) -> set[str]:
+    """Cast members the world marks as minor (a baker, a notary, a clerk)."""
+
+    story = getattr(scenario, "story_context", None) or {}
+    source = story.get("source") if isinstance(story, dict) else None
+    cast = ((source or {}).get("world") or {}).get("cast") or []
+    return {
+        str(member["id"])
+        for member in cast
+        if isinstance(member, dict)
+        and member.get("id")
+        and (member.get("minor") or str(member.get("role") or "").startswith("Minor character"))
+    }
+
+
 def scene_lines(scenario: Any) -> list[SceneLine]:
     """The characters' own lines, in reading order, opening line last."""
 
@@ -491,6 +506,11 @@ def floor_tasks(
     language = getattr(scenario, "control_language", "en")
     names = cast_names(scenario)
     lines = [line for line in scene_lines(scenario) if not line_spoils_reply(line.text_fr, expected_reply)]
+    # «Qui a dit ça ?» offers faces the learner can know: the people of this scene,
+    # and the main cast — never a minor character they have not met yet.
+    speakers = {line.character_id for line in scene_lines(scenario)}
+    minors = minor_ids(scenario)
+    faces = {cid: name for cid, name in names.items() if cid in speakers or cid not in minors}
     lexicon = lexicon_of(scenario)
     draft = draft_of(scenario)
     glossed = [t for t, _m in targets if getattr(t, "label_native", None)]
@@ -511,7 +531,7 @@ def floor_tasks(
             continue
         target, _surface = found
         task = build_who_said_task(
-            target=target, line=line, names=names, optional=True, control_language=language
+            target=target, line=line, names=faces, optional=True, control_language=language
         )
         if task is not None:
             who.append((target, task))
