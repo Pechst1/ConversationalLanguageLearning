@@ -298,7 +298,7 @@ export function HelpRow({
   help: HelpResult | null;
   onHelp: (kind: HelpKind) => void;
 }) {
-  if (!available.length) return null;
+  if (!available.length && !help) return null;
   const wide = widenCopy(copy);
 
   return (
@@ -1064,10 +1064,12 @@ export function RespondStepView({
     </>
   );
 
+  // A letter's own objective is written by the mission generator as a statement about
+  // the story («Noémie sait que tu viens…»), not as a task: the chrome says the task.
   const brief = (
     <>
       <p className="av2-body av2-body--lg">
-        {replyTaskLine(letter ? letter.objective_native : step.prompt.objective_native)}
+        {letter ? wide.letter_task : replyTaskLine(step.prompt.objective_native)}
       </p>
     </>
   );
@@ -1100,9 +1102,27 @@ export function RespondStepView({
 
       {!graded && (step.prompt.help_available.length > 0 || step.prompt.targets.length > 0 || canSpeak) && (
         <div className="av2-stack av2-help">
-          <Chip onClick={() => setHintOpen((open) => !open)} aria-expanded={hintOpen}>
-            {copy.help_hint}
-          </Chip>
+          {/* One entry point. Tapping «Indice» gives the hint itself (when the step has
+              one) and opens the other aids; the aids below never repeat «Indice». */}
+          <div className="av2-help__actions">
+            <Chip
+              disabled={busy}
+              onClick={() => {
+                const opening = !hintOpen;
+                setHintOpen(opening);
+                if (
+                  opening &&
+                  step.prompt.help_available.includes('hint') &&
+                  !step.assistance_used.includes('hint')
+                ) {
+                  onHelp('hint');
+                }
+              }}
+              aria-expanded={hintOpen}
+            >
+              {copy.help_hint}
+            </Chip>
+          </div>
           {hintOpen && <>
             {canSpeak && mode === 'text' && <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
               {copy.use_voice}
@@ -1113,7 +1133,7 @@ export function RespondStepView({
               </Chip>)}
             </div>}
             <HelpRow
-              available={step.prompt.help_available}
+              available={step.prompt.help_available.filter((kind) => kind !== 'hint')}
               used={step.assistance_used.filter((level) => level !== 'none')}
               copy={copy}
               busy={busy}
@@ -1133,7 +1153,7 @@ export function RespondStepView({
         headline={letterHeadline ? letterHeadline.text : step.prompt.character_line_fr}
         headlineLang={letterHeadline ? letterHeadline.lang : 'fr'}
       >
-        <Surface shape="episode">
+        <Surface className="av2-letter">
           <p className="av2-label">{wide.letter_from.replace('{name}', letter.correspondent_name)}</p>
           <p className="av2-fr av2-body av2-body--lg" lang="fr">
             {frenchSpacing(letter.body_fr)}

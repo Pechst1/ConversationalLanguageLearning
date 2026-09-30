@@ -1464,6 +1464,23 @@
   gap: 10px;
 }
 
+/* A letter is read in full: it has its own padding and wraps, and is never clipped or
+   clamped (the episode shape has no padding and hides overflow). */
+.av2 .av2-letter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: visible;
+  max-width: 100%;
+}
+.av2 .av2-letter > * {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-overflow: clip;
+  -webkit-line-clamp: unset;
+}
+
 /* The respond row: the primary fills the line, the microphone sits beside it
    and drops below rather than squeezing the action when there is no room. */
 .av2 .av2-respond__actions {

@@ -480,3 +480,59 @@ test('a partial answer without help reads as partial, never «with help»', () =
     '',
   );
 });
+
+// ---------------------------------------------------------------------------
+// «Jour de lettre» reply screen (2026-09-30): readable letter, one help entry
+// ---------------------------------------------------------------------------
+
+const LONG_BODY =
+  'Chère toi, on mange dans le parc des Buttes-Chaumont dans une heure. Tu viens ? ' +
+  'Apporte un peu de pain si tu peux, et écris-moi quand tu arrives à la grille près du lac. ' +
+  'Je garde une place sous les grands arbres, côté colline, là où il y a toujours un peu d’ombre.';
+
+const letterStep = (extra = {}) =>
+  step({
+    targets: [{ kind: 'vocabulary', id: 'v-1', label_fr: 'promettre' }],
+    help_available: ['hint', 'translation', 'suggested_response'],
+    letter: {
+      mission_id: 'm-1',
+      correspondent_id: 'lila',
+      correspondent_name: 'Lila Bonnet',
+      subject_fr: 'Le pique-nique',
+      body_fr: LONG_BODY,
+      objective_native: 'Noémie sait que tu viens et où vous attendez.',
+    },
+    ...extra,
+  });
+
+const renderRespond = (s, copy = FR) =>
+  renderToStaticMarkup(h(steps.RespondStepView, { ...props(s), copy }));
+
+test('a letter is a padded, unclipped card that carries the whole body', () => {
+  const html = renderRespond(letterStep());
+  assert.ok(html.includes('av2-letter'), 'the letter has its own card');
+  assert.ok(!html.includes('av2-surface--episode'), 'not the padding-less, overflow-hidden episode shape');
+  assert.ok(html.includes('Lettre de Lila Bonnet'));
+  assert.ok(html.includes('sous les grands arbres'), 'the end of a long letter is in the page');
+});
+
+test('the letter task is one short sentence in the chrome language, not the mission objective', () => {
+  const fr = renderRespond(letterStep(), FR);
+  assert.ok(fr.includes('Écris ta réponse à cette lettre.'));
+  assert.ok(!fr.includes('Noémie sait'));
+  assert.ok(renderRespond(letterStep(), EN).includes('Write your answer to this letter.'));
+  assert.ok(renderRespond(letterStep(), DE).includes('Schreib deine Antwort auf diesen Brief.'));
+});
+
+for (const [name, s] of [['letter', letterStep()], ['ordinary reply', step({ targets: [{ kind: 'vocabulary', id: 'v-1', label_fr: 'promettre' }], help_available: ['hint', 'translation', 'suggested_response'] })]]) {
+  test(`the ${name} screen has exactly one help entry, closed until asked`, () => {
+    const html = renderRespond(s, FR);
+    const buttons = html.match(/<button[^>]*aria-expanded/g) || [];
+    assert.equal(buttons.length, 1, 'one help entry');
+    assert.ok(html.includes('aria-expanded="false"'));
+    assert.equal((html.match(/Indice/g) || []).length, 1, '«Indice» is the entry, said once');
+    for (const chip of ['Traduction', 'Proposer', 'promettre']) {
+      assert.ok(!html.includes(chip), `${chip} stays behind the entry until it is opened`);
+    }
+  });
+}

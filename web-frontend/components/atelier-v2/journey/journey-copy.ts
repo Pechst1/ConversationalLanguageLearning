@@ -185,6 +185,7 @@ export type JourneyCopyKey =
   | 'chapter_recap_label'
   | 'register_label'
   | 'letter_from'
+  | 'letter_task'
   | 'letter_reply_label'
   // WP-82: the cast intro's heading, in the chrome language.
   | 'cast_title'
@@ -387,6 +388,7 @@ const EN: CopyTable = {
   chapter_recap_label: 'Where the chapter leaves things',
   register_label: 'How you addressed them',
   letter_from: 'Letter from {name}',
+  letter_task: 'Write your answer to this letter.',
   letter_reply_label: 'Your reply',
   cast_title: 'The characters',
   exchange_of: 'Exchange {n} of {total}',
@@ -576,6 +578,7 @@ const DE: CopyTable = {
   chapter_recap_label: 'Wo das Kapitel endet',
   register_label: 'Wie du sie angesprochen hast',
   letter_from: 'Brief von {name}',
+  letter_task: 'Schreib deine Antwort auf diesen Brief.',
   letter_reply_label: 'Deine Antwort',
   cast_title: 'Die Figuren',
   exchange_of: 'Austausch {n} von {total}',
@@ -765,6 +768,7 @@ const FR: CopyTable = {
   chapter_recap_label: 'Où en est le chapitre',
   register_label: 'Tu ou vous',
   letter_from: 'Lettre de {name}',
+  letter_task: 'Écris ta réponse à cette lettre.',
   letter_reply_label: 'Votre réponse',
   cast_title: 'Les personnages',
   exchange_of: 'Échange {n} sur {total}',

@@ -93,10 +93,11 @@ import {
 import { loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
 import { READ_POLL_LIMIT, READ_POLL_MS, readPollTarget } from './read-step-model';
 import {
-  shouldPollStoryArt,
   STORY_ART_POLL_MS,
   stepReadsStoryEpisode,
+  storyArtRendering,
 } from './story-episode-model';
+import { shouldPollStoryArtLate } from './story-art-poll';
 
 /** Bounded auto-poll of a `preparing` journey before a manual "check again". */
 const PREPARING_POLL_LIMIT = 8;
@@ -537,11 +538,19 @@ export function useDailyJourney(
   // Bumped after every re-read, so a read that failed (and kept the episode
   // as it was) still schedules the next one.
   const [artTick, setArtTick] = useState(0);
+  const artSeenRenderingRef = useRef(false);
   useEffect(() => {
     artPollsRef.current = 0;
+    artSeenRenderingRef.current = false;
   }, [storyJourneyId]);
   useEffect(() => {
-    if (!storyJourneyId || !shouldPollStoryArt(storyEpisode, artPollsRef.current)) return undefined;
+    if (storyArtRendering(storyEpisode)) artSeenRenderingRef.current = true;
+    if (
+      !storyJourneyId ||
+      !shouldPollStoryArtLate(storyEpisode, artPollsRef.current, artSeenRenderingRef.current)
+    ) {
+      return undefined;
+    }
     const timer = setTimeout(() => {
       artPollsRef.current += 1;
       void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney).finally(() => {

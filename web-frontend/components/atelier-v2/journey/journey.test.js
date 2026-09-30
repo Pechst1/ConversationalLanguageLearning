@@ -2205,7 +2205,8 @@ const noSleep = () => Promise.resolve();
   const letterHtml = render(steps.RespondStepView, letterStep);
   assert.ok(htmlHas(letterHtml, 'Le radiateur fuit encore. Tu peux passer ce soir ?'));
   assert.ok(htmlHas(letterHtml, 'Romy'), 'the correspondent is named');
-  assert.ok(htmlHas(letterHtml, 'Answer Romy and say when you can come.'));
+  assert.ok(htmlHas(letterHtml, 'Write your answer to this letter.'), 'the chrome says the task');
+  assert.ok(!htmlHas(letterHtml, 'Answer Romy and say when you can come.'), "the mission's own objective is not the task line");
   // The turn is still the ordinary respond turn: same answer surface, same
   // send action. A letter changes what is being answered, not how.
   const plainRespondHtml = render(steps.RespondStepView, respondFixture);
