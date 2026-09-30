@@ -92,6 +92,8 @@ async function playDayInner(l, day) {
   walk.day = day;
   walk.seq = 0;
   console.log(`[walk] ${label} day ${day}`);
+  // WP-109: on day 2 the day is entered from the Feuilleton's «today» card.
+  if (day === 2) await walk.enterFromFeuilleton();
   const kinds = await walk.playJourney();
   kinds.forEach((k) => l.covered.add(k));
   findings.check('day-reaches-the-recap', kinds.includes('recap') || kinds.includes('home-done'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());

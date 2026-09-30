@@ -247,6 +247,7 @@ export class LearnerWalk {
       }
       const home = await snapshot(page);
       this.pageChecks(home, 'home');
+      await this.homeChecks();
       await this.shoot('home-before');
       await page.locator('.av2-btn--primary').first().click();
     }
@@ -308,6 +309,49 @@ export class LearnerWalk {
     }
     this.finishTimelines();
     return kinds;
+  }
+
+  /** WP-109: the four places in order, and Home headlining today's episode. */
+  async homeChecks() {
+    const page = this.page;
+    const w = this.where({ kind: 'home' });
+    const tabs = await page.locator('nav.phone-product-nav a, .phone-product-nav a').allInnerTexts().catch(() => []);
+    const labels = tabs.map((text) => text.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    this.findings.check('tabs-la-une-feuilleton-courrier-cahier',
+      labels.join(' · ') === 'La Une · Feuilleton · Courrier · Cahier',
+      `tabs read «${labels.join(' · ')}»`, w);
+    if (this.day >= 2) {
+      const card = (await page.locator('.journey-today-card').first().innerText().catch(() => '')) || '';
+      this.findings.check('home-headlines-the-episode', /Nº\s*\d+/.test(card),
+        `no episode number on Home's card: «${card.replace(/\s+/g, ' ').slice(0, 120)}»`, w);
+    }
+  }
+
+  /**
+   * WP-109: one tap from the Feuilleton reaches today's episode — the day starts
+   * (or resumes) in the session. Returns whether it did.
+   */
+  async enterFromFeuilleton() {
+    const page = this.page;
+    const w = this.where({ kind: 'feuilleton-today' });
+    await page.goto(`${this.stack.web}/graphic-novel`, { waitUntil: 'domcontentloaded' });
+    const link = page.locator('[data-today-episode] a').first();
+    const shown = await link.waitFor({ timeout: 20000 }).then(() => true, () => false);
+    this.findings.check('feuilleton-opens-on-today', shown, 'no «today» card on the Feuilleton', w);
+    if (!shown) return false;
+    await this.shoot('feuilleton-today');
+    await link.click();
+    const reached = await page
+      .waitForFunction(
+        () => location.pathname.startsWith('/atelier')
+          && /(Step \d+ of \d+|Schritt \d+ von \d+|Étape \d+ sur \d+)/.test(document.body.innerText || ''),
+        null,
+        { timeout: 60000 },
+      )
+      .then(() => true, () => false);
+    this.findings.check('feuilleton-today-in-one-tap', reached, 'one tap on today’s card did not open the day', w);
+    if (reached) await this.shoot('feuilleton-today-opened');
+    return reached;
   }
 
   /**

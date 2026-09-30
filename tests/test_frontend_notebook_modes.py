@@ -102,7 +102,10 @@ def test_primary_notebook_nav_uses_smart_entrypoint() -> None:
     phone_nav = read_web("components/layout/PhoneProductNav.tsx")
     layout = read_web("components/layout/Layout.tsx")
 
-    assert 'href="/notebook">Cahier</Link>' in masthead
+    shell = read_web("lib/product-shell.ts")
+    # WP-109: the desktop masthead lists the same four places as the phone tabs.
+    assert "PHONE_PRODUCT_TABS.map" in masthead
+    assert "label: 'Cahier',\n    href: '/notebook'," in shell
     assert "<PhoneProductNav active={mobileSection} />" in masthead
     assert "PHONE_PRODUCT_TABS.map" in phone_nav
     assert "href={item.href}" in phone_nav

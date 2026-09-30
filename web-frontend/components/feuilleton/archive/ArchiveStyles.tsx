@@ -173,6 +173,16 @@ export function ArchiveStyles() {
         text-decoration: none;
       }
       .av2 .fa-back:focus-visible { outline: 3px solid var(--av2-focus); outline-offset: 2px; border-radius: 8px; }
+      /* WP-109: today's episode, first — the one way into the story from here. */
+      .av2 .fa-today {
+        display: flex; flex-direction: column; gap: 10px;
+        margin: 0 0 20px; padding: 16px 18px 18px;
+        border-radius: var(--av2-r-card); background: var(--av2-card);
+      }
+      .av2 .fa-today h2 { margin: 0; }
+      .av2 .fa-today p { margin: 0; }
+      .av2 .fa-today__cast { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+      .av2 .fa-today .av2-btn { align-self: stretch; justify-content: center; margin-top: 4px; }
       .av2 .fa-plate { border-radius: var(--av2-r-card); overflow: hidden; background: var(--av2-card); }
       .av2 .fa-plate img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
       .av2 .fa-plate__body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }

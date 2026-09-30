@@ -217,7 +217,8 @@ def test_a_long_rhythm_plans_one_optional_lecture_after_the_ending(budget: int) 
     plan.validate()
     kinds = [step.kind for step in plan.steps]
     assert kinds.count(StepKind.READ) == 1 and kinds[-1] is StepKind.READ
-    assert kinds[-2] is StepKind.RESOLUTION
+    # WP-109: the practice after the ending, then the «Lecture».
+    assert all(kind is StepKind.RECALL for kind in kinds[kinds.index(StepKind.RESOLUTION) + 1 : -1])
     read = plan.steps[-1]
     assert read.optional and read.private_task is None
     prompt = ReadPrompt.model_validate(read.public_prompt)
@@ -250,7 +251,7 @@ def test_the_validator_keeps_the_lecture_single_optional_and_last() -> None:
         replace(plan, steps=[*plan.steps[:-1], replace(read, optional=False)]).validate()
     early = [*plan.steps[:-2], read, plan.steps[-2]]
     early = [replace(step, ordinal=index) for index, step in enumerate(early)]
-    with pytest.raises(ValueError, match="resolution|after the ending"):
+    with pytest.raises(ValueError, match="resolution|after the ending|comes last|follow the ending"):
         replace(plan, steps=early).validate()
     twice = [*plan.steps, replace(read, ordinal=len(plan.steps))]
     with pytest.raises(ValueError, match="at most 1"):
@@ -651,3 +652,21 @@ def test_an_unavailable_coulisses_gives_its_place_to_yesterdays_page(db_session,
     }
     assert views[second.id]["status"] == "unavailable" and views[second.id]["scene_id"] is None
     db_session.rollback()
+
+
+def test_nothing_sits_between_the_reply_and_the_ending() -> None:
+    """WP-109 «Une seule maison»: the episode is never interrupted — practice wraps it,
+    before the scene and after the ending."""
+
+    plan = _plan(600)
+    plan.validate()
+    kinds = [step.kind for step in plan.steps]
+    respond_at = kinds.index(StepKind.RESPOND)
+    assert kinds[respond_at + 1] is StepKind.RESOLUTION
+    after = kinds.index(StepKind.RECALL, respond_at)
+    steps = list(plan.steps)
+    item = steps.pop(after)
+    steps.insert(respond_at + 1, item)
+    steps = [replace(step, ordinal=index) for index, step in enumerate(steps)]
+    with pytest.raises(ValueError, match="between the reply and the ending"):
+        replace(plan, steps=steps).validate()

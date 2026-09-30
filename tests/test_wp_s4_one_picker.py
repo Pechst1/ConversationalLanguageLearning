@@ -410,7 +410,7 @@ def test_the_forge_step_may_only_sit_before_the_reply() -> None:
     moved = [replace(step, ordinal=index) for index, step in enumerate(moved)]
     # WP-93 (W5): the forge sits before the scene, with the rule — never
     # between the scene's question and the reply, never after it.
-    with pytest.raises(ValueError, match="before the scene"):
+    with pytest.raises(ValueError, match="before the scene|follow the ending|between the reply and the ending"):
         replace(plan, steps=moved).validate()
     others =[step for step in plan.steps if step.kind is not StepKind.FORGE]
     at = [step.kind for step in others].index(StepKind.SCENE) + 1

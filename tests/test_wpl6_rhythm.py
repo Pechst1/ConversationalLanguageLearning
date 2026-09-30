@@ -132,14 +132,14 @@ def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace(audio: bool
     assert 480 <= plan.estimated_active_seconds <= 600, plan.rationale
     kinds = [step.kind for step in plan.steps]
     # The movements, in order: Rappel (warm-ups), Scène, Réponse — straight
-    # after the scene's question (W5) — then the builds and a word from
-    # today, then the ending.
+    # after the scene's question (W5) — the ending, then (WP-109) the builds
+    # and a word from today.
     scene_at = kinds.index(StepKind.SCENE)
     respond_at = kinds.index(StepKind.RESPOND)
     assert scene_at > 3, "Régulier's Rappel is longer than Léger's three warm-ups"
     assert respond_at == scene_at + 1, "nothing between the question and the reply"
-    assert kinds[respond_at + 1:-1].count(StepKind.RECALL) > 2, "the builds come after it"
-    assert kinds[-1] is StepKind.RESOLUTION
+    assert kinds[respond_at + 1] is StepKind.RESOLUTION, "the ending follows the reply"
+    assert kinds[respond_at + 2:].count(StepKind.RECALL) > 2, "the builds come after the ending"
     # WP-93: ~12 items, and the reply keeps its three exchanges (a longer
     # rhythm buys story, not drills).
     assert planner.recall_count(plan) <= 12
@@ -165,7 +165,7 @@ def test_no_rhythm_ever_plans_a_second_episode(budget: int, shape: DayShape) -> 
     assert kinds.count(StepKind.SCENE) == 1
     assert kinds.count(StepKind.RESPOND) == 1
     assert kinds.count(StepKind.RESOLUTION) == 1
-    assert kinds[-1] is StepKind.RESOLUTION
+    assert kinds[kinds.index(StepKind.RESPOND) + 1] is StepKind.RESOLUTION
     assert plan.estimated_active_seconds <= budget
 
 

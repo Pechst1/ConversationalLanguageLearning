@@ -3865,10 +3865,6 @@ def _plan_practice_day(
             private_task=respond_task,
         )
     )
-    # WP-93 (W5): the builds that used to sit between the question and the
-    # reply come after it, then the word from today.
-    for item in [*placed("mid"), *placed("post")]:
-        steps.append(_recall_step(len(steps), item))
     steps.append(
         PlannedStep(
             ordinal=len(steps),
@@ -3893,6 +3889,10 @@ def _plan_practice_day(
             },
         )
     )
+    # WP-109 «Une seule maison»: the episode is never interrupted. The builds and
+    # the word from today (WP-93 put them after the reply) follow the ending.
+    for item in [*placed("mid"), *placed("post")]:
+        steps.append(_recall_step(len(steps), item))
     steps.extend(read_steps)
 
     if forge:

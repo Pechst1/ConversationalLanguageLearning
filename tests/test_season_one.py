@@ -645,6 +645,39 @@ def test_a_finished_day_reads_as_one_page_with_the_learners_lines_in_it(assemble
     assert any(row["movement"] == "reaction" for row in rows), "the answer the learner got is drawn"
 
 
+def test_home_headlines_todays_episode(assembled_client, db_session, journey_enabled, clock, season_on):
+    """WP-109: one answer to «where is the story?» — Home headlines today's episode with
+    its number, title (when known), yesterday's «À suivre…» and who is in it."""
+
+    provider = season_on
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1h-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    headline = d.today()["headline"]
+    assert headline["title_fr"] == "Le mauvais accueil", "a tentpole's title is known before the day starts"
+    assert headline["edition_no"] == 1
+    names = " ".join(member["name"] for member in headline["cast"])
+    assert all(who in names for who in ("Gus", "Marin", "Lila")), names
+    _play(d, provider, clock, "Odile, c'est ma grand-mère.")  # T1 Day A; the clock moves on
+    clock.advance(days=-1)
+    assert d.today()["headline"] is None, "a finished day is not headlined again"
+    clock.advance(days=1)
+    tomorrow = d.today()["headline"]
+    assert tomorrow["title_fr"] == "La lettre" and tomorrow["edition_no"] == 2, "T1 Day B has its own title"
+    assert tomorrow["teaser_fr"], "yesterday's «À suivre…» leads today's headline"
+    _play(d, provider, clock, "Oui, je reste une semaine.")  # T1 Day B
+    gap = d.today()["headline"]
+    assert gap["title_fr"] is None, "a generated day's title is not invented before it is written"
+    assert gap["teaser_fr"] and gap["edition_no"] == 3
+    assert gap["season_title_fr"] == load_season("s1").title_fr
+    # A day after the authored fallback has no teaser: the number still headlines it.
+    thread = _thread(db_session, _user_id_of(db_session, d.journey))
+    state = dict(thread.state or {})
+    state[engine.STATE_KEY] = {k: v for k, v in (state.get(engine.STATE_KEY) or {}).items() if k != engine.TEASER_KEY}
+    thread.state = state
+    db_session.commit()
+    bare = d.today()["headline"]
+    assert bare["edition_no"] == 3 and bare["teaser_fr"] is None and bare["title_fr"] is None
+
+
 def _user_id_of(db, journey: dict):
     from app.db.models.daily_journey import DailyJourney
 

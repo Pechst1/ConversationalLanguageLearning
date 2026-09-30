@@ -38,6 +38,7 @@ import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
 
 import { getArchiveEpisode, getStoryArchive, getTrombinoscope } from './archive-api';
 import { archiveCopy, archiveDate, faFill, faPlural } from './archive-copy';
+import { TodayEpisode, useTodayHeadline } from './TodayEpisode';
 import {
   archiveDayEpisode,
   archiveDayHref,
@@ -138,6 +139,8 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
     [archive, dayQuery, view],
   );
   const current = archive?.seasons.find((season) => !season.finished) ?? archive?.seasons[0] ?? null;
+  // WP-109: the Feuilleton opens on today's episode, then the archive and the cast.
+  const todayHeadline = useTodayHeadline();
 
   return (
     <>
@@ -161,6 +164,7 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
             <ArchiveNav view={view} language={language} />
           </header>
         )}
+        {view === 'archive' && <TodayEpisode headline={todayHeadline} language={language} />}
 
         {view === 'cast' ? (
           castState === 'failed' ? (

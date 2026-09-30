@@ -34,6 +34,14 @@ import {
   ShapeToken,
   Surface,
 } from '@/components/atelier-v2/ui';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { readerCopy } from '@/components/feuilleton/reader/reader-copy';
+import {
+  headlineKicker,
+  headlineTeaser,
+  headlineTitle,
+  type EpisodeHeadline,
+} from '@/lib/episode-headline';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf, specialListLine } from '@/lib/can-dos';
@@ -101,6 +109,8 @@ export function JourneyTodayCard({
   const premiere = todayPremiere(controller.envelope, controller.journey);
   const interlude = todayInterlude(controller.envelope, controller.journey);
   const forgeHref = controller.envelope?.forge?.href ?? null;
+  // WP-109: Home headlines today's episode (number, title or teaser, cast).
+  const headline = controller.envelope?.headline ?? null;
 
   return (
     <AtelierV2Root language={chromeLanguage} className="journey-today">
@@ -124,6 +134,7 @@ export function JourneyTodayCard({
           onRetryGeneration={() => void actions.retryGeneration()}
           controlLanguage={chromeLanguage}
           special={special}
+          headline={headline}
         />
 
         {/* WP-43 — the nouvelles-pages artboard: the card carries the scene
@@ -231,7 +242,9 @@ function JourneyTodayBody({
   premiere = null,
   interlude = null,
   forgeHref = null,
+  headline = null,
 }: {
+  headline?: Headline | null;
   special?: SpecialEdition | null;
   premiere?: SeasonPremiereView | null;
   interlude?: InterludeView | null;
@@ -288,12 +301,15 @@ function JourneyTodayBody({
           // WP-98: a quiet authored interlude scene says it is one.
           eyebrow={
             joinMeta(
+              headlineKicker(headline),
               interlude ? seasonReturnCopy(controlLanguage).interlude_kicker : gentle,
               scenario.location_name,
             ) || copy.today_eyebrow
           }
-          title={scenario.title_fr}
+          title={headlineTitle(headline, scenario.title_fr)}
           lang="fr"
+          headline={headline}
+          controlLanguage={controlLanguage}
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
           preparing={busy}
@@ -341,9 +357,14 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={joinMeta(gentle, scenario.location_name) || copy.today_eyebrow}
-          title={scenario.title_fr}
+          eyebrow={
+            joinMeta(headlineKicker(headline), gentle, scenario.location_name) ||
+            copy.today_eyebrow
+          }
+          title={headlineTitle(headline, scenario.title_fr)}
           lang="fr"
+          headline={headline}
+          controlLanguage={controlLanguage}
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
           special={special}
@@ -480,8 +501,12 @@ function Card({
   done,
   preparing = false,
   special = null,
+  headline = null,
+  controlLanguage = null,
   children,
 }: {
+  headline?: Headline | null;
+  controlLanguage?: DailyJourneyController['controlLanguage'] | null;
   special?: SpecialEdition | null;
   copy: AtelierCopy;
   eyebrow: string;
@@ -529,6 +554,7 @@ function Card({
           {lang === 'fr' ? frenchSpacing(title) : title}
         </h2>
         {byline}
+        {headline && <HeadlineCast headline={headline} language={controlLanguage} title={title} />}
         {special?.line && (
           <p className="av2-body av2-special__list" data-special-list="">
             {special.line}
@@ -537,6 +563,49 @@ function Card({
         {children}
       </div>
     </Surface>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WP-109 «Une seule maison» — Home headlines today's episode
+// ---------------------------------------------------------------------------
+
+type Headline = EpisodeHeadline;
+
+/** The teaser (when it is not already the title) and the faces of who is in it. */
+function HeadlineCast({
+  headline,
+  language,
+  title,
+}: {
+  headline: Headline;
+  language?: DailyJourneyController['controlLanguage'] | null;
+  title: string;
+}) {
+  const teaser = headlineTeaser(headline, title);
+  const showTeaser = Boolean(teaser);
+  const cast = headline.cast || [];
+  if (!showTeaser && !cast.length) return null;
+  return (
+    <div className="journey-today-card__headline av2-stack" data-headline="">
+      {showTeaser && (
+        <p className="av2-body" data-headline-teaser="">
+          <span className="av2-label">{readerCopy(language ?? null).to_follow}</span>{' '}
+          <span className="av2-fr" lang="fr">
+            {frenchQuote(teaser ?? '')}
+          </span>
+        </p>
+      )}
+      {cast.length > 0 && (
+        <ul className="journey-today-card__cast" aria-label={cast.map((member) => member.name).join(', ')}>
+          {cast.map((member) => (
+            <li key={member.id}>
+              <CastPortrait characterId={member.id} name={member.name} size="xs" alt={member.name} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

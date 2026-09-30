@@ -959,9 +959,17 @@ class DailyJourneyService:
             forge=self._forge_entry(user, anchor=forge_anchor) if enabled else None,
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
+            headline=self._headline(user, journey, today) if enabled else None,
             **streak_fields,
             **frame,
         )
+
+    def _headline(self, user: User, journey: DailyJourney | None, today) -> dict | None:
+        """WP-109: today's episode, headlined — read-only, never costs Home."""
+
+        from app.services.story_headline import episode_headline
+
+        return episode_headline(self.db, user, journey, local_date=today)
 
     def _because_for(self, journey: DailyJourney | None) -> JourneyBecause | None:
         """WP-24's because-line, read back from the plan that produced it."""

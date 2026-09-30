@@ -1575,6 +1575,14 @@
   gap: 10px;
 }
 
+/* WP-109: who is in today's episode — a row of small faces under the headline. */
+.av2 .journey-today-card__cast {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .av2 .journey-today-card .av2-btn {
   margin-top: 4px;
 }

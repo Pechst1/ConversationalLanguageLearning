@@ -451,3 +451,18 @@ test('W14: the Feuilleton chrome never says «La Une» or the old season lines',
     }
   }
 });
+
+test('WP-109: the Feuilleton opens on today’s episode — one tap reads it', () => {
+  const { TodayEpisode } = require('./TodayEpisode.tsx');
+  const headline = {
+    edition_no: 3, title_fr: null, teaser_fr: 'Dis, j’y repense… Qui était Odile ?', season_title_fr: 'La clé d’Odile',
+    cast: [{ id: 'lila_bonnet', name: 'Lila Bonnet' }, { id: 'marin_leveque', name: 'Marin Lévêque' }],
+  };
+  const html = decode(inRoot(h(TodayEpisode, { headline, language: 'en' })));
+  assert.match(text(html), /Today · Nº 3 · La clé d’Odile/);
+  assert.match(html, /href="\/atelier\?start=today"/);
+  assert.match(text(html), /Read today’s episode/);
+  assert.match(html, /Qui était Odile/, 'yesterday’s «À suivre…» leads a day not yet written');
+  assert.match(html, /aria-label="Lila Bonnet, Marin Lévêque"/);
+  assert.equal(inRoot(h(TodayEpisode, { headline: null, language: 'en' })).includes('data-today-episode'), false);
+});

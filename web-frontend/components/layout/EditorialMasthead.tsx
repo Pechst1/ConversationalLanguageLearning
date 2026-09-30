@@ -5,6 +5,7 @@ import { GearIcon } from '@/components/atelier-v2/ui';
 
 import { readLearnerLanguage } from '@/lib/learner-language';
 import {
+  PHONE_PRODUCT_TABS,
   resolveProductSection,
   resolveProductTitle,
   type ProductSection,
@@ -79,13 +80,23 @@ export default function EditorialMasthead({
         </div>
         <div className="app-header-tools">
           <nav className="app-nav" aria-label="Primary">
-            {studioControl || (
-              <Link className={mobileSection === 'atelier' ? 'active' : ''} href={atelierHref}>
-                Atelier
-              </Link>
+            {/* WP-109: the same four places as the phone's tabs, in the same order. */}
+            {PHONE_PRODUCT_TABS.map((tab) =>
+              tab.id === 'atelier' ? (
+                <React.Fragment key={tab.id}>
+                  {studioControl || (
+                    <Link className={mobileSection === 'atelier' ? 'active' : ''} href={atelierHref}>
+                      {tab.label}
+                    </Link>
+                  )}
+                  {sessionControl}
+                </React.Fragment>
+              ) : (
+                <Link key={tab.id} className={mobileSection === tab.id ? 'active' : ''} href={tab.href}>
+                  {tab.label}
+                </Link>
+              ),
             )}
-            {sessionControl}
-            <Link className={mobileSection === 'notebook' ? 'active' : ''} href="/notebook">Cahier</Link>
             {trailing && <span className="app-nav-trailing">{trailing}</span>}
           </nav>
           <SettingsAffordance active={isSettingsActive} />

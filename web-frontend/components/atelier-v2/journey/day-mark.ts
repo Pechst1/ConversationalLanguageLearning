@@ -179,9 +179,14 @@ export function dayMarkState(
     for (const group of DAY_MARK_GROUPS) groups[group] = 'todo';
   } else {
     const endedEarly = journey.status === 'ended_early';
+    // WP-109: the practice after the ending closes the day — it counts in
+    // «Bouclé», so the day never reads bouclée while words are still to do.
+    const endAt = journey.steps.findIndex((step) => step.kind === 'resolution');
+    const groupAt = (step: PublicStep, index: number): DayMarkGroup =>
+      endAt >= 0 && index > endAt && step.kind === 'recall' ? 'resolution' : dayMarkGroupOf(step.kind);
     for (const group of DAY_MARK_GROUPS) {
       groups[group] = groupState(
-        journey.steps.filter((step) => dayMarkGroupOf(step.kind) === group),
+        journey.steps.filter((step, index) => groupAt(step, index) === group),
         journey.current_step_id,
         endedEarly,
       );

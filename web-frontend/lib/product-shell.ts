@@ -19,10 +19,13 @@ const STORY_ROUTES: string[] = [
   '/bibliotheque/[storyId]/chapter/[chapterId]',
 ];
 
+// WP-109 (F-3): «La Une · Feuilleton · Courrier · Cahier» — the story is the second tab,
+// right beside the front page that headlines it.
 export const PHONE_PRODUCT_TABS: ProductTab[] = [
   {
     id: 'atelier',
-    label: 'Atelier',
+    // WP-109 «Une seule maison» (owner decision F-3): the day's front page.
+    label: 'La Une',
     href: '/atelier',
     icon: 'mark',
     activeRoutes: [
@@ -30,16 +33,6 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/audio-session',
       ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
       '/vocabulary/review',
-    ],
-  },
-  {
-    id: 'missions',
-    // WP-83: one name per place — the tab is the Courrier, as every screen calls it.
-    label: 'Courrier',
-    href: '/missions',
-    icon: 'mission',
-    activeRoutes: [
-      '/missions',
     ],
   },
   {
@@ -53,6 +46,16 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/serial/cast',
       '/serial/episode',
       '/serial/episode/[index]',
+    ],
+  },
+  {
+    id: 'missions',
+    // WP-83: one name per place — the tab is the Courrier, as every screen calls it.
+    label: 'Courrier',
+    href: '/missions',
+    icon: 'mission',
+    activeRoutes: [
+      '/missions',
     ],
   },
   {
@@ -121,5 +124,5 @@ export function resolveProductTitle(
     return 'Bibliothèque';
   }
   if (pathname === '/settings') return settingsCopy(resolveSettingsLanguage(language)).page_label;
-  return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'Atelier';
+  return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'La Une';
 }

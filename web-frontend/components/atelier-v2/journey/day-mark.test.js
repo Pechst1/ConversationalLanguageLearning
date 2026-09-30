@@ -302,3 +302,14 @@ test('the session head carries the mark in its right-hand slot', () => {
   assert.match(head, /<AtelierMark size=\{28\} progress=\{dayMark\.groups\} title=\{dayMark\.label\} \/>/);
   assert.match(session, /shape: STEP_SHAPE\[step\.kind\]/);
 });
+
+test('WP-109: the practice after the ending closes the day — never «bouclée» before it', () => {
+  const kinds = ['recall', 'scene', 'respond', 'resolution', 'recall', 'recall'];
+  const atEnding = dayMarkState(journeyOf('standard', kinds, { upTo: 3 }));
+  assert.equal(atEnding.groups.recall, 'done', 'the warm-ups are the words before the scene');
+  assert.equal(atEnding.groups.resolution, 'active');
+  const afterEnding = dayMarkState(journeyOf('standard', kinds, { upTo: 4 }));
+  assert.equal(afterEnding.groups.resolution, 'active', 'the ending is read, the words after it are not');
+  const done = dayMarkState(journeyOf('standard', kinds, { upTo: 6, status: 'completed' }));
+  assert.equal(done.groups.resolution, 'done');
+});

@@ -6439,6 +6439,22 @@ export interface components {
             /** Truncated */
             truncated: boolean;
         };
+        /**
+         * EpisodeHeadline
+         * @description WP-109: today's episode as Home and the Feuilleton headline it.
+         */
+        EpisodeHeadline: {
+            /** Cast */
+            cast: components["schemas"]["HeadlineCastMember"][];
+            /** Edition No */
+            edition_no: number | null;
+            /** Season Title Fr */
+            season_title_fr: string | null;
+            /** Teaser Fr */
+            teaser_fr: string | null;
+            /** Title Fr */
+            title_fr: string | null;
+        };
         /** EpisodeRead */
         EpisodeRead: {
             /** Brief Payload */
@@ -7383,6 +7399,13 @@ export interface components {
             recommendation?: {
                 [key: string]: unknown;
             };
+        };
+        /** HeadlineCastMember */
+        HeadlineCastMember: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * HelpKind
@@ -10612,6 +10635,7 @@ export interface components {
             /** Enabled */
             enabled: boolean;
             forge: components["schemas"]["ForgeEntry"] | null;
+            headline: components["schemas"]["EpisodeHeadline"] | null;
             interlude: components["schemas"]["InterludeView"] | null;
             /**
              * Is Warm

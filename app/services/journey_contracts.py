@@ -41,8 +41,8 @@ MAX_RESPOND_TURNS = 4
 #: A short day still has to be a day: scene, response, ending.
 MIN_PLANNED_STEPS = 3
 #: WP-78 — «une vraie journée de pratique». Plan contract version 3 adds the
-#: *practice day*: quick recall items around the one open reply — warm-ups
-#: before the scene, one or two between the scene and the reply, one after it.
+#: *practice day*: quick recall items around the episode — warm-ups before the
+#: scene, the rest after the ending (WP-109: never inside the episode).
 #: A plan is a practice day only when ``PlannedJourney.practice`` says so, so
 #: every plan persisted before WP-78 validates under exactly the envelope it
 #: was built for (the five-step constants above).
@@ -967,8 +967,9 @@ class PlannedJourney:
 
         WP-93 (W5): the reply comes straight after the scene — its closing
         line is the question the reply answers. The rule card, its guided
-        items and the forge come before the scene; the only step allowed
-        after the ending is one optional «Lecture».
+        items and the forge come before the scene. WP-109: the ending comes
+        straight after the reply; the day's other practice follows the ending,
+        and one optional «Lecture» comes last.
         """
 
         rule = practice_day_shape_rule(self.day_shape, self.budget_seconds)
@@ -986,11 +987,18 @@ class PlannedJourney:
             raise ValueError(f"a day at this rhythm plans at most {caps.max_reads} «Lecture» page(s)")
         body = kinds[: len(kinds) - reads] if reads else kinds
         if any(kind is not StepKind.READ for kind in kinds[len(body):]):
-            raise ValueError("the «Lecture» comes after the ending")
-        if kinds.count(StepKind.RESOLUTION) != 1 or body[-1] is not StepKind.RESOLUTION:
-            raise ValueError("a plan must end with the resolution step")
+            raise ValueError("the «Lecture» comes last")
+        if kinds.count(StepKind.RESOLUTION) != 1:
+            raise ValueError("a plan needs exactly one resolution step")
         if StepKind.READ in body:
-            raise ValueError("the «Lecture» comes after the ending")
+            raise ValueError("the «Lecture» comes last")
+        # WP-109 «Une seule maison»: the episode is never interrupted — the ending
+        # follows the reply, and the day's practice wraps before and after it.
+        resolution_at = kinds.index(StepKind.RESOLUTION)
+        if resolution_at != kinds.index(StepKind.RESPOND) + 1:
+            raise ValueError("nothing may sit between the reply and the ending")
+        if any(kind is not StepKind.RECALL for kind in body[resolution_at + 1 :]):
+            raise ValueError("only practice may follow the ending")
         for step in self.steps:
             if step.kind is StepKind.READ and not step.optional:
                 raise ValueError("the «Lecture» is optional")

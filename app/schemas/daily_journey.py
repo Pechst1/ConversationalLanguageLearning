@@ -921,6 +921,24 @@ class ForgeEntry(JourneyModel):
     folded: bool = False
 
 
+class HeadlineCastMember(JourneyModel):
+    id: str
+    name: str
+
+
+class EpisodeHeadline(JourneyModel):
+    """WP-109: today's episode as Home and the Feuilleton headline it."""
+
+    edition_no: int | None = None
+    #: The day's title when known: the scene's, or an authored tentpole's. A generated
+    #: day not yet written has none — the teaser leads.
+    title_fr: str | None = None
+    #: Yesterday's «À suivre…».
+    teaser_fr: str | None = None
+    season_title_fr: str | None = None
+    cast: list[HeadlineCastMember] = Field(default_factory=list)
+
+
 class TodayEnvelope(JourneyModel):
     learner_level: str | None = None
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -962,6 +980,8 @@ class TodayEnvelope(JourneyModel):
     season_premiere: SeasonPremiereView | None = None
     #: WP-99. The story is between seasons, with its return date.
     interlude: InterludeView | None = None
+    #: WP-109. Today's episode, headlined (``None`` once it is over, or with no story).
+    headline: EpisodeHeadline | None = None
 
 
 # ---------------------------------------------------------------------------

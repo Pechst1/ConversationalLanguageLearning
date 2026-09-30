@@ -108,12 +108,13 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
     scene_at = kinds.index(StepKind.SCENE)
     respond_at = kinds.index(StepKind.RESPOND)
     assert 2 <= scene_at <= MAX_WARMUP_RECALL_STEPS, "two or three warm-ups before the scene"
-    # WP-93 (W5): nothing between the scene's question and the reply; the
-    # builds and the word from today come after it.
+    # WP-93 (W5): nothing between the scene's question and the reply.
+    # WP-109: nothing between the reply and the ending either — the builds and
+    # the word from today follow the ending.
     assert respond_at == scene_at + 1, "the reply answers the scene's question next"
-    assert 2 <= kinds[respond_at + 1:-1].count(StepKind.RECALL) <= 3
-    assert kinds[respond_at + 1] is StepKind.RECALL, "one word from today after the reply"
-    assert kinds[-1] is StepKind.RESOLUTION
+    assert kinds[respond_at + 1] is StepKind.RESOLUTION, "the ending follows the reply"
+    assert 2 <= kinds[respond_at + 2:].count(StepKind.RECALL) <= 3
+    assert all(kind is StepKind.RECALL for kind in kinds[respond_at + 2:]), "practice after the ending"
     for step in plan.steps:
         serialized = json.dumps(step.public_prompt, ensure_ascii=False, default=str)
         for marker in ANSWER_KEY_MARKERS:
@@ -469,7 +470,8 @@ def test_a_practice_day_is_played_end_to_end_without_leaking_a_key(
     assert graded >= 6, kinds
     # WP-L6: a new learner is on Régulier; the day fits its ten minutes.
     assert journey["estimated_active_seconds"] <= journey["budget_seconds"] == 600
-    assert kinds[0] == "recall" and kinds[-1] == "resolution"
+    # WP-109: practice wraps the episode — before the scene and after the ending.
+    assert kinds[0] == "recall" and kinds[kinds.index("respond") + 1] == "resolution"
     for step in journey["steps"]:
         if step["kind"] == "recall" and step["prompt"]["task_type"] in {
             "match_pairs", "listen_tap", "unscramble"
