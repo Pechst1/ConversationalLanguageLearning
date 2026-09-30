@@ -121,8 +121,11 @@ class ProgressService:
     """High level helper for vocabulary progress workflows."""
 
     def __init__(self, db: Session, *, scheduler: FSRSScheduler | None = None) -> None:
+        from app.services.vocab_fsrs import VocabularyFSRS
+
         self.db = db
-        self.scheduler = scheduler or FSRSScheduler()
+        # WP-115a: vocabulary is scheduled by FSRS-4.5 (elapsed time, retrievability).
+        self.scheduler = scheduler or VocabularyFSRS()
 
     @staticmethod
     def _queue_stopwords() -> set[str]:
@@ -1215,11 +1218,14 @@ class ProgressService:
         progress = self.get_or_create_progress(user_id=user.id, word_id=word.id)
         event = str(event_type or "seen_context").lower()
 
+        # WP-115a: the grade is earned from the kind of answer. Recalling the word
+        # unaided is «Good»; recognising it among options is weaker evidence and is
+        # «Hard». «Easy» needs the answer's speed and is not earned yet.
         if event in {"produced_correct", "used_correctly", "free_production_correct"}:
-            progress, _, _ = self.record_review(user=user, word=word, rating=3, now=now)
+            progress, _, _ = self.record_review(user=user, word=word, rating=2, now=now)
             progress.record_usage(correct=True, is_new=(progress.reps or 0) <= 1)
         elif event in {"recognized", "translated", "recognition"}:
-            progress, _, _ = self.record_review(user=user, word=word, rating=2, now=now)
+            progress, _, _ = self.record_review(user=user, word=word, rating=1, now=now)
             progress.times_seen = (progress.times_seen or 0) + 1
             progress.adjust_proficiency(5)
         elif event in {"produced_incorrect", "used_incorrectly", "incorrect"}:

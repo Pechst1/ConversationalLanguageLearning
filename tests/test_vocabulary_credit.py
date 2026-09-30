@@ -71,7 +71,8 @@ def test_recognition_applies_medium_review_credit(db_session) -> None:
     assert result.credit_kind == "recognized"
     assert progress.reps == 1
     assert progress.times_seen == 1
-    assert db_session.query(ReviewLog).filter(ReviewLog.progress_id == progress.id).one().rating == 2
+    # WP-115a: recognising a word is weaker evidence than recalling it — «Hard».
+    assert db_session.query(ReviewLog).filter(ReviewLog.progress_id == progress.id).one().rating == 1
 
 
 def test_incorrect_production_creates_vocab_linked_erratum(db_session) -> None:

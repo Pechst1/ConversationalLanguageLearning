@@ -501,6 +501,16 @@ class Settings(BaseSettings):
             "its story either way."
         ),
     )
+    VOCAB_TARGET_RETENTION: float = Field(
+        0.87,
+        ge=0.7,
+        le=0.97,
+        description=(
+            "WP-115a: the probability of recalling a word when it comes due, which "
+            "FSRS-4.5 schedules every vocabulary card for (owner decision 2026-09-30). "
+            "Higher means more reviews: 0.90 → 0.95 roughly doubles them."
+        ),
+    )
     ATELIER_STORY_TURN_LANES_ENABLED: bool = Field(
         True,
         description=(

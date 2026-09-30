@@ -296,7 +296,10 @@ class EnhancedSRSService:
     
     def __init__(self, db: Session):
         self.db = db
-        self.fsrs_scheduler = FSRSScheduler()
+        from app.services.vocab_fsrs import VocabularyFSRS
+
+        # WP-115a: the drill's own words are scheduled by FSRS-4.5, like the day's.
+        self.fsrs_scheduler = VocabularyFSRS()
         self.anki_scheduler = AnkiSM2Scheduler()
     
     def process_review(
