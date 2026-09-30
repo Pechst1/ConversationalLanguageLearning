@@ -3114,6 +3114,26 @@ def _repairable(error: UserError) -> tuple[str, str] | None:
 
 # -- the question ----------------------------------------------------------
 
+#: Sentence openers that are lower-cased once they follow « Pardon, »; a name keeps
+#: its capital.
+_OPENERS = frozenset(
+    {"je", "j'", "j’", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "le", "la", "les",
+     "l'", "l’", "un", "une", "des", "ce", "c'est", "c’est", "ça", "moi", "et", "mais", "oui", "non"}
+)
+
+
+def _mid_sentence(options: str) -> str:
+    """The corrected sentence as it sits inside « Pardon, … ? » — without its own final
+    punctuation (live read 2026-09-30: « … maintenant ou quand ? ? ») and without the
+    capital of a sentence start."""
+
+    text = options.strip().rstrip("?!.…").rstrip()
+    head, _, rest = text.partition(" ")
+    lowered = head.casefold()
+    if any(lowered == opener or lowered.startswith(opener) and opener.endswith(("'", "’")) for opener in _OPENERS):
+        head = head[:1].lower() + head[1:]
+    return f"{head} {rest}".strip() if rest else head
+
 def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> tuple[str, str]:
     """The character's line, and which move it is.
 
@@ -3126,7 +3146,9 @@ def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> 
     exercise.
     """
 
-    wrong_tokens, correct_tokens = wrong_fr.split(), corrected_fr.split()
+    # The sentences' own final punctuation is not part of the choice.
+    wrong_tokens = wrong_fr.strip().rstrip("?!.…").split()
+    correct_tokens = corrected_fr.strip().rstrip("?!.…").split()
     if len(wrong_tokens) == len(correct_tokens):
         differing = [
             index
@@ -3141,7 +3163,7 @@ def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> 
             options = " ".join(
                 [*correct_tokens[:index], first, "ou", second, *correct_tokens[index + 1 :]]
             )
-            return SELF_REPAIR_CHOICE_FR.format(options=options), "choice"
+            return SELF_REPAIR_CHOICE_FR.format(options=_mid_sentence(options)), "choice"
     key = "tu" if str(register) == "tu" else "vous"
     return SELF_REPAIR_REPETITION_FR[key], "repetition"
 

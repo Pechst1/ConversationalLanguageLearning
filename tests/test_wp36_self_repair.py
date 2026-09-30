@@ -192,6 +192,19 @@ def test_the_question_is_ordered_alphabetically_so_its_shape_never_leaks_the_ans
     assert question == "Pardon, un ou une maison ?"
 
 
+def test_a_whole_sentence_choice_reads_as_one_question(db_session):
+    """Live read 2026-09-30: « Pardon, On commence maintenant ou quand ? ? »."""
+
+    question, kind = jc.self_repair_question(
+        wrong_fr="On commence quand ?", corrected_fr="On commence maintenant ?", register="tu"
+    )
+    assert (question, kind) == ("Pardon, on commence maintenant ou quand ?", "choice")
+    question, _kind = jc.self_repair_question(
+        wrong_fr="Marie est venu.", corrected_fr="Marie est venue.", register="tu"
+    )
+    assert question == "Pardon, Marie est venu ou venue ?", "a name keeps its capital"
+
+
 def test_a_difference_wider_than_one_word_asks_for_the_sentence_again(db_session):
     """An alternative question listing two clauses would be a reading exercise."""
 
