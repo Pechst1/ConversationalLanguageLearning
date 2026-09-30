@@ -164,6 +164,8 @@ are not corrections. When several errors exist, correct the most structural one 
 form, auxiliary, agreement, word order) before an article, preposition or spelling slip.
 correction_span_fr is copied verbatim from learner_text, correction_fr is that span
 corrected, correction_note_native is one short sentence in control_language.
+The gender of what the learner says about themselves («je suis perdu», «je suis
+contente») is theirs: never correct it, and never write a form like "perdu(e)".
 demonstrated_target_ids only for ids listed in targets that were truly used correctly in
 context; an empty targets list means an empty list.
 When turn_plan.clarify_form_fr is not null the app is asking the learner about their own
@@ -360,6 +362,12 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         # WP-36: the app is eliciting the form; a correction would hand it over.
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if verdict.correction_fr:
+        verdict.correction_fr = engine._scrub_paren_gender(verdict.correction_fr)
+        if engine.gender_only_change(verdict.correction_span_fr, verdict.correction_fr):
+            # «Je suis perdu» → «perdu(e)» (live read 2026-09-30): the learner's
+            # gender is theirs to give; a gender-only "correction" is dropped.
+            verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
 
 
 def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
@@ -389,7 +397,13 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     voice.reply_fr = engine._scrub_endearments(
         engine._scrub_paren_gender(engine._scrub_inclusive_dot(voice.reply_fr)), address
     )
-    engine._check_address([voice.reply_fr], address)
+    engine._check_address(
+        [voice.reply_fr],
+        address,
+        own=engine.learner_self_forms(
+            [payload["learner_text"], *[h.get("learner", "") for h in payload.get("history") or []]]
+        ),
+    )
     engine._check_register([voice.reply_fr], level)
     expected = _scene_register(scene)
     said = engine._address_register([voice.reply_fr])

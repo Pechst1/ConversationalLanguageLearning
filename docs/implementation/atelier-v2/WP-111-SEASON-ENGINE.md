@@ -87,12 +87,17 @@ pytest tests/test_season_one.py -k owner` (the key is read from `.env`, never pr
   - *Fixed:* the draft the critic refused is served when the retry it bought fails the
     guards (logged as `journey_story_critic_override`). The critic's readings are
     recorded even on a lost day. Every lost generation now logs its refusal hints.
-  - The two `invalid_story_output` reasons were not logged then; finding them needs one
-    more paid day.
-- **Reply lanes.** Three of seven generated days end on the authored «X doit partir avant
-  de répondre» (WP-58): the lanes' corrections wrote «perdu(e)» for a learner whose gender
-  the story does not know, and the release guard refused them. This is a reply-lane
-  finding, not a season one.
+  - *Diagnosed* (owner OK, cap US$0.10, spent US$0.054: `SEASON_REPORT_START=5`, two
+    days): the director wrote an empty dialogue line for a silent panel (a schema
+    refusal), and an A2 objective too long only by its trailing qualifiers («…, as much
+    or as little as you want, in one or two short sentences»), refused on every retry.
+    *Fixed:* empty lines are dropped before validation; such an objective is cut back
+    to its first clause when that clause is a one-thing ask.
+- **Reply lanes.** Three of seven generated days ended on the authored «X doit partir avant
+  de répondre» (WP-58), each after «Je suis un peu perdu ici». *Fixed:* the tutor never
+  corrects the gender of what the learner says about themselves (and never writes
+  «perdu(e)»); a character may say back the learner's own form («tu es perdu ?»); the
+  story lane no longer re-judges a reply the learner has already read.
 - **Self-repair.** «Pardon, On commence maintenant ou quand ? ?» — the forced choice kept the
   sentence's own «?» and capital. *Fixed* (`journey_conversation._mid_sentence`).
 - **Level.** The director still slips B1 connectives into A2 lines («lorsque», «afin de»).

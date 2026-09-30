@@ -694,7 +694,17 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
     spend = _live_model(monkeypatch) if os.environ.get("SEASON_REPORT_LIVE") else None
     days = int(os.environ.get("SEASON_REPORT_DAYS", "10"))
     band = os.environ.get("SEASON_REPORT_BAND", "A2.1")
-    d = support.Driver(assembled_client, support.register(assembled_client, f"s1-report-{uuid.uuid4()}@example.com", cefr=band), db=db_session)
+    email = f"s1-report-{uuid.uuid4()}@example.com"
+    d = support.Driver(assembled_client, support.register(assembled_client, email, cefr=band), db=db_session)
+    # SEASON_REPORT_START=N: the learner begins on season day N (season_jump), so a
+    # paid read of one day does not buy the days before it.
+    start = int(os.environ.get("SEASON_REPORT_START", "1"))
+    if start > 1:
+        from app.db.models.user import User
+        from app.services.season.admin import jump_to_day
+
+        jump_to_day(db_session, db_session.scalar(select(User).where(User.email == email)), day=start)
+        db_session.commit()
     lines = [
         "# Saison 1 · «La clé d'Odile» — les premiers jours d'une vie"
         + (" (modèle réel)" if spend is not None else " (fake provider)"),
@@ -711,7 +721,7 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
         "",
     ]
     user_id = None
-    for day in range(1, days + 1):
+    for day in range(start, start + days):
         provider.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La journée se termine.", callback_fr="Vous avez parlé.")
         d.create()
         journey_id = d.journey["id"]

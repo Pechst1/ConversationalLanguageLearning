@@ -363,6 +363,19 @@ class Panel(StrictModel):
     # for a screen reader. Lenient like `text_native`.
     alt_native: str | None = Field(default=None, max_length=PANEL_ALT_CHARS)
 
+    @field_validator("dialogue", mode="before")
+    @classmethod
+    def _spoken_lines_only(cls, value: Any) -> Any:
+        """A silent panel is a panel without lines, not a line without words: the
+        diagnostic read of 2026-09-30 lost a day to ``dialogue: [{text_fr: ""}]``."""
+        if not isinstance(value, list):
+            return value
+        return [
+            line
+            for line in value
+            if not (isinstance(line, dict) and not str(line.get("text_fr") or "").strip())
+        ]
+
     @field_validator("alt_native", mode="before")
     @classmethod
     def _alt(cls, value: Any) -> str | None:
@@ -4627,7 +4640,52 @@ def _scrub_endearments(text: str, address: str | None) -> str:
     return scrubbed or (text or "")
 
 
-def _check_address(texts: list[str], address: str | None) -> None:
+# "je suis", "j'étais", "je me sens", with up to two words between («un peu»).
+_FIRST_PERSON = r"(?:je (?:ne )?suis(?: pas)?|j etais(?: pas)?|je (?:ne )?me sens(?: pas)?)\s+(?:\w+\s+){0,2}"
+
+
+def learner_self_forms(learner_texts: list[str]) -> frozenset[str]:
+    """The agreeing adjectives the learner used about themselves — «je suis perdu» →
+    {"perdu"}. The learner gave that form: a character may say it back («tu es
+    perdu ?»). Live read 2026-09-30: three of seven generated days ended in the
+    authored fallback because «Je suis un peu perdu ici» could not be answered."""
+
+    folded = f" {_folded(' '.join(text for text in learner_texts if text))} "
+    return frozenset(
+        adjective
+        for adjective in (*_MASCULINE_AGREEMENT, *_FEMININE_AGREEMENT)
+        if re.search(rf"\b{_FIRST_PERSON}{adjective}\b", folded)
+    )
+
+
+_GENDERED_FUNCTION_WORDS = frozenset(
+    {"un", "une", "le", "la", "l", "mon", "ma", "ton", "ta", "son", "sa", "ce", "cet", "cette",
+     "il", "elle", "ils", "elles", "du", "de", "au", "aux", "quel", "quelle", "lui"}
+)
+
+
+def gender_only_change(span: str | None, corrected: str | None) -> bool:
+    """True when a correction only changes the gender agreement of the learner's own
+    words («perdu» → «perdu(e)» / «perdue»): the learner's gender is theirs to give,
+    never a correction's to impose."""
+
+    wrong = _folded(_scrub_paren_gender(span or "")).split()
+    right = _folded(_scrub_paren_gender(corrected or "")).split()
+    if not wrong or len(wrong) != len(right):
+        return False
+    pairs = [(a, b) for a, b in zip(wrong, right, strict=True) if a != b]
+    if not pairs:
+        return True
+    genders = dict(zip(_MASCULINE_AGREEMENT, _FEMININE_AGREEMENT, strict=True))
+    if any(a in _GENDERED_FUNCTION_WORDS or b in _GENDERED_FUNCTION_WORDS for a, b in pairs):
+        return False  # «une café» → «un café» is a real correction
+    return all(
+        genders.get(a) == b or genders.get(b) == a or b in (a + "e", a + "es") or a in (b + "e", b + "es")
+        for a, b in pairs
+    )
+
+
+def _check_address(texts: list[str], address: str | None, *, own: frozenset[str] = frozenset()) -> None:
     joined = " ".join(text for text in texts if text)
     if _INCLUSIVE_DOT.search(joined):
         raise StoryUnavailable(
@@ -4657,7 +4715,7 @@ def _check_address(texts: list[str], address: str | None) -> None:
         "feminine": _MASCULINE_AGREEMENT,
         "masculine": _FEMININE_AGREEMENT,
     }.get(address or "neutral", _MASCULINE_AGREEMENT + _FEMININE_AGREEMENT)
-    hits = _agreement_hits(folded, forbidden_agreement)
+    hits = [hit for hit in _agreement_hits(folded, forbidden_agreement) if hit not in own]
     if hits:
         raise StoryUnavailable(
             "gendered_agreement",
@@ -4962,6 +5020,30 @@ def _check_objective_scope(
                 f"\"{objective}\" chains {found + 1} asks."
             ),
         )
+
+
+def _trimmed_objective(objective: str, level: str | None) -> str:
+    """An A1/A2 objective too long only by its trailing qualifiers, cut back to its ask.
+
+    Diagnostic read 2026-09-30: «Tell Romy who you are and what you think of Solvel, as
+    much or as little as you want, in one or two short sentences.» was refused three
+    drafts running and cost the day; its first clause is a one-thing A2 ask. The cut
+    is kept only when what remains passes the same limits and still says something.
+    """
+
+    limits = _OBJECTIVE_LIMITS.get(str(level or ""))
+    if not limits or not objective:
+        return objective
+    separators, words = limits
+    bare = re.sub(r"\([^)]*\)", " ", objective)
+    if len(_OBJECTIVE_SEPARATORS.findall(bare)) <= separators and len(bare.split()) <= words:
+        return objective
+    head = re.split(r"\s*[,;:—–]\s*", objective.strip(), maxsplit=1)[0].strip().rstrip(".!")
+    if len(head.split()) < 5:
+        return objective
+    if len(_OBJECTIVE_SEPARATORS.findall(head)) > separators or len(head.split()) > words:
+        return objective
+    return head + "."
 
 
 # WP-103 T4 (the owner's test, 2026-09-29): «Ask Romy if she wants to sit with you» —
@@ -5318,6 +5400,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_season_gap(draft, context, learner_text)
     epreuve = context.get(EPREUVE_KEY)
     if not epreuve:
+        draft.objective_native = _trimmed_objective(draft.objective_native, context.get("level"))
         _check_objective_scope(
             draft.objective_native,
             context.get("level"),
@@ -7686,9 +7769,20 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     address = (story.get("learner") or {}).get("address")
     turn.reply_fr = _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(turn.reply_fr)), address)
     turn.resolution_fr = _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(turn.resolution_fr)), address)
-    _check_address([turn.reply_fr, turn.resolution_fr], address)
+    # A released reply is not judged again (the learner has read it): refusing the
+    # ending for it would only cost the day. The learner's own forms may be said back.
+    _check_address(
+        [turn.reply_fr, turn.resolution_fr] if reply_checks else [turn.resolution_fr],
+        address,
+        own=learner_self_forms(texts),
+    )
     if _INCLUSIVE_DOT.search(turn.understood_intent or ""):
         turn.understood_intent = _scrub_inclusive_dot(turn.understood_intent)
+    if turn.correction_fr:
+        turn.correction_fr = _scrub_paren_gender(turn.correction_fr)
+        if gender_only_change(turn.correction_span_fr, turn.correction_fr):
+            # The learner's gender is theirs to give (live read 2026-09-30).
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(
