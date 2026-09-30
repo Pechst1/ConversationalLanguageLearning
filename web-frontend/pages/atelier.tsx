@@ -11,6 +11,7 @@ import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
+import { classificationCopy, classificationGoal } from '@/lib/classification-copy';
 import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -3839,6 +3840,8 @@ function ExerciseFeedbackMoment({
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
+  const language = useControlLanguage();
+  const display = (value: string) => isLabelCompare ? classificationCopy(value, language) : value;
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
@@ -3908,7 +3911,7 @@ function ExerciseFeedbackMoment({
   if (feedback.correct) {
     return (
       <div className="ep-feedback" data-verdict="correct">
-        <EpCorrect said={feedback.target || feedback.learner || t.line_set} struck />
+        <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -3942,13 +3945,13 @@ function ExerciseFeedbackMoment({
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={issue.display_label || fill(t.correction_n, { n: index + 1 })}
-              why={printableWhy(issue.why_wrong || feedback.why)}
-              repair={printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')) || undefined}
+              why={display(printableWhy(issue.why_wrong || feedback.why))}
+              repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
               {isLabelCompare && learner
-                ? <EpLabelFix old={learner} fix={target || t.corrected} />
+                ? <EpLabelFix old={display(learner)} fix={display(target || t.corrected)} />
                 : isRepairableLine(target) || isRepairableLine(learner)
                   ? <EpLineFix old={learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
@@ -4127,9 +4130,9 @@ function RecognizePanel({
           <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
             {localizedCue(item, 'prompt', cueLanguage)}
           </EpPrompt>
-          <ForgeGoalLine goal={itemGoal(item, '')} />
+          <ForgeGoalLine goal={item.classify_kind === 'minimal_pair' ? itemGoal(item, '') : drillGoalLine({ goal_native: classificationGoal(cueLanguage) })} />
           <EpCases boxes={(item.labels || []).map((label: string) => ({
-            label,
+            label: classificationCopy(label, cueLanguage),
             slugs: [
               <EpOpt
                 key={label}

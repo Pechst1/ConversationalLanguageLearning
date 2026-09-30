@@ -78,6 +78,8 @@ export class LearnerWalk {
     if (this.level.startsWith('B') || this.level.startsWith('C')) {
       const eng = englishWords(s.nonFrText);
       this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${s.nonFrText.slice(0, 120)}»`, w);
+      const englishLabels = /present condition|future result|imperative result|background\/habit|bounded event|article changes/i;
+      this.findings.check('b1-classification-labels-are-french', !englishLabels.test(s.text), 'Classification labels and corrections must be French, including inside lang="fr".', w);
     }
   }
 
