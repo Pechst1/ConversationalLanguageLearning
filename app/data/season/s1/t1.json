@@ -1,0 +1,570 @@
+{
+  "id": "t1",
+  "number": 1,
+  "title_fr": "Le mauvais accueil",
+  "intent": "The episode sets up the cast in ninety seconds of comedy: Gus's weaponised vous, Marin's sad politeness, Lila's amused deduction and Margaux's silence. It then turns on one detail, the cicada on the key ring. The mistaken identity asks the season's question on the first night: you are here to sell. The learner's first line in the comic is who they are. The first choice is who gets to know what they're worth.",
+  "state_in": [
+    "This is the season opener. There are no flags yet.",
+    "The group has heard from Margaux that «quelqu'un de chez Marchand» is coming tonight with a key to the first floor, which Solvel wants.",
+    "11 November is a public holiday, so the café is full at six in the evening."
+  ],
+  "flags_read": [],
+  "days": [
+    {
+      "day": "a",
+      "story_date_fr": "mercredi 11 novembre",
+      "title_fr": "Le mauvais accueil",
+      "location_id": "le_mistral",
+      "minutes": 6,
+      "can_do": {
+        "en": "Say who you are and why you have come; correct a misunderstanding.",
+        "de": "Sagen, wer du bist und warum du gekommen bist; ein Missverständnis richtigstellen.",
+        "fr": "Dire qui on est et pourquoi on est venu ; corriger un malentendu."
+      },
+      "lexicon": [
+        {"surface_fr": "grand-mère", "lemma": "grand-mère", "gloss": {"en": "grandmother", "de": "Großmutter"}, "part_of_speech": "noun", "gender": "f"},
+        {"surface_fr": "clé", "lemma": "clé", "gloss": {"en": "key", "de": "Schlüssel"}, "part_of_speech": "noun", "gender": "f"},
+        {"surface_fr": "appartement", "lemma": "appartement", "gloss": {"en": "flat", "de": "Wohnung"}, "part_of_speech": "noun", "gender": "m"},
+        {"surface_fr": "vendre", "lemma": "vendre", "gloss": {"en": "to sell", "de": "verkaufen"}, "part_of_speech": "verb"},
+        {"surface_fr": "premier étage", "lemma": "étage", "gloss": {"en": "first floor", "de": "erster Stock"}, "part_of_speech": "noun", "gender": "m"}
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "a.p1",
+          "visual": "Night rain on the quai de Valmy. The red neon MISTRAL on the corner. Toi from behind, with a suitcase and an envelope held under the coat against the rain. Through the café's window, Gus stands on the booth's bench mid-anecdote, and Marin and Lila look up at him. Far background, rue de Lancry: a third-floor window, an old man at an easel, tiny, never lit brighter than the street.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["toi", "augustin_de_roncourt", "marin_leveque", "lila_bonnet"],
+          "diegetic": ["MISTRAL"],
+          "lines": [
+            {"who": "caption", "say": {
+              "a2": "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé.",
+              "b1": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+              "native": {"en": "Paris. 11 November. It's raining. You have a suitcase, a letter and a key.", "de": "Paris. Der 11. November. Es regnet. Du hast einen Koffer, einen Brief und einen Schlüssel."}
+            }}
+          ],
+          "note": "Far background, rue de Lancry: «L.» at his easel. Never mentioned."
+        },
+        {
+          "kind": "panel",
+          "id": "a.p2",
+          "visual": "Inside Le Mistral. The door's bell. Heads turn. Gus is still standing on the bench, one hand raised, and freezes mid-story. Marin holds a spoon of soup halfway to his mouth. Lila, chin on her fist, is already interested.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet"],
+          "lines": [
+            {"who": "augustin_de_roncourt", "mood": "happy", "say": {
+              "a2": "…Et le duc me dit : \"Augustin, vous êtes trop élégant pour ce siècle.\"",
+              "b1": "…Et là, le duc se tourne vers moi : \"Augustin, vous êtes bien trop élégant pour ce siècle.\"",
+              "native": {"en": "…And the duke says to me: \"Augustin, you are too elegant for this century.\"", "de": "…Und der Herzog sagt zu mir: \"Augustin, Sie sind zu elegant für dieses Jahrhundert.\""}
+            }},
+            {"who": "marin_leveque", "say": {"a2": "Il a dit ça ?", "native": {"en": "He said that?", "de": "Das hat er gesagt?"}}},
+            {"who": "lila_bonnet", "mood": "happy", "say": {"a2": "Non.", "native": {"en": "No.", "de": "Nein."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p3",
+          "visual": "The zinc, close. Toi's hand sets down the envelope, and on top of it the key ring: an old key and a small enamel cicada, green and gold. Margaux's hand, drying a glass, stops. We see only her hand and the cicada.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "a.p4",
+          "visual": "Gus steps down from the bench and crosses the room with a bow that is too deep. The group watches behind him.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet"],
+          "lines": [
+            {"who": "augustin_de_roncourt", "say": {
+              "a2": "Ah ! Vous voilà. La personne de M. Marchand, je suppose ? On vous attend.",
+              "b1": "Ah ! La personne de chez Marchand, je présume ? On vous attendait… avec impatience, évidemment.",
+              "native": {"en": "Ah! There you are. M. Marchand's person, I suppose? We've been waiting for you.", "de": "Ah! Da sind Sie ja. Die Person von Herrn Marchand, nehme ich an? Wir warten auf Sie."}
+            }},
+            {"who": "marin_leveque", "direction": "to Lila, a whisper", "say": {"a2": "C'est qui ?", "native": {"en": "Who is it?", "de": "Wer ist das?"}}},
+            {"who": "lila_bonnet", "say": {"a2": "La personne qui vend.", "native": {"en": "The person who's selling.", "de": "Die Person, die verkauft."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p5",
+          "visual": "Marin stands and politely pulls out a chair for Toi, then cannot help himself. Behind him, Lila looks down at Toi's feet.",
+          "location_id": "le_mistral",
+          "in_frame": ["marin_leveque", "lila_bonnet", "toi"],
+          "lines": [
+            {"who": "marin_leveque", "say": {"a2": "Asseyez-vous.", "native": {"en": "Sit down.", "de": "Setzen Sie sich."}}},
+            {"who": "marin_leveque", "mood": "moved", "say": {
+              "a2": "Vous allez vraiment vendre l'appartement d'Odile ? À Solvel ?",
+              "b1": "…Vous allez vraiment vendre l'appartement d'Odile ? À ces gens-là ?",
+              "native": {"en": "Are you really going to sell Odile's flat? To Solvel?", "de": "Wollen Sie wirklich Odiles Wohnung verkaufen? An Solvel?"}
+            }},
+            {"who": "lila_bonnet", "say": {
+              "a2": "Regarde ses chaussures, Marin. Ce n'est pas Solvel, ça.",
+              "b1": "Regarde ses chaussures. Personne chez Solvel ne porte ça.",
+              "native": {"en": "Look at the shoes, Marin. That's not Solvel.", "de": "Schau dir die Schuhe an, Marin. Das ist nicht Solvel."}
+            }}
+          ],
+          "note": "Lila's first line in the season is a deduction, and it is right. She is the only one who looks at the evidence."
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn1",
+          "to": "augustin_de_roncourt",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p6",
+            "visual": "Gus leans on the zinc beside Toi in his three-piece suit, all charm and no warmth. Toi's balloon, empty, is drawn from behind Toi's shoulder.",
+            "location_id": "le_mistral",
+            "in_frame": ["augustin_de_roncourt", "toi"],
+            "balloon": true,
+            "lines": [
+              {"who": "augustin_de_roncourt", "say": {
+                "a2": "Alors ? Vous êtes qui, exactement ?",
+                "b1": "Alors, dites-moi. Qui êtes-vous, exactement ?",
+                "native": {"en": "So? Who are you, exactly?", "de": "Also? Wer sind Sie eigentlich?"}
+              }}
+            ]
+          },
+          "task": {
+            "en": "Say who you are and why you are here, to a room that has already decided.",
+            "de": "Sag, wer du bist und warum du hier bist – vor einem Raum, der sich schon ein Urteil gebildet hat.",
+            "fr": "Dis qui tu es et pourquoi tu es là, devant une salle qui a déjà décidé."
+          },
+          "listens_for": "Identity (the learner is Odile's family) and purpose (the flat, selling, a week). A learner who has just started can do this in four words.",
+          "fallback": "c",
+          "replies": [
+            {
+              "id": "a",
+              "label": "Identity first",
+              "means": "The learner says they are Odile's family (grandchild), before or without the purpose.",
+              "examples": ["Odile, c'est ma grand-mère."],
+              "beats": [
+                {"kind": "panel", "id": "a.turn1.a.r1", "visual": "The room, silent. Margaux puts a cup in front of Toi: a café crème nobody ordered.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "silence": true},
+                {"kind": "panel", "id": "a.turn1.a.r2", "lines": [
+                  {"who": "margaux_barman", "mood": "moved", "say": {"a2": "Elle prenait ça.", "b1": "C'est ce qu'elle prenait.", "native": {"en": "She used to have that.", "de": "Das hat sie immer genommen."}}},
+                  {"who": "augustin_de_roncourt", "direction": "sitting down slowly", "say": {"a2": "Ah.", "native": {"en": "Ah.", "de": "Ah."}}},
+                  {"who": "lila_bonnet", "mood": "happy", "say": {"a2": "Bravo, Gus. Belle gaffe.", "b1": "Magnifique, Gus. Sept sur vingt.", "native": {"en": "Well done, Gus. Nice blunder.", "de": "Bravo, Gus. Schöner Fauxpas."}}}
+                ]}
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Honest purpose",
+              "means": "The learner says they came to sell, or that the flat is theirs now, without first saying they are family.",
+              "examples": ["Je viens pour vendre. L'appartement est à moi, maintenant."],
+              "beats": [
+                {"kind": "panel", "id": "a.turn1.b.r1", "lines": [
+                  {"who": "augustin_de_roncourt", "say": {"a2": "Donc, c'est bien vous.", "native": {"en": "So it is you.", "de": "Also sind Sie es doch."}}},
+                  {"who": "augustin_de_roncourt", "mood": "happy", "direction": "triumphant, to the room", "say": {"a2": "Je vous l'ai dit !", "native": {"en": "I told you!", "de": "Ich hab's euch gesagt!"}}},
+                  {"who": "margaux_barman", "direction": "not looking up", "say": {"a2": "C'est la famille d'Odile, Gus.", "native": {"en": "It's Odile's family, Gus.", "de": "Das ist Odiles Familie, Gus."}}}
+                ]},
+                {"kind": "panel", "id": "a.turn1.b.r2", "visual": "Gus's triumph deflates. The room looks from him to Toi.", "location_id": "le_mistral", "in_frame": ["augustin_de_roncourt", "toi"], "silence": true, "note": "They were wrong about who, not about what. Nobody punishes the learner for honesty. Margaux, who recognised the cicada, corrects the room."}
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply that still gets across 'not Marchand's person; Odile is my grandmother; the key was hers', or any sincere attempt at who the learner is.",
+              "examples": ["Moi… pas Marchand. Odile… grand-mère. La clé, c'est à elle."],
+              "clumsy": true,
+              "beats": [
+                {"kind": "panel", "id": "a.turn1.c.r1", "visual": "Toi holds up the key ring; the cicada catches the light. Lila jumps up from the booth.", "location_id": "le_mistral", "in_frame": ["lila_bonnet", "toi"], "lines": [
+                  {"who": "lila_bonnet", "mood": "happy", "say": {"a2": "Sa petite… son petit… Bref ! C'est la famille d'Odile !", "b1": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !", "native": {"en": "Her grand… her grand… Anyway! It's Odile's family!", "de": "Ihre Enke… ihr Enke… Egal! Das ist Odiles Familie!"}}}
+                ]},
+                {"kind": "panel", "id": "a.turn1.c.r2", "visual": "Margaux puts a cup in front of Toi: a café crème nobody ordered.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "silence": true},
+                {"kind": "panel", "id": "a.turn1.c.r3", "lines": [
+                  {"who": "margaux_barman", "mood": "moved", "say": {"a2": "Elle prenait ça.", "b1": "C'est ce qu'elle prenait.", "native": {"en": "She used to have that.", "de": "Das hat sie immer genommen."}}}
+                ], "note": "Lila stumbles over the gendered word because she does not know it yet, and the joke is hers. From here on she calls you «l'héritage»."}
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Counter-attack",
+              "means": "The learner turns the question back on Gus: and who are you?",
+              "examples": ["Et vous ? Vous êtes qui ?"],
+              "beats": [
+                {"kind": "panel", "id": "a.turn1.d.r1", "lines": [
+                  {"who": "augustin_de_roncourt", "mood": "happy", "direction": "delighted", "say": {"a2": "Augustin de Roncourt. Et vous me plaisez.", "b1": "Augustin de Roncourt, pour vous servir. Et vous me plaisez déjà.", "native": {"en": "Augustin de Roncourt. And I like you.", "de": "Augustin de Roncourt. Und Sie gefallen mir."}}},
+                  {"who": "margaux_barman", "say": {"a2": "C'est la famille d'Odile, Gus. Assieds-toi.", "native": {"en": "It's Odile's family, Gus. Sit down.", "de": "Das ist Odiles Familie, Gus. Setz dich."}}}
+                ]}
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn2",
+          "to": "margaux_barman",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p7",
+            "visual": "Margaux picks up the key ring and turns the cicada in her fingers. Marin and Lila lean in from the booth. Gus pretends not to.",
+            "location_id": "le_mistral",
+            "in_frame": ["margaux_barman", "marin_leveque", "lila_bonnet", "augustin_de_roncourt"],
+            "balloon": true,
+            "lines": [
+              {"who": "margaux_barman", "say": {"a2": "Elle ne donnait jamais cette clé.", "b1": "Elle ne prêtait jamais cette clé. À personne.", "native": {"en": "She never gave that key to anyone.", "de": "Diesen Schlüssel hat sie nie hergegeben."}}},
+              {"who": "margaux_barman", "say": {"a2": "Tu vas monter ?", "native": {"en": "Are you going up?", "de": "Gehst du hoch?"}}}
+            ],
+            "note": "Margaux uses tu with you at once, as she did with Odile. Nobody comments on it."
+          },
+          "task": {
+            "en": "Say whether you will go up tonight, and what you plan to do.",
+            "de": "Sag, ob du heute Abend hochgehst und was du vorhast.",
+            "fr": "Dis si tu montes ce soir, et ce que tu comptes faire."
+          },
+          "listens_for": "Whether the learner will go up to the flat tonight, and what they plan (to sell and leave, to wait, not to know).",
+          "fallback": "dont_know",
+          "replies": [
+            {
+              "id": "tonight",
+              "label": "Yes, tonight",
+              "means": "The learner wants to go up tonight.",
+              "examples": ["Oui. Ce soir."],
+              "beats": [
+                {"kind": "panel", "id": "a.turn2.tonight.r1", "visual": "Margaux gives the key ring back across the zinc.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "lines": [
+                  {"who": "margaux_barman", "say": {"a2": "Pas ce soir.", "native": {"en": "Not tonight.", "de": "Nicht heute Abend."}}}
+                ]}
+              ]
+            },
+            {
+              "id": "dont_know",
+              "label": "I don't know",
+              "means": "The learner does not know yet, or hesitates.",
+              "examples": ["Je ne sais pas."],
+              "beats": [
+                {"kind": "panel", "id": "a.turn2.dont_know.r1", "lines": [
+                  {"who": "margaux_barman", "say": {"a2": "C'est bien. Attends un peu.", "native": {"en": "That's good. Wait a little.", "de": "Das ist gut. Warte ein bisschen."}}}
+                ]}
+              ]
+            },
+            {
+              "id": "sell_and_leave",
+              "label": "Sell and leave",
+              "means": "The learner says they will sell and leave, in a week.",
+              "examples": ["Je vends et je pars. Une semaine."],
+              "beats": [
+                {"kind": "panel", "id": "a.turn2.sell_and_leave.r1", "visual": "Gus throws up his hands; Marin leans in to explain; Lila shushes him.", "location_id": "le_mistral", "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet"], "lines": [
+                  {"who": "augustin_de_roncourt", "mood": "happy", "say": {"a2": "Une semaine ! Personne ne reste une semaine à Paris. Moi, je suis venu pour un café.", "native": {"en": "A week! Nobody stays a week in Paris. I came for one coffee.", "de": "Eine Woche! Niemand bleibt eine Woche in Paris. Ich bin wegen eines Kaffees gekommen."}}},
+                  {"who": "marin_leveque", "say": {"a2": "Il est né à Cré…", "native": {"en": "He was born in Cré…", "de": "Er ist in Cré… geboren"}}},
+                  {"who": "lila_bonnet", "say": {"a2": "Chut.", "native": {"en": "Shh.", "de": "Pst."}}}
+                ]}
+              ]
+            },
+            {
+              "id": "clumsy",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: going up tomorrow, a little afraid.",
+              "examples": ["Monter… demain ? J'ai peur un peu."],
+              "clumsy": true,
+              "beats": [
+                {"kind": "panel", "id": "a.turn2.clumsy.r1", "lines": [
+                  {"who": "margaux_barman", "mood": "moved", "say": {"a2": "Moi aussi. Demain, alors.", "native": {"en": "Me too. Tomorrow, then.", "de": "Ich auch. Dann morgen."}}}
+                ]}
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p8",
+            "visual": "The bell again. In the doorway stands a figure in a rain-soaked bike helmet, holding up a key: Camille, seen from the side, not yet in close-up. On the zinc in the foreground lies Toi's key with its cicada. Two keys in one frame. Gus looks from one to the other.",
+            "location_id": "le_mistral",
+            "in_frame": ["camille_marchand", "augustin_de_roncourt", "lila_bonnet"],
+            "lines": [
+              {"who": "camille_marchand", "say": {"a2": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.", "native": {"en": "Good evening. Camille Marchand. I'm here about the first floor. I have the key.", "de": "Guten Abend. Camille Marchand. Ich komme wegen des ersten Stocks. Ich habe den Schlüssel."}}},
+              {"who": "augustin_de_roncourt", "direction": "already bowing again, to Camille", "say": {"a2": "Ah ! Voici donc—", "native": {"en": "Ah! So here is—", "de": "Ah! Hier ist also—"}}},
+              {"who": "lila_bonnet", "say": {"a2": "Gus. Assieds-toi.", "native": {"en": "Gus. Sit down.", "de": "Gus. Setz dich."}}},
+              {"who": "caption", "say": {"a2": "Deux clés pour la même porte. À suivre…", "b1": "Deux clés, une seule porte. À suivre…", "native": {"en": "Two keys for the same door. To be continued…", "de": "Zwei Schlüssel für dieselbe Tür. Fortsetzung folgt…"}}}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "story_date_fr": "jeudi 12 novembre",
+      "title_fr": "La lettre",
+      "location_id": "le_mistral",
+      "minutes": 7,
+      "can_do": {
+        "en": "Say what you plan to do and how sure you are; decide whom to trust.",
+        "de": "Sagen, was du vorhast und wie sicher du bist; entscheiden, wem du vertraust.",
+        "fr": "Dire ce qu'on compte faire et à quel point on en est sûr ; décider à qui faire confiance."
+      },
+      "lexicon": [
+        {"surface_fr": "offre", "lemma": "offre", "gloss": {"en": "offer", "de": "Angebot"}, "part_of_speech": "noun", "gender": "f"},
+        {"surface_fr": "lettre", "lemma": "lettre", "gloss": {"en": "letter", "de": "Brief"}, "part_of_speech": "noun", "gender": "f"},
+        {"surface_fr": "pas encore", "lemma": "pas encore", "gloss": {"en": "not yet", "de": "noch nicht"}, "part_of_speech": "adverb"},
+        {"surface_fr": "rentre", "lemma": "rentrer", "gloss": {"en": "to go home", "de": "nach Hause fahren"}, "part_of_speech": "verb"},
+        {"surface_fr": "montres", "lemma": "montrer", "gloss": {"en": "to show", "de": "zeigen"}, "part_of_speech": "verb"}
+      ],
+      "previously": [
+        {"ref": "a.p3", "label": "La cigale."},
+        {"ref": "a.p4", "label": "La révérence de Gus."},
+        {"ref": "a.p8", "label": "La clé de Camille."}
+      ],
+      "movements": [
+        {
+          "kind": "solve",
+          "id": "b.camille",
+          "mechanic": "balloon_choice",
+          "to": "camille_marchand",
+          "visual": "Camille at the door of Le Mistral, dripping, helmet under one arm. Toi, from behind, faces Camille. Toi's balloon holds the question.",
+          "prompt": {"a2": "Camille Marchand… Et M. Marchand ?", "native": {"en": "Camille Marchand… And M. Marchand?", "de": "Camille Marchand… Und Herr Marchand?"}},
+          "task": {
+            "en": "Ask Camille who they are to M. Marchand.",
+            "de": "Frag Camille, wer Camille für Herrn Marchand ist.",
+            "fr": "Demande à Camille qui Camille est pour M. Marchand."
+          },
+          "flag": "s1.camille_gender",
+          "options": [
+            {"id": "fils", "label": {"a2": "Vous êtes son fils ?", "native": {"en": "Are you his son?", "de": "Sind Sie sein Sohn?"}}, "sets": {"s1.camille_gender": "m"}, "beats": [
+              {"kind": "panel", "id": "b.camille.fils.r1", "lines": [
+                {"who": "camille_marchand", "say": {"a2": "Son petit-fils.", "native": {"en": "His grandson.", "de": "Sein Enkel."}}}
+              ]}
+            ]},
+            {"id": "fille", "label": {"a2": "Vous êtes sa fille ?", "native": {"en": "Are you his daughter?", "de": "Sind Sie seine Tochter?"}}, "sets": {"s1.camille_gender": "f"}, "beats": [
+              {"kind": "panel", "id": "b.camille.fille.r1", "lines": [
+                {"who": "camille_marchand", "say": {"a2": "Sa petite-fille.", "native": {"en": "His granddaughter.", "de": "Seine Enkelin."}}}
+              ]}
+            ]}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p1",
+          "visual": "Camille at the zinc, helmet under one arm, dripping. Margaux hands over a towel without a word, then a hot chocolate nobody ordered.",
+          "location_id": "le_mistral",
+          "in_frame": ["camille_marchand", "margaux_barman"],
+          "lines": [
+            {"who": "margaux_barman", "say": {"a2": "Chocolat ?", "native": {"en": "Hot chocolate?", "de": "Kakao?"}}},
+            {"who": "camille_marchand", "mood": "moved", "say": {"a2": "…Vous vous souvenez ?", "b1": "…Vous vous en souvenez ?", "native": {"en": "…You remember?", "de": "…Sie erinnern sich?"}}},
+            {"who": "margaux_barman", "say": {"a2": "Tous les mercredis. Tu avais neuf ans.", "native": {"en": "Every Wednesday. You were nine.", "de": "Jeden Mittwoch. Du warst neun."}}}
+          ],
+          "note": "Camille loved this café as a child. The reader learns this before the learner cares."
+        },
+        {
+          "kind": "panel",
+          "id": "b.p2",
+          "visual": "Camille and Toi face to face at the zinc. Behind Toi, the group listens without shame: Gus holds a menu up as a screen, upside down; Marin forgets his soup; Lila openly turns her chair round.",
+          "location_id": "le_mistral",
+          "in_frame": ["camille_marchand", "toi", "augustin_de_roncourt", "marin_leveque", "lila_bonnet"],
+          "lines": [
+            {"who": "camille_marchand", "say": {
+              "a2": "Mon grand-père a tout l'immeuble, sauf le premier étage. Solvel veut tout l'immeuble. Il manque le premier étage. Votre étage.",
+              "b1": "Mon grand-père possède tout l'immeuble, sauf le premier étage. Solvel veut l'ensemble. Il ne manque que vous.",
+              "native": {"en": "My grandfather owns the whole building, except the first floor. Solvel wants the whole building. The first floor is missing. Your floor.", "de": "Meinem Großvater gehört das ganze Haus, außer dem ersten Stock. Solvel will das ganze Haus. Es fehlt der erste Stock. Ihr Stock."}
+            }}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p3",
+          "visual": "Camille slides a business card across the zinc (Solvel Immobilier, Bastien Roux) and taps Toi's envelope.",
+          "location_id": "le_mistral",
+          "in_frame": ["camille_marchand", "toi"],
+          "diegetic": ["Solvel Immobilier — Bastien Roux"],
+          "lines": [
+            {"who": "camille_marchand", "say": {
+              "a2": "Leur offre est dans votre lettre. Elle finit le 8 janvier.",
+              "b1": "Leur offre est dans la lettre du notaire. Elle est valable jusqu'au 8 janvier.",
+              "native": {"en": "Their offer is in your letter. It ends on 8 January.", "de": "Ihr Angebot steht in Ihrem Brief. Es läuft am 8. Januar ab."}
+            }}
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn1",
+          "to": "camille_marchand",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p4",
+            "visual": "Camille, direct and not unkind, waiting. Toi's balloon.",
+            "location_id": "le_mistral",
+            "in_frame": ["camille_marchand", "toi"],
+            "balloon": true,
+            "lines": [
+              {"who": "camille_marchand", "say": {
+                "a2": "Vous allez vendre, non ? C'est plus simple pour tout le monde.",
+                "b1": "Vous allez vendre, j'imagine ? Ce serait plus simple pour tout le monde.",
+                "native": {"en": "You're going to sell, aren't you? It's simpler for everyone.", "de": "Sie verkaufen doch, oder? Das ist für alle einfacher."}
+              }}
+            ]
+          },
+          "task": {
+            "en": "Tell Camille what you plan to do, and whether «simple for everyone» is your concern.",
+            "de": "Sag Camille, was du vorhast, und ob «einfacher für alle» dein Anliegen ist.",
+            "fr": "Dis à Camille ce que tu comptes faire, et si «plus simple pour tout le monde», c'est ton problème."
+          },
+          "listens_for": "What the learner plans (sell and go home, not sure yet, not tonight) and whether they push back on «simple for everyone».",
+          "fallback": "b",
+          "replies": [
+            {"id": "a", "label": "Yes, selling", "means": "The learner will sell and go home.", "examples": ["Oui. Je vends et je rentre."], "beats": [
+              {"kind": "panel", "id": "b.turn1.a.r1", "visual": "Camille, with a glance at the silent booth.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
+                {"who": "camille_marchand", "say": {"a2": "Parfait.", "native": {"en": "Perfect.", "de": "Perfekt."}}},
+                {"who": "camille_marchand", "direction": "a glance at the silent booth", "say": {"a2": "Enfin… bien.", "native": {"en": "Well… good.", "de": "Na ja… gut."}}}
+              ]}
+            ]},
+            {"id": "b", "label": "Not sure yet", "means": "The learner does not know yet.", "examples": ["Je ne sais pas encore."], "beats": [
+              {"kind": "panel", "id": "b.turn1.b.r1", "lines": [
+                {"who": "camille_marchand", "say": {"a2": "\"Pas encore\", c'est déjà une réponse. Mon grand-père n'aime pas attendre.", "native": {"en": "\"Not yet\" is already an answer. My grandfather doesn't like waiting.", "de": "\"Noch nicht\" ist schon eine Antwort. Mein Großvater wartet nicht gern."}}}
+              ]}
+            ]},
+            {"id": "c", "label": "Simpler for whom?", "means": "The learner questions who it is simpler for.", "examples": ["Plus simple pour vous, ou pour moi ?"], "beats": [
+              {"kind": "panel", "id": "b.turn1.c.r1", "visual": "Camille, a small smile, the first.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
+                {"who": "camille_marchand", "mood": "happy", "say": {"a2": "Pour mon grand-père. Il a soixante-quatorze ans et quatre étages.", "b1": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.", "native": {"en": "For my grandfather. He's seventy-four and has four floors.", "de": "Für meinen Großvater. Er ist vierundsiebzig und hat vier Stockwerke."}}}
+              ]}
+            ]},
+            {"id": "d", "label": "Clumsy but sincere", "means": "A halting reply: just arrived, knows nothing, not selling tonight.", "examples": ["Je… arrive. Aujourd'hui. Je sais rien. Pas vendre ce soir."], "clumsy": true, "beats": [
+              {"kind": "panel", "id": "b.turn1.d.r1", "visual": "Camille puts the helmet back on.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
+                {"who": "camille_marchand", "say": {"a2": "D'accord. Pas ce soir.", "native": {"en": "All right. Not tonight.", "de": "Einverstanden. Nicht heute Abend."}}},
+                {"who": "camille_marchand", "direction": "puts the helmet back on", "say": {"a2": "Jeudi prochain, je viens avec Solvel. Pour voir l'appartement.", "native": {"en": "Next Thursday, I'll come with Solvel. To see the flat.", "de": "Nächsten Donnerstag komme ich mit Solvel. Um die Wohnung anzusehen."}}}
+              ]}
+            ]}
+          ],
+          "after": [
+            {"kind": "panel", "id": "b.turn1.after", "lines": [
+              {"who": "camille_marchand", "say": {"a2": "Jeudi prochain, dix-huit heures.", "native": {"en": "Next Thursday, six o'clock.", "de": "Nächsten Donnerstag, achtzehn Uhr."}}}
+            ], "note": "In every route, Camille sets the visit. This is T2 Day B. Camille disagrees with nobody yet, but is precise, and precision is the start of their friction with the learner."}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p5",
+          "visual": "The door closes behind Camille. The group turns, as one, toward Toi and the envelope.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet", "margaux_barman"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "b.p6",
+          "visual": "Lila has pulled her chair up to the zinc. Four hands are more or less open: Margaux's flat on the zinc, Lila's outstretched, Gus's elegantly offered, Marin's hovering and embarrassed.",
+          "location_id": "le_mistral",
+          "in_frame": ["lila_bonnet", "margaux_barman", "augustin_de_roncourt", "marin_leveque"],
+          "lines": [
+            {"who": "lila_bonnet", "say": {"a2": "Bon. On peut voir la lettre ?", "native": {"en": "Right. Can we see the letter?", "de": "Also. Dürfen wir den Brief sehen?"}}}
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "b.letter",
+          "mechanic": "choix",
+          "prompt": {"a2": "À qui tu montres la lettre ?", "native": {"en": "Whom do you show the letter to?", "de": "Wem zeigst du den Brief?"}},
+          "task": {
+            "en": "Choose who reads the notary's letter.",
+            "de": "Wähle, wer den Brief des Notars liest.",
+            "fr": "Choisis qui lit la lettre du notaire."
+          },
+          "flag": "s1.letter_trusted_to",
+          "default": "nobody",
+          "options": [
+            {"id": "margaux", "label": {"a2": "Margaux"}, "sets": {"s1.letter_trusted_to": "margaux"}, "beats": [
+              {"kind": "panel", "id": "b.letter.margaux.r1", "visual": "Margaux reads it, folds it and slides it back into Toi's inside pocket herself.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "lines": [
+                {"who": "margaux_barman", "say": {"a2": "Huit janvier.", "native": {"en": "Eighth of January.", "de": "Achter Januar."}}}
+              ]}
+            ]},
+            {"id": "lila", "label": {"a2": "Lila"}, "sets": {"s1.letter_trusted_to": "lila"}, "beats": [
+              {"kind": "panel", "id": "b.letter.lila.r1", "visual": "Lila reads and whistles.", "location_id": "le_mistral", "in_frame": ["lila_bonnet", "toi"], "lines": [
+                {"who": "lila_bonnet", "mood": "happy", "say": {"a2": "Avec ça, tu achètes la moitié de Marseille.", "native": {"en": "With that, you could buy half of Marseille.", "de": "Damit kaufst du halb Marseille."}}},
+                {"who": "lila_bonnet", "direction": "low", "say": {"a2": "Avant eux, tu me montres l'appartement ?", "native": {"en": "Before them, will you show me the flat?", "de": "Zeigst du mir die Wohnung, bevor die kommen?"}}}
+              ]}
+            ]},
+            {"id": "gus", "label": {"a2": "Gus"}, "sets": {"s1.letter_trusted_to": "gus", "s1.price_public": true}, "beats": [
+              {"kind": "panel", "id": "b.letter.gus.r1", "visual": "Gus reads the number aloud, by accident, to the whole café.", "location_id": "le_mistral", "in_frame": ["augustin_de_roncourt", "toi"], "lines": [
+                {"who": "augustin_de_roncourt", "say": {"a2": "TROIS CENT DIX MILLE ?!", "native": {"en": "THREE HUNDRED AND TEN THOUSAND?!", "de": "DREIHUNDERTZEHNTAUSEND?!"}}}
+              ]},
+              {"kind": "panel", "id": "b.letter.gus.r2", "visual": "Forty faces turn toward the zinc.", "location_id": "le_mistral", "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet"], "silence": true},
+              {"kind": "panel", "id": "b.letter.gus.r3", "lines": [
+                {"who": "margaux_barman", "say": {"a2": "Merci, Gus.", "native": {"en": "Thank you, Gus.", "de": "Danke, Gus."}}}
+              ]}
+            ]},
+            {"id": "marin", "label": {"a2": "Marin"}, "sets": {"s1.letter_trusted_to": "marin"}, "beats": [
+              {"kind": "panel", "id": "b.letter.marin.r1", "visual": "Marin reads and goes pale.", "location_id": "le_mistral", "in_frame": ["marin_leveque", "toi"], "lines": [
+                {"who": "marin_leveque", "mood": "moved", "say": {"a2": "C'est un signe. Un mauvais.", "native": {"en": "It's a sign. A bad one.", "de": "Das ist ein Zeichen. Ein schlechtes."}}},
+                {"who": "marin_leveque", "say": {"a2": "Ma grand-mère disait toujours : l'argent, ça ne mouille pas, mais ça noie.", "native": {"en": "My grandmother always said: money doesn't make you wet, but it drowns you.", "de": "Meine Großmutter hat immer gesagt: Geld macht nicht nass, aber es ertränkt dich."}}}
+              ]}
+            ]},
+            {"id": "nobody", "label": {"a2": "Personne", "native": {"en": "Nobody", "de": "Niemand"}}, "sets": {"s1.letter_trusted_to": "nobody"}, "beats": [
+              {"kind": "panel", "id": "b.letter.nobody.r1", "visual": "Toi puts the letter in a pocket. Margaux gives a small nod.", "location_id": "le_mistral", "in_frame": ["toi", "margaux_barman", "augustin_de_roncourt"], "lines": [
+                {"who": "augustin_de_roncourt", "mood": "happy", "say": {"a2": "Mystérieux. J'adore.", "native": {"en": "Mysterious. I love it.", "de": "Geheimnisvoll. Ich liebe es."}}}
+              ]}
+            ]}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1",
+          "visual": "After closing. The stairwell of the building next to the café door: one flight up, and the timed light ticks. Toi stands in front of a door with a brass «1». Behind Toi, on the lower steps, Lila has followed without asking.",
+          "location_id": "stairwell",
+          "in_frame": ["toi", "lila_bonnet"],
+          "silence": true,
+          "diegetic": ["1"]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r2",
+          "visual": "The key turns and the door opens onto darkness. Street light falls through the shutters: a coat still on its hook, a stopped kitchen clock, a wall calendar. Everything waits. We see only the room and Toi's hand on the frame.",
+          "location_id": "odile_flat",
+          "in_frame": ["toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "b.r3",
+          "visual": "Same framing, the door closing again. Toi has not gone in. Lila sits on the step with her chin on her knees.",
+          "location_id": "stairwell",
+          "in_frame": ["toi", "lila_bonnet"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "b.r4",
+          "visual": "The stairwell, the timed light. Lila on the step, looking up at Toi.",
+          "location_id": "stairwell",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {"who": "lila_bonnet", "say": {"a2": "Pas comme ça, en tout cas.", "native": {"en": "Not like this, anyway.", "de": "Jedenfalls nicht so."}}},
+            {"who": "lila_bonnet", "mood": "moved", "say": {"a2": "Mercredi, je n'ai pas classe. Je viens avec toi.", "b1": "Le mercredi, je n'ai pas classe. Je monte avec toi.", "native": {"en": "On Wednesday I don't have class. I'll come with you.", "de": "Mittwoch habe ich keinen Unterricht. Ich komme mit dir."}}}
+          ],
+          "note": "Agreement: avoid «pas toute seule / tout seul». The line is written so that it doesn't need it."
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "b.last",
+            "visual": "Toi's rented studio. The radiator is cold, and Toi sits on the bed in the coat. On the phone screen: «Retour : mercredi 18 novembre». The key ring lies next to the phone, the cicada face up.",
+            "location_id": "user_apartment",
+            "in_frame": ["toi"],
+            "diegetic": ["Retour : mercredi 18 novembre"],
+            "lines": [
+              {"who": "caption", "say": {
+                "a2": "Ton billet de retour est pour mercredi. Le même jour que Lila. À suivre…",
+                "b1": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…",
+                "native": {"en": "Your return ticket is for Wednesday. The same day as Lila. To be continued…", "de": "Dein Rückflug ist am Mittwoch. Am selben Tag wie Lila. Fortsetzung folgt…"}
+              }}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "state_out": {
+    "camille.met": true,
+    "user.return_ticket": "mercredi 18 novembre",
+    "user.has_met_group": true,
+    "user.first_entry": "door_closed"
+  },
+  "for_next_gap": [
+    "The door has been opened once and closed.",
+    "Nobody has gone in. Nobody goes in before T2."
+  ]
+}

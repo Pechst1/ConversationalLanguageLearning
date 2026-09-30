@@ -1,0 +1,1155 @@
+{
+  "id": "t2",
+  "number": 2,
+  "title_fr": "Là-haut",
+  "intent": "This is the first long scene of the romance or friendship, and it must be fun. Lila reading Odile's captions aloud on the floor, crying with laughter, is the engine. The contradiction (the calendar) gives the learner their first piece of detective work. Under the jokes are three seeds that later hurt: the freshly repainted wall above the stove, «dimanche : M.», and Lila's own Polaroid.",
+  "state_in": [
+    "From gap 1: the notary has explained that nothing can be sold before the succession papers, which takes weeks.",
+    "From gap 1: you have moved your ticket to 2 December (user.return_ticket).",
+    "From gap 1: your usual order is known (user.usual_order).",
+    "From gap 1: nobody has been inside the flat since T1.",
+    "Flags read: s1.letter_trusted_to (if Lila, she has already asked to see the flat «avant eux»), s1.price_public, s1.camille_gender."
+  ],
+  "flags_read": ["s1.letter_trusted_to", "s1.price_public", "s1.camille_gender"],
+  "days": [
+    {
+      "day": "a",
+      "story_date_fr": "mercredi 18 novembre",
+      "title_fr": "Là-haut",
+      "location_id": "stairwell",
+      "minutes": 8,
+      "can_do": {
+        "en": "Describe what you see; compare what people say with what you find.",
+        "de": "Beschreiben, was du siehst; vergleichen, was die Leute sagen, mit dem, was du findest.",
+        "fr": "Décrire ce qu'on voit ; comparer ce que disent les gens avec ce qu'on trouve."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "calendrier",
+          "lemma": "calendrier",
+          "gloss": {"en": "calendar", "de": "Kalender"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "rendez-vous",
+          "lemma": "rendez-vous",
+          "gloss": {"en": "appointment", "de": "Termin"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "prévu",
+          "lemma": "prévoir",
+          "gloss": {"en": "to plan, to foresee", "de": "planen, vorhersehen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "boîte",
+          "lemma": "boîte",
+          "gloss": {"en": "box", "de": "Schachtel"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "photo",
+          "lemma": "photo",
+          "gloss": {"en": "photo", "de": "Foto"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "derrière",
+          "lemma": "derrière",
+          "gloss": {"en": "behind", "de": "hinter"},
+          "part_of_speech": "preposition"
+        },
+        {
+          "surface_fr": "à ton avis",
+          "lemma": "avis",
+          "gloss": {"en": "in your opinion", "de": "deiner Meinung nach"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "fatiguée",
+          "lemma": "fatigué",
+          "gloss": {"en": "tired", "de": "müde"},
+          "part_of_speech": "adjective"
+        },
+        {
+          "surface_fr": "oublie",
+          "lemma": "oublier",
+          "gloss": {"en": "to forget", "de": "vergessen"},
+          "part_of_speech": "verb"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "a.p1",
+          "visual": "The stairwell, 8:30 a.m. Lila comes up two steps at a time with a paper bag of croissants and a thermos. Toi waits at the door with the key ring, the cicada catching the light from the stairwell window.",
+          "location_id": "stairwell",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Mercredi. Tu devais partir aujourd'hui. Tu es encore là.",
+                "b1": "Mercredi. Ton avion est parti sans toi.",
+                "native": {
+                  "en": "Wednesday. You were supposed to leave today. You're still here.",
+                  "de": "Mittwoch. Du solltest heute abreisen. Du bist immer noch da."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Croissants, café. On y va ?",
+                "native": {"en": "Croissants, coffee. Shall we go?", "de": "Croissants, Kaffee. Gehen wir?"}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p2",
+          "visual": "Toi and Lila in the open doorway. The room at last, in the half-dark: a coat on its hook, a Polaroid camera on the table beside a cup with a dried ring of café crème, and slippers under the chair, side by side. Dust in the air. Lila's hand is on Toi's arm, and neither of them has noticed.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "a.p3",
+          "visual": "Lila opens the shutters. Light comes in off the canal and floods the room. She stands in it, stopped.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Oh. La lumière.",
+                "b1": "Oh, fan de chichourle… cette lumière.",
+                "native": {"en": "Oh. The light.", "de": "Oh. Das Licht."}
+              }
+            }
+          ],
+          "note": "This is Lila as a painter, and it sets up the key choice in Day B. She will want to paint here."
+        },
+        {
+          "kind": "panel",
+          "id": "a.p4",
+          "visual": "Toi, from behind, in front of the kitchen calendar, still on April 2023 with May visible below. Lila comes up beside Toi with two cups from the thermos. The entries are legible in Odile's hand.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "diegetic": ["12/4 dentiste", "Tous les dimanches : M.", "3/5 anniversaire Marin — tarte aux pommes", "20/5 coiffeur"]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p5",
+          "visual": "Lila reads over Toi's shoulder, frowning.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "En bas, tout le monde dit : \"Elle est rentrée chez sa famille. Elle voulait partir depuis longtemps.\"",
+                "b1": "En bas, Gus et Marin racontent qu'elle avait tout prévu. Qu'elle voulait rentrer depuis des mois.",
+                "native": {
+                  "en": "Downstairs, everyone says: \"She went back to her family. She'd wanted to leave for a long time.\"",
+                  "de": "Unten sagen alle: \"Sie ist zu ihrer Familie zurückgekehrt. Sie wollte schon lange weg.\""
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "a.enquete",
+          "mechanic": "enquete",
+          "visual": "The calendar fills the screen.",
+          "prompt": {
+            "a2": "«Elle avait tout prévu ?» Montre.",
+            "native": {"en": "«Had she planned everything?» Show me.", "de": "«Hatte sie alles geplant?» Zeig es mir."}
+          },
+          "task": {
+            "en": "Tap an entry in the calendar that says she had not planned to leave (any appointment after April counts; the best is the pie for Marin's birthday). B1: tap the sentence the calendar contradicts.",
+            "de": "Tippe auf einen Eintrag im Kalender, der zeigt, dass sie nicht vorhatte zu gehen (jeder Termin nach April zählt; am besten ist der Kuchen für Marins Geburtstag). B1: Tippe auf den Satz, dem der Kalender widerspricht.",
+            "fr": "Touche une case du calendrier qui dit non (tout rendez-vous après avril compte ; le meilleur, c'est la tarte pour l'anniversaire de Marin). B1 : touche la phrase que le calendrier contredit."
+          },
+          "flag": "s1.calendar_contradiction",
+          "options": [
+            {
+              "id": "dentiste",
+              "label": {"a2": "12/4 dentiste", "native": {"en": "12 April: dentist", "de": "12. April: Zahnarzt"}},
+              "correct": false,
+              "sets": {"s1.calendar_contradiction": "found_by_lila"}
+            },
+            {
+              "id": "dimanches",
+              "label": {"a2": "Tous les dimanches : M.", "native": {"en": "Every Sunday: M.", "de": "Jeden Sonntag: M."}},
+              "correct": false,
+              "sets": {"s1.calendar_contradiction": "found_by_lila"}
+            },
+            {
+              "id": "tarte",
+              "label": {
+                "a2": "3/5 anniversaire Marin — tarte aux pommes",
+                "native": {"en": "3 May: Marin's birthday — apple pie", "de": "3. Mai: Marins Geburtstag — Apfelkuchen"}
+              },
+              "correct": true,
+              "sets": {"s1.calendar_contradiction": "found_by_you"}
+            },
+            {
+              "id": "coiffeur",
+              "label": {"a2": "20/5 coiffeur", "native": {"en": "20 May: hairdresser", "de": "20. Mai: Friseur"}},
+              "correct": true,
+              "sets": {"s1.calendar_contradiction": "found_by_you"}
+            }
+          ],
+          "options_b1": [
+            {
+              "id": "marin",
+              "label": {
+                "a2": "Elle voulait partir depuis des mois",
+                "native": {"en": "She had wanted to leave for months", "de": "Sie wollte schon seit Monaten weg"}
+              },
+              "subtitle": {"a2": "Marin"},
+              "correct": true,
+              "sets": {"s1.calendar_contradiction": "found_by_you"}
+            },
+            {
+              "id": "margaux",
+              "label": {
+                "a2": "Elle aimait bien le dimanche",
+                "native": {"en": "She liked Sundays", "de": "Sie mochte den Sonntag"}
+              },
+              "subtitle": {"a2": "Margaux"},
+              "correct": false,
+              "sets": {"s1.calendar_contradiction": "found_by_lila"}
+            }
+          ],
+          "nudge": [
+            {
+              "kind": "panel",
+              "id": "a.enquete.nudge",
+              "visual": "Lila points at the entry for 3 May.",
+              "location_id": "odile_flat",
+              "in_frame": ["lila_bonnet"],
+              "lines": [
+                {
+                  "who": "lila_bonnet",
+                  "say": {
+                    "a2": "Regarde. Une tarte pour Marin. En mai.",
+                    "native": {"en": "Look. A pie for Marin. In May.", "de": "Schau. Ein Kuchen für Marin. Im Mai."}
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p6",
+          "visual": "Lila sets her cup down on Odile's table, next to Odile's dried cup.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "On ne fait pas une tarte pour quelqu'un… si on part.",
+                "b1": "On ne prévoit pas une tarte pour l'anniversaire de quelqu'un quand on s'en va.",
+                "native": {
+                  "en": "You don't make a pie for someone… if you're leaving.",
+                  "de": "Man backt keinen Kuchen für jemanden… wenn man geht."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn1",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p7",
+            "visual": "Toi and Lila at the table, the light behind her. Toi's balloon.",
+            "location_id": "odile_flat",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Alors ? Pourquoi elle est partie, à ton avis ?",
+                  "b1": "Alors, à ton avis ? Pourquoi est-ce qu'elle est partie ?",
+                  "native": {"en": "So? Why did she leave, do you think?", "de": "Also? Warum ist sie gegangen, was meinst du?"}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Say what you know, or what your family said, about why she left. You may know very little, and saying so is a fine answer.",
+            "de": "Sag, was du weißt oder was deine Familie darüber gesagt hat, warum sie gegangen ist. Du weißt vielleicht sehr wenig, und das zu sagen ist eine gute Antwort.",
+            "fr": "Dis ce que tu sais, ou ce que ta famille a dit, sur pourquoi elle est partie. Tu ne sais peut-être presque rien : le dire, c'est une bonne réponse."
+          },
+          "listens_for": "What the learner says they know, or what their family said, about why Odile left: a family word for it, not knowing, a hint that she forgot, a fear. Saying they know very little is a fine answer.",
+          "fallback": "b",
+          "replies": [
+            {
+              "id": "a",
+              "label": "What the family said",
+              "means": "The learner repeats what their family said: she was tired.",
+              "examples": ["Ma famille dit : elle était fatiguée."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Fatiguée. En bas, on dit \"courageuse\". Tout le monde a un mot différent pour elle.",
+                        "native": {
+                          "en": "Tired. Downstairs they say \"brave\". Everybody has a different word for her.",
+                          "de": "Müde. Unten sagt man \"mutig\". Jeder hat ein anderes Wort für sie."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "I don't know",
+              "means": "The learner says they do not know, or did not know her well.",
+              "examples": ["Je ne sais pas. Je ne la connaissais pas bien."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.b.r1",
+                  "visual": "Lila looks at Toi, not at the calendar.",
+                  "location_id": "odile_flat",
+                  "in_frame": ["lila_bonnet", "toi"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.b.r2",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Alors on va la connaître. Ici.",
+                        "native": {"en": "Then we'll get to know her. Here.", "de": "Dann lernen wir sie kennen. Hier."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: at the end, she called the learner by a parent's name; she forgot.",
+              "examples": ["Elle… oublie ? À la fin, elle m'appelle avec… le nom de mon père. Ma mère. Je sais pas."],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.c.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "direction": "stops teasing",
+                      "say": {"a2": "Ah.", "native": {"en": "Ah.", "de": "Ah."}}
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Alors ici, elle se souvenait encore. Regarde : elle écrit tout.",
+                        "b1": "Alors ici, elle se souvenait encore. Regarde, elle notait tout.",
+                        "native": {
+                          "en": "So here she still remembered. Look: she writes everything down.",
+                          "de": "Dann hat sie sich hier noch erinnert. Schau: Sie schreibt alles auf."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "The learner's family knew she became confused later, over there. The reader now carries a small dread. T4 reveals it began here."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "A fear",
+              "means": "The learner suggests she was afraid of something.",
+              "examples": ["Peut-être elle a peur de quelque chose ?"],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Peur de quoi ? D'une tarte ?",
+                        "native": {"en": "Afraid of what? Of a pie?", "de": "Angst wovor? Vor einem Kuchen?"}
+                      }
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "direction": "then, not laughing",
+                      "say": {"a2": "…Peut-être.", "native": {"en": "…Maybe.", "de": "…Vielleicht."}}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p8",
+          "visual": "Lila lies flat on the floor with her legs sticking out from under the bed and pulls out a shoebox. Polaroids spill across the floorboards. Toi kneels beside her.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p9",
+          "visual": "Lila on her back, holding Polaroids up to the light one after another, reading the captions aloud. Each card is legible in the art.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet"],
+          "diegetic": [
+            "Mardi. Marin pleure devant une pub. Encore.",
+            "Gus dit qu'il a un château. Gus a un scooter.",
+            "Margaux sourit. Si, si. 14 h 02."
+          ],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "mood": "happy",
+              "direction": "crying with laughter",
+              "say": {
+                "a2": "Elle est géniale. Ta grand-mère est géniale.",
+                "b1": "Je l'adore. Je ne la connaissais presque pas, et je l'adore.",
+                "native": {
+                  "en": "She's brilliant. Your grandmother is brilliant.",
+                  "de": "Sie ist genial. Deine Großmutter ist genial."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p10",
+            "visual": "She holds up one more. A teenage boy in a tracksuit does his homework in the booth's corner seat, wearing a paper crown someone has drawn. The caption: «Augustin, 15 ans. Il dit qu'il sera comte.» Lila's laugh fades.",
+            "location_id": "odile_flat",
+            "in_frame": ["lila_bonnet", "toi"],
+            "diegetic": ["Augustin, 15 ans. Il dit qu'il sera comte."],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Quinze ans… Il nous dit qu'il a grandi dans un château.",
+                  "b1": "À quinze ans, il faisait ses devoirs au Mistral. Et à nous, il raconte un château.",
+                  "native": {
+                    "en": "Fifteen… He tells us he grew up in a château.",
+                    "de": "Fünfzehn… Er erzählt uns, er sei in einem Schloss aufgewachsen."
+                  }
+                }
+              },
+              {
+                "who": "lila_bonnet",
+                "direction": "to Toi",
+                "say": {
+                  "a2": "On le montre à Gus ?",
+                  "native": {"en": "Shall we show it to Gus?", "de": "Zeigen wir es Gus?"}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Say what you'd do with it: show him, keep it, give it back one day. Nothing is decided yet.",
+            "de": "Sag, was du damit tun würdest: es ihm zeigen, es behalten, es ihm eines Tages zurückgeben. Noch ist nichts entschieden.",
+            "fr": "Dis ce que tu en ferais : la lui montrer, la garder, la lui rendre un jour. Rien n'est décidé."
+          },
+          "listens_for": "What the learner would do with the Polaroid: show it to Gus, keep it, give it back one day. Nothing is decided yet; Lila pockets it in every version (s1.gus_photo = with_lila), whatever the learner says.",
+          "fallback": "keep",
+          "small": true,
+          "sets": {"s1.gus_photo": "with_lila"},
+          "replies": [
+            {"id": "show", "label": "Show him", "means": "The learner would show the Polaroid to Gus."},
+            {"id": "keep", "label": "Keep it", "means": "The learner would keep it and say nothing for now."},
+            {
+              "id": "give_back",
+              "label": "Give it back one day",
+              "means": "The learner would give it back to Gus one day."
+            }
+          ],
+          "after": [
+            {
+              "kind": "panel",
+              "id": "a.turn2.after",
+              "visual": "Lila slips the Polaroid into her pocket.",
+              "location_id": "odile_flat",
+              "in_frame": ["lila_bonnet"],
+              "lines": [
+                {
+                  "who": "lila_bonnet",
+                  "say": {
+                    "a2": "Pour l'instant, je la garde.",
+                    "native": {"en": "For now, I'm keeping it.", "de": "Vorerst behalte ich es."}
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p11",
+            "visual": "Lila picks up one more Polaroid from the floor and stops. It is Lila herself in the booth in 2021, holding a letter, not crying but close. The caption: «Lila. Elle part ou elle reste ? — juin 2021». She puts it in her pocket fast, before Toi can ask. Toi saw.",
+            "location_id": "odile_flat",
+            "in_frame": ["lila_bonnet", "toi"],
+            "silence": true,
+            "diegetic": ["Lila. Elle part ou elle reste ? — juin 2021"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Odile savait quelque chose sur Lila. Lila ne dit rien. À suivre…",
+                  "b1": "Odile savait quelque chose sur Lila. Et Lila a rangé la photo un peu trop vite. À suivre…",
+                  "native": {
+                    "en": "Odile knew something about Lila. Lila says nothing. To be continued…",
+                    "de": "Odile wusste etwas über Lila. Lila sagt nichts. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "story_date_fr": "jeudi 19 novembre",
+      "title_fr": "Le Mistral à nous",
+      "location_id": "odile_flat",
+      "minutes": 8,
+      "can_do": {
+        "en": "Say what you want to keep and why; talk about how long you'll stay.",
+        "de": "Sagen, was du behalten möchtest und warum; darüber sprechen, wie lange du bleibst.",
+        "fr": "Dire ce qu'on veut garder et pourquoi ; parler du temps qu'on reste."
+      },
+      "previously": [
+        {"ref": "a.p4", "label": "Le calendrier : la tarte."},
+        {"ref": "a.p10", "label": "La couronne en papier."},
+        {"ref": "a.p11", "label": "Lila range sa photo."}
+      ],
+      "lexicon": [
+        {
+          "surface_fr": "garder",
+          "lemma": "garder",
+          "gloss": {"en": "to keep", "de": "behalten"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "vider",
+          "lemma": "vider",
+          "gloss": {"en": "to empty", "de": "leeren"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "manteau",
+          "lemma": "manteau",
+          "gloss": {"en": "coat", "de": "Mantel"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "photos",
+          "lemma": "photo",
+          "gloss": {"en": "photos", "de": "Fotos"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "restes",
+          "lemma": "rester",
+          "gloss": {"en": "to stay", "de": "bleiben"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "combien de temps",
+          "lemma": "combien de temps",
+          "gloss": {"en": "how long", "de": "wie lange"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "double",
+          "lemma": "double",
+          "gloss": {"en": "duplicate (of a key)", "de": "Zweitschlüssel"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "prêtes",
+          "lemma": "prêter",
+          "gloss": {"en": "to lend", "de": "leihen"},
+          "part_of_speech": "verb"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "b.p1",
+          "visual": "Thursday, 6 p.m., the flat with every lamp on. At the door are Camille (helmet under one arm, slightly rained on) and Bastien Roux of Solvel (good coat, laser measure). Lila, straight from school with a child's drawing sticking out of her bag, steps in front of Toi and holds out her hand.",
+          "location_id": "odile_flat",
+          "in_frame": ["camille_marchand", "bastien_roux", "lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Lila Bonnet. Architecte d'intérieur.",
+                "native": {"en": "Lila Bonnet. Interior architect.", "de": "Lila Bonnet. Innenarchitektin."}
+              }
+            },
+            {"who": "camille_marchand", "say": {"a2": "Vraiment ?", "native": {"en": "Really?", "de": "Wirklich?"}}},
+            {"who": "lila_bonnet", "say": {"a2": "Non.", "native": {"en": "No.", "de": "Nein."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p2",
+          "visual": "Bastien's red laser dot crosses Odile's things: the coat, the camera, the slippers. Lila follows him through the room, putting each thing back exactly where it was.",
+          "location_id": "odile_flat",
+          "in_frame": ["bastien_roux", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "bastien_roux",
+              "say": {
+                "a2": "Quarante-deux mètres carrés. Très bien. On ouvre tout, ici.",
+                "b1": "Quarante-deux mètres carrés. Parfait. On abat cette cloison et on ouvre sur le canal.",
+                "native": {
+                  "en": "Forty-two square metres. Very good. We open everything up here.",
+                  "de": "Zweiundvierzig Quadratmeter. Sehr gut. Hier machen wir alles auf."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p3",
+          "visual": "The kitchen. The laser rests on the wall above the stove, where one patch of white is whiter than the rest. Bastien taps it. Behind him, Lila stares at it.",
+          "location_id": "odile_flat",
+          "in_frame": ["bastien_roux", "camille_marchand", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "bastien_roux",
+              "say": {
+                "a2": "Ce mur, on l'a repeint. Récemment.",
+                "b1": "Tiens. Ce pan de mur a été repeint. Pas il y a longtemps.",
+                "native": {
+                  "en": "This wall, someone repainted it. Recently.",
+                  "de": "Diese Wand wurde neu gestrichen. Vor Kurzem."
+                }
+              }
+            },
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "Il y a eu un feu, en bas, en 2023. Au café.",
+                "native": {
+                  "en": "There was a fire downstairs in 2023. At the café.",
+                  "de": "Es gab 2023 unten ein Feuer. Im Café."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "direction": "to herself, a painter",
+              "say": {
+                "a2": "Ce blanc n'est pas le même.",
+                "native": {"en": "This white isn't the same.", "de": "Dieses Weiß ist nicht dasselbe."}
+              }
+            }
+          ],
+          "note": "This is the reader's first real clue. Nobody follows it up: Bastien is thinking about the price, Camille about the café, and Lila files it away. T4 pays it off, and the reader should feel the floor move when it does."
+        },
+        {
+          "kind": "panel",
+          "id": "b.p4",
+          "visual": "Camille stops in the bedroom doorway: the bed made, the slippers. Camille speaks more quietly, not to Bastien. (Lila's eyes go to the calendar: «Tous les dimanches : M.»)",
+          "location_id": "odile_flat",
+          "in_frame": ["camille_marchand", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "J'ai vu Odile deux fois. Chez mon grand-père. Le dimanche.",
+                "b1": "J'ai croisé Odile deux fois, chez mon grand-père. C'était un dimanche, les deux fois.",
+                "native": {
+                  "en": "I saw Odile twice. At my grandfather's. On a Sunday.",
+                  "de": "Ich habe Odile zweimal gesehen. Bei meinem Großvater. Am Sonntag."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn1",
+          "to": "camille_marchand",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p5",
+            "visual": "Camille and Toi in the doorway, the laser switched off in Camille's hand. Bastien measures the bathroom in the background.",
+            "location_id": "odile_flat",
+            "in_frame": ["camille_marchand", "toi", "bastien_roux"],
+            "lines": [
+              {
+                "who": "camille_marchand",
+                "say": {
+                  "a2": "Avant la vente, il faut vider l'appartement. Vous voulez garder quelque chose ?",
+                  "b1": "Il faudra vider l'appartement avant la vente. Il y a quelque chose que vous voulez garder ?",
+                  "native": {
+                    "en": "Before the sale, the flat has to be emptied. Do you want to keep anything?",
+                    "de": "Vor dem Verkauf muss die Wohnung geleert werden. Möchten Sie etwas behalten?"
+                  }
+                }
+              }
+            ],
+            "balloon": true,
+            "note": "camille.disagreements gains (a) or (d). (c) gains a moment of respect. Nothing is shown."
+          },
+          "task": {
+            "en": "Say what you want to keep, to a stranger who is measuring your grandmother's life.",
+            "de": "Sag, was du behalten möchtest – einem Fremden gegenüber, der das Leben deiner Großmutter ausmisst.",
+            "fr": "Dis ce que tu veux garder, devant un inconnu qui mesure la vie de ta grand-mère."
+          },
+          "listens_for": "What the learner wants to keep, to Camille and Bastien: everything, the photos and the box, the coat and the doubt about whether it is theirs yet, or nothing (selling).",
+          "fallback": "c",
+          "replies": [
+            {
+              "id": "a",
+              "label": "Everything",
+              "means": "The learner wants to keep everything, for now.",
+              "examples": ["Tout. Pour l'instant, tout."],
+              "sets": {"camille.disagreements": "+t2_tout"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.a.r1",
+                  "visual": "Bastien laughs. Camille doesn't.",
+                  "location_id": "odile_flat",
+                  "in_frame": ["camille_marchand", "bastien_roux"],
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "\"Tout\", ce n'est pas une liste.",
+                        "native": {"en": "\"Everything\" isn't a list.", "de": "\"Alles\" ist keine Liste."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "The photos and the box",
+              "means": "The learner wants to keep the photos and the box.",
+              "examples": ["Les photos. La boîte."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "direction": "softer",
+                      "say": {"a2": "Bien sûr.", "native": {"en": "Of course.", "de": "Natürlich."}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: the coat, then no, doesn't know; it isn't the learner's yet, it is hers.",
+              "examples": ["Je garde… son manteau ? Non. Je sais pas. C'est pas à moi, encore. C'est à elle."],
+              "clumsy": true,
+              "sets": {"camille.disagreements": "+t2_respect_manteau"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.c.r1",
+                  "visual": "Camille looks at the coat on its hook.",
+                  "location_id": "odile_flat",
+                  "in_frame": ["camille_marchand"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.c.r2",
+                  "visual": "Camille takes the laser from Bastien's hand and puts it in Bastien's pocket.",
+                  "location_id": "odile_flat",
+                  "in_frame": ["camille_marchand", "bastien_roux"],
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "Vous avez raison. On revient après le notaire.",
+                        "native": {
+                          "en": "You're right. We'll come back after the notary.",
+                          "de": "Sie haben recht. Wir kommen nach dem Notar wieder."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Nothing, selling",
+              "means": "The learner keeps nothing and sells.",
+              "examples": ["Rien. Je vends."],
+              "sets": {"camille.disagreements": "+t2_rien"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "bastien_roux",
+                      "say": {"a2": "Parfait !", "native": {"en": "Perfect!", "de": "Perfekt!"}}
+                    },
+                    {
+                      "who": "camille_marchand",
+                      "direction": "a glance at the slippers",
+                      "say": {"a2": "Vraiment rien ?", "native": {"en": "Really nothing?", "de": "Wirklich nichts?"}}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p6",
+          "visual": "After they have gone. Lila sits on the floor with the Polaroid box and finds a black notebook underneath it. She opens it on her knees. Toi looks over her shoulder. The page is legible: «Le Mistral à nous», with a sum («40 × 1 000 €») and forty names in a column: «Margaux», «Mme Diallo», «le petit Augustin (!)», «Marin — il dira oui en pleurant»… At the bottom: «M. M. : oui, si Margaux reste.»",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "diegetic": [
+            "Le Mistral à nous",
+            "40 × 1 000 €",
+            "Margaux",
+            "Mme Diallo",
+            "le petit Augustin (!)",
+            "Marin — il dira oui en pleurant",
+            "M. M. : oui, si Margaux reste."
+          ],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "M. M. … Marchand ?",
+                "b1": "\"M. M.\"… Ce ne serait pas Marchand, quand même ?",
+                "native": {"en": "M. M. … Marchand?", "de": "M. M. … Marchand?"}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Elle voulait acheter le Mistral. Avec tout le monde. Marin va devenir fou.",
+                "b1": "Elle voulait racheter les murs du Mistral, avec tout le quartier. Marin va en devenir fou.",
+                "native": {
+                  "en": "She wanted to buy Le Mistral. With everybody. Marin is going to go mad.",
+                  "de": "Sie wollte das Mistral kaufen. Mit allen zusammen. Marin wird durchdrehen."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p7",
+            "visual": "The narrow balcony over the canal at night. Two people on it, just about, with the last croissant from yesterday shared in two. The locks are black below, and a lit barge passes.",
+            "location_id": "odile_flat",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Tu restes combien de temps, en fait ?",
+                  "b1": "Tu restes combien de temps, en vrai ?",
+                  "native": {"en": "How long are you staying, actually?", "de": "Wie lange bleibst du eigentlich?"}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer her, truthfully, however you like. This is a path gate: what you express is read, never how well you say it.",
+            "de": "Antworte ihr ehrlich, wie du magst. Das ist ein Weichenpunkt: Gelesen wird, was du ausdrückst, nie, wie gut du es sagst.",
+            "fr": "Réponds-lui, sincèrement, comme tu veux. C'est un point de bascule : ce qu'on lit, c'est ce que tu exprimes, jamais la qualité de ta phrase."
+          },
+          "listens_for": "What the learner expresses about how long they will stay, never how well they say it. Path gate 1 (bible §7): staying because of her or this leans toward romance; staying because of the flat or the mystery, or a joke, leans toward friendship; a halting reply that names no reason leaves the path open.",
+          "fallback": "clumsy",
+          "gate": 1,
+          "replies": [
+            {
+              "id": "lean",
+              "label": "Leaning in",
+              "means": "The learner says they are staying because of her, or because of this (longer than before, less before meeting her).",
+              "examples": ["Je ne sais pas. Plus longtemps qu'avant.", "Moins… avant de te rencontrer."],
+              "path": "romance",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.lean.r1",
+                  "visual": "Lila looks at Toi, then at the water.",
+                  "location_id": "odile_flat",
+                  "in_frame": ["lila_bonnet", "toi"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.lean.r2",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "direction": "a small smile she hides in her scarf",
+                      "say": {"a2": "Ah bon.", "native": {"en": "Oh, really.", "de": "Ach, wirklich."}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "accomplice",
+              "label": "Accomplice",
+              "means": "The learner is staying to see the story through, because they want to know (the mystery).",
+              "examples": ["Jusqu'à la fin de l'histoire. Je veux savoir."],
+              "path": "friendship",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.accomplice.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Moi aussi. On est deux, alors.",
+                        "native": {"en": "Me too. So there are two of us, then.", "de": "Ich auch. Dann sind wir zu zweit."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "joke",
+              "label": "Joke",
+              "means": "The learner answers with a joke.",
+              "examples": ["Jusqu'à ce que Gus soit comte."],
+              "path": "friendship",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.joke.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "mood": "happy",
+                      "direction": "laughing",
+                      "say": {
+                        "a2": "Alors tu restes toute la vie, l'héritage.",
+                        "native": {
+                          "en": "Then you're staying your whole life, l'héritage.",
+                          "de": "Dann bleibst du dein ganzes Leben, l'héritage."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "In «Alors tu restes toute la vie», «toute» agrees with «la vie», not with the learner."
+                }
+              ]
+            },
+            {
+              "id": "clumsy",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: the ticket keeps changing, the learner half knows why. No reason is named, so the path stays open.",
+              "examples": ["Mon billet… il change. Encore. Je sais pas pourquoi. Si… je sais un peu."],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.clumsy.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "\"Un peu\", c'est bien. On commence par un peu.",
+                        "native": {
+                          "en": "\"A little\" is good. We start with a little.",
+                          "de": "\"Ein bisschen\" ist gut. Wir fangen mit ein bisschen an."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p8",
+          "visual": "The door, coat on. Lila hesitates on the threshold and looks back at the room: the light will come back tomorrow.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Tu me prêtes une clé ? Le matin, ici, la lumière… Je peux peindre avant l'école.",
+                "b1": "Tu me prêterais un double ? La lumière du matin, ici… Je pourrais peindre avant l'école.",
+                "native": {
+                  "en": "Will you lend me a key? In the morning, here, the light… I can paint before school.",
+                  "de": "Leihst du mir einen Schlüssel? Morgens, hier, das Licht… Ich kann vor der Schule malen."
+                }
+              }
+            }
+          ],
+          "note": "This small, practical choice decides where Berlin is discovered (T5 B) and which gesture closes the season on the platform (T8). Neither card is cold. «Pas encore» is a real, warm answer."
+        },
+        {
+          "kind": "solve",
+          "id": "b.key",
+          "mechanic": "choix",
+          "prompt": {
+            "a2": "Tu me prêtes une clé ?",
+            "b1": "Tu me prêterais un double ?",
+            "native": {"en": "Will you lend me a key?", "de": "Leihst du mir einen Schlüssel?"}
+          },
+          "task": {
+            "en": "Decide whether to have a copy of the key made for Lila.",
+            "de": "Entscheide, ob du für Lila einen Schlüssel nachmachen lässt.",
+            "fr": "Décide si tu fais faire un double de la clé pour Lila."
+          },
+          "flag": "s1.lila_has_key",
+          "options": [
+            {
+              "id": "double",
+              "label": {
+                "a2": "Lui faire un double",
+                "native": {"en": "Have a copy made for her", "de": "Ihr einen Zweitschlüssel machen lassen"}
+              },
+              "subtitle": {
+                "a2": "Lila s'en souviendra.",
+                "native": {"en": "Lila will remember.", "de": "Lila wird sich daran erinnern."}
+              },
+              "sets": {"s1.lila_has_key": true}
+            },
+            {
+              "id": "pas_encore",
+              "label": {"a2": "Pas encore", "native": {"en": "Not yet", "de": "Noch nicht"}},
+              "subtitle": {"a2": "Lila comprendra.", "native": {"en": "Lila will understand.", "de": "Lila wird es verstehen."}},
+              "sets": {"s1.lila_has_key": false},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.key.pas_encore.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Pas encore. D'accord. J'aime bien \"encore\".",
+                        "native": {"en": "Not yet. All right. I like \"yet\".", "de": "Noch nicht. Okay. Ich mag \"noch\"."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1",
+          "visual": "The stairwell. Lila goes down with the notebook held against her chest. Toi watches from the landing. The timed light clicks off between them.",
+          "location_id": "stairwell",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "b.r2",
+          "visual": "The café door below. Through the glass, Margaux behind the zinc looks up at the ceiling, as if she could see through it.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman"]
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "b.last",
+            "visual": "Lila alone at the foot of the stairs, under the street lamp. She takes her own Polaroid out of her pocket, «Elle part ou elle reste ?», and looks at it for a long moment.",
+            "location_id": "quai_de_valmy",
+            "in_frame": ["lila_bonnet"],
+            "diegetic": ["Elle part ou elle reste ?"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Odile avait un plan pour le Mistral. Et une question pour Lila. À suivre…",
+                  "b1": "Odile avait un plan pour le Mistral, et une question pour Lila. Personne n'a encore répondu. À suivre…",
+                  "native": {
+                    "en": "Odile had a plan for Le Mistral. And a question for Lila. To be continued…",
+                    "de": "Odile hatte einen Plan für das Mistral. Und eine Frage an Lila. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "state_out": {"s1.gus_photo": "with_lila", "s1.notebook_found": true, "flat.kitchen_repaint_seen": true},
+  "for_next_gap": [
+    "s1.notebook_found = true: page «Le Mistral à nous» only. The last pages, in a shaky hand, are not yet read, and are difficult to read even for Lila.",
+    "If s1.lila_has_key: in gap 2 she starts painting in the flat at 7 a.m., and you find her coffee cup in the sink.",
+    "Lila shows the notebook page to Marin (off-page or in a generated day). Marin starts a spreadsheet.",
+    "Nobody decodes the notebook's last pages before T6. The handwriting «se casse» after page 40, and Lila says «plus tard»."
+  ]
+}
