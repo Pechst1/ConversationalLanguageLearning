@@ -265,3 +265,34 @@ WP-117 is in `WP-117-LA-TROUPE-QUI-BOUGE.md`. It holds:
 - six interactions to ship first.
 
 WP-117 starts after phase 3 of this package. Phase 1 must already expose `gaze` and a `hold` prop on every rig, so WP-117 needs no second pass through the rigs.
+
+## 12. Where this is heading: generated seasons (owner, 2026-10-01)
+
+**The vision.** Season 1 is authored and close to deterministic. The target app generates its seasons and episodes itself, from:
+- how the learner plays;
+- how the learner treats each persona;
+- real news, facts and culture about the country and the city.
+
+That is the version to build toward. Three consequences hold for this package now.
+
+1. **Image generation stays.** Nothing in `panel_art.py`, `scripts/art/atelier_art.py`, the plate pipeline or the S3 storage is deleted.
+   - Drawn mode switches off *per-panel character drawing* only.
+   - New places still get a painted plate from the image model. A plate is drawn once per place, cached and reused, so it costs cents per location, not per panel.
+2. **A panel is data, not a picture.** The `stage` field from §7 is the first version of a stage language that the story engine writes, and its first fields are `location`, `cast_id` and `mood`. It is designed to grow without breaking:
+   - `pose` and `gesture`: point, shrug, bow, dance, sit, lean;
+   - `hold`: any prop id;
+   - `gaze`: who looks at whom;
+   - `action`: an entry, an exit, or a one-shot like Gus's cards falling;
+   - `objects`: things on stage with an optional event, such as `{"id": "wine_glass", "at": "table", "event": "falls"}`.
+
+   The rig library and every surface render only what they know and ignore the rest. An engine that writes a gesture the client can't draw yet degrades to the mood alone.
+3. **Props and objects become a library that can grow at runtime.** These are tiers to plan for, not to build in WP-116:
+   - **Authored props:** SVG in the rig style (glass, cup, key, letter, camera, notebook), each with named states (`full`, `empty`, `broken`, `falling`).
+   - **Generated props:** a language model writes an SVG for an object the story needs, constrained to the house grammar: the palette, no outlines, round construction, a fixed viewBox and a handle point. A validator checks it before anything is shown, then it is cached and reused for every learner. If an object fails validation it is dropped from the panel; the plate and the cast still tell the story.
+   - **Generated plates:** the image model paints a background for a new place, a market or a museum the news brought in, in the plate style lock that already exists.
+
+**The guardrails stay what they are for the story:**
+- canon over cute;
+- the no-spoil gates;
+- one validator per generated thing;
+- an authored fallback that always works.
