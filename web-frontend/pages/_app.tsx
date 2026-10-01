@@ -25,6 +25,8 @@ import '@/styles/globals.css';
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
 import '@/styles/atelier-v2-voices.css';
+// WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
+import '@/styles/cast-rig.css';
 
 // Create a client
 const queryClient = new QueryClient({

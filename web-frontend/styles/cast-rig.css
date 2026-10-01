@@ -1,0 +1,52 @@
+/* WP-116 · the drawn cast's motion. Every loop is CSS so that `prefers-reduced-motion`
+   and the `still` prop can stop it (SMIL cannot be stopped from CSS). */
+.cast-rig {
+  display: block;
+  overflow: hidden;
+}
+
+.cast-rig .cast-rig__idle {
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+  animation: cast-rig-lift var(--cast-idle, 4s) ease-in-out infinite;
+}
+
+.cast-rig--bounce .cast-rig__idle {
+  animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+}
+
+.cast-rig--sway .cast-rig__idle,
+.cast-rig--nod .cast-rig__idle {
+  animation-name: cast-rig-turn;
+}
+
+.cast-rig .cast-rig__tally {
+  animation: cast-rig-tally 1.6s ease-in-out infinite;
+}
+
+@keyframes cast-rig-lift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(var(--cast-lift, -1.5px)); }
+}
+
+@keyframes cast-rig-turn {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(var(--cast-turn, 2deg)); }
+}
+
+@keyframes cast-rig-tally {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.cast-rig--still .cast-rig__idle,
+.cast-rig--still .cast-rig__tally {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cast-rig .cast-rig__idle,
+  .cast-rig .cast-rig__tally {
+    animation: none;
+  }
+}
