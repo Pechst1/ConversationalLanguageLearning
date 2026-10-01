@@ -1635,6 +1635,11 @@
 }
 
 .av2 .av2-home__mast-main { min-width: 0; }
+/* 2026-10-01: Settings in the same corner on every tab (components/layout/ShellCorner.tsx). */
+.av2.shell-corner.av2-icon-btn { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 16px; z-index: 5; box-shadow: 0 0 0 1px var(--av2-line); }
+/* 2026-10-01: the mark is a button (quick settings); it keeps its look. */
+.av2 .av2-home__mark-btn { display: inline-flex; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; border-radius: 12px; }
+.av2 .av2-home__mark-btn:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 3px; }
 .av2 .av2-home__kicker { margin: 14px 0 0; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); }
 .av2 .av2-home__date { margin: 3px 0 0; }
 

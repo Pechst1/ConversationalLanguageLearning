@@ -33,7 +33,6 @@ import {
   AtelierV2Root,
   Byline,
   CheckIcon,
-  GearIcon,
   Notice,
   ShapeToken,
   Skeleton,
@@ -51,6 +50,9 @@ import { canDoCopy } from '@/lib/can-do-copy';
 import type { NextStepView } from '@/lib/can-dos';
 import { frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
+import { ShellCorner } from '@/components/layout/ShellCorner';
+import { QuickSettings } from '@/components/layout/QuickSettings';
+import { resolveSettingsLanguage, settingsCopy } from '@/lib/settings-copy';
 
 export type HomeTileMark = 'story' | 'reward' | 'done' | 'action';
 export type HomeTileBar = HomeTileMark | null;
@@ -291,16 +293,28 @@ export function HomeScreen({
   const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
   const levelBand = nextStep?.band || level?.band || null;
+  const [quickOpen, setQuickOpen] = React.useState(false);
+  const quickLabel = settingsCopy(resolveSettingsLanguage(language)).quick_open;
   return (
     <AtelierV2Root as="main" language={language} className="av2-home" aria-label={copy.home_label}>
       <header className="av2-home__mast" data-special={special && oneThing ? '' : undefined}>
         <div className="av2-home__mast-main">
-          {day && !planHidden ? (
-            // WP-D1: the mark is the day's only gauge — no goal ring.
-            <AtelierMark size={44} progress={day.groups} title={day.label} />
-          ) : (
-            <AtelierMark size={26} />
-          )}
+          {/* 2026-10-01: the mark opens the quick settings (the second way in;
+              the corner cog is the first). */}
+          <button
+            type="button"
+            className="av2-home__mark-btn"
+            onClick={() => setQuickOpen(true)}
+            aria-label={quickLabel}
+            aria-haspopup="dialog"
+          >
+            {day && !planHidden ? (
+              // WP-D1: the mark is the day's only gauge — no goal ring.
+              <AtelierMark size={44} progress={day.groups} title={day.label} />
+            ) : (
+              <AtelierMark size={26} />
+            )}
+          </button>
           {/* WP-81: with the day on, the mark and the date are the header; the
               edition kicker is cut (≤ 25 words on Home). */}
           {!oneThing && <p className="av2-home__kicker">{editionLabel}</p>}
@@ -339,9 +353,10 @@ export function HomeScreen({
             </p>
           )}
         </div>
+        {/* Settings, in the same corner on every tab (2026-10-01). The streak
+            keeps its own place beside the date; at 0 it is not drawn (WP-79). */}
+        <ShellCorner href={settingsHref} label={copy.settings} />
         {streak > 0 ? (
-          // WP-79: at 0 the slot stays the gear (the July rule — a zero is
-          // not a reward, and no placeholder number is ever drawn).
           <Link
             className="av2-home__streak"
             href={streakHref}
@@ -354,12 +369,9 @@ export function HomeScreen({
               {streakWord}
             </span>
           </Link>
-        ) : (
-          <Link className="av2-icon-btn" href={settingsHref} aria-label={copy.settings}>
-            <GearIcon size={18} />
-          </Link>
-        )}
+        ) : null}
       </header>
+      <QuickSettings open={quickOpen} onClose={() => setQuickOpen(false)} />
 
       {hero && <div className="av2-home__section av2-home__section--first av2-home__hero">{hero}</div>}
 

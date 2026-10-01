@@ -64,6 +64,7 @@ import apiService, {
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
+import { ShellCorner } from '@/components/layout/ShellCorner';
 
 // Only what the Courrier actually prints. contact_role, contact_initials,
 // presence, thread_title, inbox_context and ambient_cues were computed on every
@@ -1014,6 +1015,8 @@ export default function MissionsPage() {
         className="cr motion"
         aria-label={intakeMode ? t.page_aria_intake : isSerialAct ? t.page_aria_act : t.courrier}
       >
+        {/* Settings, in the same corner on every tab (2026-10-01). */}
+        {!intakeMode && <ShellCorner />}
         {intakeMode ? (
           /* WP-34's surface, mounted (WP-37 §2.1). Everything here already
              existed and was imported by no page: the components, the client

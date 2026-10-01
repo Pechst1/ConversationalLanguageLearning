@@ -9,7 +9,7 @@
  * reduced motion and `still` stop it. `mouth` is for lip-sync: the parent sets the
  * viseme from the audio's playback position.
  */
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { rigFor } from './cast-registry';
 import { rigValues } from './rig-kit';

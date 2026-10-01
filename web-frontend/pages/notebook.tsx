@@ -43,6 +43,7 @@ import api, {
 
 import { GrammarNotebookSurface } from './grammar';
 import VocabularyPage from './vocabulary';
+import { ShellCorner } from '@/components/layout/ShellCorner';
 
 type NotebookQuery = Record<string, string | string[] | undefined>;
 /* The Cahier's own tab set. `NotebookMode` in components/mobile still describes
@@ -278,6 +279,8 @@ export default function NotebookEntryPage() {
       </Head>
       <CahierStyles />
       <AtelierV2Root as="main" language={language} className="nb-page" aria-label="Le cahier">
+        {/* Settings, in the same corner on every tab (2026-10-01). */}
+        <ShellCorner />
         <CahierHead kicker={kicker}>
           <NotebookModeTabs
             active={visibleMode}

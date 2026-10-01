@@ -4,6 +4,7 @@
  * person has no rig, or when their look depends on a choice the learner has not
  * made yet (Camille before T1 Day B), so the caller keeps its initial.
  */
+import React from 'react';
 import { drawnCastIdFor } from '@/lib/cast-faces';
 import { castVariant, NEEDS_VARIANT } from '@/lib/cast-variants';
 import type { PortraitMood } from '@/lib/onboarding-portraits';

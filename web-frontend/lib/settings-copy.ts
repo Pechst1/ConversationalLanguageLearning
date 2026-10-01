@@ -193,6 +193,9 @@ export type SettingsCopyKey =
   | 'row_font_size'
   | 'row_font_size_hint'
   | 'row_cast_art'
+  | 'quick_title'
+  | 'quick_all'
+  | 'quick_open'
   | 'row_cast_art_hint'
   | 'cast_art_drawn'
   | 'cast_art_painted'
@@ -409,6 +412,9 @@ const EN: SettingsCopy = {
   row_font_size: 'Body text',
   row_font_size_hint: 'Applies everywhere, right away.',
   row_cast_art: 'Characters',
+  quick_title: 'Quick settings',
+  quick_all: 'All settings',
+  quick_open: 'Quick settings',
   row_cast_art_hint: 'Drawn or painted. On this device only, right away.',
   cast_art_drawn: 'Drawn',
   cast_art_painted: 'Painted',
@@ -624,6 +630,9 @@ const DE: SettingsCopy = {
   row_font_size: 'Schriftgröße',
   row_font_size_hint: 'Gilt sofort überall.',
   row_cast_art: 'Figuren',
+  quick_title: 'Schnelleinstellungen',
+  quick_all: 'Alle Einstellungen',
+  quick_open: 'Schnelleinstellungen',
   row_cast_art_hint: 'Gezeichnet oder gemalt. Nur auf diesem Gerät, sofort.',
   cast_art_drawn: 'Gezeichnet',
   cast_art_painted: 'Gemalt',
@@ -844,6 +853,9 @@ const FR: SettingsCopy = {
   row_font_size: 'Corps du texte',
   row_font_size_hint: 'S’applique partout, tout de suite.',
   row_cast_art: 'Personnages',
+  quick_title: 'Réglages rapides',
+  quick_all: 'Tous les réglages',
+  quick_open: 'Réglages rapides',
   row_cast_art_hint: 'Dessinés ou peints. Sur cet appareil, tout de suite.',
   cast_art_drawn: 'Dessinés',
   cast_art_painted: 'Peints',

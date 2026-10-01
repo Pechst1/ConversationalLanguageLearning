@@ -58,6 +58,7 @@ import {
 import { ChapterColophon, DigestLine, MarginNotes, TomeSeal } from './ArchiveMarks';
 import { ArchiveStyles } from './ArchiveStyles';
 import { Trombinoscope } from './Trombinoscope';
+import { ShellCorner } from '@/components/layout/ShellCorner';
 
 export type ArchiveView = 'archive' | 'cast' | 'day';
 export type ArchiveDayQuery = { date: string | null; journeyId: string | null; sceneId: string | null };
@@ -150,6 +151,8 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
       <FeuilletonReaderStyles />
       <ArchiveStyles />
       <AtelierV2Root as="main" language={language} className="fr-page fa-page" aria-label={t.nav_aria}>
+        {/* Settings, in the same corner on every tab (2026-10-01). */}
+        {view !== 'day' && <ShellCorner />}
         {view !== 'day' && (
           <header className="fr-page-head">
             <div className="k">

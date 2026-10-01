@@ -1282,6 +1282,8 @@ export function CourrierStyles() {
       /* header row — WP-83: one line. Back, portrait, name, chip; the name
          truncates rather than wrapping to a second line. */
       .av2 .cr-desk { display: flex; align-items: center; gap: 10px; padding: 14px 0 6px; min-width: 0; }
+      /* 2026-10-01: room for the settings corner (ShellCorner) at the top right. */
+      .av2 .cr-desk:not(.cr-desk--back) { padding-right: 52px; }
       .av2 .cr-back { flex: none; margin-left: -6px; text-decoration: none; background: transparent; }
       .av2 .cr-desk .av2-portrait { flex: none; }
       .av2 .cr-desk-main { flex: 1 1 auto; min-width: 0; }
