@@ -303,7 +303,7 @@ That is the version to build toward. Three consequences hold for this package no
 |---|---|---|
 | 0 | b377401 | Tag `art-painted-2026-10-01`, the painted-set manifest (67 files), `scripts/art/art_set.py` |
 | 1 | 6b126a4 | `web-frontend/components/cast/` (9 rigs, CastRig), `lib/art-set.ts`, `styles/cast-rig.css`, PNG snapshots |
-| 2 | see below | Faces behind the switch; Settings › Personnages; Camille's look from `headline.cast_variants`; `ATELIER_ART_SET` (pushes use the drawn PNGs, paid panel drawing off) |
+| 2 | 4a74d66 | Faces behind the switch; Settings › Personnages; Camille's look from `headline.cast_variants`; `ATELIER_ART_SET` (pushes use the drawn PNGs, paid panel drawing off) |
 
 **Phase 2 in detail.**
 - The faces in `CastPortrait`, the av2 `Portrait`/`Byline`, the Trombinoscope card, the voice call and the vocabulary anchor render `CastFace` (the rig, head crop) when the set is drawn.
