@@ -304,6 +304,7 @@ That is the version to build toward. Three consequences hold for this package no
 | 0 | b377401 | Tag `art-painted-2026-10-01`, the painted-set manifest (67 files), `scripts/art/art_set.py` |
 | 1 | 6b126a4 | `web-frontend/components/cast/` (9 rigs, CastRig), `lib/art-set.ts`, `styles/cast-rig.css`, PNG snapshots |
 | 2 | 4a74d66 | Faces behind the switch; Settings › Personnages; Camille's look from `headline.cast_variants`; `ATELIER_ART_SET` (pushes use the drawn PNGs, paid panel drawing off) |
+| 3 | (this commit) | Panels: `plate_url` on every panel and page row (kept when a drawing replaces `image_url`); the reader draws the plate plus the speakers (`components/cast/PanelStage.tsx`); the walk checks `page-draws-the-cast` under `WALK_ART_SET=drawn` |
 
 **Phase 2 in detail.**
 - The faces in `CastPortrait`, the av2 `Portrait`/`Byline`, the Trombinoscope card, the voice call and the vocabulary anchor render `CastFace` (the rig, head crop) when the set is drawn.
@@ -312,3 +313,14 @@ That is the version to build toward. Three consequences hold for this package no
 - **Camille** gets one only once `headline.cast_variants` carries the learner's T1 Day B choice. Before that Camille keeps the initial, and is never shown with the grandfather's face.
 - **Deferred to phase 3:** panels, the La Une picture, the season poster, archive thumbnails.
 - **Deferred to WP-117:** the verdict mood. A wrong answer still maps to `cross`.
+
+**Phase 3 in detail (2026-10-01).**
+- **Who stands on a panel:** the panel's speakers, in order, the first one in front, at most three.
+- **Toi:** stands from behind in the corner when the learner speaks in a panel without a balloon.
+- **Sizing:** figures are sized by the panel's height with a head-anchored 180 × 220 crop, so faces keep one size in square and wide frames.
+- **Camille:** stays off stage until the learner has chosen Camille's look.
+- **Silent panels:** have no speakers, so they show the plate alone.
+- **Deferred:**
+  - the La Une picture, the season poster, archive thumbnails and the finale art, which are still the painted plate or drawing;
+  - a backend `stage` for people who are in frame without speaking;
+  - the wrong plate on the first T1 panel (the market instead of the quai de Valmy). That one is a season-location mapping issue that existed before WP-116.

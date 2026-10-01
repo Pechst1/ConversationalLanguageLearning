@@ -97,3 +97,33 @@ test('the trombinoscope card shows the rig in the mood they feel about you', () 
   const painted = withArtSet('painted', () => renderToStaticMarkup(React.createElement(CastCard, { member })));
   assert.match(painted, /lila_bonnet\/portrait-happy\.webp/);
 });
+
+test('a story panel in the drawn set is its plate with the speakers on it', () => {
+  const model = require('../atelier-v2/journey/story-episode-model.ts');
+  const plate = '/assets/serial/locations/le_mistral-counter.webp';
+  const episode = {
+    id: 'e1',
+    panels: [
+      {
+        id: 'p1', index: 0, narration_fr: 'Au zinc.', image_url: '/media/drawn.webp', image_status: 'panel_art', plate_url: plate,
+        dialogue: [
+          { character_id: 'margaux_barman', character_name: 'Margaux', text_fr: 'Bois.', mood: 'warm' },
+          { character_id: 'marin_leveque', character_name: 'Marin', text_fr: 'Merci.' },
+        ],
+      },
+      { id: 'p2', index: 1, narration_fr: 'Silence.', image_url: plate, image_status: 'setting_reference', dialogue: [] },
+    ],
+  };
+  const stages = model.buildStoryStages(episode);
+  assert.equal(stages[0].plateUrl, plate, 'the plate, not the painted drawing');
+  assert.deepEqual(stages[0].cast.map((member) => [member.id, member.speaking]), [['margaux_barman', true], ['marin_leveque', false]]);
+  assert.equal(stages[1].plateUrl, plate, 'an undrawn panel is its own plate');
+  assert.deepEqual(stages[1].cast, []);
+
+  const { PanelStage } = require('./PanelStage.tsx');
+  const html = renderToStaticMarkup(React.createElement(PanelStage, { members: stages[0].cast, you: true }));
+  assert.match(html, /data-cast-stage="margaux_barman marin_leveque"/);
+  assert.match(html, /data-cast="margaux_barman"[^>]*data-mood="ravie"/);
+  assert.match(html, /data-cast="user"/, 'Toi from behind when the learner speaks');
+  assert.equal(renderToStaticMarkup(React.createElement(PanelStage, { members: [{ id: 'bastien_roux' }] })), '');
+});

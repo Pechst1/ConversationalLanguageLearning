@@ -37,7 +37,7 @@ export const toi: RigDef = {
   id: 'user',
   name: 'Toi',
   head: [100, 150],
-  crops: { full: [0, 0, 200, 420], bust: [10, 80, 180, 256], head: [40, 84, 120, 120] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 76, 180, 220], head: [40, 84, 120, 120] },
   idle: { kind: 'bob', seconds: 4, amount: 1.4 },
   faceless: true,
   Art: ToiArt,

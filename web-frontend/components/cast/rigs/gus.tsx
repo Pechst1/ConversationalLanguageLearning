@@ -66,7 +66,7 @@ export const gus: RigDef = {
   id: 'augustin_de_roncourt',
   name: 'Gus',
   head: [100, 128],
-  crops: { full: [0, 0, 200, 420], bust: [10, 32, 180, 256], head: [22, 32, 156, 156] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 26, 180, 220], head: [22, 32, 156, 156] },
   idle: { kind: 'sway', seconds: 3.6, amount: -2.5 },
   tilt: { neutre: -7, ravie: -11, surprise: -3, fachee: 2, emue: 4 },
   eyes: { neutre: ['heavy', 'heavy'] },

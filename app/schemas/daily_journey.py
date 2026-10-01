@@ -165,6 +165,8 @@ class ScenePanel(JourneyModel):
     dialogue: list[ScenePanelLine] = Field(default_factory=list)
     image_url: str | None = None
     image_status: Literal["panel_art", "setting_reference", "unavailable"] = "unavailable"
+    #: WP-116: the scene's location plate, under the drawn cast.
+    plate_url: str | None = None
 
 
 class MarginNote(JourneyModel):

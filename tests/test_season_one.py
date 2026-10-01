@@ -629,6 +629,7 @@ def test_a_finished_day_reads_as_one_page_with_the_learners_lines_in_it(assemble
     balloon = [line for line in turn["dialogue"] if line["you"]]
     assert [line["text_fr"] for line in balloon] == [answer], "the learner's line is drawn in the turn's panel"
     assert all(row["image_url"] for row in page["rows"]), "every panel stands on its place's plate"
+    assert all(row["plate_url"] == row["image_url"] for row in page["rows"]), "WP-116: the drawn cast stands on the plate"
     said = " ".join(line["text_fr"] for row in page["rows"] for line in row["dialogue"])
     assert "Margaux" in " ".join(str(line["character_name"]) for row in page["rows"] for line in row["dialogue"]) or said
     clock.advance(days=1)
@@ -643,6 +644,7 @@ def test_a_finished_day_reads_as_one_page_with_the_learners_lines_in_it(assemble
     mine = [line["text_fr"] for row in rows for line in row["dialogue"] if line["you"]]
     assert mine and mine[0] == "Je voudrais un café, s'il vous plaît."
     assert any(row["movement"] == "reaction" for row in rows), "the answer the learner got is drawn"
+    assert all(panel["plate_url"] for panel in episode["panels"]), "WP-116: a generated panel knows its plate"
 
 
 def test_home_headlines_todays_episode(assembled_client, db_session, journey_enabled, clock, season_on):

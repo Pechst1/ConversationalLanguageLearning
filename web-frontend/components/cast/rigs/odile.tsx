@@ -69,7 +69,7 @@ export const odile: RigDef = {
   id: 'odile_ferrand',
   name: 'Odile',
   head: [100, 206],
-  crops: { full: [0, 0, 200, 420], bust: [10, 124, 180, 256], head: [30, 130, 140, 140] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 128, 180, 220], head: [30, 130, 140, 140] },
   idle: { kind: 'bob', seconds: 3.2, amount: 1.8 },
   tilt: { neutre: 3, ravie: -6, surprise: 0, fachee: 0, emue: 5 },
   brows: {

@@ -37,6 +37,9 @@ class StoryPanelRead(ProjectionModel):
     image_url: str | None
     image_status: Literal["panel_art", "rendering", "setting_reference", "unavailable"]
     alt_native: str | None = None
+    #: WP-116: the location plate under the panel, kept even after a drawing replaced
+    #: ``image_url``. The drawn cast stands on it.
+    plate_url: str | None = None
 
 
 class GrammarFocusRead(ProjectionModel):
@@ -80,6 +83,8 @@ class StoryPageRowRead(ProjectionModel):
     alt_native: str | None = None
     flashback: bool = False
     silence: bool = False
+    #: WP-116: the location plate (see StoryPanelRead.plate_url).
+    plate_url: str | None = None
 
 
 class StoryPageRead(ProjectionModel):

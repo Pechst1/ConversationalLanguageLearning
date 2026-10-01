@@ -9569,6 +9569,8 @@ export interface components {
              * @default
              */
             narration_fr: string;
+            /** Plate Url */
+            plate_url: string | null;
         };
         /** ScenePanelLine */
         ScenePanelLine: {
@@ -10304,6 +10306,11 @@ export interface components {
             /** Narration Fr */
             narration_fr: string;
             /**
+             * Plate Url
+             * @default null
+             */
+            plate_url?: string | null;
+            /**
              * Silence
              * @default false
              */
@@ -10331,6 +10338,11 @@ export interface components {
             index: number;
             /** Narration Fr */
             narration_fr: string;
+            /**
+             * Plate Url
+             * @default null
+             */
+            plate_url?: string | null;
         };
         /** StoryPositionRead */
         StoryPositionRead: {

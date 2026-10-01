@@ -84,6 +84,18 @@ def panel_image_status(panel) -> str:
     return "setting_reference"
 
 
+def panel_plate_url(panel) -> str | None:
+    """WP-116: the location plate under a panel. New panels keep it in their metadata
+    when a drawing replaces ``image_url``; an undrawn panel's image is the plate."""
+
+    meta = panel.generation_metadata or {}
+    if meta.get("plate_url"):
+        return str(meta["plate_url"])
+    if panel.image_url and meta.get("image_source") != "panel_art":
+        return panel.image_url
+    return None
+
+
 def public_grammar_focus(scene) -> dict | None:
     """WP-92: the unit the scene was written to show, as the story lane stored it
     (``script_payload.grammar_focus`` = ``{unit_id, title_fr, title_native, woven}``).
@@ -127,6 +139,7 @@ def public_scene(scene, names: dict[str, str] | None = None):
             ],
             "image_url": p.image_url,
             "image_status": panel_image_status(p),
+            "plate_url": panel_plate_url(p),
         }
         for p in panels
     ]

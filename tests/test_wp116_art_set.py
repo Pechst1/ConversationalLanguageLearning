@@ -29,3 +29,22 @@ def test_drawn_set_switches_paid_panel_drawing_off(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_ART_SET", "drawn")
     assert "drawn" in (panel_art.unavailable_reason() or "")
     assert panel_art.enabled() is False
+
+
+def test_a_panel_keeps_its_plate_when_a_drawing_replaces_it():
+    from types import SimpleNamespace
+
+    from app.api.v1.endpoints.story_engine import panel_plate_url
+
+    plate = "/assets/serial/locations/le_mistral-counter.webp"
+    undrawn = SimpleNamespace(image_url=plate, generation_metadata={"image_source": "setting_reference"})
+    assert panel_plate_url(undrawn) == plate
+    drawn_new = SimpleNamespace(image_url="/media/x.webp", generation_metadata={"image_source": "panel_art", "plate_url": plate})
+    assert panel_plate_url(drawn_new) == plate
+    drawn_old = SimpleNamespace(image_url="/media/x.webp", generation_metadata={"image_source": "panel_art"})
+    assert panel_plate_url(drawn_old) is None, "an old drawing never passes itself off as a plate"
+
+    panel = SimpleNamespace(image_url=plate, image_payload=None, generation_metadata={"image_source": "setting_reference"})
+    panel_art._attach(panel, {"image_url": "/media/drawn.webp"}, "prefetch-1")
+    assert panel.image_url == "/media/drawn.webp"
+    assert panel.generation_metadata["plate_url"] == plate

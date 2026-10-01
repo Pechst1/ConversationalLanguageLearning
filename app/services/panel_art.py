@@ -624,6 +624,8 @@ def _write_back(factory, job: PanelJob, stored: dict | None, error: str | None) 
             return
         meta = dict(panel.generation_metadata or {})
         if stored is not None and str(stored.get("url") or "").startswith(("/", "http")):
+            if panel.image_url and meta.get("image_source") != ART_SOURCE:
+                meta.setdefault("plate_url", panel.image_url)  # WP-116: the drawn cast stands on it
             panel.image_url = stored["url"]
             panel.image_payload = {k: v for k, v in stored.items() if k != "prompt"}
             # A drawing that lands after the timeout heal still wins: the panel is READY and
@@ -972,6 +974,8 @@ def render_prefetch_art(job: PrefetchArtJob) -> str:
 
 def _attach(panel, ready: dict, prefetch_id: str) -> None:
     meta = {k: v for k, v in (panel.generation_metadata or {}).items() if k != AWAITING_KEY}
+    if panel.image_url and meta.get("image_source") != ART_SOURCE:
+        meta.setdefault("plate_url", panel.image_url)  # WP-116: the drawn cast stands on it
     panel.image_url = ready["image_url"]
     panel.image_payload = dict(ready.get("image_payload") or {"url": ready["image_url"]})
     meta.update(

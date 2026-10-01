@@ -81,7 +81,7 @@ export const romy: RigDef = {
   id: 'romy_tremblay',
   name: 'Romy',
   head: [100, 150],
-  crops: { full: [0, 0, 200, 420], bust: [10, 58, 180, 256], head: [28, 60, 144, 144] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 62, 180, 220], head: [28, 60, 144, 144] },
   idle: { kind: 'bob', seconds: 5, amount: 1.4 },
   tilt: { neutre: 0, ravie: -3, surprise: 0, fachee: 0, emue: 3 },
   brows: {

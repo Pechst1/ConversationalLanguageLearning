@@ -56,6 +56,8 @@ import {
   type ReaderStage,
   type ReaderTask,
 } from './panel-model';
+import { useArtSet } from '@/lib/art-set';
+import { PanelStage } from '@/components/cast/PanelStage';
 
 export type ReaderSubmitError = { taskId: string; message: string } | null;
 
@@ -872,7 +874,15 @@ function PanelBody({
   voice?: LineVoice | null;
   rayons?: RayonsView | null;
 }) {
-  const src = resolveMediaUrl(stage.imageUrl);
+  // WP-116: in the drawn art set the panel is its location plate with the cast
+  // drawn on it; a painted drawing (people included) is not shown.
+  const drawn = useArtSet() === 'drawn' && Boolean(stage.plateUrl);
+  const src = drawn ? resolveMediaUrl(stage.plateUrl) : resolveMediaUrl(stage.imageUrl);
+  const artReady = drawn || stage.artStatus === 'ready';
+  const castOnPlate = drawn ? (
+    // Toi stands in the corner only when no balloon already speaks for the learner.
+    <PanelStage members={stage.cast ?? []} you={variant !== 'bubble' && stage.lines.some((line) => line.you)} />
+  ) : null;
   const page = pageArt ? resolveMediaUrl(pageArt) : null;
   const alt = stage.imageAlt
     || (stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : '');
@@ -901,14 +911,15 @@ function PanelBody({
     ));
     return (
       <>
-        {stage.artStatus === 'ready' && src ? (
+        {artReady && src ? (
           <PlateArt
             src={src}
             alt={alt}
-            pending={Boolean(stage.artPending)}
+            pending={!drawn && Boolean(stage.artPending)}
             ribbon={fillReaderCopy(t.art_on_press, { n: stage.ordinal })}
             variant={variant}
           >
+            {castOnPlate}
             {bubbleLine && (
               <div
                 className="fr-bubble"
@@ -958,10 +969,11 @@ function PanelBody({
 
   return (
     <>
-      {stage.artStatus === 'ready' && src ? (
+      {artReady && src ? (
         <figure className="fr-plate">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={alt} />
+          {castOnPlate}
         </figure>
       ) : page ? (
         /* the illustrated-page edition: one composed page is the plate */

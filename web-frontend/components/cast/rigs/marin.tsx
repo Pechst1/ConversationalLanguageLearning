@@ -76,7 +76,7 @@ export const marin: RigDef = {
   id: 'marin_leveque',
   name: 'Marin',
   head: [100, 172],
-  crops: { full: [0, 0, 200, 420], bust: [10, 86, 180, 256], head: [26, 92, 148, 148] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 88, 180, 220], head: [26, 92, 148, 148] },
   idle: { kind: 'bob', seconds: 4.8, amount: 2.2 },
   tilt: { neutre: 4, ravie: -5, surprise: -2, fachee: 0, emue: 7 },
   brows: {

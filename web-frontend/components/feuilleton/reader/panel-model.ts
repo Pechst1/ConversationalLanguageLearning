@@ -95,6 +95,10 @@ export type ReaderPanelStage = {
   tasks: ReaderTask[];
   /** WP-110: which movement of the page this panel is (act, turn, reaction, solve, ending). */
   movement?: string;
+  /** WP-116: the location plate under the panel, for the drawn cast to stand on. */
+  plateUrl?: string;
+  /** WP-116: who stands on the plate in the drawn set (the panel's speakers). */
+  cast?: Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }>;
 };
 
 /**

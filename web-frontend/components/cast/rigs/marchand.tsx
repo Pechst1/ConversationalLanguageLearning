@@ -66,7 +66,7 @@ export const marchand: RigDef = {
   id: 'landlord_marchand',
   name: 'M. Marchand',
   head: [112, 178],
-  crops: { full: [0, 0, 200, 420], bust: [12, 96, 180, 256], head: [44, 96, 140, 140] },
+  crops: { full: [0, 0, 200, 420], bust: [12, 94, 180, 220], head: [44, 96, 140, 140] },
   idle: { kind: 'nod', seconds: 5.2, amount: 3 },
   tilt: { neutre: 6, ravie: 0, surprise: -2, fachee: 8, emue: 10 },
   eyes: { neutre: ['heavy', 'heavy'] },

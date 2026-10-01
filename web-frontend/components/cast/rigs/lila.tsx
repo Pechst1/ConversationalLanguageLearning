@@ -81,7 +81,7 @@ export const lila: RigDef = {
   id: 'lila_bonnet',
   name: 'Lila',
   head: [100, 192],
-  crops: { full: [0, 0, 200, 420], bust: [10, 80, 180, 256], head: [17, 84, 166, 166] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 72, 180, 220], head: [17, 84, 166, 166] },
   idle: { kind: 'bounce', seconds: 2.8, amount: 2.6 },
   tilt: { neutre: 6, ravie: -3, surprise: 0, fachee: -2, emue: 4 },
   eyes: { neutre: ['wry', 'wry'] },

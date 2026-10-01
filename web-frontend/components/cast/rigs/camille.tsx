@@ -74,7 +74,7 @@ export const camille: RigDef = {
   id: 'camille_marchand',
   name: 'Camille',
   head: [100, 150],
-  crops: { full: [0, 0, 200, 420], bust: [10, 60, 180, 256], head: [26, 72, 148, 148] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 72, 180, 220], head: [26, 72, 148, 148] },
   idle: { kind: 'bob', seconds: 4.6, amount: 1 },
   tilt: { neutre: 0, ravie: 3, surprise: -2, fachee: 0, emue: -4 },
   eyes: { neutre: ['level', 'level'] },

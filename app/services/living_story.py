@@ -7266,6 +7266,8 @@ def bind_journey(
                 generation_metadata={
                     "source": "ai",
                     "image_source": "setting_reference",
+                    # WP-116: the plate stays known after a drawing replaces image_url.
+                    "plate_url": panel_image,
                     "usage": brief.story_context["generation_usage"] if index == 0 else [],
                 },
             )

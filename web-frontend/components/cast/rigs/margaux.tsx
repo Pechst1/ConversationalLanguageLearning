@@ -84,7 +84,7 @@ export const margaux: RigDef = {
   id: 'margaux_barman',
   name: 'Margaux',
   head: [100, 150],
-  crops: { full: [0, 0, 200, 420], bust: [10, 40, 180, 256], head: [22, 52, 156, 156] },
+  crops: { full: [0, 0, 200, 420], bust: [10, 44, 180, 220], head: [22, 52, 156, 156] },
   idle: { kind: 'bob', seconds: 4.2, amount: 1.6 },
   tilt: { neutre: -4, ravie: 4, surprise: 2, fachee: 0, emue: -7 },
   eyes: { neutre: ['wry', 'wry'] },

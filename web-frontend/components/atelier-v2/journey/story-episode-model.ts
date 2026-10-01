@@ -188,6 +188,7 @@ export function storyPagePanels(
     alt_native: row.alt_native ?? null,
     image_url: row.image_url,
     image_status: row.image_status,
+    plate_url: (row as { plate_url?: string | null }).plate_url ?? null,
     dialogue: row.dialogue as unknown as StoryPanel['dialogue'],
     movement: row.movement,
   }));
@@ -288,6 +289,9 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       caption: stripPanelPrefix(panel.narration_fr),
       tasks: [],
       ...(panel.movement ? { movement: panel.movement } : {}),
+      // WP-116: the plate and the cast for the drawn art set.
+      plateUrl: panelPlateUrl(panel),
+      cast: panelCast(lines),
     };
   });
 
@@ -305,6 +309,30 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
     });
   }
   return stages;
+}
+
+/**
+ * WP-116: the plate under a panel. The server sends `plate_url`; an undrawn panel's
+ * own image is its plate. A painted drawing is never a plate (it has people in it).
+ */
+export function panelPlateUrl(panel: StoryPanel & { plate_url?: string | null }): string {
+  if (panel.plate_url) return panel.plate_url;
+  if (panel.image_url && (panel.image_status === 'setting_reference' || panel.image_status === 'rendering')) return panel.image_url;
+  return '';
+}
+
+/** WP-116: the panel's speakers, in order, the first one speaking. Toi is not in it. */
+export function panelCast(lines: ReaderLine[]): Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }> {
+  const cast: Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }> = [];
+  const seen = new Set<string>();
+  for (const line of lines) {
+    if (line.you) continue;
+    const id = line.speakerId || line.who;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    cast.push({ id, mood: line.faceMood ?? null, speaking: cast.length === 0 });
+  }
+  return cast;
 }
 
 const SHOWN_ART = new Set(['panel_art', 'rendering', 'setting_reference']);

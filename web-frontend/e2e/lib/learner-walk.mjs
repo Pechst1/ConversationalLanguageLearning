@@ -374,7 +374,7 @@ export class LearnerWalk {
     // An authored stand-in day (the café fallback) has no engine page: it keeps
     // its plain panels and the reply box under them.
     const authored = (await page.locator('.fa-day[data-authored]').count()) > 0;
-    const seen = { movements: [], you: [], aSuivre: false, panels: 0, authored, replyBox: (await page.locator('[data-reply]').count()) > 0 };
+    const seen = { movements: [], you: [], aSuivre: false, panels: 0, castPanels: 0, authored, replyBox: (await page.locator('[data-reply]').count()) > 0 };
     for (let i = 0; i < 40; i += 1) {
       // WP-115b: once a day, a word a character says is kept («Garder»), as a learner
       // would — so the drill has a word from the story to bring back in its own line.
@@ -386,6 +386,8 @@ export class LearnerWalk {
       seen.panels += 1;
       for (const text of await page.locator('.fr-bubble[data-you]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
       if (await page.locator('[data-a-suivre]').count()) seen.aSuivre = true;
+      // WP-116: in the drawn set the people stand on the plate.
+      if (await page.locator('.fr-stage .cast-stage__figure').count()) seen.castPanels += 1;
       await this.shoot(`page-${movement}`);
       const position = (await stage.getAttribute('aria-label')) || '';
       const [, at, of] = position.match(/(\d+)\D+(\d+)/) || [];

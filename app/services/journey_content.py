@@ -1241,6 +1241,8 @@ def authored_panels(variant: dict[str, Any], *, fallback_image_url: str | None) 
                 ],
                 "image_url": drawn or fallback_image_url,
                 "image_status": "panel_art" if drawn else ("setting_reference" if fallback_image_url else "unavailable"),
+                # WP-116: the scenario's plate, under the drawn cast.
+                "plate_url": fallback_image_url,
             }
         )
     return panels

@@ -50,3 +50,26 @@
     animation: none;
   }
 }
+
+/* WP-116 phase 3: the cast on a panel's plate (components/cast/PanelStage.tsx). */
+.cast-stage {
+  position: absolute;
+  inset: 0;
+  /* its own layer, under the balloon that follows it in the plate */
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cast-stage__figure {
+  position: absolute;
+  /* every bust crop is 180 × 220: a fixed ratio, so a figure near the right edge
+     keeps its width instead of shrinking to the space left of it */
+  aspect-ratio: 180 / 220;
+  transform: translateX(-50%);
+}
+
+.cast-stage__figure .cast-rig {
+  width: 100%;
+  height: 100%;
+}

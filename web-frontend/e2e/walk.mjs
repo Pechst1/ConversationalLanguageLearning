@@ -69,6 +69,12 @@ async function makeLearner({ native, level, dayCount, tag }) {
     locale: native === 'fr' ? 'fr-FR' : native === 'de' ? 'de-DE' : 'en-GB',
   });
   await context.addCookies([{ name: 'next-auth.session-token', value: learner.cookie, url: stack.web }]);
+  // WP-116: WALK_ART_SET=drawn walks the drawn cast (the device switch, as Settings sets it).
+  if (process.env.WALK_ART_SET) {
+    await context.addInitScript((value) => {
+      try { window.localStorage.setItem('atelier.artSet', value); } catch { /* storage refused */ }
+    }, process.env.WALK_ART_SET);
+  }
   const label = tag === 'b1' ? `${native}-${level}` : tag === 'season' ? `season-${native}` : native;
   const walk = new LearnerWalk({ page: null, findings, outDir: path.join(outDir, label), lang: native, level, stack, shots, scale });
   await walk.newSession(context);
@@ -153,6 +159,9 @@ async function readPage(l, day) {
   findings.check('page-draws-your-line', seen.you.length >= 1, `day ${day}: no balloon of yours in ${seen.panels} panels (${seen.movements.join(' > ')})`, where);
   findings.check('page-has-the-six-movements', seen.movements.includes('turn') && seen.movements.includes('reaction'), `day ${day}: ${seen.movements.join(' > ')}`, where);
   findings.check('page-ends-a-suivre', seen.aSuivre || seen.movements[seen.movements.length - 1] === 'resolution', `day ${day}: the page never reached its ending (${seen.movements.join(' > ')})`, where);
+  if (process.env.WALK_ART_SET === 'drawn') {
+    findings.check('page-draws-the-cast', seen.castPanels >= Math.min(3, seen.panels), `day ${day}: people on ${seen.castPanels} of ${seen.panels} panels`, where);
+  }
   if (seen.you.length) l.covered.add('page');
 }
 
