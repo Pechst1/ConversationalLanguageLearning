@@ -6454,6 +6454,10 @@ export interface components {
         EpisodeHeadline: {
             /** Cast */
             cast: components["schemas"]["HeadlineCastMember"][];
+            /** Cast Variants */
+            cast_variants: {
+                [key: string]: string;
+            };
             /** Edition No */
             edition_no: number | null;
             /** Image Url */

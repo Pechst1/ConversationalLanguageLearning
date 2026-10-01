@@ -16,6 +16,8 @@
 import React, { useEffect, useState } from 'react';
 
 import { faceSrcFor } from '@/lib/cast-faces';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
@@ -238,16 +240,21 @@ export function Portrait({ name, characterId = null, mood = 'neutral', size = 'm
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [face]);
   const showFace = Boolean(face) && !failed;
+  // WP-116: the drawn art set puts the character's rig in the disc.
+  const drawn = useArtSet() === 'drawn' && drawnFaceId(characterId, name) !== null;
   return (
     <span
       className={['av2-portrait', size === 'sm' ? 'av2-portrait--sm' : null]
         .filter(Boolean)
         .join(' ')}
       style={accent ? ({ ['--av2-char' as string]: accent } as React.CSSProperties) : undefined}
-      data-face={showFace ? mood : undefined}
+      data-face={drawn || showFace ? mood : undefined}
+      data-art={drawn ? 'drawn' : undefined}
       aria-hidden="true"
     >
-      {showFace ? (
+      {drawn ? (
+        <CastFace seeds={[characterId, name]} mood={mood} size={size === 'sm' ? 28 : 40} />
+      ) : showFace ? (
         // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
         <img key={face} src={face as string} alt="" decoding="async" onError={() => setFailed(true)} />
       ) : (

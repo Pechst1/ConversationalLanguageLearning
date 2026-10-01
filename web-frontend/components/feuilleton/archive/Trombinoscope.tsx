@@ -23,6 +23,11 @@ import type { ControlLanguage } from '@/types/daily-journey';
 import { archiveCopy, archiveDate, faFill } from './archive-copy';
 import { TrustMeter } from './ArchiveMarks';
 import { castRegister, castTrust, knownAboutYou, registerLine } from './trombinoscope-model';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
+
+/** WP-116: the archive card's portrait disc, in px (ArchiveStyles `.fa-portrait`). */
+const PORTRAIT_PX = 64;
 
 const AVATAR_REFERENCE_ASSET = 'assets/serial/characters/user/model-sheet.webp';
 
@@ -137,6 +142,8 @@ export function CastCard({ member, language = null }: { member: SerialCastMember
   const moodKey = MOOD_LINES[Math.round(mood)];
   const moodLine = moodKey ? fbFill(fb[moodKey], { name: member.name }) : '';
   const face = faceSrcFor([member.id, member.name], expressionForMood(mood));
+  // WP-116: the drawn art set shows the character's rig, in the same mood.
+  const drawn = useArtSet() === 'drawn' && drawnFaceId(member.id, member.name) !== null;
   const { register } = castRegister(member as any);
   const trust = castTrust(member as any);
   const known = knownAboutYou(member as any);
@@ -150,8 +157,10 @@ export function CastCard({ member, language = null }: { member: SerialCastMember
       style={member.accent_colour ? ({ ['--cast-accent' as string]: member.accent_colour } as React.CSSProperties) : undefined}
     >
       <div className="fa-card__top">
-        <span className="fa-portrait" aria-hidden="true">
-          {face ? (
+        <span className="fa-portrait" aria-hidden="true" data-art={drawn ? 'drawn' : undefined}>
+          {drawn ? (
+            <CastFace seeds={[member.id, member.name]} mood={expressionForMood(mood)} size={PORTRAIT_PX} />
+          ) : face ? (
             // WP-77: the face that matches how they feel about you right now.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={face} alt="" data-mood={expressionForMood(mood)} />

@@ -18,6 +18,7 @@
  * in tests/test_core_mobile_edge_flows.py reads.
  */
 
+import { setArtSet, useArtSet } from '@/lib/art-set';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -494,6 +495,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         nativeLanguageKnown ? settings.nativeLanguage : null,
     );
     const copy = settingsCopy(copyLanguage);
+    const castArt = useArtSet();
     const legalLanguage = resolveLegalLanguage(copyLanguage);
     const legalCopy = SETTINGS_LEGAL_COPY[legalLanguage];
 
@@ -1463,6 +1465,18 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     ]}
                                     value={settings.fontSize}
                                     onChange={(value) => updateSetting('fontSize', value)}
+                                />
+                            </Row>
+                            {/* WP-116: drawn rigs or the painted portraits. Device-local and instant, so the owner can swap back at any time. */}
+                            <Row label={copy.row_cast_art} hint={copy.row_cast_art_hint} stacked>
+                                <Segmented
+                                    label={copy.row_cast_art}
+                                    options={[
+                                        { value: 'drawn' as const, label: copy.cast_art_drawn },
+                                        { value: 'painted' as const, label: copy.cast_art_painted },
+                                    ]}
+                                    value={castArt}
+                                    onChange={(value) => setArtSet(value)}
                                 />
                             </Row>
                         </div>

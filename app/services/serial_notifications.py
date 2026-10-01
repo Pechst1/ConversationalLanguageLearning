@@ -308,7 +308,24 @@ def portrait_path(character_id: Any, mood: str | None = None) -> str | None:
 
     key = portrait_character(character_id)
     face = mood if mood in PORTRAIT_FACES else "neutral"
-    return f"/assets/serial/characters/{key}/portrait-{face}.webp" if key else None
+    if not key:
+        return None
+    if drawn_art():
+        # WP-116: the drawn cast's PNG snapshot (web-frontend/scripts/render-rigs.mjs).
+        return f"/assets/serial/drawn/{key}/portrait-{DRAWN_FACES[face]}.png"
+    return f"/assets/serial/characters/{key}/portrait-{face}.webp"
+
+
+#: WP-116: the painted face names → the drawn rigs' moods.
+DRAWN_FACES = {"neutral": "neutre", "happy": "ravie", "cross": "fachee"}
+
+
+def drawn_art() -> bool:
+    """WP-116: is the drawn art set on for everyone (``ATELIER_ART_SET=drawn``)?"""
+
+    from app.config import settings
+
+    return str(getattr(settings, "ATELIER_ART_SET", "painted") or "").strip().lower() == "drawn"
 
 
 #: The drawn faces every cast member has (``portrait-<face>.webp``).

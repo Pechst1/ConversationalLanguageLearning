@@ -109,3 +109,29 @@ export function faceSrcFor(seeds: unknown[], mood: PortraitMood = 'neutral'): st
   const id = castIdFor(...seeds);
   return id ? portraitSrc(id, mood) : null;
 }
+
+/**
+ * WP-116: the drawn cast reaches further than the painted portraits did. Camille
+ * and Odile have rigs; the learner never has a face. Returns the rig id, or `null`
+ * for anyone outside the drawn cast (minor characters keep their initial).
+ */
+const DRAWN_ONLY: Array<[string, string[]]> = [
+  ['camille_marchand', ['camille']],
+  ['odile_ferrand', ['odile']],
+];
+
+export function drawnCastIdFor(...seeds: unknown[]): string | null {
+  for (const seed of seeds) {
+    const raw = fold(seed).trim();
+    if (!raw) continue;
+    const asId = raw.replace(/[\s-]+/g, '_');
+    if (asId === 'camille_marchand' || asId === 'odile_ferrand') return asId;
+    const tokens = new Set(raw.split(/[^a-z0-9]+/).filter(Boolean));
+    for (const [id, names] of DRAWN_ONLY) {
+      if (names.some((name) => tokens.has(name))) return id;
+    }
+    const painted = castIdFor(seed);
+    if (painted) return painted;
+  }
+  return null;
+}

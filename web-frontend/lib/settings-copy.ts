@@ -192,6 +192,10 @@ export type SettingsCopyKey =
   | 'theme_system'
   | 'row_font_size'
   | 'row_font_size_hint'
+  | 'row_cast_art'
+  | 'row_cast_art_hint'
+  | 'cast_art_drawn'
+  | 'cast_art_painted'
   | 'font_small'
   | 'font_medium'
   | 'font_large'
@@ -404,6 +408,10 @@ const EN: SettingsCopy = {
   theme_system: 'System',
   row_font_size: 'Body text',
   row_font_size_hint: 'Applies everywhere, right away.',
+  row_cast_art: 'Characters',
+  row_cast_art_hint: 'Drawn or painted. On this device only, right away.',
+  cast_art_drawn: 'Drawn',
+  cast_art_painted: 'Painted',
   font_small: 'Small',
   font_medium: 'Medium',
   font_large: 'Large',
@@ -615,6 +623,10 @@ const DE: SettingsCopy = {
   theme_system: 'System',
   row_font_size: 'Schriftgröße',
   row_font_size_hint: 'Gilt sofort überall.',
+  row_cast_art: 'Figuren',
+  row_cast_art_hint: 'Gezeichnet oder gemalt. Nur auf diesem Gerät, sofort.',
+  cast_art_drawn: 'Gezeichnet',
+  cast_art_painted: 'Gemalt',
   font_small: 'Klein',
   font_medium: 'Mittel',
   font_large: 'Groß',
@@ -831,6 +843,10 @@ const FR: SettingsCopy = {
   theme_system: 'Système',
   row_font_size: 'Corps du texte',
   row_font_size_hint: 'S’applique partout, tout de suite.',
+  row_cast_art: 'Personnages',
+  row_cast_art_hint: 'Dessinés ou peints. Sur cet appareil, tout de suite.',
+  cast_art_drawn: 'Dessinés',
+  cast_art_painted: 'Peints',
   font_small: 'Petit',
   font_medium: 'Moyen',
   font_large: 'Grand',

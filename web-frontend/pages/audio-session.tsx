@@ -36,6 +36,8 @@ import { useChromeLanguage } from '@/lib/learner-language';
 import { fillStudio, studioCopy, type StudioCopy } from '@/lib/studio-copy';
 import { useAppSession } from '@/lib/app-auth';
 import apiService from '@/services/api';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 
 type Status = 'idle' | 'selecting' | 'starting' | 'listening' | 'processing' | 'speaking' | 'ended';
 type CastMember = {
@@ -663,11 +665,15 @@ export default function AudioSessionPage() {
 
 function CastHeader({ cast, t }: { cast: CastMember | null; t: StudioCopy }) {
   const [imageFailed, setImageFailed] = useState(false);
+  // WP-116: the drawn art set shows the caller's rig.
+  const drawn = useArtSet() === 'drawn' && Boolean(cast) && drawnFaceId(cast?.id, cast?.name) !== null;
   const initials = (cast?.name || 'Le Studio').split(/\s+/).map((part) => part[0]).join('').slice(0, 2);
   return (
     <div className="studio-cast">
       <div className="studio-portrait">
-        {cast?.model_sheet_url && !imageFailed
+        {drawn && cast
+          ? <CastFace seeds={[cast.id, cast.name]} size={56} />
+          : cast?.model_sheet_url && !imageFailed
           ? <Image src={cast.model_sheet_url} alt="" fill sizes="56px" onError={() => setImageFailed(true)} />
           : <span aria-hidden="true">{initials}</span>}
       </div>

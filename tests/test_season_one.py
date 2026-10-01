@@ -1039,3 +1039,15 @@ def _live_model(monkeypatch) -> dict:
 
     monkeypatch.setattr(story_lanes, "dispatcher", lambda job: story_lanes.run_story_job(job))
     return spend
+
+
+def test_headline_sends_camille_look_only_once_chosen():
+    """WP-116: the drawn Camille follows the learner's T1 Day B choice; before it, nothing."""
+
+    from app.services.season.clock import SEASON_KEY
+    from app.services.story_headline import cast_variants
+
+    assert cast_variants({}) == {}
+    assert cast_variants({SEASON_KEY: {"flags": {}}}) == {}
+    assert cast_variants({SEASON_KEY: {"flags": {"s1.camille_gender": "m"}}}) == {"camille_marchand": "m"}
+    assert cast_variants({SEASON_KEY: {"flags": {"s1.camille_gender": "x"}}}) == {}

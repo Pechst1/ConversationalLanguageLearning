@@ -7,12 +7,16 @@
  * Falls back to the av2 initial disc (the character's accent colour) when the
  * character has no drawn portrait or the image fails to load, so a missing
  * file is never a broken-image icon.
+ *
+ * WP-116: with the drawn art set on, the disc holds the character's SVG rig.
  */
 
 import React from 'react';
 
 import { characterAccent } from './Feedback';
 import { castIdFor } from '@/lib/cast-faces';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { portraitInitial, portraitSrc, type PortraitMood } from '@/lib/onboarding-portraits';
 
 export type CastPortraitProps = {
@@ -49,6 +53,8 @@ export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md',
   const src = portraitSrc(castId ?? characterId, mood);
   const [failed, setFailed] = React.useState(false);
   React.useEffect(() => setFailed(false), [src]);
+  // WP-116: in the drawn set the disc holds the character's rig instead of the painted portrait.
+  const drawn = useArtSet() === 'drawn' && drawnFaceId(characterId, name) !== null;
 
   const px = PX[size];
   const accent =
@@ -66,9 +72,12 @@ export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md',
       data-size={size}
       data-mood={mood}
       data-edge={ring ? 'char' : undefined}
+      data-art={drawn ? 'drawn' : undefined}
       style={style}
     >
-      {src && !failed ? (
+      {drawn ? (
+        <CastFace seeds={[characterId, name]} mood={mood} size={px} />
+      ) : src && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
         <img
           key={src}
@@ -95,6 +104,9 @@ export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md',
           border-radius: 50%;
           background: var(--av2-char, var(--av2-line));
           box-shadow: 0 0 0 2px var(--av2-paper), 0 0 0 3px var(--av2-line);
+        }
+        .ob-portrait[data-art='drawn'] {
+          background: var(--av2-card);
         }
         .ob-portrait[data-edge='char'] {
           box-shadow: 0 0 0 2px var(--av2-card), 0 0 0 4px var(--av2-char, var(--av2-line-2));

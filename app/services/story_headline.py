@@ -99,6 +99,22 @@ def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None,
     return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
+def cast_variants(live: dict) -> dict[str, str]:
+    """WP-116: how the drawn cast looks for this learner — only what the learner chose.
+
+    Camille's look follows the learner's choice in T1 Day B (``s1.camille_gender``).
+    Before that choice nothing is sent, and the client keeps Camille's face hidden
+    (the side view and the helmet of T1 P8), never guessing.
+    """
+
+    from app.services.season.clock import SEASON_KEY
+    from app.services.season.flags import stored_flags
+
+    flags = stored_flags((live or {}).get(SEASON_KEY))
+    gender = flags.get("s1.camille_gender")
+    return {"camille_marchand": gender} if gender in ("f", "m") else {}
+
+
 def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date: Any = None) -> dict[str, Any] | None:
     """``{edition_no, title_fr, teaser_fr, season_title_fr, cast: [{id, name}]}`` or None."""
 
@@ -163,6 +179,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             # the tentpole's opening place.
             "image_url": image,
             "cast": [{"id": who, "name": names.get(who) or more.get(who) or who.split("_")[0].title()} for who in cast],
+            "cast_variants": cast_variants(live),
         }
     except Exception:  # noqa: BLE001 - a headline never costs Home
         logger.exception("story_headline: headline unavailable")

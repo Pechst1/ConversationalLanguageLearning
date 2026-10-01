@@ -59,6 +59,8 @@ import {
   saveResumeActivity,
   writeReviewContextCache,
 } from '@/lib/pilot-resilience';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -350,12 +352,17 @@ function decrementSummaryCount(value: number | undefined) {
 function ReviewPortrait({ item }: { item: VocabularyRecommendationItem }) {
   const t = useLexCopy();
   const [failed, setFailed] = useState(false);
+  // WP-116: the drawn art set shows the character's rig beside the word.
+  const artSet = useArtSet();
   const anchor = item.episodic_anchor;
   if (!anchor) return null;
   const name = anchor.character_name || 'Le Feuilleton';
+  const drawn = artSet === 'drawn' && drawnFaceId(anchor.character_name) !== null;
   return (
     <span className="av2-byline lx-cast" title={fill(t.anchored_with, { name })}>
-      {anchor.portrait_url && !failed ? (
+      {drawn ? (
+        <span className="lx-cast__portrait lx-cast__portrait--drawn"><CastFace seeds={[anchor.character_name]} size={22} /></span>
+      ) : anchor.portrait_url && !failed ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
           className="lx-cast__portrait"
@@ -1378,6 +1385,7 @@ export default function VocabularyReviewPage() {
            paper ground instead of the card's own colour. */
         .av2 .lx-cast { gap: 6px; }
         .av2 .lx-cast .av2-label { color: inherit; opacity: 0.85; }
+        .av2 .lx-cast__portrait--drawn { display: inline-block; overflow: hidden; background: var(--av2-card); }
         .av2 .lx-cast__portrait { width: 22px; height: 22px; border-radius: var(--av2-r-pill); object-fit: cover; object-position: top center; background: var(--av2-line); }
         .av2 .lx-cue { background: var(--av2-paper); color: var(--av2-ink); }
         .av2 .lx-card__history { background: var(--av2-paper); }

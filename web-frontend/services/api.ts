@@ -1,4 +1,5 @@
 import type { components } from '@/types/generated/api';
+import { rememberCastVariants } from '@/lib/cast-variants';
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
 import type { RuleCardData } from '@/lib/rule-card';
@@ -3133,7 +3134,10 @@ class ApiService {
 
   async getDailyJourneyToday(timezone?: string): Promise<TodayEnvelope> {
     const query = timezone ? `?timezone=${encodeURIComponent(timezone)}` : '';
-    return this.get<TodayEnvelope>(`/daily-journeys/today${query}`, this.journeyConfig());
+    const envelope = await this.get<TodayEnvelope>(`/daily-journeys/today${query}`, this.journeyConfig());
+    // WP-116: the drawn cast's looks for this learner (Camille after T1 Day B).
+    rememberCastVariants((envelope?.headline as { cast_variants?: Record<string, string> } | null | undefined)?.cast_variants);
+    return envelope;
   }
 
   async getDailyJourney(journeyId: string): Promise<JourneySnapshot> {

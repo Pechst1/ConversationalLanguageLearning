@@ -2433,6 +2433,8 @@
   object-fit: cover;
 }
 .av2 .av2-portrait--sm[data-face] { width: 28px; height: 28px; }
+/* WP-116: a drawn face sits on the card colour, not on the accent disc. */
+.av2 .av2-portrait[data-art='drawn'] { background: var(--av2-card); }
 
 /* The character reacting to the verdict: small, at the band's end. */
 .av2 .av2-feedback__face { flex: none; margin-left: auto; align-self: center; }

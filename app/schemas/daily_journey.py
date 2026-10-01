@@ -953,6 +953,9 @@ class EpisodeHeadline(JourneyModel):
     #: The episode's picture: the scene's first panel, else its opening place.
     image_url: str | None = None
     cast: list[HeadlineCastMember] = Field(default_factory=list)
+    #: WP-116: the drawn cast's per-learner looks, e.g. ``{"camille_marchand": "f"}``.
+    #: Only choices the learner has made; empty before them.
+    cast_variants: dict[str, str] = Field(default_factory=dict)
 
 
 class TodayEnvelope(JourneyModel):
