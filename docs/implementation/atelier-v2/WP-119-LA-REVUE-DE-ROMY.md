@@ -408,4 +408,5 @@ depends on it. The day the season reads a dossier is a WP of its own.
 
 | Phase | Commit | What landed |
 |---|---|---|
-| — | — | Defined 2026-10-02; revised the same day after the owner's review; nothing built |
+| — | — | Defined 2026-10-02; revised the same day after the owner's review |
+| 0 | cbc3966 | `app/services/revue/` (dossier, session, state, checks, policy, evergreen loader + 12 sourced evergreens), five `REVUE_*` flags, sensitive list moved to policy; Toi's eight outfits and the Revue-only rule in `PanelStage`; the design spec `WP-119-DESIGN.md` and 8 mockup pages under `docs/design-reference/revue/`. 85 revue tests. Known limits: evergreen windows are 2026 only (README); the anchor entailment and attribution opinion tests are lexical heuristics until the phase-1 critic judge; the design's compact La Une card supersedes §5.1's three-story card (Home budget, `home.test.js`) |
