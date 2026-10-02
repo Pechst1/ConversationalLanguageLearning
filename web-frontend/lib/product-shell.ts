@@ -76,6 +76,7 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
 const OWN_SHELL_ROUTES = new Set([
   '/atelier',
   '/revue',
+  '/carte',
   '/missions',
   '/graphic-novel',
   '/serial',

@@ -29,6 +29,8 @@ import '@/styles/atelier-v2-voices.css';
 import '@/styles/cast-rig.css';
 // WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
 import '@/styles/revue.css';
+// WP-120: La Carte (components/carte), scoped under `.av2`.
+import '@/styles/carte.css';
 
 // Create a client
 const queryClient = new QueryClient({
