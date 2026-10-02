@@ -1,0 +1,104 @@
+{
+  "id": "evergreen-beaujolais-nouveau",
+  "dossier_version": "revue-v1",
+  "week": "2026-W47",
+  "topic": "food",
+  "title_fr": "Le beaujolais nouveau arrive",
+  "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+      "source_id": "beaujolais_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+      "source_id": "beaujolais_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "quote": "elle fut fixée au 15 novembre jusqu'en 1985, année lors de laquelle elle fut fixée au troisième jeudi de novembre, d'une part pour des raisons de calendrier, car il tombait trop près du jour férié du 11 novembre",
+      "source_id": "beaujolais_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+      "source_id": "beaujolais_inter",
+      "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+      "published_at": "2025-01-07",
+      "confidence": "reported",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Beaujolais",
+      "kind": "place"
+    },
+    {
+      "name": "Inter Beaujolais",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+    "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "vignoble_beaujolais",
+      "name_fr": "Les vignes du Beaujolais en novembre",
+      "brief": "rows of bare autumn vines on golden-stone hills, a small stone hut, low November mist over the valley",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-11-19/2026-11-29",
+    "relevant_until": "2026-12-13"
+  },
+  "sources": [
+    {
+      "id": "beaujolais_wikipedia",
+      "name": "Wikipédia, « Beaujolais nouveau »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27"
+    },
+    {
+      "id": "beaujolais_inter",
+      "name": "Inter Beaujolais (beaujolais.com)",
+      "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+      "published_at": "2025-01-07"
+    }
+  ],
+  "evergreen": true
+}

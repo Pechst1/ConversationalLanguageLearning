@@ -5,6 +5,23 @@
  * Claude Design canvas). Its body is fixed art in `rigs/<id>.tsx`; its face is
  * computed here from a small definition, so a mood, a mouth shape or a blink
  * changes a handful of path strings and nothing else.
+ *
+ * WP-119 §8.2 · `outfit`, the first new field of the stage language (WP-116 §12).
+ * Toi draws the torso from it, seen from behind; the head, the tuque, the hands,
+ * the legs, the bag and the posture never change, nor do the crops. A rig lists the
+ * outfits it can draw in `RigDef.outfits`; any other outfit renders as if absent.
+ *
+ *   coat        the heavy coat and the red scarf (default, canon)
+ *   suit        a narrower navy jacket with a centre vent, a shirt collar, no scarf
+ *   apron       a jumper with a long bistro apron tied at the back, no scarf
+ *   raincoat    a longer blue coat with a yoke seam, the scarf kept
+ *   sport       a short red track jacket with a stripe down each sleeve, no scarf
+ *   scarf_only  no coat: a jumper and the red scarf
+ *   chef        a white jacket with the double row of buttons, the scarf as a neckerchief
+ *   hi_vis      a yellow work jacket with two reflective bands
+ *
+ * Revue only: the heavy coat stays canon in the story (WP-118). `PanelStage` drops
+ * `outfit` unless `surface === 'revue'`; season panels never pass it.
  */
 import type { ReactElement } from 'react';
 
@@ -13,6 +30,10 @@ export type Viseme = 'rest' | 'a' | 'o' | 'e' | 'm' | 'f';
 export type RigCrop = 'full' | 'bust' | 'head';
 export type EyeState = 'open' | 'wry' | 'heavy' | 'level' | 'wide' | 'cross' | 'sad' | 'happy' | 'shut';
 export type IdleKind = 'bob' | 'bounce' | 'sway' | 'nod';
+
+export type Outfit = 'coat' | 'suit' | 'apron' | 'raincoat' | 'sport' | 'scarf_only' | 'chef' | 'hi_vis';
+
+export const OUTFITS: readonly Outfit[] = ['coat', 'suit', 'apron', 'raincoat', 'sport', 'scarf_only', 'chef', 'hi_vis'];
 
 export const RIG_MOODS: readonly RigMood[] = ['neutre', 'ravie', 'surprise', 'fachee', 'emue'];
 export const VISEMES: readonly Viseme[] = ['rest', 'a', 'o', 'e', 'm', 'f'];
@@ -44,6 +65,8 @@ export interface RigProps {
   blink: boolean;
   hold?: string;
   variant?: string;
+  /** WP-119 · what Toi wears; absent means `coat`. Rigs that do not list it ignore it. */
+  outfit?: Outfit;
 }
 
 export interface EyeValues {
@@ -92,6 +115,8 @@ export interface RigDef {
   lips?: string;
   holds?: readonly string[];
   variants?: readonly string[];
+  /** WP-119 · the outfits this rig can draw (Toi: all of them; the others: none). */
+  outfits?: readonly Outfit[];
   extra?: (props: RigProps) => Record<string, string>;
   Art: (props: { v: RigValues }) => ReactElement;
 }

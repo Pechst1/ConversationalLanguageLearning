@@ -13,6 +13,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.services.revue.policy import SENSITIVE_TERMS
 from app.utils.cache import build_cache_key, cache_backend
 
 
@@ -65,25 +66,7 @@ class NewsService:
             "source_type": "satire_reference",
         },
     ]
-    FEUILLETON_SENSITIVE_TERMS = (
-        "abus",
-        "agression sexuelle",
-        "assassinat",
-        "attentat",
-        "décès",
-        "disparition",
-        "fusillade",
-        "guerre",
-        "meurtre",
-        "mort ",
-        "mortel",
-        "otage",
-        "pédocriminalité",
-        "suicide",
-        "terrorisme",
-        "viol ",
-        "violence conjugale",
-    )
+    FEUILLETON_SENSITIVE_TERMS = SENSITIVE_TERMS
     FEUILLETON_COMIC_TERMS = (
         "annonce",
         "assemblée",

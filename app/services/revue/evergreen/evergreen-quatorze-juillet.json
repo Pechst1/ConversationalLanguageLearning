@@ -1,0 +1,109 @@
+{
+  "id": "evergreen-quatorze-juillet",
+  "dossier_version": "revue-v1",
+  "week": "2026-W28",
+  "topic": "culture",
+  "title_fr": "Le 14 juillet : défilé, feu d'artifice et bal",
+  "summary_fr": "Le 14 juillet, c'est la fête nationale. Le matin, il y a un défilé militaire sur les Champs-Élysées ; le soir, des feux d'artifice ; et dans beaucoup de casernes, les pompiers organisent un bal ouvert à tous.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque 14 juillet, un défilé militaire a lieu sur les Champs-Élysées, à Paris.",
+      "quote": "Un défilé militaire a lieu chaque 14 juillet sur les Champs-Élysées de Paris.",
+      "source_id": "quatorze_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_nationale_fran%C3%A7aise&oldid=239238926",
+      "published_at": "2026-09-05",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le feu d'artifice peut être tiré dès le soir du 13 juillet.",
+      "quote": "Le feu d'artifice peut être tiré la veille au soir (13 juillet).",
+      "source_id": "quatorze_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_nationale_fran%C3%A7aise&oldid=239238926",
+      "published_at": "2026-09-05",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le soir du 14 juillet, ou la nuit du 13, les pompiers ouvrent leur caserne pour le bal des pompiers.",
+      "quote": "Le bal des pompiers est célébré le soir du 14 juillet en France ou la nuit du 13 juillet. Durant cette journée, les pompiers font découvrir leur caserne.",
+      "source_id": "quatorze_wikipedia_bal",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Bal_des_pompiers&oldid=237812977",
+      "published_at": "2026-07-14",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "On date souvent le premier bal ouvert au public de 1937 ; mais selon Patrice Harvard, la caserne de Montmartre invitait peut-être déjà des civils en 1926.",
+      "quote": "Patrice Harvard, ancien directeur du musée de la brigade des sapeurs-pompiers de Paris, explique que la caserne Montmartre aurait déjà convié des civils à la fête en 1926.",
+      "source_id": "quatorze_wikipedia_bal",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Bal_des_pompiers&oldid=237812977",
+      "published_at": "2026-07-14",
+      "confidence": "reported",
+      "attributed_to": "Patrice Harvard, ancien directeur du musée de la brigade des sapeurs-pompiers de Paris"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Champs-Élysées",
+      "kind": "place"
+    },
+    {
+      "name": "Brigade de sapeurs-pompiers de Paris",
+      "kind": "organisation"
+    },
+    {
+      "name": "Patrice Harvard",
+      "kind": "person",
+      "role": "ancien directeur du musée de la brigade des sapeurs-pompiers de Paris"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas quelles casernes organisent un bal cette année.",
+    "Les sources ne disent pas si l'entrée des bals est gratuite partout."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Une journée de 14 juillet, du défilé au bal",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "D'où vient le bal des pompiers ? Deux versions de l'histoire",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "caserne_bal_pompiers",
+      "name_fr": "La cour d'une caserne de pompiers le soir du bal",
+      "brief": "a fire-station courtyard at dusk with string lights, a red fire engine parked by the open doors, folding tables and a small wooden dance floor",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-07-06/2026-07-19",
+    "relevant_until": "2026-08-02"
+  },
+  "sources": [
+    {
+      "id": "quatorze_wikipedia",
+      "name": "Wikipédia, « Fête nationale française »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_nationale_fran%C3%A7aise&oldid=239238926",
+      "published_at": "2026-09-05"
+    },
+    {
+      "id": "quatorze_wikipedia_bal",
+      "name": "Wikipédia, « Bal des pompiers »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Bal_des_pompiers&oldid=237812977",
+      "published_at": "2026-07-14"
+    }
+  ],
+  "evergreen": true
+}

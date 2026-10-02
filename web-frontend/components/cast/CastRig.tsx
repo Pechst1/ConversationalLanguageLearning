@@ -13,7 +13,7 @@ import React, { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { rigFor } from './cast-registry';
 import { rigValues } from './rig-kit';
-import type { RigCrop, RigMood, Viseme } from './rig-kit';
+import type { Outfit, RigCrop, RigMood, Viseme } from './rig-kit';
 
 export interface CastRigProps {
   id: string;
@@ -26,6 +26,11 @@ export interface CastRigProps {
   size?: number;
   hold?: string;
   variant?: string;
+  /**
+   * WP-119 · what the figure wears (Toi only). A rig that does not list the outfit
+   * in `RigDef.outfits` draws as if it were absent.
+   */
+  outfit?: Outfit;
   /** No idle and no blinking: the learner is reading or typing. */
   still?: boolean;
   /** Accessible name; defaults to the character's name. Empty string hides it. */
@@ -72,6 +77,7 @@ export function CastRig({
   size = 120,
   hold,
   variant,
+  outfit,
   still = false,
   label,
   className,
@@ -79,7 +85,8 @@ export function CastRig({
   const rig = rigFor(id);
   const autoBlink = useAutoBlink(blink === undefined && !still && Boolean(rig) && !rig?.faceless);
   if (!rig) return null;
-  const values = rigValues(rig, { mood, mouth, blink: blink ?? autoBlink, hold, variant });
+  const worn = outfit && rig.outfits?.includes(outfit) ? outfit : undefined;
+  const values = rigValues(rig, { mood, mouth, blink: blink ?? autoBlink, hold, variant, outfit: worn });
   const box = rig.crops[crop] ?? rig.crops.full;
   const height = Math.round((size * box[3]) / box[2]);
   const Art = rig.Art;

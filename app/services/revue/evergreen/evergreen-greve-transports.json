@@ -1,0 +1,104 @@
+{
+  "id": "evergreen-greve-transports",
+  "dossier_version": "revue-v1",
+  "week": "2026-W01",
+  "topic": "work",
+  "title_fr": "Un jour de grève dans les transports",
+  "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+      "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+      "source_id": "greve_ecologie",
+      "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+      "published_at": "2018-05-25",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+      "source_id": "greve_wikipedia_service_minimum",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+      "source_id": "greve_wikipedia_service_minimum",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+      "source_id": "greve_wikipedia_service_minimum",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24",
+      "confidence": "reported",
+      "attributed_to": "les syndicats de salariés et les partis de gauche"
+    }
+  ],
+  "entities": [
+    {
+      "name": "RATP",
+      "kind": "organisation"
+    },
+    {
+      "name": "SNCF",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées.",
+    "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Comment se passe un jour de grève pour un voyageur",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "quai_metro_greve",
+      "name_fr": "Un quai de métro un matin de grève",
+      "brief": "an empty metro platform with a departure board showing long waits, curved white-tiled walls, a closed kiosk, early morning light from the stairs",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-01-01/2026-12-31",
+    "relevant_until": "2027-01-15"
+  },
+  "sources": [
+    {
+      "id": "greve_ecologie",
+      "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+      "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+      "published_at": "2018-05-25"
+    },
+    {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+    }
+  ],
+  "evergreen": true
+}

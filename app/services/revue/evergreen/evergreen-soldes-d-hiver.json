@@ -1,0 +1,104 @@
+{
+  "id": "evergreen-soldes-d-hiver",
+  "dossier_version": "revue-v1",
+  "week": "2026-W02",
+  "topic": "city",
+  "title_fr": "Les soldes d'hiver",
+  "summary_fr": "En janvier, les magasins baissent leurs prix pendant quatre semaines : ce sont les soldes d'hiver. Les dates sont fixées par l'État et les règles sont strictes. Clients et commerçants les attendent, chacun pour ses raisons.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, les soldes d'hiver commencent le 7 janvier au matin et se terminent le 3 février au soir.",
+      "quote": "En 2026, les soldes débuteront donc le mercredi 7 janvier au matin et se termineront le mardi 3 février au soir.",
+      "source_id": "soldes_sp_dates",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A17952",
+      "published_at": "2025-12-12",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Il y a des soldes deux fois par an, en hiver et en été, pendant quatre semaines.",
+      "quote": "Les soldes ont lieu 2 fois par an en hiver et en été. La durée de chaque période de soldes est fixée à 4 semaines",
+      "source_id": "soldes_sp_regles",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F24037",
+      "published_at": "2026-01-21",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Un commerçant peut seulement solder des produits qu'il vend depuis au moins un mois.",
+      "quote": "Le commerçant peut uniquement solder les produits proposés à la vente depuis au moins 1 mois avant le début de la période de soldes.",
+      "source_id": "soldes_sp_regles",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F24037",
+      "published_at": "2026-01-21",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon Service Public, le site officiel de l'administration, les soldes plaisent autant aux clients qu'aux commerçants.",
+      "quote": "La période des soldes est une opération commerciale prisée tant par les consommateurs que par les professionnels.",
+      "source_id": "soldes_sp_regles",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F24037",
+      "published_at": "2026-01-21",
+      "confidence": "reported",
+      "attributed_to": "Service Public, le site officiel de l'administration française"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Service Public",
+      "kind": "organisation"
+    },
+    {
+      "name": "Paris",
+      "kind": "place"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas quelles réductions les magasins proposent cette année.",
+    "Les sources ne disent pas si les clients achètent plus en ligne ou en magasin pendant les soldes."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Comment marchent les soldes, et ce qu'on a le droit de faire",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une bonne affaire pour qui : les clients ou les magasins ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "rue_commercante_soldes",
+      "name_fr": "Une rue commerçante de Paris en janvier",
+      "brief": "a Paris shopping street in January, shop windows with red sale stickers, wet pavement, Haussmann facades, grey winter light",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-01-07/2026-02-03",
+    "relevant_until": "2026-02-17"
+  },
+  "sources": [
+    {
+      "id": "soldes_sp_dates",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A17952",
+      "published_at": "2025-12-12"
+    },
+    {
+      "id": "soldes_sp_regles",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F24037",
+      "published_at": "2026-01-21"
+    }
+  ],
+  "evergreen": true
+}

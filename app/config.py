@@ -509,6 +509,36 @@ class Settings(BaseSettings):
             "its story either way."
         ),
     )
+    # WP-119 §9 — La Revue de Romy (docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md).
+    REVUE_ENABLED: bool = Field(
+        False,
+        description="WP-119: La Revue de Romy — the La Une card, the /revue page and the weekly intake beat.",
+    )
+    REVUE_PLATE_GENERATION_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-119 §8.1: paint a plate for a place the season has none for. Off: an unknown "
+            "place falls back to the nearest known plate (policy.PLACE_FALLBACKS)."
+        ),
+    )
+    REVUE_ARTICLE_FETCH_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-119 §4.1: fetch the article page to anchor claims in verbatim quotes "
+            "(only quotes and a text hash are stored). Off: RSS title and summary only."
+        ),
+    )
+    REVUE_STORIES_PER_WEEK: int = Field(
+        6,
+        ge=1,
+        le=20,
+        description="WP-119 §4.1: how many editorial dossiers the weekly intake aims to build.",
+    )
+    REVUE_CADENCE: str = Field(
+        "weekly",
+        pattern=r"^(weekly|daily)$",
+        description="WP-119 §12: 'weekly' (six stories, choice on entry) or 'daily'.",
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,

@@ -5,15 +5,20 @@
  * behind in the corner when the learner speaks in the panel. Where: the speaker in
  * front and a little bigger, the others behind and raised. The stage is drawn
  * inside the reader's plate frame (`.fr-plate`, square, `position: relative`).
+ *
+ * WP-119 §8.2 · Toi's `outfit` (on a member whose id is Toi's) is drawn only when
+ * `surface === 'revue'`. In the story the heavy coat stays canon (WP-118), so on
+ * the default `story` surface the outfit is dropped. The applied outfit is on the
+ * Toi figure as `data-outfit`.
  */
 import React from 'react';
 
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import { castVariant } from '@/lib/cast-variants';
 import { CastRig } from './CastRig';
-import { rigMoodFor } from './cast-registry';
+import { rigFor, rigMoodFor } from './cast-registry';
 import { drawnFaceId } from './CastFace';
-import type { Viseme } from './rig-kit';
+import type { Outfit, Viseme } from './rig-kit';
 
 export type StageMember = {
   /** Any id the payloads use for the character («marin», «marin_leveque», a name). */
@@ -22,7 +27,18 @@ export type StageMember = {
   speaking?: boolean;
   /** WP-116 phase 4: the mouth while this member's line is heard. */
   mouth?: Viseme | 'auto';
+  /** WP-119 · Toi's outfit; only the Revue stage draws it (see `toiOutfit`). */
+  outfit?: Outfit;
 };
+
+export type StageSurface = 'story' | 'revue';
+
+/** The outfit Toi wears on this surface: the coat everywhere but the Revue. */
+export function toiOutfit(members: StageMember[], surface: StageSurface = 'story'): Outfit {
+  if (surface !== 'revue') return 'coat';
+  const toi = members.find((member) => member.outfit && rigFor(member.id)?.id === 'user');
+  return toi?.outfit ?? 'coat';
+}
 
 /**
  * Where each figure stands, by how many stand: its centre (% of the panel's width)
@@ -60,6 +76,7 @@ export function PanelStage({
   you = false,
   still = false,
   talking = null,
+  surface = 'story',
 }: {
   members: StageMember[];
   /** The learner speaks in this panel: Toi stands in the corner, from behind. */
@@ -67,9 +84,12 @@ export function PanelStage({
   still?: boolean;
   /** WP-116 phase 4: who is heard right now and their mouth; the others hold still. */
   talking?: { id: string; mouth: Viseme | 'auto' } | null;
+  /** WP-119 · where the stage stands; only `revue` lets Toi change out of the coat. */
+  surface?: StageSurface;
 }) {
   const talkingRig = talking ? drawnFaceId(talking.id) : null;
   const cast = stageMembers(members);
+  const outfit = toiOutfit(members, surface);
   if (!cast.length && !you) return null;
   const slots = SLOTS[cast.length] ?? [];
   return (
@@ -104,8 +124,12 @@ export function PanelStage({
         );
       })}
       {you && (
-        <div className="cast-stage__figure cast-stage__figure--you" style={{ left: '88%', height: '46%', bottom: '-8%', zIndex: 4 }}>
-          <CastRig id="user" crop="bust" size={120} still={still} label="" />
+        <div
+          className="cast-stage__figure cast-stage__figure--you"
+          data-outfit={outfit}
+          style={{ left: '88%', height: '46%', bottom: '-8%', zIndex: 4 }}
+        >
+          <CastRig id="user" crop="bust" size={120} still={still} outfit={outfit} label="" />
         </div>
       )}
     </div>

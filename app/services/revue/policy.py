@@ -1,0 +1,378 @@
+"""La Revue de Romy — editorial policy as data (WP-119 §4, §6, §7, §8).
+
+Pure data and tiny helpers, no I/O: the topics a week covers, the sensitive first
+filter at intake (§4.1, also imported by ``news_service`` for the feuilleton), what a
+painted plate may never show (§8.1), the ``outfit`` catalogue and which place calls
+for which dress (§8.2), the known plate a new place falls back to (§8.1), the support
+each band starts with (§6), and which cast member has a reason to care about a topic
+(§7).
+
+See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from typing import Any
+
+#: The topics a week of dossiers spreads over (§4.1).
+TOPICS: tuple[str, ...] = ("food", "culture", "city", "sport", "nature", "work", "politics")
+
+#: The sensitive first filter at intake (§4.1): about subject matter, not level.
+#: Moved verbatim from ``NewsService.FEUILLETON_SENSITIVE_TERMS``, which now imports it.
+#: Matched as substrings of lower-cased text, hence the trailing spaces in "mort " and "viol ".
+SENSITIVE_TERMS: tuple[str, ...] = (
+    "abus",
+    "agression sexuelle",
+    "assassinat",
+    "attentat",
+    "décès",
+    "disparition",
+    "fusillade",
+    "guerre",
+    "meurtre",
+    "mort ",
+    "mortel",
+    "otage",
+    "pédocriminalité",
+    "suicide",
+    "terrorisme",
+    "viol ",
+    "violence conjugale",
+)
+
+#: Words a plate brief may never contain (§8.1 staging rule: places drawn, people told).
+#: Matched as whole words after accent folding (see :func:`plate_forbidden_hits`).
+PLATE_FORBIDDEN: tuple[str, ...] = (
+    # people
+    "person",
+    "persons",
+    "people",
+    "personne",
+    "personnes",
+    "gens",
+    "man",
+    "men",
+    "woman",
+    "women",
+    "homme",
+    "hommes",
+    "femme",
+    "femmes",
+    "child",
+    "children",
+    "enfant",
+    "enfants",
+    "silhouette",
+    "silhouettes",
+    # crowds
+    "crowd",
+    "crowds",
+    "foule",
+    "foules",
+    # faces and likenesses
+    "face",
+    "faces",
+    "visage",
+    "visages",
+    "portrait",
+    "portraits",
+    "selfie",
+    "statue",
+    "statues",
+    # flags, banners, marks
+    "flag",
+    "flags",
+    "drapeau",
+    "drapeaux",
+    "banner",
+    "banners",
+    "banderole",
+    "banderoles",
+    "logo",
+    "logos",
+    "emblem",
+    "embleme",
+    "emblemes",
+)
+
+#: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
+OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis")
+
+DEFAULT_OUTFIT = "coat"
+
+#: Place kind → the dress Toi wears there (§8.2). Anything else: ``coat``.
+DRESS_FOR_PLACE: dict[str, str] = {
+    "chamber": "suit",
+    "hemicycle": "suit",
+    "ministry": "suit",
+    "cellar": "apron",
+    "kitchen": "apron",
+    "market": "apron",
+    "bakery": "apron",
+    "vineyard": "apron",
+    "stadium": "sport",
+    "track": "sport",
+    "rain": "raincoat",
+    "quay_rain": "raincoat",
+    "worksite": "hi_vis",
+    "default": DEFAULT_OUTFIT,
+}
+
+#: Words in a place's id, name or brief → its kind. Order is priority: the first kind
+#: with a matching word wins (indoor places before weather, weather before outdoor
+#: places). Words match accent-folded tokens exactly; a trailing ``*`` makes the word a
+#: prefix (``"stade*"`` matches ``"stades"``) — kept for stems that cannot collide with
+#: an ordinary word ("chai" must not match "chaise", nor "marche" "marcher").
+PLACE_KIND_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("hemicycle", ("hemicycle", "assemblee", "senat", "parliament", "parlement")),
+    ("chamber", ("chamber", "chambre", "council", "conseil")),
+    ("ministry", ("ministry", "ministere", "elysee", "matignon", "prefecture")),
+    ("cellar", ("cellar", "cellars", "cave", "caves", "chai", "chais", "winery")),
+    ("kitchen", ("kitchen", "kitchens", "cuisine", "cuisines", "restaurant*", "brasserie*", "bistro*")),
+    ("bakery", ("bakery", "boulangerie*", "patisserie*", "fournil")),
+    ("worksite", ("worksite", "chantier*", "construction", "scaffold*", "echafaud*", "factory", "usine*")),
+    ("rain", ("rain", "rainy", "raining", "pluie*", "pluvieu*", "orage*", "storm*", "averse*")),
+    ("stadium", ("stadium*", "stade*", "arena")),
+    ("track", ("track", "tracks", "piste", "pistes", "velodrome")),
+    ("market", ("market", "markets", "marche", "marches", "halles", "stall", "stalls", "etal", "etals")),
+    ("vineyard", ("vineyard*", "vignoble*", "vigne", "vignes", "vine", "vines", "vendange*")),
+    ("quay", ("quay*", "quai", "quais", "canal", "riverbank", "berge*", "seine")),
+    ("station", ("station", "gare", "railway")),
+    ("metro", ("metro", "subway", "rer")),
+    ("school", ("school*", "ecole*", "classroom*", "college", "lycee")),
+    (
+        "park",
+        ("park", "parks", "parc", "parcs", "jardin*", "garden*", "forest*", "foret*", "field",
+         "fields", "champ", "champs", "mountain*", "montagne*"),
+    ),
+    ("city_hall", ("mairie", "townhall")),
+    ("office", ("office", "offices", "bureau", "bureaux")),
+    ("cafe", ("cafe", "cafes", "bar", "bars", "comptoir")),
+    ("newsroom", ("newsroom", "redaction", "journal")),
+    ("street", ("street*", "rue", "rues", "ruelle", "avenue", "boulevard", "square")),
+)
+
+#: Place kind → a known ``SEASON_ONE_LOCATIONS`` id whose plate stands in while plate
+#: generation is off (§8.1); Romy then says where they really are.
+PLACE_FALLBACKS: dict[str, str] = {
+    "hemicycle": "mairie",
+    "chamber": "mairie",
+    "ministry": "mairie",
+    "city_hall": "mairie",
+    "office": "ngo_office",
+    "cellar": "mistral_back_room",
+    "kitchen": "le_mistral",
+    "cafe": "le_mistral",
+    "bakery": "boulangerie",
+    "market": "marche_canal",
+    "worksite": "rue_de_lancry",
+    "street": "rue_de_lancry",
+    "rain": "quai_de_valmy",
+    "quay_rain": "quai_de_valmy",
+    "quay": "quai_de_valmy",
+    "stadium": "buttes_chaumont",
+    "track": "buttes_chaumont",
+    "vineyard": "buttes_chaumont",
+    "park": "buttes_chaumont",
+    "station": "gare_de_lest",
+    "metro": "metro_platform",
+    "school": "ecole",
+    "newsroom": "newsroom",
+    "default": "newsroom",
+}
+
+#: The support and depth each band starts with (§6). Targets are planning targets, not
+#: caps. ``simplify_on_breakdown`` is on at every band (§5.3 applies to all);
+#: ``repeat_simpler`` is A1's "Romy repeats in simpler words unasked".
+SUPPORT_DEFAULTS: dict[str, dict[str, Any]] = {
+    "A1": {
+        "glosses": "shown",
+        "translation": "one_tap",
+        "simplify_on_breakdown": True,
+        "repeat_simpler": True,
+        "reading_target_words": 60,
+        "vocab_target": 5,
+        "depth": "change_and_who",
+    },
+    "A2": {
+        "glosses": "tap",
+        "translation": "on_request",
+        "simplify_on_breakdown": True,
+        "repeat_simpler": False,
+        "reading_target_words": 90,
+        "vocab_target": 5,
+        "depth": "plus_one_interpretation",
+    },
+    "B1": {
+        "glosses": "tap",
+        "translation": "none",
+        "simplify_on_breakdown": True,
+        "repeat_simpler": False,
+        "reading_target_words": 140,
+        "vocab_target": 7,
+        "depth": "plus_disagreement",
+    },
+    "B2": {
+        "glosses": "none",
+        "translation": "none",
+        "simplify_on_breakdown": True,
+        "repeat_simpler": False,
+        "reading_target_words": 200,
+        "vocab_target": 7,
+        "depth": "procedure_and_actors",
+    },
+}
+
+BANDS: tuple[str, ...] = tuple(SUPPORT_DEFAULTS)
+
+#: Topic → cast members with a reason to care, in order of preference (§7). The
+#: ``reason`` is a template filled with ``{place}`` (the place's French name) and
+#: ``{title}`` (the dossier's French title); it is spoken on the guest's entry.
+GUEST_AFFINITY: dict[str, list[dict[str, str]]] = {
+    "food": [
+        {
+            "id": "margaux_barman",
+            "reason": "she runs the café counter and cares where what she serves comes from ({place})",
+        },
+    ],
+    "culture": [
+        {
+            "id": "lila_bonnet",
+            "reason": "her pupils asked her about it in class ({title})",
+        },
+    ],
+    "city": [
+        {
+            "id": "camille_marchand",
+            "reason": "it is her quartier, and she has an opinion about {place}",
+        },
+        {
+            "id": "landlord_marchand",
+            "reason": "he manages buildings in the 10e and anything about {place} touches his business",
+        },
+    ],
+    "work": [
+        {
+            "id": "marin_leveque",
+            "reason": "the NGO he works for deals with people this affects ({title})",
+        },
+    ],
+    "sport": [
+        {
+            "id": "augustin_de_roncourt",
+            "reason": "there is money in it, and Gus always knows who is paying ({title})",
+        },
+    ],
+    "politics": [
+        {
+            "id": "marin_leveque",
+            "reason": "the NGO he works for follows this closely ({title})",
+        },
+        {
+            "id": "augustin_de_roncourt",
+            "reason": "he dines with people on the other side of it ({title})",
+        },
+    ],
+    "nature": [
+        {
+            "id": "marin_leveque",
+            "reason": "the NGO he works for campaigns on it ({place})",
+        },
+    ],
+}
+
+
+def _fold_ascii(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(text or "").lower())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+def _tokens(text: str) -> list[str]:
+    return [token for token in re.split(r"[^a-z0-9]+", _fold_ascii(text)) if token]
+
+
+def _word_matches(word: str, tokens: list[str]) -> bool:
+    if word.endswith("*"):
+        stem = word[:-1]
+        return any(token.startswith(stem) for token in tokens)
+    return word in tokens
+
+
+def normalize_band(band: str | None) -> str:
+    """``"a2"`` → ``"A2"``; ``"B2+"``, ``"C1"``, ``"C2"`` → ``"B2"``; unknown → ``"A1"``."""
+
+    raw = str(band or "").strip().upper().rstrip("+")
+    if raw in SUPPORT_DEFAULTS:
+        return raw
+    if raw in {"C1", "C2"}:
+        return "B2"
+    return "A1"
+
+
+def band_support(band: str | None) -> dict[str, Any]:
+    """A copy of the §6 defaults for ``band`` (normalised with :func:`normalize_band`)."""
+
+    return dict(SUPPORT_DEFAULTS[normalize_band(band)])
+
+
+def place_kind(text: str | None) -> str:
+    """Guess a place's kind from its id, name or brief words (``"default"`` if none match).
+
+    ``quay`` with a rain word anywhere becomes ``quay_rain``.
+    """
+
+    tokens = _tokens(str(text or "").replace("_", " "))
+    kinds = [
+        kind for kind, words in PLACE_KIND_KEYWORDS if any(_word_matches(word, tokens) for word in words)
+    ]
+    if not kinds:
+        return "default"
+    if "quay" in kinds and "rain" in kinds:
+        return "quay_rain"
+    return kinds[0]
+
+
+def dress_for(kind: str | None) -> str:
+    """The outfit for a place kind (§8.2); ``coat`` when the kind calls for nothing special."""
+
+    return DRESS_FOR_PLACE.get(str(kind or ""), DEFAULT_OUTFIT)
+
+
+def fallback_place_for(kind: str | None) -> str:
+    """The known season-1 location whose plate stands in for a place of this kind (§8.1)."""
+
+    return PLACE_FALLBACKS.get(str(kind or ""), PLACE_FALLBACKS["default"])
+
+
+def plate_forbidden_hits(text: str | None) -> list[str]:
+    """The :data:`PLATE_FORBIDDEN` words a plate brief contains (whole words, accent-folded)."""
+
+    forbidden = {_fold_ascii(word) for word in PLATE_FORBIDDEN}
+    seen: list[str] = []
+    for token in _tokens(text or ""):
+        if token in forbidden and token not in seen:
+            seen.append(token)
+    return seen
+
+
+def is_sensitive(text: str | None) -> bool:
+    """Whether lower-cased ``text`` contains a :data:`SENSITIVE_TERMS` entry (§4.1)."""
+
+    lowered = str(text or "").lower()
+    return any(term in lowered for term in SENSITIVE_TERMS)
+
+
+def guests_for(topic: str, **fill: str) -> list[dict[str, str]]:
+    """The topic's preferred guests with their ``reason`` filled (missing keys left as ``…``)."""
+
+    class _Blank(dict):
+        def __missing__(self, key: str) -> str:
+            return "…"
+
+    values = _Blank(fill)
+    return [
+        {"id": row["id"], "reason": row["reason"].format_map(values)}
+        for row in GUEST_AFFINITY.get(topic, [])
+    ]

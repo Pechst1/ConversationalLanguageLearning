@@ -1,0 +1,104 @@
+{
+  "id": "evergreen-marche-du-dimanche",
+  "dossier_version": "revue-v1",
+  "week": "2026-W01",
+  "topic": "food",
+  "title_fr": "Le marché du dimanche à Aligre",
+  "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "source_id": "marche_paris",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "source_id": "marche_wikipedia_aligre",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+      "source_id": "marche_wikipedia_aligre",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+      "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+      "source_id": "marche_paris",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23",
+      "confidence": "reported",
+      "attributed_to": "la Ville de Paris"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Marché d'Aligre",
+      "kind": "place"
+    },
+    {
+      "name": "Ville de Paris",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché.",
+    "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Faire ses courses au marché : comment ça marche",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Le marché, plus cher ou plus juste que le supermarché ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "marche_aligre",
+      "name_fr": "Le marché d'Aligre, un matin",
+      "brief": "an open-air market square with fruit and vegetable stalls under striped awnings, crates of leeks and clementines, an old covered market hall behind, morning light",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-01-01/2026-12-31",
+    "relevant_until": "2027-01-15"
+  },
+  "sources": [
+    {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+    },
+    {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+    }
+  ],
+  "evergreen": true
+}

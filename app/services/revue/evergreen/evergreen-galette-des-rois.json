@@ -1,0 +1,98 @@
+{
+  "id": "evergreen-galette-des-rois",
+  "dossier_version": "revue-v1",
+  "week": "2026-W01",
+  "topic": "culture",
+  "title_fr": "La galette des rois",
+  "summary_fr": "En janvier, on partage la galette des rois en famille, entre amis ou au travail. Dans une part se cache une fève : qui la trouve devient le roi ou la reine. Au nord, c'est une galette à la frangipane ; au sud, souvent une brioche.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "On mange la galette des rois pour l'Épiphanie, une fête chrétienne du début janvier.",
+      "quote": "Elle est dégustée à l’occasion de l’Épiphanie, une fête chrétienne qui célèbre la visite des Rois mages à l'enfant Jésus",
+      "source_id": "galette_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Galette_des_rois&oldid=237312095",
+      "published_at": "2026-06-24",
+      "confidence": "reported"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Dans le nord de la France, c'est une galette de pâte feuilletée avec de la frangipane, une crème aux amandes.",
+      "quote": "Il s'agit actuellement d'une galette élaborée à base de pâte feuilletée et d'amandes (dans une préparation de frangipane), et consommée dans la moitié nord de la France",
+      "source_id": "galette_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Galette_des_rois&oldid=237312095",
+      "published_at": "2026-06-24",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La personne qui trouve la fève dans sa part devient le roi ou la reine de la journée.",
+      "quote": "Celui qui découvre la fève dans sa part de galette est proclamé roi ou reine de la journée.",
+      "source_id": "galette_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Galette_des_rois&oldid=237312095",
+      "published_at": "2026-06-24",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "À Toulouse, on vend surtout des coques, des brioches locales ; mais selon les professionnels, la galette « parisienne » gagne du terrain.",
+      "quote": "à Toulouse, il se vend huit coques pour deux galettes parisiennes mais selon les professionnels, cette part augmente régulièrement avec les néo-Toulousains.",
+      "source_id": "galette_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Galette_des_rois&oldid=237312095",
+      "published_at": "2026-06-24",
+      "confidence": "reported",
+      "attributed_to": "des professionnels toulousains (boulangers et pâtissiers)"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Toulouse",
+      "kind": "place"
+    },
+    {
+      "name": "Épiphanie",
+      "kind": "other"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas combien coûte une galette en boulangerie cette année.",
+    "On ne sait pas si la galette à la frangipane gagne aussi du terrain ailleurs dans le sud : les sources ne parlent que de Toulouse."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Comment on partage une galette, et qui devient roi",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Galette du nord ou brioche du sud : qui a raison ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "boulangerie_galettes",
+      "name_fr": "Une vitrine de boulangerie en janvier",
+      "brief": "a bakery window with golden puff-pastry galettes, gold paper crowns stacked on the counter, frost on the glass",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-01-01/2026-01-31",
+    "relevant_until": "2026-02-15"
+  },
+  "sources": [
+    {
+      "id": "galette_wikipedia",
+      "name": "Wikipédia, « Galette des rois »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Galette_des_rois&oldid=237312095",
+      "published_at": "2026-06-24"
+    }
+  ],
+  "evergreen": true
+}
