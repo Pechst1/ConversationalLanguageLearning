@@ -44,6 +44,7 @@ from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.rehearsal import Rehearsal
+from app.db.models.revue_session import RevueSession
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
@@ -58,6 +59,7 @@ from app.db.models.user import RefreshToken, User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 
 __all__ = [
+    "RevueSession",
     "User",
     "StreakDay",
     "RefreshToken",

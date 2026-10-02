@@ -29,7 +29,15 @@ export type StageMember = {
   mouth?: Viseme | 'auto';
   /** WP-119 · Toi's outfit; only the Revue stage draws it (see `toiOutfit`). */
   outfit?: Outfit;
+  /** WP-119 §8.3 · an authored prop in the figure's hands («notebook»); a rig that has none ignores it. */
+  hold?: string | null;
 };
+
+/**
+ * WP-119 · how Toi is cropped. `bust` is the season panels' corner figure (46 %
+ * high); `half` is the Revue's waist crop (58 % high, 180:260) so the dress reads.
+ */
+export type YouCrop = 'bust' | 'half';
 
 export type StageSurface = 'story' | 'revue';
 
@@ -77,20 +85,28 @@ export function PanelStage({
   still = false,
   talking = null,
   surface = 'story',
+  entering = null,
 }: {
   members: StageMember[];
-  /** The learner speaks in this panel: Toi stands in the corner, from behind. */
-  you?: boolean;
+  /**
+   * The learner speaks in this panel: Toi stands in the corner, from behind.
+   * WP-119: `{ crop: 'half' }` is the Revue's waist crop.
+   */
+  you?: boolean | { crop?: YouCrop };
   still?: boolean;
   /** WP-116 phase 4: who is heard right now and their mouth; the others hold still. */
   talking?: { id: string; mouth: Viseme | 'auto' } | null;
   /** WP-119 · where the stage stands; only `revue` lets Toi change out of the coat. */
   surface?: StageSurface;
+  /** WP-119 · the rig id that slides in (260 ms; none under Reduce Motion, see cast-rig.css). */
+  entering?: string | null;
 }) {
   const talkingRig = talking ? drawnFaceId(talking.id) : null;
   const cast = stageMembers(members);
   const outfit = toiOutfit(members, surface);
-  if (!cast.length && !you) return null;
+  const youCrop: YouCrop | null = you ? (typeof you === 'object' && you.crop === 'half' ? 'half' : 'bust') : null;
+  const enteringRig = entering ? drawnFaceId(entering) : null;
+  if (!cast.length && !youCrop) return null;
   const slots = SLOTS[cast.length] ?? [];
   return (
     <div className="cast-stage" aria-hidden="true" data-cast-stage={cast.map((member) => member.rigId).join(' ')}>
@@ -102,6 +118,7 @@ export function PanelStage({
             key={member.rigId}
             className="cast-stage__figure"
             data-speaking={front ? '' : undefined}
+            data-entering={enteringRig === member.rigId ? '' : undefined}
             style={{
               left: `${slot.centre}%`,
               height: `${slot.height * (front || cast.length === 1 ? 1 : 0.92)}%`,
@@ -118,18 +135,33 @@ export function PanelStage({
               mouth={talkingRig === member.rigId ? talking?.mouth ?? 'auto' : 'auto'}
               // One mover at a time: while someone is heard, the others hold still.
               still={still || Boolean(talkingRig && talkingRig !== member.rigId)}
+              hold={member.hold ?? undefined}
               label=""
             />
           </div>
         );
       })}
-      {you && (
+      {youCrop === 'bust' && (
         <div
           className="cast-stage__figure cast-stage__figure--you"
           data-outfit={outfit}
           style={{ left: '88%', height: '46%', bottom: '-8%', zIndex: 4 }}
         >
           <CastRig id="user" crop="bust" size={120} still={still} outfit={outfit} label="" />
+        </div>
+      )}
+      {youCrop === 'half' && (
+        // The waist crop: Toi's full drawing (viewBox 0 0 200 420) framed on x 10–190,
+        // y 76–336, so the window is 180:260 and the bust's head stays where it was.
+        <div
+          className="cast-stage__figure cast-stage__figure--you"
+          data-outfit={outfit}
+          data-crop="half"
+          style={{ left: '86%', height: '58%', bottom: '-6%', zIndex: 4, aspectRatio: '180 / 260', overflow: 'hidden' }}
+        >
+          <div style={{ position: 'absolute', left: '-5.556%', top: '-29.231%', width: '111.111%', height: '161.538%' }}>
+            <CastRig id="user" crop="full" size={120} still={still} outfit={outfit} label="" />
+          </div>
         </div>
       )}
     </div>

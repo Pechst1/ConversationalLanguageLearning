@@ -1,0 +1,106 @@
+{
+  "id": "2026-w40-goncourt-roman-retire",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "culture",
+  "title_fr": "Le Goncourt retire un roman de sa sélection",
+  "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+      "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+      "source_id": "w40_goncourt_franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+      "source_id": "w40_goncourt_franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25",
+      "confidence": "reported",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué"
+    },
+    {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+      "source_id": "w40_goncourt_franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25",
+      "confidence": "reported",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman"
+    },
+    {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+      "source_id": "w40_goncourt_actualitte",
+      "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+      "published_at": "2026-09-25",
+      "confidence": "reported"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Académie Goncourt",
+      "kind": "organisation"
+    },
+    {
+      "name": "Thélyson Orélien",
+      "kind": "person",
+      "role": "écrivain canado-haïtien, auteur du roman retiré"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste.",
+    "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+      "purpose": "explain_disagreement"
+    },
+    {
+      "id": "a2",
+      "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs",
+      "purpose": "understand_change"
+    }
+  ],
+  "places": [
+    {
+      "id": "librairie_rentree_litteraire",
+      "name_fr": "Une librairie à Paris, à la rentrée littéraire",
+      "brief": "the window of a small Paris bookshop at dusk, stacks of new novels with plain cream covers and red paper bands, a wooden table of books, warm light inside, a wet pavement outside",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-09-25/2026-10-06",
+    "relevant_until": "2026-10-20"
+  },
+  "sources": [
+    {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+    },
+    {
+      "id": "w40_goncourt_actualitte",
+      "name": "ActuaLitté",
+      "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+      "published_at": "2026-09-25"
+    }
+  ],
+  "evergreen": false
+}

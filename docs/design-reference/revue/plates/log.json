@@ -1,0 +1,37 @@
+[
+  {
+    "id": "hemicycle_assemblee",
+    "forbidden_hits": [],
+    "seconds": 39.0,
+    "status": "ok",
+    "prompt_words": 111
+  },
+  {
+    "id": "quai_metro_greve",
+    "forbidden_hits": [],
+    "seconds": 31.4,
+    "status": "ok",
+    "prompt_words": 99
+  },
+  {
+    "id": "rue_nuit_blanche",
+    "forbidden_hits": [],
+    "seconds": 32.3,
+    "status": "ok",
+    "prompt_words": 101
+  },
+  {
+    "id": "vignoble_bourgogne",
+    "forbidden_hits": [],
+    "seconds": 35.5,
+    "status": "ok",
+    "prompt_words": 103
+  },
+  {
+    "id": "salle_de_presse",
+    "forbidden_hits": [],
+    "seconds": 31.6,
+    "status": "ok",
+    "prompt_words": 98
+  }
+]

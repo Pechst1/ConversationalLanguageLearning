@@ -280,6 +280,11 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/audio-session/respond"),
         ("POST", "/missions/audio/transcribe"),
         ("POST", "/story-engine/episodes/{scene_id}/audio"),
+        # La Revue (WP-119): every POST that may call the model; GETs replay state
+        ("POST", "/revue/sessions"),
+        ("POST", "/revue/sessions/{session_id}/turns"),
+        ("POST", "/revue/sessions/{session_id}/make"),
+        ("POST", "/revue/sessions/{session_id}/close"),
         # the daily journey (WP-69's router, guarded from api.py)
         ("POST", "/daily-journeys"),
         ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/attempts"),

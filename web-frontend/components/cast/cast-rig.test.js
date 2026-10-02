@@ -211,3 +211,80 @@ test('PanelStage drops `outfit` unless surface === "revue" (the coat stays canon
   assert.equal(toiOutfit(members, 'revue'), 'suit');
   assert.equal(toiOutfit([{ id: 'romy_tremblay', outfit: 'chef' }], 'revue'), 'coat', 'only Toi\'s own outfit counts');
 });
+
+/* WP-119 §8.3 · Romy's `notebook`, the first authored prop (WP-116 §12.3 tier 1). */
+
+test('Romy holds a notebook; any other hold is no hold', () => {
+  assert.deepEqual([...rigFor('romy').holds], ['notebook']);
+  for (const crop of ['full', 'bust', 'head']) {
+    assert.equal(render({ id: 'romy', crop, hold: 'umbrella' }), render({ id: 'romy', crop }), `${crop}: unknown hold`);
+    assert.equal(render({ id: 'romy', crop, hold: '' }), render({ id: 'romy', crop }), `${crop}: empty hold`);
+    assert.notEqual(render({ id: 'romy', crop, hold: 'notebook' }), render({ id: 'romy', crop }), `${crop}: the notebook is drawn`);
+  }
+  const plain = render({ id: 'romy', crop: 'full' });
+  const held = render({ id: 'romy', crop: 'full', hold: 'notebook' });
+  assert.doesNotMatch(plain, /data-prop=/);
+  assert.match(held, /<g class="cast-rig__prop" data-prop="notebook" transform="translate\(117 269\) rotate\(-8\)">/);
+  assert.match(held, /fill="#f8f3e8"/, 'the page is paper');
+});
+
+test('the notebook adds no colour the cast does not already use (owner rule)', () => {
+  const dir = path.join(__dirname, 'rigs');
+  const palette = new Set();
+  for (const file of fs.readdirSync(dir)) {
+    if (file === 'romy.tsx') continue;
+    for (const colour of hexes(fs.readFileSync(path.join(dir, file), 'utf8'))) palette.add(colour);
+  }
+  for (const colour of hexes(render({ id: 'romy', crop: 'full' }))) palette.add(colour);
+  for (const mood of RIG_MOODS) {
+    for (const colour of hexes(render({ id: 'romy', crop: 'full', mood, hold: 'notebook' }))) {
+      assert.ok(palette.has(colour), `the notebook uses ${colour}, which no rig used before`);
+    }
+  }
+});
+
+test('the notebook leaves the head, the face and the mouth exactly as they were', () => {
+  const head = (html) => html.slice(html.indexOf('<g transform="translate(100 150)'));
+  for (const mood of RIG_MOODS) {
+    for (const mouth of ['auto', ...VISEMES]) {
+      for (const blink of [false, true]) {
+        const props = { id: 'romy', crop: 'full', mood, mouth, blink };
+        const plain = render(props);
+        const held = render({ ...props, hold: 'notebook' });
+        assert.ok(head(plain).length > 1000, 'the head group is found');
+        assert.equal(head(held), head(plain), `${mood} ${mouth} blink=${blink}`);
+      }
+    }
+  }
+  for (const crop of ['full', 'bust', 'head']) {
+    const viewBox = new RegExp(`viewBox="${rigFor('romy').crops[crop].join(' ')}"`);
+    assert.match(render({ id: 'romy', crop, hold: 'notebook' }), viewBox, `${crop}: same crop`);
+  }
+});
+
+test('the notebook, and the hand that holds it, sit inside the bust crop', () => {
+  const { NOTEBOOK } = require('./rigs/romy.tsx');
+  const [bx, by, bw, bh] = rigFor('romy').crops.bust;
+  const [px, py, pw, ph] = NOTEBOOK.page;
+  const [hx, hy] = NOTEBOOK.handle;
+  const rad = (NOTEBOOK.tilt * Math.PI) / 180;
+  const corners = [[px, py], [px + pw, py], [px, py + ph], [px + pw, py + ph]].map(([x, y]) => [
+    hx + x * Math.cos(rad) - y * Math.sin(rad),
+    hy + x * Math.sin(rad) + y * Math.cos(rad),
+  ]);
+  corners.push([hx - 8, hy - 8], [hx + 8, hy + 8]); // the hand, r = 8
+  for (const [x, y] of corners) {
+    assert.ok(x >= bx && x <= bx + bw && y >= by && y <= by + bh, `(${x.toFixed(1)}, ${y.toFixed(1)}) is inside the bust crop`);
+  }
+  // and below the head, which is drawn on top of everything else
+  assert.ok(Math.min(...corners.map((c) => c[1])) > 230, 'the notebook stays under the chin and the hair');
+});
+
+test('the other rigs ignore `hold: "notebook"`', () => {
+  for (const rig of RIGS) {
+    if (rig.id === 'romy_tremblay') continue;
+    for (const crop of ['full', 'bust']) {
+      assert.equal(render({ id: rig.id, crop, hold: 'notebook' }), render({ id: rig.id, crop }), `${rig.id} ${crop}`);
+    }
+  }
+});

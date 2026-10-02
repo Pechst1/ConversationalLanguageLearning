@@ -1,0 +1,178 @@
+{
+ "_source": "docs/implementation/atelier-v2/WP-119-WIRE.md (frozen 2026-10-02), copied verbatim",
+ "offer": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "recommended": {
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. …",
+   "topic": "food",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "evergreen": true,
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "apron",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   }
+  },
+  "recommended_reason": "interests",
+  "alternatives": [
+   {
+    "dossier_id": "evergreen-greve-transports",
+    "…": "…"
+   }
+  ],
+  "evergreen_only": true,
+  "resume": null,
+  "filed": null
+ },
+ "match_miss": {
+  "match": null,
+  "romy_line_fr": "Je n'ai que ça cette semaine, désolée. Le marché du dimanche à Aligre, ça te dit ?"
+ },
+ "turn": {
+  "items": [
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "…",
+    "kind": "mine",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "mode": "text"
+   },
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "…",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+    "translation": null,
+    "glosses": []
+   },
+   {
+    "id": "11.u",
+    "seq": 11,
+    "at": "…",
+    "kind": "uncertainty",
+    "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 10
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-unscored-adapter-v1"
+  }
+ },
+ "errors": [
+  {
+   "status": 404,
+   "body": {
+    "detail": "Not Found"
+   }
+  },
+  {
+   "status": 404,
+   "body": {
+    "detail": {
+     "code": "revue_dossier_not_found",
+     "dossier_id": "…"
+    }
+   }
+  },
+  {
+   "status": 409,
+   "body": {
+    "detail": {
+     "code": "revue_session_active",
+     "session_id": "…"
+    }
+   }
+  },
+  {
+   "status": 409,
+   "body": {
+    "detail": {
+     "code": "revue_week_filed",
+     "session_id": "…"
+    }
+   }
+  },
+  {
+   "status": 404,
+   "body": {
+    "detail": {
+     "code": "revue_session_not_found"
+    }
+   }
+  },
+  {
+   "status": 409,
+   "body": {
+    "detail": {
+     "code": "revue_session_closed"
+    }
+   }
+  },
+  {
+   "status": 409,
+   "body": {
+    "detail": {
+     "code": "revue_make_unavailable",
+     "kind": "headline_choice"
+    }
+   }
+  },
+  {
+   "status": 422,
+   "body": {
+    "detail": {
+     "code": "revue_unknown_option"
+    }
+   }
+  }
+ ]
+}

@@ -22,6 +22,10 @@
  *
  * Revue only: the heavy coat stays canon in the story (WP-118). `PanelStage` drops
  * `outfit` unless `surface === 'revue'`; season panels never pass it.
+ *
+ * Props (`hold`, WP-116 §12.3 tier 1): a rig lists them in `RigDef.holds`; its `extra` returns
+ * `prop` (the hold's key, '' for none) and its Art draws the prop about a handle point, in the
+ * hand, only when that key is set, so a rig without a hold renders exactly as before.
  */
 import type { ReactElement } from 'react';
 

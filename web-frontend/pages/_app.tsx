@@ -27,6 +27,8 @@ import '@/styles/atelier-v2.css';
 import '@/styles/atelier-v2-voices.css';
 // WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
 import '@/styles/cast-rig.css';
+// WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
+import '@/styles/revue.css';
 
 // Create a client
 const queryClient = new QueryClient({

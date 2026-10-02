@@ -1,0 +1,103 @@
+{
+  "id": "2026-w40-paris-plan-canicules",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "city",
+  "title_fr": "Paris se prépare aux prochaines canicules",
+  "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+      "source_id": "w40_canicules_ici",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+      "source_id": "w40_canicules_ici",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+      "source_id": "w40_canicules_ici",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+      "source_id": "w40_canicules_ici",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29",
+      "confidence": "reported",
+      "attributed_to": "la Ville de Paris"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Emmanuel Grégoire",
+      "kind": "person",
+      "role": "maire de Paris"
+    },
+    {
+      "name": "Ville de Paris",
+      "kind": "organisation"
+    },
+    {
+      "name": "la Seine",
+      "kind": "place"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+    "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce qui change dans les rues et les écoles de Paris",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+      "purpose": "prepare_dispatch"
+    }
+  ],
+  "places": [
+    {
+      "id": "rue_paris_voile_ombrage",
+      "name_fr": "Une rue de Paris sous un voile d'ombrage",
+      "brief": "a narrow Paris street of cream stone buildings with closed grey shutters, a white shade sail stretched high between balconies, young plane trees in iron grates, hard summer light",
+      "known": false
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-09-29/2026-10-11",
+    "relevant_until": "2026-10-25"
+  },
+  "sources": [
+    {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+    }
+  ],
+  "evergreen": false
+}

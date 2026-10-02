@@ -171,6 +171,20 @@ import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
+// WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
+import { RvUneCard } from '@/components/revue/RvUneCard';
+import { RvSubjectSheet } from '@/components/revue/RvSubjectSheet';
+import { revueCopy } from '@/components/revue/revue-copy';
+import { revueClient } from '@/lib/revue-api';
+import type { RvWeekResult } from '@/lib/revue-types';
+import {
+  dayShapeFrom,
+  revueDossierHref,
+  revueOpenHref,
+  revueHomeChips,
+  revueResumeLine,
+  revueUneEntry,
+} from '@/lib/revue-une';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -2491,6 +2505,21 @@ function TodayView({
    * Une keeps exactly one primary.
    */
   const courrierEntry = useCourrierHomeEntry();
+  /**
+   * WP-119 phase 1 — this week's Revue, read beside the day and never ahead
+   * of it. `{ enabled: false }` (the flag is off: a 404), a failed read, or
+   * no answer yet all leave `revueWeek` null-or-disabled, and La Une is
+   * exactly what it was. What Home draws from it is `lib/revue-une.ts`.
+   */
+  const [revueWeek, setRevueWeek] = useState<RvWeekResult | null>(null);
+  const [revueSheetOpen, setRevueSheetOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    oncePerLoad('revue/week', () => revueClient().week())
+      .then((week) => { if (alive) setRevueWeek(week); })
+      .catch(() => { /* the Revue is an enrichment — La Une renders without it */ });
+    return () => { alive = false; };
+  }, []);
   const vocabularyReviewDue = Math.max(0, Number(dayProgress.vocabularyDue || 0));
   const repairDue = Math.max(0, Number(dayProgress.errataDue || 0));
   const serialAction = serialActionFromToday(today, activeSession);
@@ -2723,7 +2752,64 @@ function TodayView({
    * each (WP-82), in Home's chrome language.
    */
   const homeCopy = atelierCopy(chromeLanguage);
-  const homeChips: HomeChip[] = homeDay
+  /**
+   * WP-119 — La Revue (design spec §2). On the Revue day (`DayShape.REVUE`,
+   * dealt from phase 3, never on a special edition) its card is the hero with
+   * the plan row hidden; on every other day it is one quiet chip until this
+   * week's Revue is filed.
+   *
+   * Precedence with a Courrier letter on the same day, per §2 («letter first,
+   * then Revue, then words due»): the letter keeps its chip, always first; the
+   * Revue chip goes right after it (so words due / the after-day chip drop to
+   * HomeScreen's cap). On the Revue day the Revue is the day's route and
+   * takes La Une whole: its card spends the word budget a chip would need, so
+   * the letter waits in the Courrier tab that day (it is back in the chip row
+   * the next). Only while the journey owns the day (`homeDay`). The rule is `lib/revue-une.ts`, tested in
+   * `components/atelier-v2/home/atelier-revue-entry.test.js`.
+   */
+  const revueEntry = homeDay
+    ? revueUneEntry({
+        week: revueWeek,
+        language: chromeLanguage,
+        dayShape: dayShapeFrom(dayJourney, dayEnvelope),
+        special: specialEdition,
+      })
+    : { chip: null, hero: null };
+  const revueHero = revueEntry.hero
+    ? (() => {
+        const { offer, story, state } = revueEntry.hero;
+        const copy = revueCopy(chromeLanguage);
+        return (
+          <>
+            <RvUneCard
+              story={story}
+              week={offer.week}
+              state={state}
+              resumeLine={state === 'resume' ? revueResumeLine(offer, copy) : null}
+              filed={state === 'filed' && offer.filed
+                ? { made: offer.filed.made, headlineFr: offer.filed.dispatch?.headlineFr ?? offer.filed.titleFr }
+                : null}
+              onOpen={() => { void router.push(revueOpenHref(offer)); }}
+              onOtherSubject={() => setRevueSheetOpen(true)}
+              copy={copy}
+            />
+            <RvSubjectSheet
+              open={revueSheetOpen}
+              week={offer.week}
+              alternatives={offer.alternatives}
+              onPick={(dossierId) => {
+                setRevueSheetOpen(false);
+                void router.push(revueDossierHref(dossierId));
+              }}
+              onAsk={(text) => revueClient().match(text)}
+              onClose={() => setRevueSheetOpen(false)}
+              copy={copy}
+            />
+          </>
+        );
+      })()
+    : null;
+  const dayChips: HomeChip[] = homeDay
     ? [
         ...(courrierEntry
           ? [{
@@ -2770,6 +2856,7 @@ function TodayView({
           : []),
       ]
     : [];
+  const homeChips: HomeChip[] = revueHomeChips<HomeChip>(revueEntry, dayChips);
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [
@@ -2864,7 +2951,7 @@ function TodayView({
 
   return (
     <HomeScreen
-      hero={journeyCard}
+      hero={revueHero ?? journeyCard}
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       level={homeLevel}
@@ -2898,7 +2985,8 @@ function TodayView({
       tiles={homeTiles}
       day={homeDay}
       // WP-98: no scene between two seasons, so no plan row to fill.
-      planHidden={Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
+      // WP-119: on the Revue day the card is the route, so the plan row stands down.
+      planHidden={Boolean(revueHero) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       chips={homeChips}
       language={homeDay ? chromeLanguage : 'fr'}
       colophon={errorOnlyPage ? null : {

@@ -27,6 +27,7 @@ from app.api.v1.endpoints import (
     placement,
     progress,
     rehearsal,
+    revue,
     serial,
     sessions,
     sessions_ws,
@@ -80,3 +81,6 @@ api_router.include_router(intake.router, dependencies=_paid_atelier)
 
 api_router.include_router(story_engine.router)
 api_router.include_router(episode_audio.router, dependencies=_paid)
+# WP-119: La Revue de Romy. The router carries its own flag check (404 while
+# REVUE_ENABLED is off, before auth) and the paid-route guard, in that order.
+api_router.include_router(revue.router)

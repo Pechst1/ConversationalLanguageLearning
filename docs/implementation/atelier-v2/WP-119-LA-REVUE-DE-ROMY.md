@@ -336,6 +336,36 @@ deep the default goes**; every story is open at every band.
   painted in week 40".
 - Flag `REVUE_PLATE_GENERATION_ENABLED` (default off). Off: an unknown place falls back to the
   nearest known plate by `policy.PLACE_FALLBACKS`, and Romy says where they really are.
+- **Feasibility, 2026-10-02 (owner asked).** Five news-style briefs went through the existing pipeline
+  (`PLATE_STYLE` + the template above, 1536×1024, medium): the empty hémicycle, a strike-day metro
+  platform, a Nuit Blanche facade, a Bourgogne vineyard at harvest, a press room with an empty podium.
+  All five rendered, no refusals, 31–39 s each, no people in any of them, and they sit beside the
+  existing newsroom plate without a seam (`docs/design-reference/revue/plates/`, `contact-sheet.webp`,
+  `log.json`). Two things the model added unasked: readable minutes on the metro board, and national
+  flags in the press room and the hémicycle. So the template gains a negative clause the style lock
+  did not carry: *"no flags, emblems or logos, no readable text or numbers"*, and the Render check
+  gets a cheap post-check for large saturated tricolour bands near a podium (drop and repaint once).
+  National colours in architecture are fine; party emblems are not, and the model does reach for them.
+- **Specificity (owner's question, same day).** A brief written as a *kind* of place paints a kind of
+  place: the generic Aligre brief gave an anonymous iron market hall. A brief that **names the place
+  and its landmarks** («le marché d'Aligre, place d'Aligre, 12e: the stalls in the small square, the
+  brocante tables of books and crockery, the low marché Beauvau hall with its tiled roof and
+  iron-and-glass lantern, the rue d'Aligre with its cafés») paints Aligre; Longchamp named with its
+  cantilevered grandstand and the moulin came back recognisable
+  (`docs/design-reference/revue/plates/contact-sheet-specificity.webp`). Rules that follow:
+  1. The dossier builder writes `place.brief` as *name + three distinctive, checkable landmarks +
+     light*, never as a type. The Render check refuses a brief for a `kind: place` entity that does
+     not contain that entity's name.
+  2. Well-known public places are named; a private or unremarkable place (a kitchen, a classroom) is
+     typed, because naming would invent.
+  3. The staging rule is unchanged: landmarks yes, people never, and the negative clause above.
+- **Per-beat plates (owner's question).** One plate per dossier for the whole encounter is the
+  phase-1 behaviour (the stage shrinks from full to band to a strip; the image stays). The cost
+  argument for one plate is weak once plates are per place and shared: a second plate per dossier is
+  cents. Proposed, as an open decision in §12: a dossier may carry **two places**, the site of the
+  story for `arrive` and `facts`, and a second view for `pursue`/`make` (an interior, the other end
+  of the square, the place where the guest belongs) switched at the guest's entrance. Not more than
+  two: the plate is the room the conversation happens in, not a slideshow.
 
 ### 8.2 `outfit`: the first new field of the stage language
 - `RigProps.outfit?: Outfit` with the catalogue `coat` (default, canon), `suit`, `apron`,
@@ -403,6 +433,8 @@ depends on it. The day the season reads a dossier is a WP of its own.
    Confirm, or name an exception (for instance a drawn empty podium).
 5. **`outfit` on the Revue stage only**, or also in season panels once WP-118 lands.
 6. **One guest per Revue in v1**, or two with a disagreement between them.
+7. **Two plates per dossier** (site + a second view, switched at the guest's entrance) from phase 4, or one.
+   Recommendation: two, named and landmark-specific (§8.1).
 
 ## 13. Status
 

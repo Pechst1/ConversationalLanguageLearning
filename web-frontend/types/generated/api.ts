@@ -3060,6 +3060,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Request
+         * @description «Autre chose ?»: match a free request against the week's dossiers. Nothing is stored.
+         */
+        post: operations["match_request_api_v1_revue_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Session */
+        post: operations["start_session_api_v1_revue_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Session
+         * @description Resume: a pure replay of the session's state. No model call, nothing written.
+         */
+        get: operations["read_session_api_v1_revue_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Session
+         * @description Romy does something with it: the dispatch, the words and claims kept, her memory. Idempotent.
+         */
+        post: operations["close_session_api_v1_revue_sessions__session_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/make": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Make Options
+         * @description The make options; the headline exercise is built once and reused, its answer never sent.
+         */
+        get: operations["read_make_options_api_v1_revue_sessions__session_id__make_get"];
+        put?: never;
+        /** Post Make */
+        post: operations["post_make_api_v1_revue_sessions__session_id__make_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_v1_revue_sessions__session_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Week
+         * @description The week's recommended story, two alternatives, and any session to resume or already filed.
+         */
+        get: operations["read_week_api_v1_revue_week_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/serial/onboarding/seen": {
         parameters: {
             query?: never;
@@ -9521,6 +9656,728 @@ export interface components {
             ordinal: number;
             prompt: components["schemas"]["RulePrompt"];
             status: components["schemas"]["StepStatus"];
+        };
+        /** RvAngle */
+        RvAngle: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "understand_change" | "explain_disagreement" | "choose_angle" | "prepare_dispatch";
+        };
+        /** RvAngleRef */
+        RvAngleRef: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+        };
+        /** RvBudget */
+        RvBudget: {
+            /** Minutes */
+            minutes: number;
+            /** Turns */
+            turns: number;
+        };
+        /** RvClaim */
+        RvClaim: {
+            /** Attributed To */
+            attributed_to?: string | null;
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "fact" | "interpretation" | "forecast";
+            /** Quote */
+            quote: string;
+            source: components["schemas"]["RvSource"];
+        };
+        /** RvClaimsItem */
+        RvClaimsItem: {
+            /** At */
+            at: string;
+            /** Claims */
+            claims: components["schemas"]["RvClaim"][];
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "claims";
+            /** Seq */
+            seq: number;
+        };
+        /** RvClosedWord */
+        RvClosedWord: {
+            /** Claim Id */
+            claim_id: string;
+            /** Fr */
+            fr: string;
+            /** Gloss */
+            gloss: string;
+            /** Used */
+            used: boolean;
+        };
+        /** RvCloseResult */
+        RvCloseResult: {
+            closing: components["schemas"]["RvClosing"];
+            session: components["schemas"]["RvSessionView"];
+        };
+        /** RvClosing */
+        RvClosing: {
+            /**
+             * Colophon Fr
+             * @default La suite la semaine prochaine.
+             * @constant
+             */
+            colophon_fr?: "La suite la semaine prochaine.";
+            dispatch: components["schemas"]["RvDispatch"];
+            kept: components["schemas"]["RvKept"];
+            /** Question Kept Fr */
+            question_kept_fr?: string | null;
+            /** Romy Line Fr */
+            romy_line_fr: string;
+        };
+        /** RvDispatch */
+        RvDispatch: {
+            /** Body Fr */
+            body_fr: string[];
+            /** Byline Fr */
+            byline_fr: string;
+            /** Contribution */
+            contribution: [
+                number,
+                number
+            ][];
+            /** Headline Fr */
+            headline_fr: string;
+            /** Kicker Fr */
+            kicker_fr: string;
+            /** Sources */
+            sources: components["schemas"]["RvSource"][];
+        };
+        /** RvDossierView */
+        RvDossierView: {
+            /** Evergreen */
+            evergreen: boolean;
+            /** Id */
+            id: string;
+            /** Sources */
+            sources: components["schemas"]["RvSource"][];
+            /** Summary Fr */
+            summary_fr: string;
+            /** Title Fr */
+            title_fr: string;
+            /**
+             * Topic
+             * @enum {string}
+             */
+            topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
+        };
+        /** RvEvidence */
+        RvEvidence: {
+            /** Capability Known */
+            capability_known: boolean;
+            /** Grader */
+            grader: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "correct" | "incorrect" | "unscored";
+        };
+        /** RvFiled */
+        RvFiled: {
+            /** Closed At */
+            closed_at: string;
+            dispatch?: components["schemas"]["RvDispatch"] | null;
+            /** Dossier Id */
+            dossier_id: string;
+            made?: components["schemas"]["RvMade"] | null;
+            /** Session Id */
+            session_id: string;
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** RvGloss */
+        RvGloss: {
+            /** Claim Id */
+            claim_id: string;
+            /** Fr */
+            fr: string;
+            /** Gloss */
+            gloss: string;
+        };
+        /** RvHeadlineChoiceOffer */
+        RvHeadlineChoiceOffer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "headline_choice";
+            /** Options */
+            options: components["schemas"]["RvHeadlineOption"][];
+        };
+        /** RvHeadlineEvidence */
+        RvHeadlineEvidence: {
+            /** Claim Id */
+            claim_id: string;
+            /** Quote */
+            quote: string;
+            source: components["schemas"]["RvSource"];
+        };
+        /** RvHeadlineOption */
+        RvHeadlineOption: {
+            /** Id */
+            id: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvHeadlinePick */
+        RvHeadlinePick: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "pick";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "headline_choice";
+            /** Option Id */
+            option_id: string;
+        };
+        /** RvHeadlinePickResult */
+        RvHeadlinePickResult: {
+            /** Answer Id */
+            answer_id: string;
+            /** Correct */
+            correct: boolean;
+            evidence: components["schemas"]["RvHeadlineEvidence"];
+            /**
+             * Kind
+             * @default headline_choice
+             * @constant
+             */
+            kind?: "headline_choice";
+            made: components["schemas"]["RvMade"];
+        };
+        /** RvKept */
+        RvKept: {
+            /** Claims */
+            claims: components["schemas"]["RvClaim"][];
+            /** Words */
+            words: components["schemas"]["RvClosedWord"][];
+        };
+        /** RvLineItem */
+        RvLineItem: {
+            /** At */
+            at: string;
+            /** Glosses */
+            glosses?: components["schemas"]["RvGloss"][];
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "purpose" | "place_note" | "reply" | "steer" | "fallback" | "close";
+            /** Seq */
+            seq: number;
+            /**
+             * Speaker
+             * @default romy_tremblay
+             */
+            speaker?: string;
+            /** Text Fr */
+            text_fr: string;
+            /** Translation */
+            translation?: string | null;
+        };
+        /** RvMade */
+        RvMade: {
+            /** Contribution */
+            contribution: [
+                number,
+                number
+            ][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "headline_choice" | "reader_question";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvMadeItem */
+        RvMadeItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "made";
+            made: components["schemas"]["RvMade"];
+            /** Seq */
+            seq: number;
+        };
+        /** RvMakeOffer */
+        RvMakeOffer: {
+            /** Options */
+            options: (components["schemas"]["RvHeadlineChoiceOffer"] | components["schemas"]["RvReaderQuestionOffer"])[];
+            /**
+             * Recommended
+             * @enum {string}
+             */
+            recommended: "headline_choice" | "reader_question";
+        };
+        /** RvMatchRequest */
+        RvMatchRequest: {
+            /** Text */
+            text: string;
+            /** Week */
+            week?: string | null;
+        };
+        /** RvMatchResult */
+        RvMatchResult: {
+            /** Match */
+            match: string | null;
+            /** Romy Line Fr */
+            romy_line_fr?: string | null;
+        };
+        /** RvMineItem */
+        RvMineItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "mine";
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Seq */
+            seq: number;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvNarrationItem */
+        RvNarrationItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "narration";
+            /** Seq */
+            seq: number;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvOffer */
+        RvOffer: {
+            /** Alternatives */
+            alternatives: components["schemas"]["RvStoryCard"][];
+            /** Evergreen Only */
+            evergreen_only: boolean;
+            filed?: components["schemas"]["RvFiled"] | null;
+            recommended: components["schemas"]["RvStoryCard"] | null;
+            /**
+             * Recommended Reason
+             * @enum {string}
+             */
+            recommended_reason: "topic_least_recent" | "interests" | "first";
+            resume?: components["schemas"]["RvResume"] | null;
+            week: components["schemas"]["RvWeek"];
+        };
+        /** RvPlanView */
+        RvPlanView: {
+            angle: components["schemas"]["RvAngle"];
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "A1" | "A2" | "B1" | "B2";
+            budget: components["schemas"]["RvBudget"];
+            /**
+             * Chosen By
+             * @enum {string}
+             */
+            chosen_by: "learner" | "recommended";
+            /**
+             * Gloss Language
+             * @enum {string}
+             */
+            gloss_language: "en" | "de" | "fr";
+            /** Make Options */
+            make_options: ("headline_choice" | "reader_question")[];
+            support: components["schemas"]["RvSupport"];
+            /**
+             * Ui Language
+             * @enum {string}
+             */
+            ui_language: "en" | "de" | "fr";
+            /** Vocabulary */
+            vocabulary: components["schemas"]["RvGloss"][];
+        };
+        /** RvQuestionDraft */
+        RvQuestionDraft: {
+            /** Contribution */
+            contribution: [
+                number,
+                number
+            ][];
+            /** Learner Fr */
+            learner_fr: string;
+            /** Proposal Fr */
+            proposal_fr: string;
+            /** Why Native */
+            why_native?: string | null;
+        };
+        /** RvQuestionPropose */
+        RvQuestionPropose: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "propose";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "reader_question";
+            /** Text */
+            text?: string | null;
+        };
+        /** RvQuestionProposeResult */
+        RvQuestionProposeResult: {
+            draft: components["schemas"]["RvQuestionDraft"];
+            /**
+             * Kind
+             * @default reader_question
+             * @constant
+             */
+            kind?: "reader_question";
+        };
+        /** RvQuestionSend */
+        RvQuestionSend: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "send";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "reader_question";
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvQuestionSendResult */
+        RvQuestionSendResult: {
+            /**
+             * Kind
+             * @default reader_question
+             * @constant
+             */
+            kind?: "reader_question";
+            made: components["schemas"]["RvMade"];
+        };
+        /** RvQuickReply */
+        RvQuickReply: {
+            /** Label */
+            label: string;
+            /** Send Fr */
+            send_fr: string;
+        };
+        /** RvReaderQuestionOffer */
+        RvReaderQuestionOffer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "reader_question";
+            /** Seed Fr */
+            seed_fr?: string | null;
+            /** Uncertainty Fr */
+            uncertainty_fr?: string | null;
+        };
+        /** RvResume */
+        RvResume: {
+            /**
+             * Beat
+             * @enum {string}
+             */
+            beat: "arrive" | "facts" | "pursue" | "make" | "close";
+            /** Dossier Id */
+            dossier_id: string;
+            /** Open Question Fr */
+            open_question_fr?: string | null;
+            /** Session Id */
+            session_id: string;
+            /** Started At */
+            started_at: string;
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** RvRoom */
+        RvRoom: {
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "open" | "bouclage" | "boucle";
+            /** Remaining Turns */
+            remaining_turns: number;
+            /** Used */
+            used: number;
+        };
+        /** RvSessionView */
+        RvSessionView: {
+            artifact?: components["schemas"]["RvMade"] | null;
+            /**
+             * Beat
+             * @enum {string}
+             */
+            beat: "arrive" | "facts" | "pursue" | "make" | "close";
+            /** Closed At */
+            closed_at?: string | null;
+            closing?: components["schemas"]["RvClosing"] | null;
+            dossier: components["schemas"]["RvDossierView"];
+            /** Id */
+            id: string;
+            plan: components["schemas"]["RvPlanView"];
+            /** Quick Replies */
+            quick_replies: components["schemas"]["RvQuickReply"][];
+            room: components["schemas"]["RvRoom"];
+            stage: components["schemas"]["RvStage"];
+            /** Started At */
+            started_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "closed" | "abandoned";
+            /** Steer To Make */
+            steer_to_make: boolean;
+            /** Thread */
+            thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            week: components["schemas"]["RvWeek"];
+        };
+        /** RvShiftItem */
+        RvShiftItem: {
+            angle?: components["schemas"]["RvAngleRef"] | null;
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "shift";
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "simplify" | "angle" | "bouclage" | "boucle";
+            /** Seq */
+            seq: number;
+        };
+        /** RvSource */
+        RvSource: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Published At */
+            published_at: string;
+            /** Url */
+            url: string;
+        };
+        /** RvStage */
+        RvStage: {
+            /** Cast */
+            cast: components["schemas"]["RvStageMember"][];
+            /**
+             * Dress
+             * @enum {string}
+             */
+            dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";
+            /** Place Fr */
+            place_fr: string;
+            /** Place Id */
+            place_id: string;
+            /** Place Is Real */
+            place_is_real: boolean;
+            /** Plate Place Id */
+            plate_place_id: string;
+            /** Plate Url */
+            plate_url: string | null;
+        };
+        /** RvStageMember */
+        RvStageMember: {
+            /** Hold */
+            hold?: string | null;
+            /** Id */
+            id: string;
+        };
+        /** RvStartRequest */
+        RvStartRequest: {
+            /** Angle Id */
+            angle_id?: string | null;
+            /** Dossier Id */
+            dossier_id?: string | null;
+            /** Free Request */
+            free_request?: string | null;
+            /** Week */
+            week?: string | null;
+        };
+        /** RvStoryCard */
+        RvStoryCard: {
+            /** Dossier Id */
+            dossier_id: string;
+            /** Evergreen */
+            evergreen: boolean;
+            /** Place Fr */
+            place_fr: string;
+            /** Plate Url */
+            plate_url: string | null;
+            stage: components["schemas"]["RvStage"];
+            /** Summary Fr */
+            summary_fr: string;
+            /** Title Fr */
+            title_fr: string;
+            /**
+             * Topic
+             * @enum {string}
+             */
+            topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
+        };
+        /** RvSummaryItem */
+        RvSummaryItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "summary";
+            /** Seq */
+            seq: number;
+            /**
+             * Speaker
+             * @default romy_tremblay
+             */
+            speaker?: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvSupport */
+        RvSupport: {
+            /**
+             * Glosses
+             * @enum {string}
+             */
+            glosses: "shown" | "tap" | "none";
+            /** Level */
+            level: number;
+            /** Reading Target Words */
+            reading_target_words: number;
+            /**
+             * Translation
+             * @enum {string}
+             */
+            translation: "one_tap" | "on_request" | "none";
+            /** Vocab Target */
+            vocab_target: number;
+        };
+        /** RvTurnRequest */
+        RvTurnRequest: {
+            /** Client Turn Id */
+            client_turn_id?: string | null;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Text */
+            text: string;
+        };
+        /** RvTurnResult */
+        RvTurnResult: {
+            /**
+             * Beat
+             * @enum {string}
+             */
+            beat: "arrive" | "facts" | "pursue" | "make" | "close";
+            evidence: components["schemas"]["RvEvidence"];
+            /** Items */
+            items: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            /** Quick Replies */
+            quick_replies: components["schemas"]["RvQuickReply"][];
+            room: components["schemas"]["RvRoom"];
+            /** Steer To Make */
+            steer_to_make: boolean;
+            support: components["schemas"]["RvSupport"];
+        };
+        /** RvUncertaintyItem */
+        RvUncertaintyItem: {
+            /** At */
+            at: string;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "uncertainty";
+            /** Seq */
+            seq: number;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvWeek */
+        RvWeek: {
+            /** Iso */
+            iso: string;
+            /** Label */
+            label: string;
+            /** Range */
+            range: string;
         };
         /** ScenarioDescriptor */
         ScenarioDescriptor: {
@@ -16976,6 +17833,266 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RehearsalEnvelope"];
+                };
+            };
+        };
+    };
+    match_request_api_v1_revue_match_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvMatchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_session_api_v1_revue_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvSessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_session_api_v1_revue_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvSessionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_session_api_v1_revue_sessions__session_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvCloseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_make_options_api_v1_revue_sessions__session_id__make_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvMakeOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_make_api_v1_revue_sessions__session_id__make_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvHeadlinePick"] | components["schemas"]["RvQuestionPropose"] | components["schemas"]["RvQuestionSend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_v1_revue_sessions__session_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvTurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvTurnResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_week_api_v1_revue_week_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

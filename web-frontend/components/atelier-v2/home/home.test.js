@@ -267,3 +267,87 @@ test('the flag-off Home is unchanged: French, the kicker, the rows and the colop
   assert.match(html, /aria-label="4 jours de suite · vos sceaux"/);
   assert.doesNotMatch(html, /av2-home__chips/);
 });
+
+// WP-119 · La Revue on La Une, as data in the existing slots (no HomeScreen change):
+// the Revue day's hero card with the plan row hidden, and the other days' chip.
+const revueTypes = require('@/lib/revue-types.ts');
+const { RvUneCard } = require('@/components/revue/RvUneCard.tsx');
+const { revueCopy } = require('@/components/revue/revue-copy.ts');
+const { revueHomeChip, revueUneState } = require('@/components/revue/revue-home.ts');
+// The drawn rigs use the automatic JSX runtime's global React.
+global.React = React;
+/** The prose of Home, as the first test counts it (the level figure is a figure, not prose). */
+const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const REVUE = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'components/revue/fixtures/mock-wire.json'), 'utf8'));
+
+function revueHero(language, offer, extra = {}) {
+  const state = revueUneState(offer);
+  return h(RvUneCard, {
+    story: offer.recommended,
+    week: offer.week,
+    state,
+    onOpen: () => {},
+    onOtherSubject: () => {},
+    copy: revueCopy(language),
+    ...extra,
+  });
+}
+
+test('WP-119: the Revue card on La Une does one thing: ≤ 5 elements, ≤ 25 words, one primary, in en/de/fr', () => {
+  const offer = revueTypes.parseOffer(REVUE.offer);
+  // A long title too (9 words): the card drops the place, then the week, then the topic, never the story.
+  const long = { ...offer, recommended: { ...offer.recommended, titleFr: 'Un jour de grève dans les transports de la ville', evergreen: false } };
+  for (const language of ['en', 'de', 'fr']) {
+    for (const variant of [offer, long]) {
+      const html = home(language, { hero: revueHero(language, variant), planHidden: true, chips: [] });
+      const sections = (html.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length;
+      assert.ok(sections <= 5, `${language}: ${sections} elements`);
+      const count = words(prose(html)).length;
+      if (process.env.HOME_WORDS) console.log('revue', language, sections, count, visibleText(html));
+      assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
+      assert.equal((html.match(/av2-btn--primary/g) || []).length, 1, `${language}: one primary`);
+      assert.doesNotMatch(html, /av2-day-plan/, 'the plan row is hidden: the card is the route');
+      assert.match(visibleText(html), new RegExp(variant.recommended.titleFr.slice(0, 20)));
+    }
+    // Resume: one clause from the state, «Reprendre avec Romy».
+    const resumeOffer = revueTypes.parseOffer(REVUE.offer_resume);
+    const copy = revueCopy(language);
+    const resume = home(language, {
+      hero: revueHero(language, resumeOffer, { resumeLine: copy.resume_line_question.replace('{when}', copy.started_yesterday) }),
+      planHidden: true,
+      chips: [],
+    });
+    assert.ok(words(prose(resume)).length <= 25, `${language} resume: ${visibleText(resume)}`);
+    assert.equal((resume.match(/av2-btn--primary/g) || []).length, 1);
+    // Filed: no press at all; the day's other chip may show.
+    const filedOffer = revueTypes.parseOffer(REVUE.offer_filed);
+    const filed = home(language, { hero: revueHero(language, filedOffer, { filed: { made: filedOffer.filed.made } }), planHidden: true, chips: [] });
+    assert.equal((filed.match(/av2-btn--primary/g) || []).length, 0);
+    assert.ok(words(prose(filed)).length <= 25, `${language} filed: ${visibleText(filed)}`);
+  }
+});
+
+test('WP-119: on other days the Revue is one quiet chip beside the letter, gone once filed or switched off', () => {
+  const week = { enabled: true, offer: revueTypes.parseOffer(REVUE.offer) };
+  for (const language of ['en', 'de', 'fr']) {
+    const chip = revueHomeChip(week, language);
+    assert.equal(chip.href, '/revue');
+    const html = home(language, {
+      chips: [
+        { id: 'courrier', label: atelierCopy(language).home_letter, href: '/missions?mission=1', shape: 'story' },
+        chip,
+        { id: 'lexique', label: '3 words', href: '/vocabulary/review' },
+      ],
+    });
+    assert.equal((html.match(/data-chip=/g) || []).length, 2, 'letter first, then the Revue');
+    assert.match(html, /data-chip="revue"/);
+    assert.match(visibleText(html), /New letter La Revue|Neuer Brief La Revue|Nouvelle lettre La Revue|La Revue/);
+    assert.match(html, /aria-label="[^"]*(semaine|week|Woche) 40"/, 'the week is in the label, not the 25 words');
+    assert.ok(words(prose(html)).length <= 25, `${language}: ${visibleText(html)}`);
+    assert.equal((html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');
+  }
+  assert.equal(revueHomeChip({ enabled: false }, 'en'), null, 'flag off: no chip');
+  assert.equal(revueHomeChip({ enabled: true, offer: revueTypes.parseOffer(REVUE.offer_filed) }, 'en'), null, 'filed: no chip');
+  const resume = revueHomeChip({ enabled: true, offer: revueTypes.parseOffer(REVUE.offer_resume) }, 'fr');
+  assert.match(resume.href, /^\/revue\?session=/);
+});
