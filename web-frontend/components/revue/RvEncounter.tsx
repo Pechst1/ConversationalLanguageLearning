@@ -14,6 +14,16 @@
  * One red press per screen: the arrive line, «C'est parti», «Continuer», or «On
  * l'envoie à la rédaction»; the close's terminal press is ink («Classer la
  * Revue»), since nothing is left to do.
+ *
+ * Phase 2 («Les invités», WIRE §6): a guest who speaks stands beside Romy on the
+ * stage (sliding in on their entrance) and talks in their own bubbles; Romy's
+ * `make_intro` line opens the make, her `make_done` line follows each result;
+ * B1+ may write the headline or tell a thirty-second report; the rubric's
+ * register note is worded under the learner's line and its word outcomes mark
+ * the kept words at the close; the close stamps the minted vignette (WP-120).
+ *
+ * `readOnly` (La Carte's «Relire», `/revue?session=…&readonly=1`): the thread
+ * replayed, no composer, no press, nothing sent.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,31 +32,50 @@ import { Action, Notice } from '@/components/atelier-v2/ui';
 import { WordHelpSheet, type WordHelpRequest } from '@/components/feuilleton/reader/WordHelpSheet';
 import { RevueError, newClientTurnId, type RevueClient } from '@/lib/revue-api';
 import type {
+  RvEvidence,
   RvHeadlineOption,
   RvLanguage,
+  RvLineItem,
   RvMakeKind,
   RvMakeOffer,
+  RvMade,
   RvPickResult,
   RvQuestionDraftData,
+  RvReportResult,
   RvSessionView,
+  RvWriteResult,
 } from '@/lib/revue-types';
 
 import { ROMY_CLIENT_LINES, fill, revueCopy } from './revue-copy';
-import { applyTurn, localDay, openQuestion, sourceDate } from './revue-model';
-import { RvDispatch, RvKept } from './RvClose';
+import {
+  appendItems,
+  applyTurn,
+  castWithGuests,
+  enteringGuest,
+  lastSpeaker,
+  localDay,
+  mergeWordOutcomes,
+  openQuestion,
+  shownRoom,
+  sourceDate,
+  type WordOutcomes,
+} from './revue-model';
+import { RvCloseVignette, RvDispatch, RvKept } from './RvClose';
 import { RvComposer } from './RvComposer';
-import { RvHeadlineChoice, RvMakePicker, RvQuestionDraft } from './RvMake';
+import { RvHeadlineChoice, RvHeadlineWrite, RvMakePicker, RvQuestionDraft, RvShortReport } from './RvMake';
 import { RvSessionHead } from './RvSessionHead';
 import { RvStage, stageCast } from './RvStage';
-import { RvLine, RvQuickReplies, RvThread, type RvWordEvent } from './RvThread';
+import { RvLine, RvMadeCard, RvQuickReplies, RvThread, type RvWordEvent } from './RvThread';
 
 type MakeStep =
   | { step: 'none' }
   | { step: 'loading' }
   | { step: 'choose'; offer: RvMakeOffer; value: RvMakeKind }
-  | { step: 'headline'; options: RvHeadlineOption[]; picked: string | null; result: RvPickResult | null }
+  | { step: 'headline'; options: RvHeadlineOption[]; picked: string | null; result: RvPickResult | null; ask: boolean }
   | { step: 'write'; seed: string }
-  | { step: 'draft'; draft: RvQuestionDraftData };
+  | { step: 'draft'; draft: RvQuestionDraftData }
+  | { step: 'headline_write'; maxWords: number; result: RvWriteResult | null; ask: boolean }
+  | { step: 'report'; seconds: number; result: RvReportResult | null; ask: boolean };
 
 export type RvEncounterProps = {
   client: RevueClient;
@@ -56,14 +85,22 @@ export type RvEncounterProps = {
   language?: RvLanguage;
   onExit: () => void;
   onReleve?: () => void;
+  /** La Carte's «Relire»: replay the thread, hide the composer and every press. */
+  readOnly?: boolean;
   now?: Date;
 };
 
 /** A learner line that asks Romy to phrase the open question together. */
 const FORMULATE = /formule la question|on l['’]écrit|on l['’]ecrit/i;
 
-export function RvEncounter({ client, session: initial, language, onExit, onReleve, now }: RvEncounterProps) {
+export function RvEncounter({ client, session: initial, language, onExit, onReleve, readOnly = false, now }: RvEncounterProps) {
   const [session, setSession] = useState<RvSessionView>(initial);
+  // Phase 2: what the rubric said (never replayed by the server: kept for this visit).
+  const [outcomes, setOutcomes] = useState<WordOutcomes>({});
+  const [registerNotes, setRegisterNotes] = useState<Record<string, 'vous_to_tu' | 'tu_to_vous'>>({});
+  const [entering, setEntering] = useState<string | null>(null);
+  // Romy's `make_done` line, shown after the make step's result.
+  const [doneLine, setDoneLine] = useState<RvLineItem | null>(null);
   const [make, setMake] = useState<MakeStep>({ step: 'none' });
   const [pendingMine, setPendingMine] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,6 +111,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const [reread, setReread] = useState(false);
   // `ended`: opened after the close this week — read-only. A close made here shows the close page instead.
   const [ended] = useState(initial.status !== 'active');
+  const showThread = !ended || reread || readOnly;
   const endRef = useRef<HTMLDivElement | null>(null);
   const footRef = useRef<HTMLDivElement | null>(null);
 
@@ -123,6 +161,13 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     setWord({ surface: event.word, term, sentence: event.sentence, speakerId: 'romy_tremblay' });
   }, []);
 
+  const noteEvidence = useCallback((evidence: RvEvidence | null | undefined, mineId: string | null) => {
+    if (!evidence) return;
+    setOutcomes((current) => mergeWordOutcomes(current, evidence));
+    const note = evidence.registerNote;
+    if (mineId && (note === 'vous_to_tu' || note === 'tu_to_vous')) setRegisterNotes((current) => ({ ...current, [mineId]: note }));
+  }, []);
+
   // --- make ------------------------------------------------------------------
 
   const openMake = useCallback(
@@ -130,6 +175,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       setMake({ step: 'loading' });
       try {
         const offer = await client.makeOffer(session.id);
+        // Romy's intro is a thread item like any line: it replays on resume.
+        if (offer.intro) {
+          const intro = offer.intro;
+          setSession((current) => appendItems(current, [intro]));
+        }
         const kinds = offer.options.map((option) => option.kind);
         if (!kinds.length) {
           setMake({ step: 'none' });
@@ -148,8 +198,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     if (make.step !== 'choose') return;
     const option = make.offer.options.find((row) => row.kind === make.value);
     if (!option) return;
+    // Romy's own ask, unless her intro already asked for exactly this.
+    const ask = !make.offer.intro || make.offer.recommended !== option.kind;
+    setDoneLine(null);
     if (option.kind === 'headline_choice') {
-      setMake({ step: 'headline', options: option.options, picked: null, result: null });
+      setMake({ step: 'headline', options: option.options, picked: null, result: null, ask: true });
+    } else if (option.kind === 'headline_write') {
+      setMake({ step: 'headline_write', maxWords: option.maxWords, result: null, ask });
+    } else if (option.kind === 'short_report') {
+      setMake({ step: 'report', seconds: option.seconds, result: null, ask });
     } else {
       setMake({ step: 'write', seed: option.seedFr ?? openQuestion(session.thread) ?? '' });
     }
@@ -157,9 +214,14 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
 
   // At 80 % Romy steers to the make herself (design §3.5 #choose).
   useEffect(() => {
-    if (ended || closing || busy || steerDismissed || make.step !== 'none') return;
+    if (readOnly || ended || closing || busy || steerDismissed || make.step !== 'none') return;
     if (session.steerToMake && !session.artifact) void openMake();
-  }, [busy, closing, ended, make.step, openMake, session.artifact, session.steerToMake, steerDismissed]);
+  }, [busy, closing, ended, make.step, openMake, readOnly, session.artifact, session.steerToMake, steerDismissed]);
+
+  /** A filed artefact: the make step shows it; the server's `made` item arrives with the close's replay. */
+  const fileLocally = (made: RvMade) => {
+    setSession((current) => ({ ...current, artifact: made }));
+  };
 
   const doClose = useCallback(async () => {
     setBusy(true);
@@ -180,7 +242,10 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     setBusy(true);
     try {
       const result = await client.make(session.id, { kind: 'headline_choice', action: 'pick', optionId });
-      if (result.kind === 'headline_choice') setMake({ step: 'headline', options: make.options, picked: optionId, result });
+      if (result.kind === 'headline_choice') {
+        setMake({ step: 'headline', options: make.options, picked: optionId, result, ask: make.ask });
+        setDoneLine(result.line);
+      }
     } catch (error) {
       if (error instanceof RevueError && error.code === 'revue_session_closed') await reload();
       else setModelDown(true);
@@ -199,6 +264,46 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       setModelDown(true);
     } finally {
       setPendingMine(null);
+      setBusy(false);
+    }
+  };
+
+  const writeHeadline = async (textFr: string) => {
+    if (make.step !== 'headline_write' || busy) return;
+    const step = make;
+    setBusy(true);
+    try {
+      const result = await client.make(session.id, { kind: 'headline_write', action: 'write', textFr });
+      if (result.kind === 'headline_write') {
+        setMake({ ...step, result });
+        setDoneLine(result.line);
+        noteEvidence(result.evidence, null);
+        if (result.accepted && result.made) fileLocally(result.made);
+      }
+    } catch (error) {
+      if (error instanceof RevueError && error.code === 'revue_session_closed') await reload();
+      else setModelDown(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendReport = async (transcript: string, mode: 'voice' | 'text') => {
+    if (make.step !== 'report' || busy) return;
+    const step = make;
+    setBusy(true);
+    try {
+      const result = await client.make(session.id, { kind: 'short_report', action: 'report', transcript, mode });
+      if (result.kind === 'short_report') {
+        setMake({ ...step, result });
+        setDoneLine(result.line);
+        noteEvidence(result.evidence, null);
+        fileLocally(result.made);
+      }
+    } catch (error) {
+      if (error instanceof RevueError && error.code === 'revue_session_closed') await reload();
+      else setModelDown(true);
+    } finally {
       setBusy(false);
     }
   };
@@ -236,6 +341,10 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       const result = await client.turn(session.id, { text, mode, clientTurnId: newClientTurnId() });
       setSession((current) => applyTurn(current, result));
       setModelDown(false);
+      const mine = result.items.find((item) => item.kind === 'mine');
+      noteEvidence(result.evidence, mine ? mine.id : null);
+      const guest = enteringGuest(result.items);
+      if (guest) setEntering(guest);
       if (FORMULATE.test(text) && !result.steerToMake) void openMake('reader_question');
     } catch (error) {
       if (error instanceof RevueError && error.code === 'revue_session_closed') {
@@ -258,11 +367,14 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     ? make.offer.options
       .slice()
       .sort((a, b) => Number(b.kind === make.offer.recommended) - Number(a.kind === make.offer.recommended))
-      .map((option) => ({
-        id: option.kind,
-        titleFr: copy.make_options[option.kind].title,
-        detail: copy.make_options[option.kind].detail,
-      }))
+      .map((option) => {
+        const n = option.kind === 'headline_write' ? option.maxWords : option.kind === 'short_report' ? option.seconds : '';
+        return {
+          id: option.kind,
+          titleFr: fill(copy.make_options[option.kind].title, { n }),
+          detail: fill(copy.make_options[option.kind].detail, { n }),
+        };
+      })
     : [];
 
   const after: React.ReactNode[] = [];
@@ -271,7 +383,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       <RvLine textFr={text} past={false} support={support} glosses={[]} glossLanguage={glossLanguage} copy={copy} />
     </li>
   );
-  if (modelDown && !closing) {
+  if (modelDown && !closing && !readOnly) {
     after.push(
       <li key="model-down" className="av2-thread__line" data-kind="notice">
         <Notice tone="quiet" shape="action">
@@ -289,10 +401,33 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     );
   }
   if (make.step === 'headline') {
+    if (make.ask) after.push(romyRow('headline-ask', ROMY_CLIENT_LINES.headline_ask));
     after.push(
-      romyRow('headline-ask', ROMY_CLIENT_LINES.headline_ask),
       <li key="make-headline" className="av2-thread__line" data-kind="make">
         <RvHeadlineChoice options={make.options} result={make.result} picked={make.picked} pending={busy} onPick={(id) => void pick(id)} copy={copy} now={now} />
+      </li>,
+    );
+  }
+  if (make.step === 'headline_write') {
+    if (make.ask) after.push(romyRow('headline-write-ask', ROMY_CLIENT_LINES.headline_write_ask));
+    after.push(
+      <li key="make-headline-write" className="av2-thread__line" data-kind="make" data-make="headline_write">
+        <RvHeadlineWrite maxWords={make.maxWords} result={make.result} pending={busy} onSend={(text) => void writeHeadline(text)} copy={copy} />
+      </li>,
+    );
+  }
+  if (make.step === 'report') {
+    if (make.ask) after.push(romyRow('report-ask', ROMY_CLIENT_LINES.report_ask));
+    after.push(
+      <li key="make-report" className="av2-thread__line" data-kind="make" data-make="short_report">
+        {make.result ? <RvMadeCard made={make.result.made} copy={copy} /> : <RvShortReport seconds={make.seconds} pending={busy} onSend={(text, mode) => void sendReport(text, mode)} copy={copy} />}
+      </li>,
+    );
+  }
+  if (doneLine && !closing && (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report')) {
+    after.push(
+      <li key={`done-${doneLine.id}`} className="av2-thread__line" data-kind="line" data-role="make_done" data-speaker="romy">
+        <RvLine textFr={doneLine.textFr} past={false} translation={doneLine.translation} support={support} glosses={doneLine.glosses} glossLanguage={glossLanguage} copy={copy} />
       </li>,
     );
   }
@@ -327,8 +462,18 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         <RvDispatch {...closing.dispatch} copy={copy} />
       </li>,
       <li key="kept" className="av2-thread__line" data-kind="kept">
-        <RvKept words={closing.kept.words} claims={closing.kept.claims} glossLanguage={glossLanguage} copy={copy} now={now} />
+        <RvKept words={closing.kept.words} claims={closing.kept.claims} glossLanguage={glossLanguage} copy={copy} now={now} outcomes={outcomes} />
       </li>,
+    );
+    // WP-120: the vignette is stamped in before «Classer»; no vignette, no stamp.
+    if (closing.vignette) {
+      after.push(
+        <li key="vignette" className="av2-thread__line" data-kind="vignette">
+          <RvCloseVignette vignette={closing.vignette} week={session.week.label} copy={copy} />
+        </li>,
+      );
+    }
+    after.push(
       <li key="colophon" className="av2-thread__line" data-kind="colophon">
         <p className="rv-colophon" lang="fr">
           {closing.colophonFr}
@@ -339,7 +484,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
 
   // The foot: one red press at most.
   let foot: React.ReactNode = null;
-  if (ended) {
+  if (ended || readOnly) {
     foot = null;
   } else if (closing) {
     foot = (
@@ -374,8 +519,9 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         )}
       </>
     );
-  } else if (make.step === 'headline') {
-    foot = make.result ? (
+  } else if (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report') {
+    const filed = make.step === 'headline' ? Boolean(make.result) : make.step === 'headline_write' ? Boolean(make.result?.accepted) : Boolean(make.result);
+    foot = filed ? (
       <Action tone="primary" pending={busy} pendingLabel={copy.continue} onClick={() => void doClose()}>
         {copy.continue}
       </Action>
@@ -424,20 +570,24 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     );
   }
 
+  // A guest stands beside Romy from their entrance on; whoever spoke last is in front.
+  const cast = castWithGuests(session.stage.cast, session.thread);
   const stage = (
     <RvStage
       plateUrl={session.stage.plateUrl}
       size={hasSpoken || ended ? 'band' : 'full'}
-      cast={stageCast(session.stage.cast)}
+      cast={stageCast(cast, lastSpeaker(session.thread))}
       you={{ outfit: session.stage.dress }}
+      entering={entering}
       still={busy}
     />
   );
+  const room = shownRoom(session.room, session.thread);
 
   return (
-    <div className="rv-encounter" data-beat={session.beat} data-ended={ended ? '' : undefined}>
+    <div className="rv-encounter" data-beat={session.beat} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined}>
       <div className="rv-top">
-        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} room={session.room} onExit={onExit} ended={ended} copy={copy} />
+        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} room={room} onExit={onExit} ended={ended || readOnly} copy={copy} />
         {(hasSpoken || ended) && stage}
       </div>
       {!hasSpoken && !ended && stage}
@@ -449,12 +599,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
           <>
             <p className="rv-ended">{fill(copy.filed_on, { date: sourceDate(localDay(session.closedAt ?? ''), now) })}</p>
             <RvDispatch {...closing.dispatch} readOnly copy={copy} />
-            <Action tone="quiet" aria-expanded={reread} onClick={() => setReread((value) => !value)}>
-              {reread ? copy.hide_thread : copy.reread}
-            </Action>
+            {closing.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={false} copy={copy} />}
+            {!readOnly && (
+              <Action tone="quiet" aria-expanded={reread} onClick={() => setReread((value) => !value)}>
+                {reread ? copy.hide_thread : copy.reread}
+              </Action>
+            )}
           </>
         )}
-        {(!ended || reread) && (
+        {showThread && (
           <RvThread
             items={session.thread}
             support={support}
@@ -467,7 +620,8 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
             pendingMine={pendingMine}
             resumeToday={today}
             resumeLabel={resumeLabel}
-            after={after}
+            after={readOnly ? null : after}
+            registerNotes={registerNotes}
             now={now}
           />
         )}

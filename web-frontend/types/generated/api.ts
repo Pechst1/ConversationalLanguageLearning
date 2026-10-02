@@ -3060,6 +3060,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/carte": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Carte
+         * @description The learner's pins (closed Papiers with a place), «Mon quartier», counts per level.
+         */
+        get: operations["read_carte_api_v1_revue_carte_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/match": {
         parameters: {
             query?: never;
@@ -3169,6 +3189,23 @@ export interface paths {
         put?: never;
         /** Post Turn */
         post: operations["post_turn_api_v1_revue_sessions__session_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/vignettes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Vignettes */
+        get: operations["read_vignettes_api_v1_revue_vignettes_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5952,6 +5989,100 @@ export interface components {
             bands?: components["schemas"]["CarnetBand"][];
             /** Current Band */
             current_band?: string | null;
+        };
+        /** CarteCounts */
+        CarteCounts: {
+            /** France */
+            france: number;
+            /** Idf */
+            idf: number;
+            /** Paris */
+            paris: number;
+            /** Unplaced */
+            unplaced: number;
+        };
+        /** CartePin */
+        CartePin: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Contribution Fr */
+            contribution_fr?: string | null;
+            /** Contribution Kind */
+            contribution_kind?: string | null;
+            /**
+             * Contribution Spans
+             * @default []
+             */
+            contribution_spans?: [
+                number,
+                number
+            ][];
+            /** Dossier Id */
+            dossier_id: string;
+            /** Headline Fr */
+            headline_fr: string;
+            /** Kept Words */
+            kept_words: string[];
+            /** Lat */
+            lat: number;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "france" | "idf" | "paris";
+            /** Lon */
+            lon: number;
+            /** Place Label Fr */
+            place_label_fr: string;
+            /** Plate Url */
+            plate_url?: string | null;
+            /**
+             * Precision
+             * @enum {string}
+             */
+            precision: "exact" | "city" | "region";
+            /** Question Fr */
+            question_fr?: string | null;
+            /** Session Id */
+            session_id: string;
+            vignette?: components["schemas"]["CarteVignette"] | null;
+            /** Week */
+            week: string;
+        };
+        /** CarteQuartierPlace */
+        CarteQuartierPlace: {
+            /** Id */
+            id: string;
+            /** Label Fr */
+            label_fr: string;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            /** Name Fr */
+            name_fr: string;
+            /** Plate Url */
+            plate_url?: string | null;
+        };
+        /** CarteView */
+        CarteView: {
+            counts: components["schemas"]["CarteCounts"];
+            /** Pins */
+            pins: components["schemas"]["CartePin"][];
+            /** Quartier */
+            quartier: components["schemas"]["CarteQuartierPlace"][];
+        };
+        /** CarteVignette */
+        CarteVignette: {
+            /** Kept Contribution */
+            kept_contribution: boolean;
+            /** Pictogram Svg */
+            pictogram_svg: string;
+            /**
+             * Ring
+             * @enum {string}
+             */
+            ring: "headline" | "question" | "report";
         };
         /**
          * CastIntroEntry
@@ -9746,6 +9877,7 @@ export interface components {
             question_kept_fr?: string | null;
             /** Romy Line Fr */
             romy_line_fr: string;
+            vignette?: components["schemas"]["VignetteView"] | null;
         };
         /** RvDispatch */
         RvDispatch: {
@@ -9787,6 +9919,12 @@ export interface components {
         RvEvidence: {
             /** Capability Known */
             capability_known: boolean;
+            /**
+             * Fact Fit
+             * @default not_applicable
+             * @enum {string}
+             */
+            fact_fit?: "supported" | "unsupported" | "contradicted" | "not_applicable";
             /** Grader */
             grader: string;
             /**
@@ -9794,6 +9932,14 @@ export interface components {
              * @enum {string}
              */
             outcome: "correct" | "incorrect" | "unscored";
+            /**
+             * Register Note
+             * @default ok
+             * @enum {string}
+             */
+            register_note?: "ok" | "vous_to_tu" | "tu_to_vous";
+            /** Words */
+            words?: components["schemas"]["RvWordEvidence"][];
         };
         /** RvFiled */
         RvFiled: {
@@ -9816,6 +9962,40 @@ export interface components {
             fr: string;
             /** Gloss */
             gloss: string;
+        };
+        /**
+         * RvGuestItem
+         * @description Phase 2: a guest speaks (one guest per Papier).
+         */
+        RvGuestItem: {
+            /** At */
+            at: string;
+            /** Cast Id */
+            cast_id: string;
+            /** Glosses */
+            glosses?: components["schemas"]["RvGloss"][];
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "guest";
+            /**
+             * Move
+             * @enum {string}
+             */
+            move: "enter" | "follow_up" | "disagree" | "moved";
+            /** Position */
+            position?: ("for" | "against" | "moved") | null;
+            /** Reason */
+            reason?: ("model_down" | "knowledge_refused" | "budget" | "no_match") | null;
+            /** Reason Fr */
+            reason_fr?: string | null;
+            /** Seq */
+            seq: number;
+            /** Text Fr */
+            text_fr: string;
         };
         /** RvHeadlineChoiceOffer */
         RvHeadlineChoiceOffer: {
@@ -9870,7 +10050,47 @@ export interface components {
              * @constant
              */
             kind?: "headline_choice";
+            line?: components["schemas"]["RvLineItem"] | null;
             made: components["schemas"]["RvMade"];
+        };
+        /** RvHeadlineWrite */
+        RvHeadlineWrite: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "write";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "headline_write";
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvHeadlineWriteOffer */
+        RvHeadlineWriteOffer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "headline_write";
+            /** Max Words */
+            max_words: number;
+        };
+        /** RvHeadlineWriteResult */
+        RvHeadlineWriteResult: {
+            /** Accepted */
+            accepted: boolean;
+            evidence: components["schemas"]["RvEvidence"];
+            /**
+             * Kind
+             * @default headline_write
+             * @constant
+             */
+            kind?: "headline_write";
+            line?: components["schemas"]["RvLineItem"] | null;
+            made?: components["schemas"]["RvMade"] | null;
         };
         /** RvKept */
         RvKept: {
@@ -9892,11 +10112,13 @@ export interface components {
              * @enum {string}
              */
             kind: "line";
+            /** Reason */
+            reason?: ("model_down" | "knowledge_refused" | "budget" | "no_match") | null;
             /**
              * Role
              * @enum {string}
              */
-            role: "purpose" | "place_note" | "reply" | "steer" | "fallback" | "close";
+            role: "purpose" | "place_note" | "reply" | "steer" | "fallback" | "make_intro" | "make_done" | "close";
             /** Seq */
             seq: number;
             /**
@@ -9920,7 +10142,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "reader_question";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -9943,13 +10165,14 @@ export interface components {
         };
         /** RvMakeOffer */
         RvMakeOffer: {
+            intro?: components["schemas"]["RvLineItem"] | null;
             /** Options */
-            options: (components["schemas"]["RvHeadlineChoiceOffer"] | components["schemas"]["RvReaderQuestionOffer"])[];
+            options: (components["schemas"]["RvHeadlineChoiceOffer"] | components["schemas"]["RvHeadlineWriteOffer"] | components["schemas"]["RvReaderQuestionOffer"] | components["schemas"]["RvShortReportOffer"])[];
             /**
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "reader_question";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -10039,7 +10262,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "reader_question")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -10111,6 +10334,7 @@ export interface components {
              * @constant
              */
             kind?: "reader_question";
+            line?: components["schemas"]["RvLineItem"] | null;
             made: components["schemas"]["RvMade"];
         };
         /** RvQuickReply */
@@ -10191,7 +10415,7 @@ export interface components {
             /** Steer To Make */
             steer_to_make: boolean;
             /** Thread */
-            thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
             week: components["schemas"]["RvWeek"];
         };
         /** RvShiftItem */
@@ -10213,6 +10437,52 @@ export interface components {
             reason: "simplify" | "angle" | "bouclage" | "boucle";
             /** Seq */
             seq: number;
+        };
+        /** RvShortReport */
+        RvShortReport: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "report";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "short_report";
+            /**
+             * Mode
+             * @default voice
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Transcript */
+            transcript: string;
+        };
+        /** RvShortReportOffer */
+        RvShortReportOffer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "short_report";
+            /**
+             * Seconds
+             * @default 30
+             */
+            seconds?: number;
+        };
+        /** RvShortReportResult */
+        RvShortReportResult: {
+            evidence: components["schemas"]["RvEvidence"];
+            /**
+             * Kind
+             * @default short_report
+             * @constant
+             */
+            kind?: "short_report";
+            line?: components["schemas"]["RvLineItem"] | null;
+            made: components["schemas"]["RvMade"];
         };
         /** RvSource */
         RvSource: {
@@ -10346,7 +10616,7 @@ export interface components {
             beat: "arrive" | "facts" | "pursue" | "make" | "close";
             evidence: components["schemas"]["RvEvidence"];
             /** Items */
-            items: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            items: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
             room: components["schemas"]["RvRoom"];
@@ -10378,6 +10648,18 @@ export interface components {
             label: string;
             /** Range */
             range: string;
+        };
+        /** RvWordEvidence */
+        RvWordEvidence: {
+            /** Capability Known */
+            capability_known: boolean;
+            /** Fr */
+            fr: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "correct" | "incorrect" | "unscored";
         };
         /** ScenarioDescriptor */
         ScenarioDescriptor: {
@@ -12371,6 +12653,43 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VignettesResponse */
+        VignettesResponse: {
+            /** Vignettes */
+            vignettes: components["schemas"]["VignetteView"][];
+        };
+        /**
+         * VignetteView
+         * @description One minted vignette with everything the stamp needs.
+         */
+        VignetteView: {
+            /** Dossier Id */
+            dossier_id: string;
+            /** Headline Fr */
+            headline_fr: string;
+            /** Id */
+            id: string;
+            /** Kept Contribution */
+            kept_contribution: boolean;
+            /**
+             * Minted At
+             * Format: date-time
+             */
+            minted_at: string;
+            /** Pictogram Svg */
+            pictogram_svg: string;
+            /** Place Label Fr */
+            place_label_fr: string;
+            /**
+             * Ring
+             * @enum {string}
+             */
+            ring: "headline" | "question" | "report";
+            /** Session Id */
+            session_id: string;
+            /** Week */
+            week: string;
         };
         /**
          * VocabularyBiographyEvent
@@ -17837,6 +18156,26 @@ export interface operations {
             };
         };
     };
+    read_carte_api_v1_revue_carte_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarteView"];
+                };
+            };
+        };
+    };
     match_request_api_v1_revue_match_post: {
         parameters: {
             query?: never;
@@ -18007,7 +18346,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RvHeadlinePick"] | components["schemas"]["RvQuestionPropose"] | components["schemas"]["RvQuestionSend"];
+                "application/json": components["schemas"]["RvHeadlinePick"] | components["schemas"]["RvQuestionPropose"] | components["schemas"]["RvQuestionSend"] | components["schemas"]["RvHeadlineWrite"] | components["schemas"]["RvShortReport"];
             };
         };
         responses: {
@@ -18017,7 +18356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"];
+                    "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"] | components["schemas"]["RvHeadlineWriteResult"] | components["schemas"]["RvShortReportResult"];
                 };
             };
             /** @description Validation Error */
@@ -18062,6 +18401,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_vignettes_api_v1_revue_vignettes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VignettesResponse"];
                 };
             };
         };

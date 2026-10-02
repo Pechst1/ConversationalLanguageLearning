@@ -5,18 +5,27 @@
  * and the record. The number and the grid are one read of
  * `GET /analytics/streak`, so they cannot disagree. Tokens only; fits 320 px
  * without horizontal scroll (seven `minmax(0, 1fr)` columns).
+ *
+ * WP-120 §4.3 · the seal kind `vignette`: under the week grid, the stamps the
+ * learner brought back from Le Papier (`RvVignette size="seal"`), read from
+ * `revueClient().vignettes()`. The Revue switched off answers 404: no vignette
+ * seals, and nothing else changes.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Action, Notice, Skeleton, Surface } from '@/components/atelier-v2/ui';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import { SealMini } from '@/components/ui/Seal';
+import { RvVignette } from '@/components/revue/RvVignette';
+import { revueCopy } from '@/components/revue/revue-copy';
+import { revueClient } from '@/lib/revue-api';
+import type { RvVignetteView } from '@/lib/revue-types';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, { type StreakCalendar } from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { fill, plural, releveCopy, type ReleveCopy } from './releve-copy';
-import { daysLabel, sealCollectionView, weekdayInitials, type SealCell } from './seal-collection-model';
+import { daysLabel, sealCollectionView, vignetteSeals, weekdayInitials, type SealCell } from './seal-collection-model';
 
 function todayLine(copy: ReleveCopy, cell: SealCell | null, todayDone: boolean, formsLeft: number | null): string {
   if (cell?.kind === 'day' && cell.state === 'earned') return copy.seals_today_earned;
@@ -29,15 +38,19 @@ export function SealCollectionBody({
   payload,
   formsLeft = null,
   language = 'fr',
+  vignettes = [],
 }: {
   payload: StreakCalendar | null;
   /** WP-D1: shapes of today's mark not yet filled, when the caller knows. */
   formsLeft?: number | null;
   /** The chrome language (`useChromeLanguage`); French when the caller does not say. */
   language?: ControlLanguage;
+  /** WP-120: the minted vignettes (the seal kind `vignette`); none when the Revue is off. */
+  vignettes?: RvVignetteView[];
 }) {
   const copy = releveCopy(language);
   const view = useMemo(() => sealCollectionView(payload, undefined, language), [payload, language]);
+  const stamps = useMemo(() => vignetteSeals(vignettes), [vignettes]);
   if (!view) return null;
   const today = view.today;
   return (
@@ -83,14 +96,44 @@ export function SealCollectionBody({
           {view.freezeAvailable && <p className="av2-label">{copy.seals_freeze}</p>}
         </div>
       </Surface>
+      {stamps.length > 0 && (
+        <Surface className="rv-seal-vignettes">
+          <p className="av2-label">{revueCopy(language).vignettes_title}</p>
+          <ol aria-label={revueCopy(language).vignettes_title}>
+            {stamps.map((seal) => (
+              <li key={seal.key} data-seal="vignette" data-week={seal.vignette.week}>
+                <RvVignette
+                  week={seal.vignette.week}
+                  placeLabelFr={seal.vignette.placeLabelFr}
+                  ring={seal.vignette.ring}
+                  keptContribution={seal.vignette.keptContribution}
+                  pictogramSvg={seal.vignette.pictogramSvg}
+                  size="seal"
+                  label={seal.label}
+                />
+              </li>
+            ))}
+          </ol>
+        </Surface>
+      )}
     </>
   );
+}
+
+/** The minted vignettes, or none: the Revue switched off (404) or failing never breaks the seals. */
+export async function loadVignetteSeals(load: () => Promise<RvVignetteView[]> = () => revueClient().vignettes()): Promise<RvVignetteView[]> {
+  try {
+    return await load();
+  } catch {
+    return [];
+  }
 }
 
 export default function SealCollection() {
   const language = useChromeLanguage();
   const copy = releveCopy(language);
   const [payload, setPayload] = useState<StreakCalendar | null>(null);
+  const [vignettes, setVignettes] = useState<RvVignetteView[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const alive = useRef(true);
 
@@ -117,6 +160,12 @@ export default function SealCollection() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    void loadVignetteSeals().then((rows) => {
+      if (alive.current) setVignettes(rows);
+    });
+  }, []);
+
   return (
     <section className="nb-rv__sec" id="sceaux" aria-label={copy.seals_title}>
       <NbSectionHead t={copy.seals_title} n={null} />
@@ -130,7 +179,7 @@ export default function SealCollection() {
           </Action>
         </Notice>
       ) : (
-        <SealCollectionBody payload={payload} language={language} />
+        <SealCollectionBody payload={payload} language={language} vignettes={vignettes} />
       )}
     </section>
   );

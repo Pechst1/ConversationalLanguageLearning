@@ -10,7 +10,9 @@
 //   3. «Vos sceaux»: the server's states become discs (earned / done /
 //      relache / today / future / missed), Monday first, seven columns, days
 //      before the first recorded day are blank, and the grid fits 320 px;
-//   4. the number printed is the server's, never recounted here.
+//   4. the number printed is the server's, never recounted here;
+//   5. WP-120: the seal kind `vignette` (a closed Papier's stamp, `RvVignette
+//      size="seal"`), and the Revue switched off (404) means no vignette seals.
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -42,8 +44,8 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 
 const { Seal, SealMini, sealForEdition } = require('@/components/ui/Seal.tsx');
-const { SealCollectionBody } = require('./SealCollection.tsx');
-const { sealCollectionView } = require('./seal-collection-model.ts');
+const { SealCollectionBody, loadVignetteSeals } = require('./SealCollection.tsx');
+const { sealCollectionView, vignetteSeals } = require('./seal-collection-model.ts');
 
 const CSS = fs.readFileSync(path.join(WEB_ROOT, 'styles/atelier-v2.css'), 'utf8');
 const SEAL_CSS = CSS.slice(CSS.indexOf('WP-D4 · The Seal (components/ui/Seal.tsx)'));
@@ -193,4 +195,49 @@ test('a relâche in reserve is said; no payload, no section body', () => {
   );
   assert.match(html, /Un jour de relâche en réserve\./);
   assert.equal(sealCollectionView(null), null);
+});
+
+// ---------------------------------------------------------------------------
+// 5. WP-120 · the vignette seals
+// ---------------------------------------------------------------------------
+
+const MOCK_WIRE = require('../revue/fixtures/mock-wire.json');
+const { parseVignettes } = require('../../lib/revue-types.ts');
+const { createRevueClient } = require('../../lib/revue-api.ts');
+
+test('the seal kind `vignette`: each minted stamp drawn by RvVignette at seal size, newest first', () => {
+  const vignettes = parseVignettes(MOCK_WIRE.vignettes).concat(
+    parseVignettes(MOCK_WIRE.vignettes_two).map((v) => ({ ...v, id: `${v.id}-b`, mintedAt: '2026-10-08T07:00:00.000Z', week: '2026-W41' })),
+  );
+  const seals = vignetteSeals(vignettes);
+  assert.deepEqual(seals.map((seal) => seal.kind), ['vignette', 'vignette']);
+  assert.equal(seals[0].vignette.week, '2026-W41', 'newest first');
+  assert.match(seals[1].label, /^Vignette, semaine 40 · Le marché d'Aligre · tu as fait une question de lecteur · ta part est dans la dépêche$/);
+  assert.deepEqual(vignetteSeals(null), []);
+
+  const html = renderToStaticMarkup(React.createElement(SealCollectionBody, { payload: payload(), vignettes }));
+  assert.equal((html.match(/data-seal="vignette"/g) || []).length, 2);
+  assert.equal((html.match(/class="rv-vignette rv-vignette--seal"/g) || []).length, 2);
+  assert.match(html, /data-ring="report"/);
+  assert.match(html, /data-ring="question"/);
+  assert.match(html, /Tes vignettes/);
+  // The day seals are untouched.
+  assert.equal((html.match(/class="av2-seal-mini"/g) || []).length, 21);
+  // No vignette: no section.
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(SealCollectionBody, { payload: payload() })), /rv-seal-vignettes/);
+  assert.match(
+    renderToStaticMarkup(React.createElement(SealCollectionBody, { payload: payload(), vignettes, language: 'de' })),
+    /Deine Vignetten/,
+  );
+});
+
+test('the Revue switched off (404 on /revue/vignettes) or failing: no vignette seals, no error', async () => {
+  const off = createRevueClient({
+    get: async () => { throw Object.assign(new Error('404'), { response: { status: 404, data: { detail: 'Not Found' } } }); },
+    post: async () => ({}),
+  });
+  assert.deepEqual(await loadVignetteSeals(() => off.vignettes()), []);
+  assert.deepEqual(await loadVignetteSeals(async () => { throw new Error('offline'); }), []);
+  const on = createRevueClient({ get: async () => MOCK_WIRE.vignettes, post: async () => ({}) });
+  assert.equal((await loadVignetteSeals(() => on.vignettes())).length, 1);
 });

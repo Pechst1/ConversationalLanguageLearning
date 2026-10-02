@@ -1,6 +1,8 @@
 // node --test components/revue/revue-wire.test.js
 //
-// WP-119 phase 1 · the wire, client side.
+// WP-119 phases 1–2 · the wire, client side (phase 2 «Les invités», WIRE §6:
+// fallback reasons, the guest item, make_intro / make_done, the rubric,
+// headline_write and short_report; WP-120's vignette on the close).
 //
 //   1. every JSON example of docs/implementation/atelier-v2/WP-119-WIRE.md parses
 //      (fixtures/wire-examples.json, copied verbatim), and so does every payload
@@ -48,7 +50,12 @@ test('the wire document\'s match miss and turn examples parse', () => {
     romyLineFr: "Je n'ai que ça cette semaine, désolée. Le marché du dimanche à Aligre, ça te dit ?",
   });
   const turn = types.parseTurnResult(WIRE.turn);
-  assert.deepEqual(turn.items.map((item) => item.kind), ['mine', 'line', 'uncertainty']);
+  assert.deepEqual(turn.items.map((item) => item.kind), ['mine', 'line', 'uncertainty', 'guest']);
+  assert.equal(turn.items[1].reason, null);
+  assert.deepEqual(
+    { castId: turn.items[3].castId, move: turn.items[3].move, position: turn.items[3].position, reasonFr: turn.items[3].reasonFr },
+    { castId: 'margaux_barman', move: 'enter', position: 'for', reasonFr: null },
+  );
   assert.equal(turn.items[0].textFr, 'Est-ce que les prix sont plus bas qu\'au supermarché ?');
   assert.equal(turn.items[1].role, 'reply');
   assert.equal(turn.items[1].speaker, 'romy_tremblay');
@@ -57,7 +64,64 @@ test('the wire document\'s match miss and turn examples parse', () => {
   assert.deepEqual(turn.support, { glosses: 'tap', translation: 'on_request', readingTargetWords: 90, vocabTarget: 5, level: 0 });
   assert.deepEqual(turn.quickReplies[0], { label: 'On formule la question', sendFr: 'On formule la question ensemble ?' });
   assert.equal(turn.steerToMake, false);
-  assert.deepEqual(turn.evidence, { outcome: 'unscored', capabilityKnown: false, grader: 'revue-unscored-adapter-v1' });
+  assert.deepEqual(turn.evidence, {
+    outcome: 'unscored',
+    capabilityKnown: false,
+    grader: 'revue-rubric-v1',
+    words: [
+      { fr: 'compte', outcome: 'unscored', capabilityKnown: false },
+      { fr: 'marchés', outcome: 'unscored', capabilityKnown: true },
+    ],
+    factFit: 'not_applicable',
+    registerNote: 'ok',
+  });
+});
+
+test('every phase-2 example of the wire document parses (WIRE §6)', () => {
+  const fallback = types.parseThreadItem(WIRE.fallback_line);
+  assert.equal(fallback.kind, 'line');
+  assert.equal(fallback.role, 'fallback');
+  assert.equal(fallback.reason, 'model_down');
+
+  const enter = types.parseThreadItem(WIRE.guest_enter);
+  assert.deepEqual(enter, {
+    id: '10', seq: 10, at: '…', kind: 'guest', castId: 'margaux_barman',
+    textFr: 'Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.',
+    move: 'enter', position: 'for', reasonFr: null, reason: null, glosses: [],
+  });
+  const moved = types.parseThreadItem(WIRE.guest_moved);
+  assert.equal(moved.move, 'moved');
+  assert.equal(moved.position, 'moved');
+
+  const evidence = types.parseEvidence(WIRE.evidence);
+  assert.equal(evidence.outcome, 'correct');
+  assert.equal(evidence.factFit, 'supported');
+  assert.deepEqual(evidence.words[1], { fr: 'marchés', outcome: 'correct', capabilityKnown: true });
+
+  const offer = types.parseMakeOffer(WIRE.make_offer_b1);
+  assert.equal(offer.recommended, 'headline_write');
+  assert.deepEqual(offer.options.map((o) => o.kind), ['headline_choice', 'headline_write', 'reader_question', 'short_report']);
+  assert.equal(offer.options[1].maxWords, 14);
+  assert.equal(offer.options[3].seconds, 30);
+  assert.equal(offer.intro.role, 'make_intro');
+  assert.match(offer.intro.textFr, /Tu l'écris \?/);
+
+  const write = types.parseMakeResult(WIRE.make_write);
+  assert.equal(write.kind, 'headline_write');
+  assert.equal(write.accepted, true);
+  assert.equal(write.made.kind, 'headline_write');
+  assert.deepEqual(write.made.contribution, [[0, 36]]);
+  assert.equal(write.line.role, 'make_done');
+  assert.equal(write.evidence.grader, 'revue-rubric-v1');
+
+  // The report example elides its evidence («…»): the parser fills the phase-1 defaults, never guesses.
+  const report = types.parseMakeResult(WIRE.make_report);
+  assert.equal(report.kind, 'short_report');
+  assert.equal(report.made.kind, 'short_report');
+  assert.equal(report.made.learnerFr, "Je suis au marché d'Aligre…");
+  assert.equal(report.line.role, 'make_done');
+  assert.equal(report.line.textFr, "C'est enregistré. Je le mets dans mon papier.");
+  assert.equal(report.evidence.factFit, 'not_applicable');
 });
 
 test('every mock payload parses into the full client shapes', () => {
@@ -66,7 +130,8 @@ test('every mock payload parses into the full client shapes', () => {
   assert.equal(session.beat, 'arrive');
   assert.equal(session.plan.band, 'A1');
   assert.equal(session.plan.glossLanguage, 'de');
-  assert.deepEqual(session.plan.makeOptions, ['headline_choice', 'reader_question']);
+  assert.deepEqual(session.plan.makeOptions, ['headline_choice', 'reader_question'], 'A1/A2: the phase-2 makes are absent');
+  assert.deepEqual(types.parseSessionView(MOCK.session_b1_arrive).plan.makeOptions, ['headline_choice', 'headline_write', 'reader_question', 'short_report']);
   assert.equal(session.plan.vocabulary.length, 5);
   assert.ok(session.plan.vocabulary.every((gloss) => gloss.fr && gloss.gloss && gloss.claimId));
   assert.deepEqual(session.thread.map((item) => item.kind), ['narration', 'narration', 'line', 'line', 'summary']);
@@ -98,6 +163,18 @@ test('every mock payload parses into the full client shapes', () => {
 
   const close = types.parseCloseResult(MOCK.close);
   assert.equal(close.session.status, 'closed');
+  assert.deepEqual(
+    { ring: close.closing.vignette.ring, kept: close.closing.vignette.keptContribution, week: close.closing.vignette.week },
+    { ring: 'question', kept: true, week: '2026-W40' },
+  );
+  assert.match(close.closing.vignette.pictogramSvg, /^<svg[^>]*viewBox="0 0 100 100"/);
+  assert.deepEqual(types.parseVignettes(MOCK.vignettes).map((v) => v.sessionId), [close.session.id]);
+  assert.equal(types.parseCloseResult(MOCK.close_report).closing.vignette.ring, 'report');
+  assert.equal(types.parseCloseResult(MOCK.close_b1_write).closing.vignette.ring, 'headline');
+  // A close without a vignette (a backend before WP-120) is simply no stamp.
+  const { vignette, ...noVignette } = MOCK.close.closing;
+  void vignette;
+  assert.equal(types.parseClosing(noVignette).vignette, null);
   assert.equal(close.closing.colophonFr, 'La suite la semaine prochaine.');
   assert.equal(close.closing.dispatch.bodyFr.length, 3);
   assert.ok(close.closing.kept.words.every((word) => typeof word.used === 'boolean'));
@@ -116,13 +193,44 @@ test('every mock payload parses into the full client shapes', () => {
   }
 });
 
-test('an unknown thread kind (a later phase\'s guest) is dropped, never guessed', () => {
+test('an unknown thread kind (a later phase\'s) is dropped, never guessed; the guest now parses', () => {
   const thread = types.parseThread([
-    { id: '1', seq: 1, at: 'x', kind: 'guest', text_fr: 'Bonjour' },
+    { id: '0', seq: 0, at: 'x', kind: 'poll', text_fr: 'Vote' },
+    { id: '1', seq: 1, at: 'x', kind: 'guest', cast_id: 'lila_bonnet', text_fr: 'Bonjour', move: 'follow_up', position: null, reason_fr: null, reason: 'knowledge_refused', glosses: [] },
     { id: '2', seq: 2, at: 'x', kind: 'mine', text_fr: 'Salut', mode: 'voice' },
   ]);
-  assert.deepEqual(thread.map((item) => item.kind), ['mine']);
-  assert.equal(thread[0].mode, 'voice');
+  assert.deepEqual(thread.map((item) => item.kind), ['guest', 'mine']);
+  assert.equal(thread[0].reason, 'knowledge_refused');
+  assert.equal(thread[1].mode, 'voice');
+});
+
+test('the mock\'s phase-2 payloads: guest moves, fallback reasons, the rubric, make intro / done', () => {
+  const enter = types.parseTurnResult(MOCK.turn_guest_enter);
+  assert.deepEqual(enter.items.map((item) => item.kind), ['mine', 'line', 'uncertainty', 'guest']);
+  const guest = enter.items[3];
+  assert.equal(guest.move, 'enter');
+  assert.ok(guest.reasonFr, 'Margaux says why she cares');
+  assert.equal(types.parseTurnResult(MOCK.turn_guest_disagree).items.find((i) => i.kind === 'guest').move, 'disagree');
+  assert.equal(types.parseTurnResult(MOCK.turn_guest_disagree).evidence.registerNote, 'vous_to_tu');
+  const moved = types.parseTurnResult(MOCK.turn_guest_moved);
+  assert.equal(moved.items.find((i) => i.kind === 'guest').position, 'moved');
+  assert.deepEqual(moved.evidence.words.find((w) => w.fr === 'marché couvert'), { fr: 'marché couvert', outcome: 'correct', capabilityKnown: true });
+  const stage = types.parseSessionView(MOCK.session_b1_guest).stage.cast.map((m) => m.id);
+  assert.deepEqual(stage, ['romy_tremblay', 'margaux_barman', 'user'], 'the guest stands right after Romy');
+
+  assert.equal(types.parseTurnResult(MOCK.turn_model_down).items[1].reason, 'model_down');
+  assert.equal(types.parseTurnResult(MOCK.turn_budget).items[1].reason, 'budget');
+  assert.ok(types.parseTurnResult(MOCK.turn_b0).items.every((i) => i.kind !== 'line' || i.reason === null));
+
+  assert.equal(types.parseMakeOffer(MOCK.make_offer).intro.role, 'make_intro');
+  assert.equal(types.parseMakeResult(MOCK.make_send).line.role, 'make_done');
+  assert.equal(types.parseMakeResult(MOCK.make_pick).line.role, 'make_done');
+  const rejected = types.parseMakeResult(MOCK.make_write_rejected);
+  assert.deepEqual([rejected.accepted, rejected.made, rejected.evidence.factFit], [false, null, 'contradicted']);
+  assert.match(rejected.line.textFr, /les sources disent autre chose/);
+  const report = types.parseMakeResult(MOCK.make_report);
+  assert.equal(report.made.kind, 'short_report');
+  assert.equal(report.evidence.grader, 'revue-rubric-v1');
 });
 
 function fakeTransport(routes) {
@@ -195,6 +303,9 @@ test('request bodies go out in snake_case, on the wire\'s paths', async () => {
   await client.make('s 1', { kind: 'headline_choice', action: 'pick', optionId: 'h2' });
   await client.make('s 1', { kind: 'reader_question', action: 'propose', text: 'les prix' });
   await client.make('s 1', { kind: 'reader_question', action: 'send', textFr: 'Est-ce que les prix ?' });
+  await client.make('s 1', { kind: 'headline_write', action: 'write', textFr: 'Paris et ses marchés' });
+  await client.make('s 1', { kind: 'short_report', action: 'report', transcript: 'Je suis au marché.' });
+  await client.make('s 1', { kind: 'short_report', action: 'report', transcript: 'Je tape.', mode: 'text' });
   await client.makeOffer('s 1');
   await client.close('s 1');
   await client.match('le cinéma', '2026-W40');
@@ -205,6 +316,9 @@ test('request bodies go out in snake_case, on the wire\'s paths', async () => {
     ['POST', '/revue/sessions/s%201/make', { kind: 'headline_choice', action: 'pick', option_id: 'h2' }],
     ['POST', '/revue/sessions/s%201/make', { kind: 'reader_question', action: 'propose', text: 'les prix' }],
     ['POST', '/revue/sessions/s%201/make', { kind: 'reader_question', action: 'send', text_fr: 'Est-ce que les prix ?' }],
+    ['POST', '/revue/sessions/s%201/make', { kind: 'headline_write', action: 'write', text_fr: 'Paris et ses marchés' }],
+    ['POST', '/revue/sessions/s%201/make', { kind: 'short_report', action: 'report', transcript: 'Je suis au marché.', mode: 'voice' }],
+    ['POST', '/revue/sessions/s%201/make', { kind: 'short_report', action: 'report', transcript: 'Je tape.', mode: 'text' }],
     ['GET', '/revue/sessions/s%201/make', null],
     ['POST', '/revue/sessions/s%201/close', {}],
     ['POST', '/revue/match', { text: 'le cinéma', week: '2026-W40' }],

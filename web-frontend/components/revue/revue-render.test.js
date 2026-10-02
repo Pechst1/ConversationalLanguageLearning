@@ -334,3 +334,198 @@ test('RvUneCard: offer, evergreen, resume and filed; one red press until filed',
   assert.match(filed, /<sup>toi<\/sup>/);
   assert.match(visibleText(filed), /La suite la semaine prochaine\./);
 });
+
+// ---------------------------------------------------------------------------
+// Phase 2 · «Les invités» (WIRE §6), the vignette at the close (WP-120), read-only replay
+// ---------------------------------------------------------------------------
+
+const B1 = revueCopy('fr');
+const guest = (id, move, position, textFr, reasonFr = null, reason = null) => ({
+  id, seq: Number(id), at, kind: 'guest', castId: 'margaux_barman', textFr, move, position, reasonFr, reason, glosses: [],
+});
+
+test('a guest in the thread: the entrance with her reason, her own bubble, the move shown quietly', () => {
+  const items = [
+    ALL_KINDS[4],
+    { ...ALL_KINDS[5], id: '4', seq: 4 },
+    guest('5', 'enter', 'against', "Les prix ? Ce n'est pas toujours moins cher.", 'Elle achète les citrons du bar ici, chaque dimanche.'),
+    { id: '6', seq: 6, at, kind: 'mine', textFr: 'Mais les produits sont plus frais ?', mode: 'text' },
+    guest('7', 'disagree', 'against', "Je ne suis pas d'accord."),
+    { id: '8', seq: 8, at, kind: 'mine', textFr: 'Les producteurs vendent eux-mêmes.', mode: 'text' },
+    guest('9', 'moved', 'moved', "Bon. Vu comme ça, tu n'as pas tort."),
+  ];
+  const html = render(h(RvThread, { items, support: SUPPORT_TAP, copy: FR, now: new Date(at) }));
+  const kinds = [...html.matchAll(/<li class="av2-thread__line" data-kind="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(kinds, ['mine', 'line', 'guest', 'mine', 'guest', 'mine', 'guest']);
+  // The entrance: «Margaux arrive.» (chrome) + her reason (French), in her accent.
+  assert.match(html, /<p class="rv-entrance" data-char="margaux_barman" role="status"><b>Margaux arrive\.<\/b> <span lang="fr">Elle achète les citrons du bar ici, chaque dimanche\.<\/span><\/p>/);
+  assert.equal((html.match(/rv-entrance/g) || []).length, 1, 'one entrance');
+  // Her own bubble: her face, her name, a quiet tag — never a claim card.
+  assert.match(html, /class="av2-speech rv-guest av2-speech--past" data-mood="neutral" data-char="margaux_barman" data-move="enter"/);
+  assert.match(visibleText(html), /Margaux · témoignage/);
+  assert.match(visibleText(html), /Margaux · pas d’accord/);
+  assert.doesNotMatch(html, /rv-claim/);
+  // Her change of mind: a hairline marker in the control language.
+  assert.match(html, /data-kind="guest" data-move="moved"[\s\S]*<p class="rv-shift" role="status">Margaux a changé d’avis<\/p>/);
+  // Whoever spoke last is the screen's headline: her latest line is not «past».
+  assert.match(html, /data-move="moved"><span class="av2-speech__face"[\s\S]*?class="av2-headline" lang="fr"/);
+  assert.equal((html.match(/av2-speech--past/g) || []).length, 3, 'Romy\'s reply and Margaux\'s two earlier lines');
+  assert.match(render(h(RvThread, { items, support: SUPPORT_TAP, copy: EN })), /Margaux joins\./);
+  assert.match(render(h(RvThread, { items, support: SUPPORT_TAP, copy: revueCopy('de') })), /Margaux hat die Meinung geändert/);
+});
+
+test('fallback reasons: model_down gets the quiet notice once a turn, the others look like any line', () => {
+  const romy = (id, reason) => ({ id, seq: Number(id), at, kind: 'line', speaker: 'romy_tremblay', role: 'fallback', textFr: 'Je ne sais pas encore. On regarde ce que disent les sources ?', translation: null, glosses: [], reason });
+  const down = render(h(RvThread, {
+    items: [ALL_KINDS[4], romy('5', 'model_down'), guest('6', 'follow_up', 'against', 'Je repasse plus tard.', null, 'model_down')],
+    support: SUPPORT_TAP,
+    copy: FR,
+  }));
+  assert.match(down, /data-role="fallback" data-reason="model_down"/);
+  assert.equal((down.match(/La conversation ne répond pas pour le moment/g) || []).length, 1, 'one notice for the turn');
+  assert.match(down, /data-kind="guest" data-move="follow_up" data-reason="model_down"/);
+  assert.match(visibleText(down), /Margaux · une question/);
+  const guestDown = render(h(RvThread, { items: [ALL_KINDS[4], guest('6', 'follow_up', 'against', 'Je repasse plus tard.', null, 'model_down')], support: SUPPORT_TAP, copy: FR }));
+  assert.match(guestDown, /La conversation ne répond pas pour le moment/, 'a guest\'s stand-in line alone gets it too');
+
+  for (const reason of ['knowledge_refused', 'budget', 'no_match']) {
+    const html = render(h(RvThread, { items: [ALL_KINDS[4], romy('5', reason)], support: SUPPORT_TAP, copy: FR }));
+    assert.match(html, new RegExp(`data-reason="${reason}"`));
+    assert.doesNotMatch(html, /av2-notice/, `${reason}: a normal-looking line`);
+  }
+  // budget: the column reads «Bouclé» even if the room has not caught up.
+  assert.deepEqual(model.shownRoom({ used: 5, phase: 'bouclage', remainingTurns: 1 }, [ALL_KINDS[4], romy('5', 'budget')]), { used: 7, phase: 'boucle', remainingTurns: 0 });
+  assert.equal(model.shownRoom({ used: 5, phase: 'open', remainingTurns: 1 }, [romy('5', 'model_down')]).phase, 'open');
+});
+
+test('the register note is worded under the learner\'s line (vous → tu)', () => {
+  const html = render(h(RvThread, { items: [ALL_KINDS[4]], support: SUPPORT_TAP, copy: revueCopy('de'), registerNotes: { '3': 'vous_to_tu' } }));
+  assert.match(html, /data-kind="mine"[\s\S]*data-kind="register"/);
+  assert.match(html, /data-state="register">Das Register</);
+  assert.match(html, /lang="fr">Avec Romy, on se tutoie\.</);
+  assert.match(visibleText(html), /Romy duzt dich/);
+});
+
+test('the guest on stage: beside Romy from her entrance, sliding in, in front when she speaks', () => {
+  const session = types.parseSessionView(MOCK.session_b1_guest);
+  // The resume payload already lists her; a turn result does not carry a stage, so the thread adds her.
+  const wireCast = [{ id: 'romy_tremblay', hold: 'notebook' }, { id: 'user', hold: null }];
+  assert.deepEqual(model.castWithGuests(wireCast, session.thread).map((m) => m.id), ['romy_tremblay', 'margaux_barman', 'user']);
+  assert.deepEqual(model.castWithGuests(session.stage.cast, session.thread), session.stage.cast, 'never twice');
+  assert.equal(model.enteringGuest(types.parseTurnResult(MOCK.turn_guest_enter).items), 'margaux_barman');
+  const html = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session, language: 'fr', onExit: () => {}, now: new Date(at) }));
+  assert.match(html, /data-cast-stage="romy_tremblay margaux_barman"/);
+  assert.equal(model.lastSpeaker(session.thread), 'romy_tremblay', 'the model-down turn ends on Romy');
+  const { stageCast } = require('./index.ts');
+  assert.deepEqual(stageCast(session.stage.cast, 'margaux_barman').map((m) => [m.id, m.speaking]), [['romy_tremblay', false], ['margaux_barman', true]]);
+});
+
+test('make: Romy\'s intro is a line of the thread; headline_write shows the count and the fact fit; short_report records or falls back to text', () => {
+  const offer = types.parseMakeOffer(MOCK.make_offer_b1);
+  const session = model.appendItems(types.parseSessionView(MOCK.session_b1_guest), [offer.intro]);
+  const html = render(h(RvThread, { items: session.thread, support: session.plan.support, copy: B1 }));
+  // The learner left a question the sources cannot answer: Romy's intro offers the reader question.
+  assert.equal(offer.recommended, 'reader_question');
+  assert.match(html, /data-role="make_intro"[\s\S]*Ta question, on la pose aux lecteurs \?/);
+
+  const { RvHeadlineWrite, RvShortReport, RvMadeCard } = require('./index.ts');
+  const before = render(h(RvHeadlineWrite, { maxWords: 14, result: null, onSend: () => {}, copy: B1 }));
+  assert.match(before, /<span class="av2-field__label">Ton titre<\/span>/);
+  assert.match(visibleText(before), /0 mots sur 14 au plus/);
+  assert.equal((before.match(/av2-btn--primary/g) || []).length, 1);
+  assert.doesNotMatch(before, /av2-feedback/);
+
+  const rejected = types.parseMakeResult(MOCK.make_write_rejected);
+  const wrong = render(h(RvHeadlineWrite, { maxWords: 14, result: rejected, onSend: () => {}, copy: B1 }));
+  assert.match(wrong, /data-tone="wrong"/);
+  assert.match(visibleText(wrong), /Les sources disent autre chose\. Réécris-le\./);
+  assert.match(wrong, /av2-btn--primary/, 'write again');
+
+  const accepted = types.parseMakeResult(MOCK.make_write);
+  const right = render(h(RvHeadlineWrite, { maxWords: 14, result: accepted, onSend: () => {}, copy: B1 }));
+  assert.match(right, /data-tone="correct"/);
+  assert.match(visibleText(right), /Les sources le disent\./);
+  assert.match(visibleText(right), /Bien employé : en plein air/);
+  assert.doesNotMatch(right, /av2-btn--primary/, 'filed: the foot\'s «Continuer» is the one press');
+  assert.match(right, /<textarea[^>]*disabled=""[^>]*>Paris et ses 91 marchés en plein air<\/textarea>/);
+  assert.match(visibleText(right), /8 mots sur 14 au plus/);
+
+  const mic = render(h(RvShortReport, { seconds: 30, onSend: () => {}, copy: B1, voice: true }));
+  assert.match(mic, /data-mode="idle"/);
+  assert.match(visibleText(mic), /Enregistrer · 30 s/);
+  assert.equal((mic.match(/av2-btn--primary/g) || []).length, 1);
+  const noMic = render(h(RvShortReport, { seconds: 30, onSend: () => {}, copy: EN, voice: false }));
+  assert.match(noMic, /data-mode="text"/);
+  assert.match(visibleText(noMic), /No microphone here: write your report\./);
+  assert.match(noMic, /<span class="av2-field__label">Your report, in writing<\/span>/);
+
+  const report = types.parseMakeResult(MOCK.make_report);
+  assert.match(visibleText(render(h(RvMadeCard, { made: report.made, copy: B1 }))), /^Ton reportage Je suis au marché/);
+  for (const language of ['fr', 'en', 'de']) {
+    const copy = revueCopy(language);
+    for (const kind of ['headline_choice', 'headline_write', 'reader_question', 'short_report']) {
+      assert.ok(copy.make_options[kind].title && copy.make_options[kind].detail, `${language} ${kind}`);
+    }
+  }
+});
+
+test('the close stamps the vignette before «Classer»; no vignette, no stamp; the kept words wear the rubric', () => {
+  const close = types.parseCloseResult(MOCK.close_b1_write);
+  const resume = types.parseSessionView(MOCK.session_b1_guest);
+  const live = render(h(RvEncounter, {
+    client: createMockRevueClient({ persist: false }),
+    session: { ...resume, closing: close.closing },
+    language: 'fr',
+    onExit: () => {},
+    now: new Date(at),
+  }));
+  assert.match(live, /data-kind="vignette"[\s\S]*class="rv-vignette rv-vignette--large rv-vignette--stamping" data-ring="headline" data-size="large" data-kept=""/);
+  assert.match(visibleText(live), /Ta vignette · Semaine 40/);
+  const order = ['data-dispatch=""', 'data-kind="kept"', 'data-kind="vignette"', 'data-kind="colophon"', 'Classer la Revue'].map((needle) => live.indexOf(needle));
+  assert.deepEqual(order.slice().sort((a, b) => a - b), order, 'dispatch, kept, the stamp, the colophon, then the press');
+  assert.ok(order.every((index) => index >= 0));
+
+  const bare = render(h(RvEncounter, {
+    client: createMockRevueClient({ persist: false }),
+    session: { ...resume, closing: { ...close.closing, vignette: null } },
+    language: 'fr',
+    onExit: () => {},
+    now: new Date(at),
+  }));
+  assert.doesNotMatch(bare, /rv-vignette/);
+  assert.match(bare, /Classer la Revue/);
+
+  // Reopened after the close: the stamp is there, already pressed.
+  const ended = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session: close.session, language: 'fr', onExit: () => {}, now: new Date(at) }));
+  assert.match(ended, /class="rv-vignette rv-vignette--large" data-ring="headline"/);
+
+  const { RvKept } = require('./index.ts');
+  const kept = render(h(RvKept, {
+    words: close.closing.kept.words,
+    claims: [],
+    copy: FR,
+    outcomes: model.mergeWordOutcomes({}, types.parseMakeResult(MOCK.make_write).evidence),
+  }));
+  assert.match(kept, /data-outcome="correct"><span class="av2-word-token av2-word-token--sm"[^>]*data-tone="known"[\s\S]*?en plein air<span class="rv-kept__right">bien employé<\/span>/);
+  assert.equal((kept.match(/data-outcome="correct"/g) || []).length, 1);
+  // Correct wins over a later unscored use; unscored never marks.
+  const merged = model.mergeWordOutcomes(model.mergeWordOutcomes({}, { words: [{ fr: 'Matins', outcome: 'correct', capabilityKnown: true }] }), { words: [{ fr: 'matins', outcome: 'unscored', capabilityKnown: true }] });
+  assert.equal(model.wordOutcome(merged, 'matins'), 'correct');
+});
+
+test('read-only replay (La Carte\'s «Relire»): the thread, no composer, no press', () => {
+  const session = types.parseSessionView(MOCK.session_b1_guest);
+  const html = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session, language: 'fr', onExit: () => {}, readOnly: true, now: new Date(at) }));
+  assert.match(html, /data-readonly=""/);
+  assert.match(html, /class="av2-thread rv-thread"/);
+  assert.match(html, /data-kind="guest" data-move="enter"/);
+  assert.doesNotMatch(html, /rv-foot|rv-composer|av2-btn--primary|<textarea/);
+  assert.match(html, /aria-label="Retour à La Une"/, 'the back arrow, not the ×');
+
+  const closed = types.parseCloseResult(MOCK.close).session;
+  const replay = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session: closed, language: 'fr', onExit: () => {}, readOnly: true, now: new Date(at) }));
+  assert.match(replay, /data-dispatch=""/);
+  assert.match(replay, /class="av2-thread rv-thread"/, 'the conversation is open, not folded away');
+  assert.doesNotMatch(replay, /Relire la conversation/);
+  assert.doesNotMatch(replay, /rv-foot/);
+});

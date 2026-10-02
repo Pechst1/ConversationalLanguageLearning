@@ -49,11 +49,15 @@ export function RvStage({ plateUrl, size, cast, you = null, entering = null, pen
   );
 }
 
-/** The Revue cast from the wire's stage: Romy (with her prop) in front. */
-export function stageCast(cast: Array<{ id: string; hold: string | null }>): StageMember[] {
-  return cast
-    .filter((member) => member.id !== 'user')
-    .map((member, index) => ({ id: member.id, hold: member.hold, speaking: index === 0 }));
+/**
+ * The Revue cast from the wire's stage: Romy (with her prop) and, phase 2, the
+ * guest beside her (two slots, 31 % / 69 %). `speaker` is whoever spoke last:
+ * they stand in front; without one, Romy does.
+ */
+export function stageCast(cast: Array<{ id: string; hold: string | null }>, speaker?: string | null): StageMember[] {
+  const members = cast.filter((member) => member.id !== 'user');
+  const front = speaker && members.some((member) => member.id === speaker) ? speaker : members[0]?.id;
+  return members.map((member) => ({ id: member.id, hold: member.hold, speaking: member.id === front }));
 }
 
 export default RvStage;

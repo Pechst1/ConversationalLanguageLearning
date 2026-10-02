@@ -8,10 +8,13 @@
 import type {
   RvBeat,
   RvClaim,
+  RvEvidence,
   RvGloss,
+  RvOutcome,
   RvRoom,
   RvSessionView,
   RvSpan,
+  RvStageMember,
   RvThreadItem,
   RvTurnResult,
 } from '@/lib/revue-types';
@@ -55,7 +58,8 @@ export function displayThread(items: RvThreadItem[], options: DisplayOptions = {
   let lastLine = -1;
   items.forEach((item, index) => {
     if (item.kind === 'mine') lastMine = index;
-    if (item.kind === 'line') lastLine = index;
+    // A guest's line is a line too: whoever spoke last is the screen's headline.
+    if (item.kind === 'line' || item.kind === 'guest') lastLine = index;
   });
   let resumeAt = -1;
   if (options.resumeToday) {
@@ -78,7 +82,7 @@ export function displayThread(items: RvThreadItem[], options: DisplayOptions = {
         return;
       }
     }
-    rows.push({ kind: 'item', item, past: item.kind === 'line' ? index !== lastLine : false });
+    rows.push({ kind: 'item', item, past: item.kind === 'line' || item.kind === 'guest' ? index !== lastLine : false });
   });
   return rows;
 }
@@ -333,4 +337,105 @@ export function uneCardParts(
 export function weekNumber(iso: string): string {
   const match = /W(\d{1,2})$/.exec(iso || '');
   return match ? String(Number(match[1])) : '';
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 · the guest on stage, fallback notices, the rubric's words
+// ---------------------------------------------------------------------------
+
+const ROMY = 'romy_tremblay';
+
+/**
+ * The stage's cast with every guest who has spoken: a guest stands right after
+ * Romy (WIRE §6.2, «the stage lists the guest beside Romy from their entrance
+ * on»). The session view already lists them on resume; a turn result carries no
+ * stage, so the guest a turn brings is added here from the thread.
+ */
+export function castWithGuests(cast: RvStageMember[], thread: RvThreadItem[]): RvStageMember[] {
+  const out = cast.slice();
+  const present = new Set(out.map((member) => member.id));
+  for (const item of thread) {
+    if (item.kind !== 'guest' || !item.castId || present.has(item.castId)) continue;
+    present.add(item.castId);
+    const romyAt = out.findIndex((member) => member.id === ROMY);
+    // After Romy and any guest already standing beside her, before Toi.
+    let at = romyAt + 1;
+    while (at < out.length && out[at].id !== 'user' && out[at].id !== ROMY) at += 1;
+    out.splice(romyAt >= 0 ? at : out.length, 0, { id: item.castId, hold: null });
+  }
+  return out;
+}
+
+/** Who spoke last (Romy or a guest): the one in front on the stage. */
+export function lastSpeaker(thread: RvThreadItem[]): string {
+  for (let index = thread.length - 1; index >= 0; index -= 1) {
+    const item = thread[index];
+    if (item.kind === 'guest') return item.castId;
+    if (item.kind === 'line' || item.kind === 'summary') return item.speaker || ROMY;
+  }
+  return ROMY;
+}
+
+/** The guest a batch of new items brings on stage (`move: enter`), or null. */
+export function enteringGuest(items: RvThreadItem[]): string | null {
+  const enter = items.find((item) => item.kind === 'guest' && item.move === 'enter');
+  return enter && enter.kind === 'guest' ? enter.castId : null;
+}
+
+/**
+ * The items that carry the quiet «la conversation ne répond pas» notice: a line
+ * (Romy's or a guest's) whose authored text stands in because the model is down
+ * (`reason: model_down`) — once per learner turn, on the first such line.
+ */
+export function modelDownNotices(items: RvThreadItem[]): Set<string> {
+  const out = new Set<string>();
+  let turn = '';
+  let noticed = '';
+  for (const item of items) {
+    if (item.kind === 'mine') turn = item.id;
+    if ((item.kind === 'line' || item.kind === 'guest') && item.reason === 'model_down' && noticed !== `t:${turn}`) {
+      out.add(item.id);
+      noticed = `t:${turn}`;
+    }
+  }
+  return out;
+}
+
+/** The column as the head shows it: a `budget` line means the column is full, whatever the room says. */
+export function shownRoom(room: RvRoom, thread: RvThreadItem[]): RvRoom {
+  const last = [...thread].reverse().find((item) => item.kind === 'line');
+  if (last && last.kind === 'line' && last.reason === 'budget' && room.phase !== 'boucle') {
+    return { ...room, phase: 'boucle', used: 7, remainingTurns: 0 };
+  }
+  return room;
+}
+
+export type WordOutcomes = Record<string, RvOutcome>;
+
+const OUTCOME_RANK: Record<RvOutcome, number> = { unscored: 0, incorrect: 1, correct: 2 };
+
+/**
+ * The words' outcomes across the session's evidence: a word used correctly once
+ * stays correct (the rubric's credit, WIRE §6.3). A correct use the can-do
+ * catalogue does not know is already sent as `unscored`, so it never counts here.
+ */
+export function mergeWordOutcomes(current: WordOutcomes, evidence: Pick<RvEvidence, 'words'> | null | undefined): WordOutcomes {
+  if (!evidence || !evidence.words.length) return current;
+  const next: WordOutcomes = { ...current };
+  for (const word of evidence.words) {
+    const key = foldText(word.fr.trim());
+    if (!key) continue;
+    const before = next[key];
+    if (!before || OUTCOME_RANK[word.outcome] > OUTCOME_RANK[before]) next[key] = word.outcome;
+  }
+  return next;
+}
+
+export function wordOutcome(outcomes: WordOutcomes, fr: string): RvOutcome | null {
+  return outcomes[foldText(fr.trim())] ?? null;
+}
+
+/** «{n} mots sur {max} au plus»: the words of a written headline. */
+export function headlineWords(text: string): number {
+  return wordCount(text);
 }

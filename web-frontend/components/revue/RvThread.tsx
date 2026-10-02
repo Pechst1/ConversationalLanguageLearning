@@ -16,15 +16,23 @@
  *   RvUncertainty    what the sources do not say (the dashed «absence» surface)
  *   RvShift          a hairline status marker (simplify / angle / bouclage / bouclé)
  *   RvQuickReplies   chips whose label may differ from the French they send
+ *
+ * Phase 2 («Les invités», WIRE §6):
+ *   RvGuestEntrance  «Margaux arrive.» + why she cares, tinted 12 % from her accent
+ *   RvGuestLine      a guest's bubble: their face, their name in their colour, a
+ *                    quiet tag (témoignage / pas d'accord), «a changé d'avis» marker
+ *   RvRegisterNote   the rubric's register code, worded (vous → tu, tu → vous)
+ *   Fallback lines carry `data-reason`; `model_down` gets the quiet notice first.
  */
 
 import React, { useState } from 'react';
 
-import { CastPortrait, ShapeToken } from '@/components/atelier-v2/ui';
+import { CastPortrait, Notice, ShapeToken } from '@/components/atelier-v2/ui';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import type {
   RvClaim as RvClaimData,
   RvGloss,
+  RvGuestItem,
   RvLanguage,
   RvMade,
   RvQuickReply,
@@ -34,8 +42,17 @@ import type {
   RvThreadItem,
 } from '@/lib/revue-types';
 
-import { fill, type RevueCopy } from './revue-copy';
-import { contributionSegments, displayThread, foldedLabel, glossSegments, sourceDate, wordCount, type GlossSegment } from './revue-model';
+import { REGISTER_LINES_FR, fill, guestName, type RevueCopy } from './revue-copy';
+import {
+  contributionSegments,
+  displayThread,
+  foldedLabel,
+  glossSegments,
+  modelDownNotices,
+  sourceDate,
+  wordCount,
+  type GlossSegment,
+} from './revue-model';
 
 const ROMY_ID = 'romy_tremblay';
 
@@ -363,14 +380,100 @@ export function RvQuickReplies({ replies, onSend, disabled = false }: { replies:
   );
 }
 
+export function madeLabel(kind: RvMade['kind'], copy: RevueCopy): string {
+  if (kind === 'reader_question') return copy.made_question;
+  if (kind === 'short_report') return copy.made_report;
+  return copy.made_headline;
+}
+
 export function RvMadeCard({ made, copy }: { made: RvMade; copy: RevueCopy }) {
   return (
-    <div className="rv-made">
-      <p className="av2-label">{made.kind === 'headline_choice' ? copy.made_headline : copy.made_question}</p>
+    <div className="rv-made" data-made={made.kind}>
+      <p className="av2-label">{madeLabel(made.kind, copy)}</p>
       <p className="rv-made__fr" lang="fr">
         <ContributedText text={made.textFr} spans={made.contribution} label={copy.contribution} />
       </p>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 · the guest
+// ---------------------------------------------------------------------------
+
+/** «Margaux arrive.» and why she cares (French), tinted 12 % from her accent on card. */
+export function RvGuestEntrance({ castId, name, reasonFr, copy }: { castId: string; name: string; reasonFr: string | null; copy: RevueCopy }) {
+  return (
+    <p className="rv-entrance" data-char={castId} role="status">
+      <b>{fill(copy.guest_arrives, { name })}</b>
+      {reasonFr && (
+        <>
+          {' '}
+          <span lang="fr">{reasonFr}</span>
+        </>
+      )}
+    </p>
+  );
+}
+
+export type RvGuestLineProps = {
+  item: Pick<RvGuestItem, 'castId' | 'textFr' | 'move' | 'glosses' | 'reason'>;
+  past: boolean;
+  support: RvSupport;
+  glossLanguage?: RvLanguage;
+  copy: RevueCopy;
+  onWord?: (event: RvWordEvent) => void;
+};
+
+/**
+ * A guest's line: a speech bubble, never a claim card (a testimony, not a
+ * source). Their face and their name in their colour; the move is a quiet tag.
+ * An authored stand-in line (`reason`) looks like any other guest line.
+ */
+export function RvGuestLine({ item, past, support, glossLanguage = 'en', copy, onWord }: RvGuestLineProps) {
+  const name = guestName(item.castId);
+  const tag = item.move === 'disagree' ? copy.guest_disagrees : item.move === 'follow_up' ? copy.guest_asks : copy.guest_testimony;
+  const long = !past && wordCount(item.textFr) > 18;
+  return (
+    <div className={`av2-speech rv-guest${past ? ' av2-speech--past' : ''}`} data-mood="neutral" data-char={item.castId} data-move={item.move}>
+      <span className="av2-speech__face" aria-hidden="true">
+        <CastPortrait characterId={item.castId} name={name} size={past ? 'xs' : 'sm'} ring />
+      </span>
+      <div className="av2-speech__bubble" data-long={long ? '' : undefined}>
+        <span className="rv-who">
+          {name}
+          <span className="rv-guest__tag"> · {tag}</span>
+          <span className="av2-sr"> : </span>
+        </span>
+        <p className={past ? 'av2-thread__text av2-fr' : 'av2-headline'} lang="fr">
+          <RvGlossText text={item.textFr} glosses={item.glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} />
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** The quiet notice before an authored line that stands in because the model is down (design §3.7). */
+export function RvModelDownNotice({ copy }: { copy: RevueCopy }) {
+  return (
+    <Notice tone="quiet" shape="action">
+      <p>{copy.model_down}</p>
+    </Notice>
+  );
+}
+
+/** The rubric's register code, worded: one French line and why, in the learner's language (as WP-66 shows it). */
+export function RvRegisterNote({ note, copy }: { note: 'vous_to_tu' | 'tu_to_vous'; copy: RevueCopy }) {
+  return (
+    <Notice shape="story">
+      <p className="av2-label" data-state="register">
+        {copy.register_label}
+      </p>
+      <p className="av2-fr av2-body" lang="fr">
+        {REGISTER_LINES_FR[note]}
+      </p>
+      <p className="av2-body">{copy.register_reason[note]}</p>
+    </Notice>
   );
 }
 
@@ -412,6 +515,8 @@ export type RvThreadProps = {
   resumeLabel?: string;
   /** Rows the page appends after the thread (Romy's client lines, the make step). */
   after?: React.ReactNode;
+  /** Phase 2: the register note a turn's evidence carried, by the learner line's id (never replayed). */
+  registerNotes?: Record<string, 'vous_to_tu' | 'tu_to_vous'>;
   now?: Date;
 };
 
@@ -428,10 +533,12 @@ export function RvThread({
   resumeToday = null,
   resumeLabel = '',
   after = null,
+  registerNotes = {},
   now,
 }: RvThreadProps) {
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const rows = displayThread(items, { opened, resumeToday, resumeLabel });
+  const notices = modelDownNotices(items);
   const reopen = (id: string) =>
     setOpened((current) => {
       const next = new Set(current);
@@ -474,7 +581,15 @@ export function RvThread({
             );
           case 'line':
             return (
-              <li key={item.id} className="av2-thread__line" data-kind="line" data-role={item.role} data-speaker="romy">
+              <li
+                key={item.id}
+                className="av2-thread__line"
+                data-kind="line"
+                data-role={item.role}
+                data-reason={item.reason ?? undefined}
+                data-speaker="romy"
+              >
+                {notices.has(item.id) && <RvModelDownNotice copy={copy} />}
                 <RvLine
                   speaker={item.speaker}
                   textFr={item.textFr}
@@ -488,15 +603,40 @@ export function RvThread({
                 />
               </li>
             );
-          case 'mine':
+          case 'guest':
             return (
-              <li key={item.id} className="av2-thread__line" data-kind="mine" data-speaker="learner">
-                <p className="rv-thread__mine" lang="fr">
-                  <span className="av2-sr">{copy.you} : </span>
-                  {item.textFr}
-                </p>
+              <li
+                key={item.id}
+                className="av2-thread__line"
+                data-kind="guest"
+                data-move={item.move}
+                data-reason={item.reason ?? undefined}
+                data-speaker={item.castId}
+              >
+                {notices.has(item.id) && <RvModelDownNotice copy={copy} />}
+                {item.move === 'enter' && <RvGuestEntrance castId={item.castId} name={guestName(item.castId)} reasonFr={item.reasonFr} copy={copy} />}
+                <RvGuestLine item={item} past={past} support={support} glossLanguage={glossLanguage} copy={copy} onWord={onWord} />
+                {item.move === 'moved' && <RvShift label={fill(copy.guest_moved, { name: guestName(item.castId) })} />}
               </li>
             );
+          case 'mine': {
+            const note = registerNotes[item.id];
+            return (
+              <React.Fragment key={item.id}>
+                <li className="av2-thread__line" data-kind="mine" data-speaker="learner">
+                  <p className="rv-thread__mine" lang="fr">
+                    <span className="av2-sr">{copy.you} : </span>
+                    {item.textFr}
+                  </p>
+                </li>
+                {note && (
+                  <li className="av2-thread__line" data-kind="register">
+                    <RvRegisterNote note={note} copy={copy} />
+                  </li>
+                )}
+              </React.Fragment>
+            );
+          }
           case 'claims':
             return (
               <li key={item.id} className="av2-thread__line" data-kind="claims">

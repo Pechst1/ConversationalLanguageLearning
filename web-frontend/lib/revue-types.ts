@@ -1,5 +1,9 @@
 /**
- * WP-119 phase 1 · Le Papier de Romy — the wire, in the client's own shapes.
+ * WP-119 phases 1–2 · Le Papier de Romy — the wire, in the client's own shapes.
+ * Phase 2 («Les invités», WIRE §6): `reason` on fallback lines, the `guest`
+ * item, Romy's `make_intro` / `make_done` lines, the rubric evidence
+ * (`revue-rubric-v1`), `headline_write` and `short_report`, and the vignette a
+ * close mints (WP-120, `closing.vignette`).
  *
  * The server speaks `snake_case` (docs/implementation/atelier-v2/WP-119-WIRE.md,
  * app/schemas/revue.py); the components read `camelCase`. Every response goes
@@ -18,10 +22,18 @@ export type RvClaimKind = 'fact' | 'interpretation' | 'forecast';
 export type RvDress = 'coat' | 'suit' | 'apron' | 'raincoat' | 'sport' | 'scarf_only' | 'chef' | 'hi_vis';
 export type RvBeat = 'arrive' | 'facts' | 'pursue' | 'make' | 'close';
 export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
-export type RvMakeKind = 'headline_choice' | 'reader_question';
+export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report';
+export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
-export type RvLineRole = 'purpose' | 'place_note' | 'reply' | 'steer' | 'fallback' | 'close';
+export type RvLineRole = 'purpose' | 'place_note' | 'reply' | 'steer' | 'fallback' | 'make_intro' | 'make_done' | 'close';
+/** WIRE §6.1: why an authored line stands in. Set on every `fallback` line (and on a guest's authored line). */
+export type RvFallbackReason = 'model_down' | 'knowledge_refused' | 'budget' | 'no_match';
+export type RvGuestMove = 'enter' | 'follow_up' | 'disagree' | 'moved';
+export type RvGuestPosition = 'for' | 'against' | 'moved';
+export type RvOutcome = 'correct' | 'incorrect' | 'unscored';
+export type RvFactFit = 'supported' | 'unsupported' | 'contradicted' | 'not_applicable';
+export type RvRegisterNote = 'ok' | 'vous_to_tu' | 'tu_to_vous';
 export type RvShiftReason = 'simplify' | 'angle' | 'bouclage' | 'boucle';
 
 export type RvWeek = { iso: string; label: string; range: string };
@@ -88,6 +100,21 @@ export type RvLineItem = ItemBase & {
   textFr: string;
   translation: string | null;
   glosses: RvGloss[];
+  /** Phase 2: set on every `fallback` line, null on every other. */
+  reason: RvFallbackReason | null;
+};
+/** WIRE §6.2: a guest speaks (one guest per Papier). */
+export type RvGuestItem = ItemBase & {
+  kind: 'guest';
+  castId: string;
+  textFr: string;
+  move: RvGuestMove;
+  position: RvGuestPosition | null;
+  /** On `enter` only, when the line does not already say it: the caption under the guest. */
+  reasonFr: string | null;
+  /** An authored line stands in (`model_down` | `knowledge_refused`). */
+  reason: RvFallbackReason | null;
+  glosses: RvGloss[];
 };
 export type RvMineItem = ItemBase & { kind: 'mine'; textFr: string; mode: 'text' | 'voice' };
 export type RvClaimsItem = ItemBase & { kind: 'claims'; claims: RvClaim[] };
@@ -99,13 +126,14 @@ export type RvThreadItem =
   | RvNarrationItem
   | RvSummaryItem
   | RvLineItem
+  | RvGuestItem
   | RvMineItem
   | RvClaimsItem
   | RvUncertaintyItem
   | RvShiftItem
   | RvMadeItem;
 
-export const RV_ITEM_KINDS = ['narration', 'summary', 'line', 'mine', 'claims', 'uncertainty', 'shift', 'made'] as const;
+export const RV_ITEM_KINDS = ['narration', 'summary', 'line', 'guest', 'mine', 'claims', 'uncertainty', 'shift', 'made'] as const;
 
 // ---------------------------------------------------------------------------
 // Endpoint shapes (WIRE §3)
@@ -168,6 +196,8 @@ export type RvClosing = {
   kept: { words: RvKeptWord[]; claims: RvClaim[] };
   questionKeptFr: string | null;
   colophonFr: string;
+  /** WP-120: the vignette the close minted; null when the server sent none (the close shows no stamp). */
+  vignette: RvVignetteView | null;
 };
 export type RvSessionView = {
   id: string;
@@ -186,7 +216,16 @@ export type RvSessionView = {
   artifact: RvMade | null;
   closing: RvClosing | null;
 };
-export type RvEvidence = { outcome: 'correct' | 'incorrect' | 'unscored'; capabilityKnown: boolean; grader: string };
+export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
+/** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
+export type RvEvidence = {
+  outcome: RvOutcome;
+  capabilityKnown: boolean;
+  grader: string;
+  words: RvWordEvidence[];
+  factFit: RvFactFit;
+  registerNote: RvRegisterNote;
+};
 export type RvTurnResult = {
   items: RvThreadItem[];
   beat: RvBeat;
@@ -199,8 +238,11 @@ export type RvTurnResult = {
 export type RvHeadlineOption = { id: string; textFr: string };
 export type RvMakeOption =
   | { kind: 'headline_choice'; options: RvHeadlineOption[] }
-  | { kind: 'reader_question'; seedFr: string | null; uncertaintyFr: string | null };
-export type RvMakeOffer = { recommended: RvMakeKind; options: RvMakeOption[] };
+  | { kind: 'headline_write'; maxWords: number }
+  | { kind: 'reader_question'; seedFr: string | null; uncertaintyFr: string | null }
+  | { kind: 'short_report'; seconds: number };
+/** `intro`: Romy's `make_intro` line, written once on the first GET (phase 2). */
+export type RvMakeOffer = { recommended: RvMakeKind; options: RvMakeOption[]; intro: RvLineItem | null };
 export type RvQuestionDraftData = {
   learnerFr: string;
   proposalFr: string;
@@ -213,11 +255,24 @@ export type RvPickResult = {
   answerId: string;
   evidence: { claimId: string; quote: string; source: RvSource };
   made: RvMade;
+  /** Phase 2: Romy's `make_done` line. */
+  line: RvLineItem | null;
 };
+export type RvWriteResult = {
+  kind: 'headline_write';
+  /** false: a shown claim contradicts it — nothing filed, write again. */
+  accepted: boolean;
+  evidence: RvEvidence;
+  made: RvMade | null;
+  line: RvLineItem | null;
+};
+export type RvReportResult = { kind: 'short_report'; evidence: RvEvidence; made: RvMade; line: RvLineItem | null };
 export type RvMakeResult =
   | RvPickResult
+  | RvWriteResult
+  | RvReportResult
   | { kind: 'reader_question'; draft: RvQuestionDraftData }
-  | { kind: 'reader_question'; made: RvMade };
+  | { kind: 'reader_question'; made: RvMade; line: RvLineItem | null };
 export type RvCloseResult = { session: RvSessionView; closing: RvClosing };
 
 // Request bodies (camelCase in, snake_case on the wire — see revue-api.ts).
@@ -226,7 +281,9 @@ export type RvTurnBody = { text: string; mode?: 'text' | 'voice'; clientTurnId?:
 export type RvMakeBody =
   | { kind: 'headline_choice'; action: 'pick'; optionId: string }
   | { kind: 'reader_question'; action: 'propose'; text?: string }
-  | { kind: 'reader_question'; action: 'send'; textFr: string };
+  | { kind: 'reader_question'; action: 'send'; textFr: string }
+  | { kind: 'headline_write'; action: 'write'; textFr: string }
+  | { kind: 'short_report'; action: 'report'; transcript: string; mode?: 'voice' | 'text' };
 
 // ---------------------------------------------------------------------------
 // Errors (WIRE §4)
@@ -401,7 +458,7 @@ export function parseRoom(raw: Json): RvRoom {
   };
 }
 
-const MAKE_KINDS = ['headline_choice', 'reader_question'] as const;
+const MAKE_KINDS = RV_MAKE_KINDS;
 
 export function parseMade(raw: Json): RvMade {
   return {
@@ -427,9 +484,33 @@ export function parseQuickReply(raw: Json): RvQuickReply {
   return { label: str(raw.label), sendFr: str(raw.send_fr) };
 }
 
-const ROLES = ['purpose', 'place_note', 'reply', 'steer', 'fallback', 'close'] as const;
+const ROLES = ['purpose', 'place_note', 'reply', 'steer', 'fallback', 'make_intro', 'make_done', 'close'] as const;
+const REASONS = ['model_down', 'knowledge_refused', 'budget', 'no_match'] as const;
+const MOVES = ['enter', 'follow_up', 'disagree', 'moved'] as const;
+const POSITIONS = ['for', 'against', 'moved'] as const;
+const OUTCOMES = ['correct', 'incorrect', 'unscored'] as const;
 
-/** One thread item; an unknown `kind` (a later phase's `guest`) is dropped, never guessed. */
+function reasonOrNull(value: unknown): RvFallbackReason | null {
+  return (REASONS as readonly unknown[]).includes(value) ? (value as RvFallbackReason) : null;
+}
+
+/** A `line` item (also `RvMakeOffer.intro` and a make result's `line`). */
+export function parseLineItem(raw: Json): RvLineItem {
+  return {
+    id: str(raw.id),
+    seq: num(raw.seq),
+    at: str(raw.at),
+    kind: 'line',
+    speaker: str(raw.speaker) || 'romy_tremblay',
+    role: oneOf(raw.role, ROLES, 'reply'),
+    textFr: str(raw.text_fr),
+    translation: strOrNull(raw.translation),
+    glosses: list(raw.glosses, parseGloss),
+    reason: reasonOrNull(raw.reason),
+  };
+}
+
+/** One thread item; an unknown `kind` (a later phase's) is dropped, never guessed. */
 export function parseThreadItem(raw: Json): RvThreadItem | null {
   const base = { id: str(raw.id), seq: num(raw.seq), at: str(raw.at) };
   switch (raw.kind) {
@@ -438,13 +519,17 @@ export function parseThreadItem(raw: Json): RvThreadItem | null {
     case 'summary':
       return { ...base, kind: 'summary', speaker: str(raw.speaker) || 'romy_tremblay', textFr: str(raw.text_fr) };
     case 'line':
+      return parseLineItem(raw);
+    case 'guest':
       return {
         ...base,
-        kind: 'line',
-        speaker: str(raw.speaker) || 'romy_tremblay',
-        role: oneOf(raw.role, ROLES, 'reply'),
+        kind: 'guest',
+        castId: str(raw.cast_id),
         textFr: str(raw.text_fr),
-        translation: strOrNull(raw.translation),
+        move: oneOf(raw.move, MOVES, 'follow_up'),
+        position: (POSITIONS as readonly unknown[]).includes(raw.position) ? (raw.position as RvGuestPosition) : null,
+        reasonFr: strOrNull(raw.reason_fr),
+        reason: reasonOrNull(raw.reason),
         glosses: list(raw.glosses, parseGloss),
       };
     case 'mine':
@@ -518,6 +603,7 @@ export function parseClosing(raw: Json): RvClosing {
     },
     questionKeptFr: strOrNull(raw.question_kept_fr),
     colophonFr: str(raw.colophon_fr) || 'La suite la semaine prochaine.',
+    vignette: isObject(raw.vignette) ? parseVignette(raw.vignette) : null,
   };
 }
 
@@ -570,8 +656,23 @@ export function parseSessionView(raw: Json): RvSessionView {
   };
 }
 
+/** The rubric (WIRE §6.3); a phase-1 payload (no words, no fit) reads as `not_applicable` / `ok`. */
+export function parseEvidence(raw: Json): RvEvidence {
+  return {
+    outcome: oneOf(raw.outcome, OUTCOMES, 'unscored'),
+    capabilityKnown: Boolean(raw.capability_known),
+    grader: str(raw.grader),
+    words: list(raw.words, (word) => ({
+      fr: str(word.fr),
+      outcome: oneOf(word.outcome, OUTCOMES, 'unscored'),
+      capabilityKnown: Boolean(word.capability_known),
+    })),
+    factFit: oneOf(raw.fact_fit, ['supported', 'unsupported', 'contradicted', 'not_applicable'] as const, 'not_applicable'),
+    registerNote: oneOf(raw.register_note, ['ok', 'vous_to_tu', 'tu_to_vous'] as const, 'ok'),
+  };
+}
+
 export function parseTurnResult(raw: Json): RvTurnResult {
-  const evidence = isObject(raw.evidence) ? raw.evidence : {};
   return {
     items: parseThread(raw.items),
     beat: oneOf(raw.beat, BEATS, 'pursue'),
@@ -579,11 +680,7 @@ export function parseTurnResult(raw: Json): RvTurnResult {
     support: parseSupport(isObject(raw.support) ? raw.support : {}),
     quickReplies: list(raw.quick_replies, parseQuickReply),
     steerToMake: Boolean(raw.steer_to_make),
-    evidence: {
-      outcome: oneOf(evidence.outcome, ['correct', 'incorrect', 'unscored'] as const, 'unscored'),
-      capabilityKnown: Boolean(evidence.capability_known),
-      grader: str(evidence.grader),
-    },
+    evidence: parseEvidence(isObject(raw.evidence) ? raw.evidence : {}),
   };
 }
 
@@ -592,16 +689,21 @@ export function parseMakeOffer(raw: Json): RvMakeOffer {
   for (const option of Array.isArray(raw.options) ? raw.options.filter(isObject) : []) {
     if (option.kind === 'headline_choice') {
       options.push({ kind: 'headline_choice', options: list(option.options, (row) => ({ id: str(row.id), textFr: str(row.text_fr) })) });
+    } else if (option.kind === 'headline_write') {
+      options.push({ kind: 'headline_write', maxWords: Math.max(1, num(option.max_words, 14)) });
     } else if (option.kind === 'reader_question') {
       options.push({ kind: 'reader_question', seedFr: strOrNull(option.seed_fr), uncertaintyFr: strOrNull(option.uncertainty_fr) });
+    } else if (option.kind === 'short_report') {
+      options.push({ kind: 'short_report', seconds: Math.max(1, num(option.seconds, 30)) });
     }
-    // A phase-2 kind is never sent; if one were, it is absent here, never greyed.
+    // An unknown kind is absent here, never greyed.
   }
   const recommended = oneOf(raw.recommended, MAKE_KINDS, 'headline_choice');
-  return { recommended, options };
+  return { recommended, options, intro: isObject(raw.intro) ? parseLineItem(raw.intro) : null };
 }
 
 export function parseMakeResult(raw: Json): RvMakeResult {
+  const line = isObject(raw.line) ? parseLineItem(raw.line) : null;
   if (raw.kind === 'headline_choice') {
     const evidence = isObject(raw.evidence) ? raw.evidence : {};
     return {
@@ -610,6 +712,24 @@ export function parseMakeResult(raw: Json): RvMakeResult {
       answerId: str(raw.answer_id),
       evidence: { claimId: str(evidence.claim_id), quote: str(evidence.quote), source: parseSource(isObject(evidence.source) ? evidence.source : {}) },
       made: parseMade(isObject(raw.made) ? raw.made : {}),
+      line,
+    };
+  }
+  if (raw.kind === 'headline_write') {
+    return {
+      kind: 'headline_write',
+      accepted: raw.accepted === true,
+      evidence: parseEvidence(isObject(raw.evidence) ? raw.evidence : {}),
+      made: isObject(raw.made) ? parseMade(raw.made) : null,
+      line,
+    };
+  }
+  if (raw.kind === 'short_report') {
+    return {
+      kind: 'short_report',
+      evidence: parseEvidence(isObject(raw.evidence) ? raw.evidence : {}),
+      made: parseMade(isObject(raw.made) ? raw.made : {}),
+      line,
     };
   }
   if (isObject(raw.draft)) {
@@ -623,7 +743,7 @@ export function parseMakeResult(raw: Json): RvMakeResult {
       },
     };
   }
-  return { kind: 'reader_question', made: parseMade(isObject(raw.made) ? raw.made : {}) };
+  return { kind: 'reader_question', made: parseMade(isObject(raw.made) ? raw.made : {}), line };
 }
 
 export function parseCloseResult(raw: Json): RvCloseResult {
@@ -653,5 +773,45 @@ export function turnBodyWire(body: RvTurnBody): Json {
 export function makeBodyWire(body: RvMakeBody): Json {
   if (body.action === 'pick') return { kind: body.kind, action: body.action, option_id: body.optionId };
   if (body.action === 'propose') return body.text ? { kind: body.kind, action: body.action, text: body.text } : { kind: body.kind, action: body.action };
+  if (body.action === 'report') return { kind: body.kind, action: body.action, transcript: body.transcript, mode: body.mode ?? 'voice' };
   return { kind: body.kind, action: body.action, text_fr: body.textFr };
+}
+
+// ---------------------------------------------------------------------------
+// WP-120 · the vignettes (`GET /revue/vignettes`)
+// ---------------------------------------------------------------------------
+
+export type RvVignetteRing = 'headline' | 'question' | 'report';
+export type RvVignetteView = {
+  id: string;
+  sessionId: string;
+  dossierId: string;
+  /** ISO week, `2026-W40`. */
+  week: string;
+  placeLabelFr: string;
+  ring: RvVignetteRing;
+  keptContribution: boolean;
+  /** House-grammar SVG; `RvVignette` sanitises it again before inlining. */
+  pictogramSvg: string;
+  headlineFr: string;
+  mintedAt: string;
+};
+
+export function parseVignette(raw: Json): RvVignetteView {
+  return {
+    id: str(raw.id),
+    sessionId: str(raw.session_id),
+    dossierId: str(raw.dossier_id),
+    week: str(raw.week),
+    placeLabelFr: str(raw.place_label_fr),
+    ring: oneOf(raw.ring, ['headline', 'question', 'report'] as const, 'headline'),
+    keptContribution: raw.kept_contribution === true,
+    pictogramSvg: str(raw.pictogram_svg),
+    headlineFr: str(raw.headline_fr),
+    mintedAt: str(raw.minted_at),
+  };
+}
+
+export function parseVignettes(raw: Json): RvVignetteView[] {
+  return list(raw.vignettes, parseVignette);
 }

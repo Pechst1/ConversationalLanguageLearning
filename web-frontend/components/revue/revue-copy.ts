@@ -8,7 +8,7 @@
  * Sentence case, no exclamation marks, no personality: Romy has the voice.
  */
 
-import type { RvLanguage, RvTopic } from '@/lib/revue-types';
+import type { RvLanguage, RvMakeKind, RvTopic } from '@/lib/revue-types';
 
 export type RevueCopy = {
   revue: string;
@@ -81,7 +81,42 @@ export type RevueCopy = {
   typing: string;
   make_label: string;
   make_go: string;
-  make_options: Record<'headline_choice' | 'reader_question', { title: string; detail: string }>;
+  /** `{n}` in a detail is filled with the option's own number (max words, seconds). */
+  make_options: Record<RvMakeKind, { title: string; detail: string }>;
+  /** Phase 2 · the guest (WIRE §6.2, design §3.4 #guest). `{name}` is the guest's name. */
+  guest_arrives: string;
+  guest_testimony: string;
+  guest_disagrees: string;
+  guest_asks: string;
+  guest_moved: string;
+  /** Phase 2 · the register note (WIRE §6.3): a French line and why, in the learner's language. */
+  register_label: string;
+  register_reason: Record<'vous_to_tu' | 'tu_to_vous', string>;
+  /** Phase 2 · headline_write. */
+  write_label: string;
+  write_placeholder: string;
+  write_send: string;
+  write_words: string;
+  write_too_long: string;
+  write_supported: string;
+  write_unsupported: string;
+  write_contradicted: string;
+  write_words_right: string;
+  /** Phase 2 · short_report. */
+  report_record: string;
+  report_recording: string;
+  report_stop: string;
+  report_label: string;
+  report_text_label: string;
+  report_placeholder: string;
+  report_send: string;
+  report_again: string;
+  report_no_mic: string;
+  made_report: string;
+  kept_word_right: string;
+  /** WP-120 · the vignette. */
+  vignette_label: string;
+  vignettes_title: string;
   one_more_question: string;
   headline_label: string;
   headline_right: string;
@@ -197,7 +232,41 @@ const FR: RevueCopy = {
   make_options: {
     reader_question: { title: 'Écrire la question des lecteurs', detail: 'Ta question, en bon français.' },
     headline_choice: { title: 'Choisir le titre', detail: 'Trois titres, un seul dit vrai.' },
+    headline_write: { title: 'Écrire le titre', detail: '{n} mots au plus, et vrai.' },
+    short_report: { title: 'Raconter en {n} secondes', detail: 'À voix haute, comme à la radio.' },
   },
+  guest_arrives: '{name} arrive.',
+  guest_testimony: 'témoignage',
+  guest_disagrees: 'pas d’accord',
+  guest_asks: 'une question',
+  guest_moved: '{name} a changé d’avis',
+  register_label: 'Le registre',
+  register_reason: {
+    vous_to_tu: 'Romy te tutoie : tu peux la tutoyer aussi.',
+    tu_to_vous: 'Ici, on se vouvoie : dis « vous ».',
+  },
+  write_label: 'Ton titre',
+  write_placeholder: 'Court, et vrai…',
+  write_send: 'Proposer le titre',
+  write_words: '{n} mots sur {max} au plus',
+  write_too_long: 'Trop long : {max} mots au plus.',
+  write_supported: 'Les sources le disent.',
+  write_unsupported: 'Les sources ne le disent pas tout à fait, mais Romy le garde.',
+  write_contradicted: 'Les sources disent autre chose. Réécris-le.',
+  write_words_right: 'Bien employé : {words}',
+  report_record: 'Enregistrer · {n} s',
+  report_recording: 'Romy t’écoute',
+  report_stop: 'Arrêter',
+  report_label: 'Ton reportage',
+  report_text_label: 'Ton reportage, par écrit',
+  report_placeholder: 'Ce que tu vois, ce que tu entends…',
+  report_send: 'Envoyer à Romy',
+  report_again: 'Recommencer',
+  report_no_mic: 'Pas de micro ici : écris ton reportage.',
+  made_report: 'Ton reportage',
+  kept_word_right: 'bien employé',
+  vignette_label: 'Ta vignette · {week}',
+  vignettes_title: 'Tes vignettes',
   one_more_question: 'Encore une question',
   headline_label: 'Le titre',
   headline_right: "C'est notre titre.",
@@ -302,7 +371,41 @@ const EN: RevueCopy = {
   make_options: {
     reader_question: { title: 'Write the readers’ question', detail: 'Your question, in good French.' },
     headline_choice: { title: 'Pick the headline', detail: 'Three headlines, only one is true.' },
+    headline_write: { title: 'Write the headline', detail: '{n} words at most, and true.' },
+    short_report: { title: 'Tell it in {n} seconds', detail: 'Out loud, like on the radio.' },
   },
+  guest_arrives: '{name} joins.',
+  guest_testimony: 'testimony',
+  guest_disagrees: 'disagrees',
+  guest_asks: 'a question',
+  guest_moved: '{name} changed their mind',
+  register_label: 'Register',
+  register_reason: {
+    vous_to_tu: 'Romy says «tu» to you: you can say «tu» to her too.',
+    tu_to_vous: 'Here you say «vous»: you are not on first-name terms.',
+  },
+  write_label: 'Your headline',
+  write_placeholder: 'Short, and true…',
+  write_send: 'Suggest the headline',
+  write_words: '{n} of {max} words at most',
+  write_too_long: 'Too long: {max} words at most.',
+  write_supported: 'The sources say so.',
+  write_unsupported: "The sources don't quite say so, but Romy keeps it.",
+  write_contradicted: 'The sources say otherwise. Write it again.',
+  write_words_right: 'Used well: {words}',
+  report_record: 'Record · {n} s',
+  report_recording: 'Romy is listening',
+  report_stop: 'Stop',
+  report_label: 'Your report',
+  report_text_label: 'Your report, in writing',
+  report_placeholder: 'What you see, what you hear…',
+  report_send: 'Send to Romy',
+  report_again: 'Start again',
+  report_no_mic: 'No microphone here: write your report.',
+  made_report: 'Your report',
+  kept_word_right: 'used well',
+  vignette_label: 'Your vignette · {week}',
+  vignettes_title: 'Your vignettes',
   one_more_question: 'One more question',
   headline_label: 'The headline',
   headline_right: 'That is our headline.',
@@ -407,7 +510,41 @@ const DE: RevueCopy = {
   make_options: {
     reader_question: { title: 'Die Leserfrage schreiben', detail: 'Deine Frage, in gutem Französisch.' },
     headline_choice: { title: 'Die Schlagzeile wählen', detail: 'Drei Schlagzeilen, nur eine stimmt.' },
+    headline_write: { title: 'Die Schlagzeile schreiben', detail: 'Höchstens {n} Wörter, und wahr.' },
+    short_report: { title: 'In {n} Sekunden erzählen', detail: 'Laut, wie im Radio.' },
   },
+  guest_arrives: '{name} kommt dazu.',
+  guest_testimony: 'Zeugnis',
+  guest_disagrees: 'widerspricht',
+  guest_asks: 'eine Frage',
+  guest_moved: '{name} hat die Meinung geändert',
+  register_label: 'Das Register',
+  register_reason: {
+    vous_to_tu: 'Romy duzt dich: du kannst sie auch duzen.',
+    tu_to_vous: 'Hier siezt man sich: sag „vous“.',
+  },
+  write_label: 'Deine Schlagzeile',
+  write_placeholder: 'Kurz, und wahr…',
+  write_send: 'Schlagzeile vorschlagen',
+  write_words: '{n} von höchstens {max} Wörtern',
+  write_too_long: 'Zu lang: höchstens {max} Wörter.',
+  write_supported: 'Die Quellen sagen es.',
+  write_unsupported: 'Die Quellen sagen es nicht ganz, aber Romy behält sie.',
+  write_contradicted: 'Die Quellen sagen etwas anderes. Schreib sie neu.',
+  write_words_right: 'Gut verwendet: {words}',
+  report_record: 'Aufnehmen · {n} s',
+  report_recording: 'Romy hört zu',
+  report_stop: 'Stopp',
+  report_label: 'Deine Reportage',
+  report_text_label: 'Deine Reportage, schriftlich',
+  report_placeholder: 'Was du siehst, was du hörst…',
+  report_send: 'An Romy schicken',
+  report_again: 'Neu anfangen',
+  report_no_mic: 'Hier gibt es kein Mikrofon: schreib deine Reportage.',
+  made_report: 'Deine Reportage',
+  kept_word_right: 'gut verwendet',
+  vignette_label: 'Deine Vignette · {week}',
+  vignettes_title: 'Deine Vignetten',
   one_more_question: 'Noch eine Frage',
   headline_label: 'Die Schlagzeile',
   headline_right: 'Das ist unsere Schlagzeile.',
@@ -469,5 +606,30 @@ export const ROMY_CLIENT_LINES = {
   write_question: "Écris-la comme elle te vient. Même dans ta langue : je t'aide pour le français.",
   propose: 'Je te propose ça :',
   headline_ask: 'Mon titre. Lequel dit vrai ?',
+  /** Phase 2: when the learner picks an option other than the one Romy's intro asked for. */
+  headline_write_ask: 'Ton titre, alors. Court, et vrai.',
+  report_ask: 'Trente secondes, comme à la radio : tu racontes ce que tu vois ?',
   resume: 'Te revoilà. On reprend où on en était.',
 } as const;
+
+/** The guests' names (WIRE §6.2 `cast_id`), the same in every language. An unknown id keeps its first part. */
+export const GUEST_NAMES: Record<string, string> = {
+  margaux_barman: 'Margaux',
+  lila_bonnet: 'Lila',
+  camille_marchand: 'Camille',
+  landlord_marchand: 'M. Marchand',
+  marin_leveque: 'Marin',
+  augustin_de_roncourt: 'Gus',
+};
+
+export function guestName(castId: string): string {
+  if (GUEST_NAMES[castId]) return GUEST_NAMES[castId];
+  const first = castId.split('_')[0] || castId;
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+/** The register note's French line (WIRE §6.3 `register_note`; the server sends a code, the client words it). */
+export const REGISTER_LINES_FR: Record<'vous_to_tu' | 'tu_to_vous', string> = {
+  vous_to_tu: 'Avec Romy, on se tutoie.',
+  tu_to_vous: 'Ici, on se vouvoie.',
+};

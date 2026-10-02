@@ -25,6 +25,23 @@
  *      choice has exactly one headline the claims support;
  *   6. close: a dispatch whose headline carries the learner's question, marked.
  *
+ * Phase 2 («Les invités», WIRE §6):
+ *   7. the guest: Margaux enters on the price question (from the second learner
+ *      turn, with her reason), disagrees once on the learner's next real turn,
+ *      and changes her mind after a point the learner makes (a sentence, not a
+ *      question); she stands beside Romy in `stage.cast` from her entrance on;
+ *   8. fallback reasons: the column-full line is `budget`, a free request that
+ *      matches nothing is `no_match`, Romy's «Je ne sais pas encore» is
+ *      `knowledge_refused`, and a learner turn containing «[panne]» plays the
+ *      model being down (`model_down`, dev only);
+ *   9. the rubric (`revue-rubric-v1`): per plan word, fact fit, register note
+ *      («vous» to Romy → `vous_to_tu`);
+ *  10. make: Romy's `make_intro` (once, on the first GET) and `make_done` lines;
+ *      `&band=B1` adds `headline_write` (14 words) and `short_report` (30 s);
+ *  11. close mints a WP-120 vignette (ring by what was made, the topic's
+ *      authored fallback pictogram from app/services/revue/evergreen/pictograms),
+ *      and `GET /revue/vignettes` lists them.
+ *
  * State lives in memory and in `sessionStorage` (try/catch), so reloading the page
  * replays the session — the resume contract, in miniature.
  */
@@ -54,10 +71,15 @@ type MockDossier = {
   claims: MockClaim[];
   sources: Array<{ id: string; name: string; url: string; published_at: string }>;
   uncertainties: string[];
-  vocabulary: Array<{ fr: string; claim_id: string; en: string; de: string; gloss_fr: string }>;
+  /** `known: false` — no can-do lists the word: a correct use is sent `unscored` (the Credit check). */
+  vocabulary: Array<{ fr: string; claim_id: string; en: string; de: string; gloss_fr: string; known?: boolean }>;
   headlines: Array<{ id: string; text_fr: string; correct?: boolean }>;
   headline_claim: string;
   reader_question_fr: string;
+  /** Phrases a shown claim contradicts (the rubric's `contradicted`). */
+  contradictions?: string[];
+  /** Phase 2: the dossier's guest and their scripted lines. */
+  guest?: { cast_id: string; enter: string; reason_fr: string; disagree: string; moved: string };
 };
 
 const MARCHE: MockDossier = {
@@ -118,7 +140,7 @@ const MARCHE: MockDossier = {
     { fr: 'matins', claim_id: 'c2', en: 'mornings', de: 'Vormittage', gloss_fr: 'débuts de journée' },
     { fr: 'marché couvert', claim_id: 'c3', en: 'covered market', de: 'Markthalle', gloss_fr: 'marché sous un toit' },
     { fr: 'en plein air', claim_id: 'c3', en: 'outdoors', de: 'im Freien', gloss_fr: 'dehors' },
-    { fr: 'savoir-faire', claim_id: 'c4', en: 'know-how', de: 'Können', gloss_fr: 'talent du métier' },
+    { fr: 'savoir-faire', claim_id: 'c4', en: 'know-how', de: 'Können', gloss_fr: 'talent du métier', known: false },
   ],
   headlines: [
     { id: 'h1', text_fr: "À Aligre, le marché n'ouvre que le dimanche" },
@@ -127,6 +149,14 @@ const MARCHE: MockDossier = {
   ],
   headline_claim: 'c2',
   reader_question_fr: "Est-ce que les prix au marché sont plus bas qu'au supermarché ?",
+  contradictions: ["que le dimanche", 'plus de marché couvert', 'le lundi aussi', 'tous les jours'],
+  guest: {
+    cast_id: 'margaux_barman',
+    enter: "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+    reason_fr: 'Elle achète les citrons du bar ici, chaque dimanche.',
+    disagree: "Je ne suis pas d'accord. Au marché, on paie aussi la qualité.",
+    moved: "Bon. Vu comme ça, tu n'as pas tort.",
+  },
 };
 
 const GREVE: MockDossier = {
@@ -280,6 +310,17 @@ const FETE: MockDossier = {
 
 const DOSSIERS: MockDossier[] = [MARCHE, GREVE, FETE];
 
+/** WP-120 · the authored fallback pictograms (app/services/revue/evergreen/pictograms/*.svg, newlines folded). */
+const PICTOGRAMS: Record<string, string> = {
+  city: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="30" y="18" width="40" height="52" rx="2" fill="#C2890F"/><path d="M36 34 Q36 24 50 24 Q64 24 64 34 L64 66 L36 66 Z" fill="#1D3A8A"/><rect x="49" y="24" width="2" height="42" fill="#F1ECE1"/><rect x="36" y="42" width="28" height="2" fill="#F1ECE1"/><rect x="26" y="64" width="48" height="4" rx="1" fill="#14110D"/><rect x="28" y="77" width="44" height="3" rx="1" fill="#14110D"/><rect x="35" y="68" width="2" height="9" fill="#14110D"/><rect x="42" y="68" width="2" height="9" fill="#14110D"/><rect x="49" y="68" width="2" height="9" fill="#14110D"/><rect x="56" y="68" width="2" height="9" fill="#14110D"/><rect x="63" y="68" width="2" height="9" fill="#14110D"/></svg>',
+  culture: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 38 Q34 30 20 34 L20 72 Q34 68 50 76 Q66 68 80 72 L80 34 Q66 30 50 38 Z" fill="#1D3A8A"/><path d="M48 39 Q36 33 24 36 L24 68 Q36 65 48 71 Z" fill="#F1ECE1"/><path d="M52 39 Q64 33 76 36 L76 68 Q64 65 52 71 Z" fill="#F1ECE1"/><rect x="29" y="44" width="14" height="2" fill="#14110D"/><rect x="29" y="51" width="14" height="2" fill="#14110D"/><rect x="57" y="44" width="14" height="2" fill="#14110D"/><rect x="57" y="51" width="10" height="2" fill="#14110D"/><path d="M62 66 L62 80 L65 77 L68 80 L68 65 Z" fill="#D8321A"/></svg>',
+  food: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z" fill="#C2890F"/><path d="M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z" fill="#F3C318"/><path d="M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z" fill="#F1ECE1"/><path d="M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z" fill="#F1ECE1"/><path d="M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z" fill="#F1ECE1"/></svg>',
+  nature: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 14 C74 28 78 58 50 82 C22 58 26 28 50 14 Z" fill="#2C6A5D"/><path d="M49 26 L51 26 L51.5 80 L48.5 80 Z" fill="#F1ECE1"/><path d="M50 44 L64 36 L65 38 L50 48 Z" fill="#F1ECE1"/><path d="M50 44 L36 36 L35 38 L50 48 Z" fill="#F1ECE1"/><path d="M50 58 L64 50 L65 52 L50 62 Z" fill="#F1ECE1"/><path d="M50 58 L36 50 L35 52 L50 62 Z" fill="#F1ECE1"/><path d="M48.5 80 L51.5 80 L52.5 88 L47.5 88 Z" fill="#14110D"/></svg>',
+  politics: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="40" y="18" width="20" height="26" fill="#F1ECE1" stroke="#14110D" stroke-width="2"/><path d="M45 24 L47 24 L55 34 L53 34 Z" fill="#D8321A"/><path d="M53 24 L55 24 L47 34 L45 34 Z" fill="#D8321A"/><rect x="24" y="42" width="52" height="36" rx="2" fill="#1D3A8A"/><rect x="20" y="38" width="60" height="8" rx="2" fill="#14110D"/><rect x="38" y="40.5" width="24" height="3" fill="#F1ECE1"/><rect x="40" y="56" width="20" height="12" rx="2" fill="#F1ECE1"/></svg>',
+  sport: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="#F1ECE1" stroke="#14110D" stroke-width="3"/><path d="M50 40 L59.5 46.9 L55.9 58.1 L44.1 58.1 L40.5 46.9 Z" fill="#14110D"/><path d="M50 18.5 L56.2 23 L53.8 30.3 L46.2 30.3 L43.8 23 Z" fill="#14110D"/><path d="M80 40.3 L77.6 47.5 L70 47.5 L67.6 40.3 L73.8 35.8 Z" fill="#14110D"/><path d="M68.5 75.5 L60.9 75.5 L58.5 68.2 L64.7 63.7 L70.9 68.2 Z" fill="#14110D"/><path d="M31.5 75.5 L29.1 68.2 L35.3 63.7 L41.5 68.2 L39.1 75.5 Z" fill="#14110D"/><path d="M20 40.3 L26.2 35.8 L32.4 40.3 L30 47.5 L22.4 47.5 Z" fill="#14110D"/></svg>',
+  work: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M22 62 C22 32 78 32 78 62 Z" fill="#F3C318"/><rect x="45" y="38" width="10" height="24" rx="3" fill="#C2890F"/><rect x="16" y="60" width="68" height="8" rx="4" fill="#C2890F"/><rect x="26" y="70" width="48" height="3" rx="1.5" fill="#14110D"/><circle cx="34" cy="53" r="4" fill="#1D3A8A"/></svg>',
+};
+
 const WEEK = { iso: '2026-W40', label: 'Semaine 40', range: 'du 28 sept. au 4 oct.' };
 
 // Romy's authored lines (the same French as app/services/revue/encounter.py).
@@ -297,8 +338,27 @@ const PURPOSE_LINES: Record<string, string> = {
 const CLOSE_LINES: Record<string, string> = {
   reader_question: "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
   headline_choice: 'Je garde ton titre. Il part avec mon papier.',
+  headline_write: 'Ton titre part tel quel avec mon papier. Je n’y touche pas.',
+  short_report: 'Ton reportage part avec mon papier. À Montréal, on va t’entendre.',
   none: "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 };
+// Phase 2 · Romy's lines around the make (WIRE §6.4).
+const INTRO_LINES: Record<string, string> = {
+  headline_choice: "Il me faut un titre. J'en ai trois : un seul dit vrai.",
+  headline_write: "Il me faut un titre. Tu l'écris ? Court, et vrai.",
+  reader_question: "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+  short_report: 'Raconte-moi ce que tu vois, trente secondes, comme à la radio.',
+};
+const DONE_LINES = {
+  pick_right: "Je le prends. C'est notre titre.",
+  pick_wrong: "Je garde celui-là : c'est ce que disent les sources.",
+  send: "C'est parti pour la rédaction.",
+  write: "Je le prends. C'est ton titre.",
+  write_rejected: 'Attention : les sources disent autre chose. Tu réessaies ?',
+  report: "C'est enregistré. Je le mets dans mon papier.",
+};
+const HEADLINE_WORDS = 14;
+const REPORT_SECONDS = 30;
 const QR_AGREE = { label: "D'accord, je t'aide.", send_fr: "D'accord, je t'aide." };
 const QR_MORE = { label: 'Plus', send_fr: "Dis-m'en plus." };
 export const MOCK_FORMULATE_FR = 'On formule la question ensemble ?';
@@ -349,6 +409,12 @@ type MockSession = {
   turnIds: Record<string, Json>;
   /** What Romy's last turn did (the quick replies follow it, as the server's state does). */
   flags?: { uncertainty: boolean; simplified: boolean; proposes: boolean };
+  /** Phase 2: the guest on stage (one per Papier). */
+  guest?: { castId: string; lines: number; disagreed: boolean; moved: boolean } | null;
+  /** Phase 2: Romy's make intro, written once on the first GET. */
+  intro?: Json | null;
+  /** WP-120: the vignette minted at the close. */
+  vignette?: Json | null;
 };
 
 export type MockOptions = {
@@ -483,15 +549,17 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     source: sourceOf(d, c.source_id),
   });
   const glossOf = (v: MockDossier['vocabulary'][number], lang: Lang) => ({ fr: v.fr, gloss: lang === 'de' ? v.de : lang === 'fr' ? v.gloss_fr : v.en, claim_id: v.claim_id });
-  const stageOf = (d: MockDossier) => ({
+  const stageOf = (d: MockDossier, s?: MockSession) => ({
     place_id: d.place.id,
     place_fr: d.place.name_fr,
     plate_url: d.place.plate,
     plate_place_id: d.place.plate_place_id,
     place_is_real: d.place.real,
     dress: d.place.dress,
+    // A guest on stage stands right after Romy (WIRE §1, phase 2).
     cast: [
       { id: 'romy_tremblay', hold: 'notebook' },
+      ...(s?.guest ? [{ id: s.guest.castId, hold: null }] : []),
       { id: 'user', hold: null },
     ],
   });
@@ -536,7 +604,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const folded = fold(text);
     return d.vocabulary.filter((v) => folded.includes(fold(v.fr))).map((v) => glossOf(v, s.language));
   };
-  const line = (s: MockSession, d: MockDossier, seq: number, role: string, text: string, suffix = '') => {
+  const isB1 = (s: MockSession) => s.band === 'B1' || s.band === 'B2';
+  const line = (s: MockSession, d: MockDossier, seq: number, role: string, text: string, suffix = '', reason: string | null = null) => {
     const support = supportOf(s);
     const translated = TRANSLATIONS[text];
     const lang = s.language === 'fr' ? null : s.language;
@@ -550,7 +619,37 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       text_fr: text,
       translation: support.translation !== 'none' && translated && lang ? translated[lang] : null,
       glosses: glossesIn(s, d, text),
+      reason,
     };
+  };
+
+  /** WIRE §6.3 · the rubric, scripted: plan words, fact fit, register. */
+  const grade = (s: MockSession, d: MockDossier, text: string, question: boolean) => {
+    const folded = fold(text);
+    const wordRows = d.vocabulary.map((v) => {
+      const used = folded.includes(fold(v.fr));
+      const known = v.known !== false;
+      // The Credit check: a correct use no can-do lists is `unscored`, never mastery.
+      return { fr: v.fr, outcome: used && known ? 'correct' : 'unscored', capability_known: known };
+    });
+    const contradicted = (d.contradictions ?? []).some((phrase) => folded.includes(fold(phrase)));
+    const supported = d.claims.some((c) => overlap(text, c.fr) >= 2);
+    const factFit = contradicted ? 'contradicted' : question ? 'not_applicable' : supported ? 'supported' : words(text).length >= 3 ? 'unsupported' : 'not_applicable';
+    const anyRight = wordRows.some((w) => w.outcome === 'correct');
+    const usedKnown = d.vocabulary.some((v) => v.known !== false && folded.includes(fold(v.fr)));
+    const vous = /(^|[^a-z])vous([^a-z]|$)/.test(folded.replace(/s'il vous plait/g, ''));
+    return {
+      outcome: contradicted ? 'incorrect' : anyRight ? 'correct' : 'unscored',
+      capability_known: usedKnown,
+      grader: 'revue-rubric-v1',
+      words: wordRows,
+      fact_fit: factFit,
+      register_note: vous ? 'vous_to_tu' : 'ok',
+    };
+  };
+  const guestItem = (s: MockSession, d: MockDossier, move: string, text: string, position: string, reasonFr: string | null = null) => {
+    const seq = nextSeq(s);
+    return { id: String(seq), seq, at: stamp(), kind: 'guest', cast_id: d.guest?.cast_id ?? 'margaux_barman', text_fr: text, move, position, reason_fr: reasonFr, reason: null, glosses: glossesIn(s, d, text) };
   };
   const quickOf = (s: MockSession, last: { uncertainty: boolean; simplified: boolean; proposes: boolean }) => {
     if (s.closing) return [];
@@ -581,10 +680,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         angle: d.angle,
         support: supportOf(s),
         vocabulary: d.vocabulary.map((v) => glossOf(v, s.language)),
-        make_options: ['headline_choice', 'reader_question'],
+        make_options: isB1(s) ? ['headline_choice', 'headline_write', 'reader_question', 'short_report'] : ['headline_choice', 'reader_question'],
         budget: { turns: BUDGET_TURNS, minutes: 12 },
       },
-      stage: stageOf(d),
+      stage: stageOf(d, s),
       beat: beatOf(s),
       room,
       thread: s.thread,
@@ -683,12 +782,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       startedAt: stamp(),
       closedAt: null,
       turnIds: {},
+      guest: null,
+      intro: null,
+      vignette: null,
     };
     const seq = nextSeq(s);
     const at = stamp();
     d.narration.forEach((text, index) => s.thread.push({ id: `${seq}.n${index}`, seq, at, kind: 'narration', text_fr: text }));
     if (d.place_note && !d.place.real) s.thread.push(line(s, d, seq, 'place_note', d.place_note, '.p'));
-    if (miss) s.thread.push(line(s, d, seq, 'fallback', missLine(), '.m'));
+    if (miss) s.thread.push(line(s, d, seq, 'fallback', missLine(), '.m', 'no_match'));
     s.thread.push(line(s, d, seq, 'purpose', PURPOSE_LINES[d.angle.purpose].replace('{angle}', d.angle.fr)));
     s.thread.push({ id: `${seq}.s`, seq, at, kind: 'summary', speaker: 'romy_tremblay', text_fr: d.summary_fr });
     sessions[s.id] = s;
@@ -726,19 +828,26 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     s.turnsUsed += 1;
     const folded = fold(text);
     const flags = { uncertainty: false, simplified: false, proposes: false };
-    const reply = (text_fr: string, role = 'reply') => {
+    const reply = (text_fr: string, role = 'reply', reason: string | null = null) => {
       const seq = nextSeq(s);
-      items.push(line(s, d, seq, role, text_fr));
+      items.push(line(s, d, seq, role, text_fr, '', reason));
       return seq;
     };
     const unshown = d.claims.filter((c) => !s.shown.includes(c.id));
     const question = /\?\s*$/.test(text) || /^(est-ce|pourquoi|comment|combien|quand|qui|quel)/.test(folded);
 
+    const modelDown = text.includes('[panne]');
+    let confusedTurn = false;
+    let formulateTurn = false;
     if (wasBoucle) {
-      // After 100 % Romy no longer calls the model: she keeps the question.
+      // After 100 % Romy no longer calls the model: she keeps the question (WIRE §6: `fallback`, `budget`).
       if (question) s.openQuestion = text;
-      reply(KEPT_LINE, 'steer');
+      reply(KEPT_LINE, 'fallback', 'budget');
+    } else if (modelDown) {
+      // Dev only: the provider is down. Her authored line, the reason coded.
+      reply(FALLBACK_LINE, 'fallback', 'model_down');
     } else if (/comprends pas|pas compris|plus simple|je comprends rien/.test(folded)) {
+      confusedTurn = true;
       s.confused += 1;
       if (s.confused >= 2 && s.supportLevel === 0) {
         s.supportLevel = 1;
@@ -752,6 +861,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         reply(`Je reformule : ${d.claims[0].fr}`);
       }
     } else if (folded.includes('formule la question') || folded.includes('on l\'ecrit')) {
+      formulateTurn = true;
       s.confused = 0;
       reply("D'accord. Écris-la comme elle te vient, même dans ta langue : je t'aide pour le français.");
       flags.proposes = true;
@@ -759,7 +869,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       s.confused = 0;
       reply('Merci ! Voilà ce qu’on sait.');
       showClaims(s, d, d.claims.slice(0, 2).map((c) => c.id), items);
-    } else if (folded.includes('prix') || (question && d.uncertainties.some((u) => overlap(text, u) >= 2))) {
+    } else if (question && (folded.includes('prix') || d.uncertainties.some((u) => overlap(text, u) >= 2))) {
       s.confused = 0;
       const uncertainty =
         d.uncertainties.find((u) => (folded.includes('prix') ? fold(u).includes('prix') : overlap(text, u) >= 2)) ??
@@ -791,8 +901,30 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         s.openQuestion = text;
         flags.proposes = true;
       } else {
-        reply(unshown[0] ? 'Je note. Et tu savais ça ?' : FALLBACK_LINE);
+        if (unshown[0]) reply('Je note. Et tu savais ça ?');
+        else reply(FALLBACK_LINE, 'fallback', 'knowledge_refused');
         if (unshown[0]) showClaims(s, d, [unshown[0].id], items);
+      }
+    }
+
+    // The guest (WIRE §6.2): enters in `pursue` only, never once the column is full;
+    // then a follow-up / a disagreement / a change of mind, at most three lines.
+    const g = d.guest;
+    const quick = [QR_AGREE, QR_MORE, QR_FORMULATE, QR_UNDERSTOOD, QR_SIMPLER].some((q) => fold(q.send_fr) === folded);
+    if (g && !wasBoucle && !modelDown) {
+      if (!s.guest && flags.uncertainty && s.turnsUsed >= 2) {
+        s.guest = { castId: g.cast_id, lines: 0, disagreed: false, moved: false };
+        items.push(guestItem(s, d, 'enter', g.enter, 'against', g.reason_fr));
+      } else if (s.guest && !s.guest.moved && s.guest.lines < 3 && !quick && !formulateTurn && !confusedTurn) {
+        if (!s.guest.disagreed) {
+          s.guest.disagreed = true;
+          s.guest.lines += 1;
+          items.push(guestItem(s, d, 'disagree', g.disagree, 'against'));
+        } else if (!question && words(text).length >= 4) {
+          s.guest.moved = true;
+          s.guest.lines += 1;
+          items.push(guestItem(s, d, 'moved', g.moved, 'moved'));
+        }
       }
     }
 
@@ -820,7 +952,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       support: supportOf(s),
       quick_replies: quickOf(s, flags),
       steer_to_make: room.phase !== 'open' && !s.artifact,
-      evidence: { outcome: 'unscored', capability_known: false, grader: 'revue-unscored-adapter-v1' },
+      evidence: grade(s, d, text, question),
     };
     if (turnId) s.turnIds[turnId] = result;
     save();
@@ -832,13 +964,24 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     if (s.closing) throw httpError(409, { code: 'revue_session_closed' });
     const d = dossierById(s.dossierId) as MockDossier;
     s.makeStarted = true;
+    const b1 = isB1(s);
+    const recommended = s.openQuestion ? 'reader_question' : b1 ? 'headline_write' : 'headline_choice';
+    // Romy's intro is written once, on the first GET, and replays as a thread item.
+    if (!s.intro) {
+      const seq = nextSeq(s);
+      s.intro = line(s, d, seq, 'make_intro', INTRO_LINES[recommended]);
+      s.thread.push(s.intro);
+    }
     save();
     return {
-      recommended: s.openQuestion ? 'reader_question' : 'headline_choice',
+      recommended,
       options: [
         { kind: 'headline_choice', options: d.headlines.map((h) => ({ id: h.id, text_fr: h.text_fr })) },
+        ...(b1 ? [{ kind: 'headline_write', max_words: HEADLINE_WORDS }] : []),
         { kind: 'reader_question', seed_fr: s.openQuestion, uncertainty_fr: s.openUncertainty },
+        ...(b1 ? [{ kind: 'short_report', seconds: REPORT_SECONDS }] : []),
       ],
+      intro: s.intro,
     };
   };
 
@@ -863,6 +1006,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       const seq = nextSeq(s);
       s.thread.push({ id: String(seq), seq, at: stamp(), kind: 'made', made });
     };
+    const done = (text: string) => {
+      const seq = nextSeq(s);
+      const item = line(s, d, seq, 'make_done', text);
+      s.thread.push(item);
+      return item;
+    };
+    if ((body.kind === 'headline_write' || body.kind === 'short_report') && !isB1(s)) {
+      throw httpError(409, { code: 'revue_make_unavailable', kind: body.kind });
+    }
     if (body.action === 'pick') {
       const option = d.headlines.find((h) => h.id === body.option_id);
       if (!option) throw httpError(422, { code: 'revue_unknown_option' });
@@ -871,8 +1023,9 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       const correct = option.id === answer.id;
       const made = { kind: 'headline_choice', text_fr: answer.text_fr, contribution: correct ? [[0, answer.text_fr.length]] : [], learner_fr: null };
       fileMade(made);
+      const doneLine = done(correct ? DONE_LINES.pick_right : DONE_LINES.pick_wrong);
       save();
-      return { kind: 'headline_choice', correct, answer_id: answer.id, evidence: { claim_id: claim.id, quote: claim.quote, source: sourceOf(d, claim.source_id) }, made };
+      return { kind: 'headline_choice', correct, answer_id: answer.id, evidence: { claim_id: claim.id, quote: claim.quote, source: sourceOf(d, claim.source_id) }, made, line: doneLine };
     }
     if (body.action === 'propose') {
       const learner = String(body.text || s.openQuestion || '').trim();
@@ -896,8 +1049,35 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       const learner = s.draftLearner || s.openQuestion;
       const made = { kind: 'reader_question', text_fr: textFr, contribution: contributionSpans(textFr, learner ?? textFr), learner_fr: learner ?? textFr };
       fileMade(made);
+      const doneLine = done(DONE_LINES.send);
       save();
-      return { kind: 'reader_question', made };
+      return { kind: 'reader_question', made, line: doneLine };
+    }
+    if (body.action === 'write') {
+      const textFr = String(body.text_fr || '').trim();
+      if (!textFr || textFr.length > 160) throw httpError(422, [{ loc: ['body', 'text_fr'], msg: 'invalid' }]);
+      const evidence = grade(s, d, textFr, false);
+      if (evidence.fact_fit === 'contradicted') {
+        // Not filed: a shown claim contradicts it. Romy says so; the learner writes again.
+        const doneLine = done(DONE_LINES.write_rejected);
+        save();
+        return { kind: 'headline_write', accepted: false, evidence, made: null, line: doneLine };
+      }
+      const made = { kind: 'headline_write', text_fr: textFr, contribution: [[0, textFr.length]], learner_fr: textFr };
+      fileMade(made);
+      const doneLine = done(DONE_LINES.write);
+      save();
+      return { kind: 'headline_write', accepted: true, evidence, made, line: doneLine };
+    }
+    if (body.action === 'report') {
+      const transcript = String(body.transcript || '').trim();
+      if (!transcript || transcript.length > 1200) throw httpError(422, [{ loc: ['body', 'transcript'], msg: 'invalid' }]);
+      const evidence = grade(s, d, transcript, false);
+      const made = { kind: 'short_report', text_fr: transcript, contribution: [[0, transcript.length]], learner_fr: transcript };
+      fileMade(made);
+      const doneLine = done(DONE_LINES.report);
+      save();
+      return { kind: 'short_report', evidence, made, line: doneLine };
     }
     throw httpError(422, [{ loc: ['body'], msg: 'unknown action' }]);
   };
@@ -918,16 +1098,20 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         headline = `${prefix}${asked}`;
         // Only the question is the learner's: Romy's prefix is never marked.
         contribution = contributionSpans(asked, made.learner_fr ?? question).map(([a, b]) => [a + prefix.length, b + prefix.length] as [number, number]);
-      } else if (made) {
+      } else if (made && kind !== 'short_report') {
         headline = String(made.text_fr);
         contribution = (made.contribution as Array<[number, number]>) || [];
       }
+      // A report is not a headline: the dispatch keeps Romy's own, and quotes the report.
+      const reported = kind === 'short_report' ? String(made?.text_fr || '').split(/(?<=[.!?])\s/)[0].split(/\s+/).slice(0, 20).join(' ') : '';
       const body = shown.slice(0, 2).map((c) => c.fr);
       while (body.length < 2) body.push(d.claims[body.length].fr);
       body.push(
         kind === 'reader_question'
           ? `Reste une question de lecteur : ${String(made?.text_fr || '').replace(/^Est-ce que /, '').replace(/ \?$/, '')} ?`
-          : 'La suite la semaine prochaine, avec les lecteurs.',
+          : kind === 'short_report'
+            ? `Sur place, un lecteur raconte : « ${reported.replace(/[.!?]$/, '')} ».`
+            : 'La suite la semaine prochaine, avec les lecteurs.',
       );
       const usedSources = d.sources.filter((src) => shown.some((c) => c.source_id === src.id));
       const sources = (usedSources.length ? usedSources : d.sources).map((src) => sourceOf(d, src.id));
@@ -949,6 +1133,20 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         question_kept_fr: kind === 'reader_question' ? null : s.openQuestion,
         colophon_fr: 'La suite la semaine prochaine.',
       };
+      // WP-120 §4.3: the close mints the vignette (ring by what was made).
+      s.vignette = {
+        id: `vig-${s.id}`,
+        session_id: s.id,
+        dossier_id: d.id,
+        week: WEEK.iso,
+        place_label_fr: d.place.name_fr.split(',')[0],
+        ring: kind === 'reader_question' ? 'question' : kind === 'short_report' ? 'report' : 'headline',
+        kept_contribution: kind === 'short_report' ? true : contribution.length > 0,
+        pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
+        headline_fr: headline,
+        minted_at: stamp(),
+      };
+      s.closing.vignette = s.vignette;
       s.closedAt = stamp();
       save();
     }
@@ -967,6 +1165,13 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       return d ? { match: d.id, romy_line_fr: null } : { match: null, romy_line_fr: missLine() };
     }
     if (method === 'POST' && path === '/revue/sessions') return start(body);
+    if (method === 'GET' && path === '/revue/vignettes') {
+      const minted = allSessions()
+        .map((row) => row.vignette)
+        .filter((v): v is Json => Boolean(v))
+        .sort((a, b) => String(b.minted_at).localeCompare(String(a.minted_at)));
+      return { vignettes: minted };
+    }
     const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close))?$/);
     if (m) {
       const id = decodeURIComponent(m[1]);

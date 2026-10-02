@@ -24,6 +24,7 @@ import {
   parseRevueError,
   parseSessionView,
   parseTurnResult,
+  parseVignettes,
   startBodyWire,
   turnBodyWire,
   type RvCloseResult,
@@ -35,6 +36,7 @@ import {
   type RvStartBody,
   type RvTurnBody,
   type RvTurnResult,
+  type RvVignetteView,
   type RvWeekResult,
 } from './revue-types';
 
@@ -58,6 +60,8 @@ export type RevueClient = {
   makeOffer: (id: string) => Promise<RvMakeOffer>;
   make: (id: string, body: RvMakeBody) => Promise<RvMakeResult>;
   close: (id: string) => Promise<RvCloseResult>;
+  /** WP-120: the learner's minted vignettes, newest first. */
+  vignettes: () => Promise<RvVignetteView[]>;
 };
 
 function toRevueError(error: unknown): RevueError {
@@ -107,6 +111,7 @@ export function createRevueClient(transport: RevueTransport): RevueClient {
     makeOffer: (id) => get(`${session(id)}/make`, parseMakeOffer),
     make: (id, body) => post(`${session(id)}/make`, makeBodyWire(body), parseMakeResult),
     close: (id) => post(`${session(id)}/close`, {}, parseCloseResult),
+    vignettes: () => get(`${REVUE_BASE}/vignettes`, parseVignettes),
   };
 }
 

@@ -1,5 +1,6 @@
 /**
- * WP-119 phase 1 · Le Papier de Romy — the public surface of components/revue.
+ * WP-119 phases 1–2 · Le Papier de Romy — the public surface of components/revue
+ * (and WP-120's RvVignette, which La Carte and the Relevé import from here).
  * Wire types: `@/lib/revue-types`; client: `@/lib/revue-api`; dev mock:
  * `@/lib/revue-mock` (`/revue?mock=1`, never in production). Styles:
  * `styles/revue.css` (imported from `pages/_app.tsx`).
@@ -27,11 +28,18 @@ export {
   RvTyping,
   ContributedText,
   shiftLabel,
+  madeLabel,
+  RvGuestEntrance,
+  RvGuestLine,
+  RvModelDownNotice,
+  RvRegisterNote,
 } from './RvThread';
-export type { RvThreadProps, RvLineProps, RvGlossTextProps, RvWordEvent } from './RvThread';
-export { RvMakePicker, RvHeadlineChoice, RvQuestionDraft } from './RvMake';
-export type { RvMakePickerOption, RvHeadlineChoiceProps, RvQuestionDraftProps } from './RvMake';
-export { RvDispatch, RvKept } from './RvClose';
+export type { RvThreadProps, RvLineProps, RvGlossTextProps, RvWordEvent, RvGuestLineProps } from './RvThread';
+export { RvMakePicker, RvHeadlineChoice, RvQuestionDraft, RvHeadlineWrite, RvShortReport, writeFeedback } from './RvMake';
+export type { RvMakePickerOption, RvHeadlineChoiceProps, RvQuestionDraftProps, RvHeadlineWriteProps, RvShortReportProps } from './RvMake';
+export { RvDispatch, RvKept, RvCloseVignette } from './RvClose';
+export { RvVignette } from './RvVignette';
+export type { RvVignetteProps } from './RvVignette';
 export type { RvDispatchProps } from './RvClose';
 export { RvComposer } from './RvComposer';
 export type { RvComposerProps } from './RvComposer';
@@ -43,5 +51,5 @@ export { RvChooser } from './RvChooser';
 export type { RvChooserProps } from './RvChooser';
 export { revueHomeChip, revueUneState } from './revue-home';
 export type { RevueHomeChip } from './revue-home';
-export { revueCopy, fill, ROMY_CLIENT_LINES } from './revue-copy';
+export { revueCopy, fill, guestName, ROMY_CLIENT_LINES, GUEST_NAMES, REGISTER_LINES_FR } from './revue-copy';
 export type { RevueCopy } from './revue-copy';

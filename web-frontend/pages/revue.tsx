@@ -5,6 +5,8 @@
 
    Query:
      ?session=<id>   resume (a pure replay of the state)
+     &readonly=1     with ?session: read-only replay (La Carte's «Relire», WP-120):
+                     the thread, no composer, no press; the back arrow goes back
      ?dossier=<id>   start that story (`chosen_by: learner`); ?story= is the same
      ?mock=1         DEV ONLY (never in a production build): the scripted server of
                      lib/revue-mock.ts instead of the API. ?lang=de|en|fr and
@@ -49,6 +51,7 @@ export default function RevuePage() {
   const langParam = queryString(router.query.lang);
   const language: RvLanguage = mock && (langParam === 'de' || langParam === 'en' || langParam === 'fr') ? langParam : learnerLanguage;
   const copy = revueCopy(language);
+  const readOnly = router.query.readonly === '1' && Boolean(queryString(router.query.session));
   const [client, setClient] = useState<RevueClient | null>(null);
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [slow, setSlow] = useState(false);
@@ -135,6 +138,11 @@ export default function RevuePage() {
           return;
         } catch (error) {
           if (!(error instanceof RevueError && error.code === 'revue_session_not_found')) throw error;
+          // A read-only replay never starts anything.
+          if (router.query.readonly === '1') {
+            setState({ kind: 'error' });
+            return;
+          }
           // An old link: fall through to the week.
         }
       }
@@ -178,8 +186,13 @@ export default function RevuePage() {
   useEffect(() => (inEncounter ? enterImmersiveSurface() : undefined), [inEncounter]);
 
   const exit = useCallback(() => {
+    // A read-only replay was opened from somewhere (La Carte): go back there.
+    if (readOnly && typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
     void router.push(HOME);
-  }, [router]);
+  }, [readOnly, router]);
 
   const pick = async (dossierId: string | null) => {
     if (!client || state.kind !== 'choose') return;
@@ -201,6 +214,7 @@ export default function RevuePage() {
         session={state.session}
         language={language}
         onExit={exit}
+        readOnly={readOnly}
         onReleve={() => void router.push(`/notebook?mode=releve#revue-${week}`)}
       />
     );

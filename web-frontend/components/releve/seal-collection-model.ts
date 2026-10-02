@@ -6,9 +6,15 @@
  * It only lays the days out as weeks (Monday first, seven columns) and names
  * each cell for a screen reader. Days before the learner's first recorded day
  * are blank cells, never «missed».
+ *
+ * WP-120 §4.3 · a second seal kind, `vignette`: the stamp a closed Papier
+ * minted (`GET /revue/vignettes`), drawn by `RvVignette size="seal"`. With the
+ * Revue switched off the route is a 404 and there are simply no vignette seals.
  */
 
 import { isSealVariant, sealForEdition, type SealMiniState, type SealVariant } from '@/components/ui/Seal';
+import { vignetteLabel } from '@/components/revue/vignette-model';
+import type { RvVignetteView } from '@/lib/revue-types';
 import type { StreakCalendar, StreakCalendarDay } from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -160,4 +166,25 @@ export function sealCollectionView(
 
 export function daysLabel(n: number, language: ControlLanguage = 'fr'): string {
   return plural(releveCopy(language), 'days', n);
+}
+
+// ---------------------------------------------------------------------------
+// WP-120 · the vignette seals
+// ---------------------------------------------------------------------------
+
+export type VignetteSeal = { kind: 'vignette'; key: string; vignette: RvVignetteView; label: string };
+
+/** The minted vignettes as seals, newest first; nothing unusable is drawn. */
+export function vignetteSeals(vignettes: RvVignetteView[] | null | undefined): VignetteSeal[] {
+  if (!Array.isArray(vignettes)) return [];
+  return vignettes
+    .filter((vignette) => vignette && vignette.id && vignette.week)
+    .slice()
+    .sort((a, b) => String(b.mintedAt).localeCompare(String(a.mintedAt)))
+    .map((vignette) => ({
+      kind: 'vignette',
+      key: `vignette-${vignette.id}`,
+      vignette,
+      label: vignetteLabel(vignette),
+    }));
 }
