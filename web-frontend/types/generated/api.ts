@@ -9280,6 +9280,18 @@ export interface components {
             status: components["schemas"]["StepStatus"];
         };
         /**
+         * RespondChoice
+         * @description WP-113 «Le choix»: one card the learner can tap to answer the question.
+         */
+        RespondChoice: {
+            /** Id */
+            id: string;
+            /** Label Fr */
+            label_fr: string;
+            /** Label Native */
+            label_native: string | null;
+        };
+        /**
          * RespondLetter
          * @description WP-66 «jour de lettre»: the letter the learner is answering.
          *
@@ -9311,6 +9323,8 @@ export interface components {
             character_line_fr: string;
             /** Character Name */
             character_name: string;
+            /** Choices */
+            choices: components["schemas"]["RespondChoice"][];
             /** Help Available */
             help_available: components["schemas"]["HelpKind"][];
             /** Input Modes */

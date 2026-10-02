@@ -164,6 +164,9 @@ async function readPage(l, day) {
     if (l.walk.mouthShapes != null) findings.check('face-mouth-follows-the-voice', l.walk.mouthShapes >= 3, `day ${day}: ${l.walk.mouthShapes} mouth shapes while a line played`, where);
   }
   if (seen.you.length) l.covered.add('page');
+  if (l.label.startsWith('season') && day >= 2) {
+    findings.check('season-choice-asked-as-cards', (l.walk.cardsTapped || 0) >= 1, `day ${day}: no «Le choix» card tapped yet`, where);
+  }
 }
 
 // WP-111: the tentpoles of season 1 the season learner must meet, each once, as the

@@ -2178,6 +2178,8 @@ def plan_journey(
         # WP-75: the first reply is one turn (a repair is still allowed), so
         # the two quick recall wins fit in front of it inside five minutes.
         turns = 1
+    # WP-113: an authored day's «Le choix» is never cut by the rhythm.
+    turns = max(turns, int(getattr(task, "min_turns", 0) or 0))
     # WP-93: the page is heard as well as read when the deployment speaks —
     # priced from Régulier up; the five-minute day reads it (its audio is a
     # replay the learner may take, not a cost the day promises).
@@ -2475,6 +2477,8 @@ def plan_journey(
                 # WP-66 «jour de lettre». `None` on every other shape, which is
                 # every day until WP-64 registers a letter provider.
                 "letter": _letter_prompt(letter) if shape is DayShape.LETTER else None,
+                # WP-113: the opening question is «Le choix»: its cards.
+                "choices": list(getattr(task, "opening_choices", None) or []),
             },
             private_task=respond_task,
             target=None,

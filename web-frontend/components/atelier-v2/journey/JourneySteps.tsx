@@ -1000,10 +1000,34 @@ export function RespondStepView({
   const progress = exchangeProgress(step.prompt, closing);
   // The tokens carry exchange progress; the thread itself shows whose turn it is.
 
+  // WP-113 «Le choix»: when the question offers cards, the answer is a tap.
+  const cards = graded ? [] : step.prompt.choices ?? [];
+  const tapCard = (id: string) => {
+    const card = cards.find((row) => row.id === id);
+    if (!card || locked) return;
+    sentRef.current = {
+      turn: step.prompt.turn_index,
+      text: card.label_fr,
+      prompt_fr: step.prompt.character_line_fr || null,
+    };
+    setOpenNote(null);
+    onSubmit({ mode: 'text', text: card.label_fr });
+  };
   const answerArea = graded ? (
     // A letter keeps the sent answer in the field's block; in the thread the
     // learner's line is already on the page, on the right.
     letter ? <SentAnswer label={copy.answer_label} text={text} /> : null
+  ) : cards.length ? (
+    <div className="av2-respond__choices" data-choices="">
+      <ChoiceList
+        options={cards.map((card) => ({ id: card.id, textFr: card.label_fr }))}
+        selectedId={null}
+        label={step.prompt.objective_native}
+        disabled={locked}
+        onSelect={tapCard}
+        statusLabels={{ selected: wide.status_selected, correct: wide.status_correct, wrong: wide.status_wrong }}
+      />
+    </div>
   ) : mode === 'voice' && canSpeak ? (
     <>
       {voiceState.kind === 'transcript' ? (

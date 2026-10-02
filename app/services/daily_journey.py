@@ -4125,6 +4125,10 @@ class DailyJourneyService:
             if evaluation.character_reply_fr:
                 prompt["character_line_fr"] = evaluation.character_reply_fr
             prompt["repair_allowed"] = False
+            # WP-113: the next question's cards when it is «Le choix», else none.
+            prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
+            if getattr(evaluation, "next_task_native", None):
+                prompt["objective_native"] = evaluation.next_task_native
             if history[-1].get("free"):
                 # The exchange the nudge did not use is still owed: one more token.
                 prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1

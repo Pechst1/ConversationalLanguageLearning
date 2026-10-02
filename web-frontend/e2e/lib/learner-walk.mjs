@@ -186,6 +186,16 @@ export class LearnerWalk {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
       if (await prim.count()) { await prim.click({ timeout: 3000 }).catch(() => {}); return true; }
     }
+    // WP-113 «Le choix»: a season question answered by tapping a card (it sends at once).
+    const card = page.locator('.av2-respond__choices .av2-choice:not([disabled])');
+    if (await card.count()) {
+      const n = await card.count();
+      this.cardsTapped = (this.cardsTapped || 0) + 1;
+      await this.shoot('respond-choice');
+      await card.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
+      state.itemIndex += 1;
+      return true;
+    }
     const enabledChoice = page.locator('.av2-choice:not([disabled])');
     if (await enabledChoice.count()) {
       const n = await enabledChoice.count();

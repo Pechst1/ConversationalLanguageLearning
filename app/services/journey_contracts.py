@@ -681,6 +681,11 @@ class ResponseTask:
     hint_native: str | None = None
     translation_native: str | None = None
     estimated_seconds: int = 120
+    #: WP-113: an authored season day's «Le choix» must be reached: the rhythm may
+    #: shorten the conversation, never below this many exchanges.
+    min_turns: int = 0
+    #: WP-113: the opening question is «Le choix»: its cards ``[{id, label_fr, label_native}]``.
+    opening_choices: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1147,6 +1152,12 @@ class ResponseEvaluation:
     #: season page): ``[{speaker_id, speaker_name, text_fr}]``. Each is drawn as its
     #: own bubble with its own face; ``character_reply_fr`` stays the joined text.
     reply_lines: list[dict[str, Any]] = field(default_factory=list)
+    #: WP-113: the next question is «Le choix» — its cards ``[{id, label_fr,
+    #: label_native}]``; the learner answers by tapping one. Empty otherwise.
+    next_choices: list[dict[str, Any]] = field(default_factory=list)
+    #: WP-113: what the learner is asked to do next, in their language, when the
+    #: next question is a posed solve (it replaces the day's objective line).
+    next_task_native: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

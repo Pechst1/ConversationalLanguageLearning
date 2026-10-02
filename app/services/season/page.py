@@ -335,6 +335,11 @@ def project(page: dict[str, Any]) -> dict[str, Any]:
         kind = movement.get("kind")
         if kind == "panel":
             scene.append(movement)
+        elif posed_choice(movement):
+            # WP-113: a posed solve met before any free question opens the reply.
+            first_turn = posed_as_turn(movement)
+            scene.append(first_turn["panel"])
+            break
         elif kind == "solve":
             if first_turn is None:
                 scene.extend(_default_beats(movement))
@@ -351,8 +356,155 @@ def project(page: dict[str, Any]) -> dict[str, Any]:
     return {"scene_panels": scene, "turn": first_turn, "ending": hook_caption(page)}
 
 
+#: WP-113: the solves a learner now decides by tapping a card («Le choix»). The
+#: other mechanics (enquête, convaincre, déchiffrer, the S-9 balloon) are WP-112's
+#: and keep the story's default until then.
+CHOICE_MECHANICS = ("choix",)
+#: WP-113: the solves posed as a conversation: «Convaincre» (up to one exchange
+#: per objection; any sincere argument lands).
+CONVINCE_MECHANICS = ("convaincre",)
+
+
+def posed_choice(movement: dict[str, Any]) -> bool:
+    """A solve WP-113 asks the learner instead of defaulting: «Le choix», «Convaincre»."""
+
+    return movement.get("kind") == "solve" and movement.get("mechanic") in (*CHOICE_MECHANICS, *CONVINCE_MECHANICS)
+
+
+def posed_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
+    return convince_as_turn(solve) if solve.get("mechanic") in CONVINCE_MECHANICS else solve_as_turn(solve)
+
+
+def _said_by(who: str | None, say: dict[str, Any] | None) -> dict[str, Any]:
+    return {"who": who or "caption", "kind": "speech" if who else "caption", "mood": "neutral", "direction": None, **(say or {})}
+
+
+def convince_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
+    """WP-113 «Convaincre» as a turn: the character's first objection is the question;
+    each reply either lands (the solve's ``lands`` beats and ``sets_on_land``) or is
+    met by the next objection; after the last objection, or a give-up, it fails
+    (``fails``, ``sets_on_fail``). The interlude always plays once before the outcome."""
+
+    to = solve.get("to")
+    objections = list(solve.get("objections") or [])
+    prompt = solve.get("prompt") or {}
+    objection_panels = [
+        {"kind": "panel", "id": f"{solve['id']}.objection{n + 1}", "lines": [_said_by(to, say)]} for n, say in enumerate(objections)
+    ]
+    give_up = solve.get("give_up") or {}
+    return {
+        "kind": "turn",
+        "id": solve["id"],
+        "to": to or "lila_bonnet",
+        "to_name": None,
+        "panel": {
+            "kind": "panel",
+            "id": f"{solve['id']}.prompt",
+            "visual": solve.get("visual"),
+            "location_id": None,
+            "in_frame": [to] if to else [],
+            "silence": False,
+            "flashback": False,
+            "diegetic": [],
+            "balloon": True,
+            "lines": [_said_by(None, prompt), *(objection_panels[0]["lines"] if objection_panels else [])],
+        },
+        "task_native": solve.get("task_native"),
+        "listens_for": solve.get("lands_means") or "Whether the argument touches them.",
+        "replies": [
+            {
+                "id": "lands",
+                "label": "lands",
+                "means": solve.get("lands_means") or "A sincere argument that touches them.",
+                "examples": list(solve.get("lands_examples") or []),
+                "clumsy": False,
+                "path": None,
+                "repeat_once": False,
+                "sets": dict(solve.get("sets_on_land") or {}),
+                "sets_if": [],
+                "beats": list(solve.get("lands") or []),
+                "again": [],
+            },
+            {
+                "id": "give_up",
+                "label": give_up.get("text_fr") or "give_up",
+                "means": "The learner gives up or lets them be.",
+                "examples": [give_up["text_fr"]] if give_up.get("text_fr") else [],
+                "clumsy": False,
+                "path": None,
+                "repeat_once": False,
+                "sets": dict(solve.get("sets_on_fail") or {}),
+                "sets_if": [],
+                "beats": list(solve.get("fails") or []),
+                "again": [],
+            },
+            {
+                "id": "objection",
+                "label": "objection",
+                "means": "The argument does not touch them yet, or is off the point.",
+                "examples": [],
+                "clumsy": False,
+                "path": None,
+                "repeat_once": False,
+                "sets": {},
+                "sets_if": [],
+                "beats": [],
+                "again": [],
+            },
+        ],
+        "fallback": "objection",
+        "gate": None,
+        "small": False,
+        "sets": {},
+        "sets_if": [],
+        "after": [],
+        "from_solve": "convaincre",
+        "convince": {
+            "objections": objection_panels,
+            "attempts": max(1, len(objection_panels)),
+            "interlude": list(solve.get("interlude") or []),
+            "fails": list(solve.get("fails") or []),
+            "sets_on_fail": dict(solve.get("sets_on_fail") or {}),
+        },
+    }
+
+
+def convince_outcome(turn: dict[str, Any], reply_id: str | None, *, attempt: int) -> list[dict[str, Any]]:
+    """WP-113 «Convaincre»: what the page says after the learner's ``attempt``-th
+    argument (0-based): the next objection, or the interlude and how it ends."""
+
+    convince = turn.get("convince") or {}
+    attempts = int(convince.get("attempts") or 1)
+    interlude = list(convince.get("interlude") or [])
+    if reply_id == "lands":
+        lands = next((row for row in turn.get("replies") or [] if row.get("id") == "lands"), {})
+        return [*interlude, *(lands.get("beats") or [])]
+    if reply_id == "give_up" or attempt + 1 >= attempts:
+        return [*interlude, *(convince.get("fails") or [])]
+    objections = list(convince.get("objections") or [])
+    return [objections[attempt + 1]] if attempt + 1 < len(objections) else []
+
+
+def exchanges_for(turn: dict[str, Any]) -> int:
+    """How many exchanges a turn can take: a «Convaincre» one per objection."""
+
+    return int((turn.get("convince") or {}).get("attempts") or 1)
+
+
+def choice_cards(turn: dict[str, Any]) -> list[dict[str, Any]]:
+    """WP-113: a choice turn's cards for the client — ``[{id, label_fr, label_native}]``."""
+
+    if not turn.get("choice"):
+        return []
+    return [
+        {"id": str(reply.get("id")), "label_fr": str(reply.get("label") or reply.get("id")), "label_native": reply.get("label_native")}
+        for reply in turn.get("replies") or []
+    ]
+
+
 def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
-    """A solve posed as a question with its options as the replies (projection only)."""
+    """A solve posed as a question with its options as the replies. A «choix» is
+    answered by tapping a card (WP-113); the others are a projection only."""
 
     prompt = solve.get("prompt") or {}
     replies = []
@@ -371,6 +523,7 @@ def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
                 "sets_if": list(option.get("sets_if") or []),
                 "beats": list(option.get("beats") or []),
                 "again": [],
+                "label_native": (option.get("label") or {}).get("text_native"),
             }
         )
     return {
@@ -400,4 +553,5 @@ def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
         "sets_if": [],
         "after": list(solve.get("nudge") or []),
         "from_solve": solve.get("mechanic"),
+        "choice": solve.get("mechanic") in CHOICE_MECHANICS,
     }

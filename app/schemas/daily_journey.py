@@ -388,6 +388,14 @@ class ThreadExchange(JourneyModel):
     character_lines: list[ThreadLine] = Field(default_factory=list)
 
 
+class RespondChoice(JourneyModel):
+    """WP-113 «Le choix»: one card the learner can tap to answer the question."""
+
+    id: str
+    label_fr: str
+    label_native: str | None = None
+
+
 class RespondPrompt(JourneyModel):
     turn_index: int
     max_turns: int
@@ -406,6 +414,9 @@ class RespondPrompt(JourneyModel):
     #: WP-89. The exchanges so far, oldest first; empty on turn 0. The last
     #: entry's ``character_fr`` is the ``character_line_fr`` above.
     thread: list[ThreadExchange] = Field(default_factory=list)
+    #: WP-113. The current question is «Le choix»: tap one of these cards (its
+    #: label is the answer). Empty for a free reply.
+    choices: list[RespondChoice] = Field(default_factory=list)
 
 
 class ResolutionPrompt(JourneyModel):

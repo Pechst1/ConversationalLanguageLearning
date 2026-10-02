@@ -40,8 +40,13 @@ from app.services.season.flags import (
 )
 from app.services.season.format import Season, load_season
 from app.services.season.page import (
+    choice_cards,
+    convince_outcome,
+    exchanges_for,
     hook_caption,
     option_by_id,
+    posed_as_turn,
+    posed_choice,
     project,
     reply_by_id,
     resolve_day,
@@ -211,7 +216,9 @@ def projected_turns(page: dict[str, Any]) -> list[dict[str, Any]]:
     projection = project(page)
     first = projection["turn"]
     turns: list[dict[str, Any]] = []
-    if first is not None and first.get("from_solve"):
+    movements = list(page.get("movements") or [])
+    if first is not None and first.get("from_solve") and not any(row.get("kind") == "turn" or posed_choice(row) for row in movements):
+        # A day with nothing but a solve WP-112 has not posed yet: that solve is the question.
         return [{**first, "lead_in": []}]
     lead: list[dict[str, Any]] = []
     started = False
@@ -223,6 +230,12 @@ def projected_turns(page: dict[str, Any]) -> list[dict[str, Any]]:
             else:
                 turns.append({**movement, "lead_in": []})
                 started = True
+            lead = []
+        elif posed_choice(movement):
+            # WP-113: «Le choix» and «Convaincre» are asked, not defaulted; one met
+            # before any free question opens the conversation itself.
+            turns.append({**posed_as_turn(movement), "lead_in": list(lead) if started else []})
+            started = True
             lead = []
         elif not started:
             continue
@@ -246,7 +259,7 @@ def page_tail(page: dict[str, Any]) -> list[dict[str, Any]]:
     and the hook's own voices (not its «À suivre…» caption, which is the ending)."""
 
     movements = list(page.get("movements") or [])
-    last = max((i for i, row in enumerate(movements) if row.get("kind") == "turn"), default=None)
+    last = max((i for i, row in enumerate(movements) if row.get("kind") == "turn" or posed_choice(row)), default=None)
     if last is None:
         return []
     tail: list[dict[str, Any]] = []
@@ -432,9 +445,18 @@ def tentpole_brief(today: Today, context: dict[str, Any]):
     # One exchange per authored turn, plus one when a reply may ask the turn again
     # («Tu dis ça vite. Encore une fois ?»).
     repeats = any(reply.get("repeat_once") for turn in turns for reply in turn.get("replies") or [])
+    # WP-113: the conversation must reach the day's last posed solve and Lila's gate
+    # (both move the story), and a «Convaincre» can take one exchange per objection.
+    last_posed = max(
+        (i for i, turn in enumerate(turns) if turn.get("from_solve") in ("choix", "convaincre") or turn.get("gate")),
+        default=-1,
+    )
+    exchanges = sum(exchanges_for(turn) for turn in turns)
     task = dc_replace(
         brief.response_task,
-        max_turns=max(1, len(turns) + (1 if repeats else 0)),
+        min_turns=sum(exchanges_for(turn) for turn in turns[: last_posed + 1]),
+        opening_choices=choice_cards(turns[0]) if turns else [],
+        max_turns=max(1, exchanges + (1 if repeats else 0)),
         allowed_outcomes=["resolved", "open"],
         estimated_seconds=60 * max(1, len(turns)),
     )
@@ -488,6 +510,19 @@ def is_tentpole(story_context: dict[str, Any] | None) -> bool:
 # ---------------------------------------------------------------------------
 # A tentpole turn
 # ---------------------------------------------------------------------------
+
+
+def card_choice(turn: dict[str, Any], text: str) -> ReplyChoice | None:
+    """WP-113: a «Le choix» card tapped — the answer is the card's label, so the route
+    is certain and costs no model call. ``None`` for any other turn or text."""
+
+    if not turn.get("choice"):
+        return None
+    said = " ".join(str(text or "").split()).casefold()
+    for reply in turn.get("replies") or []:
+        if said in {str(reply.get("label") or "").casefold(), str(reply.get("id") or "").casefold()}:
+            return ReplyChoice(reply_id=str(reply["id"]), confidence=1.0)
+    return None
 
 
 def _cache_key(scene_id: str, turn_id: str, text: str) -> tuple[str, str, str]:
@@ -568,6 +603,9 @@ def _walk(turns: list[dict[str, Any]], routed: list[tuple[str, dict[str, Any]]])
         answered[index] = answered.get(index, 0) + 1
         if reply.get("repeat_once") and answered[index] == 1:
             continue
+        convince = turns[index].get("convince")
+        if convince and reply.get("id") == "objection" and answered[index] < int(convince.get("attempts") or 1):
+            continue  # WP-113: the next objection; the learner tries again
         index += 1
     return index, answered
 
@@ -603,15 +641,18 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         index, _ = _walk(turns, routed)
         if index >= len(turns):
             break
-        choice = classify(db, user, scene_id=scene_id, turn=turns[index], text=learner, use_model=False)
+        choice = card_choice(turns[index], learner) or classify(db, user, scene_id=scene_id, turn=turns[index], text=learner, use_model=False)
         routed.append((learner, reply_by_id(turns[index], choice.reply_id)))
     index, answered = _walk(turns, routed)
     index = min(index, len(turns) - 1)
     turn = turns[index]
-    choice = classify(db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history)
+    choice = card_choice(turn, answer.text) or classify(db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history)
     reply = reply_by_id(turn, choice.reply_id)
     again = bool(reply.get("repeat_once") and answered.get(index, 0) >= 1)
     beats = list(reply.get("again") or []) if again and reply.get("again") else list(reply.get("beats") or [])
+    if turn.get("convince"):
+        # WP-113 «Convaincre»: the next objection, or the interlude and the outcome.
+        beats = convince_outcome(turn, reply.get("id"), attempt=answered.get(index, 0))
     routed.append((answer.text, reply))
     next_index, _ = _walk(turns, routed)
     # The day's rhythm may plan fewer exchanges than the page has turns: the
@@ -637,6 +678,10 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         spoken_lines_out += reaction_lines(asked, addressee=addressee)
         reply_fr = "\n".join(part for part in (reply_fr, question) if part)
     reply_fr = reply_fr or "…"
+    # WP-113: when the next question is «Le choix», its cards go with the reply.
+    upcoming_turn = turns[next_index] if not closing and next_index < len(turns) and next_index != index else None
+    next_choices = choice_cards(upcoming_turn) if upcoming_turn else []
+    next_task = str(upcoming_turn.get("task_native") or "") if upcoming_turn and upcoming_turn.get("from_solve") else ""
     proposal = None
     if closing:
         proposal = _closing_proposal(
@@ -668,6 +713,8 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         needs_repair=not closing,
         failure_reason="reply_source:authored_season",
         reply_lines=spoken_lines_out,
+        next_choices=next_choices,
+        next_task_native=next_task or None,
     )
 
 
@@ -782,12 +829,15 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
     turns.update({key: value for key, value in projected.items() if key not in turns})
     routing = list(details.get("season_turns") or [])
     answered = set()
+    convinced: dict[str, set[str]] = {}
     for position_in_day, row in enumerate(routing):
         turn = turns.get(row.get("turn_id"))
         if not turn:
             continue
         answered.add(turn.get("id"))
         reply = reply_by_id(turn, row.get("reply_id"))
+        if turn.get("convince"):
+            convinced.setdefault(str(turn.get("id")), set()).add(str(reply.get("id")))
         if row.get("gate"):
             # The gate's own signal first: what this reply expressed colours the
             # path its conditional sets read (T5: «je veux toi ici» on the romance path).
@@ -809,12 +859,19 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
         )
         if row.get("value") and turn.get("value_flag"):
             state = apply_sets(season, state, {turn["value_flag"]: row["value"]}, source=f"{turn.get('id')}/value")
+    # WP-113: a «Convaincre» argued to its last objection without landing fails.
+    for turn_id, replies in convinced.items():
+        if not replies & {"lands", "give_up"}:
+            state = apply_sets(season, state, (turns.get(turn_id) or {}).get("convince", {}).get("sets_on_fail"), source=f"{turn_id}/fail")
     # Turns the day's reply did not reach still set what they set whatever is said.
     for turn in turns_of(page):
         if turn.get("id") not in answered:
             state = apply_sets(season, state, turn.get("sets"), source=f"{turn.get('id')}/unplayed")
-    # Solves the page could not pose yet (WP-112) take the story's default.
+    # Solves the page could not pose yet (WP-112) take the story's default; a choice
+    # the learner made (WP-113) was settled above with the turns.
     for solve in solves_of(page):
+        if solve.get("id") in answered:
+            continue
         option = option_by_id(solve, solve.get("default"))
         if option is None and solve.get("flag") == "s1.camille_gender":
             gender = effective_flags(season, state, seed=seed).get("s1.camille_gender")

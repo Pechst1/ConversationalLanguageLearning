@@ -435,7 +435,7 @@ class Driver:
         return self._absorb(response.json())
 
     # -- the whole day ----------------------------------------------------
-    def play(self, *, answer: str, recall: str = "correct") -> list[dict[str, Any]]:
+    def play(self, *, answer: Any, recall: str = "correct") -> list[dict[str, Any]]:
         """Walk the plan the way a learner does. Returns the attempt results."""
 
         results: list[dict[str, Any]] = []
@@ -460,7 +460,9 @@ class Driver:
                 if self.journey.get("current_step_id") == step["id"]:
                     self.advance()
                 continue
-            response = self.attempt({"mode": "text", "text": answer})
+            # WP-113: ``answer`` may read the step (e.g. tap one of «Le choix»'s cards).
+            text = answer(step) if callable(answer) else answer
+            response = self.attempt({"mode": "text", "text": text})
             assert response.status_code == 200, response.text
             body = response.json()
             results.append(body)

@@ -1053,3 +1053,86 @@ def test_headline_sends_camille_look_only_once_chosen():
     assert cast_variants({SEASON_KEY: {"flags": {}}}) == {}
     assert cast_variants({SEASON_KEY: {"flags": {"s1.camille_gender": "m"}}}) == {"camille_marchand": "m"}
     assert cast_variants({SEASON_KEY: {"flags": {"s1.camille_gender": "x"}}}) == {}
+
+
+def _chooser(picks: list[str], free: str = "Odile, c'est ma grand-mère.", argument: str | None = None):
+    """WP-113: a learner who taps the first of ``picks`` that a «Le choix» offers, and
+    makes ``argument`` from T6 on (T7 A asks them to persuade)."""
+
+    seen: list[tuple[str, str]] = []
+
+    def answer(step: dict) -> str:
+        prompt = step.get("prompt") or {}
+        cards = list(prompt.get("choices") or [])
+        if not cards:
+            # After T6's choice, every free reply is the learner's argument (T7 A asks for one).
+            if argument and any(ids.startswith("marchand_only") for ids, _ in seen):
+                return argument
+            return free
+        ids = [card["id"] for card in cards]
+        pick = next((want for want in picks if want in ids), ids[0])
+        seen.append((",".join(ids), pick))
+        answer.asked.append(str(prompt.get("objective_native") or ""))
+        return next(card["label_fr"] for card in cards if card["id"] == pick)
+
+    answer.seen = seen
+    answer.asked = []
+    return answer
+
+
+def _season_life(assembled_client, db_session, provider, clock, picks: list[str], argument: str | None = None) -> dict:
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1c-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    chooser = _chooser(picks, argument=argument)
+    if argument:
+        provider.routes[argument] = "lands"  # the bible's own landing example, as the classifier reads it
+    user_id = None
+    pages: dict[str, str] = {}
+    for _day in range(80):
+        provider.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La journée se termine.", callback_fr="Vous avez parlé.")
+        d.create()
+        d.play(answer=chooser)
+        assert d.finish("complete").status_code == 200
+        clock.advance(days=1)
+        user_id = user_id or _user_id_of(db_session, d.journey)
+        scene = _latest_scene(db_session, user_id)
+        season = dict((scene.script_payload or {}).get("season") or {})
+        page = (scene.script_payload or {}).get("season_page") or {}
+        if season.get("kind") == "tentpole":
+            pages[str(season.get("key"))] = json.dumps(page, ensure_ascii=False, sort_keys=True)
+        state = _season_state(db_session, user_id)
+        if state and season_clock.position(load_season("s1"), state, today=clock.moment.date()).finished:
+            break
+    flags = effective_flags(load_season("s1"), _season_state(db_session, user_id), seed=str(user_id))
+    return {"flags": flags, "pages": pages, "choices": chooser.seen, "asked": chooser.asked}
+
+
+@pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
+def test_opposite_choices_read_different_episodes_and_reach_different_endings(assembled_client, db_session, journey_enabled, clock, season_on):
+    """WP-113's «done when»: two learners who choose differently at the first tentpole
+    (and at each «Le choix» after it) read visibly different episodes and reach
+    different endings. The choices are asked as cards, never defaulted."""
+
+    keeper = _season_life(
+        assembled_client, db_session, season_on, clock,
+        ["margaux", "double", "margaux", "marchand_only", "keep_lease", "keep_kept", "keep"],
+        argument="Odile voulait ça : \"oui, si Margaux reste\".",
+    )
+    clock.advance(days=-200)
+    sharer = _season_life(
+        assembled_client, db_session, season_on, clock,
+        ["gus", "pas_encore", "wall", "public", "coop"],
+        argument="Ta mère serait fière.",
+    )
+
+    assert keeper["choices"] and sharer["choices"], "«Le choix» was asked as cards"
+    assert keeper["asked"][0] == "Choose who reads the notary's letter.", "the card's own task, not the last question's"
+    assert keeper["flags"]["s1.letter_trusted_to"] == "margaux"
+    assert sharer["flags"]["s1.letter_trusted_to"] == "gus" and sharer["flags"].get("s1.price_public") is True
+    # After T1 the two lives read different tentpoles (T1 B's own reaction is said in
+    # the conversation as the card is tapped): T4 B, who stands beside you, onwards.
+    differing = [key for key in keeper["pages"] if key in sharer["pages"] and keeper["pages"][key] != sharer["pages"][key]]
+    assert "t4.b" in differing and len(differing) >= 4, differing
+    assert keeper["flags"]["s1.ending"] != sharer["flags"]["s1.ending"], (keeper["choices"][-3:], sharer["choices"][-3:], {k: keeper["flags"].get(k) for k in ("s1.evidence_shared", "s1.plan", "s1.flat_decision")}, {k: sharer["flags"].get(k) for k in ("s1.evidence_shared", "s1.plan", "s1.flat_decision")})
+    assert keeper["flags"]["s1.margaux_persuaded"] is True and sharer["flags"]["s1.gus_persuaded"] is True
+    assert keeper["flags"]["s1.ending"] == "garder"
+    assert sharer["flags"]["s1.ending"] == "partager"
