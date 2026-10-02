@@ -305,7 +305,7 @@ That is the version to build toward. Three consequences hold for this package no
 | 1 | 6b126a4 | `web-frontend/components/cast/` (9 rigs, CastRig), `lib/art-set.ts`, `styles/cast-rig.css`, PNG snapshots |
 | 2 | 4a74d66 | Faces behind the switch; Settings › Personnages; Camille's look from `headline.cast_variants`; `ATELIER_ART_SET` (pushes use the drawn PNGs, paid panel drawing off) |
 | 3 | 7758fa1 | Panels: `plate_url` on every panel and page row (kept when a drawing replaces `image_url`); the reader draws the plate plus the speakers (`components/cast/PanelStage.tsx`); the walk checks `page-draws-the-cast` under `WALK_ART_SET=drawn` |
-| 4 | (this commit) | The drawn mouth follows the voice (`lib/visemes-fr.ts`, `useMouth`, `LineVoice.progress`); one mover at a time on a panel; small faces blink but do not bob; a wrong answer draws surprise, never anger (painted: still cross); the walk checks `face-mouth-follows-the-voice` |
+| 4 | 6da7d0a | The drawn mouth follows the voice (`lib/visemes-fr.ts`, `useMouth`, `LineVoice.progress`); one mover at a time on a panel; small faces blink but do not bob; a wrong answer draws surprise, never anger (painted: still cross); the walk checks `face-mouth-follows-the-voice` |
 
 **Phase 2 in detail.**
 - The faces in `CastPortrait`, the av2 `Portrait`/`Byline`, the Trombinoscope card, the voice call and the vocabulary anchor render `CastFace` (the rig, head crop) when the set is drawn.
