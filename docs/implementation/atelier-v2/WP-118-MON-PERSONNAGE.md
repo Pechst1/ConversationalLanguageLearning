@@ -60,6 +60,11 @@ A character is a small JSON spec. Every value comes from a fixed catalogue, so w
 
 ## 4. In the story: decisions for the owner
 
+> **Owner decision, 2026-10-02.** The learner has a face from now on, made at registration, and it is shown in the story like the cast's (option C). The editor becomes a registration step, not an optional one. This replaces the bible's «never shown face-on» rule (a dated note is in `00-season-bible.md`).
+>
+> **Still open for the owner:** Lila's portrait, which "gains the coat, then hands, and never a face" (T5, T8). Proposal: the figure in the portrait gains the learner's face at the end of ending 1, so the beat now pays off instead of withholding.
+
+
 The bible's visual rule is: "Toi: never shown face-on. From behind, cropped, or reflected in a dark window." Lila's portrait is a plot device built on that rule: across the season the figure in it "gains the coat, then hands, and never a face" (T5, T8).
 
 | Option | What the learner's character does | Canon change |

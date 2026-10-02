@@ -93,6 +93,7 @@ None of this is explained on screen beyond one or two A2 lines per tentpole. The
 - **Nicknames.** Lila calls you **«l'héritage»** («Salut, l'héritage !»). Marchand says **«la succession Ferrand»**. Both are epicene, and both are running gags.
 - **Small moments.** Your usual order becomes known (`user.usual_order`). You move your return ticket, again (`user.return_ticket`). You fix the cicada back onto the ring.
 - **Visual rule.** Never shown face-on. From behind, cropped, or reflected in a dark window. The slightly-too-heavy coat.
+  - **Owner, 2026-10-02:** this rule is replaced. The learner makes their own face at registration (WP-118 «Mon personnage»), and Toi is shown face-on like the cast. The heavy coat stays. Open: Lila's portrait beat («never a face», T5/T8) needs a new payoff.
 
 ### Lila Bonnet (tu)
 - **Role.** Teaches a CE1 class (she has Wednesdays off) and paints. Marin's flatmate and oldest friend. They were together for two months in 2016 and still laugh about it (S-1). She becomes your accomplice upstairs.
