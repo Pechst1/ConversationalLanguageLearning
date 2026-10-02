@@ -151,8 +151,37 @@ replay of the session's thread, reusing `RvEncounter` in a read-only mode) and �
 | **C · Carte** | the three SVG drawings and projection file (build script in repo), `Carte` with levels, clusters and pins, the card sheet, read-only replay, `GET /revue/carte`, `/carte` page, entries from close, Relevé and Settings | a learner with six closed Papiers (fixture) sees six pins, four of them clustered in Paris, opens one and reads the headline and kept words; phone width 390, light and dark, reduced motion |
 | **D · Walk** | E-3 walk `carte-shows-where-i-was` on the fake provider; the owner's hands-on | the owner has opened their own map |
 
+## 8. Phase D in detail: the entry points and the walk (one lead, about 1.5 hours)
+
+- **Entry points** (frontend lead; lease `components/revue/RvClose.tsx`, `components/releve/Releve.tsx`,
+  `pages/settings.tsx`, `components/carte/CarteBadge.tsx` new):
+  - the close screen gets «Voir sur la carte» as the quiet secondary under «Classer le Papier»,
+    linking to `/carte?focus=<session_id>` (the page opens the pin's card on load; add the `focus`
+    parameter to `pages/carte.tsx`);
+  - the Relevé's «Le Papier» section (phase 3 of WP-119 builds the section; until then, a row after
+    Le Registre) shows a small France silhouette `CarteBadge` with the pin count from
+    `GET /revue/carte` counts, linking to `/carte`;
+  - Settings › Bibliothèque gets a «La Carte» row.
+- **Invalidate** (backend; lease `app/services/revue/encounter.py` close): call
+  `carte.invalidate(user_id)` after minting so the new pin shows at once.
+- **Walk**: E-3 harness check `carte-shows-where-i-was` on the fake provider: close one Papier via
+  the mock-free path on `backend-e2e`, open `/carte`, assert one pin at the dossier's coordinates
+  and the card's headline; phone size, light and dark, reduced motion. Screenshots into the walk's
+  evidence folder.
+- **Owner's hands-on**: the package is done only when the owner has opened their own map (process
+  rule in the running log).
+
 ## 7. Decisions for the owner
 1. **Overseas departments** as boxes along the bottom (recommended), or metropolitan France only.
 2. **«Mon quartier»** season layer in the first version (recommended: yes, it ties the two Frances).
 3. **Open sessions on the map**: only closed Papiers pin (recommended), or an active one as a hollow pin.
 4. **The name**: «La Carte» (recommended), «Mes lieux», or «L'atlas».
+
+## 9. Status
+
+| Phase | Commit | What landed |
+|---|---|---|
+| A | ab42eda | `Place.geo`, `geo.py` (four-step resolution, 240-entry gazetteer in `app/data/geo`), `check_geo`, geo on every evergreen/W40 place and on `SEASON_ONE_LOCATIONS`; 17 geo tests. 13 gazetteer entries marked `verify: true` |
+| B | ab42eda + 148e2ee | `pictogram.py` grammar + validator, seven authored fallbacks, `revue_pictograms`/`revue_vignettes` (migration d4f6a8c0e2b4), `mint_for_close` wired into the encounter's close with `closing.vignette`, `GET /revue/vignettes`, `RvVignette` at close and in the Relevé's seal collection; twelve evergreen pictograms by the real model (11 first try, US$0.034), `docs/design-reference/revue/vignettes/`. Weak: bac, guitar, maillot jaune, fireworks |
+| C | 8834764 | `scripts/geo/build_carte.py` (Lambert-93, Etalab Licence Ouverte sources), `france.svg` 115 KB / `idf.svg` 27 KB / `paris.svg` 11 KB + projection file, `GET /revue/carte` (closed sessions, «Mon quartier» from visited season places, 60 s cache), `components/carte` three levels + clusters + pin card, `/carte` with `?mock=1`; 15 + 15 tests. Entry points and `invalidate()` at close: phase D |
+| D | — | not started (§8) |

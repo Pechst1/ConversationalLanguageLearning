@@ -499,6 +499,44 @@ item names its files so the leases do not overlap.
 WP-120 «La Carte» (places on a map, the vignette) builds on phases 2–4: it needs closed sessions
 with a place (done), geo on places (its own phase A), and the second plate for the card's band.
 
+## 10c. Leftovers after phases 2, A, B and C (one lead, about an hour)
+
+Small items that landed as follow-ups in the reports of 2026-10-02. One agent, one commit,
+`chore(wp-119/120): leftovers`.
+- **Copy**: the close press reads «Classer la Revue»; rename to «Classer le Papier» in
+  `web-frontend/components/revue/revue-copy.ts` (fr/en/de) and the tests that assert it.
+- **Wire doc**: `closing.vignette` (`VignetteView | null`) in `WP-119-WIRE.md` §3.8; the guest
+  `reason` values (all four) and `cast_id` as a plain string in §6, as the schema has them.
+- **Cost line**: `scripts/pilot_digest.py` reads the `revue_session` ledger rows (written at close)
+  into a `revue` line: sessions, turns, guests, cost.
+- **This week's dossiers**: set `vignette_object_fr`, and per angle `participation` and `guest_fit`
+  on the six `weekly/2026-W40/*.json` (the evergreens have the vignette object; none has the two
+  angle fields yet). Run `tests/test_revue_weekly.py`.
+- **Weak pictograms**: regenerate the bac, the guitar, the maillot jaune and the fireworks with a
+  tighter object description (a flat view, one object, no scene), through `pictogram_for` with
+  `refresh=True` (add the flag); the owner picks on a new contact sheet.
+- **Replayable evidence**: `outcome` on `RvClosedWord` so the kept-word marks and the register
+  notes survive a reload (frontend lead's finding #5).
+- **Read-only head**: a read-only replay of an active session shows the real beat bar, not the
+  ended one.
+- **Migration merge**: once the other session's password-reset migration (`b9d1f3a5c7e0`) is
+  committed, one merge revision over it and `d4f6a8c0e2b4`; the WP-69 schema guard goes green.
+- **Mock dress**: the dev mock still dresses Toi in an apron at the market; align with §12.5.
+
+## 10d. Two quality passes (after phase 3)
+
+- **Full-suite stability.** The backend suite grew by about 400 tests this week. Run the full
+  suite twice (`pytest -p no:randomly` and with random order), watch the known order-dependent
+  and midnight flakes, and fix any revue test that depends on the wall clock (the week helpers
+  take `today`; use them). Owner: E-2's lead.
+- **Real-model sample.** Ten Papier sessions against this week's six dossiers with the real
+  provider and the real critic, three bands, read for: natural French, grounding (every Romy
+  claim traceable to a dossier claim), the guest's voice against `world.json`, the rubric's
+  fairness on a correct and an incorrect use of a target word, and cost per session. Transcripts
+  under `docs/implementation/atelier-v2/evidence/revue-sample-<date>/`, with models, prompt
+  versions and cost, the way CONTINUOUS-STORY §14F does it for the season. Report what fails;
+  no expected-failure markers.
+
 ## 11. The bridge to generated seasons
 
 A season gap day needs "something true from the city this week" (WP-116 §12). After phase 3 it can
@@ -559,3 +597,4 @@ The owner answered the open questions of the first two drafts. Each decision and
 | — | — | Defined 2026-10-02; revised the same day after the owner's review |
 | 0 | cbc3966 | `app/services/revue/` (dossier, session, state, checks, policy, evergreen loader + 12 sourced evergreens), five `REVUE_*` flags, sensitive list moved to policy; Toi's eight outfits and the Revue-only rule in `PanelStage`; the design spec `WP-119-DESIGN.md` and 8 mockup pages under `docs/design-reference/revue/`. 85 revue tests. Known limits: evergreen windows are 2026 only (README); the anchor entailment and attribution opinion tests are lexical heuristics until the phase-1 critic judge; the design's compact La Une card supersedes §5.1's three-story card (Home budget, `home.test.js`) |
 | 1 | e43b168 | The encounter end to end on known plates: `WP-119-WIRE.md`, `app/schemas/revue.py`, `encounter.py` (offer, start, turns with knowledge check on the learner's real season position, simplify, bouclage, make, close), `weekly.py` + six live 2026-W40 dossiers, `/api/v1/revue/*` (404 while off; POSTs paid), `revue_sessions` (c3e5a7b9d1f2); `pages/revue.tsx` + `components/revue/*`, typed client, dev mock at `/revue?mock=1`, La Une chip (hero on a Revue day, dealt from phase 3), Romy's notebook, Toi half crop. Acceptance test passes at service, HTTP and page level. 198 backend + 745 frontend tests. Known: grading is an `unscored` adapter; cost line not reported; two alembic heads in the shared tree until the password-reset migration lands; `headline_write`/`short_report` make options not built |
+| 2 | ab42eda + 148e2ee | Guests with a reason, knowledge context from the serial ledger and `NPCMemory`, `grading.py` (`revue-rubric-v1`) replacing the unscored adapter, `headline_write` and `short_report` for B1+, outfits per angle participation, wire §6, cost per session; frontend: guest on stage and in the thread, make flows, register note, the vignette at close and in the Relevé, read-only replay. Backend 345 tests; frontend suites green. Known: `pilot_digest` has no `revue` line yet; W40 dossiers lack `participation`/`guest_fit`; close copy still «Classer la Revue» (§10c) |
