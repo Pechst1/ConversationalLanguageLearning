@@ -51,19 +51,34 @@ The engine took each solve's default, so every learner read the same story and r
 - `web-frontend/components/atelier-v2/journey/JourneySteps.tsx`: the cards;
 - the walk harness.
 
-## 3. Still open in WP-113
+## 3. Slice 2: the days in between answer to you (2026-10-02)
 
-1. **Generated days honour the flags.**
-   - The director already receives the facts from the flags (`director._facts`).
-   - Missing: a check that a generated day does not contradict them. For example, when nobody saw the letter, nobody may know the price. This would be a deterministic contradiction guard per flag, plus a rubric line for the critic.
-2. **Complication cards create an obstacle.**
-   - A complication drawn on a gap day must leave a concrete obstacle the next day's brief carries, and the critic checks for it.
-3. **Stages on actions, not counters.**
-   - The bible's calendar (S-12: one story day per finished day, tentpoles on weekends) is owner-approved, so tentpoles stay calendar-bound.
-   - Proposal: within a gap, the scheduled moments and threads advance only when the learner acted on them (a moment the learner did not engage with is owed, as a skipped moment already is). This needs the owner's OK before building.
-4. **Dramatic irony:** «Précédemment» and the margin notes recall what the characters forgot (§3.5).
+1. **Generated days honour the learner's choices.**
+   - The story critic has a new rubric item, `honours_choices`: the page must agree with `gap.facts` and the flags (who saw the letter, who kept the key). It now reads the flags (`critic_payload`), and a page that contradicts one is refused (`review_verdict`).
+   - A deterministic guard backs it: `price_secret` in `gaps.json` `global_must_not`. Until the price is public (`s1.price_public`, Gus reading the letter out in T1 B), no generated day may say «trois cent dix mille» or «310 000».
+2. **A complication card is tomorrow's obstacle.**
+   - The director writes the card it drew as `season_checklist.complication`: the obstacle it leaves for tomorrow.
+   - Settling keeps it (`state.obstacle`). The next generated day of the same gap reads it as `today.open_obstacle` and must face it. The critic checks this (`obstacle_faced`). A tentpole in between does not carry it into another gap.
+3. **The in-between story moves on engagement** (owner OK 2026-10-02).
+   - A scheduled moment counts as staged only when the learner took the day up: the turn ended «met» or «partially_met».
+   - A «not_yet» day leaves its moment owed, and the next generated day stages it again (the same path as a moment the draft skipped).
+   - Tentpoles stay calendar-bound (S-12).
+4. **The owner's face decision.** The `toi_face` guard and the season's writing rule no longer say «never shown face-on». The face is the learner's own (WP-118); generated text never describes it. `10-lieux-et-images.md` carries a dated note. Lila's portrait still never gains a face; that payoff is the open WP-118 question.
 
-## 4. Left for WP-112
+**Tests:** `tests/test_wp113_consequences.py` (5).
+
+**Files:**
+- `app/services/season/director.py`: `SeasonChecklist.complication`, `StoryReview.honours_choices`/`obstacle_faced`, `open_obstacle`, brief, payload, verdict;
+- `app/services/season/runtime.py`: `_settle_gap`;
+- `app/services/living_story.py`: the director prompt, and the turn outcome passed to settling;
+- `app/data/season/s1/gaps.json`, `season.json`.
+
+## 4. Still open in WP-113
+
+- **Dramatic irony:** «Précédemment» and the margin notes recall what the characters forgot (§3.5).
+- **Further flag guards:** `price_secret` is the one contradiction a pattern can catch. Others (who holds the key, who saw the photo) are left to the critic's `honours_choices`.
+
+## 5. Left for WP-112
 
 These mechanics still default:
 - **L'enquête:** tap the contradicting line or picture.

@@ -917,6 +917,19 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     premise = checklist.get("premise_id")
     if premise and not any(row.id == premise for row in gap.premises):
         premise = None
+    # WP-113 (owner OK 2026-10-02): the in-between story moves on the learner's
+    # engagement, not the calendar. A day the learner did not take up (the turn
+    # ended «not_yet») leaves its scheduled moment owed; it is staged again.
+    engaged = details.get("outcome") in (None, "met", "partially_met")
+    if premise and not engaged:
+        premise = None
+    # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
+    # replaced by today's own, or cleared).
+    complication = str(checklist.get("complication") or "").strip()
+    if complication:
+        state["obstacle"] = {"gap": gap.id, "text": complication[:240], "day": int(day), "event_id": event_id}
+    else:
+        state.pop("obstacle", None)
     if premise:
         rows = [row for row in state.get("premises") or [] if isinstance(row, dict)]
         if not any(row.get("gap") == gap.id and row.get("premise") == premise for row in rows):
