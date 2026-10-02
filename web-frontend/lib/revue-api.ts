@@ -1,5 +1,5 @@
 /**
- * WP-119 phase 1 · La Revue de Romy — the typed client for every route of
+ * WP-119 phase 1 · Le Papier de Romy — the typed client for every route of
  * docs/implementation/atelier-v2/WP-119-WIRE.md.
  *
  * `createRevueClient(transport)` is the whole client: it builds the URLs and the

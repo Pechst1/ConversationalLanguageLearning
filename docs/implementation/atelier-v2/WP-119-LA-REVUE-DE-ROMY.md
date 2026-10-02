@@ -366,6 +366,18 @@ deep the default goes**; every story is open at every band.
   story for `arrive` and `facts`, and a second view for `pursue`/`make` (an interior, the other end
   of the square, the place where the guest belongs) switched at the guest's entrance. Not more than
   two: the plate is the room the conversation happens in, not a slideshow.
+- **Real people (owner's decision, same evening).** Three briefs with people went through the same
+  pipeline with the style lock's "no people" clause replaced by *"people in the same flat screen-print
+  style, from a distance or from behind, never as portraits"*: Macron and Le Pen named and «recognisable»
+  at the rostrum, a generic minister before a full chamber, a named chef at a bistro pass
+  (`contact-sheet-people.webp`). No refusals, 36–37 s each. The named politicians came out as two
+  small anonymous figures; the chef is a chef. In this style and at this distance the model does not
+  produce likenesses, so a plate with people is lively and safe, and it never identifies anyone: Romy
+  and the narrator do («regarde, à la tribune, c'est…»). Rules that follow: `PLATE_FORBIDDEN` keeps
+  only what clashes or misleads (portrait, close-up, party emblem, logo, readable text); people,
+  crowds and national colours are allowed; the plate style used for Le Papier is `PLATE_STYLE` with
+  the people clause above instead of "No people". The authored season plates keep "no people"
+  because the drawn cast is their people.
 
 ### 8.2 `outfit`: the first new field of the stage language
 - `RigProps.outfit?: Outfit` with the catalogue `coat` (default, canon), `suit`, `apron`,
@@ -422,19 +434,50 @@ same place registry and the same staging rule. The season writes its own plan an
 evidence is shared. La Revue is where the pipeline is proven on learners before any season day
 depends on it. The day the season reads a dossier is a WP of its own.
 
-## 12. Open decisions for the owner
+## 12. Decisions (owner, 2026-10-02 evening)
 
-1. **The name.** «La Revue de Romy», «La Une de la semaine», or «Le Papier». The doc uses La Revue.
-2. **Cadence.** Weekly with six stories (curated plates, low churn, choice on entry). Daily is a flag
-   flip later and multiplies builder calls and plates.
-3. **Article fetching.** §4.1 fetches article text for anchoring and stores only short quotes. The
-   alternative is RSS-only: shallower claims, no contact with publishers' pages.
-4. **The staging rule on real people** stays absolute in this draft (places drawn, people told).
-   Confirm, or name an exception (for instance a drawn empty podium).
-5. **`outfit` on the Revue stage only**, or also in season panels once WP-118 lands.
-6. **One guest per Revue in v1**, or two with a disagreement between them.
-7. **Two plates per dossier** (site + a second view, switched at the guest's entrance) from phase 4, or one.
-   Recommendation: two, named and landmark-specific (§8.1).
+The owner answered the open questions of the first two drafts. Each decision and what it changes:
+
+1. **Name: «Le Papier».** In the chrome: «Le Papier» for labels, chips and the beats bar; «Le Papier de
+   Romy» only in the dispatch kicker and on the chooser. Code names stay `revue` (route `/revue`,
+   `components/revue`, `app/services/revue`, the `Rv*` components): a rename of code for a label is
+   churn. Done in the same commit as these decisions; the design doc keeps «La Revue» in its mockups
+   as a historical artefact and says so.
+2. **Cadence: weekly now, nearly daily later.** How weekly works with six stories: the six are the
+   week's *kiosk*, not six sessions. Each learner gets one recommended story (topic they have seen
+   least recently, then interests), two alternatives and «Autre chose ?». One Papier a week is the
+   default rhythm: the planner deals one `REVUE` day (phase 3). The other stories stay open behind
+   the chip for a learner who wants a second one; a second Papier in the same week is a normal
+   session that counts for evidence but does not move the week's "filed" state. Going daily later
+   means the kiosk rolls: one new story a day, the chooser shows the last seven, and a learner can
+   have one active Papier per *day* instead of per week. The data model already allows it
+   (`revue_sessions.week` becomes the ISO date; the partial unique index changes its column), and
+   `REVUE_CADENCE` is the switch. The costs that scale with daily are the builder calls (one per
+   story) and the plates (two per story, §12.7); both are shared across learners.
+3. **Article fetching: fetch the article.** It yields the better dossier by a wide margin: RSS
+   teasers are one or two sentences, so claims built from them are shallow and the quotes repeat the
+   headline. The evergreen and W40 leads both fetched live pages and verified quotes against them.
+   Rules: respect `robots.txt`, one attempt, six seconds, store only the quotes and a hash of the
+   text (§4.1); prefer sources that allow fetching (service-public, insee, paris.fr, franceinfo,
+   RFI, Le Monde teasers) and keep a registry note on those that refuse (France 24, education.gouv,
+   ratp, L'Équipe's live pages). When the fetch fails the dossier is built from the teaser with
+   fewer claims; when fewer than two anchor, the story is skipped.
+4. **Staging: real people and real places are allowed.** This replaces the first drafts' absolute
+   rule. Plates may show the people a story is about and the places it happens in, named. What
+   stays: the brief is name + landmarks + light (§8.1), no party emblems or logos, no readable text,
+   and figures are drawn in the same screen-print style, from a distance or from behind, never as
+   portraits, because the drawn SVG cast stands in front of the plate and a painted face at the same
+   scale would clash. See §8.1 for the test that measured what the image model does with a named
+   politician and with a named chef, and the fallback it implies.
+5. **Outfits: only when it really fits.** `dress` defaults to the coat. Toi changes only when the
+   learner takes part in the place's work (an apron when helping at a stall or in a kitchen, a
+   hi-vis on a worksite, a suit when the story puts the learner in a formal role), never for the
+   setting alone. Phase 2 decides it per dossier angle; until then `dress_for` returns `coat`
+   except for the apron on kitchen and cellar when the angle is `prepare_dispatch` from inside.
+6. **Guests: phase 2**, as planned. One guest with a reason; the knowledge context from `NPCMemory`.
+7. **Two plates per dossier.** The site for `arrive` and `facts`, a second view for `pursue` and
+   `make`, switched at the guest's entrance (phase 2) or at `make` until then. Phase 4 builds it;
+   the dossier schema already carries `places: list`.
 
 ## 13. Status
 

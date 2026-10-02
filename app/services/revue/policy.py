@@ -45,56 +45,32 @@ SENSITIVE_TERMS: tuple[str, ...] = (
 #: Words a plate brief may never contain (§8.1 staging rule: places drawn, people told).
 #: Matched as whole words after accent folding (see :func:`plate_forbidden_hits`).
 PLATE_FORBIDDEN: tuple[str, ...] = (
-    # people
-    "person",
-    "persons",
-    "people",
-    "personne",
-    "personnes",
-    "gens",
-    "man",
-    "men",
-    "woman",
-    "women",
-    "homme",
-    "hommes",
-    "femme",
-    "femmes",
-    "child",
-    "children",
-    "enfant",
-    "enfants",
-    "silhouette",
-    "silhouettes",
-    # crowds
-    "crowd",
-    "crowds",
-    "foule",
-    "foules",
-    # faces and likenesses
-    "face",
-    "faces",
-    "visage",
-    "visages",
+    # WP-119 §12.4 (owner, 2026-10-02): people, crowds and real places are allowed on a plate.
+    # What stays forbidden is what clashes with the drawn cast or misleads: portraits and close-ups
+    # (a painted face at the cast's scale), party emblems and logos, readable text.
     "portrait",
     "portraits",
+    "close-up",
+    "closeup",
+    "gros plan",
     "selfie",
-    "statue",
-    "statues",
-    # flags, banners, marks
-    "flag",
-    "flags",
-    "drapeau",
-    "drapeaux",
+    "emblem",
+    "emblems",
+    "embleme",
+    "emblemes",
+    "logo",
+    "logos",
     "banner",
     "banners",
     "banderole",
     "banderoles",
-    "logo",
-    "logos",
-    "emblem",
-    "embleme",
-    "emblemes",
+    "slogan",
+    "slogans",
+    "caption",
+    "headline",
+    "lettering",
+    "texte",
+    "text",
 )
 
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
@@ -104,18 +80,11 @@ DEFAULT_OUTFIT = "coat"
 
 #: Place kind → the dress Toi wears there (§8.2). Anything else: ``coat``.
 DRESS_FOR_PLACE: dict[str, str] = {
-    "chamber": "suit",
-    "hemicycle": "suit",
-    "ministry": "suit",
+    # WP-119 §12.5 (owner): Toi changes clothes only when the learner takes part in the place's
+    # work, never for the setting alone. Phase 2 decides it per dossier angle; until then only the
+    # two cases that are always work: a kitchen or cellar (apron) and a worksite (hi-vis).
     "cellar": "apron",
     "kitchen": "apron",
-    "market": "apron",
-    "bakery": "apron",
-    "vineyard": "apron",
-    "stadium": "sport",
-    "track": "sport",
-    "rain": "raincoat",
-    "quay_rain": "raincoat",
     "worksite": "hi_vis",
     "default": DEFAULT_OUTFIT,
 }

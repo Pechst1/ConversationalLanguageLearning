@@ -1,5 +1,5 @@
 /**
- * WP-119 · La Revue de Romy — the pure half of the components: how the thread
+ * WP-119 · Le Papier de Romy — the pure half of the components: how the thread
  * is shown (folds, the resume marker, the latest line), the column, the beat bar,
  * glosses and the learner's contribution as text segments, and how one turn's
  * result lands on the session. No React here; the node tests read it directly.

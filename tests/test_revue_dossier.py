@@ -211,9 +211,9 @@ def test_policy_fallbacks_and_guests_are_real() -> None:
 def test_place_kinds_and_dress() -> None:
     assert policy.place_kind("cave_beaune Une cave à Beaune vaulted cellar") == "cellar"
     assert policy.dress_for(policy.place_kind("cave_beaune")) == "apron"
-    assert policy.dress_for(policy.place_kind("hemicycle Assemblée nationale")) == "suit"
-    assert policy.dress_for(policy.place_kind("stade_de_france")) == "sport"
-    assert policy.dress_for(policy.place_kind("quai sous la pluie")) == "raincoat"
+    assert policy.dress_for(policy.place_kind("hemicycle Assemblée nationale")) == "coat"  # §12.5: setting alone never dresses Toi
+    assert policy.dress_for(policy.place_kind("stade_de_france")) == "coat"
+    assert policy.dress_for(policy.place_kind("quai sous la pluie")) == "coat"
     assert policy.place_kind("quai sous la pluie") == "quay_rain"
     assert policy.dress_for(policy.place_kind("chantier du métro")) == "hi_vis"
     assert policy.dress_for(policy.place_kind("une chaise au soleil")) == "coat"
@@ -221,10 +221,12 @@ def test_place_kinds_and_dress() -> None:
 
 
 def test_plate_forbidden_and_sensitive() -> None:
-    assert policy.plate_forbidden_hits("a market square, a crowd, a party flag, no Visage") == [
-        "crowd",
-        "flag",
-        "visage",
+    # §12.4: people, crowds and national colours are allowed; portraits, emblems, logos and text are not.
+    assert policy.plate_forbidden_hits("a market square, a crowd, a tricolour flag, a minister at the rostrum") == []
+    assert policy.plate_forbidden_hits("a close-up Portrait with a party logo and a slogan") == [
+        "portrait",
+        "logo",
+        "slogan",
     ]
     assert policy.plate_forbidden_hits("rows of vines on a slope, a stone hut") == []
     assert policy.is_sensitive("Un attentat à Paris")
@@ -256,7 +258,7 @@ def test_plan_for_a1(dossier: EditorialDossier) -> None:
     assert plan.activities.make_options == ["headline_choice", "reader_question", "tell_margaux"]
     assert plan.activities.default == ["arrive", "facts", "pursue", "make", "close"]
     assert plan.stage.place_id == "vignoble_bourgogne"
-    assert plan.stage.dress == "apron"
+    assert plan.stage.dress == "coat"  # §12.5: a vineyard visit alone does not dress Toi
     assert plan.stage.plate_url is None
     assert [(cast.id, cast.hold) for cast in plan.stage.cast] == [
         ("romy_tremblay", "notebook"),

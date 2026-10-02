@@ -1,6 +1,6 @@
 // node --test components/atelier-v2/home/atelier-revue-entry.test.js
 //
-// WP-119 phase 1 — La Revue's entry on La Une, as `pages/atelier.tsx` wires it.
+// WP-119 phase 1 — Le Papier's entry on La Une, as `pages/atelier.tsx` wires it.
 // The page has no mount harness, so the decision lives in `lib/revue-une.ts`
 // (pure) and is rendered here through the real HomeScreen with the same props
 // the page passes; a source check pins the page to that helper.

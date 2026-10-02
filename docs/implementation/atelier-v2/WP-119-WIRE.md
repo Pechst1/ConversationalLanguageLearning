@@ -1,4 +1,4 @@
-# WP-119 phase 1 · La Revue de Romy — the wire (frozen 2026-10-02)
+# WP-119 phase 1 · Le Papier de Romy — the wire (frozen 2026-10-02)
 
 *Backend lead. The frontend builds `web-frontend/components/revue/` (WP-119-DESIGN.md §4) against this
 file. Pydantic models: `app/schemas/revue.py`. Router: `app/api/v1/endpoints/revue.py`. Service:
@@ -86,7 +86,7 @@ type RvMade = {
 };
 
 type RvDispatch = {
-  kicker_fr: string;           // "La Revue de Romy · semaine 40"
+  kicker_fr: string;           // "Le Papier de Romy · semaine 40"
   headline_fr: string;
   body_fr: string[];           // three lines
   contribution: [number, number][];   // spans into headline_fr

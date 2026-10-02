@@ -1,10 +1,10 @@
 /**
- * WP-119 · La Revue on La Une, as data for HomeScreen's existing slots
+ * WP-119 · Le Papier on La Une, as data for HomeScreen's existing slots
  * (design §4.1: «HomeScreen's `chips` and `hero` slots, as data: no change to
  * HomeScreen.tsx»).
  *
  * - Phase 1, and any day that is not the Revue day: one quiet chip
- *   «La Revue · sem. 40» to `/revue` (the chooser), until this week's Revue is
+ *   «Le Papier · sem. 40» to `/revue` (the chooser), until this week's Revue is
  *   filed. Absent when the Revue is off (`GET /revue/week` 404s).
  * - The Revue day (phase 3, `DayShape.REVUE`): `revueUneState` picks the hero
  *   card's state; the page renders `RvUneCard` in `hero` with `planHidden`.

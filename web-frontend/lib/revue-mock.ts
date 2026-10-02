@@ -1,5 +1,5 @@
 /**
- * WP-119 phase 1 · La Revue de Romy — a DEV-ONLY scripted server.
+ * WP-119 phase 1 · Le Papier de Romy — a DEV-ONLY scripted server.
  *
  * `/revue?mock=1` (never in a production build: `pages/revue.tsx` only loads this
  * module when `NODE_ENV !== 'production'`) talks to this in-memory transport
@@ -935,7 +935,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       s.closing = {
         romy_line_fr: CLOSE_LINES[kind] ?? CLOSE_LINES.none,
         dispatch: {
-          kicker_fr: `La Revue de Romy · ${WEEK.label.toLowerCase()}`,
+          kicker_fr: `Le Papier de Romy · ${WEEK.label.toLowerCase()}`,
           headline_fr: headline,
           body_fr: body,
           contribution,

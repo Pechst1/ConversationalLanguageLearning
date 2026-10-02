@@ -8,6 +8,8 @@ is an existing `--av2-*` or `--char-*` token. Mockups:
 `docs/design-reference/revue/01…08-*.html`, each with a full-page `.light.webp` and `.dark.webp` at 390 px (re-encoded from the PNG captures).
 Story content in the mockups is sample content, not real articles.*
 
+> **Naming (owner, 2026-10-02 evening):** the feature is called **«Le Papier»** in the chrome («Le Papier de Romy» on the dispatch kicker and the chooser). The mockups below still read «La Revue»; they predate the decision and are not regenerated. Code names stay `revue`.
+
 ## 1. Design intent
 
 La Une is already a newspaper: a masthead, a date, a manchette and a colophon. La Revue is that

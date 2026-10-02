@@ -1,5 +1,5 @@
 /**
- * WP-119 phase 1 · La Revue de Romy — the public surface of components/revue.
+ * WP-119 phase 1 · Le Papier de Romy — the public surface of components/revue.
  * Wire types: `@/lib/revue-types`; client: `@/lib/revue-api`; dev mock:
  * `@/lib/revue-mock` (`/revue?mock=1`, never in production). Styles:
  * `styles/revue.css` (imported from `pages/_app.tsx`).

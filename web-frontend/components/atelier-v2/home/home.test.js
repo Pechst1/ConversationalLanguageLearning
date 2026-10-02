@@ -268,7 +268,7 @@ test('the flag-off Home is unchanged: French, the kicker, the rows and the colop
   assert.doesNotMatch(html, /av2-home__chips/);
 });
 
-// WP-119 · La Revue on La Une, as data in the existing slots (no HomeScreen change):
+// WP-119 · Le Papier on La Une, as data in the existing slots (no HomeScreen change):
 // the Revue day's hero card with the plan row hidden, and the other days' chip.
 const revueTypes = require('@/lib/revue-types.ts');
 const { RvUneCard } = require('@/components/revue/RvUneCard.tsx');
@@ -341,7 +341,7 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
     });
     assert.equal((html.match(/data-chip=/g) || []).length, 2, 'letter first, then the Revue');
     assert.match(html, /data-chip="revue"/);
-    assert.match(visibleText(html), /New letter La Revue|Neuer Brief La Revue|Nouvelle lettre La Revue|La Revue/);
+    assert.match(visibleText(html), /New letter Le Papier|Neuer Brief Le Papier|Nouvelle lettre Le Papier|Le Papier/);
     assert.match(html, /aria-label="[^"]*(semaine|week|Woche) 40"/, 'the week is in the label, not the 25 words');
     assert.ok(words(prose(html)).length <= 25, `${language}: ${visibleText(html)}`);
     assert.equal((html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');

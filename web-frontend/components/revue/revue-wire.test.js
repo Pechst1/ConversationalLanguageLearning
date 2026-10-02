@@ -107,7 +107,7 @@ test('every mock payload parses into the full client shapes', () => {
   assert.match(resume.resume.openQuestionFr, /prix/);
   const filed = types.parseOffer(MOCK.offer_filed);
   assert.equal(filed.filed.made.kind, 'reader_question');
-  assert.equal(filed.filed.dispatch.kickerFr, 'La Revue de Romy · semaine 40');
+  assert.equal(filed.filed.dispatch.kickerFr, 'Le Papier de Romy · semaine 40');
 
   for (const key of Object.keys(MOCK).filter((name) => name.startsWith('turn_'))) {
     const result = types.parseTurnResult(MOCK[key]);

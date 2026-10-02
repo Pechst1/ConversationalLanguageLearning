@@ -471,7 +471,7 @@ def test_plan_vocabulary_and_stage(db: Session) -> None:
     assert all(word.gloss for word in view_a2.plan.vocabulary)
     assert view_a2.plan.make_options == ["headline_choice", "reader_question"]
     assert view_b1.plan.make_options == ["headline_choice", "reader_question"]
-    assert view_a2.stage.dress == "apron"
+    assert view_a2.stage.dress == "coat"  # §12.5: a market visit alone does not dress Toi
     assert view_a2.stage.cast[0].id == "romy_tremblay" and view_a2.stage.cast[0].hold == "notebook"
     assert any(item.kind == "line" and item.role == "place_note" for item in view_a2.thread)
 

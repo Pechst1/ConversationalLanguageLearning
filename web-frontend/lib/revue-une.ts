@@ -1,5 +1,5 @@
 /**
- * WP-119 phase 1 · La Revue's entry on La Une, decided as data.
+ * WP-119 phase 1 · Le Papier's entry on La Une, decided as data.
  *
  * `pages/atelier.tsx` fetches `revueClient().week()` beside the day and hands the
  * answer here; this file says what Home draws. It is pure (no React, no network)
@@ -18,7 +18,7 @@
  *   A special edition (WP-94 «Numéro spécial», `special`) never gives up its
  *   hero, whatever the planner dealt — it is the only special-day predicate the
  *   page has; there is no tentpole/finale flag on the day in the client.
- * - **Any other day of the week**: one quiet chip «La Revue · sem. 40» until
+ * - **Any other day of the week**: one quiet chip «Le Papier · sem. 40» until
  *   this week's Revue is filed (`revueHomeChip`).
  *
  * **A letter and a Revue on the same day** (§2: «letter first, then Revue, then

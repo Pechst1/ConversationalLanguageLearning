@@ -1,8 +1,8 @@
 /**
- * WP-119 · La Revue de Romy — the chrome, in the learner's control language
+ * WP-119 · Le Papier de Romy — the chrome, in the learner's control language
  * (WP-82 one-language rule). Romy's French comes from the server; these are the
  * labels, buttons and notices around it. The publication words stay French in
- * every table (design §5): «La Revue», «Semaine 40», «Fait», «Interprétation»,
+ * every table (design §5): «Le Papier», «Semaine 40», «Fait», «Interprétation»,
  * «Prévision», «Bouclage», «Bouclé», «La suite la semaine prochaine.».
  *
  * Sentence case, no exclamation marks, no personality: Romy has the voice.
@@ -124,11 +124,11 @@ export type RevueCopy = {
 };
 
 const FR: RevueCopy = {
-  revue: 'La Revue',
-  revue_full: 'La Revue de Romy',
+  revue: 'Le Papier',
+  revue_full: 'Le Papier de Romy',
   week_short: 'sem. {n}',
   topic: { food: 'cuisine', culture: 'culture', city: 'ville', sport: 'sport', nature: 'nature', work: 'travail', politics: 'politique' },
-  evergreen_kicker: 'La Revue · hors actualité',
+  evergreen_kicker: 'Le Papier · hors actualité',
   evergreen_topic: 'un classique de saison',
   evergreen_label: 'Hors actualité · un classique de saison',
   other_subject: 'Autre sujet ?',
@@ -147,11 +147,11 @@ const FR: RevueCopy = {
   filed_kicker_short: 'Revue bouclée',
   romy_proposes: 'Ce que Romy te propose',
   or_else: 'Ou bien',
-  chip_label: 'La Revue',
-  chip_aria: 'La Revue de Romy, semaine {n}',
+  chip_label: 'Le Papier',
+  chip_aria: 'Le Papier de Romy, semaine {n}',
   exit_label: 'Quitter la Revue — Romy garde tes notes',
   back_label: 'Retour à La Une',
-  beats_label: 'La Revue',
+  beats_label: 'Le Papier',
   beat_names: { arrive: 'Arrivée', facts: 'Les faits', pursue: 'La suite', make: 'Le papier', close: 'Bouclé' },
   column_label: 'La colonne',
   column_room: 'De la place pour environ {n} échanges.',
@@ -228,7 +228,7 @@ const FR: RevueCopy = {
   loading: 'Chargement de la Revue',
   loading_line: 'Romy rassemble ses notes',
   model_down: 'La conversation ne répond pas pour le moment. Les faits et le titre restent là ; tes notes sont gardées.',
-  error_title: 'La Revue ne répond pas',
+  error_title: 'Le Papier ne répond pas',
   error_body: 'Rien n’est perdu : réessaie dans un instant.',
   retry: 'Réessayer',
   disabled_title: 'Pas de Revue pour le moment',
@@ -243,7 +243,7 @@ const EN: RevueCopy = {
   ...FR,
   week_short: 'wk {n}',
   topic: { food: 'food', culture: 'culture', city: 'city', sport: 'sport', nature: 'nature', work: 'work', politics: 'politics' },
-  evergreen_kicker: 'La Revue · not news',
+  evergreen_kicker: 'Le Papier · not news',
   evergreen_topic: 'a seasonal classic',
   evergreen_label: 'Not news · a seasonal classic',
   other_subject: 'Another story?',
@@ -262,7 +262,7 @@ const EN: RevueCopy = {
   filed_kicker_short: 'Revue filed',
   romy_proposes: 'Romy suggests',
   or_else: 'Or',
-  chip_label: 'La Revue',
+  chip_label: 'Le Papier',
   chip_aria: "Romy's Revue, week {n}",
   exit_label: 'Leave the Revue — Romy keeps your notes',
   back_label: 'Back to La Une',
@@ -348,7 +348,7 @@ const DE: RevueCopy = {
   ...FR,
   week_short: 'KW {n}',
   topic: { food: 'Essen', culture: 'Kultur', city: 'Stadt', sport: 'Sport', nature: 'Natur', work: 'Arbeit', politics: 'Politik' },
-  evergreen_kicker: 'La Revue · zeitlos',
+  evergreen_kicker: 'Le Papier · zeitlos',
   evergreen_topic: 'ein Klassiker der Saison',
   evergreen_label: 'Keine Nachricht · ein Klassiker der Saison',
   other_subject: 'Anderes Thema?',
@@ -367,7 +367,7 @@ const DE: RevueCopy = {
   filed_kicker_short: 'Revue abgelegt',
   romy_proposes: 'Romys Vorschlag',
   or_else: 'Oder',
-  chip_label: 'La Revue',
+  chip_label: 'Le Papier',
   chip_aria: 'Romys Revue, Woche {n}',
   exit_label: 'Revue verlassen — Romy behält deine Notizen',
   back_label: 'Zurück zu La Une',

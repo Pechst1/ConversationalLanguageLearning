@@ -278,7 +278,7 @@ test('RvDispatch marks the learner\'s part with a word, not only a colour', () =
   const dispatch = types.parseDispatch(MOCK.close.closing.dispatch);
   const html = render(h(RvDispatch, { ...dispatch, copy: EN }));
   assert.match(html, /<sup>you<\/sup>/);
-  assert.match(html, /La Revue de Romy · semaine 40/);
+  assert.match(html, /Le Papier de Romy · semaine 40/);
   assert.match(html, /Romy Tremblay, avec toi/);
 });
 
@@ -313,7 +313,7 @@ test('RvUneCard: offer, evergreen, resume and filed; one red press until filed',
     render(h(RvUneCard, { story, week: offer.week, state, onOpen: () => {}, onOtherSubject: () => {}, copy: FR, ...extra }));
   const offerHtml = card('offer');
   // An evergreen story is labelled honestly even when asked for as an offer.
-  assert.match(visibleText(offerHtml), /La Revue · hors actualité/);
+  assert.match(visibleText(offerHtml), /Le Papier · hors actualité/);
   assert.match(visibleText(offerHtml), /Autre sujet \?/);
   assert.match(visibleText(offerHtml), /Rejoindre Romy/);
   assert.equal((offerHtml.match(/av2-btn--primary/g) || []).length, 1);

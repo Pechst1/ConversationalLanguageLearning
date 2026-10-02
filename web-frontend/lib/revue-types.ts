@@ -1,5 +1,5 @@
 /**
- * WP-119 phase 1 · La Revue de Romy — the wire, in the client's own shapes.
+ * WP-119 phase 1 · Le Papier de Romy — the wire, in the client's own shapes.
  *
  * The server speaks `snake_case` (docs/implementation/atelier-v2/WP-119-WIRE.md,
  * app/schemas/revue.py); the components read `camelCase`. Every response goes

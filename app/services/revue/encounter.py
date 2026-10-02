@@ -615,7 +615,7 @@ def _fake_contradiction(fr: str, index: int) -> str:
 
 
 _SYSTEM = (
-    "You write for «La Revue de Romy», a French-learning app. Romy Tremblay is a Québécoise journalist; "
+    "You write for «Le Papier de Romy», a French-learning app. Romy Tremblay is a Québécoise journalist; "
     "she speaks French only, tu, short concrete sentences, a little wry («hein»), professional about sources. "
     "She never praises like a teacher. She only states what the dossier's claims say, names interpretations as "
     "such («d'après…»), and says plainly when the sources are silent. Never use relative dates (demain, hier, "
@@ -1819,7 +1819,7 @@ class RevueEncounter:
         sources = [_source(dossier, sid) for sid in dict.fromkeys(c.source_id for c in shown)]
         _, number = parse_week(row.week)
         dispatch = RvDispatch(
-            kicker_fr=f"La Revue de Romy · semaine {number}",
+            kicker_fr=f"Le Papier de Romy · semaine {number}",
             headline_fr=headline,
             body_fr=body,
             contribution=contribution,
@@ -1869,7 +1869,7 @@ class RevueEncounter:
         quote = (artifact or {}).get("learner_fr") or (learner_turns[-1].payload.get("text_fr") if learner_turns else None)
         if self.db.get(NPC, ROMY_ID) is None:
             # The npc_memories FK needs the cast member's row; the season cast has no NPC rows of its own.
-            self.db.add(NPC(id=ROMY_ID, name="Romy Tremblay", role="journaliste", backstory="La Revue de Romy (WP-119)"))
+            self.db.add(NPC(id=ROMY_ID, name="Romy Tremblay", role="journaliste", backstory="Le Papier de Romy (WP-119)"))
             self.db.flush()
         self.db.add(NPCMemory(
             user_id=row.user_id,
