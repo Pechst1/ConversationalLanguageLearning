@@ -73,7 +73,8 @@ test('CastPortrait lives in the av2 kit; onboarding imports it and moodForVerdic
   assert.equal(taste.moodForVerdict, faces.moodForVerdict, 'one map, re-exported');
   assert.equal(faces.moodForVerdict('pending'), 'neutral');
   assert.equal(faces.moodForVerdict('correct'), 'happy');
-  assert.equal(faces.moodForVerdict('wrong'), 'cross');
+  // WP-116 phase 4: surprise, never anger at the learner (the painted set shows its cross portrait).
+  assert.equal(faces.moodForVerdict('wrong'), 'surprised');
   assert.equal(faces.expressionForMood('touched'), 'moved', 'the fourth face, when the story says so');
   assert.equal(faces.expressionForMood('warmer'), 'happy', 'warmth alone is not «moved»');
 });

@@ -23,7 +23,7 @@ import React from 'react';
 
 import { ShapeToken } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
-import type { PortraitMood } from '@/lib/onboarding-portraits';
+import type { FaceMood } from '@/lib/onboarding-portraits';
 
 import type { JourneyCopy } from './journey-copy';
 import { CharacterTyping, type ReplySpeaker } from './ReplyStage';
@@ -159,7 +159,7 @@ export function RespondThread({
   bubbles: ThreadBubble[];
   speaker: ReplySpeaker;
   /** The latest face's mood: neutral mid-conversation, the verdict's at the close. */
-  mood: PortraitMood;
+  mood: FaceMood;
   copy: JourneyCopy;
   /** The bubble whose words are typing in (the reply just arrived), if any. */
   typingKey: string | null;

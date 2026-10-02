@@ -44,6 +44,13 @@ export type LineVoice = {
   speakingKey: string | null;
   /** False when the device can make no sound at all (no audio, no speech). */
   supported: boolean;
+  /**
+   * WP-116 phase 4: how far through the speaking line we are, 0…1, or null when
+   * nothing speaks. Read it on animation frames (the drawn mouth follows it).
+   * A clip reports its playback position; the device voice its word boundaries,
+   * else the time elapsed against the line's expected length.
+   */
+  progress?: () => number | null;
 };
 
 export type LineVoiceOptions = {
@@ -76,12 +83,29 @@ export function useLineVoice(options: LineVoiceOptions = {}): LineVoice {
   const releaseRef = useRef<(() => void) | null>(null);
   const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef(0);
+  // WP-116 phase 4: where the speaking line is, for the drawn mouth.
+  const clockRef = useRef<{ started: number; expectMs: number; chars: number; boundary: number } | null>(null);
   const resolveRef = useRef(options.resolve);
   resolveRef.current = options.resolve;
 
   const setSpeaking = useCallback((key: string | null) => {
     speakingRef.current = key;
+    if (!key) clockRef.current = null;
     setSpeakingKey(key);
+  }, []);
+
+  const progress = useCallback((): number | null => {
+    if (!speakingRef.current) return null;
+    const audio = audioRef.current;
+    if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+      return Math.min(1, audio.currentTime / audio.duration);
+    }
+    const clock = clockRef.current;
+    if (!clock) return null;
+    const elapsed = (Date.now() - clock.started) / clock.expectMs;
+    // Word boundaries from the device voice, when it sends them, keep time honest.
+    const said = clock.chars > 0 && clock.boundary > 0 ? clock.boundary / clock.chars : 0;
+    return Math.min(0.999, Math.max(elapsed, said));
   }, []);
 
   // Some engines (Chrome, the iOS WebView on a cold start) list their voices
@@ -140,6 +164,11 @@ export function useLineVoice(options: LineVoiceOptions = {}): LineVoice {
       if (voice) utterance.voice = voice;
       utterance.onend = () => finish(token);
       utterance.onerror = () => finish(token);
+      const text = line.text_fr;
+      clockRef.current = { started: Date.now(), expectMs: Math.max(600, text.length * 70 / DEVICE_RATE), chars: text.length, boundary: 0 };
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
+        if (clockRef.current && tokenRef.current === token) clockRef.current.boundary = event.charIndex;
+      };
       // A blocked or silent engine never fires `end`: the ring comes down anyway.
       safetyRef.current = setTimeout(() => finish(token), speechSafetyMs(line.text_fr));
       window.speechSynthesis.cancel();
@@ -204,7 +233,7 @@ export function useLineVoice(options: LineVoiceOptions = {}): LineVoice {
   useEffect(() => stop, [stop]);
 
   const supported = typeof window === 'undefined' ? true : typeof Audio !== 'undefined' || deviceSpeechAvailable();
-  return { speak, stop, speakingKey, supported };
+  return { speak, stop, speakingKey, supported, progress };
 }
 
 /**

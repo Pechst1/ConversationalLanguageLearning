@@ -410,7 +410,9 @@ test('moods and verdicts map onto the three drawn expressions', () => {
   assert.equal(faces.expressionForMood(undefined), 'neutral');
   assert.equal(faces.expressionForVerdict('correct'), 'happy');
   assert.equal(faces.expressionForVerdict('supported'), 'happy');
-  assert.equal(faces.expressionForVerdict('wrong'), 'cross');
+  // WP-116 phase 4: surprise, never anger at the learner.
+  assert.equal(faces.expressionForVerdict('wrong'), 'surprised');
+  assert.match(faces.faceSrcFor(['marin_leveque'], 'surprised'), /portrait-cross\.webp$/, 'the painted set keeps its cross portrait');
 });
 
 test('reader lines carry faces; the narrator and an unknown speaker do not', () => {

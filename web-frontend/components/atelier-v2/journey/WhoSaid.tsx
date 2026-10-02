@@ -13,7 +13,7 @@ import React from 'react';
 
 import type { ChoiceOption } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
-import type { PortraitMood } from '@/lib/onboarding-portraits';
+import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type { RecallOption } from '@/types/daily-journey';
 
 import { whoSaidCards } from './practice-formats';
@@ -30,9 +30,10 @@ export type WhoSaidProps = {
   statusLabels: { selected: string; correct: string; wrong: string };
 };
 
-function moodFor(state: ChoiceOption['state']): PortraitMood {
+function moodFor(state: ChoiceOption['state']): FaceMood {
   if (state === 'correct') return 'happy';
-  if (state === 'wrong') return 'cross';
+  // WP-116 phase 4: surprise, never anger at the learner (painted: still cross).
+  if (state === 'wrong') return 'surprised';
   return 'neutral';
 }
 

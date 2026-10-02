@@ -10,6 +10,7 @@ import { castVariant, NEEDS_VARIANT } from '@/lib/cast-variants';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import { CastRig } from './CastRig';
 import { rigMoodFor } from './cast-registry';
+import type { Viseme } from './rig-kit';
 
 export function drawnFaceId(...seeds: unknown[]): string | null {
   const id = drawnCastIdFor(...seeds);
@@ -23,11 +24,14 @@ export function CastFace({
   mood = 'neutral',
   size,
   still = false,
+  mouth = 'auto',
 }: {
   seeds: unknown[];
   mood?: PortraitMood | 'surprised';
   size: number;
   still?: boolean;
+  /** WP-116 phase 4: the mouth shape while the line is spoken. */
+  mouth?: Viseme | 'auto';
 }) {
   const id = drawnFaceId(...seeds);
   if (!id) return null;
@@ -39,6 +43,7 @@ export function CastFace({
       size={size}
       variant={castVariant(id) ?? undefined}
       still={still}
+      mouth={mouth}
       label=""
       className="cast-face"
     />

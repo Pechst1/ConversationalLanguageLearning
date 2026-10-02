@@ -61,7 +61,7 @@ import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
 import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
-import type { PortraitMood } from '@/lib/onboarding-portraits';
+import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
   AttemptResult,
@@ -956,7 +956,7 @@ export function RespondStepView({
   const wide = widenCopy(copy);
   // WP-D2 / WP-89: the latest line is said beside the face, which reacts only
   // to the closing verdict — mid-conversation it never frowns.
-  const sayingMood: PortraitMood =
+  const sayingMood: FaceMood =
     closing && feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
 
   // --- the thread (WP-89) ---------------------------------------------------

@@ -19,7 +19,7 @@ import { faceSrcFor } from '@/lib/cast-faces';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
-import type { PortraitMood } from '@/lib/onboarding-portraits';
+import type { FaceMood } from '@/lib/onboarding-portraits';
 
 import { CheckIcon, PendingIcon, RepairIcon, ShapeToken, type ShapeKind } from './Shapes';
 
@@ -229,7 +229,7 @@ export type PortraitProps = {
    * the initial; anyone outside the cast keeps the initial.
    */
   characterId?: string | null;
-  mood?: PortraitMood;
+  mood?: FaceMood;
   size?: 'sm' | 'md';
 };
 
@@ -274,7 +274,7 @@ export function Byline({
   name: string;
   meta?: React.ReactNode;
   characterId?: string | null;
-  mood?: PortraitMood;
+  mood?: FaceMood;
 }) {
   return (
     <span className="av2-byline">

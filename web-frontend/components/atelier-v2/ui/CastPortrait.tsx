@@ -17,13 +17,14 @@ import { characterAccent } from './Feedback';
 import { castIdFor } from '@/lib/cast-faces';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
-import { portraitInitial, portraitSrc, type PortraitMood } from '@/lib/onboarding-portraits';
+import type { Viseme } from '@/components/cast/rig-kit';
+import { portraitInitial, portraitSrc, type FaceMood } from '@/lib/onboarding-portraits';
 
 export type CastPortraitProps = {
   characterId: string;
   /** The character's display name: the fallback initial and the accent. */
   name?: string;
-  mood?: PortraitMood;
+  mood?: FaceMood;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Empty (the default) marks the image decorative — a name sits beside it. */
   alt?: string;
@@ -32,6 +33,8 @@ export type CastPortraitProps = {
    * the neutral line — the speaker's bubble and the Courrier's seal use it.
    */
   ring?: boolean;
+  /** WP-116 phase 4: the drawn mouth while the line is spoken (painted faces ignore it). */
+  mouth?: Viseme | 'auto';
 };
 
 const PX = { xs: 30, sm: 40, md: 64, lg: 112 } as const;
@@ -46,7 +49,7 @@ const ACCENT_KEY: Record<string, string> = {
   landlord_marchand: 'marchand',
 };
 
-export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md', alt = '', ring = false }: CastPortraitProps) {
+export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md', alt = '', ring = false, mouth = 'auto' }: CastPortraitProps) {
   // WP-77: an id from any payload («marin», «Augustin « Gus » de Roncourt»)
   // resolves to the drawn cast; the exact directory id still works as before.
   const castId = castIdFor(characterId, name);
@@ -76,7 +79,7 @@ export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md',
       style={style}
     >
       {drawn ? (
-        <CastFace seeds={[characterId, name]} mood={mood} size={px} />
+        <CastFace seeds={[characterId, name]} mood={mood} size={px} mouth={mouth} />
       ) : src && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
         <img

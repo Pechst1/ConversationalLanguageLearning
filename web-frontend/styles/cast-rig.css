@@ -73,3 +73,9 @@
   width: 100%;
   height: 100%;
 }
+
+/* WP-116 phase 4: faces in the small discs blink and talk but do not bob; only
+   figures on a panel idle (one mover at a time). */
+.cast-rig.cast-face .cast-rig__idle {
+  animation: none;
+}

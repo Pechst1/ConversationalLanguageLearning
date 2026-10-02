@@ -161,6 +161,7 @@ async function readPage(l, day) {
   findings.check('page-ends-a-suivre', seen.aSuivre || seen.movements[seen.movements.length - 1] === 'resolution', `day ${day}: the page never reached its ending (${seen.movements.join(' > ')})`, where);
   if (process.env.WALK_ART_SET === 'drawn') {
     findings.check('page-draws-the-cast', seen.castPanels >= Math.min(3, seen.panels), `day ${day}: people on ${seen.castPanels} of ${seen.panels} panels`, where);
+    if (l.walk.mouthShapes != null) findings.check('face-mouth-follows-the-voice', l.walk.mouthShapes >= 3, `day ${day}: ${l.walk.mouthShapes} mouth shapes while a line played`, where);
   }
   if (seen.you.length) l.covered.add('page');
 }

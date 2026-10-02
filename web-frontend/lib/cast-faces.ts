@@ -15,7 +15,7 @@
  *     cross.
  */
 
-import { CAST_WITH_PORTRAITS, portraitSrc, type PortraitMood } from './onboarding-portraits';
+import { CAST_WITH_PORTRAITS, portraitSrc, type FaceMood, type PortraitMood } from './onboarding-portraits';
 
 export type CastId = (typeof CAST_WITH_PORTRAITS)[number];
 
@@ -89,10 +89,14 @@ export function expressionForMood(mood: unknown): PortraitMood {
   return 'neutral';
 }
 
-/** The character reacts to *your* answer: pleased when it lands, cross when it misses. */
-export function expressionForVerdict(verdict: string | null | undefined): PortraitMood {
+/**
+ * The character reacts to *your* answer: pleased when it lands, surprised when it
+ * misses (WP-116 phase 4: never cross at the learner; the painted set, which has
+ * no surprised portrait, still shows its cross one).
+ */
+export function expressionForVerdict(verdict: string | null | undefined): FaceMood {
   if (verdict === 'correct' || verdict === 'supported') return 'happy';
-  if (verdict === 'wrong') return 'cross';
+  if (verdict === 'wrong') return 'surprised';
   return 'neutral';
 }
 
@@ -100,12 +104,12 @@ export function expressionForVerdict(verdict: string | null | undefined): Portra
  * WP-D2: the onboarding taste's name for the same reaction, kept so the
  * onboarding and the journey read one map. A pending answer is a neutral face.
  */
-export function moodForVerdict(verdict: string | null | undefined): PortraitMood {
+export function moodForVerdict(verdict: string | null | undefined): FaceMood {
   return expressionForVerdict(verdict);
 }
 
 /** The face for a speaker, or `null` when they have none drawn. */
-export function faceSrcFor(seeds: unknown[], mood: PortraitMood = 'neutral'): string | null {
+export function faceSrcFor(seeds: unknown[], mood: FaceMood = 'neutral'): string | null {
   const id = castIdFor(...seeds);
   return id ? portraitSrc(id, mood) : null;
 }

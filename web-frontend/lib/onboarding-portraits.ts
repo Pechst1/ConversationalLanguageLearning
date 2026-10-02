@@ -13,6 +13,13 @@ export type PortraitMood = 'neutral' | 'happy' | 'cross' | 'moved';
 
 export const PORTRAIT_MOODS: PortraitMood[] = ['neutral', 'happy', 'cross', 'moved'];
 
+/**
+ * WP-116 phase 4: the reaction to a wrong answer. The drawn cast shows surprise,
+ * never anger at the learner; the painted set has no surprised portrait and keeps
+ * its cross one.
+ */
+export type FaceMood = PortraitMood | 'surprised';
+
 /** Characters whose sheet has three expression busts. */
 export const CAST_WITH_PORTRAITS = [
   'romy_tremblay',
@@ -26,10 +33,11 @@ export const CAST_WITH_PORTRAITS = [
 const WITH_PORTRAITS = new Set<string>(CAST_WITH_PORTRAITS);
 
 /** The static path of one portrait, or `null` when that character has none. */
-export function portraitSrc(characterId: string | null | undefined, mood: PortraitMood = 'neutral'): string | null {
+export function portraitSrc(characterId: string | null | undefined, mood: FaceMood = 'neutral'): string | null {
   const id = (characterId ?? '').trim();
   if (!WITH_PORTRAITS.has(id)) return null;
-  const safeMood = PORTRAIT_MOODS.includes(mood) ? mood : 'neutral';
+  const painted: PortraitMood = mood === 'surprised' ? 'cross' : mood;
+  const safeMood = PORTRAIT_MOODS.includes(painted) ? painted : 'neutral';
   return `/assets/serial/characters/${id}/portrait-${safeMood}.webp`;
 }
 

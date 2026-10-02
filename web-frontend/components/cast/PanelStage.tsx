@@ -13,12 +13,15 @@ import { castVariant } from '@/lib/cast-variants';
 import { CastRig } from './CastRig';
 import { rigMoodFor } from './cast-registry';
 import { drawnFaceId } from './CastFace';
+import type { Viseme } from './rig-kit';
 
 export type StageMember = {
   /** Any id the payloads use for the character («marin», «marin_leveque», a name). */
   id: string;
   mood?: PortraitMood | null;
   speaking?: boolean;
+  /** WP-116 phase 4: the mouth while this member's line is heard. */
+  mouth?: Viseme | 'auto';
 };
 
 /**
@@ -56,12 +59,16 @@ export function PanelStage({
   members,
   you = false,
   still = false,
+  talking = null,
 }: {
   members: StageMember[];
   /** The learner speaks in this panel: Toi stands in the corner, from behind. */
   you?: boolean;
   still?: boolean;
+  /** WP-116 phase 4: who is heard right now and their mouth; the others hold still. */
+  talking?: { id: string; mouth: Viseme | 'auto' } | null;
 }) {
+  const talkingRig = talking ? drawnFaceId(talking.id) : null;
   const cast = stageMembers(members);
   if (!cast.length && !you) return null;
   const slots = SLOTS[cast.length] ?? [];
@@ -88,7 +95,9 @@ export function PanelStage({
               crop="bust"
               size={180}
               variant={castVariant(member.rigId) ?? undefined}
-              still={still}
+              mouth={talkingRig === member.rigId ? talking?.mouth ?? 'auto' : 'auto'}
+              // One mover at a time: while someone is heard, the others hold still.
+              still={still || Boolean(talkingRig && talkingRig !== member.rigId)}
               label=""
             />
           </div>

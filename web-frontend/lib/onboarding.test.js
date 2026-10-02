@@ -65,7 +65,7 @@ test('tiles grade the moment the sentence is complete, in order', () => {
 test('the portrait follows the verdict', () => {
   assert.equal(moodForVerdict('pending'), 'neutral');
   assert.equal(moodForVerdict('correct'), 'happy');
-  assert.equal(moodForVerdict('wrong'), 'cross');
+  assert.equal(moodForVerdict('wrong'), 'surprised', 'WP-116 phase 4: surprise, never anger');
 });
 
 test('every taste line and instruction exists in en/de/fr', () => {

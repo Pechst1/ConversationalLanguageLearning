@@ -13,6 +13,8 @@ import React from 'react';
 
 import { CastPortrait, type CastPortraitProps } from '@/components/atelier-v2/ui/CastPortrait';
 
+import { useMouth } from '@/components/cast/useMouth';
+
 import type { LineVoice, VoiceLine } from './useLineVoice';
 
 export type SpeakingPortraitProps = Omit<CastPortraitProps, 'ring'> & {
@@ -25,6 +27,8 @@ export type SpeakingPortraitProps = Omit<CastPortraitProps, 'ring'> & {
 };
 
 export function SpeakingPortrait({ line, voice, label, ring = false, ...portrait }: SpeakingPortraitProps) {
+  // WP-116 phase 4: in the drawn set the face's mouth follows the voice.
+  const mouth = useMouth(voice, line.key, line.text_fr);
   if (!voice || !voice.supported || !line.text_fr.trim()) {
     return <CastPortrait {...portrait} ring={ring} />;
   }
@@ -39,7 +43,7 @@ export function SpeakingPortrait({ line, voice, label, ring = false, ...portrait
       aria-pressed={speaking}
       onClick={() => voice.speak(line)}
     >
-      <CastPortrait {...portrait} ring={ring || speaking} />
+      <CastPortrait {...portrait} ring={ring || speaking} mouth={mouth} />
     </button>
   );
 }

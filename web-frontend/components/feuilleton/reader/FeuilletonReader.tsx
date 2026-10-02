@@ -58,6 +58,7 @@ import {
 } from './panel-model';
 import { useArtSet } from '@/lib/art-set';
 import { PanelStage } from '@/components/cast/PanelStage';
+import { useMouth } from '@/components/cast/useMouth';
 
 export type ReaderSubmitError = { taskId: string; message: string } | null;
 
@@ -879,9 +880,16 @@ function PanelBody({
   const drawn = useArtSet() === 'drawn' && Boolean(stage.plateUrl);
   const src = drawn ? resolveMediaUrl(stage.plateUrl) : resolveMediaUrl(stage.imageUrl);
   const artReady = drawn || stage.artStatus === 'ready';
+  // WP-116 phase 4: the line being heard, so its speaker's mouth follows the voice.
+  const heard = voice ? stage.lines.find((line) => !line.you && (line.audioKey || line.key) === voice.speakingKey) ?? null : null;
+  const heardMouth = useMouth(voice, heard ? heard.audioKey || heard.key : null, heard?.fr ?? null);
   const castOnPlate = drawn ? (
     // Toi stands in the corner only when no balloon already speaks for the learner.
-    <PanelStage members={stage.cast ?? []} you={variant !== 'bubble' && stage.lines.some((line) => line.you)} />
+    <PanelStage
+      members={stage.cast ?? []}
+      you={variant !== 'bubble' && stage.lines.some((line) => line.you)}
+      talking={heard ? { id: heard.speakerId || heard.who, mouth: heardMouth } : null}
+    />
   ) : null;
   const page = pageArt ? resolveMediaUrl(pageArt) : null;
   const alt = stage.imageAlt

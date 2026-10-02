@@ -154,9 +154,30 @@ export class LearnerWalk {
     this.findings.check('reader-next-never-moves', !moved, `Next moved from ${JSON.stringify(b0)} to ${JSON.stringify(btn)} («${btn.text}»)`, this.where({ kind: 'reader' }));
   }
 
+  /** WP-116 phase 4: tap a speaking face once and count the drawn mouth's shapes while it talks. */
+  async sampleMouth() {
+    const face = this.page.locator('.fr-stage .av2-speaking-portrait').first();
+    if (!(await face.count())) return;
+    await face.click().catch(() => {});
+    const shapes = new Set();
+    for (let k = 0; k < 24; k += 1) {
+      const mouth = await face.evaluate((node) => {
+        const svg = node.querySelector('svg.cast-rig');
+        const paths = svg ? Array.from(svg.querySelectorAll('g[transform*="scale"] path')) : [];
+        return paths.map((p) => p.getAttribute('d') || '').join('|');
+      }).catch(() => '');
+      if (mouth) shapes.add(mouth);
+      await sleep(80);
+    }
+    this.mouthShapes = shapes.size;
+    await this.shoot('reader-speaking');
+    await face.click().catch(() => {});
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
+      if (process.env.WALK_ART_SET === 'drawn' && this.mouthShapes == null) await this.sampleMouth();
       const next = page.locator('.fr-next:not([disabled])').last();
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
