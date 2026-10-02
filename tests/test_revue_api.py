@@ -165,7 +165,12 @@ def test_acceptance_over_http(api: TestClient, revue_on, fake) -> None:
     reply = next(item for item in data["items"] if item["kind"] == "line")
     assert "ne le disent pas" in reply["text_fr"]
     assert any(item["kind"] == "uncertainty" for item in data["items"])
-    assert data["evidence"] == {"outcome": "unscored", "capability_known": False, "grader": "revue-unscored-adapter-v1"}
+    evidence = data["evidence"]
+    assert evidence["grader"] == "revue-rubric-v1"
+    assert {"outcome", "capability_known", "words", "fact_fit", "register_note"} <= set(evidence)
+    assert all(set(word) == {"fr", "outcome", "capability_known"} for word in evidence["words"])
+    guest = next(item for item in data["items"] if item["kind"] == "guest")
+    assert guest["cast_id"] == "margaux_barman" and guest["move"] == "enter" and guest["position"] in {"for", "against"}
     assert data["items"][0] == {**data["items"][0], "kind": "mine", "mode": "voice"}
 
     make = f"/api/v1/revue/sessions/{session_id}/make"
@@ -173,6 +178,7 @@ def test_acceptance_over_http(api: TestClient, revue_on, fake) -> None:
     assert options.status_code == 200, options.text
     assert options.json()["recommended"] == "reader_question"
     assert not PRIVATE_KEYS & set(keys(options.json()))
+    assert options.json()["intro"]["role"] == "make_intro"
 
     draft = api.post(make, headers=headers, json={"kind": "reader_question", "action": "propose"})
     assert draft.status_code == 200, draft.text
@@ -180,6 +186,7 @@ def test_acceptance_over_http(api: TestClient, revue_on, fake) -> None:
     sent = api.post(make, headers=headers, json={"kind": "reader_question", "action": "send", "text_fr": proposal})
     assert sent.status_code == 200, sent.text
     assert sent.json()["made"]["kind"] == "reader_question"
+    assert sent.json()["line"]["role"] == "make_done"
 
     before = api.get(f"/api/v1/revue/sessions/{session_id}", headers=headers).json()
     closed = api.post(f"/api/v1/revue/sessions/{session_id}/close", headers=headers, json={})
@@ -259,3 +266,74 @@ def test_match_endpoint(api: TestClient, revue_on) -> None:
     assert hit.json() == {"match": "evergreen-greve-transports", "romy_line_fr": None}
     miss = api.post("/api/v1/revue/match", headers=headers, json={"text": "le rugby", "week": WEEK}).json()
     assert miss["match"] is None and miss["romy_line_fr"].startswith("Je n'ai que ça cette semaine")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 shapes
+# ---------------------------------------------------------------------------
+
+
+def _as_band(db_session: Session, headers: dict[str, str], api: TestClient, level: str) -> None:
+    from app.db.models.user import User
+
+    me = api.get("/api/v1/users/me", headers=headers)
+    user = db_session.get(User, uuid.UUID(me.json()["id"]))
+    user.cefr_estimate = level
+    db_session.commit()
+
+
+def test_fallback_lines_carry_a_reason(api: TestClient, revue_on, fake) -> None:
+    headers = login(api)
+    session = start(api, headers, free_request="le rugby à XIII")
+    miss = next(item for item in session["thread"] if item["kind"] == "line" and item["role"] == "fallback")
+    assert miss["reason"] == "no_match"
+    purpose = next(item for item in session["thread"] if item["kind"] == "line" and item["role"] == "purpose")
+    assert purpose["reason"] is None
+
+    def down(context):
+        raise RuntimeError("provider down")
+
+    fake.reply = down  # the model is down for Romy's reply
+    turn = api.post(f"/api/v1/revue/sessions/{session['id']}/turns", headers=headers, json={"text": "D'accord, je t'aide."})
+    line = next(item for item in turn.json()["items"] if item["kind"] == "line")
+    assert (line["role"], line["reason"]) == ("fallback", "model_down")
+
+
+def test_headline_write_and_short_report_over_http(api: TestClient, revue_on, db_session: Session) -> None:
+    headers = login(api)
+    _as_band(db_session, headers, api, "B1.2")
+    session = start(api, headers, dossier_id=MARCHE)
+    assert session["plan"]["make_options"] == ["headline_choice", "headline_write", "reader_question", "short_report"]
+    sid = session["id"]
+    api.post(f"/api/v1/revue/sessions/{sid}/turns", headers=headers, json={"text": "D'accord, je t'aide."})
+    offer = api.get(f"/api/v1/revue/sessions/{sid}/make", headers=headers).json()
+    kinds = {option["kind"]: option for option in offer["options"]}
+    assert kinds["headline_write"]["max_words"] == 14 and kinds["short_report"]["seconds"] == 30
+
+    make = f"/api/v1/revue/sessions/{sid}/make"
+    refused = api.post(make, headers=headers, json={"kind": "headline_write", "action": "write", "text_fr": "Paris compte 300 marchés"})
+    assert refused.status_code == 200, refused.text
+    assert refused.json()["accepted"] is False and refused.json()["made"] is None
+    written = api.post(make, headers=headers, json={"kind": "headline_write", "action": "write",
+                                                   "text_fr": "Paris et ses 91 marchés en plein air"})
+    body = written.json()
+    assert body["kind"] == "headline_write" and body["accepted"] is True
+    assert body["made"]["kind"] == "headline_write" and body["evidence"]["grader"] == "revue-rubric-v1"
+    assert body["line"]["role"] == "make_done"
+
+    report = api.post(make, headers=headers, json={"kind": "short_report", "action": "report",
+                                                  "transcript": "Je suis au marché. Paris compte 91 marchés."})
+    assert report.status_code == 200, report.text
+    assert report.json()["kind"] == "short_report" and report.json()["made"]["learner_fr"].startswith("Je suis au marché")
+    assert report.json()["made"]["kind"] == "short_report"
+    mixed = api.post(make, headers=headers, json={"kind": "short_report", "action": "write", "text_fr": "x"})
+    assert mixed.status_code == 422
+
+
+def test_headline_write_is_unavailable_below_b1(api: TestClient, revue_on) -> None:
+    headers = login(api)
+    session = start(api, headers)
+    response = api.post(f"/api/v1/revue/sessions/{session['id']}/make", headers=headers,
+                        json={"kind": "headline_write", "action": "write", "text_fr": "Un titre"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == {"code": "revue_make_unavailable", "kind": "headline_write"}

@@ -80,7 +80,13 @@
       "id": "cuisine_facture_gaz",
       "name_fr": "Une petite cuisine, la facture de gaz sur la table",
       "brief": "a small apartment kitchen with an old gas stove and a kettle, an open energy bill and a pen on the table, a calendar on the wall, grey morning light through the window",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {

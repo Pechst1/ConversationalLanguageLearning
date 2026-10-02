@@ -75,7 +75,13 @@
       "id": "etal_fruits_legumes",
       "name_fr": "Un étal de fruits et légumes au marché",
       "brief": "a market stall of autumn fruit and vegetables under a striped awning, wooden crates of apples, pears, leeks and squash, small chalk price boards, morning light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {

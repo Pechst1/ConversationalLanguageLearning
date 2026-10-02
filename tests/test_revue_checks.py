@@ -123,7 +123,7 @@ def test_good_dossier_passes_every_dossier_check(dossier: EditorialDossier) -> N
     assert results and all(isinstance(result, CheckResult) for result in results)
     assert failures(results) == []
     assert passed(results)
-    assert {result.check for result in results} == {"anchor", "attribution", "temporal"}
+    assert {result.check for result in results} == {"anchor", "attribution", "temporal", "geo"}
     assert all(result.check in CHECK_NAMES for result in results)
 
 

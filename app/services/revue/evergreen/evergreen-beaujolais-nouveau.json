@@ -79,7 +79,13 @@
       "id": "vignoble_beaujolais",
       "name_fr": "Les vignes du Beaujolais en novembre",
       "brief": "rows of bare autumn vines on golden-stone hills, a small stone hut, low November mist over the valley",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 46.1546,
+        "lon": 4.587,
+        "precision": "city",
+        "label_fr": "Vignes du Beaujolais, Beaujeu"
+      }
     }
   ],
   "time_scope": {
@@ -100,5 +106,6 @@
       "published_at": "2025-01-07"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "une grappe de raisin"
 }

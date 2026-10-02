@@ -1,0 +1,60 @@
+{
+  "_about": "WP-119 phase 2 (§7 fallback): one authored line per guest cast member and topic. A guest says it when generation fails or a generated line fails the Knowledge check twice. In character (app/data/season/s1/world.json: voice, register with the learner), at most 20 words, no season facts, no relative dates.",
+  "version": "revue-guest-lines-v1",
+  "lines": {
+    "margaux_barman": {
+      "food": "Moi, je regarde ce qu'il y a dans l'assiette. Le reste, c'est du bruit.",
+      "culture": "J'ai rien entendu. Mais si c'est beau, les gens en parlent au comptoir.",
+      "city": "Le quartier change. Les habitués restent. Enfin, ceux qui peuvent.",
+      "sport": "Quand il y a un match, je sers plus de cafés. C'est tout ce que je sais.",
+      "nature": "Il fait trop chaud trop tôt. Même mes plantes le disent.",
+      "work": "Travailler, je connais. Debout derrière le zinc, tous les jours. Tu demandes, je réponds.",
+      "politics": "Pas de politique sur mon zinc. Mais j'écoute. Toujours."
+    },
+    "lila_bonnet": {
+      "food": "Mes élèves adorent cette question. Ils veulent toujours savoir ce qu'on mange ailleurs.",
+      "culture": "En classe, on en parle avec des dessins. Les enfants comprennent vite, tu sais.",
+      "city": "Mes élèves traversent ce quartier à pied. Pour eux, une rue, c'est un monde.",
+      "sport": "En classe, ils ne parlent que de ça. Sept sur vingt pour mon intérêt, avoue.",
+      "nature": "On plante des graines avec la classe. Les enfants posent les meilleures questions.",
+      "work": "Les parents de mes élèves travaillent beaucoup. Ça se voit le matin, à l'école.",
+      "politics": "Mes élèves me demandent qui décide. Je leur réponds avec des exemples. Toi aussi ?"
+    },
+    "camille_marchand": {
+      "food": "Vous avez les chiffres ? Moi, je me méfie des chiffres ronds.",
+      "culture": "Intéressant. Mais combien de personnes y vont vraiment ? Il faut compter.",
+      "city": "Je connais l'année de chaque immeuble du quai. Ici, les détails comptent.",
+      "sport": "Un grand événement, c'est des vélos, des barrières, des rues fermées. Il faut tout prévoir.",
+      "nature": "Un arbre en ville, ça se mesure aussi. L'ombre, la chaleur, les chiffres.",
+      "work": "Les horaires, les trajets, le loyer : c'est ça, le travail, vu d'un plan.",
+      "politics": "Je préfère les faits aux slogans. Vous avez une source ?"
+    },
+    "landlord_marchand": {
+      "food": "Un commerce de bouche, c'est un bail, un loyer, des normes. Voilà la réalité.",
+      "culture": "La culture, c'est bien. Mais quelqu'un paie le chauffage, voyez-vous.",
+      "city": "Un immeuble, c'est des papiers. Beaucoup de papiers. En recommandé, de préférence.",
+      "sport": "Le sport ? Je préfère le bus. Il passe à l'heure, lui.",
+      "nature": "Un jardin, c'est joli. Il faut aussi l'entretenir. Qui paie ?",
+      "work": "J'ai travaillé toute ma vie. Avec des dossiers, des clés et de la patience.",
+      "politics": "Je lis tout, avec mes lunettes. Ensuite seulement, je donne mon avis."
+    },
+    "marin_leveque": {
+      "food": "Chez moi, en Bretagne, le poisson arrive le matin. Ça change tout, tu sais.",
+      "culture": "Ça me touche. Je pleure facilement, mais là, c'est mérité.",
+      "city": "Une ville, c'est des gens qui se tiennent ensemble. Enfin, j'espère.",
+      "sport": "J'aime quand une équipe tient bon ensemble. C'est un signe, non ?",
+      "nature": "La mer, je la connais. Elle change. Il faut l'écouter.",
+      "work": "À l'association, on aide les gens que ça touche. C'est concret, tu vois.",
+      "politics": "On suit ça de près à l'association. Les décisions, ce sont des vies."
+    },
+    "augustin_de_roncourt": {
+      "food": "La gastronomie française ? Magnifique. Non : sublime. Et coûteuse, évidemment.",
+      "culture": "Au château, nous en parlons souvent. Avec passion. Avec beaucoup de passion.",
+      "city": "Un quartier, c'est comme un salon : il faut savoir qui reçoit.",
+      "sport": "Il y a de l'argent là-dedans, croyez-moi. Je sais toujours qui paie.",
+      "nature": "La nature, c'est superbe. Surtout vue d'une terrasse, avec un bon verre.",
+      "work": "Le travail ? Une méthode. La mienne, de préférence. Elle est infaillible.",
+      "politics": "Je dîne avec des gens des deux camps. C'est passionnant. Non : fascinant."
+    }
+  }
+}

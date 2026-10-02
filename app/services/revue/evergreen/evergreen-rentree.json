@@ -79,7 +79,13 @@
       "id": "cour_ecole_rentree",
       "name_fr": "Une cour d'école à Paris, début septembre",
       "brief": "a school courtyard with plane trees, a chalked hopscotch on the asphalt, a closed green gate, early September morning light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {
@@ -106,5 +112,6 @@
       "published_at": "2025-11-16"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "un cartable"
 }

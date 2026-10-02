@@ -20,10 +20,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.npc import NPC, NPCMemory
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.revue_session import RevueSession
+from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.story import Story
 from app.db.models.user import User
 from app.services.revue import encounter as enc
+from app.services.revue import grading, knowledge, policy
 from app.services.revue.encounter import (
     FALLBACK_LINE,
     FINAL_LINE,
@@ -40,7 +43,14 @@ from app.services.revue.state import ConversationState
 WEEK = "2026-W40"
 MARCHE = "evergreen-marche-du-dimanche"
 PRICE_QUESTION = "Est-ce que les prix au marché sont plus bas qu'au supermarché ?"
-REVUE_TABLES = (Story.__table__, NPC.__table__, NPCMemory.__table__, RevueSession.__table__)
+REVUE_TABLES = (
+    Story.__table__,
+    NPC.__table__,
+    NPCMemory.__table__,
+    RevueSession.__table__,
+    RevuePictogram.__table__,
+    RevueVignette.__table__,
+)
 
 
 @pytest.fixture(scope="module")
@@ -143,13 +153,20 @@ def test_acceptance_unexpected_question_becomes_the_reader_question(db: Session)
     assert len(closing.dispatch.body_fr) == 3
     assert closing.kept.claims and closing.kept.words
     assert closing.colophon_fr == "La suite la semaine prochaine."
+    # WP-120 §4.3: the stamp the learner brings back; a reader question gives the blue ring.
+    assert closing.vignette is not None and closing.vignette.ring == "question"
+    assert closing.vignette.kept_contribution is True and closing.vignette.pictogram_svg.startswith("<svg")
 
-    memory = db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()
-    assert len(memory) == 1
-    assert memory[0].npc_id == "romy_tremblay"
-    assert memory[0].memory_type == "interaction"
-    assert memory[0].scene_id == str(row.id)
-    assert "question" in memory[0].content
+    # Phase 2: the price question touched Margaux's words — she came in with her reason,
+    # and each cast member on stage remembers the Papier.
+    memory = {m.npc_id: m for m in db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()}
+    assert set(memory) == {"romy_tremblay", "margaux_barman"}
+    romy = memory["romy_tremblay"]
+    assert romy.memory_type == "interaction"
+    assert romy.scene_id == str(row.id)
+    assert "question" in romy.content
+    assert "Semaine 40" in memory["margaux_barman"].content
+    assert any(item.kind == "guest" and item.cast_id == "margaux_barman" for item in turn.items)
 
     # Resume replays the same thread: same ids, same order, nothing regenerated.
     calls = len(fake.calls)
@@ -160,7 +177,7 @@ def test_acceptance_unexpected_question_becomes_the_reader_question(db: Session)
     # A second close returns the stored one.
     _, again = revue.close(row)
     assert again == closing
-    assert len(db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()) == 1
+    assert len(db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()) == 2
 
 
 def test_resume_mid_session_replays_identically(db: Session) -> None:
@@ -194,6 +211,7 @@ def test_knowledge_check_refuses_a_forced_reveal(db: Session) -> None:
     result = revue.turn(row, "Tu sais combien coûte l'immeuble ?")
     line = items_of(result, "line")[0]
     assert line.role == "fallback"
+    assert line.reason == "knowledge_refused"
     assert line.text_fr == FALLBACK_LINE
     assert "310" not in " ".join(item.model_dump_json() for item in result.items)
     assert len([call for call in fake.calls if call[0] == "reply"]) == 2, "one regeneration, then the authored line"
@@ -232,17 +250,75 @@ def test_reply_is_cut_to_the_word_target_and_loses_relative_dates(db: Session) -
     assert romy.payload["claims_cited"] == ["c1"], "an unknown claim id is dropped"
 
 
-def test_evidence_is_unscored_and_never_mastery(db: Session) -> None:
+def test_a_turn_without_a_target_word_is_unscored_without_a_critic_call(db: Session) -> None:
+    user = make_user(db)
+    scorer = grading.FakeRubricScorer()
+    revue = RevueEncounter(db, FakeRevueProvider(), scorer=scorer)
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    result = revue.turn(row, "D'accord, je t'aide.")
+    assert result.evidence.outcome == "unscored"
+    assert result.evidence.capability_known is False
+    assert result.evidence.grader == enc.GRADER_ID == "revue-rubric-v1"
+    assert scorer.calls == []
+    evidence = [e for e in state_of(row).events if e.kind == "evidence"][-1].payload
+    assert evidence["rubric_version"] == "revue-rubric-v1"
+    assert evidence["correct"] is None
+    assert state_of(row).words_used_correctly == set()
+
+
+def test_the_rubric_scores_a_correct_use_of_a_target_word(db: Session) -> None:
     user = make_user(db)
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(user, WEEK, dossier_id=MARCHE)
-    result = revue.turn(row, "Le marché est ouvert le matin ?")
-    assert result.evidence.outcome == "unscored"
-    assert result.evidence.capability_known is False
+    words = {item.fr for item in revue.view(row).plan.vocabulary}
+    assert {"marchés", "compte"} <= words
+    revue.turn(row, "D'accord, je t'aide.")
+    result = revue.turn(row, "Il y a beaucoup de marchés à Paris, c'est bien.")
+    assert result.evidence.outcome == "correct"
+    # «marché» is a word of the can-do catalogue (WP-L2): the capability is known, honestly.
+    assert result.evidence.capability_known is True
+    by_word = {w.fr: w for w in result.evidence.words}
+    assert (by_word["marchés"].outcome, by_word["marchés"].capability_known) == ("correct", True)
+    assert result.evidence.fact_fit == "supported"
     evidence = [e for e in state_of(row).events if e.kind == "evidence"][-1].payload
-    assert evidence["rubric_version"] == enc.GRADER_ID
-    assert evidence["correct"] is None
-    assert state_of(row).words_used_correctly == set()
+    assert evidence["capability_id"] == grading.capability_for("marchés") and evidence["capability_id"].startswith("CD_")
+    assert "marchés" in state_of(row).words_used_correctly
+
+    # A correct use of a word no can-do lists is never credited as mastery: unknown → unscored.
+    alone = revue.turn(row, "Paris compte beaucoup de gens.")
+    assert alone.evidence.outcome == "unscored" and alone.evidence.capability_known is False
+    assert {w.fr: w.outcome for w in alone.evidence.words}["compte"] == "unscored"
+    assert [e for e in state_of(row).events if e.kind == "evidence"][-1].payload["correct"] is True  # the rubric's judgement
+
+    # A contradicted number is incorrect.
+    wrong = revue.turn(row, "Paris compte 300 marchés.")
+    assert wrong.evidence.outcome == "incorrect" and wrong.evidence.fact_fit == "contradicted"
+
+
+def test_register_note_when_the_learner_says_vous_to_romy(db: Session) -> None:
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    result = revue.turn(row, "Vous aimez les marchés de Paris ?")
+    assert result.evidence.register_note == "vous_to_tu"
+
+
+def test_the_critic_goes_through_the_provider_plumbing() -> None:
+    stub = _StubLLM('{"words": [{"fr": "marchés", "outcome": "correct", "quote": "des marchés"}], '
+                    '"fact_fit": "supported", "register": "ok", "band_fit": "at"}')
+    provider = enc.OpenAIRevueProvider(_service=stub)
+    scorer = enc.scorer_for(provider)
+    assert isinstance(scorer, grading.LLMRubricScorer)
+    dossier = next(d for d in evergreens_for_week(WEEK) if d.id == MARCHE)
+    rubric = grading.build_rubric(kind="respond", band="A2", claims=dossier.facts()[:2],
+                                  vocabulary=[type("V", (), {"fr": "marchés", "claim_id": "c1"})()])
+    evidence = grading.grade("Il y a des marchés.", rubric, scorer)
+    assert evidence["outcome"] == "correct" and evidence["cost_usd"] > 0
+    messages, kwargs = stub.calls[-1]
+    assert "revue-rubric-v1" in messages[0]["content"] and kwargs["temperature"] == 0.0
+    # A "correct" the learner's words do not show is not one.
+    stub.content = '{"words": [{"fr": "marchés", "outcome": "correct", "quote": "les grands marchés"}], "fact_fit": "supported"}'
+    assert grading.grade("Il y a des marchés.", rubric, scorer)["outcome"] == "unscored"
 
 
 def test_a_retried_turn_is_not_played_twice(db: Session) -> None:
@@ -301,7 +377,8 @@ def test_bouclage_steer_at_eighty_percent_then_the_column_closes(db: Session) ->
 
     calls = len([c for c in fake.calls if c[0] == "reply"])
     after = revue.turn(row, "Et les horaires pendant les fêtes ?")
-    assert items_of(after, "line")[0].text_fr == KEPT_LINE
+    kept = items_of(after, "line")[0]
+    assert (kept.text_fr, kept.role, kept.reason) == (KEPT_LINE, "fallback", "budget")
     assert len([c for c in fake.calls if c[0] == "reply"]) == calls, "no model call once the column is full"
     assert state_of(row).questions[-1]["kept"] is True
 
@@ -470,7 +547,7 @@ def test_plan_vocabulary_and_stage(db: Session) -> None:
     assert view_a2.plan.gloss_language == "de" and view_b1.plan.gloss_language == "en"
     assert all(word.gloss for word in view_a2.plan.vocabulary)
     assert view_a2.plan.make_options == ["headline_choice", "reader_question"]
-    assert view_b1.plan.make_options == ["headline_choice", "reader_question"]
+    assert view_b1.plan.make_options == ["headline_choice", "headline_write", "reader_question", "short_report"]
     assert view_a2.stage.dress == "coat"  # §12.5: a market visit alone does not dress Toi
     assert view_a2.stage.cast[0].id == "romy_tremblay" and view_a2.stage.cast[0].hold == "notebook"
     assert any(item.kind == "line" and item.role == "place_note" for item in view_a2.thread)
@@ -513,6 +590,7 @@ def test_openai_provider_asks_for_json_and_parses_it() -> None:
         ("question", lambda: provider.question({"band": "A2", "language": "de"})),
         ("close", lambda: provider.close({})),
         ("vocabulary", lambda: provider.vocabulary(claims=[], count=5, language="de")),
+        ("guest", lambda: provider.guest({"name": "Margaux", "register": "tu", "max_words": 25, "band": "A2"})),
     ):
         call()
         messages, kwargs = stub.calls[-1]
@@ -534,8 +612,264 @@ def test_model_down_gives_the_authored_line(db: Session) -> None:
     result = revue.turn(row, "D'accord, je t'aide.")
     line = items_of(result, "line")[0]
     assert (line.role, line.text_fr) == ("fallback", FALLBACK_LINE)
+    assert line.reason == "model_down"
     offer = revue.make_options(row)  # the authored headline when the model is down
     assert items_of(result, "claims"), "the facts need no generation"
     assert [option.kind for option in offer.options] == ["headline_choice", "reader_question"]
     _, closing = revue.close(row)
     assert closing.romy_line_fr and len(closing.dispatch.body_fr) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 · «Les invités»: guests, knowledge, write-back, make, cost
+# ---------------------------------------------------------------------------
+
+PRICE_POINT = "Le marché, c'est moins cher, parce que les produits viennent directement des producteurs."
+
+
+def _guest(line: str | None, position: str | None = None, move: str = "follow_up") -> dict:
+    return {"line_fr": line, "position": position, "move": move}
+
+
+def _with_margaux(revue: RevueEncounter, user: User) -> RevueSession:
+    """Start the market Papier and bring Margaux in (the price question touches her words)."""
+
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    return row
+
+
+def test_a_guest_enters_with_a_reason_when_the_learner_touches_their_topic(db: Session) -> None:
+    user = make_user(db)
+    fake = FakeRevueProvider()
+    revue = RevueEncounter(db, fake)
+    row = _with_margaux(revue, user)
+    assert not [c for c in fake.calls if c[0] == "guest"], "no guest in the facts beat"
+    result = revue.turn(row, PRICE_QUESTION)
+    guest = items_of(result, "guest")
+    assert len(guest) == 1 and guest[0].cast_id == "margaux_barman" and guest[0].move == "enter"
+    assert guest[0].text_fr and guest[0].reason is None
+    enter = [e for e in state_of(row).events if e.kind == "guest_enter"][0].payload
+    assert (enter["trigger"], enter["word"]) == ("topic_words", "prix")
+    assert enter["reason_fr"] == policy.GUEST_AFFINITY["food"][0]["reason_fr"]
+    # She stands beside Romy; the provider got her voice and her knowledge context.
+    assert [m.id for m in revue.view(row).stage.cast] == ["romy_tremblay", "margaux_barman", "user"]
+    context = [c for c in fake.calls if c[0] == "guest"][0][1]
+    assert context["register"] == "tu" and context["name"] == "Margaux"
+    assert context["knowledge"]["cast_id"] == "margaux_barman"
+    assert {"known_about_learner", "trust", "tu_since", "memories"} <= set(context["knowledge"])
+    reply_context = [c for c in fake.calls if c[0] == "reply"][-1][1]
+    assert reply_context["knowledge"]["cast_id"] == "romy_tremblay"
+
+
+def test_a_guest_line_that_would_reveal_a_tentpole_is_refused_and_the_default_shows(db: Session) -> None:
+    user = make_user(db)
+    reveal = _guest("Le notaire ? C'est 310 000 euros, tout le monde le sait.", "for", "enter")
+    fake = FakeRevueProvider(guest_script=[reveal, reveal])
+    revue = RevueEncounter(db, fake)
+    row = _with_margaux(revue, user)
+    result = revue.turn(row, PRICE_QUESTION)
+    guest = items_of(result, "guest")[0]
+    assert guest.text_fr == knowledge.authored_guest_line("margaux_barman", "food")
+    assert guest.reason == "knowledge_refused"
+    assert "310" not in result.model_dump_json() and "310" not in revue.view(row).model_dump_json()
+    assert len([c for c in fake.calls if c[0] == "guest"]) == 2, "one regeneration, then the authored line"
+    event = [e for e in state_of(row).events if e.kind == "turn_guest"][-1].payload
+    assert "knowledge" in event["refused"]
+
+
+def test_a_guest_changes_position_after_the_learners_point(db: Session) -> None:
+    user = make_user(db)
+    fake = FakeRevueProvider(guest_script=[
+        _guest("Le marché, c'est plus cher. Je le vois sur mes factures.", "against", "enter"),
+        _guest("Et toi, tu y fais tes courses ?", "against", "follow_up"),
+        _guest("Bon. Vu comme ça, tu n'as pas tort.", "moved", "moved"),
+    ])
+    revue = RevueEncounter(db, fake)
+    row = _with_margaux(revue, user)
+    entered = items_of(revue.turn(row, PRICE_QUESTION), "guest")[0]
+    assert entered.position == "against"
+    follow = items_of(revue.turn(row, "Je ne sais pas encore."), "guest")[0]
+    assert (follow.move, follow.position) == ("follow_up", "against")
+    moved = items_of(revue.turn(row, PRICE_POINT), "guest")[0]
+    assert (moved.move, moved.position) == ("moved", "moved")
+    positions = [e.payload["position"] for e in state_of(row).events if e.kind == "guest_position"]
+    assert positions == ["against", "moved"]
+    assert state_of(row).guest_position("margaux_barman") == "moved"
+    # The learner's point reached her: the context carried it and her standing position.
+    last = [c for c in fake.calls if c[0] == "guest"][-1][1]
+    assert last["learner_text"] == PRICE_POINT and last["position"] == "against"
+
+    revue.close(row)
+    memory = db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id, NPCMemory.npc_id == "margaux_barman")).one()
+    assert "changer d'avis" in memory.content and memory.player_quote == PRICE_POINT
+    assert db.get(NPC, "margaux_barman") is not None
+
+
+def test_the_fake_guest_moves_on_a_reason_by_default(db: Session) -> None:
+    user = make_user(db)
+    fake = FakeRevueProvider()
+    revue = RevueEncounter(db, fake)
+    row = revue.start(user, WEEK, dossier_id=MARCHE, angle_id="a2")  # explain_disagreement: she starts against
+    revue.turn(row, "D'accord, je t'aide.")
+    assert items_of(revue.turn(row, PRICE_QUESTION), "guest")[0].position == "against"
+    assert items_of(revue.turn(row, PRICE_POINT), "guest")[0].position == "moved"
+
+
+def test_one_guest_per_papier(db: Session, monkeypatch) -> None:
+    affinity = {**policy.GUEST_AFFINITY, "food": [*policy.GUEST_AFFINITY["food"],
+                                                  {"id": "landlord_marchand", "reason": "rent", "reason_fr": "Le loyer, voyez-vous."}]}
+    monkeypatch.setattr(policy, "GUEST_AFFINITY", affinity)
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = _with_margaux(revue, user)
+    assert [g.id for g in load_plan(row).stage.guests_available] == ["margaux_barman", "landlord_marchand"]
+    revue.turn(row, PRICE_QUESTION)
+    revue.turn(row, "Et le loyer des immeubles autour du marché ?")
+    revue.turn(row, "Le propriétaire de l'immeuble, il en pense quoi ?")
+    assert state_of(row).guests_entered == ["margaux_barman"]
+    assert {m.id for m in revue.view(row).stage.cast} == {"romy_tremblay", "margaux_barman", "user"}
+
+
+def load_plan(row: RevueSession):
+    from app.services.revue.session import SessionPlan
+
+    return SessionPlan.model_validate(row.plan)
+
+
+def test_camille_enters_only_once_her_look_is_chosen(db: Session, monkeypatch) -> None:
+    affinity = {**policy.GUEST_AFFINITY, "food": [{"id": "camille_marchand", "reason": "her quartier",
+                                                    "reason_fr": "C'est mon quartier."}]}
+    monkeypatch.setattr(policy, "GUEST_AFFINITY", affinity)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, "Le quartier d'Aligre change beaucoup ?")
+    assert state_of(row).guests_entered == []
+
+    monkeypatch.setattr(knowledge.LearnerWorld, "camille_chosen", lambda self: True)
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, "Le quartier d'Aligre change beaucoup ?")
+    assert state_of(row).guests_entered == ["camille_marchand"]
+
+
+def test_an_angle_guest_fit_brings_the_guest_at_the_first_pursue_turn(db: Session, monkeypatch) -> None:
+    dossier = next(d for d in evergreens_for_week(WEEK) if d.id == MARCHE)
+    fitted = dossier.model_copy(deep=True)
+    fitted.angles[0].guest_fit = "marin_leveque"
+    monkeypatch.setattr(enc, "available_dossiers", lambda week: [fitted])
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    result = revue.turn(row, "Ah bon.")
+    guest = items_of(result, "guest")[0]
+    assert guest.cast_id == "marin_leveque"
+    assert guest.text_fr == policy.GUEST_REASON_FR["marin_leveque"]
+    enter = [e for e in state_of(row).events if e.kind == "guest_enter"][0].payload
+    assert enter["trigger"] == "guest_fit"
+
+
+def test_knowledge_context_brings_memories_with_provenance_minus_reveals(db: Session) -> None:
+    user = make_user(db)
+    knowledge.ensure_npc(db, "margaux_barman")
+    db.add(NPCMemory(user_id=user.id, npc_id="margaux_barman", memory_type="interaction",
+                     content="Semaine 39 : tu as pris un café crème au comptoir.", scene_id="s-39"))
+    db.add(NPCMemory(user_id=user.id, npc_id="margaux_barman", memory_type="interaction",
+                     content="Le prix de l'immeuble : 310 000 euros.", scene_id="s-40"))
+    db.commit()
+    fake = FakeRevueProvider()
+    revue = RevueEncounter(db, fake)
+    row = _with_margaux(revue, user)
+    revue.turn(row, PRICE_QUESTION)
+    memories = [c for c in fake.calls if c[0] == "guest"][0][1]["knowledge"]["memories"]
+    assert [m["content"] for m in memories] == ["Semaine 39 : tu as pris un café crème au comptoir."]
+    assert memories[0]["scene_id"] == "s-39" and memories[0]["npc_id"] == "margaux_barman" and memories[0]["own"]
+
+
+def test_simplify_counts_unscored_turns_that_lose_the_story(db: Session) -> None:
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    first = revue.turn(row, "J'aime le football anglais.")
+    assert first.support.level == 0 and first.evidence.outcome == "unscored"
+    second = revue.turn(row, "Mon chien dort toujours.")
+    assert second.support.level == 1
+    assert any(item.kind == "shift" and item.reason == "simplify" for item in second.items)
+
+
+def test_headline_write_is_graded_for_fact_fit_and_band(db: Session) -> None:
+    user = make_user(db, level="B1.2", native="en")
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    offer = revue.make_options(row)
+    assert [o.kind for o in offer.options] == ["headline_choice", "headline_write", "reader_question", "short_report"]
+    assert offer.recommended == "headline_write"
+    assert offer.intro.role == "make_intro" and offer.intro.text_fr == enc.MAKE_INTRO_LINES["headline_write"]
+    assert revue.make_options(row).intro == offer.intro, "the intro is written once"
+
+    refused = revue.make(row, "headline_write", {"action": "write", "text_fr": "Paris compte 300 marchés"})
+    assert refused.accepted is False and refused.made is None
+    assert refused.evidence.fact_fit == "contradicted" and refused.line.role == "make_done"
+    assert state_of(row).current_artifact is None
+
+    written = revue.make(row, "headline_write", {"action": "write", "text_fr": "Paris et ses 91 marchés en plein air"})
+    assert written.accepted is True
+    assert written.made.kind == "headline_write" and written.made.contribution == [(0, len(written.made.text_fr))]
+    assert written.evidence.fact_fit == "supported" and written.evidence.outcome == "correct"
+    assert written.line.text_fr == enc.MAKE_DONE_LINES["headline_write"]
+    _, closing = revue.close(row)
+    assert closing.dispatch.headline_fr == "Paris et ses 91 marchés en plein air"
+    thread = revue.view(row).thread
+    assert [i.role for i in thread if i.kind == "line" and i.role in {"make_intro", "make_done", "close"}] == [
+        "make_intro", "make_done", "make_done", "close"]
+
+
+def test_headline_write_is_b1_and_up(db: Session) -> None:
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    with pytest.raises(RevueError) as raised:
+        revue.make(row, "headline_write", {"action": "write", "text_fr": "Un titre"})
+    assert (raised.value.status, raised.value.code) == (409, "revue_make_unavailable")
+
+
+def test_short_report_is_accepted_and_graded_like_a_turn(db: Session) -> None:
+    user = make_user(db, level="B2", native="en")
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, "D'accord, je t'aide.")
+    transcript = "Bonjour, je suis au marché d'Aligre. Paris compte 91 marchés, et celui-ci ouvre tous les matins."
+    result = revue.make(row, "short_report", {"action": "report", "transcript": transcript, "mode": "voice"})
+    assert result.made.kind == "short_report" and result.made.learner_fr == transcript
+    assert result.evidence.grader == "revue-rubric-v1" and result.evidence.outcome == "correct"
+    assert result.line.text_fr == enc.MAKE_DONE_LINES["short_report"]
+    _, closing = revue.close(row)
+    assert closing.dispatch.headline_fr != transcript, "a report is not a headline"
+
+
+def test_close_records_the_session_cost_line(db: Session) -> None:
+    class PricedFake(FakeRevueProvider):
+        def reply(self, context):
+            self.spent_usd += 0.002
+            return super().reply(context)
+
+    user = make_user(db)
+    revue = RevueEncounter(db, PricedFake())
+    row = _with_margaux(revue, user)
+    revue.turn(row, PRICE_QUESTION)
+    revue.close(row)
+    event = db.scalars(select(PilotEvent).where(PilotEvent.entity_id == str(row.id))).one()
+    assert event.event_type == enc.REVUE_COST_EVENT_TYPE == "revue_session"
+    assert event.cost_usd == pytest.approx(0.004) == state_of(row).cost_usd
+    assert event.payload["guests"] == ["margaux_barman"] and event.payload["turns"] == 2
+
+
+def test_session_cost_sums_every_model_call() -> None:
+    state = ConversationState()
+    state.append("turn_romy", cost_usd=0.0021)
+    state.append("turn_guest", cost_usd=0.001)
+    state.append("evidence", cost_usd=0.0004)
+    state.append("closed")
+    assert state.cost_usd == 0.0035

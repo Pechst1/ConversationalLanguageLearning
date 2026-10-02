@@ -1,4 +1,4 @@
-"""Wire schemas for La Revue de Romy, phase 1 (WP-119).
+"""Wire schemas for La Revue de Romy, phases 1–2 (WP-119).
 
 Field-for-field implementation of ``docs/implementation/atelier-v2/WP-119-WIRE.md``.
 As in ``app/schemas/daily_journey.py``: public payloads are real models, never
@@ -13,6 +13,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.revue_vignette import VignetteView
+
 WEEK_PATTERN = r"^\d{4}-W\d{2}$"
 
 Topic = Literal["food", "culture", "city", "sport", "nature", "work", "politics"]
@@ -20,7 +22,10 @@ ClaimKind = Literal["fact", "interpretation", "forecast"]
 Outfit = Literal["coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis"]
 Beat = Literal["arrive", "facts", "pursue", "make", "close"]
 RoomPhase = Literal["open", "bouclage", "boucle"]
-MakeKind = Literal["headline_choice", "reader_question"]
+MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report"]
+FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
+GuestPosition = Literal["for", "against", "moved"]
+GuestMove = Literal["enter", "follow_up", "disagree", "moved"]
 Language = Literal["en", "de", "fr"]
 Purpose = Literal["understand_change", "explain_disagreement", "choose_angle", "prepare_dispatch"]
 Span = tuple[int, int]
@@ -155,9 +160,23 @@ class RvSummaryItem(_Item):
 class RvLineItem(_Item):
     kind: Literal["line"] = "line"
     speaker: str = "romy_tremblay"
-    role: Literal["purpose", "place_note", "reply", "steer", "fallback", "close"]
+    role: Literal["purpose", "place_note", "reply", "steer", "fallback", "make_intro", "make_done", "close"]
     text_fr: str
     translation: str | None = None
+    glosses: list[RvGloss] = Field(default_factory=list)
+    reason: FallbackReason | None = None   # phase 2: set on every ``fallback`` line, else null
+
+
+class RvGuestItem(_Item):
+    """Phase 2: a guest speaks (one guest per Papier)."""
+
+    kind: Literal["guest"] = "guest"
+    cast_id: str
+    text_fr: str
+    move: GuestMove
+    position: GuestPosition | None = None
+    reason_fr: str | None = None           # why they care, on the ``enter`` move only
+    reason: FallbackReason | None = None   # an authored line stands in (model_down | knowledge_refused)
     glosses: list[RvGloss] = Field(default_factory=list)
 
 
@@ -197,6 +216,7 @@ RvThreadItem = Annotated[
     RvNarrationItem
     | RvSummaryItem
     | RvLineItem
+    | RvGuestItem
     | RvMineItem
     | RvClaimsItem
     | RvUncertaintyItem
@@ -310,6 +330,8 @@ class RvClosing(RevueModel):
     dispatch: RvDispatch
     kept: RvKept
     question_kept_fr: str | None = None
+    #: WP-120 §4.3: the vignette minted at close (None when minting failed or is off).
+    vignette: VignetteView | None = None
     colophon_fr: Literal["La suite la semaine prochaine."] = "La suite la semaine prochaine."
 
 
@@ -342,10 +364,23 @@ class RvTurnRequest(RevueRequest):
     client_turn_id: str | None = Field(None, min_length=1, max_length=64)
 
 
+Outcome = Literal["correct", "incorrect", "unscored"]
+
+
+class RvWordEvidence(RevueModel):
+    fr: str
+    outcome: Outcome
+    capability_known: bool
+
+
 class RvEvidence(RevueModel):
-    outcome: Literal["correct", "incorrect", "unscored"]
+    outcome: Outcome
     capability_known: bool
     grader: str
+    # Phase 2 (revue-rubric-v1): per target word, the fact fit and the register note (a code).
+    words: list[RvWordEvidence] = Field(default_factory=list)
+    fact_fit: Literal["supported", "unsupported", "contradicted", "not_applicable"] = "not_applicable"
+    register_note: Literal["ok", "vous_to_tu", "tu_to_vous"] = "ok"
 
 
 class RvTurnResult(RevueModel):
@@ -379,9 +414,25 @@ class RvReaderQuestionOffer(RevueModel):
     uncertainty_fr: str | None = None
 
 
+class RvHeadlineWriteOffer(RevueModel):
+    kind: Literal["headline_write"] = "headline_write"
+    max_words: int
+
+
+class RvShortReportOffer(RevueModel):
+    kind: Literal["short_report"] = "short_report"
+    seconds: int = 30
+
+
 class RvMakeOffer(RevueModel):
     recommended: MakeKind
-    options: list[Annotated[RvHeadlineChoiceOffer | RvReaderQuestionOffer, Field(discriminator="kind")]]
+    options: list[
+        Annotated[
+            RvHeadlineChoiceOffer | RvHeadlineWriteOffer | RvReaderQuestionOffer | RvShortReportOffer,
+            Field(discriminator="kind"),
+        ]
+    ]
+    intro: RvLineItem | None = None        # Romy's ``make_intro`` line (written once, on the first GET)
 
 
 class RvHeadlinePick(RevueRequest):
@@ -402,8 +453,21 @@ class RvQuestionSend(RevueRequest):
     text_fr: str = Field(min_length=1, max_length=300)
 
 
+class RvHeadlineWrite(RevueRequest):
+    kind: Literal["headline_write"]
+    action: Literal["write"]
+    text_fr: str = Field(min_length=1, max_length=160)
+
+
+class RvShortReport(RevueRequest):
+    kind: Literal["short_report"]
+    action: Literal["report"]
+    transcript: str = Field(min_length=1, max_length=1200)
+    mode: Literal["text", "voice"] = "voice"
+
+
 RvMakeRequest = Annotated[
-    RvHeadlinePick | RvQuestionPropose | RvQuestionSend,
+    RvHeadlinePick | RvQuestionPropose | RvQuestionSend | RvHeadlineWrite | RvShortReport,
     Field(discriminator="action"),
 ]
 
@@ -420,6 +484,7 @@ class RvHeadlinePickResult(RevueModel):
     answer_id: str
     evidence: RvHeadlineEvidence
     made: RvMade
+    line: RvLineItem | None = None         # Romy's ``make_done`` line
 
 
 class RvQuestionDraft(RevueModel):
@@ -437,9 +502,31 @@ class RvQuestionProposeResult(RevueModel):
 class RvQuestionSendResult(RevueModel):
     kind: Literal["reader_question"] = "reader_question"
     made: RvMade
+    line: RvLineItem | None = None
 
 
-RvMakeResult = RvHeadlinePickResult | RvQuestionProposeResult | RvQuestionSendResult
+class RvHeadlineWriteResult(RevueModel):
+    kind: Literal["headline_write"] = "headline_write"
+    accepted: bool                         # false: a shown claim contradicts it; nothing filed, write again
+    evidence: RvEvidence
+    made: RvMade | None = None
+    line: RvLineItem | None = None
+
+
+class RvShortReportResult(RevueModel):
+    kind: Literal["short_report"] = "short_report"
+    evidence: RvEvidence
+    made: RvMade
+    line: RvLineItem | None = None
+
+
+RvMakeResult = (
+    RvHeadlinePickResult
+    | RvQuestionProposeResult
+    | RvQuestionSendResult
+    | RvHeadlineWriteResult
+    | RvShortReportResult
+)
 
 
 # ---------------------------------------------------------------------------

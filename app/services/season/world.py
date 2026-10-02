@@ -20,32 +20,32 @@ from app.services.season.format import SEASON_ROOT
 
 #: Every place a season-1 page may be set in: its French name, the plate it opens
 #: on (a path under ``web-frontend/public``), and whether that plate is its own.
-SEASON_ONE_LOCATIONS: dict[str, dict[str, str | bool]] = {
-    "le_mistral": {"name_fr": "Le Mistral", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": True},
-    "mistral_back_room": {"name_fr": "L'arrière-salle du Mistral", "plate": "assets/serial/locations/le_mistral-booth.webp", "own": False},
+SEASON_ONE_LOCATIONS: dict[str, dict[str, Any]] = {
+    "le_mistral": {"name_fr": "Le Mistral", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": True, "geo": {"lat": 48.8706, "lon": 2.3632, "precision": "exact", "label_fr": "Le Mistral, quai de Valmy, Paris 10e"}},
+    "mistral_back_room": {"name_fr": "L'arrière-salle du Mistral", "plate": "assets/serial/locations/le_mistral-booth.webp", "own": False, "geo": {"lat": 48.8706, "lon": 2.3632, "precision": "exact", "label_fr": "Le Mistral, quai de Valmy, Paris 10e"}},
     # The quai has no plate of its own yet. The market plate (a sunny day, stalls) told
     # the wrong story for T1's opening (night, rain, the red neon); the café's counter
     # looks out on the rainy quai at night through its windows (2026-10-02).
-    "quai_de_valmy": {"name_fr": "Le quai de Valmy", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": False},
-    "stairwell": {"name_fr": "L'escalier", "plate": "assets/serial/locations/user_apartment.webp", "own": False},
-    "odile_flat": {"name_fr": "L'appartement d'Odile", "plate": "assets/serial/locations/user_apartment.webp", "own": False},
-    "user_apartment": {"name_fr": "Ton studio", "plate": "assets/serial/locations/user_apartment.webp", "own": True},
-    "marin_lila_flat": {"name_fr": "L'appartement de Marin et Lila", "plate": "assets/serial/locations/marin_lila_flat.webp", "own": True},
-    "ngo_office": {"name_fr": "Le bureau de l'ONG de Marin", "plate": "assets/serial/locations/ngo_office.webp", "own": True},
-    "mairie": {"name_fr": "La mairie du 10e", "plate": "assets/serial/locations/office_admin.webp", "own": False},
-    "marchand_office": {"name_fr": "La gérance Marchand", "plate": "assets/serial/locations/office_admin.webp", "own": False},
-    "notaire": {"name_fr": "Chez Maître Vasseur", "plate": "assets/serial/locations/office_admin.webp", "own": False},
-    "gare_de_lest": {"name_fr": "La gare de l'Est", "plate": "assets/serial/locations/metro_platform.webp", "own": False},
-    "rue_de_lancry": {"name_fr": "La rue de Lancry", "plate": "assets/serial/locations/marche_canal.webp", "own": False},
-    "gus_loft": {"name_fr": "Le « château » de Gus", "plate": "assets/serial/locations/gus_loft.webp", "own": True},
-    "boulangerie": {"name_fr": "La boulangerie de Mme Diallo", "plate": "assets/serial/locations/marche_canal.webp", "own": False},
-    "ecole": {"name_fr": "La classe de Lila", "plate": "assets/serial/locations/ngo_office.webp", "own": False},
-    "toit": {"name_fr": "Le toit de l'immeuble", "plate": "assets/serial/locations/buttes_chaumont.webp", "own": False},
-    "newsroom": {"name_fr": "La rédaction de Romy", "plate": "assets/serial/locations/newsroom.webp", "own": True},
-    "marche_canal": {"name_fr": "Le marché du canal", "plate": "assets/serial/locations/marche_canal.webp", "own": True},
-    "buttes_chaumont": {"name_fr": "Le parc des Buttes-Chaumont", "plate": "assets/serial/locations/buttes_chaumont.webp", "own": True},
-    "metro_platform": {"name_fr": "Le quai du métro", "plate": "assets/serial/locations/metro_platform.webp", "own": True},
-    "brocante": {"name_fr": "La brocante", "plate": "assets/serial/locations/brocante.webp", "own": True},
+    "quai_de_valmy": {"name_fr": "Le quai de Valmy", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": False, "geo": {"lat": 48.8712, "lon": 2.3646, "precision": "exact", "label_fr": "Quai de Valmy, Paris 10e"}},
+    "stairwell": {"name_fr": "L'escalier", "plate": "assets/serial/locations/user_apartment.webp", "own": False, "geo": {"lat": 48.8706, "lon": 2.3632, "precision": "exact", "label_fr": "Le Mistral, quai de Valmy, Paris 10e"}},
+    "odile_flat": {"name_fr": "L'appartement d'Odile", "plate": "assets/serial/locations/user_apartment.webp", "own": False, "geo": {"lat": 48.8706, "lon": 2.3632, "precision": "exact", "label_fr": "Le Mistral, quai de Valmy, Paris 10e"}},
+    "user_apartment": {"name_fr": "Ton studio", "plate": "assets/serial/locations/user_apartment.webp", "own": True, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "marin_lila_flat": {"name_fr": "L'appartement de Marin et Lila", "plate": "assets/serial/locations/marin_lila_flat.webp", "own": True, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "ngo_office": {"name_fr": "Le bureau de l'ONG de Marin", "plate": "assets/serial/locations/ngo_office.webp", "own": True, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "mairie": {"name_fr": "La mairie du 10e", "plate": "assets/serial/locations/office_admin.webp", "own": False, "geo": {"lat": 48.8718, "lon": 2.3574, "precision": "exact", "label_fr": "Mairie du 10e, rue du Faubourg-Saint-Martin"}},
+    "marchand_office": {"name_fr": "La gérance Marchand", "plate": "assets/serial/locations/office_admin.webp", "own": False, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "notaire": {"name_fr": "Chez Maître Vasseur", "plate": "assets/serial/locations/office_admin.webp", "own": False, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "gare_de_lest": {"name_fr": "La gare de l'Est", "plate": "assets/serial/locations/metro_platform.webp", "own": False, "geo": {"lat": 48.8768, "lon": 2.3592, "precision": "exact", "label_fr": "Gare de l'Est"}},
+    "rue_de_lancry": {"name_fr": "La rue de Lancry", "plate": "assets/serial/locations/marche_canal.webp", "own": False, "geo": {"lat": 48.87, "lon": 2.3615, "precision": "exact", "label_fr": "Rue de Lancry, Paris 10e"}},
+    "gus_loft": {"name_fr": "Le « château » de Gus", "plate": "assets/serial/locations/gus_loft.webp", "own": True, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "boulangerie": {"name_fr": "La boulangerie de Mme Diallo", "plate": "assets/serial/locations/marche_canal.webp", "own": False, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "ecole": {"name_fr": "La classe de Lila", "plate": "assets/serial/locations/ngo_office.webp", "own": False, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "toit": {"name_fr": "Le toit de l'immeuble", "plate": "assets/serial/locations/buttes_chaumont.webp", "own": False, "geo": {"lat": 48.8706, "lon": 2.3632, "precision": "exact", "label_fr": "Le Mistral, quai de Valmy, Paris 10e"}},
+    "newsroom": {"name_fr": "La rédaction de Romy", "plate": "assets/serial/locations/newsroom.webp", "own": True, "geo": {"lat": 48.8761, "lon": 2.3607, "precision": "city", "label_fr": "Paris 10e"}},
+    "marche_canal": {"name_fr": "Le marché du canal", "plate": "assets/serial/locations/marche_canal.webp", "own": True, "geo": {"lat": 48.8725, "lon": 2.365, "precision": "exact", "label_fr": "Le marché du canal, quai de Valmy, Paris 10e"}},
+    "buttes_chaumont": {"name_fr": "Le parc des Buttes-Chaumont", "plate": "assets/serial/locations/buttes_chaumont.webp", "own": True, "geo": {"lat": 48.8809, "lon": 2.3828, "precision": "exact", "label_fr": "Parc des Buttes-Chaumont, Paris 19e"}},
+    "metro_platform": {"name_fr": "Le quai du métro", "plate": "assets/serial/locations/metro_platform.webp", "own": True, "geo": {"lat": 48.8706, "lon": 2.361, "precision": "exact", "label_fr": "Métro Jacques Bonsergent, Paris 10e"}},
+    "brocante": {"name_fr": "La brocante", "plate": "assets/serial/locations/brocante.webp", "own": True, "geo": {"lat": 48.8718, "lon": 2.364, "precision": "exact", "label_fr": "La brocante du canal Saint-Martin, Paris 10e"}},
 }
 
 

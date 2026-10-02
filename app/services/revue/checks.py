@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from app.services.revue.dossier import fold, week_bounds
+from app.services.revue.geo import geo_problems
 from app.services.revue.policy import OUTFITS
 
 if TYPE_CHECKING:
@@ -49,6 +50,7 @@ CHECK_NAMES: tuple[str, ...] = (
     "distinguishable",
     "render",
     "credit",
+    "geo",
 )
 
 
@@ -643,13 +645,40 @@ def check_credit(evidence_write: dict) -> list[CheckResult]:
     return [_ok("credit", capability_id=capability_id, outcome=outcome)]
 
 
+def check_geo(dossier: EditorialDossier) -> list[CheckResult]:
+    """WP-120 §3.4: one result per place on whether its ``geo`` can be pinned.
+
+    ``outside_france`` (no France box holds it), ``paris_centroid_claimed_exact`` (an
+    «exact» within 300 m of Paris's centre that is not the landmark there: downgrade to
+    ``city``, ``detail["advice"]``), ``city_mismatch`` (more than 25 km from the city
+    its name, brief or label names). A place without geo passes with the informational
+    reason ``missing_geo`` (the Papier just shows no pin).
+    """
+
+    results: list[CheckResult] = []
+    for place in dossier.places:
+        if place.geo is None:
+            results.append(_result("geo", ok=True, reason="missing_geo", place_id=place.id))
+            continue
+        problems = geo_problems(place)
+        if not problems:
+            results.append(_ok("geo", place_id=place.id, precision=place.geo.precision))
+        for reason in problems:
+            advice = "city" if reason == "paris_centroid_claimed_exact" else "drop"
+            results.append(
+                _fail("geo", reason, place_id=place.id, precision=place.geo.precision, advice=advice)
+            )
+    return results
+
+
 def run_dossier_checks(
     dossier: EditorialDossier, *, source_texts: dict[str, str], week: str
 ) -> list[CheckResult]:
-    """Anchor, Attribution (deterministic rules, no judge) and Temporal, concatenated."""
+    """Anchor, Attribution (deterministic rules, no judge), Temporal and Geo, concatenated."""
 
     return [
         *check_anchor(dossier, source_texts),
         *check_attribution(dossier),
         *check_temporal(dossier, week),
+        *check_geo(dossier),
     ]

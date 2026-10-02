@@ -10,7 +10,12 @@ Payload conventions the replay reads (other keys are kept and ignored):
 
 - ``claim_shown``: ``claim_id`` or ``claim_ids``
 - ``question_raised``: ``text``, ``answerable`` (bool; the dossier could answer it)
-- ``guest_enter``: ``id`` (``None`` clears the stage)
+- ``guest_enter``: ``id`` (``None`` clears the stage), ``reason_fr`` (spoken on entry),
+  ``trigger`` (``guest_fit`` | ``topic_words``), ``word`` (the topic word that called them)
+- ``turn_guest``: ``id``, ``text_fr``, ``move`` (``enter`` | ``follow_up`` | ``disagree`` |
+  ``moved``), ``position``, ``reason`` (``None``, or why an authored line stands in:
+  ``model_down`` | ``knowledge_refused``), ``attempts``, ``refused``, ``cost_usd``
+- ``guest_position``: ``id``, ``position`` (``for`` | ``against`` | ``moved``), ``turn_seq``
 - ``evidence``: ``word`` or ``words``, ``correct`` (bool) — the evidence itself is
   written through the existing evidence policy (Credit check, §4.2); this is the record
 - ``support_changed``: optional ``level`` (int); without it each event counts one level
@@ -147,6 +152,29 @@ class ConversationState(BaseModel):
             return None
         guest = entries[-1].payload.get("id")
         return str(guest) if guest else None
+
+    @property
+    def guests_entered(self) -> list[str]:
+        """Every guest who came on stage, in order (phase 2: at most one per Revue)."""
+
+        return [str(e.payload["id"]) for e in self._of("guest_enter") if e.payload.get("id")]
+
+    def guest_position(self, guest_id: str) -> str | None:
+        """The guest's latest position (``for`` | ``against`` | ``moved``), or None."""
+
+        rows = [e for e in self._of("guest_position") if e.payload.get("id") == guest_id]
+        return str(rows[-1].payload.get("position")) if rows and rows[-1].payload.get("position") else None
+
+    @property
+    def cost_usd(self) -> float:
+        """Every ``cost_usd`` the events recorded (model calls), summed — the cost report's line."""
+
+        total = 0.0
+        for event in self.events:
+            value = event.payload.get("cost_usd")
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                total += float(value)
+        return round(total, 6)
 
     @property
     def support_level(self) -> int:

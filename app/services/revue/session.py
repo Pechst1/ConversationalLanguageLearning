@@ -20,7 +20,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from app.services.revue import policy
-from app.services.revue.dossier import AnglePurpose, EditorialDossier
+from app.services.revue.dossier import Angle, AnglePurpose, EditorialDossier
 
 PLAN_VERSION = "revue-plan-v1"
 
@@ -81,8 +81,14 @@ class StageCast(_Model):
 
 
 class Guest(_Model):
+    """A cast member with a reason to care (§7). ``reason`` is English (the plan, the
+    provider); ``reason_fr`` is what they say on entry; ``fit`` marks the angle's
+    ``guest_fit`` (they enter at the first ``pursue`` turn instead of on topic words)."""
+
     id: str = Field(min_length=1)
     reason: str = Field(min_length=1)
+    reason_fr: str | None = None
+    fit: bool = False
 
 
 class StagePlan(_Model):
@@ -166,8 +172,10 @@ def plan_for(
     """The default plan for ``learner`` on ``dossier`` (§3.2, §6).
 
     The first angle unless one is given; support from the band's §6 defaults; the
-    dossier's first place, dressed by its guessed kind; Romy with her notebook and
-    Toi; the topic's guests with their reasons; make options by band. ``plate_url``
+    dossier's first place; Toi dressed by the angle's ``participation`` (phase 2,
+    :func:`policy.dress_for_angle` — the place alone never dresses); Romy with her
+    notebook and Toi; the topic's guests with their reasons, the angle's ``guest_fit``
+    first; make options by band. ``plate_url``
     comes from ``place_known_plate(place_id)`` when given (the §8.1 fallback is the
     stage's business, not the plan's).
     """
@@ -186,7 +194,7 @@ def plan_for(
     place = dossier.places[0]
     kind = policy.place_kind(f"{place.id} {place.name_fr} {place.brief}")
     plate_url = place_known_plate(place.id) if place_known_plate is not None else None
-    guests = [Guest(**row) for row in policy.guests_for(dossier.topic, place=place.name_fr, title=dossier.title_fr)]
+    guests = guests_for_angle(dossier, angle, place_name=place.name_fr)
 
     plan = SessionPlan(
         dossier_id=dossier.id,
@@ -200,13 +208,36 @@ def plan_for(
         stage=StagePlan(
             place_id=place.id,
             plate_url=plate_url,
-            dress=policy.dress_for(kind),
+            dress=policy.dress_for_angle(angle.participation, kind),
             cast=[StageCast(id=ROMY_ID, hold=ROMY_HOLD), StageCast(id="user")],
             guests_available=guests,
         ),
         budget=Budget(),
     )
     return plan.validate_against(dossier)
+
+
+def guests_for_angle(dossier: EditorialDossier, angle: Angle, *, place_name: str) -> list[Guest]:
+    """The guests available for this angle (§7, phase 2), in order of preference.
+
+    The topic's :data:`policy.GUEST_AFFINITY` with their reasons; an angle whose
+    ``guest_fit`` names a guest cast member puts that guest first with ``fit=True`` (with
+    the affinity's reason when the topic has one, else the cast member's own
+    :data:`policy.GUEST_REASON_FR`). An unknown ``guest_fit`` is ignored.
+    """
+
+    rows = policy.guests_for(dossier.topic, place=place_name, title=dossier.title_fr)
+    guests = [Guest(**row) for row in rows]
+    fit = (angle.guest_fit or "").strip()
+    if fit and fit in policy.GUEST_CAST_IDS:
+        known = next((guest for guest in guests if guest.id == fit), None)
+        chosen = (
+            known.model_copy(update={"fit": True})
+            if known is not None
+            else Guest(id=fit, reason=f"the angle names {fit} as the guest who fits", reason_fr=policy.GUEST_REASON_FR[fit], fit=True)
+        )
+        guests = [chosen, *(guest for guest in guests if guest.id != fit)]
+    return guests
 
 
 def _step_up(ladder: tuple[str, ...], current: str) -> str:

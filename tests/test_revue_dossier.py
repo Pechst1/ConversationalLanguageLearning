@@ -292,13 +292,44 @@ def test_plan_for_b1(dossier: EditorialDossier) -> None:
         plan_for(dossier, LearnerContext(band="B1", ui_language="en"), angle_id="a9")
 
 
-def test_cellar_place_dresses_in_an_apron() -> None:
+def _dressed(place: dict, participation: str | None) -> str:
     data = _dossier_data()
-    data["places"] = [
-        {"id": "cave_meursault", "name_fr": "Une cave à Meursault", "brief": "a vaulted stone cellar, barrels"}
-    ]
+    data["places"] = [place]
+    if participation is not None:
+        data["angles"][0]["participation"] = participation
+    return plan_for(EditorialDossier.model_validate(data), LearnerContext(band="A2", ui_language="fr")).stage.dress
+
+
+def test_outfit_follows_participation_not_place() -> None:
+    """WP-119 phase 2 (§12.5): the angle's ``participation`` dresses Toi; the place alone never does."""
+
+    cellar = {"id": "cave_meursault", "name_fr": "Une cave à Meursault", "brief": "a vaulted stone cellar, barrels"}
+    worksite = {"id": "chantier_metro", "name_fr": "Le chantier du métro", "brief": "a worksite, scaffolding"}
+    market = {"id": "marche_aligre", "name_fr": "Le marché d'Aligre", "brief": "market stalls"}
+    assert _dressed(cellar, None) == "coat"  # default participation "none": a cellar visit stays in the coat
+    assert _dressed(cellar, "none") == "coat"
+    assert _dressed(cellar, "works") == "apron"
+    assert _dressed(worksite, "none") == "coat"
+    assert _dressed(worksite, "helps") == "hi_vis"
+    assert _dressed(market, "helps") == "apron"  # helping at a stall: an apron, whatever the place kind says
+    assert _dressed(market, "formal") == "suit"
+    assert _dressed(cellar, "formal") == "suit"
+    assert policy.dress_for_angle("works", "kitchen") == "apron"
+    assert policy.dress_for_angle(None, "worksite") == "coat"
+
+
+def test_guest_fit_puts_that_guest_first() -> None:
+    data = _dossier_data()
+    data["angles"][0]["guest_fit"] = "marin_leveque"
     plan = plan_for(EditorialDossier.model_validate(data), LearnerContext(band="A2", ui_language="fr"))
-    assert plan.stage.dress == "apron"
+    first = plan.stage.guests_available[0]
+    assert (first.id, first.fit) == ("marin_leveque", True)
+    assert first.reason_fr == policy.GUEST_REASON_FR["marin_leveque"]
+    assert [g.id for g in plan.stage.guests_available[1:]] == ["margaux_barman"]
+    data["angles"][0]["guest_fit"] = "nobody_known"
+    plan = plan_for(EditorialDossier.model_validate(data), LearnerContext(band="A2", ui_language="fr"))
+    assert [g.id for g in plan.stage.guests_available] == ["margaux_barman"]
+    assert plan.stage.guests_available[0].reason_fr
 
 
 def test_plan_vocabulary_is_validated_against_the_dossier(dossier: EditorialDossier) -> None:

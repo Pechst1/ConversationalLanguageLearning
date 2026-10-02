@@ -79,7 +79,13 @@
       "id": "boulangerie_galettes",
       "name_fr": "Une vitrine de boulangerie en janvier",
       "brief": "a bakery window with golden puff-pastry galettes, gold paper crowns stacked on the counter, frost on the glass",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {
@@ -94,5 +100,6 @@
       "published_at": "2026-06-24"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "une galette avec sa fève"
 }

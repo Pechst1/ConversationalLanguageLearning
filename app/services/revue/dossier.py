@@ -145,6 +145,18 @@ class Angle(_Model):
     id: str = Field(min_length=1)
     fr: str = Field(min_length=1)
     purpose: AnglePurpose
+    #: WP-119 phase 2: how the learner takes part (dresses Toi, §12.5) and which guest fits (§7).
+    participation: Literal["none", "helps", "works", "formal"] = "none"
+    guest_fit: str | None = None
+
+
+class Geo(_Model):
+    """Where a place is on the map (WP-120 §3.1); resolved by ``geo.py``, checked by ``check_geo``."""
+
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    precision: Literal["exact", "city", "region"]
+    label_fr: str = Field(min_length=1)
 
 
 class Place(_Model):
@@ -154,6 +166,8 @@ class Place(_Model):
     name_fr: str = Field(min_length=1)
     brief: str = ""
     known: bool = False
+    #: WP-120 §3: optional, so a dossier without coordinates stays valid (no pin).
+    geo: Geo | None = None
 
 
 class TimeScope(_Model):
@@ -212,6 +226,8 @@ class EditorialDossier(_Model):
     time_scope: TimeScope
     sources: list[Source] = Field(min_length=1)
     evergreen: bool = False
+    #: WP-120 §4.1: the one object the vignette's pictogram draws («une urne»); chosen by the builder.
+    vignette_object_fr: str | None = None
 
     @field_validator("week")
     @classmethod

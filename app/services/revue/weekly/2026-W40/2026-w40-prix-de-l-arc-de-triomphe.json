@@ -85,7 +85,13 @@
       "id": "hippodrome_longchamp",
       "name_fr": "L'hippodrome de ParisLongchamp",
       "brief": "an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8573,
+        "lon": 2.2338,
+        "precision": "exact",
+        "label_fr": "Hippodrome de ParisLongchamp"
+      }
     }
   ],
   "time_scope": {

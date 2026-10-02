@@ -84,7 +84,13 @@
       "id": "rue_paris_voile_ombrage",
       "name_fr": "Une rue de Paris sous un voile d'ombrage",
       "brief": "a narrow Paris street of cream stone buildings with closed grey shutters, a white shade sail stretched high between balconies, young plane trees in iron grates, hard summer light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {

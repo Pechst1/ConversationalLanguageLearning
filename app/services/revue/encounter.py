@@ -1,4 +1,4 @@
-"""The encounter: Romy, the learner, one dossier, one week (WP-119 §5, phase 1).
+"""The encounter: Romy, the learner, one dossier, one week (WP-119 §5, phases 1–2).
 
 The turn loop between the editorial dossier (what is true), the session plan (this
 learner) and the conversation state (what happened). Everything a learner sees is a
@@ -24,12 +24,20 @@ season's Knowledge check for the learner's current position
 (:func:`app.services.revue.checks.check_knowledge`) — one regeneration, then the
 authored line.
 
-**Grading.** ``journey_conversation.evaluate_response`` — the existing respond grading
-entry point — needs a planned journey (a ``ScenarioBrief`` and a ``ResponseTask``) and
-writes story outcomes to the learner's serial thread, so it cannot be called on a Revue
-turn. :func:`grade_turn` is the phase-1 adapter: every turn is ``unscored`` with
-``capability_known=False`` (the Credit check's "unknown, never mastery"), and the
-evidence event records which plan words the learner used, never as "correct".
+**Grading** (phase 2, :mod:`app.services.revue.grading`): a Papier rubric
+(``revue-rubric-v1``) from the claims shown and the plan's vocabulary, scored by the
+critic model through the provider's LLM plumbing (deterministic under the fake); per
+target word ``correct | incorrect | unscored`` with the can-do it belongs to, through
+the Credit check. ``journey_conversation``'s scorer grades a scenario objective and
+needs a planned journey, so it is not reused (see the grading module).
+
+**Guests** (phase 2, §7): one guest per Papier, with a reason to care, enters during
+``pursue`` (the angle's ``guest_fit``, else a turn that touches their topic words),
+speaks its reason, may follow up, disagree and change position (``guest_position``).
+Every guest line passes the Knowledge check (one regeneration, then the authored line
+of ``evergreen/guests/guest_lines.json``); the knowledge context
+(:mod:`app.services.revue.knowledge`) travels with every Romy and guest call; at the
+close each cast member on stage writes one ``NPCMemory`` row.
 """
 
 from __future__ import annotations
@@ -39,7 +47,7 @@ import json
 import re
 import unicodedata
 import uuid
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -64,10 +72,13 @@ from app.schemas.revue import (
     RvEvidence,
     RvFiled,
     RvGloss,
+    RvGuestItem,
     RvHeadlineChoiceOffer,
     RvHeadlineEvidence,
     RvHeadlineOption,
     RvHeadlinePickResult,
+    RvHeadlineWriteOffer,
+    RvHeadlineWriteResult,
     RvKept,
     RvLineItem,
     RvMade,
@@ -87,6 +98,8 @@ from app.schemas.revue import (
     RvRoom,
     RvSessionView,
     RvShiftItem,
+    RvShortReportOffer,
+    RvShortReportResult,
     RvSource,
     RvStage,
     RvStageMember,
@@ -96,11 +109,12 @@ from app.schemas.revue import (
     RvTurnResult,
     RvUncertaintyItem,
     RvWeek,
+    RvWordEvidence,
 )
-from app.services.revue import policy
+from app.schemas.revue_vignette import VignetteView
+from app.services.revue import grading, knowledge, policy
 from app.services.revue.checks import (
     RELATIVE_DATE_PHRASES,
-    check_credit,
     check_distinguishable,
     check_knowledge,
     failures,
@@ -137,13 +151,43 @@ KEPT_LINE = "Bonne question. Je la garde pour la semaine prochaine : on boucle a
 SIMPLIFY_LEAD = "Pardon, je vais trop vite."
 COLOPHON = "La suite la semaine prochaine."
 
-GRADER_ID = "revue-unscored-adapter-v1"
-CAPABILITY_ID = "revue.conversation"
+GRADER_ID = grading.RUBRIC_ID
+CAPABILITY_ID = grading.CONVERSATION_CAPABILITY
 ROOM_LINES = 7
 BOUCLAGE_RATIO = 0.8
 #: The provider's only memory of the conversation (§5, the brief): the last six items.
 HISTORY_ITEMS = 6
-PHASE1_MAKE: tuple[str, ...] = ("headline_choice", "reader_question")
+#: The make kinds the encounter builds, in the order the wire lists them. ``headline_choice``
+#: and ``reader_question`` are offered at every band; the others when the plan has them
+#: (``session.MAKE_OPTIONS_UPPER``: B1+). ``tell_margaux`` is planned, not built.
+MAKE_KINDS: tuple[str, ...] = ("headline_choice", "headline_write", "reader_question", "short_report")
+ALWAYS_MAKE: frozenset[str] = frozenset({"headline_choice", "reader_question"})
+SHORT_REPORT_SECONDS = 30
+
+#: Romy's ``make_intro`` line (the first GET of the make options), by the recommended kind.
+MAKE_INTRO_LINES: dict[str, str] = {
+    "headline_choice": "Il me faut un titre. Lequel colle aux faits ?",
+    "headline_write": "Il me faut un titre. Tu l'écris ? Court, et vrai.",
+    "reader_question": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "short_report": "Tu me fais un petit reportage ? Trente secondes, pas plus.",
+}
+#: Romy's ``make_done`` line once something is filed (``*_wrong``: a pick the claims contradict;
+#: ``headline_write_refused``: a written headline a shown claim contradicts — nothing filed).
+MAKE_DONE_LINES: dict[str, str] = {
+    "headline_choice": "C'est noté. Ce titre-là tient debout.",
+    "headline_choice_wrong": "Celui-là, les sources le contredisent. On garde l'autre.",
+    "headline_write": "Je le prends. C'est ton titre.",
+    "headline_write_refused": "Attention : les sources disent autre chose. Tu réessaies ?",
+    "reader_question": "Partie pour la rédaction.",
+    "short_report": "C'est enregistré. Je le mets dans mon papier.",
+}
+
+#: Phase 2 (§7): one guest per Papier, and at most this many lines after their entrance.
+MAX_GUESTS = 1
+GUEST_LINES_AFTER_ENTRY = 3
+GUEST_MAX_WORDS = 25
+#: The pilot-ledger event the cost report's ``revue`` line sums (``cost_usd`` per session).
+REVUE_COST_EVENT_TYPE = "revue_session"
 #: How many claims Romy puts on the table in the ``facts`` beat.
 FACTS_ON_ENTRY = 2
 
@@ -159,6 +203,8 @@ PURPOSE_LINES: dict[str, str] = {
 CLOSE_LINES: dict[str, str] = {
     "reader_question": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
     "headline_choice": "Je garde ton titre. Il part avec mon papier.",
+    "headline_write": "Je garde ton titre, tel que tu l'as écrit. Il part avec mon papier.",
+    "short_report": "Ton reportage part avec mon papier. On entend ta voix dedans.",
     "none": "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 }
 
@@ -398,7 +444,7 @@ def find_dossier(dossier_id: str, week: str) -> EditorialDossier | None:
 # ---------------------------------------------------------------------------
 
 
-def stage_for(dossier: EditorialDossier, plan: SessionPlan | None = None) -> RvStage:
+def stage_for(dossier: EditorialDossier, plan: SessionPlan | None = None, state: ConversationState | None = None) -> RvStage:
     from app.services.season.world import SEASON_ONE_LOCATIONS, plate_for
 
     place = next((p for p in dossier.places if plan is None or p.id == plan.stage.place_id), dossier.places[0])
@@ -411,6 +457,11 @@ def stage_for(dossier: EditorialDossier, plan: SessionPlan | None = None) -> RvS
         if plan is not None
         else [RvStageMember(id=ROMY_ID, hold="notebook"), RvStageMember(id="user", hold=None)]
     )
+    guest = state.guest_on_stage if state is not None else None
+    if guest and all(member.id != guest for member in cast):
+        # §8.3: the guest stands beside Romy.
+        romy_index = next((i for i, member in enumerate(cast) if member.id == ROMY_ID), -1)
+        cast.insert(romy_index + 1, RvStageMember(id=guest, hold=None))
     return RvStage(
         place_id=place.id,
         place_fr=place.name_fr,
@@ -486,6 +537,8 @@ class RevueProvider(Protocol):
 
     def close(self, context: dict[str, Any]) -> dict[str, Any]: ...
 
+    def guest(self, context: dict[str, Any]) -> dict[str, Any]: ...
+
 
 def extract_vocabulary(claims: Sequence[dict[str, str]], count: int) -> list[dict[str, str]]:
     """Deterministic content words from the claims' French, with their article when it precedes them."""
@@ -525,6 +578,7 @@ class FakeRevueProvider:
     name: str = "fake-revue"
     script: list[dict[str, Any]] = field(default_factory=list)
     headline_script: list[dict[str, Any]] = field(default_factory=list)
+    guest_script: list[dict[str, Any]] = field(default_factory=list)
     calls: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     spent_usd: float = 0.0
 
@@ -606,6 +660,24 @@ class FakeRevueProvider:
         }
 
 
+    def guest(self, context: dict[str, Any]) -> dict[str, Any]:
+        """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
+        Later: a learner's point («parce que», «mais», «car»…) moves an ``against`` guest;
+        otherwise the guest stays quiet (``line_fr`` null)."""
+
+        self.calls.append(("guest", context))
+        if self.guest_script:
+            return dict(self.guest_script.pop(0))
+        if context.get("move") == "enter":
+            position = "against" if (context.get("angle") or {}).get("purpose") == "explain_disagreement" else "for"
+            return {"line_fr": str(context.get("reason_fr") or ""), "position": position, "move": "enter"}
+        text = fold_keep_length(str(context.get("learner_text") or ""))
+        point = any(marker in f" {text} " for marker in (" parce que ", " parce qu'", " car ", " mais ", " pourtant "))
+        if point and context.get("position") == "against":
+            return {"line_fr": "Hmm. Vu comme ça… je change d'avis.", "position": "moved", "move": "moved"}
+        return {"line_fr": None, "position": context.get("position"), "move": "follow_up"}
+
+
 def _fake_contradiction(fr: str, index: int) -> str:
     number = re.search(r"\d+", fr)
     if number:
@@ -649,6 +721,16 @@ _TASKS: dict[str, str] = {
         "possible. why_native: one line in '{language}' explaining the main change, or null. "
         'JSON: {{"proposal_fr": str, "why_native": str|null}}'
     ),
+    "guest": (
+        "Now write ONE line for the guest {name} (not Romy), who stands beside Romy, in their voice and with "
+        "the register they use with the learner ({register}). move 'enter': they just arrived and say why they "
+        "care (reason_fr) in their own words. Otherwise they may ask the learner a follow-up, disagree with Romy "
+        "or the learner, or change their mind when the learner made a real point ('moved'); stay quiet "
+        "(line_fr null) when they have nothing to add. Max {max_words} words, CEFR {band}. They only know what "
+        "the claims and their knowledge context say; never anything else about their own life. "
+        'JSON: {{"line_fr": str|null, "position": "for"|"against"|"moved"|null, '
+        '"move": "enter"|"follow_up"|"disagree"|"moved"}}'
+    ),
     "close": (
         "Romy closes the session. Say in one line what she does with the learner's contribution (no praise). "
         "headline_fr: keep the learner's artifact text when there is one. body_lines: exactly three short French "
@@ -675,12 +757,25 @@ class OpenAIRevueProvider:
         return self._service
 
     def _ask(self, task: str, payload: dict[str, Any], **fmt: Any) -> dict[str, Any]:
-        instructions = _TASKS[task].format(**fmt)
+        return self.ask_json(_TASKS[task].format(**fmt), payload, label=task)
+
+    def ask_json(
+        self,
+        instructions: str,
+        payload: dict[str, Any],
+        *,
+        system: str = _SYSTEM,
+        temperature: float = 0.4,
+        label: str = "task",
+    ) -> dict[str, Any]:
+        """One structured JSON call; the cost lands on :attr:`spent_usd`. The rubric critic
+        (:class:`app.services.revue.grading.LLMRubricScorer`) uses it with its own system prompt."""
+
         try:
             result = self._llm().generate_chat_completion(
                 [{"role": "user", "content": f"{instructions}\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False)}"}],
-                system_prompt=_SYSTEM,
-                temperature=0.4,
+                system_prompt=system,
+                temperature=temperature,
                 max_tokens=self.max_tokens,
                 response_format={"type": "json_object"},
                 reasoning_effort="low",
@@ -691,9 +786,9 @@ class OpenAIRevueProvider:
         try:
             data = json.loads(result.content or "")
         except (TypeError, ValueError) as exc:
-            raise RevueProviderError(f"{task}: not JSON") from exc
+            raise RevueProviderError(f"{label}: not JSON") from exc
         if not isinstance(data, dict):
-            raise RevueProviderError(f"{task}: not an object")
+            raise RevueProviderError(f"{label}: not an object")
         return data
 
     def vocabulary(self, *, claims: list[dict[str, str]], count: int, language: str) -> list[dict[str, str]]:
@@ -718,9 +813,27 @@ class OpenAIRevueProvider:
     def close(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask("close", context)
 
+    def guest(self, context: dict[str, Any]) -> dict[str, Any]:
+        return self._ask(
+            "guest",
+            context,
+            name=context.get("name"),
+            register=context.get("register"),
+            max_words=context.get("max_words"),
+            band=context.get("band"),
+        )
+
 
 #: The authored fallback for everything but Romy's reply (see the module docstring).
 AUTHORED = FakeRevueProvider(name="authored-revue")
+
+
+def scorer_for(provider: Any) -> grading.RubricScorer:
+    """The critic through the provider's LLM plumbing when it has one, else the deterministic rubric."""
+
+    if callable(getattr(provider, "ask_json", None)):
+        return grading.LLMRubricScorer(provider)
+    return grading.FakeRubricScorer()
 
 
 def default_provider() -> RevueProvider:
@@ -735,21 +848,8 @@ def default_provider() -> RevueProvider:
 
 
 # ---------------------------------------------------------------------------
-# Grading adapter and the learner's season position
+# The learner's season position
 # ---------------------------------------------------------------------------
-
-
-def grade_turn(text: str, *, vocabulary: Iterable[VocabItem]) -> dict[str, Any]:
-    """The phase-1 grading adapter: always ``unscored`` (see the module docstring)."""
-
-    return {
-        "rubric_version": GRADER_ID,
-        "capability_id": CAPABILITY_ID,
-        "outcome": "unscored",
-        "capability_known": False,
-        "correct": None,
-        "words_used": [item.fr for item in vocabulary if _contains_word(text, item.fr)],
-    }
 
 
 @dataclass(frozen=True)
@@ -886,7 +986,16 @@ def _gloss_language_of(plan: SessionPlan) -> str:
     return plan.learner.ui_language
 
 
-def _line(event: StateEvent, plan: SessionPlan, *, suffix: str = "", role: str, text: str, translation: str | None = None) -> RvLineItem:
+def _line(
+    event: StateEvent,
+    plan: SessionPlan,
+    *,
+    suffix: str = "",
+    role: str,
+    text: str,
+    translation: str | None = None,
+    reason: str | None = None,
+) -> RvLineItem:
     return RvLineItem(
         id=f"{event.seq}{suffix}",
         seq=event.seq,
@@ -895,7 +1004,23 @@ def _line(event: StateEvent, plan: SessionPlan, *, suffix: str = "", role: str, 
         text_fr=text,
         translation=translation,
         glosses=_glosses(text, plan),
+        reason=reason if role == "fallback" else None,  # type: ignore[arg-type]
     )
+
+
+def _fallback_reason(payload: dict[str, Any]) -> str:
+    """Why an authored line stands in (phase 2 wire); derived for phase-1 events."""
+
+    if payload.get("reason") in {"model_down", "knowledge_refused", "budget", "no_match"}:
+        return str(payload["reason"])
+    if payload.get("kept"):
+        return "budget"
+    return "knowledge_refused" if "knowledge" in (payload.get("refused") or []) else "model_down"
+
+
+def _romy_role(payload: dict[str, Any]) -> str:
+    # Phase 1 stored the column-full line as a ``reply`` with ``kept``; phase 2 calls it a fallback.
+    return "fallback" if payload.get("kept") else str(payload.get("role") or "reply")
 
 
 def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: ConversationState) -> list[Any]:
@@ -913,13 +1038,16 @@ def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: Conversati
             if payload.get("place_note"):
                 items.append(_line(event, plan, suffix=".p", role="place_note", text=str(payload["place_note"])))
             if payload.get("request_miss"):
-                items.append(_line(event, plan, suffix=".m", role="fallback", text=str(payload["request_miss"])))
+                items.append(_line(event, plan, suffix=".m", role="fallback", text=str(payload["request_miss"]),
+                                   reason="no_match"))
             items.append(_line(event, plan, role="purpose", text=str(payload.get("text_fr") or "")))
             if payload.get("summary_fr"):
                 items.append(RvSummaryItem(id=f"{event.seq}.s", seq=event.seq, at=at, text_fr=str(payload["summary_fr"])))
         elif event.kind == "turn_romy":
-            items.append(_line(event, plan, role=str(payload.get("role") or "reply"), text=str(payload.get("text_fr") or ""),
-                               translation=payload.get("translation")))
+            role = _romy_role(payload)
+            items.append(_line(event, plan, role=role, text=str(payload.get("text_fr") or ""),
+                               translation=payload.get("translation"),
+                               reason=_fallback_reason(payload) if role == "fallback" else None))
             if payload.get("uncertainty_text"):
                 items.append(RvUncertaintyItem(id=f"{event.seq}.u", seq=event.seq, at=at, text_fr=str(payload["uncertainty_text"])))
         elif event.kind == "claim_shown":
@@ -937,6 +1065,22 @@ def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: Conversati
             items.append(RvShiftItem(id=str(event.seq), seq=event.seq, at=at, reason=payload.get("phase") or "bouclage"))
         elif event.kind == "artifact":
             items.append(RvMadeItem(id=str(event.seq), seq=event.seq, at=at, made=_made(payload)))
+        elif event.kind == "turn_guest" and payload.get("text_fr"):
+            text = str(payload["text_fr"])
+            items.append(RvGuestItem(
+                id=str(event.seq),
+                seq=event.seq,
+                at=at,
+                cast_id=str(payload.get("id") or ""),
+                text_fr=text,
+                move=payload.get("move") or "follow_up",
+                position=payload.get("position") if payload.get("position") in {"for", "against", "moved"} else None,
+                # The caption under an entering guest; absent when their line already says it.
+                reason_fr=(payload.get("reason_fr") if payload.get("move") == "enter"
+                           and payload.get("reason_fr") != text else None),
+                reason=payload.get("reason") if payload.get("reason") in {"model_down", "knowledge_refused"} else None,
+                glosses=_glosses(text, plan),
+            ))
     return items
 
 
@@ -1040,11 +1184,10 @@ def session_view(loaded: Loaded) -> RvSessionView:
             vocabulary=[
                 RvGloss(fr=item.fr, gloss=item.gloss.get(language, ""), claim_id=item.claim_id) for item in plan.vocabulary
             ],
-            # Phase 1 builds exactly two make options at every band (§10); phase-2 kinds never travel.
-            make_options=list(PHASE1_MAKE),  # type: ignore[arg-type]
+            make_options=served_make_options(plan),  # type: ignore[arg-type]
             budget=RvBudget(turns=plan.budget.turns, minutes=plan.budget.minutes),
         ),
-        stage=stage_for(dossier, plan),
+        stage=stage_for(dossier, plan, state),
         beat=beat_for(state),  # type: ignore[arg-type]
         room=room,
         thread=thread_items(dossier, plan, state),
@@ -1053,6 +1196,13 @@ def session_view(loaded: Loaded) -> RvSessionView:
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
     )
+
+
+def served_make_options(plan: SessionPlan) -> list[str]:
+    """The make kinds this plan offers: the two of every band, plus the plan's built ones."""
+
+    planned = set(plan.activities.make_options)
+    return [kind for kind in MAKE_KINDS if kind in ALWAYS_MAKE or kind in planned]
 
 
 def _iso(value: datetime | None) -> str:
@@ -1088,12 +1238,53 @@ def _match_score(text: str, dossier: EditorialDossier) -> int:
     return len(words & content_words(haystack))
 
 
+def evidence_view(payload: dict[str, Any]) -> RvEvidence:
+    """The wire's evidence from a stored ``evidence`` event (phase-1 events read as unscored)."""
+
+    words = [
+        RvWordEvidence(fr=str(row.get("fr") or ""), outcome=row.get("outcome") or "unscored",
+                       capability_known=bool(row.get("capability_known")))
+        for row in payload.get("word_outcomes") or []
+        if isinstance(row, dict) and row.get("fr")
+    ]
+    fact_fit = payload.get("fact_fit")
+    register = payload.get("register")
+    return RvEvidence(
+        outcome=payload.get("outcome") or "unscored",
+        capability_known=bool(payload.get("capability_known")),
+        grader=str(payload.get("rubric_version") or GRADER_ID),
+        words=words,
+        fact_fit=fact_fit if fact_fit in {"supported", "unsupported", "contradicted", "not_applicable"} else "not_applicable",
+        register_note=register if register in {"ok", "vous_to_tu", "tu_to_vous"} else "ok",
+    )
+
+
+def comprehension_lost(text: str, dossier: EditorialDossier) -> bool:
+    """§5.3, phase 2: an unscored turn counts as a failed comprehension turn when it shows no
+    grasp of the story — not a question, not one of Romy's quick replies, and not a single
+    content word shared with the dossier (title, summary, claims, uncertainties, angles)."""
+
+    stripped = (text or "").strip()
+    if not stripped or stripped in _META_LINES or is_question(stripped):
+        return False
+    haystack = " ".join([dossier.title_fr, dossier.summary_fr, *(c.fr for c in dossier.claims),
+                         *dossier.uncertainties, *(a.fr for a in dossier.angles)])
+    words = content_words(stripped)
+    return bool(words) and not (words & content_words(haystack))
+
+
 class RevueEncounter:
     """One learner's Revue, end to end. Every method commits what it appends."""
 
-    def __init__(self, db: Session, provider: RevueProvider | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        provider: RevueProvider | None = None,
+        scorer: grading.RubricScorer | None = None,
+    ) -> None:
         self.db = db
         self.provider = provider or default_provider()
+        self.scorer = scorer or scorer_for(self.provider)
 
     # -- entry -------------------------------------------------------------
 
@@ -1236,10 +1427,12 @@ class RevueEncounter:
         if angle_id and dossier.angle_by_id(angle_id) is None:
             raise RevueError(404, "revue_dossier_not_found", dossier_id=dossier.id, angle_id=angle_id)
 
+        spent_before = self._spent()
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
         state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                     free_request=(free_request or None), snapshot=dossier.model_dump(mode="json"))
+                     free_request=(free_request or None), snapshot=dossier.model_dump(mode="json"),
+                     cost_usd=round(self._spent() - spent_before, 6))
         self._arrive(state, dossier, plan, request_miss=request_miss)
 
         row = RevueSession(
@@ -1261,6 +1454,9 @@ class RevueEncounter:
             raise RevueError(409, "revue_session_active", session_id=str(existing.id) if existing else "") from exc
         self.db.refresh(row)
         return row
+
+    def _spent(self) -> float:
+        return float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -1345,6 +1541,7 @@ class RevueEncounter:
         before = state.turns_used
         budget = max(1, plan.budget.turns)
         phase_before = room_for(plan, state).phase
+        shown_before = self._shown_claims(loaded)
         learner_event = state.append("turn_learner", text_fr=text, mode=mode, client_turn_id=client_turn_id)
         question = is_question(text)
         lexical_breakdown = is_incomprehension(text)
@@ -1358,12 +1555,15 @@ class RevueEncounter:
         shift = None
         if before >= budget:
             # The column is full: no model call, the question is kept for next week.
-            state.append("turn_romy", beat="pursue", role="reply", text_fr=KEPT_LINE, kept=True)
+            state.append("turn_romy", beat="pursue", role="fallback", reason="budget", text_fr=KEPT_LINE, kept=True)
             answerable = False
             uncertainty_text = None
         else:
-            position = season_position(self.db, self._owner(row))
-            outcome = self._reply(loaded, text, position=position, simplified=simplified)
+            owner = self._owner(row)
+            position = season_position(self.db, owner)
+            world = knowledge.learner_world(self.db, owner)
+            outcome = self._reply(loaded, text, position=position, simplified=simplified,
+                                  knowledge_context=self._knowledge(loaded, owner, position, world, [ROMY_ID]))
             shift = outcome["shift"]
             new_claims = [cid for cid in outcome["claims_cited"] if cid not in state.claims_shown]
             if not state.claims_shown and not new_claims:
@@ -1375,6 +1575,7 @@ class RevueEncounter:
                 "turn_romy",
                 beat="facts" if before == 0 else "pursue",
                 role=outcome["role"],
+                reason=outcome.get("reason"),
                 text_fr=outcome["text_fr"],
                 translation=outcome["translation"],
                 claims_cited=outcome["claims_cited"],
@@ -1389,6 +1590,9 @@ class RevueEncounter:
             if new_claims:
                 state.append("claim_shown", claim_ids=new_claims)
             answerable = bool(outcome["claims_cited"]) and not uncertainty_text and outcome["role"] != "fallback"
+            # A guest with a reason (§7) — in ``pursue`` only: the turn after the facts.
+            if before >= 1:
+                self._guest_turn(loaded, owner, text, learner_seq=learner_event.seq, position=position, world=world)
             if shift == "angle":
                 current = current_angle(dossier, plan, state)
                 other = next((a for a in dossier.angles if a.id != current.id), None)
@@ -1399,16 +1603,17 @@ class RevueEncounter:
             state.append("question_raised", text=text, answerable=answerable, uncertainty_text=uncertainty_text,
                          turn_seq=learner_event.seq, kept=before >= budget)
 
-        evidence = grade_turn(text, vocabulary=plan.vocabulary)
-        breakdown = lexical_breakdown or shift == "simplify"
-        if failures(check_credit(evidence)):
-            evidence = {**evidence, "outcome": "unscored", "capability_known": False}
+        evidence = self._grade(loaded, text, kind="respond", claims=shown_before)
+        # §5.3: a failed comprehension turn is an explicit «je ne comprends pas», a turn Romy
+        # answers by simplifying, or (phase 2) an unscored turn that shows no grasp of the story.
+        lost = evidence["outcome"] == "unscored" and comprehension_lost(text, dossier)
+        breakdown = lexical_breakdown or shift == "simplify" or lost
         # ``counts``: a breakdown already answered by a simplification this turn starts a new streak.
-        state.append("evidence", **evidence, breakdown=breakdown, counts=breakdown and not simplified,
+        state.append("evidence", **evidence, breakdown=breakdown, lost=lost, counts=breakdown and not simplified,
                      turn_seq=learner_event.seq)
         if (
             not simplified
-            and shift == "simplify"
+            and (shift == "simplify" or lost)
             and plan.support.simplify_on_breakdown
             and self._breakdown_streak(state) >= 2
         ):
@@ -1422,6 +1627,212 @@ class RevueEncounter:
 
         self._save(loaded)
         return self._turn_result(loaded, since=learner_event.seq)
+
+    # -- grading (phase 2) -------------------------------------------------------
+
+    def _grade(self, loaded: Loaded, text: str, *, kind: str, claims: list[Claim] | None = None) -> dict[str, Any]:
+        dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
+        shown = claims if claims is not None else self._shown_claims(loaded)
+        guest = state.guest_on_stage
+        rubric = grading.build_rubric(
+            kind=kind,  # type: ignore[arg-type]
+            band=plan.learner.band,
+            claims=shown or dossier.facts()[:FACTS_ON_ENTRY],
+            vocabulary=plan.vocabulary,
+            addressee=guest or ROMY_ID,
+            register=knowledge.default_register(guest) if guest else "tu",
+            summary_fr=dossier.summary_fr,
+        )
+        evidence = grading.grade(text, rubric, self.scorer, fallback=grading.FakeRubricScorer(),
+                                 force=kind != "respond")
+        return grading.credited(evidence)
+
+    # -- guests (phase 2, §7) ------------------------------------------------------
+
+    def _knowledge(
+        self,
+        loaded: Loaded,
+        owner: Any,
+        position: SeasonPosition | None,
+        world: knowledge.LearnerWorld,
+        cast_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        dossier = loaded.dossier
+        angle = current_angle(dossier, loaded.plan, loaded.state)
+        return knowledge.knowledge_for(
+            self.db,
+            owner,
+            cast_ids,
+            topic_text=f"{dossier.title_fr} {dossier.summary_fr} {angle.fr}",
+            refused=lambda line: bool(knowledge_hits([line], position)),
+            world=world,
+        )
+
+    def _guest_candidate(self, loaded: Loaded, text: str, world: knowledge.LearnerWorld) -> tuple[Any, str, str | None] | None:
+        """The guest who enters this turn, with the trigger and the word — or None (§7)."""
+
+        state, plan = loaded.state, loaded.plan
+        if len(state.guests_entered) >= MAX_GUESTS:
+            return None
+        guests = [g for g in plan.stage.guests_available if g.id in policy.GUEST_CAST_IDS]
+        if any(g.id == knowledge.CAMILLE_ID for g in guests) and not world.camille_chosen():
+            guests = [g for g in guests if g.id != knowledge.CAMILLE_ID]  # WP-116 phase 2
+        if not guests:
+            return None
+        angle = current_angle(loaded.dossier, plan, state)
+        fit = (angle.guest_fit or "").strip()
+        if fit:
+            chosen = next((g for g in guests if g.id == fit), None)
+            return (chosen, "guest_fit", None) if chosen is not None else None
+        for guest in guests:
+            word = policy.guest_words_hit(guest.id, text)
+            if word:
+                return guest, "topic_words", word
+        return None
+
+    def _guest_turn(
+        self,
+        loaded: Loaded,
+        owner: Any,
+        text: str,
+        *,
+        learner_seq: int,
+        position: SeasonPosition | None,
+        world: knowledge.LearnerWorld,
+    ) -> None:
+        state = loaded.state
+        on_stage = state.guest_on_stage
+        if on_stage is None:
+            candidate = self._guest_candidate(loaded, text, world)
+            if candidate is None:
+                return
+            guest, trigger, word = candidate
+            reason_fr = guest.reason_fr or policy.GUEST_REASON_FR.get(guest.id) or ""
+            state.append("guest_enter", id=guest.id, reason_fr=reason_fr, reason=guest.reason, trigger=trigger,
+                         word=word, turn_seq=learner_seq)
+            self._guest_line(loaded, owner, guest.id, text, move="enter", reason_fr=reason_fr,
+                             learner_seq=learner_seq, position=position, world=world)
+            return
+        spoken = [e for e in state.events if e.kind == "turn_guest" and e.payload.get("id") == on_stage
+                  and e.payload.get("move") != "enter" and e.payload.get("text_fr")]
+        if len(spoken) >= GUEST_LINES_AFTER_ENTRY:
+            return
+        self._guest_line(loaded, owner, on_stage, text, move="follow_up", reason_fr=None,
+                         learner_seq=learner_seq, position=position, world=world)
+
+    def _guest_line(
+        self,
+        loaded: Loaded,
+        owner: Any,
+        guest_id: str,
+        text: str,
+        *,
+        move: str,
+        reason_fr: str | None,
+        learner_seq: int,
+        position: SeasonPosition | None,
+        world: knowledge.LearnerWorld,
+    ) -> None:
+        """One guest line through the Knowledge check: one regeneration, then the authored line."""
+
+        dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
+        angle = current_angle(dossier, plan, state)
+        voice = knowledge.cast_voice(guest_id)
+        current = state.guest_position(guest_id)
+        context: dict[str, Any] = {
+            "task": "guest",
+            "cast_id": guest_id,
+            "name": voice["name"],
+            "register": knowledge.default_register(guest_id),
+            "move": move,
+            "reason_fr": reason_fr,
+            "position": current,
+            "learner_text": text,
+            "angle": {"id": angle.id, "fr": angle.fr, "purpose": angle.purpose},
+            "claims": [{"id": c.id, "kind": c.kind, "fr": c.fr, "attributed_to": c.attributed_to} for c in dossier.claims],
+            "claims_shown": sorted(state.claims_shown),
+            "band": plan.learner.band,
+            "max_words": GUEST_MAX_WORDS,
+            "history": self._history(loaded, keep_last=True),
+            "knowledge": self._knowledge(loaded, owner, position, world, [guest_id]).get(guest_id, {}),
+        }
+        spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
+        attempts = 0
+        problems: list[str] = []
+        parsed: dict[str, Any] | None = None
+        model_down = False
+        for _attempt in range(2):
+            attempts += 1
+            try:
+                raw = self.provider.guest(context)
+            except Exception as exc:  # noqa: BLE001 - the authored line keeps the guest in character
+                logger.bind(session_id=str(loaded.row.id)).warning("revue: guest provider failed ({})", exc)
+                model_down = True
+                break
+            raw = raw if isinstance(raw, dict) else {}
+            line = re.sub(r"\s+", " ", str(raw.get("line_fr") or "")).strip()
+            parsed = {
+                "text_fr": line,
+                "position": raw.get("position") if raw.get("position") in {"for", "against", "moved"} else current,
+                "move": raw.get("move") if raw.get("move") in {"enter", "follow_up", "disagree", "moved"} else move,
+            }
+            problems = []
+            if not line:
+                break  # a guest may stay quiet (never on entry: see below)
+            if word_count(line) > GUEST_MAX_WORDS:
+                problems.append("too_long")
+            if relative_dates(line):
+                problems.append("relative_date")
+            hits = knowledge_hits([line], position)
+            if hits:
+                problems.append("knowledge")
+            if not problems:
+                break
+            context = {**context, "retry_feedback": {"problems": problems, "max_words": GUEST_MAX_WORDS,
+                                                     "forbidden": [hit.get("must_not_id") for hit in hits]}}
+        cost = round(float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before, 6)
+        reason = None
+        if model_down or parsed is None:
+            reason = "model_down"
+        elif "knowledge" in problems:
+            reason = "knowledge_refused"
+        elif problems:
+            line = parsed["text_fr"]
+            if "relative_date" in problems:
+                line = drop_relative_sentences(line)
+            if word_count(line) > GUEST_MAX_WORDS:
+                line = truncate_to_words(line, GUEST_MAX_WORDS)
+            parsed["text_fr"] = line
+            if not line:
+                reason = "model_down"
+        elif not parsed["text_fr"] and move == "enter":
+            reason = "model_down"  # an entrance is never silent
+        if reason is not None or parsed is None:
+            authored = knowledge.authored_guest_line(guest_id, dossier.topic)
+            parsed = {"text_fr": authored, "position": current or ("for" if move == "enter" else None), "move": move}
+        if not parsed["text_fr"]:
+            # Quiet: recorded (cost, attempts) but never shown.
+            state.append("turn_guest", id=guest_id, text_fr=None, move=parsed["move"], position=current,
+                         reason=None, attempts=attempts, refused=problems, cost_usd=cost, turn_seq=learner_seq)
+            return
+        new_position = parsed["position"]
+        if current == "moved" and new_position != "moved":
+            new_position = "moved"  # a mind once changed stays changed in v1
+        state.append(
+            "turn_guest",
+            id=guest_id,
+            text_fr=parsed["text_fr"],
+            move=parsed["move"],
+            position=new_position,
+            reason_fr=reason_fr if move == "enter" else None,
+            reason=reason,
+            attempts=attempts,
+            refused=problems,
+            cost_usd=cost,
+            turn_seq=learner_seq,
+        )
+        if new_position and new_position != current:
+            state.append("guest_position", id=guest_id, position=new_position, previous=current, turn_seq=learner_seq)
 
     @staticmethod
     def _breakdown_streak(state: ConversationState) -> int:
@@ -1451,30 +1862,38 @@ class RevueEncounter:
             support=support_view(plan, state),
             quick_replies=quick_replies(state, room),
             steer_to_make=room.phase != "open" and state.current_artifact is None and not state.closed,
-            evidence=RvEvidence(
-                outcome=payload.get("outcome") or "unscored",
-                capability_known=bool(payload.get("capability_known")),
-                grader=str(payload.get("rubric_version") or GRADER_ID),
-            ),
+            evidence=evidence_view(payload),
         )
 
-    def _history(self, loaded: Loaded) -> list[dict[str, str]]:
+    def _history(self, loaded: Loaded, *, keep_last: bool = False) -> list[dict[str, str]]:
         rows: list[dict[str, str]] = []
         for item in thread_items(loaded.dossier, loaded.plan, loaded.state):
             if isinstance(item, RvMineItem):
                 rows.append({"who": "learner", "text": item.text_fr})
             elif isinstance(item, RvLineItem):
                 rows.append({"who": "romy", "text": item.text_fr})
+            elif isinstance(item, RvGuestItem):
+                rows.append({"who": item.cast_id, "text": item.text_fr})
             elif isinstance(item, RvNarrationItem):
                 rows.append({"who": "narrator", "text": item.text_fr})
             elif isinstance(item, RvClaimsItem):
                 rows.append({"who": "claims_shown", "text": ", ".join(c.id for c in item.claims)})
             elif isinstance(item, RvUncertaintyItem):
                 rows.append({"who": "uncertainty_named", "text": item.text_fr})
+        if keep_last:
+            return rows[-HISTORY_ITEMS:]
         # The learner's current line is the last item; it travels as ``learner_text``.
         return rows[:-1][-HISTORY_ITEMS:]
 
-    def _reply(self, loaded: Loaded, text: str, *, position: SeasonPosition | None, simplified: bool) -> dict[str, Any]:
+    def _reply(
+        self,
+        loaded: Loaded,
+        text: str,
+        *,
+        position: SeasonPosition | None,
+        simplified: bool,
+        knowledge_context: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
         support = current_support(plan, state)
         limit = max(8, support.reading_target_words // 2)
@@ -1497,6 +1916,8 @@ class RevueEncounter:
             "claims_shown": sorted(state.claims_shown),
             "history": self._history(loaded),
             "translation_language": translation_language,
+            "guest_on_stage": state.guest_on_stage,
+            "knowledge": (knowledge_context or {}).get(ROMY_ID),
         }
         known = dossier.claims_by_id()
         spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
@@ -1535,14 +1956,16 @@ class RevueEncounter:
         base = {"translation": None, "claims_cited": [], "uncertainty_index": None, "uncertainty_text": None,
                 "proposes_question": None, "shift": None, "attempts": attempts, "refused": problems, "cost_usd": round(cost, 6)}
         if model_down or parsed is None or "knowledge" in problems or "empty" in problems:
-            return {**base, "role": "fallback", "text_fr": FALLBACK_LINE, "refused": problems or ["model_down"]}
+            reason = "knowledge_refused" if "knowledge" in problems else "model_down"
+            return {**base, "role": "fallback", "reason": reason, "text_fr": FALLBACK_LINE,
+                    "refused": problems or ["model_down"]}
         reply = parsed["text_fr"]
         if "relative_date" in problems:
             reply = drop_relative_sentences(reply)
         if word_count(reply) > limit:
             reply = truncate_to_words(reply, limit)
         if not reply:
-            return {**base, "role": "fallback", "text_fr": FALLBACK_LINE}
+            return {**base, "role": "fallback", "reason": "model_down", "text_fr": FALLBACK_LINE}
         if simplified:
             reply = f"{SIMPLIFY_LEAD} {reply}"
         translation = parsed["translation"] if translation_language and reply == parsed["text_fr"] else None
@@ -1591,6 +2014,7 @@ class RevueEncounter:
         }
         reasons: list[str] = []
         exercise = None
+        spent_before = self._spent()
         for _attempt in range(2):
             try:
                 raw = self.provider.headline(context)
@@ -1603,10 +2027,11 @@ class RevueEncounter:
             if candidate and not reasons:
                 exercise = candidate
                 break
+        cost = round(self._spent() - spent_before, 6)
         if exercise is None:
-            loaded.state.append("choice", kind="headline_exercise", dropped=True, reasons=reasons)
+            loaded.state.append("choice", kind="headline_exercise", dropped=True, reasons=reasons, cost_usd=cost)
         else:
-            loaded.state.append("choice", kind="headline_exercise", dropped=False, exercise=exercise)
+            loaded.state.append("choice", kind="headline_exercise", dropped=False, exercise=exercise, cost_usd=cost)
         self._save(loaded)
         return exercise
 
@@ -1648,17 +2073,48 @@ class RevueEncounter:
         loaded = load(row)
         if row.status != "active" or loaded.state.closed:
             raise RevueError(409, "revue_session_closed")
+        served = served_make_options(loaded.plan)
         exercise = self._headline_exercise(loaded)
         options: list[Any] = []
         if exercise is not None:
             options.append(RvHeadlineChoiceOffer(options=[RvHeadlineOption(**o) for o in exercise["options"]]))
+        if "headline_write" in served:
+            low_high = grading.HEADLINE_WORDS.get(loaded.plan.learner.band, (3, 12))
+            options.append(RvHeadlineWriteOffer(max_words=low_high[1]))
         question = open_question(loaded.state)
         options.append(RvReaderQuestionOffer(
             seed_fr=str(question["text"]) if question else None,
             uncertainty_fr=question.get("uncertainty_text") if question else None,
         ))
-        recommended = "reader_question" if question or exercise is None else "headline_choice"
-        return RvMakeOffer(recommended=recommended, options=options)  # type: ignore[arg-type]
+        if "short_report" in served:
+            options.append(RvShortReportOffer(seconds=SHORT_REPORT_SECONDS))
+        if question:
+            recommended = "reader_question"
+        elif "headline_write" in served:
+            recommended = "headline_write"
+        elif exercise is not None:
+            recommended = "headline_choice"
+        else:
+            recommended = "reader_question"
+        intro = self._make_intro(loaded, recommended)
+        return RvMakeOffer(recommended=recommended, options=options, intro=intro)  # type: ignore[arg-type]
+
+    def _make_intro(self, loaded: Loaded, recommended: str) -> RvLineItem:
+        """Romy's ``make_intro`` line: written once, on the first GET of the make options."""
+
+        state = loaded.state
+        existing = next((e for e in state.events if e.kind == "turn_romy" and e.payload.get("role") == "make_intro"), None)
+        if existing is None:
+            existing = state.append("turn_romy", beat="make", role="make_intro", text_fr=MAKE_INTRO_LINES[recommended],
+                                    recommended=recommended)
+            self._save(loaded)
+        return _line(existing, loaded.plan, role="make_intro", text=str(existing.payload.get("text_fr") or ""))
+
+    def _make_done(self, loaded: Loaded, key: str) -> RvLineItem:
+        """Romy's ``make_done`` line after something is filed (or refused)."""
+
+        event = loaded.state.append("turn_romy", beat="make", role="make_done", text_fr=MAKE_DONE_LINES[key], key=key)
+        return _line(event, loaded.plan, role="make_done", text=MAKE_DONE_LINES[key])
 
     def make(self, row: RevueSession, option: str, payload: dict[str, Any]) -> Any:
         loaded = load(row)
@@ -1672,7 +2128,59 @@ class RevueEncounter:
             return self._propose_question(loaded, payload.get("text"))
         if option == "reader_question" and action == "send":
             return self._send_question(loaded, str(payload.get("text_fr") or ""))
+        if option == "headline_write" and action == "write":
+            return self._write_headline(loaded, str(payload.get("text_fr") or ""))
+        if option == "short_report" and action == "report":
+            return self._short_report(loaded, str(payload.get("transcript") or ""), mode=str(payload.get("mode") or "voice"))
         raise RevueError(422, "revue_unknown_option")
+
+    def _require(self, loaded: Loaded, kind: str) -> None:
+        if kind not in served_make_options(loaded.plan):
+            raise RevueError(409, "revue_make_unavailable", kind=kind)
+
+    def _write_headline(self, loaded: Loaded, text_fr: str) -> RvHeadlineWriteResult:
+        """``headline_write`` (B1+): graded by the rubric for fact fit and band; filed unless
+        a shown claim contradicts it (then Romy asks for another, nothing is filed)."""
+
+        self._require(loaded, "headline_write")
+        text = re.sub(r"\s+", " ", text_fr).strip()
+        if not text:
+            raise RevueError(422, "revue_unknown_option", reason="empty")
+        state = loaded.state
+        evidence = self._grade(loaded, text, kind="headline_write")
+        if not _choices(state, "make"):
+            state.append("choice", kind="make", option="headline_write")
+        state.append("evidence", **evidence, breakdown=False, counts=False, make="headline_write")
+        accepted = evidence.get("fact_fit") != "contradicted"
+        made = None
+        if accepted:
+            made_payload = {"kind": "headline_write", "text_fr": text, "contribution": [[0, len(text)]],
+                            "learner_fr": text, "fact_fit": evidence.get("fact_fit"), "band_fit": evidence.get("band_fit")}
+            state.append("artifact", **made_payload)
+            made = _made(made_payload)
+        line = self._make_done(loaded, "headline_write" if accepted else "headline_write_refused")
+        self._save(loaded)
+        return RvHeadlineWriteResult(accepted=accepted, evidence=evidence_view(evidence), made=made, line=line)
+
+    def _short_report(self, loaded: Loaded, transcript: str, *, mode: str) -> RvShortReportResult:
+        """``short_report``: the transcript of a ~30-second report (the audio route is the
+        client's), graded like a respond turn and filed with the learner's words."""
+
+        self._require(loaded, "short_report")
+        text = re.sub(r"\s+", " ", transcript).strip()
+        if not text:
+            raise RevueError(422, "revue_unknown_option", reason="empty")
+        state = loaded.state
+        evidence = self._grade(loaded, text, kind="short_report")
+        if not _choices(state, "make"):
+            state.append("choice", kind="make", option="short_report")
+        state.append("evidence", **evidence, breakdown=False, counts=False, make="short_report", mode=mode)
+        made_payload = {"kind": "short_report", "text_fr": text, "contribution": [[0, len(text)]], "learner_fr": text,
+                        "mode": mode}
+        state.append("artifact", **made_payload)
+        line = self._make_done(loaded, "short_report")
+        self._save(loaded)
+        return RvShortReportResult(evidence=evidence_view(evidence), made=_made(made_payload), line=line)
 
     def _pick_headline(self, loaded: Loaded, option_id: str) -> RvHeadlinePickResult:
         exercise = self._headline_exercise(loaded)
@@ -1695,12 +2203,14 @@ class RevueEncounter:
         made_payload = {"kind": "headline_choice", "text_fr": text, "contribution": [[0, len(text)]] if correct else [],
                         "learner_fr": None, "picked": option_id, "correct": correct}
         loaded.state.append("artifact", **made_payload)
+        line = self._make_done(loaded, "headline_choice" if correct else "headline_choice_wrong")
         self._save(loaded)
         return RvHeadlinePickResult(
             correct=correct,
             answer_id=answer_id,
             evidence=RvHeadlineEvidence(claim_id=claim.id, quote=claim.quote, source=_source(dossier, claim.source_id)),
             made=_made(made_payload),
+            line=line,
         )
 
     def _propose_question(self, loaded: Loaded, text: str | None) -> RvQuestionProposeResult:
@@ -1717,6 +2227,7 @@ class RevueEncounter:
             "band": loaded.plan.learner.band,
             "language": _gloss_language_of(loaded.plan),
         }
+        spent_before = self._spent()
         try:
             raw = self.provider.question(context)
         except Exception as exc:  # noqa: BLE001
@@ -1735,7 +2246,8 @@ class RevueEncounter:
         )
         if not _choices(state, "make"):
             state.append("choice", kind="make", option="reader_question")
-        state.append("choice", kind="question_draft", **draft.model_dump(mode="json"))
+        state.append("choice", kind="question_draft", **draft.model_dump(mode="json"),
+                     cost_usd=round(self._spent() - spent_before, 6))
         self._save(loaded)
         return RvQuestionProposeResult(draft=draft)
 
@@ -1756,8 +2268,9 @@ class RevueEncounter:
         if not _choices(state, "make"):
             state.append("choice", kind="make", option="reader_question")
         state.append("artifact", **made_payload)
+        line = self._make_done(loaded, "reader_question")
         self._save(loaded)
-        return RvQuestionSendResult(made=_made(made_payload))
+        return RvQuestionSendResult(made=_made(made_payload), line=line)
 
     # -- close -------------------------------------------------------------------
 
@@ -1781,6 +2294,7 @@ class RevueEncounter:
             "open_question": question["text"] if question else None,
             "band": plan.learner.band,
         }
+        spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
         try:
             raw = self.provider.close(context)
         except Exception as exc:  # noqa: BLE001 - an authored close with whatever exists
@@ -1794,13 +2308,15 @@ class RevueEncounter:
         if not romy_line or knowledge_hits([romy_line], position) or relative_dates(romy_line):
             romy_line = CLOSE_LINES.get(kind, CLOSE_LINES["none"])
 
-        if artifact:
+        if artifact and kind != "short_report":
             headline = str(artifact.get("text_fr") or dossier.title_fr)
             contribution = [tuple(span) for span in artifact.get("contribution") or []]
         else:
             headline = re.sub(r"\s+", " ", str(raw.get("headline_fr") or "")).strip() or dossier.title_fr
             if knowledge_hits([headline], position) or relative_dates(headline):
                 headline = dossier.title_fr
+            if artifact and fold_keep_length(headline) == fold_keep_length(str(artifact.get("text_fr") or "")):
+                headline = dossier.title_fr  # a short report is not a headline
             contribution = []
 
         body: list[str] = []
@@ -1841,14 +2357,37 @@ class RevueEncounter:
         else:
             question_kept = str(question["text"]) if question else None
         closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept)
+        closing.vignette = self._mint_vignette(loaded, kind=kind, kept_contribution=bool(contribution))
 
-        state.append("turn_romy", beat="close", role="close", text_fr=romy_line)
+        cost = round(float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before, 6)
+        state.append("turn_romy", beat="close", role="close", text_fr=romy_line, cost_usd=cost)
         state.append("closed", closing=closing.model_dump(mode="json"))
         row.status = "closed"
         row.closed_at = datetime.now(UTC)
         self._remember(loaded, artifact=artifact, kind=kind)
+        self._remember_guests(loaded, kind=kind)
+        self._record_cost(loaded)
         self._save(loaded)
         return session_view(loaded), closing
+
+    def _mint_vignette(self, loaded: Loaded, *, kind: str, kept_contribution: bool) -> VignetteView | None:
+        """WP-120 §4.3: the stamp the learner brings back. Never raises; None when minting fails."""
+
+        from app.services.revue.pictogram import default_pictogram_provider
+        from app.services.revue.vignette import mint_for_close, view_of
+
+        row, dossier = loaded.row, loaded.dossier
+        provider = getattr(self, "pictogram_provider", None) or default_pictogram_provider()
+        minted = mint_for_close(
+            self.db,
+            row=row,
+            dossier=dossier,
+            make_option=None if kind == "none" else kind,
+            kept_contribution=kept_contribution,
+            place_label_fr=stage_for(dossier, loaded.plan).place_fr,
+            provider=provider,
+        )
+        return view_of(self.db, minted) if minted is not None else None
 
     def _remember(self, loaded: Loaded, *, artifact: dict[str, Any] | None, kind: str) -> None:
         """Romy's ``NPCMemory`` of the Revue (§7 "writing back"; guests are phase 2)."""
@@ -1863,6 +2402,10 @@ class RevueEncounter:
             content += f" Tu as posé la question : « {artifact.get('text_fr')} »."
         elif kind == "headline_choice" and artifact:
             content += f" Tu as choisi le titre : « {artifact.get('text_fr')} »."
+        elif kind == "headline_write" and artifact:
+            content += f" Tu as écrit le titre : « {artifact.get('text_fr')} »."
+        elif kind == "short_report" and artifact:
+            content += " Tu as fait un petit reportage pour mon papier."
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
@@ -1881,6 +2424,61 @@ class RevueEncounter:
             importance=5,
             player_quote=str(quote)[:1000] if quote else None,
         ))
+
+    def _remember_guests(self, loaded: Loaded, *, kind: str) -> None:
+        """One ``NPCMemory`` row per guest for what they witnessed (§7 writing back)."""
+
+        row, dossier, state = loaded.row, loaded.dossier, loaded.state
+        _, number = parse_week(row.week)
+        place = stage_for(dossier, loaded.plan).place_fr
+        for guest_id in dict.fromkeys(state.guests_entered):
+            content = (f"Semaine {number}, {_lower_first(place)} : avec Romy, on a parlé de « {dossier.title_fr} »"
+                       " devant moi.")
+            position = state.guest_position(guest_id)
+            if position == "moved":
+                content += " Tu m'as fait changer d'avis."
+            elif position == "against":
+                content += " On n'était pas d'accord."
+            if kind != "none" and state.current_artifact:
+                content += f" Tu as laissé quelque chose pour le papier : « {state.current_artifact.get('text_fr')} »."[:400]
+            seqs = [e.payload.get("turn_seq") for e in state.events if e.kind == "turn_guest" and e.payload.get("id") == guest_id]
+            learner = [e for e in state.events if e.kind == "turn_learner" and e.seq in set(seqs)]
+            quote = learner[-1].payload.get("text_fr") if learner else None
+            knowledge.remember(
+                self.db,
+                user_id=row.user_id,
+                cast_id=guest_id,
+                content=content,
+                scene_id=str(row.id),
+                quote=quote,
+                sentiment="positive" if position == "moved" else "neutral",
+            )
+
+    def _record_cost(self, loaded: Loaded) -> None:
+        """The session's ``cost_usd`` (every model call it recorded) as one pilot-ledger row:
+        the cost report's ``revue`` line (WP-119 §9). Telemetry never costs a close."""
+
+        try:
+            from app.services.pilot_events import PilotEventService
+
+            row, state = loaded.row, loaded.state
+            PilotEventService(self.db).record(
+                REVUE_COST_EVENT_TYPE,
+                user_id=row.user_id,
+                entity_type="revue_session",
+                entity_id=row.id,
+                payload={
+                    "week": row.week,
+                    "dossier_id": row.dossier_id,
+                    "turns": state.turns_used,
+                    "guests": state.guests_entered,
+                    "provider": getattr(self.provider, "name", None),
+                    "grader": getattr(self.scorer, "name", None),
+                },
+                cost_usd=state.cost_usd,
+            )
+        except Exception as exc:  # noqa: BLE001 - defensive, like the correction cost row
+            logger.warning("revue: cost row could not be written ({})", exc)
 
     # -- read ----------------------------------------------------------------------
 
@@ -1915,7 +2513,7 @@ __all__ = [
     "available_dossiers",
     "current_week",
     "default_provider",
-    "grade_turn",
+    "scorer_for",
     "owned_session",
     "season_position",
     "session_view",

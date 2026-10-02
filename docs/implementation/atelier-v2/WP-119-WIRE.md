@@ -1,4 +1,4 @@
-# WP-119 phase 1 · Le Papier de Romy — the wire (frozen 2026-10-02)
+# WP-119 phases 1–2 · Le Papier de Romy — the wire (frozen 2026-10-02; phase 2 «Les invités» added the same day, §6)
 
 *Backend lead. The frontend builds `web-frontend/components/revue/` (WP-119-DESIGN.md §4) against this
 file. Pydantic models: `app/schemas/revue.py`. Router: `app/api/v1/endpoints/revue.py`. Service:
@@ -47,6 +47,7 @@ type RvStage = {
   place_is_real: boolean;      // false → the plate is a stand-in and Romy says so (a `place_note` line)
   dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";  // Toi's outfit
   cast: RvStageMember[];       // [{id: "romy_tremblay", hold: "notebook"}, {id: "user", hold: null}]
+                               // phase 2: a guest on stage stands right after Romy: [romy, {id: "margaux_barman", hold: null}, user]
 };
 
 type RvStoryCard = {
@@ -76,7 +77,7 @@ type RvRoom = {
   remaining_turns: number;     // for the screen-reader sentence only («environ quatre échanges»); never shown as a number
 };
 
-type RvMakeKind = "headline_choice" | "reader_question";   // phase 1; phase-2 kinds are never sent
+type RvMakeKind = "headline_choice" | "headline_write" | "reader_question" | "short_report";   // phase 2: + headline_write (B1+), short_report (B1+)
 
 type RvMade = {
   kind: RvMakeKind;
@@ -116,12 +117,15 @@ type RvItemBase = { id: string /* "<seq>" or "<seq>.<n>" — stable across repla
 | `uncertainty` | `text_fr` | `RvUncertainty` (dashed, «Les sources ne le disent pas») | Romy names a gap the dossier lists |
 | `shift` | `reason: "simplify" \| "angle" \| "bouclage" \| "boucle"`, `angle: {id, fr} \| null` | `RvShift` hairline (`role="status"`) | support changed / angle changed / the column reached 80 % or 100 % |
 | `made` | `made: RvMade` | the artefact as filed (headline or reader question) | the `make` beat |
+| `guest` | `cast_id`, `text_fr`, `move`, `position`, `reason_fr`, `reason`, `glosses` | the guest's bubble (phase 2, §6.2) | a guest's line |
 
 `line.role`: `"purpose"` (the arrive headline bubble), `"place_note"` (phase-1 honest stand-in plate line),
 `"reply"` (a pursue answer), `"steer"` (the bouclage steer, its own bubble right after the reply), `"fallback"`
-(an authored line: knowledge check refused twice, or the model is down), `"close"` (Romy's closing line).
-`speaker` is always `"romy_tremblay"` in phase 1 (guests are phase 2: a `guest` kind will be added, never
-`line` with another speaker before then). `glosses` lists the plan's vocabulary items that occur in `text_fr`.
+(an authored line: knowledge check refused twice, the model is down, the column is full, or a free request
+matched nothing), `"make_intro"` / `"make_done"` (phase 2: Romy's lines around the `make` beat, from the
+server), `"close"` (Romy's closing line). `line.reason` (phase 2) is set on every `fallback` line and null on
+every other: `"model_down" | "knowledge_refused" | "budget" | "no_match"`. `speaker` is always
+`"romy_tremblay"`: guests speak in their own `guest` items, never as a `line`. `glosses` lists the plan's vocabulary items that occur in `text_fr`.
 `translation` is present only when the provider gave one and `support.translation != "none"`.
 
 Client-only kinds from the design (`claimsFolded`, `typing`) are never sent.
@@ -209,7 +213,8 @@ type RvSessionView = {
     angle: { id: string; fr: string; purpose: "understand_change" | "explain_disagreement" | "choose_angle" | "prepare_dispatch" };
     support: RvSupport;                      // current (after any simplify)
     vocabulary: RvGloss[];                   // 5 (A1/A2) or 7 (B1+) words, each tied to a claim
-    make_options: RvMakeKind[];              // phase 1: ["headline_choice", "reader_question"]
+    make_options: RvMakeKind[];              // A1/A2: ["headline_choice", "reader_question"];
+                                             // B1+: ["headline_choice", "headline_write", "reader_question", "short_report"]
     budget: { turns: number; minutes: number };
   };
   stage: RvStage;
@@ -235,7 +240,7 @@ type RvTurnResult = {
   support: RvSupport;
   quick_replies: RvQuickReply[];
   steer_to_make: boolean;
-  evidence: { outcome: "correct" | "incorrect" | "unscored"; capability_known: boolean; grader: string };
+  evidence: RvEvidence;        // phase 2: the Papier rubric, §6.3
 };
 ```
 The facts beat: when no claim is on the table yet, the first reply comes with the dossier's first two facts
@@ -254,13 +259,17 @@ Example (the acceptance test's turn):
 {"items": [
   {"id": "9", "seq": 9, "at": "…", "kind": "mine", "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?", "mode": "text"},
   {"id": "11", "seq": 11, "at": "…", "kind": "line", "speaker": "romy_tremblay", "role": "reply",
-   "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?", "translation": null, "glosses": []},
-  {"id": "11.u", "seq": 11, "at": "…", "kind": "uncertainty", "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."}],
+   "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?", "translation": null, "glosses": [], "reason": null},
+  {"id": "11.u", "seq": 11, "at": "…", "kind": "uncertainty", "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."},
+  {"id": "13", "seq": 13, "at": "…", "kind": "guest", "cast_id": "margaux_barman", "move": "enter", "position": "for",
+   "text_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.", "reason_fr": null, "reason": null, "glosses": []}],
  "beat": "pursue", "room": {"used": 2, "phase": "open", "remaining_turns": 10},
  "support": {"glosses": "tap", "translation": "on_request", "reading_target_words": 90, "vocab_target": 5, "level": 0},
  "quick_replies": [{"label": "On formule la question", "send_fr": "On formule la question ensemble ?"}, {"label": "Plus", "send_fr": "Dis-m'en plus."}],
  "steer_to_make": false,
- "evidence": {"outcome": "unscored", "capability_known": false, "grader": "revue-unscored-adapter-v1"}}
+ "evidence": {"outcome": "unscored", "capability_known": false, "grader": "revue-rubric-v1",
+              "words": [{"fr": "compte", "outcome": "unscored", "capability_known": false}, {"fr": "marchés", "outcome": "unscored", "capability_known": true}],
+              "fact_fit": "not_applicable", "register_note": "ok"}}
 ```
 
 ### 3.6 `GET /revue/sessions/{id}/make` — the make options
@@ -268,11 +277,15 @@ Builds the headline exercise on the first call and stores it in the session's st
 later calls reuse it, so the options never change under the learner); never exposes its answer.
 ```ts
 type RvMakeOffer = {
-  recommended: RvMakeKind;     // reader_question when the learner raised a question the sources cannot answer
+  recommended: RvMakeKind;     // reader_question when the learner raised a question the sources cannot answer,
+                               // else headline_write (B1+), else headline_choice
   options: (
     | { kind: "headline_choice"; options: { id: string; text_fr: string }[] /* 3 */ }
+    | { kind: "headline_write"; max_words: number }          // phase 2, B1+
     | { kind: "reader_question"; seed_fr: string | null /* the learner's open question */; uncertainty_fr: string | null }
-  )[];                          // an unavailable option is absent, never greyed
+    | { kind: "short_report"; seconds: number /* 30 */ }      // phase 2, B1+
+  )[];                          // an unavailable option is absent, never greyed; order as listed
+  intro: RvThreadItem /* line, role "make_intro" */ | null;  // phase 2: written once, on the first GET
 };
 ```
 `headline_choice` is absent when the Distinguishable check fails (a distractor no shown claim contradicts, or
@@ -284,7 +297,11 @@ Body, discriminated by `kind` + `action`:
 | { kind: "headline_choice"; action: "pick"; option_id: string }
 | { kind: "reader_question"; action: "propose"; text?: string /* ≤ 400, any language; default: the open question */ }
 | { kind: "reader_question"; action: "send"; text_fr: string /* 1..300: the proposal, possibly edited */ }
+| { kind: "headline_write"; action: "write"; text_fr: string /* 1..160 */ }                       // phase 2
+| { kind: "short_report"; action: "report"; transcript: string /* 1..1200 */; mode?: "voice" | "text" /* default voice */ }  // phase 2
 ```
+The body is discriminated by `action` (`pick | propose | send | write | report`); a `kind` that does not go
+with the action is a `422`.
 Responses:
 ```ts
 // pick
@@ -295,14 +312,22 @@ Responses:
 { kind: "reader_question"; draft: { learner_fr: string; proposal_fr: string; contribution: [number, number][];
                                      why_native: string | null /* in gloss_language */ } }
 // send
-{ kind: "reader_question"; made: RvMade }
+{ kind: "reader_question"; made: RvMade; line: RvLineItem | null /* make_done */ }
+// write (phase 2)
+{ kind: "headline_write"; accepted: boolean;   // false: a shown claim contradicts it — nothing filed, write again
+  evidence: RvEvidence; made: RvMade | null; line: RvLineItem | null /* make_done */ }
+// report (phase 2)
+{ kind: "short_report"; evidence: RvEvidence; made: RvMade; line: RvLineItem | null /* make_done */ }
 ```
-Errors: `409 {"detail": {"code": "revue_make_unavailable", "kind": "headline_choice"}}`;
+`pick` also returns `line` (phase 2): Romy's `make_done` line.
+Errors: `409 {"detail": {"code": "revue_make_unavailable", "kind": "headline_choice"}}` (also for
+`headline_write` / `short_report` below B1);
 `422 {"detail": {"code": "revue_unknown_option"}}`; `409 revue_session_closed`.
 
 ### 3.8 `POST /revue/sessions/{id}/close` — Romy does something with it
 Body `{}`. Idempotent: a second call returns the stored closing. Writes Romy's `NPCMemory`
-(`memory_type="interaction"`, French, `scene_id` = the session id) and sets `status: "closed"`.
+(`memory_type="interaction"`, French, `scene_id` = the session id) — and, phase 2, one row per guest who came
+on stage, for what they witnessed — sets `status: "closed"`, and writes the session's cost row (§6.5).
 ```ts
 type RvClosing = {
   romy_line_fr: string;        // what she did with the contribution («J'ai mis ta question dans ma liste pour la rédaction.»)
@@ -336,3 +361,127 @@ Response `200 { "session": RvSessionView, "closing": RvClosing }`.
    (`uq_revue_sessions_one_active_per_week`, `WHERE status = 'active'`, PostgreSQL and SQLite) **and** a service check
    before insert (which returns `409 revue_session_active`).
 5. Once closed, the session is read-only (`409 revue_session_closed` on turns and make); `GET` shows the `ended` page.
+
+## 6. Phase 2 · «Les invités» (2026-10-02)
+
+Everything below is additive: a phase-1 client that ignores unknown kinds, roles and fields keeps working.
+A phase-1 session replays with the same items, except that the column-full line (`KEPT_LINE`) now projects as
+`role: "fallback", reason: "budget"` (it was `reply`).
+
+### 6.1 `reason` on fallback lines
+| `reason` | When |
+|---|---|
+| `model_down` | the provider raised, answered nothing usable, or the cut reply was empty → «Je ne sais pas encore. On regarde ce que disent les sources ?» |
+| `knowledge_refused` | the reply failed the season's Knowledge check twice (one regeneration) → the same authored line |
+| `budget` | the column is full (100 % of `budget.turns`): no model call, the question is kept |
+| `no_match` | a free request matched no dossier («Je n'ai que ça cette semaine…», in the `arrive` beat) |
+
+```json
+{"id": "5", "seq": 5, "at": "…", "kind": "line", "speaker": "romy_tremblay", "role": "fallback",
+ "text_fr": "Je ne sais pas encore. On regarde ce que disent les sources ?", "translation": null, "glosses": [],
+ "reason": "model_down"}
+```
+
+### 6.2 The `guest` item
+```ts
+type RvGuestItem = RvItemBase & {
+  kind: "guest";
+  cast_id: "margaux_barman" | "lila_bonnet" | "camille_marchand" | "landlord_marchand" | "marin_leveque" | "augustin_de_roncourt";
+  text_fr: string;
+  move: "enter" | "follow_up" | "disagree" | "moved";
+  position: "for" | "against" | "moved" | null;   // the guest's stance after this line; "moved" stays moved
+  reason_fr: string | null;   // on "enter" only, and only when the line does not already say it: the caption under the guest
+  reason: "model_down" | "knowledge_refused" | null;   // an authored line (evergreen/guests/guest_lines.json) stands in
+  glosses: RvGloss[];
+};
+```
+Rules the server guarantees:
+- **One guest per Papier.** A guest enters in `pursue` only (from the second learner turn, never in `facts`),
+  never after the column is full: the angle's `guest_fit` brings that guest at the first `pursue` turn;
+  otherwise the first guest of the topic (`policy.GUEST_AFFINITY`) whose topic words
+  (`policy.GUEST_TOPIC_WORDS`) the learner's turn touches. Camille only once the learner chose her look
+  (WP-116: `cast_variants` has `camille_marchand`).
+- On entry the guest speaks their reason. Afterwards they may ask a follow-up, disagree, or change position
+  after a learner's point (`move: "moved"`, `position: "moved"`), at most three lines after the entrance;
+  a turn where they have nothing to add sends no `guest` item.
+- Every guest line passed the Knowledge check for the learner's season position, has no relative date and
+  is at most 25 words (one regeneration, then the authored line with `reason`).
+- The stage lists the guest beside Romy from their entrance on (`stage.cast`).
+- Order inside a turn's `items`: `mine, [shift simplify], line(reply|fallback), [uncertainty], [claims], [guest], [shift angle], [shift simplify], [shift bouclage|boucle], [line steer]`.
+
+```json
+{"id": "10", "seq": 10, "at": "…", "kind": "guest", "cast_id": "margaux_barman",
+ "text_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+ "move": "enter", "position": "for", "reason_fr": null, "reason": null, "glosses": []}
+```
+```json
+{"id": "19", "seq": 19, "at": "…", "kind": "guest", "cast_id": "margaux_barman",
+ "text_fr": "Bon. Vu comme ça, tu n'as pas tort.", "move": "moved", "position": "moved",
+ "reason_fr": null, "reason": null, "glosses": []}
+```
+
+### 6.3 `RvEvidence` (the Papier rubric, `revue-rubric-v1`)
+```ts
+type RvEvidence = {
+  outcome: "correct" | "incorrect" | "unscored";
+  capability_known: boolean;          // the target word's can-do exists in the WP-L2 catalogue
+  grader: "revue-rubric-v1";
+  words: { fr: string; outcome: "correct" | "incorrect" | "unscored"; capability_known: boolean }[];   // every plan word
+  fact_fit: "supported" | "unsupported" | "contradicted" | "not_applicable";
+  register_note: "ok" | "vous_to_tu" | "tu_to_vous";   // a code; the client words it («Avec Romy, on se tutoie.»)
+};
+```
+- `correct` needs a target word used correctly (grounded in a quote of the learner's own words) and no
+  contradicted fact; `incorrect` an incorrectly used target word or a fact a shown claim contradicts; else
+  `unscored`. A turn without any target word is `unscored` without a critic call.
+- The Credit check runs on the turn and on each word: a correct use of a word no can-do lists is sent as
+  `unscored`, `capability_known: false` — never mastery.
+- Simplify on breakdown also counts an `unscored` turn that shows no grasp of the story (not a question, not a
+  quick reply, no content word shared with the dossier), two in a row.
+
+```json
+{"outcome": "correct", "capability_known": true, "grader": "revue-rubric-v1",
+ "words": [{"fr": "compte", "outcome": "unscored", "capability_known": false},
+           {"fr": "marchés", "outcome": "correct", "capability_known": true}],
+ "fact_fit": "supported", "register_note": "ok"}
+```
+
+### 6.4 Make: `headline_write`, `short_report`, Romy's lines
+```json
+// GET /revue/sessions/{id}/make (B1)
+{"recommended": "headline_write",
+ "options": [{"kind": "headline_choice", "options": [{"id": "h1", "text_fr": "…"}, {"id": "h2", "text_fr": "…"}, {"id": "h3", "text_fr": "…"}]},
+             {"kind": "headline_write", "max_words": 14},
+             {"kind": "reader_question", "seed_fr": null, "uncertainty_fr": null},
+             {"kind": "short_report", "seconds": 30}],
+ "intro": {"id": "12", "seq": 12, "at": "…", "kind": "line", "speaker": "romy_tremblay", "role": "make_intro",
+           "text_fr": "Il me faut un titre. Tu l'écris ? Court, et vrai.", "translation": null, "glosses": [], "reason": null}}
+```
+```json
+// POST … {"kind": "headline_write", "action": "write", "text_fr": "Paris et ses 91 marchés en plein air"}
+{"kind": "headline_write", "accepted": true,
+ "evidence": {"outcome": "correct", "capability_known": true, "grader": "revue-rubric-v1", "words": [{"fr": "marchés", "outcome": "correct", "capability_known": true}], "fact_fit": "supported", "register_note": "ok"},
+ "made": {"kind": "headline_write", "text_fr": "Paris et ses 91 marchés en plein air", "contribution": [[0, 36]], "learner_fr": "Paris et ses 91 marchés en plein air"},
+ "line": {"id": "14", "seq": 14, "at": "…", "kind": "line", "speaker": "romy_tremblay", "role": "make_done",
+          "text_fr": "Je le prends. C'est ton titre.", "translation": null, "glosses": [], "reason": null}}
+```
+```json
+// POST … {"kind": "short_report", "action": "report", "transcript": "Je suis au marché d'Aligre…", "mode": "voice"}
+{"kind": "short_report", "evidence": {"…": "…"},
+ "made": {"kind": "short_report", "text_fr": "Je suis au marché d'Aligre…", "contribution": [[0, 27]], "learner_fr": "Je suis au marché d'Aligre…"},
+ "line": {"…": "…", "role": "make_done", "text_fr": "C'est enregistré. Je le mets dans mon papier."}}
+```
+- `headline_write` is graded by the rubric for fact fit and band (`grading.HEADLINE_WORDS`); a headline a shown
+  claim contradicts is not filed (`accepted: false`, `made: null`, Romy: «Attention : les sources disent autre
+  chose. Tu réessaies ?»). The dispatch takes the filed headline as written.
+- `short_report` takes the transcript (the recording and its transcription are the client's, through the
+  existing audio route) and grades it like a respond turn; it is filed as the artefact, and the dispatch keeps
+  a headline of its own (a report is not a headline).
+- `make_intro` and `make_done` are thread items like any line: they replay on resume.
+
+### 6.5 Cost
+Every model call the session makes records its `cost_usd` on its event (reply, guest line, rubric critic,
+vocabulary, headline exercise, question, close). The close writes one pilot-ledger row
+`event_type = "revue_session"`, `entity_type = "revue_session"`, `entity_id` = the session id,
+`cost_usd` = the sum, `payload = {week, dossier_id, turns, guests, provider, grader}` — the cost report's
+`revue` line reads it by event type.

@@ -83,7 +83,13 @@
       "id": "marche_noel_strasbourg",
       "name_fr": "Le marché de Noël, place Broglie à Strasbourg",
       "brief": "wooden Christmas market chalets with snow-dusted roofs, garlands and warm lights, steaming mulled-wine pots, a tall decorated fir tree, half-timbered houses at dusk",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.5846,
+        "lon": 7.7487,
+        "precision": "exact",
+        "label_fr": "Marché de Noël, place Broglie, Strasbourg"
+      }
     }
   ],
   "time_scope": {
@@ -104,5 +110,6 @@
       "published_at": "2026-07-09"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "un sapin de Noël"
 }

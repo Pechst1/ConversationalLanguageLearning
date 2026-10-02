@@ -178,3 +178,17 @@ def test_evergreens_pass_run_dossier_checks(dossier: EditorialDossier) -> None:
     )
     assert results
     assert failures(results) == []
+
+
+@pytest.mark.parametrize("dossier", DOSSIERS, ids=_ids(DOSSIERS))
+def test_evergreen_places_resolve_exact_or_city(dossier: EditorialDossier) -> None:
+    # WP-120 phase A: every place has a stored geo, the Geo check holds, and the
+    # resolver (gazetteer, then the stored geo as the proposal) keeps exact or city.
+    from app.services.revue.checks import check_geo
+    from app.services.revue.geo import geocode_dossier, in_france
+
+    assert failures(check_geo(dossier)) == []
+    for place in geocode_dossier(dossier).places:
+        assert place.geo is not None, place.id
+        assert place.geo.precision in {"exact", "city"}, place.id
+        assert in_france(place.geo.lat, place.geo.lon), place.id

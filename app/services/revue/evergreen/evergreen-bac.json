@@ -75,7 +75,13 @@
       "id": "salle_examen_bac",
       "name_fr": "Une salle d'examen dans un lycée en juin",
       "brief": "a high-school exam hall in June, rows of single desks with numbered cards, a wall clock, tall windows open onto a courtyard of lime trees",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {
@@ -90,5 +96,6 @@
       "published_at": "2026-10-02"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "une copie d'examen et un stylo"
 }

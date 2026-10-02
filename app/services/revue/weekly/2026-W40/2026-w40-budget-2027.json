@@ -81,7 +81,13 @@
       "id": "hemicycle_assemblee",
       "name_fr": "L'hémicycle de l'Assemblée nationale",
       "brief": "the empty semicircular chamber of the Assemblée nationale, red velvet benches in rising rows, polished wooden desks, a high glass ceiling, soft daylight",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.862,
+        "lon": 2.3185,
+        "precision": "exact",
+        "label_fr": "Assemblée nationale, Palais Bourbon"
+      }
     }
   ],
   "time_scope": {

@@ -79,7 +79,13 @@
       "id": "rue_commercante_soldes",
       "name_fr": "Une rue commerçante de Paris en janvier",
       "brief": "a Paris shopping street in January, shop windows with red sale stickers, wet pavement, Haussmann facades, grey winter light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {
@@ -100,5 +106,6 @@
       "published_at": "2026-01-21"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "un sac de courses"
 }

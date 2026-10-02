@@ -78,7 +78,8 @@ OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf
 
 DEFAULT_OUTFIT = "coat"
 
-#: Place kind → the dress Toi wears there (§8.2). Anything else: ``coat``.
+#: Place kind → the work outfit Toi wears there once the learner takes part (§8.2,
+#: phase 2: :func:`dress_for_angle`). Anything else: ``coat``.
 DRESS_FOR_PLACE: dict[str, str] = {
     # WP-119 §12.5 (owner): Toi changes clothes only when the learner takes part in the place's
     # work, never for the setting alone. Phase 2 decides it per dossier angle; until then only the
@@ -204,53 +205,145 @@ GUEST_AFFINITY: dict[str, list[dict[str, str]]] = {
         {
             "id": "margaux_barman",
             "reason": "she runs the café counter and cares where what she serves comes from ({place})",
+            "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
         },
     ],
     "culture": [
         {
             "id": "lila_bonnet",
             "reason": "her pupils asked her about it in class ({title})",
+            "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
         },
     ],
     "city": [
         {
             "id": "camille_marchand",
             "reason": "it is her quartier, and she has an opinion about {place}",
+            "reason_fr": "C'est mon quartier. J'ai des chiffres là-dessus, si vous voulez.",
         },
         {
             "id": "landlord_marchand",
             "reason": "he manages buildings in the 10e and anything about {place} touches his business",
+            "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
         },
     ],
     "work": [
         {
             "id": "marin_leveque",
             "reason": "the NGO he works for deals with people this affects ({title})",
+            "reason_fr": "À l'association, on voit des gens que ça touche. Je peux dire un mot ?",
         },
     ],
     "sport": [
         {
             "id": "augustin_de_roncourt",
             "reason": "there is money in it, and Gus always knows who is paying ({title})",
+            "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
         },
     ],
     "politics": [
         {
             "id": "marin_leveque",
             "reason": "the NGO he works for follows this closely ({title})",
+            "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
         },
         {
             "id": "augustin_de_roncourt",
             "reason": "he dines with people on the other side of it ({title})",
+            "reason_fr": "Je dîne avec des gens de l'autre camp. C'est passionnant. Non : fascinant.",
         },
     ],
     "nature": [
         {
             "id": "marin_leveque",
             "reason": "the NGO he works for campaigns on it ({place})",
+            "reason_fr": "Mon association fait campagne là-dessus. Ça me tient à cœur.",
         },
     ],
 }
+
+
+#: WP-119 phase 2: the cast members who can be a Revue guest (Romy is the host).
+GUEST_CAST_IDS: tuple[str, ...] = (
+    "margaux_barman",
+    "lila_bonnet",
+    "camille_marchand",
+    "landlord_marchand",
+    "marin_leveque",
+    "augustin_de_roncourt",
+)
+
+#: A guest's own French reason when the angle's ``guest_fit`` names them outside the
+#: topic's affinity (§7: they enter because they have a reason to care, spoken on entry).
+GUEST_REASON_FR: dict[str, str] = {
+    "margaux_barman": "Ça se discute au comptoir. Alors j'écoute.",
+    "lila_bonnet": "Mes élèves vont me poser la question. Je préfère savoir.",
+    "camille_marchand": "J'ai regardé les chiffres. Je peux préciser ?",
+    "landlord_marchand": "Permettez. Cela touche mes immeubles, voyez-vous.",
+    "marin_leveque": "À l'association, on en parle beaucoup. Je peux dire un mot ?",
+    "augustin_de_roncourt": "Permettez-moi. J'ai un avis. Un avis magnifique.",
+}
+
+#: WP-119 phase 2 (§7): when an angle names no ``guest_fit``, a guest of the topic's
+#: affinity enters during ``pursue``/``make`` when the learner's turn touches one of their
+#: words (accent-folded, a trailing ``*`` is a prefix — the same rule as the place kinds).
+GUEST_TOPIC_WORDS: dict[str, tuple[str, ...]] = {
+    "margaux_barman": (
+        "cafe", "comptoir", "bar", "boire", "vin*", "biere*", "servir", "sert", "client*", "produit*",
+        "manger", "cuisine*", "pain", "fromage*", "legume*", "fruit*", "acheter", "achete*", "prix",
+    ),
+    "lila_bonnet": (
+        "ecole*", "eleve*", "classe*", "enfant*", "professeur*", "prof", "profs", "apprendre", "musique*",
+        "peinture*", "peindre", "art", "artiste*", "livre*", "lire", "histoire*",
+    ),
+    "camille_marchand": (
+        "quartier*", "rue*", "ville*", "velo*", "piste*", "urbanisme", "logement*", "immeuble*",
+        "habitant*", "voisin*", "chiffre*", "metro", "transport*",
+    ),
+    "landlord_marchand": (
+        "immeuble*", "loyer*", "proprietaire*", "logement*", "appartement*", "locataire*", "escalier*",
+        "batiment*", "vendre", "vente*",
+    ),
+    "marin_leveque": (
+        "association*", "ong", "salarie*", "travail*", "travailleur*", "droit*", "syndicat*", "climat*",
+        "environnement*", "nature", "ecolog*", "mer", "peche*", "pecheur*", "planete",
+    ),
+    "augustin_de_roncourt": (
+        "argent", "payer", "paie", "paye*", "cout*", "coute*", "cher*", "budget*", "sponsor*",
+        "entreprise*", "euro*", "million*", "investi*", "riche*", "contrat*",
+    ),
+}
+
+#: WP-119 §12.5 and phase 2: how the learner takes part in the angle (``Angle.participation``,
+#: set by the builder) decides Toi's dress; the place alone never does.
+PARTICIPATION_DRESS: dict[str, str] = {
+    "none": DEFAULT_OUTFIT,
+    "formal": "suit",
+}
+
+
+def dress_for_angle(participation: str | None, kind: str | None) -> str:
+    """Toi's outfit for an angle (phase 2): ``none`` → coat, ``formal`` → suit, ``helps`` or
+    ``works`` → the place's work outfit (:data:`DRESS_FOR_PLACE`: apron in a kitchen or a
+    cellar, hi-vis on a worksite), and an apron wherever the place names no work outfit.
+    :data:`DRESS_FOR_PLACE` is only consulted once the learner takes part.
+    """
+
+    value = str(participation or "none")
+    if value in {"helps", "works"}:
+        dress = DRESS_FOR_PLACE.get(str(kind or ""), DEFAULT_OUTFIT)
+        return dress if dress != DEFAULT_OUTFIT else "apron"
+    return PARTICIPATION_DRESS.get(value, DEFAULT_OUTFIT)
+
+
+def guest_words_hit(cast_id: str, text: str | None) -> str | None:
+    """The first of ``cast_id``'s :data:`GUEST_TOPIC_WORDS` that ``text`` touches, or None."""
+
+    tokens = _tokens(text or "")
+    for word in GUEST_TOPIC_WORDS.get(cast_id, ()):
+        if _word_matches(word, tokens):
+            return word.rstrip("*")
+    return None
 
 
 def _fold_ascii(text: str) -> str:
@@ -334,7 +427,8 @@ def is_sensitive(text: str | None) -> bool:
 
 
 def guests_for(topic: str, **fill: str) -> list[dict[str, str]]:
-    """The topic's preferred guests with their ``reason`` filled (missing keys left as ``…``)."""
+    """The topic's preferred guests with their ``reason`` (English, for the plan and the
+    provider) and ``reason_fr`` (spoken on entry) filled (missing keys left as ``…``)."""
 
     class _Blank(dict):
         def __missing__(self, key: str) -> str:
@@ -342,6 +436,10 @@ def guests_for(topic: str, **fill: str) -> list[dict[str, str]]:
 
     values = _Blank(fill)
     return [
-        {"id": row["id"], "reason": row["reason"].format_map(values)}
+        {
+            "id": row["id"],
+            "reason": row["reason"].format_map(values),
+            "reason_fr": row.get("reason_fr", "").format_map(values) or GUEST_REASON_FR.get(row["id"], ""),
+        }
         for row in GUEST_AFFINITY.get(topic, [])
     ]

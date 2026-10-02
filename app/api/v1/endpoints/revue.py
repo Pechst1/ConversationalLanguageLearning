@@ -21,14 +21,12 @@ from app.db.models.user import User
 from app.schemas.revue import (
     WEEK_PATTERN,
     RvCloseResult,
-    RvHeadlinePickResult,
     RvMakeOffer,
     RvMakeRequest,
+    RvMakeResult,
     RvMatchRequest,
     RvMatchResult,
     RvOffer,
-    RvQuestionProposeResult,
-    RvQuestionSendResult,
     RvSessionView,
     RvStartRequest,
     RvTurnRequest,
@@ -164,7 +162,7 @@ def read_make_options(
 
 @router.post(
     "/sessions/{session_id}/make",
-    response_model=RvHeadlinePickResult | RvQuestionProposeResult | RvQuestionSendResult,
+    response_model=RvMakeResult,  # WP-119 phase 2: + headline_write, short_report
 )
 def post_make(
     session_id: str,

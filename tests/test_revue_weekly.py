@@ -234,3 +234,17 @@ def test_a_dossier_filed_under_the_wrong_week_is_refused(
     monkeypatch.setattr(weekly, "WEEKLY_DIR", tmp_path)
     with pytest.raises(ValueError):
         load_week(WEEK)
+
+
+@pytest.mark.parametrize("dossier", DOSSIERS, ids=_ids(DOSSIERS))
+def test_week_places_resolve_exact_or_city(dossier: EditorialDossier) -> None:
+    # WP-120 phase A: every place has a stored geo, the Geo check holds, and the
+    # resolver (gazetteer, then the stored geo as the proposal) keeps exact or city.
+    from app.services.revue.checks import check_geo
+    from app.services.revue.geo import geocode_dossier, in_france
+
+    assert failures(check_geo(dossier)) == []
+    for place in geocode_dossier(dossier).places:
+        assert place.geo is not None, place.id
+        assert place.geo.precision in {"exact", "city"}, place.id
+        assert in_france(place.geo.lat, place.geo.lon), place.id

@@ -80,7 +80,13 @@
       "id": "fleuriste_chrysanthemes",
       "name_fr": "Le trottoir d'un fleuriste fin octobre",
       "brief": "a florist's pavement display of potted chrysanthemums in bronze, white and purple, wet cobblestones, yellow plane-tree leaves, soft grey autumn light",
-      "known": false
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
     }
   ],
   "time_scope": {
@@ -101,5 +107,6 @@
       "published_at": "2026-03-05"
     }
   ],
-  "evergreen": true
+  "evergreen": true,
+  "vignette_object_fr": "un pot de chrysanthèmes"
 }
