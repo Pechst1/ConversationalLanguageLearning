@@ -48,3 +48,12 @@ def test_a_panel_keeps_its_plate_when_a_drawing_replaces_it():
     panel_art._attach(panel, {"image_url": "/media/drawn.webp"}, "prefetch-1")
     assert panel.image_url == "/media/drawn.webp"
     assert panel.generation_metadata["plate_url"] == plate
+
+
+def test_t1_opens_on_the_rainy_quai_seen_from_the_cafe_not_the_market():
+    """2026-10-02: T1 P1 is night rain on the quai de Valmy; the market plate (a sunny
+    day with stalls) told the wrong story, on Home's card and on the first panel."""
+
+    from app.services.season.world import plate_for
+
+    assert plate_for("quai_de_valmy") == "/assets/serial/locations/le_mistral-counter.webp"

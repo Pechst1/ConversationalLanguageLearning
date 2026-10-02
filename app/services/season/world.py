@@ -23,7 +23,10 @@ from app.services.season.format import SEASON_ROOT
 SEASON_ONE_LOCATIONS: dict[str, dict[str, str | bool]] = {
     "le_mistral": {"name_fr": "Le Mistral", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": True},
     "mistral_back_room": {"name_fr": "L'arrière-salle du Mistral", "plate": "assets/serial/locations/le_mistral-booth.webp", "own": False},
-    "quai_de_valmy": {"name_fr": "Le quai de Valmy", "plate": "assets/serial/locations/marche_canal.webp", "own": False},
+    # The quai has no plate of its own yet. The market plate (a sunny day, stalls) told
+    # the wrong story for T1's opening (night, rain, the red neon); the café's counter
+    # looks out on the rainy quai at night through its windows (2026-10-02).
+    "quai_de_valmy": {"name_fr": "Le quai de Valmy", "plate": "assets/serial/locations/le_mistral-counter.webp", "own": False},
     "stairwell": {"name_fr": "L'escalier", "plate": "assets/serial/locations/user_apartment.webp", "own": False},
     "odile_flat": {"name_fr": "L'appartement d'Odile", "plate": "assets/serial/locations/user_apartment.webp", "own": False},
     "user_apartment": {"name_fr": "Ton studio", "plate": "assets/serial/locations/user_apartment.webp", "own": True},
