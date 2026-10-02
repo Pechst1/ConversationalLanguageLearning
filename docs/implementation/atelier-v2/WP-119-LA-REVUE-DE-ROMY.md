@@ -426,6 +426,79 @@ and a small set of sourced stories.
 Each phase is one commit, `feat(wp-119 phase N): …`, with its row added to §13. A phase is done
 only when used (owner walk or E-3 screenshots), per the process rule in the running log.
 
+## 10b. Phases 2–5 in detail (after the owner's decisions of 2026-10-02)
+
+The table in §10 stays the summary. This section is the brief each phase lead works from; every
+item names its files so the leases do not overlap.
+
+### Phase 2 · «Les invités» (guests, grading, outfits per angle)
+- **Guests with a reason** (`revue/encounter.py`, `revue/policy.py`): `guests_available` from
+  `GUEST_AFFINITY` as a preference; a guest enters during `pursue` or `make` when their reason fits
+  the dossier's angle (the builder sets `guest_fit: cast_id|null` per angle). On entry: one spoken
+  reason; afterwards the guest can ask a follow-up, disagree with Romy or the learner, and change
+  position after a learner's point (the provider returns `guest_position: for|against|moved`).
+  One guest per Papier. Camille only once her look is chosen.
+- **Knowledge context** (`revue/knowledge.py`): per cast member on stage, `known_about_learner`,
+  `trust_of`, `tu_since` (WP-96) and the `NPCMemory` rows mentioning the learner or the topic, with
+  provenance, minus anything the season marks as a future reveal. Every guest line through
+  `check_knowledge` (`director._must_not` with the learner's position). Authored default lines per
+  cast member and topic in `revue/evergreen/guest_lines.json`. Write-back: one `NPCMemory` row per
+  guest for what they witnessed. Season progression is never written.
+- **Grading, real** (`revue/grading.py`): a Papier rubric built from the claims shown and the plan's
+  vocabulary (did the learner's French say something the claims support, in the register the band
+  expects, using which target words); scored by the critic model with a versioned rubric id; the
+  evidence policy gets `capability_known` from a vocabulary → capability registry lookup where one
+  exists, else unknown. Replaces the `unscored` adapter; `simplify on breakdown` can then count
+  unscored turns as §5.3 says. If `journey_conversation` exposes a reusable rubric scorer by then,
+  reuse it; do not fork its grading.
+- **Make options**: `headline_write` (B1+, graded by fact-fit and band through the rubric) and
+  `short_report` (30-second spoken report; transcription through the existing audio route).
+- **Outfits per angle** (`revue/session.py`): `dress` from the angle's `participation` field set by
+  the builder (`none|helps|works|formal`) → coat / apron / hi-vis / suit. Setting alone never dresses.
+- **Wire** (`WP-119-WIRE.md`, `schemas/revue.py`): `reason` on fallback lines (`model_down`,
+  `knowledge_refused`), Romy's make and close lines from the server, `guest` thread item kind.
+- **Cost line**: `cost_usd` per session summed into the cost report's `revue` line.
+- **Tests**: a guest line that would reveal a future tentpole is refused and the default shows; a
+  guest changes position after a learner's point; a real rubric scores a correct use of a target
+  word as evidence; outfit follows participation, not place.
+
+### Phase 3 · «Le kiosque» (intake, the Revue day, the Relevé)
+- **Intake** (`revue/intake.py`, `revue/sources.py`, `app/tasks/revue.py`): Monday 05:00
+  Europe/Paris; grown `FRANCE_SOURCE_REGISTRY` with culture, gastronomy, sport feeds and a
+  `fetch_policy` note per source (allows / refuses bots); the dossier builder from RSS + article
+  text (one structured call per story), all checks on meaning, target `REVUE_STORIES_PER_WEEK`,
+  topic spread 2/2/1/1, evergreen top-up. `refresh=True` from an admin route.
+- **The Revue day**: `DayShape.REVUE` in `journey_contracts` and the planner (5 steps, within budget,
+  never on a tentpole day, at most once a week); the journey player mounts `RvEncounter`; La Une's
+  hero on that day (already wired, `lib/revue-une.ts isRevueDay`).
+- **Second Papier in a week**: allowed from the chip; counts for evidence; does not change `filed`.
+- **Daily-ready**: `revue_sessions.week` → `period` (ISO week or ISO date by `REVUE_CADENCE`); the
+  partial unique index follows; the kiosk shows the last seven when daily.
+- **The Relevé**: `RvReleveSection` with claims and words and their source lines, after Le Registre.
+- **Migrations**: the merge revision once the password-reset migration has landed.
+- **Tests**: fixture RSS → six dossiers passing every check; the 59-day life test with one Papier a
+  week on gap days; daily mode in a unit test flips the period column.
+
+### Phase 4 · «Les planches» (plates)
+- `revue/plates.py`: `PLATE_STYLE` with the people clause (§8.1), the brief rule name + three
+  landmarks + light, the Render check that a `kind: place` entity's name appears in the brief,
+  `PLATE_FORBIDDEN` as decided (§12.4), one paint per place cached in `revue_places`, S3 upload,
+  `REVUE_PLATE_GENERATION_ENABLED` on in staging first.
+- **Two places per dossier** (§12.7): the builder names a second view; the stage switches at the
+  guest's entrance (phase 2) or at `make`.
+- **Owner review**: the first six new plates and the W40 set as a contact sheet before the flag is
+  on in production.
+
+### Phase 5 · «Le feuilleton» (the old path moves over)
+- `GraphicNovelScheduler.create(dossier: EditorialDossier | None)`; `serial._news_seed` → intake;
+  `_source_snapshot` and the source card typed; `fetch_feuilleton_daily_seed` deleted;
+  `fetch_france_context` and `fetch_news_context` marked legacy with their callers listed;
+  `tests/test_feuilleton_audit_regression.py` unchanged and green.
+
+### After phase 5
+WP-120 «La Carte» (places on a map, the vignette) builds on phases 2–4: it needs closed sessions
+with a place (done), geo on places (its own phase A), and the second plate for the card's band.
+
 ## 11. The bridge to generated seasons
 
 A season gap day needs "something true from the city this week" (WP-116 §12). After phase 3 it can
