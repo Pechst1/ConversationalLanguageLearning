@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -360,11 +359,11 @@ def _season_by_ordinal(live: dict[str, Any], ordinal: int, current: int) -> int:
     """Which season the ``ordinal``-th engine day belongs to (legacy scenes)."""
 
     ends = sorted(
-        (
+        
             (_int_or_none(row.get("ended_day")) or 0, _int_or_none(row.get("season")) or 1)
             for row in live.get("seasons") or []
             if isinstance(row, dict)
-        )
+        
     )
     for ended_day, season in ends:
         if ordinal <= ended_day:

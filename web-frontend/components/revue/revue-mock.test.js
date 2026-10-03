@@ -33,7 +33,7 @@ test('the acceptance test: Romy names the gap, they phrase the question, the clo
   const arrive = await client.start();
   assert.equal(arrive.beat, 'arrive');
   assert.equal(arrive.plan.chosenBy, 'recommended');
-  assert.equal(arrive.stage.dress, 'apron');
+  assert.equal(arrive.stage.dress, 'coat');
   assert.equal(arrive.stage.placeIsReal, false);
   assert.ok(arrive.thread.some((item) => item.kind === 'line' && item.role === 'place_note'), 'Romy says the plate stands in');
   assert.ok(arrive.thread.some((item) => item.kind === 'line' && item.role === 'purpose' && /Tu m’aides/.test(item.textFr)));

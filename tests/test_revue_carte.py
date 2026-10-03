@@ -283,7 +283,7 @@ def test_route_answers_the_learners_map_when_on(api: TestClient, db_session: Ses
     headers, email = login(api)
     empty = api.get("/api/v1/revue/carte", headers=headers)
     assert empty.status_code == 200, empty.text
-    assert empty.json() == {"pins": [], "quartier": [], "counts": {"france": 0, "idf": 0, "paris": 0, "unplaced": 0}}
+    assert empty.json() == {"pins": [], "quartier": [], "counts": {"france": 0, "idf": 0, "paris": 0, "unplaced": 0}, "due_total": 0}
 
     user = db_session.scalar(select(User).where(User.email == email))
     papier(db_session, user, geo=BOURGOGNE)
@@ -292,7 +292,7 @@ def test_route_answers_the_learners_map_when_on(api: TestClient, db_session: Ses
     [pin] = body["pins"]
     assert set(pin) == {"session_id", "dossier_id", "week", "closed_at", "place_label_fr", "lat", "lon", "precision",
                         "level", "headline_fr", "kept_words", "contribution_kind", "contribution_fr",
-                        "contribution_spans", "question_fr", "plate_url", "vignette"}
+                        "contribution_spans", "question_fr", "plate_url", "vignette", "place_id", "due_words", "relecture"}
     assert pin["precision"] == "region" and pin["level"] == "france"
     assert body["counts"] == {"france": 1, "idf": 0, "paris": 0, "unplaced": 0}
 

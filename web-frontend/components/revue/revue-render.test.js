@@ -150,7 +150,7 @@ test('RvColumn: seven lines, no number, the word only at bouclage and bouclé', 
   assert.match(render(h(RvColumn, { room: { used: 2, phase: 'open', remainingTurns: 5 }, copy: EN })), /Room for about five exchanges/);
 
   const head = render(h(RvSessionHead, { beat: 'pursue', room: { used: 2, phase: 'open', remainingTurns: 5 }, onExit: () => {}, copy: FR }));
-  assert.match(head, /aria-label="Quitter la Revue — Romy garde tes notes"/);
+  assert.match(head, /aria-label="Quitter le Papier — Romy garde tes notes"/);
   assert.deepEqual([...head.matchAll(/data-beat="(\w+)" data-state="(\w+)"/g)].map((m) => `${m[1]}:${m[2]}`), [
     'arrive:done', 'facts:done', 'pursue:active', 'make:pending', 'close:pending',
   ]);
@@ -207,7 +207,7 @@ test('RvEncounter replays a resume payload into the same thread', async () => {
   assert.match(encounter, /class="rv-stage" data-size="band"/);
   assert.match(encounter, /data-beat="pursue" data-state="active"/);
   // Toi wears the plan's dress on the Revue stage, in the waist crop.
-  assert.match(encounter, /cast-stage__figure--you" data-outfit="apron" data-crop="half"/);
+  assert.match(encounter, /cast-stage__figure--you" data-outfit="coat" data-crop="half"/);
   // Started on an earlier day, resumed today: the marker sits where today begins.
   const tomorrow = render(h(RvEncounter, { client, session, language: 'fr', onExit: () => {}, now: new Date('2026-10-02T10:00:00+02:00') }));
   assert.doesNotMatch(tomorrow, /tu reprends ici/, 'every item is from one earlier day: nothing to mark before it');
@@ -238,14 +238,14 @@ test('the close: dispatch with the learner\'s part, «Pour ton Relevé», the in
   assert.match(live, /data-dispatch=""/);
   assert.match(live, /<span class="rv-yours">[^<]*prix[^<]*<sup>toi<\/sup>/);
   assert.match(visibleText(live), /Pour ton Relevé 5 mots · 2 faits/);
-  assert.match(live, /av2-btn--done[\s\S]*Classer la Revue/);
+  assert.match(live, /av2-btn--done[\s\S]*Classer le Papier/);
   assert.equal((live.match(/av2-btn--primary/g) || []).length, 0, 'nothing is left to do: no red press');
   assert.match(visibleText(live), /La suite la semaine prochaine\./);
 
   // Opened again after the close: read-only, back arrow, the dispatch, «Relire».
   const ended = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session: close.session, language: 'fr', onExit: () => {}, now: new Date(at) }));
   assert.match(ended, /aria-label="Retour à La Une"/);
-  assert.match(visibleText(ended), /Revue bouclée le 1 oct\./);
+  assert.match(visibleText(ended), /Papier bouclé le 1 oct\./);
   assert.match(visibleText(ended), /Relire la conversation/);
   assert.doesNotMatch(ended, /class="av2-thread rv-thread"/, 'the conversation is folded away until asked');
   assert.doesNotMatch(ended, /rv-foot/);
@@ -328,9 +328,9 @@ test('RvUneCard: offer, evergreen, resume and filed; one red press until filed',
   const filedOffer = types.parseOffer(MOCK.offer_filed);
   const filed = card('filed', { filed: { made: filedOffer.filed.made } });
   assert.equal((filed.match(/av2-btn/g) || []).length, 0, 'no press once filed');
-  assert.match(visibleText(filed), /Revue bouclée/, 'the week leaves the kicker when the headline is long (WP-81 budget)');
+  assert.match(visibleText(filed), /Papier bouclé/, 'the week leaves the kicker when the headline is long (WP-81 budget)');
   const short = card('filed', { filed: { made: { ...filedOffer.filed.made, textFr: 'Les prix au marché', contribution: [[4, 18]] } } });
-  assert.match(visibleText(short), /Revue bouclée · semaine 40/);
+  assert.match(visibleText(short), /Papier bouclé · semaine 40/);
   assert.match(filed, /<sup>toi<\/sup>/);
   assert.match(visibleText(filed), /La suite la semaine prochaine\./);
 });
@@ -481,7 +481,7 @@ test('the close stamps the vignette before «Classer»; no vignette, no stamp; t
   }));
   assert.match(live, /data-kind="vignette"[\s\S]*class="rv-vignette rv-vignette--large rv-vignette--stamping" data-ring="headline" data-size="large" data-kept=""/);
   assert.match(visibleText(live), /Ta vignette · Semaine 40/);
-  const order = ['data-dispatch=""', 'data-kind="kept"', 'data-kind="vignette"', 'data-kind="colophon"', 'Classer la Revue'].map((needle) => live.indexOf(needle));
+  const order = ['data-dispatch=""', 'data-kind="kept"', 'data-kind="vignette"', 'data-kind="colophon"', 'Classer le Papier'].map((needle) => live.indexOf(needle));
   assert.deepEqual(order.slice().sort((a, b) => a - b), order, 'dispatch, kept, the stamp, the colophon, then the press');
   assert.ok(order.every((index) => index >= 0));
 
@@ -493,7 +493,7 @@ test('the close stamps the vignette before «Classer»; no vignette, no stamp; t
     now: new Date(at),
   }));
   assert.doesNotMatch(bare, /rv-vignette/);
-  assert.match(bare, /Classer la Revue/);
+  assert.match(bare, /Classer le Papier/);
 
   // Reopened after the close: the stamp is there, already pressed.
   const ended = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session: close.session, language: 'fr', onExit: () => {}, now: new Date(at) }));

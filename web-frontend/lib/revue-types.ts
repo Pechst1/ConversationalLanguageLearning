@@ -56,6 +56,9 @@ export type RvStage = {
   placeIsReal: boolean;
   dress: RvDress;
   cast: RvStageMember[];
+  /** WP-119 phase 4 (§12.7): the second view, shown from the guest's entrance (or `make`) on. */
+  plateUrlSecond?: string | null;
+  plateSwitched?: boolean;
 };
 export type RvStoryCard = {
   dossierId: string;
@@ -420,6 +423,9 @@ export function parseStage(raw: Json): RvStage {
     placeIsReal: Boolean(raw.place_is_real),
     dress: oneOf(raw.dress, DRESSES, 'coat'),
     cast: list(raw.cast, (member) => ({ id: str(member.id), hold: strOrNull(member.hold) })),
+    // Phase 4: only when the wire carries them (nothing invented for an older payload).
+    ...(raw.plate_url_second !== undefined ? { plateUrlSecond: strOrNull(raw.plate_url_second) } : {}),
+    ...(raw.plate_switched !== undefined ? { plateSwitched: Boolean(raw.plate_switched) } : {}),
   };
 }
 

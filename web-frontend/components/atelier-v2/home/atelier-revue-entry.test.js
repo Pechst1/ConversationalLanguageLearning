@@ -221,7 +221,12 @@ test('a special edition keeps its hero; a filed Revue shows only on the Revue da
     assertHomeBudget(filed.html, `${language} filed`);
   }
   const filedOrdinary = laUne('en', { week: { enabled: true, offer: filedOffer } });
-  assert.deepEqual(filedOrdinary.entry, { chip: null, hero: null }, 'filed: the chip is gone');
+  assert.equal(filedOrdinary.entry.hero, null, 'filed: no hero on an ordinary day');
+  if ((filedOffer.alternatives ?? []).length > 0) {
+    assert.equal(filedOrdinary.entry.chip.label, 'Another Papier?', 'filed: a quiet offer of another Papier (WP-119 §12.2)');
+  } else {
+    assert.equal(filedOrdinary.entry.chip, null, 'filed with nothing else at the kiosk: no chip');
+  }
 });
 
 test('the day shape is read from the journey, else the envelope', () => {
@@ -243,7 +248,8 @@ test('pages/atelier.tsx wires La Une through lib/revue-une.ts, beside the day an
   assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips\)/);
   assert.match(page, /hero=\{revueHero \?\? journeyCard\}/);
   assert.match(page, /planHidden=\{Boolean\(revueHero\) \|\|/);
-  assert.match(page, /onOpen=\{\(\) => \{ void router\.push\(revueOpenHref\(offer\)\); \}\}/);
+  // WP-119 phase 3: the hero opens the day until it is done (the hero hides the plan row), then /revue.
+  assert.match(page, /if \(revueHeroOpensDay\(revueDayDone, Boolean\(onOpenDay\)\) && onOpenDay\) onOpenDay\(\);\s*else void router\.push\(revueOpenHref\(offer\)\);/);
   assert.match(page, /router\.push\(revueDossierHref\(dossierId\)\)/);
   assert.match(page, /onAsk=\{\(text\) => revueClient\(\)\.match\(text\)\}/);
   assert.match(page, /Precedence with a Courrier letter/, 'the precedence rule is written down where it is applied');

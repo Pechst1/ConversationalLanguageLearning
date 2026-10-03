@@ -68,12 +68,16 @@
     {
       "id": "a1",
       "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
-      "purpose": "understand_change"
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "marin_leveque"
     },
     {
       "id": "a2",
       "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?",
-      "purpose": "explain_disagreement"
+      "purpose": "explain_disagreement",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
     }
   ],
   "places": [
@@ -108,5 +112,6 @@
       "published_at": "2026-10-02"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "une calculatrice"
 }

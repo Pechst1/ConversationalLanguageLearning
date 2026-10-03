@@ -179,6 +179,21 @@ def test_acceptance_unexpected_question_becomes_the_reader_question(db: Session)
     assert again == closing
     assert len(db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()) == 2
 
+    # WP-121 A.0: every kept word entered the SRS at close, tied to the Papier's place; closing
+    # again (and keeping again) adds none.
+    from app.db.models.progress import UserVocabularyProgress
+    from app.services.revue.carte import keep_papier_words
+
+    cards = db.scalars(select(UserVocabularyProgress).where(UserVocabularyProgress.user_id == user.id)).all()
+    assert len(cards) == len(closing.kept.words) == 5
+    assert all(card.context["places"][-1]["source"] == "revue" for card in cards)
+    assert {card.context["places"][-1]["place_id"] for card in cards} == {"marche_aligre"}
+    assert {card.context["places"][-1]["session_id"] for card in cards} == {str(row.id)}
+    loaded = enc.load(row)
+    keep_papier_words(db, row, dossier=loaded.dossier, plan=loaded.plan, state=loaded.state, kept=closing.kept)
+    after = db.scalars(select(UserVocabularyProgress).where(UserVocabularyProgress.user_id == user.id)).all()
+    assert len(after) == 5 and all(len(card.context["places"]) == 1 for card in after)
+
 
 def test_resume_mid_session_replays_identically(db: Session) -> None:
     user = make_user(db)

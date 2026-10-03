@@ -35,8 +35,8 @@ import hashlib
 import re
 import unicodedata
 from typing import Any
-from app.services.chrome_language import french_chrome
 
+from app.services.chrome_language import french_chrome
 from app.services.journey_contracts import (
     ControlLanguage,
     RecallTask,

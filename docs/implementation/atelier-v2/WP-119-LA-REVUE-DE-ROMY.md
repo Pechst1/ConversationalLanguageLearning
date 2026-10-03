@@ -69,6 +69,16 @@ What the package builds underneath is the **news-to-story pipeline** the generat
 - **What is kept.** RSS fetch and parse (`_fetch_rss_items:784`, `_parse_rss_items:808`), the
   language check (`_looks_like_language:946`), dedupe and clustering, the sensitive list as a first
   filter, the cache backend (`app/utils/cache.py`, Redis when configured).
+- **Phase 5 landed (2026-10-03).** The serial reads the week's `EditorialDossier` through
+  `app/services/revue/feuilleton_bridge.py`: `dossier_for_feuilleton(user, week)` (via
+  `weekly.available_for_week`, ranked by the Revue's topic-recency rule, copied, not imported),
+  `snapshot_for_prompt` (the old seed's keys + `learner_visible`), `source_card`, `thread_seed`
+  (`thread.news_seed` = snapshot + the dossier JSON). `GraphicNovelScheduler.create(dossier=…)`;
+  `use_news=True` is deprecated for one release (logs, picks the recommended dossier).
+  `fetch_feuilleton_daily_seed` and its seed-only helpers (satire references, curated seed,
+  summary, digest) are deleted; dedupe, clustering, scoring, cleaning, named-people and the
+  sensitive filter stay marked `# kept for revue.intake`. `fetch_news_context` and
+  `fetch_france_context` are listed in `news_service.LEGACY_ENTRY_POINTS` with their callers.
 
 ### The world this plugs into
 - **Romy Tremblay** — Québécoise journalist investigating Solvel's purchase of cafés in the 10th
@@ -598,3 +608,7 @@ The owner answered the open questions of the first two drafts. Each decision and
 | 0 | cbc3966 | `app/services/revue/` (dossier, session, state, checks, policy, evergreen loader + 12 sourced evergreens), five `REVUE_*` flags, sensitive list moved to policy; Toi's eight outfits and the Revue-only rule in `PanelStage`; the design spec `WP-119-DESIGN.md` and 8 mockup pages under `docs/design-reference/revue/`. 85 revue tests. Known limits: evergreen windows are 2026 only (README); the anchor entailment and attribution opinion tests are lexical heuristics until the phase-1 critic judge; the design's compact La Une card supersedes §5.1's three-story card (Home budget, `home.test.js`) |
 | 1 | e43b168 | The encounter end to end on known plates: `WP-119-WIRE.md`, `app/schemas/revue.py`, `encounter.py` (offer, start, turns with knowledge check on the learner's real season position, simplify, bouclage, make, close), `weekly.py` + six live 2026-W40 dossiers, `/api/v1/revue/*` (404 while off; POSTs paid), `revue_sessions` (c3e5a7b9d1f2); `pages/revue.tsx` + `components/revue/*`, typed client, dev mock at `/revue?mock=1`, La Une chip (hero on a Revue day, dealt from phase 3), Romy's notebook, Toi half crop. Acceptance test passes at service, HTTP and page level. 198 backend + 745 frontend tests. Known: grading is an `unscored` adapter; cost line not reported; two alembic heads in the shared tree until the password-reset migration lands; `headline_write`/`short_report` make options not built |
 | 2 | ab42eda + 148e2ee | Guests with a reason, knowledge context from the serial ledger and `NPCMemory`, `grading.py` (`revue-rubric-v1`) replacing the unscored adapter, `headline_write` and `short_report` for B1+, outfits per angle participation, wire §6, cost per session; frontend: guest on stage and in the thread, make flows, register note, the vignette at close and in the Relevé, read-only replay. Backend 345 tests; frontend suites green. Known: `pilot_digest` has no `revue` line yet; W40 dossiers lack `participation`/`guest_fit`; close copy still «Classer la Revue» (§10c) |
+| 3 | (this commit) | `intake.py`/`sources.py`/`builder.py`, `revue_dossiers` table (migration f6b8d0a2c4e7; `week` holds the period), Monday 05:00 beat + admin refresh, six more feeds with `fetch_policy`, `DayShape.REVUE` dealt once a week on a gap day (the Papier mounts after the day's ending; 59-day life test green with 9 Papiers), the Relevé «Le Papier» section, daily-ready period pattern, the second-Papier chip |
+| 4 | (this commit) | `plates.py` with the people clause (v2: few, far, under a tenth of the frame) and the name + landmarks + light rule, `revue_places` (e5a7c9b1d3f6), two plates switched at the guest's entrance, `looks_wrong` tricolour check; eight plates in `docs/design-reference/revue/plates/phase4/` for the owner |
+| 5 | (this commit) | `feuilleton_bridge.py`: the serial reads the week's dossier; `fetch_feuilleton_daily_seed` deleted; legacy entry points marked; audit regression unchanged |
+| 10c | (this commit) | leftovers: «Classer le Papier», wire doc, pilot digest `revue` line, W40 fields, pictogram refresh (guitar kept), mock dress; read-only head and replayable evidence still open |

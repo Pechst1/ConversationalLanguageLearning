@@ -75,7 +75,7 @@ async function waitFor(url, { timeoutMs = 120000, ok = (r) => r.status < 500 } =
   throw new Error(`timed out waiting for ${url}: ${last}`);
 }
 
-export async function startStack({ logDir, secret, live = false, tokenMinutes = 1 }) {
+export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
   const dbName = `atelier_walk_${Date.now()}`;
@@ -108,7 +108,9 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     if (!dbName.startsWith('atelier_walk_')) throw new Error('refusing an unexpected database name');
     pgAdmin(admin, `CREATE DATABASE ${dbName}`);
     const t0 = Date.now();
-    const mig = spawnSync(python(), ['-m', 'alembic', 'upgrade', 'head'], {
+    // `heads`: parallel work packages branch the migration graph until a merge revision
+    // lands; the throwaway database takes every branch (WALK_ALEMBIC_TARGET overrides).
+    const mig = spawnSync(python(), ['-m', 'alembic', 'upgrade', process.env.WALK_ALEMBIC_TARGET || 'heads'], {
       cwd: REPO_ROOT,
       env: { ...process.env, DATABASE_URL: dbUrl },
       encoding: 'utf8',
@@ -118,7 +120,9 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
 
     const web = `http://localhost:${webPort}`;
     const apiLog = log('api');
-    const api = spawn(python(), ['scripts/dev_walk_server.py', '--port', String(apiPort)], {
+    // WP-120 phase D: `revue` starts the same API with La Revue on (e2e/lib/carte_server.py).
+    const server = revue ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
+    const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
       env: {
         ...process.env,

@@ -73,6 +73,20 @@ PLATE_FORBIDDEN: tuple[str, ...] = (
     "text",
 )
 
+#: WP-119 §8.1/§12.4 (phase 4): the people clause that replaces the season style's "No people,
+#: no animals" on a Revue plate. Figures are allowed, in the plate's own flat print, never at the
+#: drawn cast's scale: the cast stands in front and a painted face beside it would clash.
+PLATE_PEOPLE_CLAUSE = (
+    "People, if any, in the same flat screen-print style, few and far away, each smaller than a tenth "
+    "of the frame's height, from behind or in silhouette, never in the foreground, never as portraits or "
+    "close-ups; no animals in the foreground."
+)
+
+#: WP-119 §8.1 feasibility (2026-10-02): the model added readable minutes on a metro board and
+#: flags in a press room unasked. National colours in architecture are fine (§12.4); flags,
+#: emblems, logos and anything readable are not.
+PLATE_NEGATIVE = "No flags, emblems or logos, no readable text or numbers, no signage lettering."
+
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
 OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis")
 

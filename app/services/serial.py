@@ -27,7 +27,8 @@ from app.services.graphic_novel import (
 )
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
-from app.services.news_service import NewsService
+from app.services.revue import feuilleton_bridge
+from app.services.revue.dossier import EditorialDossier
 from app.services.serial_arc_planner import (
     SEASON_FINALE_ARC_ID,
     SerialArcPlanner,
@@ -667,8 +668,11 @@ class SerialThreadService:
         # News is only fetched for episodes whose authored brief explicitly opts into a
         # news-led panel. Ordinary feuilleton episodes stay fully fictional.
         include_news_panel = bool(brief_payload.get("include_news_panel"))
+        dossier: EditorialDossier | None = None
         if include_news_panel:
-            thread.news_seed = await self._news_seed(thread.user)
+            # WP-119 phase 5: the week's editorial dossier, the same one La Revue reads.
+            dossier = self._feuilleton_dossier(thread.user)
+            thread.news_seed = self._seed_from_dossier(dossier)
             self.db.add(thread)
             self.db.commit()
         try:
@@ -678,7 +682,7 @@ class SerialThreadService:
                 mission_id=latest_mission.id if latest_mission else None,
                 serial_thread_id=thread.id,
                 episode_index=episode_index,
-                use_news=include_news_panel,
+                dossier=dossier,
                 panel_count=6,
                 story_quality="standard",
                 experience_mode="study",
@@ -1310,18 +1314,31 @@ class SerialThreadService:
             relationship_context={"landlord_marchand": (thread.state or {}).get("relationships", {}).get("landlord_marchand", {})},
         )
 
-    async def _news_seed(self, user: User) -> dict[str, Any]:
-        interests = [item.strip() for item in (user.interests or "").split(",") if item.strip()]
+    def _feuilleton_dossier(self, user: User) -> EditorialDossier | None:
+        """The week's editorial dossier for this learner (WP-119 phase 5), or ``None``."""
+
         try:
-            return await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=True)
-        except Exception:
-            return {
-                "mode": "serial_curated",
-                "title": "Paris parle de petites urgences quotidiennes",
-                "summary": "A curated town-texture seed for the serial episode.",
-                "source": "Atelier serial fallback",
-                "items": [],
-            }
+            return feuilleton_bridge.dossier_for_feuilleton(user, db=self.db)
+        except Exception as exc:  # noqa: BLE001 - the edition falls back to the curated seed
+            logger.bind(user_id=str(user.id)).warning("serial: no dossier for the feuilleton ({})", exc)
+            return None
+
+    @staticmethod
+    def _seed_from_dossier(dossier: EditorialDossier | None) -> dict[str, Any]:
+        """``thread.news_seed``: a JSON snapshot of the dossier, or the curated town texture."""
+
+        if dossier is not None:
+            return feuilleton_bridge.thread_seed(dossier)
+        return {
+            "mode": "serial_curated",
+            "title": "Paris parle de petites urgences quotidiennes",
+            "summary": "A curated town-texture seed for the serial episode.",
+            "source": "Atelier serial fallback",
+            "items": [],
+        }
+
+    async def _news_seed(self, user: User) -> dict[str, Any]:
+        return self._seed_from_dossier(self._feuilleton_dossier(user))
 
     def _current_episode(self, thread: SerialThread) -> SerialEpisode | None:
         return (

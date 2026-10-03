@@ -67,12 +67,16 @@
     {
       "id": "a1",
       "fr": "Ce qui change sur la facture et chez le médecin",
-      "purpose": "understand_change"
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
     },
     {
       "id": "a2",
       "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
-      "purpose": "prepare_dispatch"
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
     }
   ],
   "places": [
@@ -101,5 +105,6 @@
       "published_at": "2026-09-30"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "une page de calendrier"
 }

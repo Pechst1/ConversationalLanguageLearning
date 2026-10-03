@@ -334,7 +334,22 @@ type RvClosing = {
   dispatch: RvDispatch;        // the clipping; the learner's part is in `contribution`
   kept: { words: { fr: string; gloss: string; claim_id: string; used: boolean }[]; claims: RvClaim[] };   // «Pour ton Relevé»: words + claims shown, with source lines
   question_kept_fr: string | null;   // an open question Romy keeps for the desk / next week
+  vignette: VignetteView | null;     // WP-120 §4.3: the stamp minted at close; null when minting failed or is off
   colophon_fr: "La suite la semaine prochaine.";
+};
+
+// app/schemas/revue_vignette.py — also the items of GET /revue/vignettes ({ vignettes: VignetteView[] })
+type VignetteView = {
+  id: string;
+  session_id: string;
+  dossier_id: string;
+  week: string;                      // ISO week, "2026-W40"; the stamp prints its number
+  place_label_fr: string;
+  ring: "headline" | "question" | "report";
+  kept_contribution: boolean;
+  pictogram_svg: string;             // the normalised pictogram, <svg viewBox="0 0 100 100">, house grammar
+  headline_fr: string;               // the dispatch's headline as filed, else the dossier's title
+  minted_at: string;                 // ISO datetime
 };
 ```
 Response `200 { "session": RvSessionView, "closing": RvClosing }`.
@@ -386,12 +401,14 @@ A phase-1 session replays with the same items, except that the column-full line 
 ```ts
 type RvGuestItem = RvItemBase & {
   kind: "guest";
-  cast_id: "margaux_barman" | "lila_bonnet" | "camille_marchand" | "landlord_marchand" | "marin_leveque" | "augustin_de_roncourt";
+  cast_id: string;   // a plain string on the wire; today one of margaux_barman, lila_bonnet, camille_marchand, landlord_marchand, marin_leveque, augustin_de_roncourt
   text_fr: string;
   move: "enter" | "follow_up" | "disagree" | "moved";
   position: "for" | "against" | "moved" | null;   // the guest's stance after this line; "moved" stays moved
   reason_fr: string | null;   // on "enter" only, and only when the line does not already say it: the caption under the guest
-  reason: "model_down" | "knowledge_refused" | null;   // an authored line (evergreen/guests/guest_lines.json) stands in
+  reason: "model_down" | "knowledge_refused" | "budget" | "no_match" | null;   // the schema's FallbackReason (all four);
+                                                // a guest line only ever carries model_down or knowledge_refused (an authored line
+                                                // from evergreen/guests/guest_lines.json stands in), else null
   glosses: RvGloss[];
 };
 ```

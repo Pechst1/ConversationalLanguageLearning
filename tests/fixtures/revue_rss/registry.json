@@ -1,0 +1,47 @@
+[
+  {
+    "id": "kiosque_gastronomie",
+    "name": "Le Kiosque",
+    "url": "https://kiosque.test/feeds/gastronomie.xml",
+    "topic_tags": [
+      "food"
+    ],
+    "fetch_policy": "allows"
+  },
+  {
+    "id": "kiosque_culture",
+    "name": "Le Kiosque",
+    "url": "https://kiosque.test/feeds/culture.xml",
+    "topic_tags": [
+      "culture"
+    ],
+    "fetch_policy": "allows"
+  },
+  {
+    "id": "kiosque_ville",
+    "name": "La Gazette de la Ville",
+    "url": "https://kiosque.test/feeds/ville.xml",
+    "topic_tags": [
+      "society"
+    ],
+    "fetch_policy": "allows"
+  },
+  {
+    "id": "kiosque_sport",
+    "name": "Sport Matin",
+    "url": "https://kiosque.test/feeds/sport.xml",
+    "topic_tags": [
+      "sport"
+    ],
+    "fetch_policy": "allows"
+  },
+  {
+    "id": "kiosque_politique",
+    "name": "Le Courrier politique",
+    "url": "https://kiosque.test/feeds/politique.xml",
+    "topic_tags": [
+      "politics"
+    ],
+    "fetch_policy": "allows"
+  }
+]

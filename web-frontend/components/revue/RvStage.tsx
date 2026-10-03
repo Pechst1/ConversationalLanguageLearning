@@ -7,13 +7,22 @@
  * (390:168, pinned over the thread), `une` (16:9, La Une and the chooser).
  * `pending` is the reader's «sous presse» duotone with a folio pill. The plate
  * is decorative (`alt=""`, `aria-hidden`): the narration carries the place.
+ *
+ * Phase 4 «Les planches» (§12.7): a dossier may carry a second view. When the
+ * plate changes (the guest's entrance, or `make`) the new plate fades in over
+ * the old one in 320 ms, like the reader's art (at once under Reduce Motion);
+ * the cast and the frame never move.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { PanelStage, type StageMember } from '@/components/cast/PanelStage';
 import type { Outfit } from '@/components/cast/rig-kit';
+import { prefersReducedMotion } from '@/lib/journey-reply-reveal';
 import { resolveMediaUrl } from '@/lib/media-url';
+import type { RvStage as RvStageWire, RvThreadItem } from '@/lib/revue-types';
+
+const PLATE_FADE_MS = 320;
 
 export type RvStageProps = {
   plateUrl: string | null;
@@ -31,13 +40,27 @@ export type RvStageProps = {
 
 export function RvStage({ plateUrl, size, cast, you = null, entering = null, pending = null, still = false, children }: RvStageProps) {
   const src = plateUrl ? resolveMediaUrl(plateUrl) ?? plateUrl : null;
+  const plate = usePlateCrossfade(src);
   const members: StageMember[] = cast.map((member) => ({ ...member, speaking: member.speaking ?? true }));
   if (you) members.push({ id: 'user', outfit: you.outfit });
   return (
     <div className="rv-stage" data-size={size} data-pending={pending ? '' : undefined}>
+      {plate.previous && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="rv-stage__plate is-previous" src={plate.previous} alt="" aria-hidden="true" decoding="async" />
+      )}
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="rv-stage__plate" src={src} alt="" aria-hidden="true" decoding="async" />
+        <img
+          key={src}
+          className="rv-stage__plate"
+          src={src}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          onLoad={plate.onLoad}
+          style={plate.style}
+        />
       ) : (
         <span className="rv-stage__fallback" aria-hidden="true" />
       )}
@@ -47,6 +70,59 @@ export function RvStage({ plateUrl, size, cast, you = null, entering = null, pen
       {children}
     </div>
   );
+}
+
+/**
+ * The plate crossfade: the previous plate stays underneath until the new one has
+ * loaded, then the new one fades in (no fade under Reduce Motion) and the old one
+ * goes. The first plate simply appears.
+ */
+function usePlateCrossfade(src: string | null): {
+  previous: string | null;
+  style: React.CSSProperties | undefined;
+  onLoad: () => void;
+} {
+  const [current, setCurrent] = useState(src);
+  const [previous, setPrevious] = useState<string | null>(null);
+  const [arrived, setArrived] = useState(true);
+
+  useEffect(() => {
+    if (src === current) return;
+    setPrevious(current);
+    setArrived(!current); // nothing to fade from: show at once
+    setCurrent(src);
+  }, [src, current]);
+
+  useEffect(() => {
+    if (!arrived || !previous) return undefined;
+    const timer = window.setTimeout(() => setPrevious(null), prefersReducedMotion() ? 0 : PLATE_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [arrived, previous]);
+
+  const fading = previous !== null;
+  const style: React.CSSProperties | undefined = fading
+    ? {
+        opacity: arrived ? 1 : 0,
+        transition: prefersReducedMotion() ? 'none' : `opacity ${PLATE_FADE_MS}ms ease-out`,
+      }
+    : undefined;
+  return { previous, style, onLoad: () => setArrived(true) };
+}
+
+/**
+ * Which plate the stage shows (§12.7): the site until the stage switches, then the
+ * second view. It switches when the server says so (`plateSwitched`), when a guest
+ * has entered in the thread (the turn result carries no stage), or when the make
+ * step is open; it never switches back.
+ */
+export function stagePlateUrl(
+  stage: Pick<RvStageWire, 'plateUrl' | 'plateUrlSecond' | 'plateSwitched'>,
+  thread: RvThreadItem[] = [],
+  making = false,
+): string | null {
+  if (!stage.plateUrlSecond) return stage.plateUrl;
+  const guestEntered = thread.some((item) => item.kind === 'guest' && item.move === 'enter');
+  return stage.plateSwitched || guestEntered || making ? stage.plateUrlSecond : stage.plateUrl;
 }
 
 /**

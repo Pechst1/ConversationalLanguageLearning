@@ -10,7 +10,15 @@
  * `app/services/revue/pictogram.py`.
  */
 
-import type { CarteView } from '@/lib/carte-types';
+import type {
+  CartePin,
+  CarteReview,
+  CarteReviewAnswer,
+  CarteReviewGrade,
+  CarteView,
+  RelectureOffer,
+  RelecturePair,
+} from '@/lib/carte-types';
 
 const PICTO = {
   food: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M36.6 76.2L76.2 36.6Q76.9 23.1 63.4 23.8L23.8 63.4Q23.1 76.9 36.6 76.2Z" fill="#C2890F"/><path d="M36.6 76.2L76.2 36.6L72.6 33L33 72.6Z" fill="#F3C318"/><path d="M34 56.2L45.6 59.1L44.8 62.2L33.2 59.3Z" fill="#F1ECE1"/><path d="M43.9 46.3L55.5 49.2L54.7 52.3L43.1 49.4Z" fill="#F1ECE1"/><path d="M53.8 36.4L65.4 39.3L64.6 42.4L53 39.5Z" fill="#F1ECE1"/></svg>',
@@ -42,6 +50,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: 'Est-ce que les prix au marché sont plus bas qu’au supermarché ?',
       plateUrl: `${PLATE}/marche_canal.webp`,
       vignette: { ring: 'question', keptContribution: true, pictogramSvg: PICTO.food },
+      placeId: 'marche_aligre',
+      dueWords: 0,
+      relecture: null,
     },
     {
       sessionId: 'mock-assemblee',
@@ -61,6 +72,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: null,
       plateUrl: `${PLATE}/office_admin.webp`,
       vignette: { ring: 'headline', keptContribution: false, pictogramSvg: PICTO.politics },
+      placeId: null,
+      dueWords: 0,
+      relecture: null,
     },
     {
       sessionId: 'mock-goncourt',
@@ -80,6 +94,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: null,
       plateUrl: `${PLATE}/newsroom.webp`,
       vignette: { ring: 'report', keptContribution: true, pictogramSvg: PICTO.culture },
+      placeId: null,
+      dueWords: 0,
+      relecture: null,
     },
     {
       sessionId: 'mock-canicules',
@@ -99,6 +116,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: 'Combien d’arbres seront plantés ?',
       plateUrl: `${PLATE}/buttes_chaumont.webp`,
       vignette: null,
+      placeId: null,
+      dueWords: 0,
+      relecture: null,
     },
     {
       sessionId: 'mock-longchamp',
@@ -118,6 +138,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: null,
       plateUrl: `${PLATE}/metro_platform.webp`,
       vignette: { ring: 'headline', keptContribution: true, pictogramSvg: PICTO.sport },
+      placeId: null,
+      dueWords: 0,
+      relecture: null,
     },
     {
       sessionId: 'mock-bourgogne',
@@ -137,6 +160,9 @@ export const CARTE_MOCK_VIEW: CarteView = {
       questionFr: 'Est-ce que la récolte sera bonne cette année ?',
       plateUrl: `${PLATE}/brocante.webp`,
       vignette: { ring: 'question', keptContribution: false, pictogramSvg: PICTO.nature },
+      placeId: null,
+      dueWords: 0,
+      relecture: null,
     },
   ],
   quartier: [
@@ -145,4 +171,128 @@ export const CARTE_MOCK_VIEW: CarteView = {
     { id: 'buttes_chaumont', nameFr: 'Le parc des Buttes-Chaumont', labelFr: 'Parc des Buttes-Chaumont, Paris 19e', lat: 48.8809, lon: 2.3828, plateUrl: `${PLATE}/buttes_chaumont.webp` },
   ],
   counts: { france: 6, idf: 5, paris: 5, unplaced: 0 },
+  dueTotal: 0,
+};
+
+// ---------------------------------------------------------------------------
+// WP-121 · `/carte?mock=1&due=1` (two words due at Aligre) and `&relecture=1`
+// ---------------------------------------------------------------------------
+
+const withPin = (pin: CartePin, update: Partial<CartePin>): CartePin => ({ ...pin, ...update });
+
+/** The map with two words due at the marché d'Aligre, one Papier to re-read and one re-read. */
+export const CARTE_MOCK_DUE_VIEW: CarteView = {
+  ...CARTE_MOCK_VIEW,
+  pins: CARTE_MOCK_VIEW.pins.map((pin) =>
+    pin.sessionId === 'mock-aligre'
+      ? withPin(pin, { dueWords: 2 })
+      : pin.sessionId === 'mock-bourgogne'
+        ? withPin(pin, { relecture: { state: 'eligible', readAt: null } })
+        : pin.sessionId === 'mock-canicules'
+          ? withPin(pin, { relecture: { state: 'read', readAt: '2026-10-22T09:00:00Z' } })
+          : pin,
+  ),
+  dueTotal: 2,
+};
+
+const ALIGRE_SENTENCES = {
+  recolte: 'Cette année, la récolte des pommes est petite.',
+  etal: 'Chaque étal du marché ouvre à huit heures.',
+};
+
+/** The two Aligre words, posed as word banks (the server's rule below four words). */
+export const CARTE_MOCK_REVIEW: CarteReview = {
+  placeId: 'marche_aligre',
+  placeLabelFr: "Place d'Aligre et marché Beauvau, Paris 12e",
+  plateUrl: `${PLATE}/marche_canal.webp`,
+  week: '2026-W40',
+  headlineFr: 'Les fruits et légumes coûtent plus cher',
+  words: [
+    {
+      progressId: 'mock-p1', wordId: 1, word: 'la récolte', gloss: 'die Ernte', sentenceFr: ALIGRE_SENTENCES.recolte,
+      speakerId: 'margaux_barman', speakerName: 'Margaux', lineFr: 'Mon primeur dit que la récolte a été mauvaise, alors tout monte.',
+      sessionId: 'mock-aligre', week: '2026-W40',
+    },
+    {
+      progressId: 'mock-p2', wordId: 2, word: 'un étal', gloss: 'ein Marktstand', sentenceFr: ALIGRE_SENTENCES.etal,
+      speakerId: 'romy_tremblay', speakerName: 'Romy Tremblay', lineFr: 'Regarde : chaque étal affiche ses prix à la craie.',
+      sessionId: 'mock-aligre', week: '2026-W40',
+    },
+  ],
+  items: [
+    {
+      id: 'w:mock-p1', taskType: 'word_bank', progressIds: ['mock-p1'], promptFr: null, answerKey: null, audioUrl: null,
+      options: [
+        { id: 't4', text_fr: 'pommes', side: null },
+        { id: 't1', text_fr: 'la', side: null },
+        { id: 't6', text_fr: 'étal', side: null },
+        { id: 't3', text_fr: 'des', side: null },
+        { id: 't0', text_fr: 'année', side: null },
+        { id: 't2', text_fr: 'récolte', side: null },
+        { id: 't5', text_fr: 'est', side: null },
+      ],
+    },
+    {
+      id: 'w:mock-p2', taskType: 'word_bank', progressIds: ['mock-p2'], promptFr: null, answerKey: null, audioUrl: null,
+      options: [
+        { id: 'u2', text_fr: 'du', side: null },
+        { id: 'u0', text_fr: 'Chaque', side: null },
+        { id: 'u5', text_fr: 'récolte', side: null },
+        { id: 'u3', text_fr: 'marché', side: null },
+        { id: 'u1', text_fr: 'étal', side: null },
+        { id: 'u4', text_fr: 'ouvre', side: null },
+      ],
+    },
+  ],
+};
+
+const MOCK_ORDER: Record<string, string[]> = {
+  'w:mock-p1': ['t0', 't1', 't2', 't3', 't4', 't5'],
+  'w:mock-p2': ['u0', 'u1', 'u2', 'u3', 'u4'],
+};
+
+/** The mock's grader: the tile order against the mock's answer, then one word fewer due. */
+export function mockGradeFor(): (answer: CarteReviewAnswer) => Promise<CarteReviewGrade> {
+  let remaining = CARTE_MOCK_REVIEW.words.length;
+  return async (answer) => {
+    const order = MOCK_ORDER[answer.itemId] ?? [];
+    const correct = (answer.tileIds ?? []).join(' ') === order.join(' ');
+    remaining = Math.max(0, remaining - 1);
+    const progressId = answer.itemId.slice(2);
+    return {
+      itemId: answer.itemId,
+      taskType: 'word_bank',
+      results: [{ progressId, wordId: 0, correct, rating: correct ? 2 : 1, dueAt: null }],
+      remaining,
+    };
+  };
+}
+
+export const CARTE_MOCK_RELECTURE_OFFER: RelectureOffer = {
+  sessionId: 'mock-bourgogne',
+  week: '2026-W35',
+  kind: 'question',
+  dossierTitleFr: 'Les vendanges commencent en Bourgogne',
+  promptFr: 'Est-ce que la récolte sera bonne cette année ?',
+  placeLabelFr: 'Vignoble de Bourgogne',
+  plateUrl: `${PLATE}/brocante.webp`,
+  closedAt: '2026-08-27T11:00:00+02:00',
+};
+
+const NOW_FR = 'Je pense que oui : vous savez, le récolte a commencé tôt et il a fait chaud.';
+
+export const CARTE_MOCK_RELECTURE_PAIR: RelecturePair = {
+  sessionId: 'mock-bourgogne',
+  offer: CARTE_MOCK_RELECTURE_OFFER,
+  then: { labelFr: 'Semaine 35', textFr: 'la récolte bonne cette année ?', spans: [] },
+  now: {
+    labelFr: 'Aujourd’hui',
+    textFr: NOW_FR,
+    spans: [
+      { start: NOW_FR.indexOf('vous savez'), end: NOW_FR.indexOf('vous savez') + 'vous savez'.length, flag: 'register' },
+      { start: NOW_FR.indexOf('le récolte'), end: NOW_FR.indexOf('le récolte') + 'le récolte'.length, flag: 'grammar' },
+    ],
+  },
+  romyLineFr: 'Avec moi, c’est « tu », pas « vous ». Le reste, je le comprends.',
+  askedAt: '2026-10-22T09:00:00Z',
 };

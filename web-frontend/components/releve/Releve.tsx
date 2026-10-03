@@ -11,6 +11,7 @@
  *   Le Cours       GET /progress/cefr            (the same payload La Une's LuCours reads)
  *   Le Registre    GET /analytics/summary        (UserVocabularyProgress rows for THIS user)
  *                  GET /grammar/summary          (UserGrammarProgress rows for THIS user)
+ *   Le Papier      GET /revue/releve             (WP-119: the learner's filed Papiers, RvReleveSection)
  *   La Collection  GET /achievements/my          (unlocked only)
  *                  GET /atelier/almanac          (minted collectibles for THIS user)
  *
@@ -33,6 +34,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import SealCollection from '@/components/releve/SealCollection';
+import { RvReleveSection } from '@/components/revue/RvReleveSection';
 import { fill, plural, releveCopy, type ReleveCopy } from '@/components/releve/releve-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
@@ -148,7 +150,8 @@ function ArchiveNotice({ copy, message, onRetry }: { copy: ReleveCopy; message: 
 /* ---------- the surface ---------- */
 
 export default function Releve() {
-  const copy = releveCopy(useChromeLanguage());
+  const chromeLanguage = useChromeLanguage();
+  const copy = releveCopy(chromeLanguage);
   const [loading, setLoading] = useState(true);
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
   const [stats, setStats] = useState<LearnerAnalyticsSummary | null>(null);
@@ -415,6 +418,10 @@ export default function Releve() {
           </Surface>
         )}
       </section>
+
+      {/* ---- Le Papier (WP-119 phase 3): the Revue's clippings, anchored at
+          #revue / #revue-<period>; draws nothing when the Revue is off or empty. ---- */}
+      <RvReleveSection language={chromeLanguage} />
 
       {/* ---- La Collection ---- */}
       <section className="nb-rv__sec" aria-label={copy.collection_title}>

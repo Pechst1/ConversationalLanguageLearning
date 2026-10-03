@@ -180,11 +180,13 @@ import type { RvWeekResult } from '@/lib/revue-types';
 import {
   dayShapeFrom,
   revueDossierHref,
+  revueHeroOpensDay,
   revueOpenHref,
   revueHomeChips,
   revueResumeLine,
   revueUneEntry,
 } from '@/lib/revue-une';
+import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -2039,6 +2041,12 @@ export default function AtelierPage() {
               // WP-82: Home's own words follow the one language rule.
               chromeLanguage={journeyChromeLanguage(journey)}
               noticeLanguage={pageChromeLanguage}
+              // WP-119 phase 3: the Revue hero opens the day until it is done
+              // (the hero hides the plan row; the Papier follows the day).
+              onOpenDay={() => {
+                if (journey.journey) setView('journey');
+                else void journey.actions.start().then(() => setView('journey'));
+              }}
             />
           </>
         ) : (
@@ -2383,6 +2391,7 @@ function TodayView({
   dayEnvelope = null,
   chromeLanguage = 'fr',
   noticeLanguage,
+  onOpenDay,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2430,6 +2439,8 @@ function TodayView({
   chromeLanguage?: ControlLanguage;
   /** WP-82: the load error's language when there is no day to take it from. */
   noticeLanguage?: ControlLanguage;
+  /** WP-119 phase 3: open (or start) today's journey — the Revue hero's press until the day is done. */
+  onOpenDay?: () => void;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2775,6 +2786,7 @@ function TodayView({
         special: specialEdition,
       })
     : { chip: null, hero: null };
+  const revueDayDone = Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done);
   const revueHero = revueEntry.hero
     ? (() => {
         const { offer, story, state } = revueEntry.hero;
@@ -2789,7 +2801,12 @@ function TodayView({
               filed={state === 'filed' && offer.filed
                 ? { made: offer.filed.made, headlineFr: offer.filed.dispatch?.headlineFr ?? offer.filed.titleFr }
                 : null}
-              onOpen={() => { void router.push(revueOpenHref(offer)); }}
+              onOpen={() => {
+                // The hero hides the plan row: until the day is done its press
+                // opens the day, and the Papier follows the day's ending.
+                if (revueHeroOpensDay(revueDayDone, Boolean(onOpenDay)) && onOpenDay) onOpenDay();
+                else void router.push(revueOpenHref(offer));
+              }}
               onOtherSubject={() => setRevueSheetOpen(true)}
               copy={copy}
             />
@@ -2856,7 +2873,8 @@ function TodayView({
           : []),
       ]
     : [];
-  const homeChips: HomeChip[] = revueHomeChips<HomeChip>(revueEntry, dayChips);
+  const radioWeek = useRadioWeek();
+  const homeChips: HomeChip[] = withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [

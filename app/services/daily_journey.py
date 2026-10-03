@@ -3579,7 +3579,14 @@ class DailyJourneyService:
             # one letter.
             chapter_shape = None
 
+        # WP-119 phase 3: «jour du Papier» — once a week, never on a tentpole.
+        from app.services.season.runtime import is_tentpole
+
+        revue_available, revue_dealt = self._revue_week_inputs(user, journey.local_date)
         return DayShapeInputs(
+            revue_available=revue_available,
+            revue_dealt_this_week=revue_dealt,
+            tentpole=is_tentpole(brief.story_context if isinstance(brief.story_context, dict) else None),
             user_id=str(user.id),
             local_date=journey.local_date,
             previous_shape=previous_shape,
@@ -3606,6 +3613,39 @@ class DailyJourneyService:
                 default=None,
                 log=logger,
             ),
+        )
+
+    def _revue_week_inputs(self, user: User, day: date) -> tuple[bool, bool]:
+        """WP-119 phase 3: is Le Papier on with a story this week, and was a Papier day
+        already dealt this ISO week? A failure answers ``(False, False)``: no Papier day,
+        never a lost day."""
+
+        if not getattr(settings, "REVUE_ENABLED", False):
+            return False, False
+
+        def read() -> tuple[bool, bool]:
+            from app.services.revue.encounter import available_dossiers
+            from app.services.revue.weekly import period_for
+
+            monday = day - timedelta(days=day.weekday())
+            rows = self.db.execute(
+                select(DailyJourney.plan_selection).where(
+                    DailyJourney.user_id == user.id,
+                    DailyJourney.local_date >= monday,
+                    DailyJourney.local_date < day,
+                )
+            ).all()
+            dealt = any(
+                isinstance(selection, dict)
+                and str(DayShape.REVUE) in {str(selection.get("day_shape")), str(selection.get("dealt_shape"))}
+                for (selection,) in rows
+            )
+            if dealt:
+                return True, True
+            return bool(available_dossiers(period_for(day), self.db)), False
+
+        return run_best_effort(
+            self.db, "daily_journey: revue week", read, default=(False, False), log=logger
         )
 
     def _has_earlier_journey(self, user: User, day: date) -> bool:

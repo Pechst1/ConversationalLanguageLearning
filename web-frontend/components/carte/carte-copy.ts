@@ -40,6 +40,45 @@ export type CarteCopy = {
   disabled_body: string;
   back: string;
   mock_badge: string;
+  // WP-120 phase D · the entry points (close screen, Relevé badge, Settings row)
+  see_on_map: string;
+  badge_label: (n: number) => string;
+  settings_row: string;
+  settings_hint: string;
+  settings_action: string;
+  // WP-121 A · Le Palais de mémoire
+  due_waiting: (n: number) => string;
+  due_pin_label: (n: number) => string;
+  review_here: string;
+  review_title: string;
+  review_progress: (index: number, total: number) => string;
+  review_instruction: Record<'match_pairs' | 'word_bank' | 'unscramble' | 'dictation', string>;
+  review_check: string;
+  review_next: string;
+  review_sending: string;
+  review_correct: string;
+  review_wrong: string;
+  review_tiles_empty: string;
+  review_remove_last: string;
+  review_done_title: string;
+  review_done_body: string;
+  review_back: string;
+  review_empty: string;
+  review_error: string;
+  // WP-121 B · La Relecture
+  relecture_open_question: string;
+  relecture_open_headline: string;
+  relecture_read: (date: string) => string;
+  relecture_title: string;
+  relecture_lead_question: string;
+  relecture_lead_headline: string;
+  relecture_field: string;
+  relecture_placeholder: string;
+  relecture_send: string;
+  relecture_sending: string;
+  relecture_flag: Record<'register' | 'grammar', string>;
+  relecture_unavailable: string;
+  date_short: (iso: string) => string;
 };
 
 const CONTRIBUTION_FR = {
@@ -50,6 +89,16 @@ const CONTRIBUTION_FR = {
 };
 
 const week_fr = (week: number | null) => (week == null ? '' : `Semaine ${week}`);
+
+function shortDate(locale: string, iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
 const LEVEL_NAME: Record<CarteLevel, string> = { france: 'La France', idf: 'Île-de-France', paris: 'Paris' };
 
 const FR: CarteCopy = {
@@ -84,6 +133,47 @@ const FR: CarteCopy = {
   disabled_body: 'Elle arrive avec le Papier de Romy.',
   back: 'Retour',
   mock_badge: 'Démo · données fictives',
+  see_on_map: 'Voir sur la carte',
+  badge_label: (n) => (n === 1 ? 'La Carte · 1 Papier' : `La Carte · ${n} Papiers`),
+  settings_row: 'La Carte',
+  settings_hint: 'Où chaque Papier t’a mené·e.',
+  settings_action: 'Ouvrir',
+  due_waiting: (n) => (n === 1 ? '1 mot t’attend ici' : `${n} mots t’attendent ici`),
+  due_pin_label: (n) => (n === 1 ? '1 mot à revoir ici' : `${n} mots à revoir ici`),
+  review_here: 'Réviser ici',
+  review_title: 'Les mots d’ici',
+  review_progress: (index, total) => `${index} sur ${total}`,
+  review_instruction: {
+    match_pairs: 'Relie chaque mot à son sens.',
+    word_bank: 'Remets la phrase d’ici dans l’ordre. Un mot est en trop.',
+    unscramble: 'Remets la phrase d’ici dans l’ordre.',
+    dictation: 'Écoute, et écris ce que tu entends.',
+  },
+  review_check: 'Vérifier',
+  review_next: 'Suivant',
+  review_sending: 'Un instant…',
+  review_correct: 'Juste',
+  review_wrong: 'À revoir',
+  review_tiles_empty: 'Touche les mots dans l’ordre.',
+  review_remove_last: 'Retirer le dernier mot',
+  review_done_title: 'C’est revu.',
+  review_done_body: 'Les mots d’ici reviendront plus tard, au bon moment.',
+  review_back: 'Retour à la carte',
+  review_empty: 'Plus rien à revoir ici pour l’instant.',
+  review_error: 'La révision ne s’ouvre pas. Rien n’est perdu.',
+  relecture_open_question: 'Relire ta question',
+  relecture_open_headline: 'Réécrire ton titre',
+  relecture_read: (date) => (date ? `Relue le ${date}` : 'Relue'),
+  relecture_title: 'La Relecture',
+  relecture_lead_question: 'Tu avais posé cette question avec Romy. Aujourd’hui, qu’est-ce que tu y réponds ?',
+  relecture_lead_headline: 'Quel titre donnerais-tu aujourd’hui à cette histoire ?',
+  relecture_field: 'Ta réponse, en français · une ou deux phrases',
+  relecture_placeholder: 'Je pense que…',
+  relecture_send: 'Envoyer',
+  relecture_sending: 'Envoi…',
+  relecture_flag: { register: 'registre', grammar: 'grammaire' },
+  relecture_unavailable: 'Cette relecture n’est pas encore ouverte.',
+  date_short: (iso) => shortDate('fr-FR', iso),
 };
 
 const EN: CarteCopy = {
@@ -112,6 +202,44 @@ const EN: CarteCopy = {
   disabled_body: 'It comes with Romy’s Papier.',
   back: 'Back',
   mock_badge: 'Demo · made-up data',
+  see_on_map: 'See it on the map',
+  badge_label: (n) => (n === 1 ? 'La Carte · 1 Papier, open the map' : `La Carte · ${n} Papiers, open the map`),
+  settings_hint: 'Where each Papier took you.',
+  settings_action: 'Open',
+  due_waiting: (n) => (n === 1 ? '1 word is waiting for you here' : `${n} words are waiting for you here`),
+  due_pin_label: (n) => (n === 1 ? '1 word to review here' : `${n} words to review here`),
+  review_here: 'Review here',
+  review_title: 'The words from here',
+  review_progress: (index, total) => `${index} of ${total}`,
+  review_instruction: {
+    match_pairs: 'Match each word with its meaning.',
+    word_bank: 'Put the sentence from here back in order. One word is extra.',
+    unscramble: 'Put the sentence from here back in order.',
+    dictation: 'Listen, and write what you hear.',
+  },
+  review_check: 'Check',
+  review_next: 'Next',
+  review_sending: 'One moment…',
+  review_correct: 'Right',
+  review_wrong: 'To review',
+  review_tiles_empty: 'Tap the words in order.',
+  review_remove_last: 'Remove the last word',
+  review_done_title: 'Reviewed.',
+  review_done_body: 'The words from here will come back later, at the right time.',
+  review_back: 'Back to the map',
+  review_empty: 'Nothing left to review here for now.',
+  review_error: 'The review won’t open. Nothing is lost.',
+  relecture_open_question: 'Answer your question again',
+  relecture_open_headline: 'Rewrite your headline',
+  relecture_read: (date) => (date ? `Re-read on ${date}` : 'Re-read'),
+  relecture_lead_question: 'You asked this question with Romy. What would you answer today?',
+  relecture_lead_headline: 'What headline would you give this story today?',
+  relecture_field: 'Your answer, in French · one or two sentences',
+  relecture_send: 'Send',
+  relecture_sending: 'Sending…',
+  relecture_flag: { register: 'register', grammar: 'grammar' },
+  relecture_unavailable: 'This re-reading isn’t open yet.',
+  date_short: (iso) => shortDate('en-GB', iso),
 };
 
 const DE: CarteCopy = {
@@ -140,6 +268,44 @@ const DE: CarteCopy = {
   disabled_body: 'Sie kommt mit Romys Papier.',
   back: 'Zurück',
   mock_badge: 'Demo · erfundene Daten',
+  see_on_map: 'Auf der Karte ansehen',
+  badge_label: (n) => (n === 1 ? 'La Carte · 1 Papier, Karte öffnen' : `La Carte · ${n} Papiers, Karte öffnen`),
+  settings_hint: 'Wohin dich jedes Papier geführt hat.',
+  settings_action: 'Öffnen',
+  due_waiting: (n) => (n === 1 ? '1 Wort wartet hier auf dich' : `${n} Wörter warten hier auf dich`),
+  due_pin_label: (n) => (n === 1 ? '1 Wort hier zu wiederholen' : `${n} Wörter hier zu wiederholen`),
+  review_here: 'Hier wiederholen',
+  review_title: 'Die Wörter von hier',
+  review_progress: (index, total) => `${index} von ${total}`,
+  review_instruction: {
+    match_pairs: 'Verbinde jedes Wort mit seiner Bedeutung.',
+    word_bank: 'Bring den Satz von hier in die richtige Reihenfolge. Ein Wort ist zu viel.',
+    unscramble: 'Bring den Satz von hier in die richtige Reihenfolge.',
+    dictation: 'Hör zu und schreib, was du hörst.',
+  },
+  review_check: 'Prüfen',
+  review_next: 'Weiter',
+  review_sending: 'Einen Moment…',
+  review_correct: 'Richtig',
+  review_wrong: 'Nochmal ansehen',
+  review_tiles_empty: 'Tippe die Wörter der Reihe nach an.',
+  review_remove_last: 'Letztes Wort entfernen',
+  review_done_title: 'Wiederholt.',
+  review_done_body: 'Die Wörter von hier kommen später wieder, zur richtigen Zeit.',
+  review_back: 'Zurück zur Karte',
+  review_empty: 'Hier gibt es gerade nichts zu wiederholen.',
+  review_error: 'Die Wiederholung lässt sich nicht öffnen. Nichts ist verloren.',
+  relecture_open_question: 'Deine Frage nochmal beantworten',
+  relecture_open_headline: 'Deine Schlagzeile neu schreiben',
+  relecture_read: (date) => (date ? `Neu gelesen am ${date}` : 'Neu gelesen'),
+  relecture_lead_question: 'Diese Frage hast du mit Romy gestellt. Was antwortest du heute darauf?',
+  relecture_lead_headline: 'Welche Schlagzeile würdest du dieser Geschichte heute geben?',
+  relecture_field: 'Deine Antwort, auf Französisch · ein oder zwei Sätze',
+  relecture_send: 'Senden',
+  relecture_sending: 'Wird gesendet…',
+  relecture_flag: { register: 'Register', grammar: 'Grammatik' },
+  relecture_unavailable: 'Diese Relecture ist noch nicht offen.',
+  date_short: (iso) => shortDate('de-DE', iso),
 };
 
 const COPY: Record<CarteLanguage, CarteCopy> = { fr: FR, en: EN, de: DE };

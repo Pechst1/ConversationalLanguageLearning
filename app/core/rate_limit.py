@@ -285,6 +285,11 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/revue/sessions/{session_id}/turns"),
         ("POST", "/revue/sessions/{session_id}/make"),
         ("POST", "/revue/sessions/{session_id}/close"),
+        # La Radio (WP-122 A): the bulletin GET synthesises speech on first request
+        ("GET", "/revue/radio/{dossier_id}"),
+        # Le Correcteur (WP-122 B): a draft may call the model once to rewrite a line
+        ("POST", "/revue/correcteur/{dossier_id}"),
+        ("POST", "/revue/correcteur/{correction_id}/marks"),
         # the daily journey (WP-69's router, guarded from api.py)
         ("POST", "/daily-journeys"),
         ("POST", "/daily-journeys/{journey_id}/steps/{step_id}/attempts"),

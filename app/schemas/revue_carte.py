@@ -28,6 +28,12 @@ class CarteVignette(_CarteModel):
     pictogram_svg: str
 
 
+class CarteRelectureMark(_CarteModel):
+    state: Literal["eligible", "read"]
+    #: When the learner answered again (``read`` only), ISO.
+    read_at: str | None = None
+
+
 class CartePin(_CarteModel):
     session_id: str
     dossier_id: str
@@ -50,6 +56,12 @@ class CartePin(_CarteModel):
     question_fr: str | None = None
     plate_url: str | None = None
     vignette: CarteVignette | None = None
+    #: WP-121: the dossier place the Papier happened at (the review's key).
+    place_id: str | None = None
+    #: WP-121 A.2: due words met at this place (on the place's most recent pin only).
+    due_words: int = 0
+    #: WP-121 B: «Relire ta question» (eligible) or «Relue le …» (read).
+    relecture: CarteRelectureMark | None = None
 
 
 class CarteQuartierPlace(_CarteModel):
@@ -73,3 +85,75 @@ class CarteView(_CarteModel):
     pins: list[CartePin]
     quartier: list[CarteQuartierPlace]
     counts: CarteCounts
+    #: WP-121 A.2: every due word met in a Papier that has a pin.
+    due_total: int = 0
+
+
+# ---------------------------------------------------------------------------
+# WP-121 A.3 · reviewing «ici»: ``GET /revue/carte/review/{place_id}`` and its grade
+# ---------------------------------------------------------------------------
+
+
+class CarteReviewWord(_CarteModel):
+    progress_id: str
+    word_id: int
+    word: str
+    gloss: str
+    #: The claim the word was kept with (``met.sentence``).
+    sentence_fr: str
+    #: Who carried the word in the thread (``romy_tremblay`` or a guest's cast id) and the line.
+    speaker_id: str
+    speaker_name: str
+    line_fr: str
+    session_id: str
+    week: str
+
+
+class CarteReviewOption(_CarteModel):
+    id: str
+    text_fr: str
+    side: Literal["fr", "native"] | None = None
+
+
+class CarteReviewItem(_CarteModel):
+    id: str
+    task_type: Literal["match_pairs", "word_bank", "unscramble", "dictation"]
+    progress_ids: list[str]
+    prompt_fr: str | None = None
+    options: list[CarteReviewOption]
+    #: The journey's hashed key (``journey_answer_key``), so the device colours a pick at once.
+    answer_key: dict | None = None
+    audio_url: str | None = None
+
+
+class CarteReview(_CarteModel):
+    place_id: str
+    place_label_fr: str
+    plate_url: str | None = None
+    week: str
+    headline_fr: str | None = None
+    words: list[CarteReviewWord]
+    items: list[CarteReviewItem]
+
+
+class CarteReviewGradeRequest(_CarteModel):
+    item_id: str
+    tile_ids: list[str] | None = None
+    text: str | None = None
+    assisted: bool = False
+
+
+class CarteReviewResult(_CarteModel):
+    progress_id: str
+    word_id: int
+    correct: bool
+    rating: int
+    due_at: str | None = None
+
+
+class CarteReviewGrade(_CarteModel):
+    item_id: str
+    task_type: str
+    results: list[CarteReviewResult]
+    #: Due words left at this place; 0 → the dot is gone.
+    remaining: int

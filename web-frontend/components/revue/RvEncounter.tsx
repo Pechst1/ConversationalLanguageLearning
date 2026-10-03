@@ -60,11 +60,11 @@ import {
   sourceDate,
   type WordOutcomes,
 } from './revue-model';
-import { RvCloseVignette, RvDispatch, RvKept } from './RvClose';
+import { RvCloseCarteLink, RvCloseVignette, RvDispatch, RvKept } from './RvClose';
 import { RvComposer } from './RvComposer';
 import { RvHeadlineChoice, RvHeadlineWrite, RvMakePicker, RvQuestionDraft, RvShortReport } from './RvMake';
 import { RvSessionHead } from './RvSessionHead';
-import { RvStage, stageCast } from './RvStage';
+import { RvStage, stageCast, stagePlateUrl } from './RvStage';
 import { RvLine, RvMadeCard, RvQuickReplies, RvThread, type RvWordEvent } from './RvThread';
 
 type MakeStep =
@@ -492,6 +492,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         <Action tone="done" onClick={onExit}>
           {copy.file_revue}
         </Action>
+        <RvCloseCarteLink sessionId={session.id} language={chrome} />
         {onReleve && (
           <Action tone="quiet" onClick={onReleve}>
             {copy.see_releve}
@@ -574,7 +575,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const cast = castWithGuests(session.stage.cast, session.thread);
   const stage = (
     <RvStage
-      plateUrl={session.stage.plateUrl}
+      plateUrl={stagePlateUrl(session.stage, session.thread, make.step !== 'none' || Boolean(session.artifact) || session.beat === 'make')}
       size={hasSpoken || ended ? 'band' : 'full'}
       cast={stageCast(cast, lastSpeaker(session.thread))}
       you={{ outfit: session.stage.dress }}

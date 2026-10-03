@@ -33,6 +33,7 @@ celery_app = Celery(
         "app.tasks.book_library",
         "app.tasks.journey_prefetch",
         "app.tasks.health",
+        "app.tasks.revue",
     ],
 )
 
@@ -103,6 +104,14 @@ celery_app.conf.beat_schedule = {
     "retire-unhealthy-atelier-exercises": {
         "task": "app.tasks.atelier.retire_unhealthy_exercise_sets",
         "schedule": crontab(hour=4, minute=45),
+    },
+    # WP-119 phase 3 «Le kiosque»: the week's editorial dossiers, Monday 05:00
+    # Europe/Paris (beat timezone Europe/Berlin = the same clock). Every morning:
+    # under weekly the Monday run builds and later runs keep it (or catch up a
+    # failed Monday); REVUE_CADENCE=daily builds each day with no beat change.
+    "revue-weekly-intake": {
+        "task": "app.tasks.revue.weekly_intake",
+        "schedule": crontab(hour=5, minute=0),
     },
     # WP-73: liveness — a fresh Redis heartbeat proves beat, broker and a worker.
     "worker-heartbeat": {

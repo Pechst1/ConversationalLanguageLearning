@@ -268,6 +268,12 @@ class DayShapeInputs:
     #: (≥ :data:`LISTEN_FIRST_MIN_BUDGET_SECONDS`) hear every third day first.
     #: ``None`` — an older caller — deals no cadence at all.
     budget_seconds: int | None = None
+    #: WP-119 phase 3. Le Papier is on and this week's kiosk has a story.
+    revue_available: bool = False
+    #: WP-119 phase 3. A Papier day was already dealt this ISO week.
+    revue_dealt_this_week: bool = False
+    #: WP-111 / WP-119. Today's story day is a season tentpole (served as written).
+    tentpole: bool = False
 
     @property
     def seed_parts(self) -> tuple[str, ...]:
@@ -318,6 +324,27 @@ def is_listen_first_day(inputs: DayShapeInputs) -> bool:
     return (inputs.local_date.toordinal() + phase) % LISTEN_FIRST_EVERY_DAYS == 0
 
 
+#: WP-119 phase 3: the Papier day falls on this learner's weekday of the week
+#: (seeded, Monday..Friday) or the first story day after it that may hold it, so a
+#: tentpole or a missed day moves it later in the week instead of skipping the week.
+REVUE_WEEKDAYS = 5
+
+
+def revue_weekday(inputs: DayShapeInputs) -> int:
+    """This learner's Papier weekday this week (0 = Monday … 4 = Friday)."""
+
+    return roll(*inputs.seed_parts, "revue-day", faces=REVUE_WEEKDAYS)
+
+
+def is_revue_day(inputs: DayShapeInputs) -> bool:
+    """Deal «jour du Papier» today? Once a week, on or after the seeded weekday, never
+    on a tentpole, only while the Papier is on and has a story for the week."""
+
+    if not inputs.revue_available or inputs.revue_dealt_this_week or inputs.tentpole:
+        return False
+    return inputs.local_date.weekday() >= revue_weekday(inputs)
+
+
 def eligible_shapes(inputs: DayShapeInputs) -> tuple[DayShape, ...]:
     """The shapes today could honestly be, before the no-repeat rule.
 
@@ -333,6 +360,8 @@ def eligible_shapes(inputs: DayShapeInputs) -> tuple[DayShape, ...]:
         shapes.append(DayShape.REPRISE)
     if inputs.letter is not None and inputs.letter.is_renderable():
         shapes.append(DayShape.LETTER)
+    if is_revue_day(inputs):
+        shapes.append(DayShape.REVUE)
     return tuple(shapes)
 
 
@@ -385,6 +414,12 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
                 shape=DayShape.REPRISE, reason="chapter_resolution_beat", eligible=pool
             )
 
+    if DayShape.REVUE in pool and previous is not DayShape.REVUE:
+        # WP-119 phase 3: the week's Papier day, once the seeded weekday has come.
+        # After the story's own overrides (a missed day, a letter chapter, a
+        # resolution beat); before the listening cadence and the dice.
+        return DayShapeDecision(shape=DayShape.REVUE, reason="revue_weekly", eligible=pool)
+
     if (
         is_listen_first_day(inputs)
         and DayShape.LISTENING in pool
@@ -396,6 +431,8 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
             shape=DayShape.LISTENING, reason="listen_first_cadence", eligible=pool
         )
 
+    # The Papier day is dealt by its own rule above, never drawn by the dice.
+    pool = tuple(shape for shape in pool if shape is not DayShape.REVUE)
     unrepeated = tuple(shape for shape in pool if shape is not previous)
     # WP-78 (the WP-68 finding): a shape dealt yesterday that could not be
     # built was served as a standard day, so excluding only *standard* dealt
@@ -493,6 +530,9 @@ __all__ = [
     "choose_day_shape",
     "eligible_shapes",
     "is_listen_first_day",
+    "is_revue_day",
+    "REVUE_WEEKDAYS",
+    "revue_weekday",
     "iso_week_key",
     "letter_offer_for",
     "roll",

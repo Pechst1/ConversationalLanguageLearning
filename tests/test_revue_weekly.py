@@ -150,6 +150,22 @@ def test_editorial_shape() -> None:
         assert len({angle.purpose for angle in dossier.angles}) == 2, dossier.id
 
 
+def test_vignette_object_and_angle_staging() -> None:
+    """WP-119 §10c / WP-120 §4.1: one vignette object per story; every angle names its
+    participation and a guest of the topic's affinity (``policy.GUEST_AFFINITY``)."""
+
+    for dossier in DOSSIERS:
+        assert (dossier.vignette_object_fr or "").strip(), dossier.id
+        affinity = {row["id"] for row in policy.GUEST_AFFINITY.get(dossier.topic, [])}
+        for angle in dossier.angles:
+            assert angle.participation in {"none", "helps", "works", "formal"}, (dossier.id, angle.id)
+            assert angle.guest_fit in policy.GUEST_CAST_IDS, (dossier.id, angle.id)
+            assert angle.guest_fit in affinity, (dossier.id, angle.id)
+    raw = [json.loads(path.read_text()) for path in sorted(WEEK_DIR.glob("*.json"))]
+    for data in raw:  # explicit in the files, not left to the model default
+        assert all("participation" in a and "guest_fit" in a for a in data["angles"]), data["id"]
+
+
 @pytest.mark.parametrize("dossier", DOSSIERS, ids=_ids(DOSSIERS))
 def test_week_passes_run_dossier_checks(dossier: EditorialDossier) -> None:
     results = run_dossier_checks(dossier, source_texts=source_texts_for_week(WEEK), week=WEEK)

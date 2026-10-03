@@ -266,9 +266,9 @@ def _bank_french_words() -> frozenset[str]:
     adjectives) — the words La Forge itself asks for are French by definition."""
 
     try:
-        from app.services.item_bank import TEMPLATE_DIR
-
         import json
+
+        from app.services.item_bank import TEMPLATE_DIR
 
         lexicon = json.loads((TEMPLATE_DIR / "lexicon.json").read_text(encoding="utf-8"))
     except Exception:  # pragma: no cover - a missing lexicon only weakens the guard

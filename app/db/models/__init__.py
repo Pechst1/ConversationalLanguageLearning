@@ -44,6 +44,9 @@ from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
 from app.db.models.rehearsal import Rehearsal
+from app.db.models.revue_correcteur import RevueCorrection
+from app.db.models.revue_place import RevuePlace
+from app.db.models.revue_relecture import RevueRelecture
 from app.db.models.revue_session import RevueSession
 from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.scenario import UserScenarioState
@@ -61,6 +64,9 @@ from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, V
 
 __all__ = [
     "RevueSession",
+    "RevueRelecture",
+    "RevueCorrection",
+    "RevuePlace",
     "RevuePictogram",
     "RevueVignette",
     "User",

@@ -15,7 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.revue_vignette import VignetteView
 
-WEEK_PATTERN = r"^\d{4}-W\d{2}$"
+#: A period: an ISO week under weekly cadence, an ISO date under daily (WP-119 §12.2, phase 3).
+WEEK_PATTERN = r"^\d{4}-(W\d{2}|\d{2}-\d{2})$"
 
 Topic = Literal["food", "culture", "city", "sport", "nature", "work", "politics"]
 ClaimKind = Literal["fact", "interpretation", "forecast"]
@@ -87,6 +88,10 @@ class RvStage(RevueModel):
     place_is_real: bool
     dress: Outfit
     cast: list[RvStageMember]
+    #: WP-119 phase 4 (§12.7): the second view (``places[1]``) for ``pursue``/``make``, and
+    #: whether the stage has switched to it (at the guest's entrance, or at ``make``).
+    plate_url_second: str | None = None
+    plate_switched: bool = False
 
 
 class RvStoryCard(RevueModel):

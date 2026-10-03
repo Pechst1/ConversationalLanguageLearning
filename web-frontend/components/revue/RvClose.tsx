@@ -11,11 +11,16 @@
  *
  * WP-120: `RvCloseVignette` — the vignette the close minted, stamped in (300 ms,
  * none under reduced motion) before «Classer».
+ *
+ * WP-120 phase D: `RvCloseCarteLink` — «Voir sur la carte», the quiet secondary
+ * under «Classer le Papier», to `/carte?focus=<session_id>` (the pin's card opens).
  */
 
 import React from 'react';
+import Link from 'next/link';
 
 import { CastPortrait, WordToken } from '@/components/atelier-v2/ui';
+import { carteCopy } from '@/components/carte/carte-copy';
 import type { RvClaim, RvKeptWord, RvLanguage, RvSource, RvSpan } from '@/lib/revue-types';
 
 import type { RvVignetteView } from '@/lib/revue-types';
@@ -132,5 +137,18 @@ export function RvCloseVignette({ vignette, week, stamping = true, copy }: { vig
         stamping={stamping}
       />
     </section>
+  );
+}
+
+/** WP-120 phase D · the close's way onto La Carte: this Papier's pin, its card open. */
+export function carteFocusHref(sessionId: string): string {
+  return `/carte?focus=${encodeURIComponent(sessionId)}`;
+}
+
+export function RvCloseCarteLink({ sessionId, language }: { sessionId: string; language?: string | null }) {
+  return (
+    <Link href={carteFocusHref(sessionId)} className="av2-btn av2-btn--quiet" data-tone="quiet" data-carte-focus={sessionId}>
+      <span>{carteCopy(language).see_on_map}</span>
+    </Link>
   );
 }

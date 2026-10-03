@@ -70,6 +70,7 @@ import { apiService as api, type AddressPreference } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 import { FEEDBACK_OPEN_EVENT } from '@/components/feedback/FeedbackWidget';
+import { carteCopy } from '@/components/carte/carte-copy';
 
 interface UserSettings {
     // Profile
@@ -1129,6 +1130,25 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     onClick={() => { void router.push('/dossier'); }}
                                 >
                                     {copy.action_open}
+                                </button>
+                            </Row>
+                        </div>
+
+                        {/* WP-120 phase D — «La Carte»: where each Papier happened.
+                            An archive, not a daily surface, so no tab; this row,
+                            the Relevé's badge and the close of a Papier lead there. */}
+                        <div className="st-card">
+                            <Row
+                                id="st-carte-label"
+                                label={<span lang="fr">{carteCopy(copyLanguage).settings_row}</span>}
+                                hint={carteCopy(copyLanguage).settings_hint}
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { void router.push('/carte'); }}
+                                >
+                                    {carteCopy(copyLanguage).settings_action}
                                 </button>
                             </Row>
                         </div>

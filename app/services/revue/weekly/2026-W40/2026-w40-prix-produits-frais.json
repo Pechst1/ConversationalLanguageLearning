@@ -62,12 +62,16 @@
     {
       "id": "a1",
       "fr": "Ce que ça change au marché et dans le panier",
-      "purpose": "understand_change"
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "margaux_barman"
     },
     {
       "id": "a2",
       "fr": "Faire une liste de courses de saison avec un petit budget",
-      "purpose": "prepare_dispatch"
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "margaux_barman"
     }
   ],
   "places": [
@@ -102,5 +106,6 @@
       "published_at": "2026-09-30"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "un panier de légumes"
 }

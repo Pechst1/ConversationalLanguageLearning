@@ -593,6 +593,63 @@ def test_a_whole_season_plays_its_tentpoles_on_their_days(assembled_client, db_s
         assert (gap_id, premise) in premises, f"{gap_id} never staged its required moment {premise}"
 
 
+def test_a_whole_season_with_le_papier_once_a_week_on_gap_days(assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch):
+    """WP-119 phase 3: the same life with Le Papier on. The planner deals one «jour du
+    Papier» a week, only on a gap day (never a tentpole, which is served as written), and
+    the season still plays every tentpole on its day and every gap inside its rules."""
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.services.revue import encounter as revue_encounter
+    from app.services.revue.evergreen import load_evergreens
+
+    monkeypatch.setattr(settings, "REVUE_ENABLED", True)
+    kiosk = load_evergreens()[:3]
+    monkeypatch.setattr(revue_encounter, "available_dossiers", lambda period, db=None: list(kiosk))
+    provider = season_on
+    provider.routes = {"Odile, c'est ma grand-mère.": "a"}
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1-papier-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    user_id = None
+    days: list[dict] = []
+    for _day in range(90):
+        journey = _play(d, provider, clock, "Odile, c'est ma grand-mère.")
+        user_id = user_id or _user_id_of(db_session, journey)
+        scene = _latest_scene(db_session, user_id)
+        season = dict((scene.script_payload or {}).get("season") or {})
+        row = db_session.get(DailyJourney, uuid.UUID(journey["id"]))
+        selection = row.plan_selection if isinstance(row.plan_selection, dict) else {}
+        days.append(
+            {
+                "date": row.local_date,
+                "kind": season.get("kind"),
+                "key": season.get("key"),
+                "shape": selection.get("day_shape"),
+                "kinds": [step["kind"] for step in journey["steps"]],
+                "page": bool((scene.script_payload or {}).get("season_page")),
+            }
+        )
+        if _season_state(db_session, user_id) and season_clock.position(
+            load_season("s1"), _season_state(db_session, user_id), today=clock.moment.date()
+        ).finished:
+            break
+    tentpoles = [row for row in days if row["kind"] == "tentpole"]
+    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")]
+    assert all(row["page"] and row["shape"] != "revue" for row in tentpoles), "a tentpole is never a Papier day"
+    papier = [row for row in days if row["shape"] == "revue"]
+    assert papier and all(row["kind"] == "gap" for row in papier)
+    assert all(len(row["kinds"]) <= 5 and row["kinds"][0] == "scene" and row["kinds"][-1] == "resolution" for row in papier)
+    weeks: dict[tuple[int, int], list[dict]] = {}
+    for row in days:
+        weeks.setdefault(row["date"].isocalendar()[:2], []).append(row)
+    for week, rows in weeks.items():
+        dealt = [row for row in rows if row["shape"] == "revue"]
+        assert len(dealt) <= 1, f"{week}: {len(dealt)} Papier days"
+        if len(rows) == 7 and any(row["kind"] == "gap" for row in rows):
+            assert len(dealt) == 1, f"{week}: a full week with gap days and no Papier day"
+    gaps = [row for row in days if row["kind"] == "gap"]
+    assert 43 - 7 <= len(gaps) <= 43 + 7
+    assert len(papier) >= 7, "about one Papier day in each of the season's eight-odd weeks"
+
+
 def _episode_of(d, journey: dict) -> dict:
     response = d.client.get(f"/api/v1/story-engine/episodes?journey_id={journey['id']}", headers=d.headers)
     assert response.status_code == 200, response.text

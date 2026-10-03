@@ -219,6 +219,11 @@ class DayShape(StrEnum):
       resolution beat, and the ending carries the chapter recap.
     * ``SHORT`` — «jour court»: three steps, offered after a missed day so
       coming back costs a scene and a reply, not a full session.
+    * ``REVUE`` — «jour du Papier» (WP-119 phase 3): once a week, never on a
+      season tentpole, the day is a short classic story day (scene, at most two
+      recalls, the reply, the ending — five steps at most, inside the budget,
+      no practice items) and the journey player mounts Le Papier de Romy
+      (``RvEncounter``) after the ending. Dealt only while ``REVUE_ENABLED``.
     """
 
     STANDARD = "standard"
@@ -226,6 +231,7 @@ class DayShape(StrEnum):
     LISTENING = "listening"
     REPRISE = "reprise"
     SHORT = "short"
+    REVUE = "revue"
 
 
 #: The default for every plan written before WP-66, and for any plan that names
@@ -802,6 +808,10 @@ DAY_SHAPE_RULES: dict[DayShape, DayShapeRule] = {
     DayShape.SHORT: DayShapeRule(
         min_steps=MIN_PLANNED_STEPS, max_steps=MIN_PLANNED_STEPS, max_recall=0
     ),
+    # WP-119 phase 3: the Papier day. The story part is the classic day (never a
+    # practice day: the Papier after the ending is the day's second half), at
+    # most five steps, so the two together stay close to one day's budget.
+    DayShape.REVUE: DayShapeRule(max_steps=MAX_PLANNED_STEPS),
 }
 
 

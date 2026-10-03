@@ -22,9 +22,21 @@ export type RevueHomeChip = { id: string; label: string; ariaLabel: string; href
 export function revueHomeChip(week: RvWeekResult | null | undefined, language: unknown): RevueHomeChip | null {
   if (!week || !week.enabled) return null;
   const offer = week.offer;
-  if (offer.filed || !offer.recommended) return null;
+  if (!offer.recommended) return null;
   const copy = revueCopy(language);
   const n = weekNumber(offer.week.iso);
+  if (offer.filed) {
+    // WP-119 §12.2: a second Papier in the same week is allowed from the chip, as a quiet offer.
+    const others = (offer.alternatives ?? []).length + 1;
+    if (others < 2) return null;
+    return {
+      id: 'revue',
+      label: copy.chip_more,
+      ariaLabel: fill(copy.chip_more_aria, { n: others }),
+      href: '/revue',
+      shape: 'story',
+    };
+  }
   return {
     id: 'revue',
     label: fill(copy.chip_label, { n }),

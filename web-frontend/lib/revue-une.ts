@@ -144,3 +144,13 @@ export function revueOpenHref(offer: RvOffer): string {
 export function revueDossierHref(dossierId: string): string {
   return `/revue?dossier=${encodeURIComponent(dossierId)}`;
 }
+
+/**
+ * WP-119 phase 3 · the Revue day's hero press. The hero hides the plan row
+ * (`planHidden`), so until today's day is done the press opens the day (the
+ * Papier then follows the day's ending inside the player); afterwards it opens
+ * `/revue` (`revueOpenHref`).
+ */
+export function revueHeroOpensDay(dayDone: boolean, canOpenDay: boolean): boolean {
+  return canOpenDay && !dayDone;
+}

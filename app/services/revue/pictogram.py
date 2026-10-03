@@ -588,22 +588,40 @@ def _store(db: Session, *, dossier_id: str, object_fr: str, svg: str, version: s
     return svg
 
 
-def pictogram_for(db: Session, dossier: Any, provider: PictogramProvider | None) -> str:
+def _overwrite(db: Session, row: RevuePictogram, *, object_fr: str, svg: str, version: str) -> str:
+    """A refresh's new drawing replaces the stored one in place (same dossier id)."""
+
+    row.object_fr = object_fr[:200]
+    row.svg = svg
+    row.prompt_version = version
+    row.validated_at = datetime.now(UTC)
+    db.flush()
+    return svg
+
+
+def pictogram_for(
+    db: Session, dossier: Any, provider: PictogramProvider | None, *, refresh: bool = False
+) -> str:
     """The dossier's pictogram: cached, else drawn (one regeneration), else the topic fallback.
 
     ``dossier`` is an ``EditorialDossier`` (``id``, ``topic``, ``vignette_object_fr``). A
     dossier without an object gets the topic fallback and is not cached, so a later build
     that names an object still gets drawn.
+
+    ``refresh=True`` (WP-119 §10c, the owner redrawing a weak pictogram) bypasses the cache,
+    draws again with the dossier's current object and overwrites the row. A refresh that
+    fails both tries keeps the row it found (a weak drawing beats the topic fallback); with
+    no row yet it falls back and stores like a first draw.
     """
 
     dossier_id = str(dossier.id)
     topic = str(getattr(dossier, "topic", "") or "")
     object_fr = re.sub(r"\s+", " ", str(getattr(dossier, "vignette_object_fr", None) or "")).strip()
     cached = db.get(RevuePictogram, dossier_id)
-    if cached is not None:
+    if cached is not None and not refresh:
         return cached.svg
     if not object_fr or provider is None:
-        return fallback_svg(topic)
+        return cached.svg if cached is not None else fallback_svg(topic)
 
     errors: list[str] | None = None
     for attempt in (1, 2):
@@ -615,10 +633,15 @@ def pictogram_for(db: Session, dossier: Any, provider: PictogramProvider | None)
             continue
         result = validate_pictogram(raw)
         if result.ok and result.svg_normalised:
+            if cached is not None:
+                return _overwrite(db, cached, object_fr=object_fr, svg=result.svg_normalised, version=PROMPT_VERSION)
             return _store(db, dossier_id=dossier_id, object_fr=object_fr, svg=result.svg_normalised,
                           version=PROMPT_VERSION)
         errors = result.errors
         logger.bind(dossier_id=dossier_id).info("revue pictogram: try {} rejected ({})", attempt, "; ".join(errors))
+    if cached is not None:
+        logger.bind(dossier_id=dossier_id).warning("revue pictogram: refresh failed twice, keeping the stored drawing")
+        return cached.svg
     logger.bind(dossier_id=dossier_id).warning("revue pictogram: falling back to the {} pictogram", topic or "culture")
     return _store(db, dossier_id=dossier_id, object_fr=object_fr, svg=fallback_svg(topic),
                   version=f"{FALLBACK_VERSION}:{topic or 'culture'}")

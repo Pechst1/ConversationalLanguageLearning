@@ -77,6 +77,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/atelier',
   '/revue',
   '/carte',
+  '/correcteur',
+  '/radio',
   '/missions',
   '/graphic-novel',
   '/serial',

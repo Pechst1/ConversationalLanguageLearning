@@ -248,7 +248,7 @@ test('the parser reads the wire and drops what it cannot place', () => {
 
 test('the client: a 404 means the Revue is off; anything else is an error', async () => {
   const ok = createCarteClient({ get: async (url) => (assert.equal(url, '/revue/carte'), { pins: [], quartier: [], counts: {} }) });
-  assert.deepEqual(await ok.carte(), { enabled: true, view: { pins: [], quartier: [], counts: { france: 0, idf: 0, paris: 0, unplaced: 0 } } });
+  assert.deepEqual(await ok.carte(), { enabled: true, view: { pins: [], quartier: [], counts: { france: 0, idf: 0, paris: 0, unplaced: 0 }, dueTotal: 0 } });
   const off = createCarteClient({ get: async () => { throw { response: { status: 404 } }; } });
   assert.deepEqual(await off.carte(), { enabled: false });
   const down = createCarteClient({ get: async () => { throw { response: { status: 500 } }; } });

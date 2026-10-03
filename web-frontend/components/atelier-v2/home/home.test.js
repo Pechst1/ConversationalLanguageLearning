@@ -347,7 +347,17 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
     assert.equal((html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');
   }
   assert.equal(revueHomeChip({ enabled: false }, 'en'), null, 'flag off: no chip');
-  assert.equal(revueHomeChip({ enabled: true, offer: revueTypes.parseOffer(REVUE.offer_filed) }, 'en'), null, 'filed: no chip');
+  {
+    // WP-119 §12.2: once filed, the chip stays only as a quiet offer of another Papier when the kiosk has more.
+    const filedOffer = revueTypes.parseOffer(REVUE.offer_filed);
+    const filedChip = revueHomeChip({ enabled: true, offer: filedOffer }, 'en');
+    if ((filedOffer.alternatives ?? []).length > 0) {
+      assert.equal(filedChip.label, 'Another Papier?');
+      assert.equal(filedChip.href, '/revue');
+    } else {
+      assert.equal(filedChip, null, 'filed with nothing else at the kiosk: no chip');
+    }
+  }
   const resume = revueHomeChip({ enabled: true, offer: revueTypes.parseOffer(REVUE.offer_resume) }, 'fr');
   assert.match(resume.href, /^\/revue\?session=/);
 });

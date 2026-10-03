@@ -72,19 +72,23 @@
     {
       "id": "a1",
       "fr": "Qui peut gagner l'Arc, et pourquoi ?",
-      "purpose": "choose_angle"
+      "purpose": "choose_angle",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
     },
     {
       "id": "a2",
       "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
-      "purpose": "prepare_dispatch"
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
     }
   ],
   "places": [
     {
       "id": "hippodrome_longchamp",
       "name_fr": "L'hippodrome de ParisLongchamp",
-      "brief": "an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
+      "brief": "the hippodrome ParisLongchamp in the bois de Boulogne: an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
       "known": false,
       "geo": {
         "lat": 48.8573,
@@ -112,5 +116,6 @@
       "published_at": "2026-10-02"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "un fer à cheval"
 }

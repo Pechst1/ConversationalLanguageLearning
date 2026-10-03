@@ -68,12 +68,16 @@
     {
       "id": "a1",
       "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
-      "purpose": "explain_disagreement"
+      "purpose": "explain_disagreement",
+      "participation": "none",
+      "guest_fit": "lila_bonnet"
     },
     {
       "id": "a2",
       "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs",
-      "purpose": "understand_change"
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "lila_bonnet"
     }
   ],
   "places": [
@@ -108,5 +112,6 @@
       "published_at": "2026-09-25"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "un livre fermé"
 }

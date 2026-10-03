@@ -580,6 +580,7 @@ def check_render(
     props: set[str],
     cast_ids: set[str],
     camille_chosen: bool,
+    dossier: EditorialDossier | None = None,
 ) -> list[CheckResult]:
     """Render: is ``dress`` in the catalogue, ``place_id`` registered or paintable, every
     ``hold`` an authored prop, every cast id real, and Camille's look chosen if she is on
@@ -588,8 +589,12 @@ def check_render(
     Reasons: ``unknown_outfit``, ``unknown_place`` (neither in ``known_places`` nor
     painted: ``plate_url`` unset), ``unknown_prop``, ``unknown_cast`` (cast or guest;
     the learner's ``"user"`` is always known), ``camille_look_not_chosen``. One ok
-    result when all pass. Plate briefs are not on the plan: ``stage.py`` checks them with
-    ``policy.plate_forbidden_hits``.
+    result when all pass. With ``dossier`` (WP-119 phase 4, §8.1 specificity rule): a
+    place whose brief does not name the ``kind: place`` entity it is about fails with
+    ``brief_without_place_name`` (``detail``: ``place_id``, ``missing``); the caller
+    refuses the brief (no paint) and the place's stand-in plate is shown. Forbidden
+    words in a brief are ``revue.plates.brief_for``'s business
+    (``policy.plate_forbidden_hits``).
     """
 
     stage = plan.stage
@@ -614,7 +619,57 @@ def check_render(
     on_stage = {member.id for member in stage.cast} | {guest.id for guest in stage.guests_available}
     if CAMILLE_ID in on_stage and not camille_chosen:
         results.append(_fail("render", "camille_look_not_chosen", field="cast", value=CAMILLE_ID))
+    if dossier is not None:
+        for place in dossier.places:
+            missing = brief_missing_place_names(place.id, place.name_fr, place.brief, dossier)
+            if missing:
+                results.append(
+                    _fail("render", "brief_without_place_name", field="brief", place_id=place.id, missing=missing)
+                )
     return results or [_ok("render", place_id=stage.place_id)]
+
+
+_ARTICLES = frozenset({"le", "la", "les", "l", "the"})
+
+
+def _place_words(text: str | None) -> list[str]:
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFKD", fold(text).casefold())
+    plain = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return [word for word in re.split(r"[^a-z0-9]+", plain) if word]
+
+
+def _names_in(name: str, text: str) -> bool:
+    """Whether ``name`` (articles dropped, accents folded) appears in ``text`` as words,
+    or glued (``ParisLongchamp`` / ``Paris Longchamp``)."""
+
+    words = [word for word in _place_words(name) if word not in _ARTICLES]
+    if not words:
+        return True
+    haystack = _place_words(text)
+    spaced = f" {' '.join(haystack)} "
+    if f" {' '.join(words)} " in spaced:
+        return True
+    glued = "".join(words)
+    return len(glued) >= 5 and glued in "".join(haystack)
+
+
+def brief_missing_place_names(
+    place_id: str, name_fr: str, brief: str | None, dossier: EditorialDossier
+) -> list[str]:
+    """WP-119 §8.1 rule 1: the ``kind: place`` entities this place is about whose name its
+    brief does not contain. An entity is *about* the place when its name appears in the
+    place's ``name_fr`` or id (``«L'hippodrome de ParisLongchamp»`` is about
+    ``ParisLongchamp``); a typed place (a kitchen, a bookshop) names no entity and passes.
+    """
+
+    label = f"{name_fr} {str(place_id).replace('_', ' ')}"
+    return [
+        entity.name
+        for entity in dossier.entities
+        if entity.kind == "place" and _names_in(entity.name, label) and not _names_in(entity.name, brief or "")
+    ]
 
 
 def check_credit(evidence_write: dict) -> list[CheckResult]:

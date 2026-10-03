@@ -71,12 +71,16 @@
     {
       "id": "a1",
       "fr": "Ce qui change dans les rues et les écoles de Paris",
-      "purpose": "understand_change"
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
     },
     {
       "id": "a2",
       "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
-      "purpose": "prepare_dispatch"
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
     }
   ],
   "places": [
@@ -105,5 +109,6 @@
       "published_at": "2026-09-29"
     }
   ],
-  "evergreen": false
+  "evergreen": false,
+  "vignette_object_fr": "un thermomètre"
 }

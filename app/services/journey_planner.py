@@ -43,7 +43,6 @@ from app.services.journey_content import (
 )
 from app.services.journey_contracts import (
     CLASSIC_RECALL_FORMATS,
-    recall_goal,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
     INPUT_FLOOR_SHARE,
@@ -71,6 +70,7 @@ from app.services.journey_contracts import (
     day_shape_rule,
     normalize_answer_text,
     practice_day_shape_rule,
+    recall_goal,
     rhythm_caps,
 )
 from app.services.journey_day_shapes import (
@@ -2120,6 +2120,13 @@ def plan_journey(
         shape = DEFAULT_DAY_SHAPE
         rule = day_shape_rule(shape)
         shape_reason = "letter_withdrawn"
+    if shape is DayShape.REVUE:
+        # WP-119 phase 3: the Papier day's story part is the classic day — scene,
+        # at most two recalls, the reply, the ending (five steps at most, inside
+        # the budget). No practice items, rule, forge or «Lecture»: the player
+        # mounts Le Papier after the ending, and the two together are the day.
+        practice = False
+        introduction = forge = reading = None
     profile = pace or PacingProfile()
     spt = profile.effective_seconds_per_token()
     multiplier = profile.effective_step_multiplier()

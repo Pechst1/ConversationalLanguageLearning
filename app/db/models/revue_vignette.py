@@ -49,8 +49,8 @@ class RevueVignette(Base):
     #: ``headline`` (ink) · ``question`` (blue) · ``report`` (red): what the learner made.
     ring: Mapped[str] = mapped_column(String(16), nullable=False)
     kept_contribution: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    #: ISO week, ``"2026-W40"``.
-    week: Mapped[str] = mapped_column(String(8), nullable=False)
+    #: The Papier's period: ISO week ``"2026-W40"``, or ISO date ``"2026-10-03"`` when daily (WP-119 §12.2).
+    week: Mapped[str] = mapped_column(String(10), nullable=False)
     place_label_fr: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     minted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

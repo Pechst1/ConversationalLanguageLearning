@@ -12,6 +12,10 @@
  * the corner (and Escape) zooms back out. «Mon quartier», the season's places
  * already lived, toggles on the Paris level only. Level changes fade in, not under
  * reduced motion.
+ *
+ * WP-121 A.2: a pin (or a cluster) holding due words carries a small ink dot on its
+ * ring — a dot, never a number (the number is in the card); static under reduced
+ * motion. The card's first row then offers «Réviser ici».
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,6 +37,7 @@ import {
 } from './carte-model';
 import { drawingUrl } from './carte-projection';
 import { CartePinCard } from './CartePinCard';
+import { clusterDue } from './palais-model';
 
 const drawingCache = new Map<CarteLevel, Promise<string>>();
 
@@ -64,6 +69,10 @@ export type CarteProps = {
   language?: CarteLanguage;
   onRelire: (pin: CartePin) => void;
   onReleve: (pin: CartePin) => void;
+  /** WP-121 A.3: «Réviser ici» on a pin with due words. */
+  onReview?: (pin: CartePin) => void;
+  /** WP-121 B: «Relire ta question» / «Relue le …». */
+  onRelecture?: (pin: CartePin) => void;
   initialLevel?: CarteLevel;
   /** Tests and the first paint: the drawing's markup per level (else fetched). */
   drawings?: Partial<Record<CarteLevel, string>>;
@@ -71,6 +80,8 @@ export type CarteProps = {
   mapPx?: number;
   /** Tests: a pin's card open on first render. */
   initialPinId?: string | null;
+  /** WP-120 phase D · `/carte?focus=<session_id>`: that Papier's card open on load, on its own level. */
+  focusSessionId?: string | null;
   initialQuartier?: boolean;
 };
 
@@ -81,17 +92,21 @@ export function Carte({
   language = 'fr',
   onRelire,
   onReleve,
+  onReview,
+  onRelecture,
   initialLevel = 'france',
   drawings,
   mapPx: fixedPx,
   initialPinId = null,
+  focusSessionId = null,
   initialQuartier = false,
 }: CarteProps) {
-  const [level, setLevel] = useState<CarteLevel>(initialLevel);
+  const focusPin = focusSessionId ? pins.find((p) => p.sessionId === focusSessionId) ?? null : null;
+  const [level, setLevel] = useState<CarteLevel>(focusPin?.level ?? initialLevel);
   const [svg, setSvg] = useState<Partial<Record<CarteLevel, string>>>(drawings ?? {});
   const [measured, setMeasured] = useState<number>(fixedPx ?? DEFAULT_MAP_PX);
   const [showQuartier, setShowQuartier] = useState(initialQuartier);
-  const [openPin, setOpenPin] = useState<CartePin | null>(() => pins.find((p) => p.sessionId === initialPinId) ?? null);
+  const [openPin, setOpenPin] = useState<CartePin | null>(() => focusPin ?? pins.find((p) => p.sessionId === initialPinId) ?? null);
   const [list, setList] = useState<Cluster<CartePin> | null>(null);
   const [place, setPlace] = useState<Cluster<CarteQuartierPlace> | null>(null);
   const [word, setWord] = useState<WordHelpRequest | null>(null);
@@ -185,16 +200,19 @@ export function Carte({
           {marks.map((cluster) => {
             const style = { left: pct(cluster.x, layout.width), top: pct(cluster.y, layout.height) };
             if (cluster.members.length > 1) {
+              const due = clusterDue(cluster);
               return (
                 <li key={`c-${cluster.id}`} className="carte__mark" style={style}>
                   <button
                     type="button"
                     className="carte-cluster"
                     data-count={cluster.members.length}
-                    aria-label={copy.cluster_label(cluster.members.length)}
+                    data-due={due > 0 ? '' : undefined}
+                    aria-label={[copy.cluster_label(cluster.members.length), due > 0 ? copy.due_pin_label(due) : null].filter(Boolean).join(' · ')}
                     onClick={() => tapCluster(cluster)}
                   >
                     <span aria-hidden="true">{cluster.members.length}</span>
+                    {due > 0 && <i className="carte-due-dot" aria-hidden="true" />}
                   </button>
                 </li>
               );
@@ -207,7 +225,8 @@ export function Carte({
                   className="carte-pin"
                   data-precision={pin.precision}
                   data-session={pin.sessionId}
-                  aria-label={copy.pin_label(pin.placeLabelFr, weekNo(pin.week), pin.headlineFr)}
+                  data-due={pin.dueWords > 0 ? '' : undefined}
+                  aria-label={[copy.pin_label(pin.placeLabelFr, weekNo(pin.week), pin.headlineFr), pin.dueWords > 0 ? copy.due_pin_label(pin.dueWords) : null].filter(Boolean).join(' · ')}
                   onClick={() => setOpenPin(pin)}
                 >
                   {pin.precision !== 'exact' && <span className="carte-pin__ring" aria-hidden="true" />}
@@ -225,6 +244,7 @@ export function Carte({
                   ) : (
                     <span className="carte-pin__plain" aria-hidden="true" />
                   )}
+                  {pin.dueWords > 0 && <i className="carte-due-dot" aria-hidden="true" />}
                 </button>
               </li>
             );
@@ -261,6 +281,8 @@ export function Carte({
         onClose={() => setOpenPin(null)}
         onRelire={onRelire}
         onReleve={onReleve}
+        onReview={onReview}
+        onRelecture={onRelecture}
         onWord={(text, pin) => setWord(wordRequest(text, pin))}
       />
 

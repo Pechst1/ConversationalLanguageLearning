@@ -56,7 +56,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.db.models.revue_session import RevueSession
 from app.schemas.revue import (
@@ -406,7 +406,27 @@ def current_week(now: datetime | None = None) -> str:
     return f"{year}-W{number:02d}"
 
 
+def current_period(now: datetime | None = None) -> str:
+    """WP-119 phase 3 (§12.2): the ISO week under ``REVUE_CADENCE=weekly``, the ISO date under ``daily``."""
+
+    from app.services.revue.weekly import period_for
+
+    return period_for(now or datetime.now(UTC))
+
+
+def _week_of(period: str) -> str:
+    from app.services.revue.weekly import week_of_period
+
+    return week_of_period(period)
+
+
 def week_view(week: str) -> RvWeek:
+    # WP-119 phase 3: ``week`` is the Papier's period — an ISO week, or an ISO date when daily.
+    from app.services.revue.weekly import is_daily_period, week_of_period
+
+    if is_daily_period(week):
+        _, number = parse_week(week_of_period(week))
+        return RvWeek(iso=week, label=f"Semaine {number}", range=f"le {_french_day(date.fromisoformat(week))}")
     _, number = parse_week(week)
     monday, sunday = week_bounds(week)
     if monday.month == sunday.month:
@@ -416,20 +436,40 @@ def week_view(week: str) -> RvWeek:
     return RvWeek(iso=week, label=f"Semaine {number}", range=span)
 
 
-def available_dossiers(week: str) -> list[EditorialDossier]:
-    """The week's dossiers: ``weekly.available_for_week`` when it exists, else the evergreens."""
+def available_dossiers(week: str, db: Session | None = None) -> list[EditorialDossier]:
+    """The period's kiosk: ``weekly.available_for_week`` (the intake's ``revue_dossiers`` rows
+    first when ``db`` is given, WP-119 phase 3), the last seven days' when ``week`` is a day
+    (``REVUE_CADENCE=daily``, §12.2), else the evergreens."""
 
     try:
         from app.services.revue import weekly  # sibling module, being written in parallel
 
+        if weekly.is_daily_period(week):
+            dossiers = list(weekly.kiosk_for_day(week, db=db))
+            if dossiers:
+                return dossiers
+            week = weekly.week_of_period(week)
         provider = getattr(weekly, "available_for_week", None)
         if callable(provider):
-            dossiers = list(provider(week))
+            dossiers = list(provider(week, db=db) if db is not None else provider(week))
             if dossiers:
                 return dossiers
     except Exception as exc:  # noqa: BLE001 - the week must still have evergreens
         logger.bind(week=week).warning("revue: weekly dossiers unavailable ({}); evergreens only", exc)
     return evergreens_for_week(week)
+
+
+def _kiosk(week: str, db: Session | None) -> list[EditorialDossier]:
+    """``available_dossiers`` with the session when it takes one (tests replace it with a
+    one-argument stand-in)."""
+
+    import inspect
+
+    try:
+        takes_db = len(inspect.signature(available_dossiers).parameters) > 1
+    except (TypeError, ValueError):  # pragma: no cover - exotic callables
+        takes_db = False
+    return available_dossiers(week, db) if takes_db else available_dossiers(week)
 
 
 def find_dossier(dossier_id: str, week: str) -> EditorialDossier | None:
@@ -444,13 +484,23 @@ def find_dossier(dossier_id: str, week: str) -> EditorialDossier | None:
 # ---------------------------------------------------------------------------
 
 
-def stage_for(dossier: EditorialDossier, plan: SessionPlan | None = None, state: ConversationState | None = None) -> RvStage:
-    from app.services.season.world import SEASON_ONE_LOCATIONS, plate_for
+def stage_for(
+    dossier: EditorialDossier,
+    plan: SessionPlan | None = None,
+    state: ConversationState | None = None,
+    *,
+    db: Any = None,
+) -> RvStage:
+    from app.services.revue import plates
 
     place = next((p for p in dossier.places if plan is None or p.id == plan.stage.place_id), dossier.places[0])
-    real = place.id in SEASON_ONE_LOCATIONS
     kind = policy.place_kind(f"{place.id} {place.name_fr} {place.brief}")
-    plate_place = place.id if real else policy.fallback_place_for(kind)
+    # WP-119 phase 4: season plate, else the painted one, else the stand-in (§8.1).
+    first = plates.plate_for_place(db, place)
+    # §12.7: a second view for pursue/make, switched at the guest's entrance or at make.
+    second_place = next((p for p in dossier.places if p.id != place.id), None)
+    second = plates.plate_for_place(db, second_place) if second_place is not None else None
+    second_url = second.url if second is not None and second.url != first.url else None
     dress = plan.stage.dress if plan is not None else policy.dress_for(kind)
     cast = (
         [RvStageMember(id=member.id, hold=member.hold) for member in plan.stage.cast]
@@ -465,12 +515,23 @@ def stage_for(dossier: EditorialDossier, plan: SessionPlan | None = None, state:
     return RvStage(
         place_id=place.id,
         place_fr=place.name_fr,
-        plate_url=plate_for(plate_place),
-        plate_place_id=plate_place,
-        place_is_real=real,
+        plate_url=first.url,
+        plate_place_id=first.plate_place_id,
+        place_is_real=not first.stand_in,
         dress=dress,  # type: ignore[arg-type]
         cast=cast,
+        plate_url_second=second_url,
+        plate_switched=bool(second_url) and state is not None and plate_switched(state),
     )
+
+
+def plate_switched(state: ConversationState) -> bool:
+    """§12.7: the stage moves to the second view once a guest has entered (phase 2's
+    ``guest_enter``), or at ``make`` when no guest came; it does not move back."""
+
+    if any(event.kind == "guest_enter" and event.payload.get("id") for event in state.events):
+        return True
+    return beat_for(state) in {"make", "close"}
 
 
 def _known_plate(place_id: str) -> str | None:
@@ -1187,7 +1248,7 @@ def session_view(loaded: Loaded) -> RvSessionView:
             make_options=served_make_options(plan),  # type: ignore[arg-type]
             budget=RvBudget(turns=plan.budget.turns, minutes=plan.budget.minutes),
         ),
-        stage=stage_for(dossier, plan, state),
+        stage=stage_for(dossier, plan, state, db=object_session(row)),
         beat=beat_for(state),  # type: ignore[arg-type]
         room=room,
         thread=thread_items(dossier, plan, state),
@@ -1312,7 +1373,7 @@ class RevueEncounter:
         return seen
 
     def ranked(self, user: Any, week: str) -> tuple[list[EditorialDossier], str]:
-        dossiers = available_dossiers(week)
+        dossiers = _kiosk(week, self.db)
         if not dossiers:
             return [], "first"
         last_seen = self._topic_last_seen(user)
@@ -1333,12 +1394,17 @@ class RevueEncounter:
         return ordered, reason
 
     def week_offer(self, user: Any, week: str | None = None) -> RvOffer:
-        week = week or current_week()
+        week = week or current_period()
         ordered, reason = self.ranked(user, week)
         cards = [story_card(d) for d in ordered[:3]]
         resume = None
         filed = None
-        for row in self._sessions(user, week=week):
+        rows = self._sessions(user, week=week)
+        closed = [row for row in rows if row.status == "closed"]
+        first_closed = min(closed, key=lambda r: (r.closed_at or r.started_at)).id if closed else None
+        for row in rows:
+            if not (row.status == "active" or row.id == first_closed):
+                continue
             loaded = load(row)
             if row.status == "active" and resume is None:
                 question = open_question(loaded.state)
@@ -1350,7 +1416,8 @@ class RevueEncounter:
                     beat=beat_for(loaded.state),  # type: ignore[arg-type]
                     open_question_fr=str(question["text"]) if question else None,
                 )
-            elif row.status == "closed" and filed is None:
+            elif row.status == "closed" and row.id == first_closed:
+                # §12.2: a second Papier in the period counts for evidence but never moves "filed".
                 closing = _closing_of(loaded.state)
                 artifact = loaded.state.current_artifact
                 filed = RvFiled(
@@ -1372,7 +1439,7 @@ class RevueEncounter:
         )
 
     def match(self, user: Any, text: str, week: str | None = None) -> RvMatchResult:
-        week = week or current_week()
+        week = week or current_period()
         ordered, _ = self.ranked(user, week)
         best = self._best_match(text, ordered)
         if best is not None:
@@ -1396,12 +1463,17 @@ class RevueEncounter:
         free_request: str | None = None,
         angle_id: str | None = None,
     ) -> RevueSession:
-        week = week or current_week()
-        for row in self._sessions(user, week=week):
+        week = week or current_period()
+        rows = self._sessions(user, week=week)
+        for row in rows:
             if row.status == "active":
                 raise RevueError(409, "revue_session_active", session_id=str(row.id))
-            if row.status == "closed":
-                raise RevueError(409, "revue_week_filed", session_id=str(row.id))
+        closed = [row for row in rows if row.status == "closed"]
+        if closed and (not dossier_id or any(row.dossier_id == dossier_id for row in closed)):
+            # §12.2: the period's Papier is filed. A second one is a deliberate pick of another
+            # story (the chip, «Autre sujet ?»): it counts for evidence and leaves "filed" alone.
+            first = min(closed, key=lambda r: (r.closed_at or r.started_at))
+            raise RevueError(409, "revue_week_filed", session_id=str(first.id))
 
         ordered, _ = self.ranked(user, week)
         request_miss: str | None = None
@@ -1468,7 +1540,7 @@ class RevueEncounter:
                         place_known_plate=_known_plate)
         if plan.stage.plate_url is None:
             # Phase 1: known plates only — the place's nearest season plate stands in (§8.1).
-            plan.stage.plate_url = stage_for(dossier).plate_url
+            plan.stage.plate_url = stage_for(dossier, db=self.db).plate_url
         gloss_language = normalize_control_language(getattr(user, "native_language", None))
         plan.vocabulary = self._vocabulary(dossier, plan.support.vocab_target, gloss_language)
         return plan.validate_against(dossier)
@@ -1501,7 +1573,7 @@ class RevueEncounter:
 
     def _arrive(self, state: ConversationState, dossier: EditorialDossier, plan: SessionPlan, *, request_miss: str | None) -> None:
         place = next((p for p in dossier.places if p.id == plan.stage.place_id), dossier.places[0])
-        stage = stage_for(dossier, plan)
+        stage = stage_for(dossier, plan, db=self.db)
         scope = dossier.time_scope
         if (scope.end - scope.start).days > 60:
             when = "une histoire de tous les jours."
@@ -2333,7 +2405,7 @@ class RevueEncounter:
 
         source_names = list(dict.fromkeys(_source(dossier, c.source_id).name for c in shown))
         sources = [_source(dossier, sid) for sid in dict.fromkeys(c.source_id for c in shown)]
-        _, number = parse_week(row.week)
+        _, number = parse_week(_week_of(row.week))
         dispatch = RvDispatch(
             kicker_fr=f"Le Papier de Romy · semaine {number}",
             headline_fr=headline,
@@ -2358,6 +2430,10 @@ class RevueEncounter:
             question_kept = str(question["text"]) if question else None
         closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept)
         closing.vignette = self._mint_vignette(loaded, kind=kind, kept_contribution=bool(contribution))
+        # WP-121 A.0: the kept words enter the learner's SRS, tied to this Papier's place.
+        from app.services.revue.carte import keep_papier_words
+
+        keep_papier_words(self.db, row, dossier=dossier, plan=plan, state=state, kept=kept)
 
         cost = round(float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before, 6)
         state.append("turn_romy", beat="close", role="close", text_fr=romy_line, cost_usd=cost)
@@ -2368,6 +2444,12 @@ class RevueEncounter:
         self._remember_guests(loaded, kind=kind)
         self._record_cost(loaded)
         self._save(loaded)
+        try:  # WP-120 §8: the new pin shows at once
+            from app.services.revue import carte as _carte
+
+            _carte.invalidate(row.user_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("revue: carte invalidate skipped ({})", exc)
         return session_view(loaded), closing
 
     def _mint_vignette(self, loaded: Loaded, *, kind: str, kept_contribution: bool) -> VignetteView | None:
@@ -2395,7 +2477,7 @@ class RevueEncounter:
         from app.db.models.npc import NPC, NPCMemory
 
         row, dossier = loaded.row, loaded.dossier
-        _, number = parse_week(row.week)
+        _, number = parse_week(_week_of(row.week))
         place = stage_for(dossier, loaded.plan).place_fr
         content = f"Semaine {number}, {_lower_first(place)} : on a travaillé ensemble sur « {dossier.title_fr} »."
         if kind == "reader_question" and artifact:
@@ -2429,7 +2511,7 @@ class RevueEncounter:
         """One ``NPCMemory`` row per guest for what they witnessed (§7 writing back)."""
 
         row, dossier, state = loaded.row, loaded.dossier, loaded.state
-        _, number = parse_week(row.week)
+        _, number = parse_week(_week_of(row.week))
         place = stage_for(dossier, loaded.plan).place_fr
         for guest_id in dict.fromkeys(state.guests_entered):
             content = (f"Semaine {number}, {_lower_first(place)} : avec Romy, on a parlé de « {dossier.title_fr} »"

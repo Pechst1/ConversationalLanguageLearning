@@ -89,7 +89,7 @@ const MARCHE: MockDossier = {
   summary_fr:
     "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
   topic: 'food',
-  place: { id: 'marche_aligre', name_fr: "Le marché d'Aligre, un matin", plate: '/assets/serial/locations/marche_canal.webp', plate_place_id: 'marche_canal', real: false, dress: 'apron' },
+  place: { id: 'marche_aligre', name_fr: "Le marché d'Aligre, un matin", plate: '/assets/serial/locations/marche_canal.webp', plate_place_id: 'marche_canal', real: false, dress: 'coat' },
   narration: [
     'Un dimanche matin, entre les cagettes de poireaux et de clémentines.',
     "Romy t'attend devant un étal, son carnet ouvert.",

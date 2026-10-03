@@ -3060,6 +3060,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/admin/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Intake
+         * @description Rebuild the period's dossiers from the feeds (``refresh=True``).
+         */
+        post: operations["refresh_intake_api_v1_revue_admin_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/carte": {
         parameters: {
             query?: never;
@@ -3072,6 +3092,97 @@ export interface paths {
          * @description The learner's pins (closed Papiers with a place), «Mon quartier», counts per level.
          */
         get: operations["read_carte_api_v1_revue_carte_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/carte/review/{place_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Carte Review
+         * @description WP-121 A.3: the due words met at this place, what carried them, and the items to pose.
+         */
+        get: operations["read_carte_review_api_v1_revue_carte_review__place_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/carte/review/{place_id}/grade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grade Carte Review
+         * @description WP-121 A.3: grade one item on the server and move its cards through the SRS.
+         */
+        post: operations["grade_carte_review_api_v1_revue_carte_review__place_id__grade_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/correcteur/{correction_id}/marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Marks */
+        post: operations["submit_marks_api_v1_revue_correcteur__correction_id__marks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/correcteur/{dossier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New Draft */
+        post: operations["new_draft_api_v1_revue_correcteur__dossier_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/correcteur/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Week */
+        get: operations["read_week_api_v1_revue_correcteur_week_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3094,6 +3205,129 @@ export interface paths {
          * @description «Autre chose ?»: match a free request against the week's dossiers. Nothing is stored.
          */
         post: operations["match_request_api_v1_revue_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/radio/{dossier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Bulletin */
+        get: operations["read_bulletin_api_v1_revue_radio__dossier_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/radio/{dossier_id}/dictee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grade Dictee */
+        post: operations["grade_dictee_api_v1_revue_radio__dossier_id__dictee_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/radio/{dossier_id}/heard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Heard */
+        post: operations["mark_heard_api_v1_revue_radio__dossier_id__heard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/radio/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Radio Week */
+        get: operations["read_radio_week_api_v1_revue_radio_week_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/relecture/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Pair */
+        get: operations["read_pair_api_v1_revue_relecture__session_id__get"];
+        put?: never;
+        /** Post Answer */
+        post: operations["post_answer_api_v1_revue_relecture__session_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/relecture/offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Offer */
+        get: operations["read_offer_api_v1_revue_relecture_offer_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/releve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Releve
+         * @description The learner's filed Papiers for Le Relevé.
+         */
+        get: operations["read_releve_api_v1_revue_releve_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6019,6 +6253,11 @@ export interface components {
             ][];
             /** Dossier Id */
             dossier_id: string;
+            /**
+             * Due Words
+             * @default 0
+             */
+            due_words?: number;
             /** Headline Fr */
             headline_fr: string;
             /** Kept Words */
@@ -6032,6 +6271,8 @@ export interface components {
             level: "france" | "idf" | "paris";
             /** Lon */
             lon: number;
+            /** Place Id */
+            place_id?: string | null;
             /** Place Label Fr */
             place_label_fr: string;
             /** Plate Url */
@@ -6043,6 +6284,7 @@ export interface components {
             precision: "exact" | "city" | "region";
             /** Question Fr */
             question_fr?: string | null;
+            relecture?: components["schemas"]["CarteRelectureMark"] | null;
             /** Session Id */
             session_id: string;
             vignette?: components["schemas"]["CarteVignette"] | null;
@@ -6064,9 +6306,133 @@ export interface components {
             /** Plate Url */
             plate_url?: string | null;
         };
+        /** CarteRelectureMark */
+        CarteRelectureMark: {
+            /** Read At */
+            read_at?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "eligible" | "read";
+        };
+        /** CarteReview */
+        CarteReview: {
+            /** Headline Fr */
+            headline_fr?: string | null;
+            /** Items */
+            items: components["schemas"]["CarteReviewItem"][];
+            /** Place Id */
+            place_id: string;
+            /** Place Label Fr */
+            place_label_fr: string;
+            /** Plate Url */
+            plate_url?: string | null;
+            /** Week */
+            week: string;
+            /** Words */
+            words: components["schemas"]["CarteReviewWord"][];
+        };
+        /** CarteReviewGrade */
+        CarteReviewGrade: {
+            /** Item Id */
+            item_id: string;
+            /** Remaining */
+            remaining: number;
+            /** Results */
+            results: components["schemas"]["CarteReviewResult"][];
+            /** Task Type */
+            task_type: string;
+        };
+        /** CarteReviewGradeRequest */
+        CarteReviewGradeRequest: {
+            /**
+             * Assisted
+             * @default false
+             */
+            assisted?: boolean;
+            /** Item Id */
+            item_id: string;
+            /** Text */
+            text?: string | null;
+            /** Tile Ids */
+            tile_ids?: string[] | null;
+        };
+        /** CarteReviewItem */
+        CarteReviewItem: {
+            /** Answer Key */
+            answer_key?: {
+                [key: string]: unknown;
+            } | null;
+            /** Audio Url */
+            audio_url?: string | null;
+            /** Id */
+            id: string;
+            /** Options */
+            options: components["schemas"]["CarteReviewOption"][];
+            /** Progress Ids */
+            progress_ids: string[];
+            /** Prompt Fr */
+            prompt_fr?: string | null;
+            /**
+             * Task Type
+             * @enum {string}
+             */
+            task_type: "match_pairs" | "word_bank" | "unscramble" | "dictation";
+        };
+        /** CarteReviewOption */
+        CarteReviewOption: {
+            /** Id */
+            id: string;
+            /** Side */
+            side?: ("fr" | "native") | null;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** CarteReviewResult */
+        CarteReviewResult: {
+            /** Correct */
+            correct: boolean;
+            /** Due At */
+            due_at?: string | null;
+            /** Progress Id */
+            progress_id: string;
+            /** Rating */
+            rating: number;
+            /** Word Id */
+            word_id: number;
+        };
+        /** CarteReviewWord */
+        CarteReviewWord: {
+            /** Gloss */
+            gloss: string;
+            /** Line Fr */
+            line_fr: string;
+            /** Progress Id */
+            progress_id: string;
+            /** Sentence Fr */
+            sentence_fr: string;
+            /** Session Id */
+            session_id: string;
+            /** Speaker Id */
+            speaker_id: string;
+            /** Speaker Name */
+            speaker_name: string;
+            /** Week */
+            week: string;
+            /** Word */
+            word: string;
+            /** Word Id */
+            word_id: number;
+        };
         /** CarteView */
         CarteView: {
             counts: components["schemas"]["CarteCounts"];
+            /**
+             * Due Total
+             * @default 0
+             */
+            due_total?: number;
             /** Pins */
             pins: components["schemas"]["CartePin"][];
             /** Quartier */
@@ -6483,6 +6849,152 @@ export interface components {
         ContentImportRequest: {
             /** Url */
             url: string;
+        };
+        /** CrCounts */
+        CrCounts: {
+            /** False Alarms */
+            false_alarms: number;
+            /** Missed */
+            missed: number;
+            /** Noticed */
+            noticed: number;
+            /** Repaired */
+            repaired: number;
+            /** Seeded */
+            seeded: number;
+        };
+        /** CrDraftView */
+        CrDraftView: {
+            /** Band */
+            band: string;
+            /** Byline Fr */
+            byline_fr: string;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Errors Count */
+            errors_count: number;
+            /** Id */
+            id: string;
+            /** Kicker Fr */
+            kicker_fr: string;
+            /** Options Enabled */
+            options_enabled: boolean;
+            result?: components["schemas"]["CrResult"] | null;
+            /** Sentences */
+            sentences: string[];
+            /** Title Fr */
+            title_fr: string;
+            /** Units */
+            units: components["schemas"]["CrUnit"][];
+        };
+        /** CrFalseAlarm */
+        CrFalseAlarm: {
+            /** Fix Fr */
+            fix_fr?: string | null;
+            /** Sentence Index */
+            sentence_index: number;
+            /** Span */
+            span: number[];
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** CrMark */
+        CrMark: {
+            /** Fix Fr */
+            fix_fr?: string | null;
+            /**
+             * Picked
+             * @default false
+             */
+            picked?: boolean;
+            /** Sentence Index */
+            sentence_index: number;
+            /** Span */
+            span: number[];
+        };
+        /** CrMarksRequest */
+        CrMarksRequest: {
+            /** Marks */
+            marks?: components["schemas"]["CrMark"][];
+        };
+        /** CrResult */
+        CrResult: {
+            counts: components["schemas"]["CrCounts"];
+            /** Dossier Id */
+            dossier_id: string;
+            /** False Alarms */
+            false_alarms: components["schemas"]["CrFalseAlarm"][];
+            /** Id */
+            id: string;
+            /** Outcomes */
+            outcomes: components["schemas"]["CrSeedOutcome"][];
+            /** Releve Href */
+            releve_href: string;
+            /** Romy Line Fr */
+            romy_line_fr: string;
+            /** Sentences */
+            sentences: string[];
+        };
+        /** CrSeedOutcome */
+        CrSeedOutcome: {
+            /** Correct Fr */
+            correct_fr: string;
+            /** Fix Fr */
+            fix_fr?: string | null;
+            /** Grammar Point */
+            grammar_point: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "repaired" | "noticed" | "missed";
+            /** Sentence Index */
+            sentence_index: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "errata" | "classique";
+            /** Span */
+            span: number[];
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * CrUnit
+         * @description One tappable unit (a word, or a contraction pair like «de le»).
+         */
+        CrUnit: {
+            /** Options */
+            options?: string[] | null;
+            /** Sentence Index */
+            sentence_index: number;
+            /** Span */
+            span: number[];
+            /** Text */
+            text: string;
+        };
+        /** CrWeek */
+        CrWeek: {
+            /** Corrected */
+            corrected: string[];
+            /** Dossiers */
+            dossiers: components["schemas"]["CrWeekDossier"][];
+            /** Label */
+            label: string;
+            /** Week */
+            week: string;
+        };
+        /** CrWeekDossier */
+        CrWeekDossier: {
+            /** Evergreen */
+            evergreen: boolean;
+            /** Id */
+            id: string;
+            /** Title Fr */
+            title_fr: string;
+            /** Topic */
+            topic: string;
         };
         /**
          * DailyWordEntry
@@ -9173,6 +9685,122 @@ export interface components {
             /** Story Url */
             story_url?: string | null;
         };
+        /** RadioBulletinView */
+        RadioBulletinView: {
+            /**
+             * Audio
+             * @enum {string}
+             */
+            audio: "ready" | "unavailable" | "text_only";
+            /** Band */
+            band: string;
+            dictee: components["schemas"]["RadioDictee"];
+            /** Dossier Id */
+            dossier_id: string;
+            /** Guest Id */
+            guest_id: string;
+            /** Lines */
+            lines: components["schemas"]["RadioLine"][];
+            /** Seconds */
+            seconds: number;
+            stage: components["schemas"]["RadioStage"];
+            /** Title Fr */
+            title_fr: string;
+            /** Topic */
+            topic: string;
+            /** Week */
+            week: string;
+        };
+        /** RadioDictee */
+        RadioDictee: {
+            /** Line Index */
+            line_index: number;
+            /** Words */
+            words: number;
+        };
+        /** RadioDicteeRequest */
+        RadioDicteeRequest: {
+            /** Band */
+            band?: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text?: string;
+        };
+        /** RadioDicteeResult */
+        RadioDicteeResult: {
+            /** Expected Fr */
+            expected_fr: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "met" | "partially_met" | "not_yet";
+        };
+        /** RadioHeardRequest */
+        RadioHeardRequest: {
+            /** Band */
+            band?: string | null;
+            /** Dictee */
+            dictee?: ("met" | "partially_met" | "not_yet") | null;
+        };
+        /** RadioItem */
+        RadioItem: {
+            /** Dossier Id */
+            dossier_id: string;
+            /** Evergreen */
+            evergreen: boolean;
+            /** Title Fr */
+            title_fr: string;
+            /** Topic */
+            topic: string;
+        };
+        /** RadioLine */
+        RadioLine: {
+            /** Claim Id */
+            claim_id?: string | null;
+            /** Clip Url */
+            clip_url?: string | null;
+            /** Index */
+            index: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "lede" | "claim" | "uncertainty" | "guest" | "signoff";
+            /** Speaker */
+            speaker: string;
+            /** Speaker Name */
+            speaker_name: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RadioStage */
+        RadioStage: {
+            /** Place Fr */
+            place_fr: string;
+            /** Plate Url */
+            plate_url: string | null;
+        };
+        /** RadioWeekView */
+        RadioWeekView: {
+            /** Chip */
+            chip: boolean;
+            current: components["schemas"]["RadioItem"] | null;
+            /** Heard */
+            heard: string[];
+            /** Heard Today */
+            heard_today: boolean;
+            /** Queue */
+            queue: components["schemas"]["RadioItem"][];
+            /** Seconds */
+            seconds?: number | null;
+            /** Week */
+            week: string;
+        };
         /**
          * ReadPrompt
          * @description WP-93 «Lecture»: a second page on a long rhythm, after the ending.
@@ -9499,6 +10127,157 @@ export interface components {
              * @default rehearsal-v1
              */
             version?: string;
+        };
+        /** RelectureAnswerRequest */
+        RelectureAnswerRequest: {
+            /** Answer Fr */
+            answer_fr: string;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+        };
+        /** RelectureOffer */
+        RelectureOffer: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Dossier Title Fr */
+            dossier_title_fr: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "question" | "headline";
+            /** Place Label Fr */
+            place_label_fr: string;
+            /** Plate Url */
+            plate_url?: string | null;
+            /** Prompt Fr */
+            prompt_fr: string;
+            /** Session Id */
+            session_id: string;
+            /** Week */
+            week: string;
+        };
+        /** RelectureOfferView */
+        RelectureOfferView: {
+            offer?: components["schemas"]["RelectureOffer"] | null;
+        };
+        /** RelecturePair */
+        RelecturePair: {
+            /** Asked At */
+            asked_at: string;
+            now: components["schemas"]["RelectureSide"];
+            offer: components["schemas"]["RelectureOffer"];
+            /** Romy Line Fr */
+            romy_line_fr: string;
+            /** Session Id */
+            session_id: string;
+            then: components["schemas"]["RelectureSide"];
+        };
+        /** RelectureSide */
+        RelectureSide: {
+            /** Label Fr */
+            label_fr: string;
+            /**
+             * Spans
+             * @default []
+             */
+            spans?: components["schemas"]["RelectureSpan"][];
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RelectureSpan */
+        RelectureSpan: {
+            /** End */
+            end: number;
+            /**
+             * Flag
+             * @enum {string}
+             */
+            flag: "register" | "grammar";
+            /** Start */
+            start: number;
+        };
+        /** ReleveClaim */
+        ReleveClaim: {
+            /** Attributed To */
+            attributed_to?: string | null;
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Quote */
+            quote: string;
+            source: components["schemas"]["ReleveSource"];
+        };
+        /** ReleveEntry */
+        ReleveEntry: {
+            /** Claims */
+            claims: components["schemas"]["ReleveClaim"][];
+            /** Closed At */
+            closed_at: string | null;
+            /** Headline Fr */
+            headline_fr?: string | null;
+            made?: components["schemas"]["ReleveMade"] | null;
+            /** Period */
+            period: string;
+            /** Period Label */
+            period_label: string;
+            /**
+             * Second
+             * @default false
+             */
+            second?: boolean;
+            /** Session Id */
+            session_id: string;
+            /** Sources */
+            sources: components["schemas"]["ReleveSource"][];
+            /** Title Fr */
+            title_fr: string;
+            /** Words */
+            words: components["schemas"]["ReleveWord"][];
+        };
+        /** ReleveMade */
+        ReleveMade: {
+            /** Kind */
+            kind: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** ReleveSource */
+        ReleveSource: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Published At */
+            published_at: string;
+            /** Url */
+            url: string;
+        };
+        /** ReleveView */
+        ReleveView: {
+            /** Entries */
+            entries: components["schemas"]["ReleveEntry"][];
+        };
+        /** ReleveWord */
+        ReleveWord: {
+            /** Claim Id */
+            claim_id: string;
+            /** Fr */
+            fr: string;
+            /** Gloss */
+            gloss: string;
+            /**
+             * Used
+             * @default false
+             */
+            used?: boolean;
         };
         /** ResolutionPrompt */
         ResolutionPrompt: {
@@ -10512,8 +11291,15 @@ export interface components {
             place_is_real: boolean;
             /** Plate Place Id */
             plate_place_id: string;
+            /**
+             * Plate Switched
+             * @default false
+             */
+            plate_switched?: boolean;
             /** Plate Url */
             plate_url: string | null;
+            /** Plate Url Second */
+            plate_url_second?: string | null;
         };
         /** RvStageMember */
         RvStageMember: {
@@ -18156,6 +18942,40 @@ export interface operations {
             };
         };
     };
+    refresh_intake_api_v1_revue_admin_refresh_post: {
+        parameters: {
+            query?: {
+                enqueue?: boolean;
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_carte_api_v1_revue_carte_get: {
         parameters: {
             query?: never;
@@ -18172,6 +18992,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CarteView"];
+                };
+            };
+        };
+    };
+    read_carte_review_api_v1_revue_carte_review__place_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarteReview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grade_carte_review_api_v1_revue_carte_review__place_id__grade_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                place_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarteReviewGradeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarteReviewGrade"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_marks_api_v1_revue_correcteur__correction_id__marks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                correction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrMarksRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_draft_api_v1_revue_correcteur__dossier_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrDraftView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_week_api_v1_revue_correcteur_week_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrWeek"];
                 };
             };
         };
@@ -18205,6 +19177,235 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_bulletin_api_v1_revue_radio__dossier_id__get: {
+        parameters: {
+            query?: {
+                band?: string | null;
+            };
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioBulletinView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grade_dictee_api_v1_revue_radio__dossier_id__dictee_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioDicteeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioDicteeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_heard_api_v1_revue_radio__dossier_id__heard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioHeardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioWeekView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_radio_week_api_v1_revue_radio_week_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioWeekView"];
+                };
+            };
+        };
+    };
+    read_pair_api_v1_revue_relecture__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelecturePair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_answer_api_v1_revue_relecture__session_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelectureAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelecturePair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_offer_api_v1_revue_relecture_offer_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelectureOfferView"];
+                };
+            };
+        };
+    };
+    read_releve_api_v1_revue_releve_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleveView"];
                 };
             };
         };

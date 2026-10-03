@@ -31,6 +31,10 @@ import '@/styles/cast-rig.css';
 import '@/styles/revue.css';
 // WP-120: La Carte (components/carte), scoped under `.av2`.
 import '@/styles/carte.css';
+// WP-122 B: Le Correcteur (components/correcteur), scoped under `.av2`.
+import '@/styles/correcteur.css';
+// WP-122 A: La Radio (components/radio), scoped under `.av2`.
+import '@/styles/radio.css';
 
 // Create a client
 const queryClient = new QueryClient({

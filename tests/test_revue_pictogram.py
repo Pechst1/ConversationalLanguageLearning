@@ -250,3 +250,36 @@ def test_a_dossier_without_an_object_gets_its_topic_fallback_uncached(db_session
     provider = Scripted([])
     assert pictogram_for(db_session, d, provider) == fallback_svg("nature")
     assert provider.calls == [] and db_session.get(RevuePictogram, d.id) is None
+
+
+# -- refresh (WP-119 §10c) -------------------------------------------------------------
+
+
+def test_refresh_bypasses_the_cache_and_overwrites_the_row(db_session: Session, pictogram_table) -> None:
+    d = dossier(topic="sport", obj="un maillot jaune")
+    first = pictogram_for(db_session, d, FakePictogramProvider())
+    d.vignette_object_fr = "un maillot à manches courtes, jaune, vu de face"
+    provider = FakePictogramProvider()
+    # Without refresh the cache wins, even with a new object.
+    assert pictogram_for(db_session, d, provider) == first and provider.calls == []
+    redrawn = pictogram_for(db_session, d, provider, refresh=True)
+    assert len(provider.calls) == 1 and provider.calls[0]["object_fr"] == d.vignette_object_fr
+    assert redrawn != first and validate_pictogram(redrawn).ok
+    row = db_session.get(RevuePictogram, d.id)
+    assert row.svg == redrawn and row.object_fr == d.vignette_object_fr and row.prompt_version == pg.PROMPT_VERSION
+    # The next learner gets the new drawing from the cache.
+    assert pictogram_for(db_session, d, Scripted([])) == redrawn
+
+
+def test_a_failed_refresh_keeps_the_stored_drawing(db_session: Session, pictogram_table) -> None:
+    d = dossier(topic="culture", obj="une guitare")
+    first = pictogram_for(db_session, d, FakePictogramProvider())
+    provider = Scripted([RuntimeError("timeout"), svg(BASE + "<text>x</text>")])
+    assert pictogram_for(db_session, d, provider, refresh=True) == first and len(provider.calls) == 2
+    assert db_session.get(RevuePictogram, d.id).prompt_version == pg.PROMPT_VERSION
+
+
+def test_a_refresh_with_no_row_draws_and_stores_like_a_first_draw(db_session: Session, pictogram_table) -> None:
+    d = dossier()
+    out = pictogram_for(db_session, d, FakePictogramProvider(), refresh=True)
+    assert db_session.get(RevuePictogram, d.id).svg == out

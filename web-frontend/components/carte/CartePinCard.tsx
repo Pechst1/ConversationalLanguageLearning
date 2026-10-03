@@ -6,6 +6,11 @@
  * «toi», never colour alone), the question kept, the kept words as tokens (a tap
  * opens the word's help), and two actions: «Relire» (the one red press) and «Dans
  * le Relevé».
+ *
+ * WP-121: with due words the card's first row is «3 mots t'attendent ici» and the one
+ * red press moves to «Réviser ici» («Relire» becomes secondary). A Papier six weeks
+ * old with a kept question offers «Relire ta question»; once re-read, «Relue le …»
+ * opens the pair again.
  */
 
 import React from 'react';
@@ -16,6 +21,7 @@ import type { CartePin } from '@/lib/carte-types';
 
 import type { CarteCopy } from './carte-copy';
 import { markSpans, weekNo } from './carte-model';
+import { relectureAction } from './palais-model';
 
 export type CartePinCardProps = {
   pin: CartePin | null;
@@ -23,11 +29,15 @@ export type CartePinCardProps = {
   onClose: () => void;
   onRelire: (pin: CartePin) => void;
   onReleve: (pin: CartePin) => void;
+  onReview?: (pin: CartePin) => void;
+  onRelecture?: (pin: CartePin) => void;
   onWord?: (word: string, pin: CartePin) => void;
 };
 
-export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onWord }: CartePinCardProps) {
+export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onReview, onRelecture, onWord }: CartePinCardProps) {
   if (!pin) return null;
+  const due = onReview && pin.dueWords > 0 ? pin.dueWords : 0;
+  const relecture = onRelecture ? relectureAction(pin) : null;
   const week = weekNo(pin.week);
   const contribution = pin.contributionFr
     ? markSpans(pin.contributionFr, pin.contributionSpans)
@@ -44,6 +54,17 @@ export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onWord }:
       eyebrow={<span lang="fr">{pin.vignette ? copy.week_fr(week) : [copy.week_fr(week), pin.placeLabelFr].filter(Boolean).join(' · ')}</span>}
     >
       <div className="carte-card" data-session={pin.sessionId}>
+        {due > 0 && onReview && (
+          <section className="carte-card__due" data-due={due}>
+            <p className="carte-card__due-line">
+              <i className="carte-due-dot carte-due-dot--inline" aria-hidden="true" />
+              <span>{copy.due_waiting(due)}</span>
+            </p>
+            <Action tone="primary" onClick={() => onReview(pin)}>
+              {copy.review_here}
+            </Action>
+          </section>
+        )}
         {pin.vignette && (
           <div className="carte-card__stamp">
             <RvVignette
@@ -107,8 +128,21 @@ export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onWord }:
             </ul>
           </section>
         )}
+        {relecture && onRelecture && (
+          <section className="carte-card__part carte-card__relecture" data-relecture={relecture.kind}>
+            <button type="button" className="av2-btn av2-btn--quiet av2-btn--inline" onClick={() => onRelecture(pin)}>
+              <span>
+                {relecture.kind === 'open'
+                  ? relecture.headline
+                    ? copy.relecture_open_headline
+                    : copy.relecture_open_question
+                  : copy.relecture_read(relecture.at ? copy.date_short(relecture.at) : '')}
+              </span>
+            </button>
+          </section>
+        )}
         <div className="carte-card__actions">
-          <Action tone="primary" onClick={() => onRelire(pin)}>
+          <Action tone={due > 0 ? 'secondary' : 'primary'} onClick={() => onRelire(pin)}>
             {copy.relire}
           </Action>
           <Action tone="secondary" onClick={() => onReleve(pin)}>

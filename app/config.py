@@ -514,6 +514,13 @@ class Settings(BaseSettings):
         False,
         description="WP-119: La Revue de Romy — the La Une card, the /revue page and the weekly intake beat.",
     )
+    REVUE_RADIO_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-122 A: La Radio — the week's Papier as a 50-second bulletin in the cast's "
+            "voices (/radio, the La Une chip, GET /revue/radio/*). Needs REVUE_ENABLED too."
+        ),
+    )
     REVUE_PLATE_GENERATION_ENABLED: bool = Field(
         False,
         description=(
@@ -538,6 +545,13 @@ class Settings(BaseSettings):
         "weekly",
         pattern=r"^(weekly|daily)$",
         description="WP-119 §12: 'weekly' (six stories, choice on entry) or 'daily'.",
+    )
+    REVUE_CORRECTEUR_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-122 B: Le Correcteur — Romy's draft seeded with the learner's own errata, "
+            "marked before print (/correcteur, /revue/correcteur/*). Off: every route is a 404."
+        ),
     )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,

@@ -1,0 +1,790 @@
+{
+ "_source": "app/services/revue/correcteur.draft_for on the grève evergreen at A2 for a learner with no errata (three classiques), 2026-10-03; regenerate with the snippet in the WP-122 report",
+ "week": {
+  "week": "2026-W40",
+  "label": "Semaine 40",
+  "dossiers": [
+   {
+    "id": "evergreen-greve-transports",
+    "title_fr": "Un jour de grève dans les transports",
+    "topic": "work",
+    "evergreen": true
+   }
+  ],
+  "corrected": []
+ },
+ "draft": {
+  "id": "mock-correction-1",
+  "dossier_id": "evergreen-greve-transports",
+  "band": "A2",
+  "kicker_fr": "Le brouillon de Romy · semaine 40",
+  "title_fr": "Un jour de grève dans les transports",
+  "byline_fr": "Romy Tremblay · d'après Ministère de la Transition écologique (ecologie.gouv.fr) et Wikipédia, « Service minimum »",
+  "sentences": [
+   "Dans les transports publics, un préavis de grève doit être déposé à le moins cinq jours avant le début de la grève.",
+   "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisée sur les lignes les plus importantes.",
+   "La loi organise les transports pendant une greve, mais elle ne crée pas une vraie obligation de service minimum."
+  ],
+  "units": [
+   {
+    "sentence_index": 0,
+    "span": [
+     0,
+     4
+    ],
+    "text": "Dans",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     5,
+     8
+    ],
+    "text": "les",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     9,
+     19
+    ],
+    "text": "transports",
+    "options": [
+     "transport",
+     "transports"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     20,
+     27
+    ],
+    "text": "publics",
+    "options": [
+     "public",
+     "publics",
+     "publiques"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     29,
+     31
+    ],
+    "text": "un",
+    "options": [
+     "des",
+     "un",
+     "une"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     32,
+     39
+    ],
+    "text": "préavis",
+    "options": [
+     "preavis",
+     "prèavis",
+     "préavis"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     40,
+     42
+    ],
+    "text": "de",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     43,
+     48
+    ],
+    "text": "grève",
+    "options": [
+     "greve",
+     "grève"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     49,
+     53
+    ],
+    "text": "doit",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     54,
+     58
+    ],
+    "text": "être",
+    "options": [
+     "etre",
+     "être"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     59,
+     65
+    ],
+    "text": "déposé",
+    "options": [
+     "déposé",
+     "déposée",
+     "déposés"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     66,
+     70
+    ],
+    "text": "à le",
+    "options": [
+     "à la",
+     "à le",
+     "au"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     71,
+     76
+    ],
+    "text": "moins",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     77,
+     81
+    ],
+    "text": "cinq",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     82,
+     87
+    ],
+    "text": "jours",
+    "options": [
+     "jour",
+     "jours"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     88,
+     93
+    ],
+    "text": "avant",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     94,
+     96
+    ],
+    "text": "le",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     97,
+     102
+    ],
+    "text": "début",
+    "options": [
+     "debut",
+     "dèbut",
+     "début"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     103,
+     105
+    ],
+    "text": "de",
+    "options": null
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     106,
+     108
+    ],
+    "text": "la",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 0,
+    "span": [
+     109,
+     114
+    ],
+    "text": "grève",
+    "options": [
+     "greve",
+     "grève",
+     "grèves"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     0,
+     6
+    ],
+    "text": "Chaque",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     7,
+     14
+    ],
+    "text": "salarié",
+    "options": [
+     "salarié",
+     "salariée",
+     "salariés"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     15,
+     18
+    ],
+    "text": "qui",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     19,
+     23
+    ],
+    "text": "veut",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     24,
+     29
+    ],
+    "text": "faire",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     30,
+     35
+    ],
+    "text": "grève",
+    "options": [
+     "greve",
+     "grève"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     36,
+     40
+    ],
+    "text": "doit",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     41,
+     43
+    ],
+    "text": "le",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     44,
+     48
+    ],
+    "text": "dire",
+    "options": [
+     "dire",
+     "dires"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     49,
+     51
+    ],
+    "text": "48",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     52,
+     58
+    ],
+    "text": "heures",
+    "options": [
+     "heure",
+     "heures"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     59,
+     64
+    ],
+    "text": "avant",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     66,
+     70
+    ],
+    "text": "pour",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     71,
+     74
+    ],
+    "text": "que",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     75,
+     77
+    ],
+    "text": "le",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     78,
+     85
+    ],
+    "text": "service",
+    "options": [
+     "service",
+     "services"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     86,
+     90
+    ],
+    "text": "soit",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     91,
+     102
+    ],
+    "text": "réorganisée",
+    "options": [
+     "réorganisé",
+     "réorganisée",
+     "réorganisées"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     103,
+     106
+    ],
+    "text": "sur",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     107,
+     110
+    ],
+    "text": "les",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     111,
+     117
+    ],
+    "text": "lignes",
+    "options": [
+     "ligne",
+     "lignes"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     118,
+     121
+    ],
+    "text": "les",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     122,
+     126
+    ],
+    "text": "plus",
+    "options": null
+   },
+   {
+    "sentence_index": 1,
+    "span": [
+     127,
+     138
+    ],
+    "text": "importantes",
+    "options": [
+     "importante",
+     "importantes",
+     "importants"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     0,
+     2
+    ],
+    "text": "La",
+    "options": [
+     "La",
+     "Le",
+     "Les"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     3,
+     6
+    ],
+    "text": "loi",
+    "options": [
+     "loi",
+     "lois"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     7,
+     15
+    ],
+    "text": "organise",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     16,
+     19
+    ],
+    "text": "les",
+    "options": [
+     "la",
+     "le",
+     "les"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     20,
+     30
+    ],
+    "text": "transports",
+    "options": [
+     "transport",
+     "transports"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     31,
+     38
+    ],
+    "text": "pendant",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     39,
+     42
+    ],
+    "text": "une",
+    "options": [
+     "des",
+     "un",
+     "une"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     43,
+     48
+    ],
+    "text": "greve",
+    "options": [
+     "greve",
+     "grève",
+     "greves"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     50,
+     54
+    ],
+    "text": "mais",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     55,
+     59
+    ],
+    "text": "elle",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     60,
+     62
+    ],
+    "text": "ne",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     63,
+     67
+    ],
+    "text": "crée",
+    "options": [
+     "cré",
+     "crée",
+     "crées"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     68,
+     71
+    ],
+    "text": "pas",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     72,
+     75
+    ],
+    "text": "une",
+    "options": [
+     "des",
+     "un",
+     "une"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     76,
+     81
+    ],
+    "text": "vraie",
+    "options": [
+     "vrai",
+     "vraie",
+     "vraies"
+    ]
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     82,
+     92
+    ],
+    "text": "obligation",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     93,
+     95
+    ],
+    "text": "de",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     96,
+     103
+    ],
+    "text": "service",
+    "options": null
+   },
+   {
+    "sentence_index": 2,
+    "span": [
+     104,
+     111
+    ],
+    "text": "minimum",
+    "options": null
+   }
+  ],
+  "errors_count": 3,
+  "options_enabled": true,
+  "result": null
+ },
+ "key": [
+  {
+   "sentence_index": 0,
+   "span": [
+    66,
+    70
+   ],
+   "wrong_fr": "à le",
+   "correct_fr": "au",
+   "grammar_point": "la contraction de l'article (du, au, aux)",
+   "source": "classique"
+  },
+  {
+   "sentence_index": 1,
+   "span": [
+    91,
+    102
+   ],
+   "wrong_fr": "réorganisée",
+   "correct_fr": "réorganisé",
+   "grammar_point": "l'accord du participe passé",
+   "source": "classique"
+  },
+  {
+   "sentence_index": 2,
+   "span": [
+    43,
+    48
+   ],
+   "wrong_fr": "greve",
+   "correct_fr": "grève",
+   "grammar_point": "les accents (é, è, à)",
+   "source": "classique"
+  }
+ ],
+ "romy_lines": {
+  "A": {
+   "all_repaired": "Parfait ! Le papier est propre. Merci, correcteur !",
+   "all_noticed": "Tu as tout vu ! Je corrige les formes, et le papier part.",
+   "most": "Bien vu ! Il restait une ou deux fautes. Regarde en rouge.",
+   "few": "Merci ! Il restait des fautes. Regarde-les en rouge.",
+   "none": "Pas grave ! Regarde les fautes en rouge. La prochaine fois, tu les vois."
+  },
+  "B": {
+   "all_repaired": "Rien ne t'a échappé : le papier part tel quel à l'imprimerie. Merci !",
+   "all_noticed": "Tu as tout repéré ; il ne restait qu'à trouver la bonne forme. Je m'en charge.",
+   "most": "Bon œil ! Quelques fautes sont passées ; je te les montre en rouge.",
+   "few": "Merci pour la relecture. Plusieurs fautes sont passées : regarde-les avant l'impression.",
+   "none": "Celles-là t'ont échappé, ça arrive à tout le monde. Regarde-les : elles reviendront."
+  }
+ }
+}

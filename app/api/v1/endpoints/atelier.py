@@ -15,7 +15,6 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
-from app.services.chrome_language import user_chrome_language
 from app.core.offload import off_event_loop
 from app.core.security import (
     InvalidTokenError,
@@ -86,6 +85,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
 from app.services.cefr_progress import CEFRProgressService, with_can_do_line
+from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8

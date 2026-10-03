@@ -38,8 +38,9 @@ from app.services.glosses import gloss_payload
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.graphic_novel_image_storage import GraphicNovelImageStorage
 from app.services.llm_service import LLMProviderError, LLMService
-from app.services.news_service import NewsService
 from app.services.progress import ProgressService
+from app.services.revue import feuilleton_bridge
+from app.services.revue.dossier import EditorialDossier
 from app.services.serial_costs import serial_generation_cost_event
 from app.services.serial_notifications import enqueue_serial_edition_notification
 from app.services.vocabulary_credit import VocabularyCreditService
@@ -627,6 +628,7 @@ class GraphicNovelScheduler:
         preferred_concept_ids: list[int] | None = None,
         preferred_errata_ids: list[UUID] | None = None,
         target_vocabulary_ids: list[int] | None = None,
+        dossier: EditorialDossier | None = None,
         use_news: bool = False,
         panel_count: int | None = None,
         story_quality: str = "standard",
@@ -636,7 +638,7 @@ class GraphicNovelScheduler:
         image_quality: str | None = None,
         public_figure_mode: str = "named_context",
         force_new: bool = False,
-        refresh_news: bool = False,
+        refresh_news: bool = False,  # unused since WP-119 phase 5 (dossiers are files); kept for callers
         sync: bool | None = None,
         pending_scene_id: UUID | None = None,
     ) -> GraphicNovelScene:
@@ -663,11 +665,18 @@ class GraphicNovelScheduler:
             preferred_concept_ids=preferred_concept_ids,
             limit=3,
         )
+        if dossier is None and use_news:
+            # Deprecated (WP-119 phase 5): ``use_news`` maps to the week's recommended
+            # dossier for one release. Callers pass ``dossier=`` instead.
+            logger.bind(user_id=str(user.id)).warning(
+                "GraphicNovelScheduler.create(use_news=True) is deprecated; pass dossier= "
+                "(feuilleton_bridge.dossier_for_feuilleton). Using the week's recommended dossier."
+            )
+            dossier = feuilleton_bridge.dossier_for_feuilleton(user, db=self.db)
         source_snapshot = await self._source_snapshot(
             user=user,
             personal_item=personal_item,
-            use_news=use_news,
-            refresh_news=refresh_news,
+            dossier=dossier,
         )
         if target_vocabulary_ids is not None:
             preferred_vocabulary_ids = _dedupe_ints(target_vocabulary_ids)
@@ -1557,8 +1566,7 @@ class GraphicNovelScheduler:
         *,
         user: User,
         personal_item: PersonalInputItem | None,
-        use_news: bool,
-        refresh_news: bool = False,
+        dossier: EditorialDossier | None = None,
     ) -> dict[str, Any]:
         if personal_item:
             return {
@@ -1577,14 +1585,13 @@ class GraphicNovelScheduler:
                 ],
                 "source_policy": "Personal input; used only as contextual inspiration.",
             }
-        if use_news:
-            interests = [item.strip() for item in (user.interests or "").split(",") if item.strip()]
-            snapshot = await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=refresh_news)
-            if isinstance(snapshot, dict):
-                # Only a genuine, opted-in news edition may surface a learner-facing
-                # source card. Everything else is internal generation provenance.
-                snapshot["learner_visible"] = True
-            return snapshot
+        if dossier is not None:
+            # Only a genuine, opted-in news edition may surface a learner-facing source
+            # card: the bridge tags the dossier's snapshot ``learner_visible`` and
+            # ``learner_facing_source`` turns it into the same card as
+            # ``feuilleton_bridge.source_card(dossier)``. Everything else is internal
+            # generation provenance.
+            return feuilleton_bridge.snapshot_for_prompt(dossier)
         return {
             "mode": "atelier_curated",
             "title": "A small Paris errand",

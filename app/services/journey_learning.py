@@ -849,8 +849,8 @@ def _with_grammar_briefs(
 
     if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
         return candidates
-    from app.services.concept_life import concept_brief
     from app.services.chrome_language import user_chrome_language
+    from app.services.concept_life import concept_brief
 
     language = user_chrome_language(user)
     out: list[LearningCandidate] = []

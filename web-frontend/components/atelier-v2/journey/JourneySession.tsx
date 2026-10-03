@@ -90,6 +90,8 @@ import { SpecialKickerContext } from './special-edition';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf } from '@/lib/can-dos';
 import type { DailyJourneyController } from './useDailyJourney';
+import { RvJourneyPapier } from '@/components/revue/RvJourneyPapier';
+import { isRevueDay } from '@/lib/revue-une';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -267,6 +269,17 @@ export function JourneySession({
   // WP-94: a «Numéro spécial» — the session and the reader carry the kicker.
   const specialKicker = epreuveOf(journey) ? canDoCopy(chromeLanguage).special_kicker : null;
 
+  /* WP-119 phase 3: on a Revue day the short story day ends, then the Papier
+     follows inside the same player — the ONE `RvEncounter` — before the recap.
+     Leaving it (× or «Classer la Revue») shows the recap; a day ended early
+     goes straight to its recap. Never on a special edition. */
+  const [papierDone, setPapierDone] = React.useState(false);
+  const showPapier =
+    !papierDone &&
+    phase.kind === 'finished' &&
+    journey?.status !== 'ended_early' &&
+    isRevueDay(journey?.day_shape ?? null, Boolean(epreuveOf(journey)));
+
   // WP-103 T3: the caption names the drill on a drill («Rappel · Genre et
   // nombre»); the place and the day's objective belong to the scene and the reply.
   const headerLine = journey
@@ -332,15 +345,19 @@ export function JourneySession({
             </p>
           )}
 
-          <JourneyPhaseView
-            phase={phase}
-            controller={controller}
-            copy={copy}
-            onExit={onExit}
-            morePractice={morePractice}
-            onPractice={onPractice}
-            forgeAfterDay={forgeAfterDay}
-          />
+          {showPapier ? (
+            <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
+          ) : (
+            <JourneyPhaseView
+              phase={phase}
+              controller={controller}
+              copy={copy}
+              onExit={onExit}
+              morePractice={morePractice}
+              onPractice={onPractice}
+              forgeAfterDay={forgeAfterDay}
+            />
+          )}
 
           {/* A paused journey shows its resume prompt alone, so the learner has
               exactly one action rather than a half-live step behind a notice. */}

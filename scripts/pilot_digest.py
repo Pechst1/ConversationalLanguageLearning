@@ -403,6 +403,52 @@ def format_self_repair_line(db, day: date, user_id: str | None = None) -> str:
     )
 
 
+#: WP-119 §6.5 / §10c. One row per closed Papier, written at close by
+#: `RevueEncounterService._record_cost` (`app/services/revue/encounter.py`,
+#: ``REVUE_COST_EVENT_TYPE``); the payload carries ``turns``, ``guests``,
+#: ``provider`` and ``grader``, ``cost_usd`` the sum of the session's model calls.
+#: Kept as a literal so the digest does not import the encounter module.
+REVUE_EVENT_TYPE = "revue_session"
+
+
+def format_revue_line(db, day: date, user_id: str | None = None) -> str:
+    """WP-119 §10c. Le Papier's line: sessions closed, turns, guests, cost.
+
+    The row is written at close, so a session is counted on the day it was
+    filed, not the day it started; an abandoned session writes no row and is
+    not here. Cost per session is printed beside the total because that is the
+    number the weekly budget is set against.
+    """
+
+    normalized_user_id = UUID(str(user_id)) if user_id else None
+    rows = db.query(PilotEvent.payload, PilotEvent.cost_usd).filter(
+        PilotEvent.event_type == REVUE_EVENT_TYPE,
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    if normalized_user_id:
+        rows = rows.filter(PilotEvent.user_id == normalized_user_id)
+    sessions = 0
+    turns = 0
+    guests = 0
+    cost = 0.0
+    providers: set[str] = set()
+    for payload, row_cost in rows:
+        payload = payload or {}
+        sessions += 1
+        turns += int(payload.get("turns") or 0)
+        guests += int(payload.get("guests") or 0)
+        cost += float(row_cost or 0.0)
+        if payload.get("provider"):
+            providers.add(str(payload["provider"]))
+    if not sessions:
+        return "Le Papier (revue): none"
+    provider_note = ", ".join(sorted(providers)) or "provider unreported"
+    return (
+        f"Le Papier (revue): {sessions} session(s) closed · {turns} turns · "
+        f"{guests} guest(s) · ${cost:.4f} · ${cost / sessions:.4f}/session · {provider_note}"
+    )
+
+
 def format_register_line(report: dict, user_id: str | None = None) -> str:
     """WP-33's dimension, read off the rollup the journey section already built.
 
@@ -513,6 +559,8 @@ def main() -> None:
         # WP-38 (WP-36 §8.4): the self-repair loop's own uptake, now that the
         # decision is recorded instead of discarded.
         print(format_self_repair_line(db, args.day, args.user_id))
+        # WP-119 §10c: Le Papier's sessions, turns, guests and cost.
+        print(format_revue_line(db, args.day, args.user_id))
     # WP-33: read off the rollup above — no extra query, and it cannot disagree
     # with the capability line the journey section prints.
     print(format_register_line(report, args.user_id))
