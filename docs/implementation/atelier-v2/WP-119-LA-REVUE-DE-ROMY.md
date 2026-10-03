@@ -547,6 +547,47 @@ Small items that landed as follow-ups in the reports of 2026-10-02. One agent, o
   versions and cost, the way CONTINUOUS-STORY §14F does it for the season. Report what fails;
   no expected-failure markers.
 
+## 10e. Phase 6 · «La voix de Romy» (from the real-model sample of 2026-10-03)
+
+The sample (`docs/implementation/atelier-v2/evidence/revue-sample-2026-10-03/`, ten sessions, real
+provider and critic, US$0.16) passed grounding, the rubric, the knowledge check and relative dates,
+and failed natural French in 10/10. The causes are mechanical. Decisions taken by the lead.
+
+1. **No ids in anything the learner reads.** The reply prompt says «cite claims by id»; Romy says
+   «d'après c2». Fix: the provider returns `claims_cited` separately and the text must name the
+   *source* («d'après Le Monde», «selon l'Insee») or nothing; a deterministic check over reply,
+   guest, close, question-proposal and translation text refuses any token matching `\b[cau]\d+\b`,
+   «incert.», «incertitude N», «(a1)»: one regeneration, then strip and log `revue_id_leak`.
+2. **Uncertainties by stable id.** `uncertainties` become `[{id: "u1", fr}]` (loader migration for
+   the stored JSON); the provider cites `u1`; a fallback matches the learner's question to an
+   uncertainty by shared content words when the reply says the sources are silent. The acceptance
+   test gains the session-6 case («Quels légumes sont plus chers ?»).
+3. **Conversation, not recitation.** Reply rules in the prompt and enforced where possible:
+   answer the learner's last line first; at most two new claims per turn and never a shown claim
+   restated (the service drops restated claim ids from the context); the reader question proposed at
+   most once per session (state knows); no imperatives addressed to the learner («Dis…»); no symbols
+   (→ ≈ ~ > /) at A1–A2 (deterministic check → regenerate); the angle changes at most once and only
+   on a learner turn that names the other angle's topic; the learner is never confused with a
+   guest's world («tes élèves»: the prompt names who is who).
+4. **Guests take a stance.** The guest prompt requires `position` ∈ {for, against} on entry with one
+   reason from their own life, forbids offers of service («Voulez-vous que je…»), and allows `moved`
+   only after a learner statement. A deterministic check refuses a guest line that is a question
+   offering help.
+5. **Vocabulary worth learning.** The vocabulary builder excludes proper nouns, contractions
+   («du»), numbers and words outside the catalogue unless they carry a gloss; prefers words the
+   can-do catalogue knows so the evidence counts (1/40 turns today).
+6. **Closing in the world's words.** Close lines may not contain app words («artefact», «session»,
+   «dossier»); authored close templates are the fallback.
+7. **Prompt versions.** `PROMPT_VERSION` constants on every encounter prompt, recorded on each
+   `cost_usd` event, so a sample can be compared with the next.
+8. **Latency.** The fourth turn runs reply, guest and critic sequentially (p50 11 s). Run the critic
+   after the reply is returned (background, the evidence event lands on the next turn), and the
+   guest line in parallel with Romy's reply when a guest is on stage. Target p50 ≤ 6 s per turn.
+
+Acceptance: rerun the sample harness (`revue_sample.py`) on the same ten sessions; French passes in
+≥ 8/10 by the same reader's criteria, the acceptance test passes 10/10, no id leak, guests take a
+stance in every entrance, p50 turn latency ≤ 6 s, cost per session ≤ US$0.02.
+
 ## 11. The bridge to generated seasons
 
 A season gap day needs "something true from the city this week" (WP-116 §12). After phase 3 it can

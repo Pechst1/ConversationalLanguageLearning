@@ -1,0 +1,215 @@
+{
+ "criteria": {
+  "french": "natural French in Romy's register: no ids, no anglicisms/jargon, no relative dates, no telegraphic symbols, coherent addressee",
+  "grounding": "every claim Romy states traceable to a dossier claim or uncertainty",
+  "guest": "guest lines in character against world.json (n/a = no guest entered)",
+  "rubric": "correct target-word use judged correct, incorrect judged incorrect, no mastery with capability_known False",
+  "simplify": "simplify-on-breakdown never triggered wrongly (warn = a false breakdown was counted)",
+  "knowledge": "no season reveal (Odile/Berlin/310 000/Solvel/the letter) in any generated line",
+  "acceptance": "§1: the unanswerable question named as a gap, phrased with the learner, filed at close"
+ },
+ "sessions": [
+  {
+   "session": 1,
+   "dossier_id": "2026-w40-budget-2027",
+   "band": "B1",
+   "cost_usd": 0.016407,
+   "calls": 12,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "partial",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "claim ids in all 4 replies: «(c1)», «(interprétation c3)», «(interpretation c4)», «(incert. 1)»",
+    "first reply instructs the learner as if they were writing: «Propose la question au lecteur… Dis que… Précise que… Donne deux voix»",
+    "close line uses app jargon: «je ferme la session»",
+    "guest augustin: entry in voice («c'est passionnant. Non : fascinant.»); follow-up 1 is an assistant offer («Voulez‑vous que je demande précisément…»); follow-up 2 voiceless clarification; position never taken",
+    "rubric: «le projet de budget» used correctly → judged correct; credited unscored (capability unknown) — correct per Credit check"
+   ]
+  },
+  {
+   "session": 2,
+   "dossier_id": "2026-w40-ce-qui-change-1er-octobre",
+   "band": "A2",
+   "cost_usd": 0.014308,
+   "calls": 12,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "partial",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "claim ids in all replies; telegraphic symbols at A2: «100→140 €», «≈0,40 €/L», «182,88 €/MWh (+6,3 %)»",
+    "c1/c2 restated in all three later replies; the opinion «Je trouve ça cher» gets no reaction",
+    "guest landlord: entry in voice («voyez-vous», buildings, vous); follow-up 2 incoherent («Vous avez une offre indexée pour le gaz, ou c'est vos locataires qui paient la facture ?» — the learner has no tenants)",
+    "rubric: «la prix repère» → incorrect (fair)"
+   ]
+  },
+  {
+   "session": 3,
+   "dossier_id": "2026-w40-goncourt-roman-retire",
+   "band": "B1",
+   "cost_usd": 0.020009,
+   "calls": 15,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "partial",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "claim ids in all replies («(incert. 0)», «(c4)»)",
+    "Romy confuses the learner with the guest: «Veux‑tu que je rédige une question claire pour tes élèves ?»",
+    "guest lila: entry in (tu, pupils); follow-up 1 assistant offer («Tu veux que je vérifie si le Renaudot a publié un communiqué…»); follow-up 2 in character (the one who looks at the evidence); no Marseille, no grading, no position",
+    "rubric: «le roman» correct → correct (fair)"
+   ]
+  },
+  {
+   "session": 4,
+   "dossier_id": "2026-w40-paris-plan-canicules",
+   "band": "A1",
+   "cost_usd": 0.01573,
+   "calls": 13,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "fail",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "A1 replies carry ids as sources: «Il y en aura cent, d'après c2.», «D'après c1, le maire a présenté le plan.»",
+    "telegraphic opener: «On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3)…»; «Bonne nouvelle pour toi.»",
+    "guest landlord: both follow-ups are the same offer («Voulez-vous que je demande au maire combien coûte le plan ?» / «…Voulez-vous que je demande au maire ?») — none of his procedure/grief voice",
+    "reader question filed as «Le plan coûte combien ?» — no referent, becomes the dispatch headline"
+   ]
+  },
+  {
+   "session": 5,
+   "dossier_id": "2026-w40-prix-de-l-arc-de-triomphe",
+   "band": "A2",
+   "cost_usd": 0.017438,
+   "calls": 13,
+   "french": "fail",
+   "grounding": "partial",
+   "guest": "partial",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "ids and symbols: «~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3)»",
+    "unsupported evaluation «Non, pas très longue.»; c3 says «plus de 2,8 millions», Romy says «2,8 M€»",
+    "guest augustin: entry in («Je sais toujours qui paie, croyez‑moi.»); both follow-ups near-identical assistant offers («Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz…»)",
+    "vocabulary picked the sponsor name «le Qatar Prix de l'Arc de Triomphe» as a target word; «la Qatar Prix…» → incorrect (fair, but the target is a proper noun)"
+   ]
+  },
+  {
+   "session": 6,
+   "dossier_id": "2026-w40-prix-produits-frais",
+   "band": "A1",
+   "cost_usd": 0.015689,
+   "calls": 11,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "partial",
+   "rubric": "pass",
+   "simplify": "warn",
+   "knowledge": "pass",
+   "acceptance": "fail",
+   "notes": [
+    "ids at A1: «D'après c1,c2,c3, les prix montent», «(incertitude 2)»",
+    "ACCEPTANCE FAIL: «Quels légumes sont plus chers ?» matches uncertainty index 1; the model returned uncertainty_cited=2 for a 2-item list, the index was dropped, the question was recorded answerable=True, make recommended headline_choice, question_kept_fr=None",
+    "false breakdown: model shift='simplify' on the opinion «C'est difficile pour moi.» → evidence breakdown=True counts=True (one more would have simplified wrongly)",
+    "guest margaux: entry in («Ce que je sers au comptoir vient de quelque part.»); follow-ups repeat the same offer twice («Tu veux que je cherche lesquels ont monté ?»)"
+   ]
+  },
+  {
+   "session": 7,
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "band": "A2",
+   "cost_usd": 0.014948,
+   "calls": 11,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "n/a",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "«Parfait. Dis-lui: Paris a 91 marchés (c1)…» — meta-instruction to an unnamed «lui», ids, no space before colon; «un plein air»",
+    "proposes a reader question addressed to the learner: «Pourquoi Aligre est‑il important pour toi ?»",
+    "vocabulary: «Paris», «compte» (conjugated), «les matins»",
+    "rubric: «les marchés» credited correct to CD_A11_GOING (capability_known=True) — the only known-capability credit in 40 turns; the can-do (aller/venir…) is a loose fit",
+    "reader question sent unchanged «C'est moins cher qu'au supermarché ?» and becomes the dispatch headline"
+   ]
+  },
+  {
+   "session": 8,
+   "dossier_id": "evergreen-greve-transports",
+   "band": "B1",
+   "cost_usd": 0.014222,
+   "calls": 10,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "n/a",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "ids in all replies",
+    "the same unrelated reader question pushed three times («Que faut‑il prévoir pour mon trajet le jour d'une grève ?»)",
+    "no guest: marin's words (syndicat*, salarié*) never in the learner's turns; evergreens have no guest_fit",
+    "rubric: «la service» → incorrect (fair)"
+   ]
+  },
+  {
+   "session": 9,
+   "dossier_id": "evergreen-beaujolais-nouveau",
+   "band": "A1",
+   "cost_usd": 0.012276,
+   "calls": 10,
+   "french": "fail",
+   "grounding": "pass",
+   "guest": "pass",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "first reply has no content: «Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2.»",
+    "close jargon: «Je garde ta question telle quelle dans l'artefact.»",
+    "question rewrite introduces the future at A1: «La bouteille coûtera combien en 2026 ?»",
+    "guest margaux entry only, in voice («Alors ça me regarde.»)"
+   ]
+  },
+  {
+   "session": 10,
+   "dossier_id": "evergreen-rentree",
+   "band": "A2",
+   "cost_usd": 0.015803,
+   "calls": 11,
+   "french": "fail",
+   "grounding": "partial",
+   "guest": "pass",
+   "rubric": "pass",
+   "simplify": "pass",
+   "knowledge": "pass",
+   "acceptance": "pass",
+   "notes": [
+    "angle id and claim ids: «On commence par «Ce que la rentrée change pour une famille» (a1). D'après c1, rentrée 2026: 1er sept. en métropole»",
+    "«D'après c4, les dépenses ont augmenté.» — drops the 2016 dating the uncertainty insists on, in a 2026 frame",
+    "close claims a text that does not exist: «Je garde ta question et ton texte pour le dossier, hein.»",
+    "guest lila: entry only, near-verbatim the same line as session 3 («Mes élèves m'ont posé la question en classe.»)"
+   ]
+  }
+ ]
+}
