@@ -74,6 +74,7 @@ test('the wire document\'s match miss and turn examples parse', () => {
     ],
     factFit: 'not_applicable',
     registerNote: 'ok',
+    pending: false,
   });
 });
 
