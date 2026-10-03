@@ -231,9 +231,9 @@ def test_daily_cadence_uses_the_date_as_the_period(db: Session, monkeypatch) -> 
     stock(db, today, load_evergreens()[:3])
     user = make_user(db)
     revue = RevueEncounter(db, FakeRevueProvider())
-    row = revue.start(user)
+    row = revue.start(user, today)  # pinned: the wall clock may cross Paris midnight mid-test
     assert row.week == today
-    offer = revue.week_offer(user)
+    offer = revue.week_offer(user, today)
     assert offer.week.iso == today and offer.week.label.startswith("Semaine ")
     assert offer.resume is not None and offer.resume.session_id == str(row.id)
     # One active Papier per *day*: another day is free while this one is open.
