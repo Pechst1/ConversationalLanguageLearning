@@ -130,6 +130,25 @@ every other: `"model_down" | "knowledge_refused" | "budget" | "no_match"`. `spea
 
 Client-only kinds from the design (`claimsFolded`, `typing`) are never sent.
 
+**Evidence may arrive one turn late (WP-119 §10e.8, 2026-10-03).** With the real provider, Romy's reply, the
+guest's line and the rubric critic run side by side; the turn waits for the critic at most 2 s after the reply
+is assembled. When the critic is slower, the turn's `evidence` is sent as `{"outcome": "unscored", "pending":
+true, …}` and the graded evidence is written at the start of the learner's **next** turn (or at `make` / `close`,
+whichever comes first), as a second `evidence` event for the same turn (`late: true`). The thread is unaffected:
+`register_note` on a `mine` item and the kept words' `outcome` at the close read the latest evidence of each
+turn, so a reload after the next turn shows the graded result. A client that shows the word marks of the
+current turn should treat `pending: true` as "not graded yet", never as "wrong".
+
+**What the learner reads (WP-119 §10e, «La voix de Romy»).** Every text field Romy or a guest writes —
+`line.text_fr`, `line.translation`, `guest.text_fr`, the reader-question proposal, the close line, the dispatch
+headline and body — is checked before it is stored: no dossier id («c2», «a1», «u1», «incert. 1»), no symbols
+(→ ≈ ~ > < / ×) at A1–A2, no orders to the learner («Dis…», «Écris…»), no app words in the close («artefact»,
+«session», «dossier»), and no guest offering a service («Voulez-vous que je…»). One regeneration names the
+problem; then the line is repaired (ids stripped, symbols in words, the order dropped) or the authored line
+stands. Romy brings at most two new claims per reply (`claims` items carry only those), proposes the reader
+question once per Papier, and changes the angle at most once, on a learner turn that names the other angle's
+topic.
+
 ## 3. Endpoints
 
 ### 3.1 `GET /revue/week` — the week's offer
@@ -448,6 +467,7 @@ type RvEvidence = {
   words: { fr: string; outcome: "correct" | "incorrect" | "unscored"; capability_known: boolean }[];   // every plan word
   fact_fit: "supported" | "unsupported" | "contradicted" | "not_applicable";
   register_note: "ok" | "vous_to_tu" | "tu_to_vous";   // a code; the client words it («Avec Romy, on se tutoie.»)
+  pending: boolean;                   // §10e.8: the critic had not answered within 2 s; graded on the next turn (§2)
 };
 ```
 - `correct` needs a target word used correctly (grounded in a quote of the learner's own words) and no

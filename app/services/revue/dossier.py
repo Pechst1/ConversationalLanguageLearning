@@ -150,6 +150,35 @@ class Angle(_Model):
     guest_fit: str | None = None
 
 
+class Uncertainty(_Model):
+    """What the sources do not say (§3.1), with a stable id (WP-119 §10e.2): the reply
+    provider cites ``u1``, never a list index. Stored dossiers written before phase 6 hold
+    plain strings; :class:`EditorialDossier` normalises them on load (``u1``, ``u2``… by
+    position), so neither the stored JSON nor the weekly/evergreen files need a rewrite."""
+
+    id: str = Field(min_length=1)
+    fr: str = Field(min_length=1)
+
+    def __str__(self) -> str:  # the French, wherever a consumer formats it as text
+        return self.fr
+
+
+def normalise_uncertainties(value: Any) -> list[dict[str, str]]:
+    """Plain strings and ``{id, fr}`` dicts → ``[{id, fr}]``; a missing id becomes ``u<position>``."""
+
+    rows: list[dict[str, str]] = []
+    for index, item in enumerate(value or []):
+        if isinstance(item, Uncertainty):
+            rows.append(item.model_dump())
+        elif isinstance(item, dict):
+            fr = str(item.get("fr") or item.get("text") or "").strip()
+            if fr:
+                rows.append({"id": str(item.get("id") or f"u{index + 1}"), "fr": fr})
+        elif str(item or "").strip():
+            rows.append({"id": f"u{index + 1}", "fr": str(item).strip()})
+    return rows
+
+
 class Geo(_Model):
     """Where a place is on the map (WP-120 §3.1); resolved by ``geo.py``, checked by ``check_geo``."""
 
@@ -220,7 +249,7 @@ class EditorialDossier(_Model):
     summary_fr: str = Field(min_length=1)
     claims: list[Claim] = Field(min_length=2)
     entities: list[Entity] = Field(default_factory=list)
-    uncertainties: list[str] = Field(default_factory=list)
+    uncertainties: list[Uncertainty] = Field(default_factory=list)
     angles: list[Angle] = Field(min_length=1)
     places: list[Place] = Field(min_length=1)
     time_scope: TimeScope
@@ -234,6 +263,11 @@ class EditorialDossier(_Model):
     def _week(cls, value: str) -> str:
         parse_week(value)
         return value
+
+    @field_validator("uncertainties", mode="before")
+    @classmethod
+    def _uncertainties(cls, value: Any) -> list[dict[str, str]]:
+        return normalise_uncertainties(value)
 
     @field_validator("topic")
     @classmethod
@@ -249,6 +283,7 @@ class EditorialDossier(_Model):
             ("angle", self.angles),
             ("place", self.places),
             ("source", self.sources),
+            ("uncertainty", self.uncertainties),
         ):
             ids = [row.id for row in rows]
             duplicates = sorted({row_id for row_id in ids if ids.count(row_id) > 1})
@@ -278,6 +313,14 @@ class EditorialDossier(_Model):
         """Names of person entities — the staging rule keeps them off plates (§8.1)."""
 
         return [entity.name for entity in self.entities if entity.kind == "person"]
+
+    def uncertainty_texts(self) -> list[str]:
+        """The uncertainties' French, in order."""
+
+        return [u.fr for u in self.uncertainties]
+
+    def uncertainty_by_id(self, uncertainty_id: str) -> Uncertainty | None:
+        return next((u for u in self.uncertainties if u.id == str(uncertainty_id)), None)
 
     def angle_by_id(self, angle_id: str) -> Angle | None:
         return next((angle for angle in self.angles if angle.id == angle_id), None)

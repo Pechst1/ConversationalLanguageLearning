@@ -230,6 +230,7 @@ export type RvEvidence = {
   words: RvWordEvidence[];
   factFit: RvFactFit;
   registerNote: RvRegisterNote;
+  pending?: boolean;
 };
 export type RvTurnResult = {
   items: RvThreadItem[];
@@ -689,6 +690,8 @@ export function parseEvidence(raw: Json): RvEvidence {
     })),
     factFit: oneOf(raw.fact_fit, ['supported', 'unsupported', 'contradicted', 'not_applicable'] as const, 'not_applicable'),
     registerNote: oneOf(raw.register_note, ['ok', 'vous_to_tu', 'tu_to_vous'] as const, 'ok'),
+    // WP-119 §10e.8: the critic answers on the next turn; not graded yet, never "wrong".
+    pending: Boolean(raw.pending),
   };
 }
 

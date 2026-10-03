@@ -216,7 +216,7 @@ def _digest(dossier: EditorialDossier, lead: Source) -> str:
         lines.extend(f"- {c.fr} — {c.attributed_to}" for c in readings)
     if dossier.uncertainties:
         lines.append("Ce que les sources ne disent pas:")
-        lines.extend(f"- {text}" for text in dossier.uncertainties)
+        lines.extend(f"- {text}" for text in dossier.uncertainty_texts())
     return "\n".join(lines)
 
 

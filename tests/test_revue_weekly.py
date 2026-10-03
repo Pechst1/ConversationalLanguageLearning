@@ -121,7 +121,7 @@ def test_time_scope_fits_the_week() -> None:
 
 def test_nothing_is_sensitive() -> None:
     for dossier in DOSSIERS:
-        for text in (dossier.title_fr, dossier.summary_fr, *dossier.uncertainties):
+        for text in (dossier.title_fr, dossier.summary_fr, *dossier.uncertainty_texts()):
             assert not policy.is_sensitive(text), (dossier.id, text)
         for claim in dossier.claims:
             assert not policy.is_sensitive(claim.fr), (dossier.id, claim.id)

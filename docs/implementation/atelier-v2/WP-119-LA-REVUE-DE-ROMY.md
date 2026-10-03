@@ -588,6 +588,17 @@ Acceptance: rerun the sample harness (`revue_sample.py`) on the same ten session
 ≥ 8/10 by the same reader's criteria, the acceptance test passes 10/10, no id leak, guests take a
 stance in every entrance, p50 turn latency ≤ 6 s, cost per session ≤ US$0.02.
 
+**Status (2026-10-03, rerun `evidence/revue-sample-2026-10-03b/`).** Built: `revue/voice.py` (ids,
+symbols, orders, offers of service, app words, echo, typography), uncertainties as `{id, fr}` with the
+content matcher, the conversation rules (two new claims, no restated ids, the reader question once, the
+angle once and only on the learner's words), guests with a side on entry and `moved` only after a
+statement, catalogue-first vocabulary without names/contractions/numbers/grammar words, close lines
+without app words, `PROMPT_VERSIONS` on every cost event, and reply ∥ guest ∥ critic with late evidence
+(WIRE §2). Rerun: French 8/10 (2 partial), acceptance 10/10, 0 ids, 8/8 entrances with a side, turn p50
+4.8 s / p95 7.9 s, cost mean US$0.0171 — but 3 of 10 sessions are above US$0.02 (max $0.0220). Open:
+restatement checked on ids only (not the text), guests' factual asides unchecked, Romy's own offers, the
+per-session cost ceiling (README «What remains»).
+
 ## 11. The bridge to generated seasons
 
 A season gap day needs "something true from the city this week" (WP-116 §12). After phase 3 it can

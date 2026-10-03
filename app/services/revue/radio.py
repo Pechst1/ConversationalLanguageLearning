@@ -329,7 +329,7 @@ def bulletin_script(
         limit += 5
         lines = candidate
     # ...then Romy says what the sources do not know — never silence or filler.
-    for extra in dossier.uncertainties:
+    for extra in dossier.uncertainty_texts():
         if seconds(lines) >= MIN_SECONDS:
             break
         candidate = build(limit, [*said, extra])

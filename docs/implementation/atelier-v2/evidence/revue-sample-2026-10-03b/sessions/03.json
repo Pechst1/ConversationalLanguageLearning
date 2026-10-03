@@ -1,0 +1,3900 @@
+{
+ "n": 3,
+ "dossier_id": "2026-w40-goncourt-roman-retire",
+ "level": "B1.1",
+ "native_language": "de",
+ "dossier": {
+  "id": "2026-w40-goncourt-roman-retire",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "culture",
+  "title_fr": "Le Goncourt retire un roman de sa sélection",
+  "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+    "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+    "source_id": "w40_goncourt_franceinfo",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "published_at": "2026-09-25",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "interpretation",
+    "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+    "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+    "source_id": "w40_goncourt_franceinfo",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "published_at": "2026-09-25",
+    "confidence": "reported",
+    "attributed_to": "l'Académie Goncourt, dans un communiqué"
+   },
+   {
+    "id": "c3",
+    "kind": "interpretation",
+    "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+    "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+    "source_id": "w40_goncourt_franceinfo",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "published_at": "2026-09-25",
+    "confidence": "reported",
+    "attributed_to": "Thélyson Orélien, l'auteur du roman"
+   },
+   {
+    "id": "c4",
+    "kind": "fact",
+    "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+    "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+    "source_id": "w40_goncourt_actualitte",
+    "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+    "published_at": "2026-09-25",
+    "confidence": "reported",
+    "attributed_to": null
+   }
+  ],
+  "entities": [
+   {
+    "name": "Académie Goncourt",
+    "kind": "organisation",
+    "role": null
+   },
+   {
+    "name": "Thélyson Orélien",
+    "kind": "person",
+    "role": "écrivain canado-haïtien, auteur du roman retiré"
+   }
+  ],
+  "uncertainties": [
+   {
+    "id": "u1",
+    "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+   },
+   {
+    "id": "u2",
+    "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+   }
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": "lila_bonnet"
+   },
+   {
+    "id": "a2",
+    "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": "lila_bonnet"
+   }
+  ],
+  "places": [
+   {
+    "id": "librairie_rentree_litteraire",
+    "name_fr": "Une librairie à Paris, à la rentrée littéraire",
+    "brief": "the window of a small Paris bookshop at dusk, stacks of new novels with plain cream covers and red paper bands, a wooden table of books, warm light inside, a wet pavement outside",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-09-25/2026-10-06",
+   "relevant_until": "2026-10-20"
+  },
+  "sources": [
+   {
+    "id": "w40_goncourt_franceinfo",
+    "name": "franceinfo",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "published_at": "2026-09-25"
+   },
+   {
+    "id": "w40_goncourt_actualitte",
+    "name": "ActuaLitté",
+    "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+    "published_at": "2026-09-25"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un livre fermé"
+ },
+ "band": "B1",
+ "vocabulary": [
+  {
+   "fr": "le roman",
+   "gloss": {
+    "de": "der Roman"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "la sélection",
+   "gloss": {
+    "de": "die Auswahl"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "l'intelligence artificielle",
+   "gloss": {
+    "de": "die künstliche Intelligenz"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "taire",
+   "gloss": {
+    "de": "zum Schweigen bringen"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "le prix",
+   "gloss": {},
+   "claim_id": "c4"
+  },
+  {
+   "fr": "retiré",
+   "gloss": {},
+   "claim_id": "c1"
+  },
+  {
+   "fr": "première",
+   "gloss": {},
+   "claim_id": "c1"
+  }
+ ],
+ "target_use": {
+  "word": "le roman",
+  "article_said": "le",
+  "intended": "correct",
+  "sentence": "Pour moi, le roman, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T01:51:35.278965+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T01:51:39.498892+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "le roman",
+        "gloss": "der Roman",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la sélection",
+        "gloss": "die Auswahl",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "retiré",
+        "gloss": "",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "première",
+        "gloss": "",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T01:51:39.498904+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+        "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le roman",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la sélection",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'intelligence artificielle",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "taire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le prix",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "retiré",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "première",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Pourquoi l'Académie a retiré le roman ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T01:51:39.502089+00:00",
+      "kind": "mine",
+      "text_fr": "Pourquoi l'Académie a retiré le roman ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T01:51:44.971685+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "l'intelligence artificielle",
+        "gloss": "die künstliche Intelligenz",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "taire",
+        "gloss": "zum Schweigen bringen",
+        "claim_id": "c3"
+       },
+       {
+        "fr": "retiré",
+        "gloss": "",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T01:51:44.971698+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c2",
+        "kind": "interpretation",
+        "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+        "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+        "attributed_to": "l'Académie Goncourt, dans un communiqué",
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "interpretation",
+        "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+        "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+        "attributed_to": "Thélyson Orélien, l'auteur du roman",
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       }
+      ]
+     },
+     {
+      "id": "11",
+      "seq": 11,
+      "at": "2026-10-03T01:51:44.971707+00:00",
+      "kind": "guest",
+      "cast_id": "lila_bonnet",
+      "text_fr": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer.",
+      "move": "enter",
+      "position": "for",
+      "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le roman",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la sélection",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'intelligence artificielle",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "taire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le prix",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "retiré",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "première",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Est-ce que le Renaudot va aussi retirer le roman ?",
+   "result": {
+    "items": [
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T01:51:44.975258+00:00",
+      "kind": "mine",
+      "text_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T01:51:52.285237+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "le roman",
+        "gloss": "der Roman",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la sélection",
+        "gloss": "die Auswahl",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le prix",
+        "gloss": "",
+        "claim_id": "c4"
+       },
+       {
+        "fr": "première",
+        "gloss": "",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "16.u",
+      "seq": 16,
+      "at": "2026-10-03T01:51:52.285237+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     },
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T01:51:52.285250+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c4",
+        "kind": "fact",
+        "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+        "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_goncourt_actualitte",
+         "name": "ActuaLitté",
+         "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+         "published_at": "2026-09-25"
+        }
+       }
+      ]
+     },
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T01:51:52.285256+00:00",
+      "kind": "guest",
+      "cast_id": "lila_bonnet",
+      "text_fr": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies.",
+      "move": "follow_up",
+      "position": "for",
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le roman",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la sélection",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'intelligence artificielle",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "taire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le prix",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "retiré",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "première",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T01:51:52.289863+00:00",
+      "kind": "mine",
+      "text_fr": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "22",
+      "seq": 22,
+      "at": "2026-10-03T01:51:57.813388+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'accord, tu as raison : un auteur a le droit de se défendre. D'après l'Académie, le livre présente des éléments qui font penser à une utilisation d'intelligence artificielle ; l'auteur, lui, nie cette utilisation et évoque une volonté de le faire taire.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "l'intelligence artificielle",
+        "gloss": "die künstliche Intelligenz",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "taire",
+        "gloss": "zum Schweigen bringen",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "23",
+      "seq": 23,
+      "at": "2026-10-03T01:51:57.813407+00:00",
+      "kind": "guest",
+      "cast_id": "lila_bonnet",
+      "text_fr": "D'accord, un auteur doit pouvoir répondre ; j'exige que mes élèves expliquent leur travail, c'est la moindre des choses.",
+      "move": "follow_up",
+      "position": "for",
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le roman",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la sélection",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'intelligence artificielle",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "taire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le prix",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "retiré",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "première",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "L'Académie Goncourt retire le roman de Thélyson Orélien de sa première sélection"
+     },
+     {
+      "id": "h2",
+      "text_fr": "L'Académie Goncourt estime que le roman a été écrit sans aide d'intelligence artificielle"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Le roman a été retiré de toutes les premières sélections"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "uncertainty_fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   }
+  ],
+  "intro": {
+   "id": "26",
+   "seq": 26,
+   "at": "2026-10-03T01:52:03.038420+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "proposal_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "contribution": [
+     [
+      0,
+      48
+     ]
+    ],
+    "why_native": "Ich habe «de sa sélection» ergänzt, damit klar ist, auf welche Entfernung des Romans sich die Frage bezieht."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "contribution": [
+     [
+      0,
+      48
+     ]
+    ],
+    "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?"
+   },
+   "line": {
+    "id": "30",
+    "seq": 30,
+    "at": "2026-10-03T01:52:05.498539+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je reprends ta question : d'après l'Académie, le livre est très probablement écrit en grande partie par une intelligence artificielle ; l'auteur le nie, et il figure toujours dans les premières sélections du Renaudot, hein.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+   "body_fr": [
+    "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+    "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+    "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+   ],
+   "contribution": [
+    [
+     0,
+     48
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après franceinfo et ActuaLitté",
+   "sources": [
+    {
+     "id": "w40_goncourt_franceinfo",
+     "name": "franceinfo",
+     "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+     "published_at": "2026-09-25"
+    },
+    {
+     "id": "w40_goncourt_actualitte",
+     "name": "ActuaLitté",
+     "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+     "published_at": "2026-09-25"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "le roman",
+     "gloss": "der Roman",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la sélection",
+     "gloss": "die Auswahl",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "gloss": "die künstliche Intelligenz",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "taire",
+     "gloss": "zum Schweigen bringen",
+     "claim_id": "c3",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le prix",
+     "gloss": "",
+     "claim_id": "c4",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "retiré",
+     "gloss": "",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "première",
+     "gloss": "",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+     "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "interpretation",
+     "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+     "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+     "attributed_to": "l'Académie Goncourt, dans un communiqué",
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "interpretation",
+     "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+     "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+     "attributed_to": "Thélyson Orélien, l'auteur du roman",
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "fact",
+     "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+     "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_goncourt_actualitte",
+      "name": "ActuaLitté",
+      "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+      "published_at": "2026-09-25"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+  "vignette": {
+   "id": "808cf7b9-fd37-407c-a1a9-01b5bede23f6",
+   "session_id": "e5efde1f-4c2f-4325-bef5-89d840642a8e",
+   "dossier_id": "2026-w40-goncourt-roman-retire",
+   "week": "2026-W40",
+   "place_label_fr": "Une librairie à Paris, à la rentrée littéraire",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"45\" r=\"27\" fill=\"#1D3A8A\"/><rect x=\"30\" y=\"61\" width=\"40\" height=\"11\" rx=\"3\" fill=\"#2C6A5D\"/><path d=\"M50 27L60 43L40 43Z\" fill=\"#1D3A8A\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"39\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Le Goncourt retire un roman de sa sélection",
+   "minted_at": "2026-10-03T01:52:12"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T01:51:35.277112+00:00",
+   "kind": "narration",
+   "text_fr": "Une librairie à Paris, à la rentrée littéraire."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T01:51:35.277112+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 25 sept. au 6 oct.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T01:51:35.277112+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment une librairie à Paris, à la rentrée littéraire, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T01:51:35.277112+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Les gens ne sont pas d'accord, et je dois l'expliquer : « L'Académie et l'auteur ne sont pas d'accord : que dit chacun ? ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T01:51:35.277112+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T01:51:35.278965+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T01:51:39.498892+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le roman",
+     "gloss": "der Roman",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la sélection",
+     "gloss": "die Auswahl",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "retiré",
+     "gloss": "",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "première",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T01:51:39.498904+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+     "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T01:51:39.502089+00:00",
+   "kind": "mine",
+   "text_fr": "Pourquoi l'Académie a retiré le roman ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T01:51:44.971685+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "l'intelligence artificielle",
+     "gloss": "die künstliche Intelligenz",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "taire",
+     "gloss": "zum Schweigen bringen",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "retiré",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T01:51:44.971698+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c2",
+     "kind": "interpretation",
+     "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+     "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+     "attributed_to": "l'Académie Goncourt, dans un communiqué",
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "interpretation",
+     "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+     "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+     "attributed_to": "Thélyson Orélien, l'auteur du roman",
+     "source": {
+      "id": "w40_goncourt_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+      "published_at": "2026-09-25"
+     }
+    }
+   ]
+  },
+  {
+   "id": "11",
+   "seq": 11,
+   "at": "2026-10-03T01:51:44.971707+00:00",
+   "kind": "guest",
+   "cast_id": "lila_bonnet",
+   "text_fr": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer.",
+   "move": "enter",
+   "position": "for",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T01:51:44.975258+00:00",
+   "kind": "mine",
+   "text_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T01:51:52.285237+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le roman",
+     "gloss": "der Roman",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la sélection",
+     "gloss": "die Auswahl",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le prix",
+     "gloss": "",
+     "claim_id": "c4"
+    },
+    {
+     "fr": "première",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "16.u",
+   "seq": 16,
+   "at": "2026-10-03T01:51:52.285237+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T01:51:52.285250+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c4",
+     "kind": "fact",
+     "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+     "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_goncourt_actualitte",
+      "name": "ActuaLitté",
+      "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+      "published_at": "2026-09-25"
+     }
+    }
+   ]
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T01:51:52.285256+00:00",
+   "kind": "guest",
+   "cast_id": "lila_bonnet",
+   "text_fr": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies.",
+   "move": "follow_up",
+   "position": "for",
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:51:52.289863+00:00",
+   "kind": "mine",
+   "text_fr": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "22",
+   "seq": 22,
+   "at": "2026-10-03T01:51:57.813388+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'accord, tu as raison : un auteur a le droit de se défendre. D'après l'Académie, le livre présente des éléments qui font penser à une utilisation d'intelligence artificielle ; l'auteur, lui, nie cette utilisation et évoque une volonté de le faire taire.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "l'intelligence artificielle",
+     "gloss": "die künstliche Intelligenz",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "taire",
+     "gloss": "zum Schweigen bringen",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "23",
+   "seq": 23,
+   "at": "2026-10-03T01:51:57.813407+00:00",
+   "kind": "guest",
+   "cast_id": "lila_bonnet",
+   "text_fr": "D'accord, un auteur doit pouvoir répondre ; j'exige que mes élèves expliquent leur travail, c'est la moindre des choses.",
+   "move": "follow_up",
+   "position": "for",
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "26",
+   "seq": 26,
+   "at": "2026-10-03T01:52:03.038420+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T01:52:05.498534+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "contribution": [
+     [
+      0,
+      48
+     ]
+    ],
+    "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?"
+   }
+  },
+  {
+   "id": "30",
+   "seq": 30,
+   "at": "2026-10-03T01:52:05.498539+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "31",
+   "seq": 31,
+   "at": "2026-10-03T01:52:12.165262+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je reprends ta question : d'après l'Académie, le livre est très probablement écrit en grande partie par une intelligence artificielle ; l'auteur le nie, et il figure toujours dans les premières sélections du Renaudot, hein.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la sélection",
+     "gloss": "die Auswahl",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "gloss": "die künstliche Intelligenz",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "première",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-goncourt-roman-retire",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-goncourt-roman-retire",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "culture",
+     "title_fr": "Le Goncourt retire un roman de sa sélection",
+     "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+       "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+       "source_id": "w40_goncourt_franceinfo",
+       "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+       "published_at": "2026-09-25",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "interpretation",
+       "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+       "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+       "source_id": "w40_goncourt_franceinfo",
+       "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+       "published_at": "2026-09-25",
+       "confidence": "reported",
+       "attributed_to": "l'Académie Goncourt, dans un communiqué"
+      },
+      {
+       "id": "c3",
+       "kind": "interpretation",
+       "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+       "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+       "source_id": "w40_goncourt_franceinfo",
+       "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+       "published_at": "2026-09-25",
+       "confidence": "reported",
+       "attributed_to": "Thélyson Orélien, l'auteur du roman"
+      },
+      {
+       "id": "c4",
+       "kind": "fact",
+       "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+       "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+       "source_id": "w40_goncourt_actualitte",
+       "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+       "published_at": "2026-09-25",
+       "confidence": "reported",
+       "attributed_to": null
+      }
+     ],
+     "entities": [
+      {
+       "name": "Académie Goncourt",
+       "kind": "organisation",
+       "role": null
+      },
+      {
+       "name": "Thélyson Orélien",
+       "kind": "person",
+       "role": "écrivain canado-haïtien, auteur du roman retiré"
+      }
+     ],
+     "uncertainties": [
+      {
+       "id": "u1",
+       "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+      },
+      {
+       "id": "u2",
+       "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+      }
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": "lila_bonnet"
+      },
+      {
+       "id": "a2",
+       "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": "lila_bonnet"
+      }
+     ],
+     "places": [
+      {
+       "id": "librairie_rentree_litteraire",
+       "name_fr": "Une librairie à Paris, à la rentrée littéraire",
+       "brief": "the window of a small Paris bookshop at dusk, stacks of new novels with plain cream covers and red paper bands, a wooden table of books, warm light inside, a wet pavement outside",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-09-25/2026-10-06",
+      "relevant_until": "2026-10-20"
+     },
+     "sources": [
+      {
+       "id": "w40_goncourt_franceinfo",
+       "name": "franceinfo",
+       "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+       "published_at": "2026-09-25"
+      },
+      {
+       "id": "w40_goncourt_actualitte",
+       "name": "ActuaLitté",
+       "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+       "published_at": "2026-09-25"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "un livre fermé"
+    },
+    "cost_usd": 0.001847,
+    "prompt_version": "revue-vocabulary-v2"
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Une librairie à Paris, à la rentrée littéraire.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 25 sept. au 6 oct.."
+    ],
+    "place_note": "Ce n'est pas vraiment une librairie à Paris, à la rentrée littéraire, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Les gens ne sont pas d'accord, et je dois l'expliquer : « L'Académie et l'auteur ne sont pas d'accord : que dit chacun ? ». Tu m'aides ?",
+    "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo.",
+    "translation": null,
+    "claims_cited": [
+     "c1"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001474,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.218
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le roman",
+      "outcome": "unscored",
+      "capability_id": "revue.word:roman",
+      "capability_known": false
+     },
+     {
+      "fr": "la sélection",
+      "outcome": "unscored",
+      "capability_id": "revue.word:selection",
+      "capability_known": false
+     },
+     {
+      "fr": "l'intelligence artificielle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:intelligence artificielle",
+      "capability_known": false
+     },
+     {
+      "fr": "taire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:taire",
+      "capability_known": false
+     },
+     {
+      "fr": "le prix",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_PAY",
+      "capability_known": true
+     },
+     {
+      "fr": "retiré",
+      "outcome": "unscored",
+      "capability_id": "revue.word:retire",
+      "capability_known": false
+     },
+     {
+      "fr": "première",
+      "outcome": "unscored",
+      "capability_id": "revue.word:premiere",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Pourquoi l'Académie a retiré le roman ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire.",
+    "translation": null,
+    "claims_cited": [
+     "c2",
+     "c3"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.0018,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 5.466
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c2",
+     "c3"
+    ]
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "lila_bonnet",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "reason": "her pupils asked her about it in class (Le Goncourt retire un roman de sa sélection)",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "lila_bonnet",
+    "text_fr": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer.",
+    "move": "enter",
+    "position": "for",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001211,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 3.751,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "guest_position",
+   "payload": {
+    "id": "lila_bonnet",
+    "position": "for",
+    "previous": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Pourquoi l'Académie a retiré le roman ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:roman",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le roman",
+     "retiré"
+    ],
+    "words_used": [
+     "le roman",
+     "retiré"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le roman",
+      "outcome": "unscored",
+      "capability_id": "revue.word:roman",
+      "capability_known": false
+     },
+     {
+      "fr": "la sélection",
+      "outcome": "unscored",
+      "capability_id": "revue.word:selection",
+      "capability_known": false
+     },
+     {
+      "fr": "l'intelligence artificielle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:intelligence artificielle",
+      "capability_known": false
+     },
+     {
+      "fr": "taire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:taire",
+      "capability_known": false
+     },
+     {
+      "fr": "le prix",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_PAY",
+      "capability_known": true
+     },
+     {
+      "fr": "retiré",
+      "outcome": "unscored",
+      "capability_id": "revue.word:retire",
+      "capability_known": false
+     },
+     {
+      "fr": "première",
+      "outcome": "unscored",
+      "capability_id": "revue.word:premiere",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.00077,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+    "translation": null,
+    "claims_cited": [
+     "c4"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": "u2",
+    "uncertainty_index": 1,
+    "uncertainty_text": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman.",
+    "uncertainty_matched": false,
+    "proposes_question": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002156,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 7.305
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "lila_bonnet",
+    "text_fr": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies.",
+    "move": "follow_up",
+    "position": "for",
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.000961,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 2.768,
+    "turn_seq": 15
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman.",
+    "turn_seq": 15,
+    "kept": false
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:roman",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le roman",
+     "retiré"
+    ],
+    "words_used": [
+     "le roman",
+     "retiré"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le roman",
+      "outcome": "unscored",
+      "capability_id": "revue.word:roman",
+      "capability_known": false
+     },
+     {
+      "fr": "la sélection",
+      "outcome": "unscored",
+      "capability_id": "revue.word:selection",
+      "capability_known": false
+     },
+     {
+      "fr": "l'intelligence artificielle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:intelligence artificielle",
+      "capability_known": false
+     },
+     {
+      "fr": "taire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:taire",
+      "capability_known": false
+     },
+     {
+      "fr": "le prix",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_PAY",
+      "capability_known": true
+     },
+     {
+      "fr": "retiré",
+      "outcome": "unscored",
+      "capability_id": "revue.word:retire",
+      "capability_known": false
+     },
+     {
+      "fr": "première",
+      "outcome": "unscored",
+      "capability_id": "revue.word:premiere",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.001125,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 15
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'accord, tu as raison : un auteur a le droit de se défendre. D'après l'Académie, le livre présente des éléments qui font penser à une utilisation d'intelligence artificielle ; l'auteur, lui, nie cette utilisation et évoque une volonté de le faire taire.",
+    "translation": null,
+    "claims_cited": [],
+    "claims_restated": [
+     "c2",
+     "c3"
+    ],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002036,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 5.517
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "lila_bonnet",
+    "text_fr": "D'accord, un auteur doit pouvoir répondre ; j'exige que mes élèves expliquent leur travail, c'est la moindre des choses.",
+    "move": "follow_up",
+    "position": "for",
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001732,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 4.693,
+    "turn_seq": 21
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:roman",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le roman"
+    ],
+    "words_used": [
+     "le roman"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le roman",
+      "outcome": "unscored",
+      "capability_id": "revue.word:roman",
+      "capability_known": false
+     },
+     {
+      "fr": "la sélection",
+      "outcome": "unscored",
+      "capability_id": "revue.word:selection",
+      "capability_known": false
+     },
+     {
+      "fr": "l'intelligence artificielle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:intelligence artificielle",
+      "capability_known": false
+     },
+     {
+      "fr": "taire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:taire",
+      "capability_known": false
+     },
+     {
+      "fr": "le prix",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_PAY",
+      "capability_known": true
+     },
+     {
+      "fr": "retiré",
+      "outcome": "unscored",
+      "capability_id": "revue.word:retire",
+      "capability_known": false
+     },
+     {
+      "fr": "première",
+      "outcome": "unscored",
+      "capability_id": "revue.word:premiere",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.00066,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 21
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "L'Académie Goncourt retire le roman de Thélyson Orélien de sa première sélection"
+      },
+      {
+       "id": "h2",
+       "text_fr": "L'Académie Goncourt estime que le roman a été écrit sans aide d'intelligence artificielle"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Le roman a été retiré de toutes les premières sélections"
+      }
+     ],
+     "answer": "h1",
+     "supported_by": "c1",
+     "contradicted_by": {
+      "h2": "c2",
+      "h3": "c4"
+     }
+    },
+    "cost_usd": 0.001675,
+    "prompt_version": "revue-headline-v2"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "proposal_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "contribution": [
+     [
+      0,
+      48
+     ]
+    ],
+    "why_native": "Ich habe «de sa sélection» ergänzt, damit klar ist, auf welche Entfernung des Romans sich die Frage bezieht.",
+    "cost_usd": 0.000772,
+    "prompt_version": "revue-question-v2"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "contribution": [
+     [
+      0,
+      48
+     ]
+    ],
+    "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?"
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 31,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je reprends ta question : d'après l'Académie, le livre est très probablement écrit en grande partie par une intelligence artificielle ; l'auteur le nie, et il figure toujours dans les premières sélections du Renaudot, hein.",
+    "cost_usd": 0.002341,
+    "prompt_version": "revue-close-v2",
+    "refused": [],
+    "regenerated_for": []
+   }
+  },
+  {
+   "seq": 32,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je reprends ta question : d'après l'Académie, le livre est très probablement écrit en grande partie par une intelligence artificielle ; l'auteur le nie, et il figure toujours dans les premières sélections du Renaudot, hein.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+      "body_fr": [
+       "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+       "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+       "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+      ],
+      "contribution": [
+       [
+        0,
+        48
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après franceinfo et ActuaLitté",
+      "sources": [
+       {
+        "id": "w40_goncourt_franceinfo",
+        "name": "franceinfo",
+        "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+        "published_at": "2026-09-25"
+       },
+       {
+        "id": "w40_goncourt_actualitte",
+        "name": "ActuaLitté",
+        "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+        "published_at": "2026-09-25"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "le roman",
+        "gloss": "der Roman",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la sélection",
+        "gloss": "die Auswahl",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "l'intelligence artificielle",
+        "gloss": "die künstliche Intelligenz",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "taire",
+        "gloss": "zum Schweigen bringen",
+        "claim_id": "c3",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le prix",
+        "gloss": "",
+        "claim_id": "c4",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "retiré",
+        "gloss": "",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "première",
+        "gloss": "",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+        "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "interpretation",
+        "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+        "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\"",
+        "attributed_to": "l'Académie Goncourt, dans un communiqué",
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "interpretation",
+        "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+        "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+        "attributed_to": "Thélyson Orélien, l'auteur du roman",
+        "source": {
+         "id": "w40_goncourt_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+         "published_at": "2026-09-25"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "fact",
+        "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+        "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_goncourt_actualitte",
+         "name": "ActuaLitté",
+         "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+         "published_at": "2026-09-25"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+     "vignette": {
+      "id": "808cf7b9-fd37-407c-a1a9-01b5bede23f6",
+      "session_id": "e5efde1f-4c2f-4325-bef5-89d840642a8e",
+      "dossier_id": "2026-w40-goncourt-roman-retire",
+      "week": "2026-W40",
+      "place_label_fr": "Une librairie à Paris, à la rentrée littéraire",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"45\" r=\"27\" fill=\"#1D3A8A\"/><rect x=\"30\" y=\"61\" width=\"40\" height=\"11\" rx=\"3\" fill=\"#2C6A5D\"/><path d=\"M50 27L60 43L40 43Z\" fill=\"#1D3A8A\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"39\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Le Goncourt retire un roman de sa sélection",
+      "minted_at": "2026-10-03T01:52:12"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le roman",
+     "outcome": "unscored",
+     "capability_id": "revue.word:roman",
+     "capability_known": false
+    },
+    {
+     "fr": "la sélection",
+     "outcome": "unscored",
+     "capability_id": "revue.word:selection",
+     "capability_known": false
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:intelligence artificielle",
+     "capability_known": false
+    },
+    {
+     "fr": "taire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:taire",
+     "capability_known": false
+    },
+    {
+     "fr": "le prix",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_PAY",
+     "capability_known": true
+    },
+    {
+     "fr": "retiré",
+     "outcome": "unscored",
+     "capability_id": "revue.word:retire",
+     "capability_known": false
+    },
+    {
+     "fr": "première",
+     "outcome": "unscored",
+     "capability_id": "revue.word:premiere",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:roman",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le roman",
+    "retiré"
+   ],
+   "words_used": [
+    "le roman",
+    "retiré"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le roman",
+     "outcome": "unscored",
+     "capability_id": "revue.word:roman",
+     "capability_known": false
+    },
+    {
+     "fr": "la sélection",
+     "outcome": "unscored",
+     "capability_id": "revue.word:selection",
+     "capability_known": false
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:intelligence artificielle",
+     "capability_known": false
+    },
+    {
+     "fr": "taire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:taire",
+     "capability_known": false
+    },
+    {
+     "fr": "le prix",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_PAY",
+     "capability_known": true
+    },
+    {
+     "fr": "retiré",
+     "outcome": "unscored",
+     "capability_id": "revue.word:retire",
+     "capability_known": false
+    },
+    {
+     "fr": "première",
+     "outcome": "unscored",
+     "capability_id": "revue.word:premiere",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.00077,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:roman",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le roman",
+    "retiré"
+   ],
+   "words_used": [
+    "le roman",
+    "retiré"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le roman",
+     "outcome": "unscored",
+     "capability_id": "revue.word:roman",
+     "capability_known": false
+    },
+    {
+     "fr": "la sélection",
+     "outcome": "unscored",
+     "capability_id": "revue.word:selection",
+     "capability_known": false
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:intelligence artificielle",
+     "capability_known": false
+    },
+    {
+     "fr": "taire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:taire",
+     "capability_known": false
+    },
+    {
+     "fr": "le prix",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_PAY",
+     "capability_known": true
+    },
+    {
+     "fr": "retiré",
+     "outcome": "unscored",
+     "capability_id": "revue.word:retire",
+     "capability_known": false
+    },
+    {
+     "fr": "première",
+     "outcome": "unscored",
+     "capability_id": "revue.word:premiere",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.001125,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 15
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:roman",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le roman"
+   ],
+   "words_used": [
+    "le roman"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le roman",
+     "outcome": "unscored",
+     "capability_id": "revue.word:roman",
+     "capability_known": false
+    },
+    {
+     "fr": "la sélection",
+     "outcome": "unscored",
+     "capability_id": "revue.word:selection",
+     "capability_known": false
+    },
+    {
+     "fr": "l'intelligence artificielle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:intelligence artificielle",
+     "capability_known": false
+    },
+    {
+     "fr": "taire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:taire",
+     "capability_known": false
+    },
+    {
+     "fr": "le prix",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_PAY",
+     "capability_known": true
+    },
+    {
+     "fr": "retiré",
+     "outcome": "unscored",
+     "capability_id": "revue.word:retire",
+     "capability_known": false
+    },
+    {
+     "fr": "première",
+     "outcome": "unscored",
+     "capability_id": "revue.word:premiere",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.00066,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 21
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "lila_bonnet",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": "her pupils asked her about it in class (Le Goncourt retire un roman de sa sélection)",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "lila_bonnet",
+   "text_fr": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer.",
+   "move": "enter",
+   "position": "for",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.001211,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 3.751,
+   "turn_seq": 7
+  },
+  {
+   "kind": "guest_position",
+   "id": "lila_bonnet",
+   "position": "for",
+   "previous": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "lila_bonnet",
+   "text_fr": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies.",
+   "move": "follow_up",
+   "position": "for",
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.000961,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 2.768,
+   "turn_seq": 15
+  },
+  {
+   "kind": "turn_guest",
+   "id": "lila_bonnet",
+   "text_fr": "D'accord, un auteur doit pouvoir répondre ; j'exige que mes élèves expliquent leur travail, c'est la moindre des choses.",
+   "move": "follow_up",
+   "position": "for",
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.001732,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 4.693,
+   "turn_seq": 21
+  }
+ ],
+ "cost_usd_state": 0.02056,
+ "cost_usd_provider": 0.02056,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 6.183,
+   "started": 76.45,
+   "cost_usd": 0.001847,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     },
+     {
+      "id": "c4",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     },
+     {
+      "id": "c2",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+     },
+     {
+      "id": "c3",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+     }
+    ],
+    "prefer": [
+     "le prix"
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "le roman",
+      "gloss": "der Roman",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "retirer",
+      "gloss": "zurückziehen",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "la sélection",
+      "gloss": "die Auswahl",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "l'intelligence artificielle",
+      "gloss": "die künstliche Intelligenz",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "écrire",
+      "gloss": "schreiben",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "dire",
+      "gloss": "sagen",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "taire",
+      "gloss": "zum Schweigen bringen",
+      "claim_id": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.218,
+   "started": 82.638,
+   "cost_usd": 0.001474,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+      "attributed_to": null,
+      "source": "franceinfo"
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué",
+      "source": "franceinfo"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman",
+      "source": "franceinfo"
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null,
+      "source": "ActuaLitté"
+     }
+    ],
+    "claims_already_said": [],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Une librairie à Paris, à la rentrée littéraire."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 25 sept. au 6 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une librairie à Paris, à la rentrée littéraire, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Les gens ne sont pas d'accord, et je dois l'expliquer : « L'Académie et l'auteur ne sont pas d'accord : que dit chacun ? ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo.",
+    "translation": "None",
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.75,
+   "started": 86.86,
+   "cost_usd": 0.00077,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+      }
+     ],
+     "target_words": [
+      "le roman",
+      "la sélection",
+      "l'intelligence artificielle",
+      "taire",
+      "le prix",
+      "retiré",
+      "première"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+     "headline_words": null
+    },
+    "learner_text": "Pourquoi l'Académie a retiré le roman ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le roman",
+      "outcome": "correct",
+      "quote": "le roman"
+     },
+     {
+      "fr": "retiré",
+      "outcome": "correct",
+      "quote": "a retiré"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.751,
+   "started": 86.863,
+   "cost_usd": 0.001211,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "lila_bonnet",
+    "name": "Lila Bonnet",
+    "voice": {
+     "role": "Teaches a CE1 class (Wednesdays off) and paints.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»)."
+    },
+    "register": "tu",
+    "move": "enter",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "position": null,
+    "learner_text": "Pourquoi l'Académie a retiré le roman ?",
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman"
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null
+     }
+    ],
+    "claims_shown": [
+     "c1"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une librairie à Paris, à la rentrée littéraire, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Les gens ne sont pas d'accord, et je dois l'expliquer : « L'Académie et l'auteur ne sont pas d'accord : que dit chacun ? ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "learner",
+      "text": "Pourquoi l'Académie a retiré le roman ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer.",
+    "position": "for",
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.466,
+   "started": 86.863,
+   "cost_usd": 0.0018,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Pourquoi l'Académie a retiré le roman ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué",
+      "source": "franceinfo"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman",
+      "source": "franceinfo"
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null,
+      "source": "ActuaLitté"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 25 sept. au 6 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une librairie à Paris, à la rentrée littéraire, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Les gens ne sont pas d'accord, et je dois l'expliquer : « L'Académie et l'auteur ne sont pas d'accord : que dit chacun ? ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire.",
+    "translation": "None",
+    "claims_cited": [
+     "c2",
+     "c3"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.768,
+   "started": 92.338,
+   "cost_usd": 0.000961,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "lila_bonnet",
+    "name": "Lila Bonnet",
+    "voice": {
+     "role": "Teaches a CE1 class (Wednesdays off) and paints.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»)."
+    },
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": "for",
+    "learner_text": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman"
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "learner",
+      "text": "Pourquoi l'Académie a retiré le roman ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3"
+     },
+     {
+      "who": "lila_bonnet",
+      "text": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer."
+     },
+     {
+      "who": "learner",
+      "text": "Est-ce que le Renaudot va aussi retirer le roman ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies.",
+    "position": "for",
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.43,
+   "started": 92.333,
+   "cost_usd": 0.001125,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+      },
+      {
+       "id": "c2",
+       "kind": "interpretation",
+       "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+      },
+      {
+       "id": "c3",
+       "kind": "interpretation",
+       "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+      }
+     ],
+     "target_words": [
+      "le roman",
+      "la sélection",
+      "l'intelligence artificielle",
+      "taire",
+      "le prix",
+      "retiré",
+      "première"
+     ],
+     "addressee": "lila_bonnet",
+     "expected_register": "tu",
+     "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+     "headline_words": null
+    },
+    "learner_text": "Est-ce que le Renaudot va aussi retirer le roman ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le roman",
+      "outcome": "correct",
+      "quote": "le roman"
+     },
+     {
+      "fr": "retiré",
+      "outcome": "correct",
+      "quote": "retirer"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 7.305,
+   "started": 92.338,
+   "cost_usd": 0.002156,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": "lila_bonnet"
+    },
+    "claims": [
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null,
+      "source": "ActuaLitté"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     },
+     {
+      "id": "c2",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+     },
+     {
+      "id": "c3",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Merci. Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection, d'après franceinfo."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "learner",
+      "text": "Pourquoi l'Académie a retiré le roman ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après l'Académie Goncourt, elle l'a retiré parce que le livre est très probablement écrit en grande partie par une intelligence artificielle. Thélyson Orélien, l'auteur, dit qu'il n'a pas utilisé d'IA et parle d'une volonté de le faire taire."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3"
+     },
+     {
+      "who": "lila_bonnet",
+      "text": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer."
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": "lila_bonnet",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+    "translation": "None",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": "u2",
+    "proposes_question": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.658,
+   "started": 99.648,
+   "cost_usd": 0.00066,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+      },
+      {
+       "id": "c2",
+       "kind": "interpretation",
+       "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+      },
+      {
+       "id": "c3",
+       "kind": "interpretation",
+       "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+      },
+      {
+       "id": "c4",
+       "kind": "fact",
+       "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+      }
+     ],
+     "target_words": [
+      "le roman",
+      "la sélection",
+      "l'intelligence artificielle",
+      "taire",
+      "le prix",
+      "retiré",
+      "première"
+     ],
+     "addressee": "lila_bonnet",
+     "expected_register": "tu",
+     "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+     "headline_words": null
+    },
+    "learner_text": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le roman",
+      "outcome": "correct",
+      "quote": "Pour moi, le roman, c'est important."
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 4.693,
+   "started": 99.654,
+   "cost_usd": 0.001732,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "lila_bonnet",
+    "name": "Lila Bonnet",
+    "voice": {
+     "role": "Teaches a CE1 class (Wednesdays off) and paints.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»)."
+    },
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": "for",
+    "learner_text": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+      "attributed_to": "l'Académie Goncourt, dans un communiqué"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+      "attributed_to": "Thélyson Orélien, l'auteur du roman"
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre.",
+      "attributed_to": null
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "Est-ce que le Renaudot va aussi retirer le roman ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     },
+     {
+      "who": "lila_bonnet",
+      "text": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies."
+     },
+     {
+      "who": "learner",
+      "text": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "D'accord, un auteur doit pouvoir répondre; j'exige que mes élèves expliquent leur travail, c'est la moindre des choses.",
+    "position": "for",
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.516,
+   "started": 99.654,
+   "cost_usd": 0.002036,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Je pense que l'auteur a le droit de se défendre. Pour moi, le roman, c'est important.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": "lila_bonnet"
+    },
+    "claims": [],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     },
+     {
+      "id": "c2",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+     },
+     {
+      "id": "c3",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+     },
+     {
+      "id": "c4",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne prouvent pas que le roman a été écrit par une intelligence artificielle : l'Académie parle de « vraisemblance » et l'auteur conteste."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+     "purpose": "explain_disagreement"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Ce que ça change pour les prix littéraires et pour les lecteurs"
+    },
+    "angle_changed": false,
+    "question_proposed": true,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "lila_bonnet",
+      "text": "Je suis pour l'Académie : mes élèves m'ont posé la question, je veux leur répondre juste, et les preuves doivent primer."
+     },
+     {
+      "who": "learner",
+      "text": "Est-ce que le Renaudot va aussi retirer le roman ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. D'après ActuaLitté, le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     },
+     {
+      "who": "lila_bonnet",
+      "text": "Probablement non ; chaque jury a ses critères, et au Renaudot ils regarderont les preuves, comme je fais avec mes copies."
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": "lila_bonnet",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'accord, tu as raison : un auteur a le droit de se défendre. D'après l'Académie, le livre présente des éléments qui font penser à une utilisation d'intelligence artificielle ; l'auteur, lui, nie cette utilisation et évoque une volonté de le faire taire.",
+    "translation": "None",
+    "claims_cited": [
+     "c2",
+     "c3"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 5.218,
+   "started": 105.177,
+   "cost_usd": 0.001675,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Le Goncourt retire un roman de sa sélection",
+    "angle": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     }
+    ],
+    "band": "B1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "L'Académie Goncourt retire le roman de Thélyson Orélien de sa première sélection",
+     "supported_by": "c1"
+    },
+    "distractors": [
+     {
+      "text_fr": "L'Académie Goncourt estime que le roman a été écrit sans aide d'intelligence artificielle",
+      "contradicted_by": "c2"
+     },
+     {
+      "text_fr": "Le roman a été retiré de toutes les premières sélections",
+      "contradicted_by": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.454,
+   "started": 110.399,
+   "cost_usd": 0.000772,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "uncertainty": "Les sources ne disent pas si les jurys du Renaudot, du Femina ou du Médicis vont aussi retirer le roman.",
+    "title_fr": "Le Goncourt retire un roman de sa sélection",
+    "band": "B1",
+    "language": "de"
+   },
+   "response": {
+    "proposal_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "why_native": "Ich habe «de sa sélection» ergänzt, damit klar ist, auf welche Entfernung des Romans sich die Frage bezieht."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 6.633,
+   "started": 112.858,
+   "cost_usd": 0.002341,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Le Goncourt retire un roman de sa sélection",
+    "summary_fr": "L'Académie Goncourt a retiré un roman de Thélyson Orélien de sa première sélection, le 25 septembre 2026. Elle pense que le livre est en grande partie écrit par une intelligence artificielle ; l'auteur le conteste. La deuxième sélection, de huit romans, est attendue le 6 octobre.",
+    "angle": "L'Académie et l'auteur ne sont pas d'accord : que dit chacun ?",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+     "learner_fr": "Est-ce que le Renaudot va aussi retirer le roman ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 25 septembre, l'Académie Goncourt a retiré le roman de Thélyson Orélien de sa première sélection."
+     },
+     {
+      "id": "c2",
+      "kind": "interpretation",
+      "fr": "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle."
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire."
+     },
+     {
+      "id": "c4",
+      "kind": "fact",
+      "fr": "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+     }
+    ],
+    "open_question": "Est-ce que le Renaudot va aussi retirer le roman ?",
+    "band": "B1"
+   },
+   "response": {
+    "romy_line_fr": "Je reprends ta question : d'après l'Académie, le livre est très probablement écrit en grande partie par une intelligence artificielle ; l'auteur le nie, et il figure toujours dans les premières sélections du Renaudot, hein.",
+    "headline_fr": "Est-ce que le Renaudot va aussi retirer le roman de sa sélection ?",
+    "body_lines": [
+     "Pour l'Académie Goncourt, le livre est très probablement écrit en grande partie par une intelligence artificielle.",
+     "L'écrivain dit qu'il n'a pas utilisé d'intelligence artificielle et parle d'une volonté de le faire taire.",
+     "Le roman est toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du prix Décembre."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 6.189
+  },
+  {
+   "step": "turn1",
+   "seconds": 4.223
+  },
+  {
+   "step": "turn2",
+   "seconds": 5.473
+  },
+  {
+   "step": "turn3",
+   "seconds": 7.315
+  },
+  {
+   "step": "turn4",
+   "seconds": 5.53
+  },
+  {
+   "step": "make_options",
+   "seconds": 5.222
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.457
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.002
+  },
+  {
+   "step": "close",
+   "seconds": 6.681
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini",
+  "reply": "revue-reply-v2",
+  "guest": "revue-guest-v2",
+  "close": "revue-close-v2",
+  "question": "revue-question-v2",
+  "vocabulary": "revue-vocabulary-v2",
+  "headline": "revue-headline-v2",
+  "critic": "revue-critic-v1"
+ }
+}

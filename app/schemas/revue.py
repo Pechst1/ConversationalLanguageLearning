@@ -395,6 +395,8 @@ class RvEvidence(RevueModel):
     words: list[RvWordEvidence] = Field(default_factory=list)
     fact_fit: Literal["supported", "unsupported", "contradicted", "not_applicable"] = "not_applicable"
     register_note: Literal["ok", "vous_to_tu", "tu_to_vous"] = "ok"
+    # WP-119 §10e.8: the critic had not answered within 2 s; this turn's evidence lands on the next turn.
+    pending: bool = False
 
 
 class RvTurnResult(RevueModel):

@@ -43,6 +43,8 @@ from typing import Any, Literal, Protocol
 from loguru import logger
 
 RUBRIC_ID = "revue-rubric-v1"
+#: WP-119 §10e.7: the critic prompt's version, recorded on every evidence event (``prompt_version``).
+CRITIC_PROMPT_VERSION = "revue-critic-v1"
 #: The capability a Papier turn reports on when no target word names a can-do.
 CONVERSATION_CAPABILITY = "revue.conversation"
 
@@ -284,6 +286,10 @@ class LLMRubricScorer:
 
     @property
     def spent_usd(self) -> float:
+        # Per thread when the provider meters per thread (the critic may run beside the reply).
+        meter = getattr(self.provider, "thread_spent", None)
+        if callable(meter):
+            return float(meter())
         return float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
 
     def score(self, rubric: Rubric, text: str) -> dict[str, Any]:
@@ -306,6 +312,12 @@ def _band_fit(rubric: Rubric, text: str) -> str:
 # ---------------------------------------------------------------------------
 # The evidence
 # ---------------------------------------------------------------------------
+
+
+def needs_critic(rubric: Rubric, text: str, *, force: bool = False) -> bool:
+    """Whether :func:`grade` will ask the scorer (a target word is used, or ``force``)."""
+
+    return force or _target_present(rubric, text)
 
 
 def _target_present(rubric: Rubric, text: str) -> bool:
@@ -414,6 +426,7 @@ def grade(
         "scorer": scorer_name,
         "scored": scored,
         "cost_usd": round(cost, 6),
+        "prompt_version": CRITIC_PROMPT_VERSION,
     }
 
 
@@ -437,6 +450,7 @@ def credited(evidence: dict[str, Any]) -> dict[str, Any]:
 
 __all__ = [
     "CONVERSATION_CAPABILITY",
+    "CRITIC_PROMPT_VERSION",
     "FakeRubricScorer",
     "LLMRubricScorer",
     "RUBRIC_ID",
@@ -446,4 +460,5 @@ __all__ = [
     "capability_for",
     "credited",
     "grade",
+    "needs_critic",
 ]

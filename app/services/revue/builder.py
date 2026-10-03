@@ -444,7 +444,8 @@ def _assemble(story: StoryInput, raw: dict[str, Any], result: BuildResult) -> Ed
             summary_fr=str(raw.get("summary_fr") or "").strip() or title,
             claims=claims,
             entities=entities,
-            uncertainties=[str(u) for u in raw.get("uncertainties") or [] if str(u).strip()][:3],
+            uncertainties=[{"id": f"u{i + 1}", "fr": str(u).strip()} for i, u in enumerate(
+                [u for u in raw.get("uncertainties") or [] if str(u).strip()][:3])],
             angles=angles,
             places=places,
             time_scope=TimeScope.model_validate(raw.get("time_scope") or {}),

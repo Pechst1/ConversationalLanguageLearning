@@ -14,6 +14,8 @@ See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections.abc import Callable
 from typing import Literal
 
@@ -264,3 +266,91 @@ def next_support_level(support: Support) -> Support:
             ),
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary worth learning (WP-119 §10e.5)
+# ---------------------------------------------------------------------------
+
+#: A contraction or partitive in front of a noun → the dictionary article (gender kept).
+_CONTRACTIONS: tuple[tuple[str, str], ...] = (
+    ("de l'", "l'"), ("de l’", "l'"), ("de la ", "la "), ("du ", "le "), ("au ", "le "),
+    ("aux ", "les "), ("des ", "les "), ("d'", ""), ("d’", ""),
+)
+#: Never a vocabulary item on their own (articles, contractions, pronouns).
+NOT_WORDS: frozenset[str] = frozenset({
+    "le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "au", "aux", "en", "et", "ou", "a", "à",
+    "ce", "ces", "cet", "cette", "son", "sa", "ses", "leur", "leurs", "qui", "que", "dont",
+})
+#: Grammar words, months and weekdays: the can-do catalogue lists some («pas», «pendant»,
+#: «contre»), but a Papier's vocabulary is the story's nouns and verbs (folded, accent-free).
+FUNCTION_WORDS: frozenset[str] = frozenset("""
+    pas plus moins aussi toujours souvent jamais rien personne pendant depuis contre avant apres chez devant
+    derriere comme mais donc alors car parce quand si que qui quoi en tout tous toute toutes deja seulement
+    surtout peu beaucoup ici la ou bien bon oui non merci chaque chacun aucun aucune ni des dont celui celle
+    mien pourtant cependant toutefois malgre neanmoins puisque selon vraiment surement certainement peut-etre
+    eventuellement combien deux trois encore tres trop ensuite puis meme entre sans sous sur vers pour avec
+    dans par contre-coup environ presque autre autres plusieurs quelque quelques cela ceci leur leurs notre
+    votre janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre lundi mardi
+    mercredi jeudi vendredi samedi dimanche
+""".split())
+_LETTERS = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _plain(word: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", word.lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def vocabulary_form(fr: str, source_fr: str = "") -> str | None:
+    """The dictionary form of a vocabulary item, or None when it is not worth learning.
+
+    Refused: numbers («2026»), grammar words, months and weekdays (:data:`FUNCTION_WORDS`), proper nouns (a capital after the article, or a word the
+    source text only ever writes capitalised inside a sentence: «Paris», «l'Insee»), bare
+    articles and contractions («du»), and words under three letters. A contraction in
+    front of a noun becomes the article («du marché» → «le marché», «aux familles» →
+    «les familles», «de l'énergie» → «l'énergie»)."""
+
+    value = " ".join(str(fr or "").split()).strip(" .,;:!?«»\"")
+    if not value or any(ch.isdigit() for ch in value):
+        return None
+    lowered = value.lower()
+    for head, article in _CONTRACTIONS:
+        if lowered.startswith(head) and len(value) > len(head):
+            value = article + value[len(head):]
+            lowered = value.lower()
+            break
+    if lowered.startswith(("l'", "l’")):
+        article, bare = "l'", value[2:]
+    else:
+        first, _, rest = value.partition(" ")
+        if first.lower() in {"le", "la", "les", "un", "une"} and rest:
+            article, bare = first.lower() + " ", rest
+        else:
+            article, bare = "", value
+    words = _LETTERS.findall(bare)
+    if not words or bare.lower() in NOT_WORDS or max(len(w) for w in words) < 3:
+        return None
+    if len(words) == 1 and _plain(words[0]) in FUNCTION_WORDS:
+        return None
+    if any(word[:1].isupper() for word in words):
+        return None
+    if source_fr and _only_capitalised_inside(bare, source_fr):
+        return None
+    return f"{article}{bare}"
+
+
+def _only_capitalised_inside(bare: str, source_fr: str) -> bool:
+    """``bare`` occurs in ``source_fr`` only with a capital, never at a sentence start (a name)."""
+
+    head = _LETTERS.findall(bare)[0]
+    seen = False
+    for match in re.finditer(r"(?<![\w-])" + re.escape(head) + r"(?![\w-])", source_fr, flags=re.IGNORECASE):
+        token = match.group(0)
+        before = source_fr[: match.start()].rstrip(" «\"'’(")
+        sentence_start = not before or before[-1] in ".!?…:"
+        if token[:1].islower():
+            return False
+        if not sentence_start:
+            seen = True
+    return seen

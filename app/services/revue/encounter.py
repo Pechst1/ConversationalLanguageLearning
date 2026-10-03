@@ -45,9 +45,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
+import time
 import unicodedata
 import uuid
 from collections.abc import Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -112,7 +116,7 @@ from app.schemas.revue import (
     RvWordEvidence,
 )
 from app.schemas.revue_vignette import VignetteView
-from app.services.revue import grading, knowledge, policy
+from app.services.revue import grading, knowledge, policy, voice
 from app.services.revue.checks import (
     RELATIVE_DATE_PHRASES,
     check_distinguishable,
@@ -129,6 +133,7 @@ from app.services.revue.session import (
     VocabItem,
     next_support_level,
     plan_for,
+    vocabulary_form,
 )
 from app.services.revue.state import ConversationState, StateEvent
 
@@ -190,6 +195,16 @@ GUEST_MAX_WORDS = 25
 REVUE_COST_EVENT_TYPE = "revue_session"
 #: How many claims Romy puts on the table in the ``facts`` beat.
 FACTS_ON_ENTRY = 2
+#: §10e.3: at most this many new claims in one reply (one regeneration, then the first two).
+MAX_NEW_CLAIMS = 2
+#: §10e.3: symbols (→ ≈ ~ > / ×) are refused at these bands.
+LOWER_BANDS = frozenset({"A1", "A2"})
+#: §10e.4: a guest changes their mind only after a learner statement this long (not a question).
+GUEST_STATEMENT_WORDS = 4
+#: §10e.8: how long a turn waits for the critic once the reply is assembled; after that the
+#: evidence lands on the next turn (WIRE §2), and the next turn waits at most this long for it.
+CRITIC_WAIT_SECONDS = 2.0
+LATE_EVIDENCE_WAIT_SECONDS = 20.0
 
 _MONTHS = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.")
 
@@ -588,7 +603,9 @@ class RevueProvider(Protocol):
 
     name: str
 
-    def vocabulary(self, *, claims: list[dict[str, str]], count: int, language: str) -> list[dict[str, str]]: ...
+    def vocabulary(
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+    ) -> list[dict[str, str]]: ...
 
     def reply(self, context: dict[str, Any]) -> dict[str, Any]: ...
 
@@ -601,8 +618,15 @@ class RevueProvider(Protocol):
     def guest(self, context: dict[str, Any]) -> dict[str, Any]: ...
 
 
-def extract_vocabulary(claims: Sequence[dict[str, str]], count: int) -> list[dict[str, str]]:
-    """Deterministic content words from the claims' French, with their article when it precedes them."""
+def _catalogue_known(fr: str) -> bool:
+    return grading.capability_for(fr) is not None
+
+
+def extract_vocabulary(claims: Sequence[dict[str, str]], count: int, *, strict: bool = False) -> list[dict[str, str]]:
+    """Deterministic content words from the claims' French, with their article when it
+    precedes them (a contraction becomes the article: «du marché» → «le marché»), filtered
+    by :func:`session.vocabulary_form`; words the can-do catalogue knows come first (§10e.5).
+    ``strict``: only nouns that come with an article (no bare conjugated verb or adjective)."""
 
     picked: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -616,19 +640,49 @@ def extract_vocabulary(claims: Sequence[dict[str, str]], count: int) -> list[dic
             key = folded[:-1] if len(folded) > 4 and folded[-1] in "sx" else folded
             elided = index >= 2 and tokens[index - 1] in {"'", "’"} and tokens[index - 2].lower() == "l"
             capitalised = token[:1].isupper()  # proper nouns, and the odd sentence-initial word
-            if len(token) >= 5 and folded not in _STOP and not capitalised and key not in seen:
+            known = _catalogue_known(token)
+            long_enough = len(token) >= 5 or (known and len(token) >= 3)
+            if long_enough and folded not in _STOP and not capitalised and key not in seen:
+                head = (previous or "").lower()
                 if elided:
                     fr = f"l'{token}"
-                elif previous and previous.lower() in _ARTICLES[:5]:
-                    fr = f"{previous.lower()} {token}"
+                elif head in {"le", "la", "les", "un", "une"}:
+                    fr = f"{head} {token}"
+                elif head in {"du", "au"}:
+                    fr = f"le {token}"
+                elif head in {"aux", "des"}:
+                    fr = f"les {token}"
                 else:
                     fr = token
-                picked.append({"fr": fr, "claim_id": claim["id"]})
-                seen.add(key)
-                if len(picked) >= count:
-                    return picked
+                if strict and fr == token:
+                    previous = token
+                    continue
+                form = vocabulary_form(fr, claim["fr"])
+                if form:
+                    picked.append({"fr": form, "claim_id": claim["id"]})
+                    seen.add(key)
             previous = token
-    return picked
+    picked.sort(key=lambda row: not _catalogue_known(row["fr"]))  # stable: catalogue words first
+    return picked[:count]
+
+
+def catalogue_words_in(claims: Sequence[dict[str, str]]) -> list[str]:
+    """The words of ``claims`` the can-do catalogue knows (what the vocabulary task should prefer)."""
+
+    return [row["fr"] for row in extract_vocabulary(claims, 50, strict=True) if _catalogue_known(row["fr"])]
+
+
+def appears_in(text: str, form: str) -> bool:
+    """``form`` occurs in ``text``, or (an infinitive, a singular) shares its stem with a word
+    there: «retirer» in «a retiré», «le cheval» in «seize chevaux» (§10e.5)."""
+
+    if _contains_word(text, form):
+        return True
+    bare = fold_keep_length(_without_article(form))
+    if " " in bare or len(bare) < 5:
+        return False
+    stem = bare[: max(5, len(bare) - 3)]
+    return any(word.startswith(stem) for word in _WORD.findall(fold_keep_length(text)))
 
 
 @dataclass
@@ -640,11 +694,14 @@ class FakeRevueProvider:
     script: list[dict[str, Any]] = field(default_factory=list)
     headline_script: list[dict[str, Any]] = field(default_factory=list)
     guest_script: list[dict[str, Any]] = field(default_factory=list)
+    close_script: list[dict[str, Any]] = field(default_factory=list)
     calls: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     spent_usd: float = 0.0
 
-    def vocabulary(self, *, claims: list[dict[str, str]], count: int, language: str) -> list[dict[str, str]]:
-        self.calls.append(("vocabulary", {"count": count, "language": language}))
+    def vocabulary(
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+    ) -> list[dict[str, str]]:
+        self.calls.append(("vocabulary", {"count": count, "language": language, "prefer": list(prefer)}))
         return [
             {**row, "gloss": f"{_without_article(row['fr'])} ({language})"}
             for row in extract_vocabulary(claims, count)
@@ -655,33 +712,37 @@ class FakeRevueProvider:
         if self.script:
             return dict(self.script.pop(0))
         text = str(context.get("learner_text") or "")
-        claims: list[dict[str, Any]] = list(context.get("claims") or [])
-        shown = set(context.get("claims_shown") or [])
+        available: list[dict[str, Any]] = list(context.get("claims") or [])
+        on_table: list[dict[str, Any]] = list(context.get("claims_already_said") or [])
+        claims = available + on_table
         if is_incomprehension(text):
-            first = next((c for c in claims if c["kind"] == "fact"), claims[0] if claims else None)
+            first = next((c for c in claims if c.get("kind") == "fact"), claims[0] if claims else None)
             reply = "Pas de souci. On reprend doucement."
             if first:
                 reply += f" {first['fr']}"
             return {"reply_fr": reply, "claims_cited": [first["id"]] if first else [], "uncertainty_cited": None,
                     "proposes_question": None, "shift": "simplify"}
         if "dis-m'en plus" in fold_keep_length(text) or fold_keep_length(text).strip(" .!") == "plus":
-            unshown = [c for c in claims if c["id"] not in shown]
-            if unshown:
-                return {"reply_fr": f"Il y a autre chose. {unshown[0]['fr']}", "claims_cited": [unshown[0]["id"]],
+            if available:
+                return {"reply_fr": f"Il y a autre chose. {available[0]['fr']}", "claims_cited": [available[0]["id"]],
                         "uncertainty_cited": None, "proposes_question": None, "shift": None}
         words = content_words(text)
-        uncertainties = list(context.get("uncertainties") or [])
-        best_u = max(range(len(uncertainties)), key=lambda i: len(words & content_words(uncertainties[i])), default=None)
-        score_u = len(words & content_words(uncertainties[best_u])) if best_u is not None else 0
+        uncertainties = [u for u in context.get("uncertainties") or [] if isinstance(u, dict)]
+        best_u = max(uncertainties, key=lambda u: len(words & content_words(u.get("fr"))), default=None)
+        score_u = len(words & content_words(best_u.get("fr"))) if best_u else 0
         best_c = max(claims, key=lambda c: len(words & content_words(c["fr"])), default=None)
         score_c = len(words & content_words(best_c["fr"])) if best_c else 0
         if is_question(text) and score_u and score_u >= score_c:
-            return {"reply_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
-                    "claims_cited": [], "uncertainty_cited": best_u, "proposes_question": text.strip(), "shift": None}
+            proposal = None if context.get("question_proposed") else text.strip()
+            line = "Et là, je n'ai rien. Les sources ne le disent pas."
+            if proposal:
+                line += " On formule la question ensemble ?"
+            return {"reply_fr": line, "claims_cited": [], "uncertainty_cited": best_u["id"],
+                    "proposes_question": proposal, "shift": None}
         if best_c and score_c:
             return {"reply_fr": f"D'après mes sources, oui. {best_c['fr']}", "claims_cited": [best_c["id"]],
                     "uncertainty_cited": None, "proposes_question": None, "shift": None}
-        if not shown:
+        if not on_table:
             return {"reply_fr": "Merci ! Voilà ce que j'ai de sûr. Regarde.", "claims_cited": [],
                     "uncertainty_cited": None, "proposes_question": None, "shift": None}
         return {"reply_fr": "Je ne sais pas, mes sources n'en parlent pas. Tu veux savoir autre chose ?",
@@ -711,6 +772,8 @@ class FakeRevueProvider:
 
     def close(self, context: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("close", context))
+        if self.close_script:
+            return dict(self.close_script.pop(0))
         made = context.get("artifact") or {}
         shown = [c["fr"] for c in context.get("claims_shown") or []]
         body = (shown + _sentences(str(context.get("summary_fr") or "")))[:3]
@@ -719,7 +782,6 @@ class FakeRevueProvider:
             "headline_fr": made.get("text_fr") or context.get("title_fr"),
             "body_lines": body,
         }
-
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
@@ -747,78 +809,166 @@ def _fake_contradiction(fr: str, index: int) -> str:
     return f"Ce n'est plus vrai : {_lower_first(fr[:1].lower() + fr[1:] if fr[:1].isupper() else fr)}"
 
 
+# ---------------------------------------------------------------------------
+# The prompts (WP-119 §10e: «La voix de Romy»). Each carries a version, recorded on every
+# event that records the call's ``cost_usd`` (``prompt_version``), so one sample can be
+# compared with the next. Bump a version whenever its text changes.
+# ---------------------------------------------------------------------------
+
+REPLY_PROMPT_VERSION = "revue-reply-v2"
+GUEST_PROMPT_VERSION = "revue-guest-v2"
+CLOSE_PROMPT_VERSION = "revue-close-v2"
+QUESTION_PROMPT_VERSION = "revue-question-v2"
+VOCABULARY_PROMPT_VERSION = "revue-vocabulary-v2"
+HEADLINE_PROMPT_VERSION = "revue-headline-v2"
+PROMPT_VERSIONS: dict[str, str] = {
+    "reply": REPLY_PROMPT_VERSION,
+    "guest": GUEST_PROMPT_VERSION,
+    "close": CLOSE_PROMPT_VERSION,
+    "question": QUESTION_PROMPT_VERSION,
+    "vocabulary": VOCABULARY_PROMPT_VERSION,
+    "headline": HEADLINE_PROMPT_VERSION,
+    "critic": grading.CRITIC_PROMPT_VERSION,
+}
+
 _SYSTEM = (
-    "You write for «Le Papier de Romy», a French-learning app. Romy Tremblay is a Québécoise journalist; "
-    "she speaks French only, tu, short concrete sentences, a little wry («hein»), professional about sources. "
-    "She never praises like a teacher. She only states what the dossier's claims say, names interpretations as "
-    "such («d'après…»), and says plainly when the sources are silent. Never use relative dates (demain, hier, "
-    "cette semaine, aujourd'hui…). Never mention anything that is not in the dossier. Answer with one JSON object."
+    "You write for «Le Papier de Romy», a French-learning app. Romy Tremblay is a Québécoise journalist in Paris; "
+    "she speaks French only, says tu to the learner, short concrete sentences, a little wry («hein»), professional "
+    "about sources. Who is who: «tu»/«toi» is always the learner, a foreigner who helps Romy with her piece; the "
+    "learner has no pupils, customers, tenants, bar or horses — those belong to the guests. Romy never praises like "
+    "a teacher and never gives the learner orders. She only states what the story's sourced claims say, introduces an "
+    "interpretation by who says it («d'après la Ville de Paris…»), and says plainly when the sources are silent. "
+    "The learner reads every word you write in a text field: never write an id (c1, a2, u1, «incert. 1»), never a "
+    "symbol (→ ≈ ~ > < / ×) — ids go in the JSON fields made for them. French typography (a space before ? ! : ;). "
+    "Never use relative dates (demain, hier, cette semaine, aujourd'hui…). Never mention anything that is not in "
+    "the claims, and never the app's machinery (the dossier, the claims, the screen, «la table», «les éléments»): "
+    "Romy talks about the story itself, like a journalist. Answer with one JSON object."
+)
+
+_GUEST_SYSTEM = (
+    "You write one line for a guest in «Le Papier de Romy», a French-learning app: a character of the city who "
+    "stands beside the journalist Romy Tremblay while the learner helps her with a news story. The guest is a "
+    "person with an opinion and a life of their own (personality, role, voice), never an assistant: they do not "
+    "offer to do things, look things up or ask the mayor. «tu»/«vous» in their line is the learner; their pupils, "
+    "customers, tenants or bar are their own. They only know what the story's claims and their knowledge context "
+    "say. Never an id (c1, a2), never a symbol (→ ≈ ~ > / ×), never a relative date (demain, hier, cette "
+    "semaine…). French typography. Answer with one JSON object."
 )
 
 _TASKS: dict[str, str] = {
     "vocabulary": (
-        "Pick {count} content words (nouns with their article, or infinitive verbs) a learner needs to read these "
-        "claims. Each must appear in its claim's French. Gloss each in language '{language}'. "
+        "Pick {count} words worth learning that a learner needs to read these claims. Each must appear in its "
+        "claim's French. Give nouns in their dictionary form with le/la/l'/les («le prix», «l'école»; never «du», "
+        "«au», «aux», «des», «de l'») or verbs in the infinitive. Never a proper noun (a person, place, "
+        "organisation, prize, brand), never a number, never a word under three letters. Prefer the words listed "
+        "in `prefer` (the course tracks them) when they appear in the claims. Gloss each in language '{language}'. "
         'JSON: {{"items": [{{"fr": str, "gloss": str, "claim_id": str}}]}}'
     ),
     "reply": (
-        "Write Romy's next reply to the learner (max {max_words} words, CEFR {band}). Cite claims by id when you use "
-        "them; if the learner asks something the claims cannot answer and an uncertainty covers it, cite its index and "
-        "say the sources do not say; propose to phrase a reader question when useful. shift is 'simplify' when the "
-        "learner is lost, 'angle' when the learner's interest fits another angle better, else null. "
+        "Write Romy's next line in a conversation with the learner (CEFR {band}, at most {max_words} words). "
+        "Rules, in order: "
+        "(1) Answer the learner's last line (learner_text) first. A question gets its answer, or «les sources ne "
+        "le disent pas»; an opinion gets a reaction to that opinion in Romy's own words (she agrees, adds one "
+        "fact that changes the picture, or asks why) before anything new; «d'accord» or «dis-m'en plus» gets one "
+        "new fact. "
+        "(2) At most two NEW claims per reply, from `claims` (not said yet). `claims_already_said` were said: do "
+        "not repeat their content or numbers; refer to them in a few words if needed. "
+        "(3) Never write ids in reply_fr or translation. Put the ids you used in claims_cited, and the "
+        "uncertainty's id (u1, u2…) in uncertainty_cited when the learner asks what the claims cannot answer and "
+        "an uncertainty covers it. Say facts plainly; an interpretation needs who says it (attributed_to: «d'après "
+        "la Ville de Paris»); name a source at most once per reply. "
+        "(4) Full sentences in plain French at {band}: never repeat or quote the learner's line back to them; "
+        "no symbols (write «environ», «plus de», «par»), no abbreviations like «M€» at A1–A2; numbers in "
+        "digits («9,9 %», «91 marchés»). "
+        "(5) No orders to the learner («Dis…», «Écris…», «Note…», «Répète…», «Propose…»): ask a question instead. "
+        "(6) proposes_question: the learner's question, only when the sources are silent on it and "
+        "question_proposed is false; otherwise null, and then do not suggest a reader question at all. "
+        "(7) shift: 'simplify' only when the learner says they do not understand (never for an opinion); 'angle' "
+        "only when the learner's own words ask for other_angle's topic and angle_changed is false; else null. "
+        "(8) A guest on stage speaks for themselves: do not speak for them. "
         "Give a translation of reply_fr in '{translation_language}' when it is not null. Do NOT add a steer to "
         "the ending; the app adds it. "
-        'JSON: {{"reply_fr": str, "translation": str|null, "claims_cited": [str], "uncertainty_cited": int|null, '
+        'JSON: {{"reply_fr": str, "translation": str|null, "claims_cited": [str], "uncertainty_cited": str|null, '
         '"proposes_question": str|null, "shift": "angle"|"simplify"|null}}'
     ),
     "headline": (
         "Write three headlines in French for Romy's piece: exactly one supported by the shown claims (supported_by = "
         "its claim id) and two distractors, each contradicted by one shown claim (contradicted_by = that claim id). "
+        "No ids and no symbols in the headline texts. "
         'JSON: {{"answer": {{"text_fr": str, "supported_by": str}}, "distractors": [{{"text_fr": str, "contradicted_by": str}}]}}'
     ),
     "question": (
         "The learner wants to ask the readers or the desk a question the sources cannot answer. Rewrite the learner's "
         "words as one short, correct French question at CEFR {band}, keeping as many of the learner's own words as "
-        "possible. why_native: one line in '{language}' explaining the main change, or null. "
+        "possible. The question must make sense alone on the desk: when the learner's words do not say what it is "
+        "about, add the referent from title_fr in a few words («le plan canicule de Paris»). No ids, no symbols. "
+        "why_native: one line in '{language}' explaining the main change, or null. "
         'JSON: {{"proposal_fr": str, "why_native": str|null}}'
     ),
     "guest": (
-        "Now write ONE line for the guest {name} (not Romy), who stands beside Romy, in their voice and with "
-        "the register they use with the learner ({register}). move 'enter': they just arrived and say why they "
-        "care (reason_fr) in their own words. Otherwise they may ask the learner a follow-up, disagree with Romy "
-        "or the learner, or change their mind when the learner made a real point ('moved'); stay quiet "
-        "(line_fr null) when they have nothing to add. Max {max_words} words, CEFR {band}. They only know what "
-        "the claims and their knowledge context say; never anything else about their own life. "
+        "Write ONE line for the guest {name} ({role}), in their voice (personality) and with the register they use "
+        "with the learner ({register}). "
+        "move 'enter': they just arrived. They MUST take a side on this story's question («{angle}», the claims): "
+        "position 'for' or 'against', and one reason from their own life (reason_fr is the hint; say it in their "
+        "own words). The side is about this story, never about something else in their life (their knowledge "
+        "context is background, not the topic). "
+        "Otherwise react as that character to the learner's last line: agree, or disagree ('disagree'), or change "
+        "their mind ('moved', position 'moved') only when the learner just made a real point (a statement with a "
+        "reason, not a question); or stay quiet (line_fr null) when they have nothing to add. Their side was said "
+        "on entry: later lines never repeat «je suis pour/contre» or an earlier line of theirs (see history); they "
+        "bring something new from their life or answer the learner. Never call the learner by a name or a title. "
+        "At most one question, and only about the learner's opinion. Never offer a service («Voulez-vous que je…», «Tu veux que je…», "
+        "«Je peux demander…», «Souhaitez-vous…»). Max {max_words} words, CEFR {band}. They know only the claims "
+        "and their knowledge context; never invent anything else about their own life. "
         'JSON: {{"line_fr": str|null, "position": "for"|"against"|"moved"|null, '
         '"move": "enter"|"follow_up"|"disagree"|"moved"}}'
     ),
     "close": (
-        "Romy closes the session. Say in one line what she does with the learner's contribution (no praise). "
-        "headline_fr: keep the learner's artifact text when there is one. body_lines: exactly three short French "
-        "lines from the shown claims. "
+        "Romy closes the piece with the learner. romy_line_fr: one line, in the world of the story, saying what "
+        "she does with the learner's contribution (artifact) — or, when artifact is null, what she will write — "
+        "no praise, and never an app word (artefact, session, dossier, état, événement, exercice, application, "
+        "«les éléments», «les sources du dossier»). "
+        "Do not mention a contribution that is not in artifact. headline_fr: keep the learner's artifact text when "
+        "there is one. body_lines: exactly three short French lines from the shown claims, no ids, no symbols. "
         'JSON: {{"romy_line_fr": str, "headline_fr": str, "body_lines": [str, str, str]}}'
     ),
 }
+_SYSTEMS: dict[str, str] = {"guest": _GUEST_SYSTEM}
 
 
 @dataclass
 class OpenAIRevueProvider:
-    """The app's LLM service (``app.services.llm_service.LLMService``), one JSON call per task."""
+    """The app's LLM service (``app.services.llm_service.LLMService``), one JSON call per task.
+
+    ``concurrent``: safe to call from worker threads (the encounter runs Romy's reply, the
+    guest line and the critic side by side, §10e.8). The spend is kept twice: in total
+    (:attr:`spent_usd`, under a lock) and per thread (:meth:`thread_spent`), so each call's
+    cost is attributed to its own event even when calls overlap."""
 
     name: str = "openai-revue"
     max_tokens: int = 1600
     spent_usd: float = 0.0
+    concurrent: bool = True
     _service: Any = None
+    _lock: Any = field(default_factory=threading.Lock, repr=False)
+    _local: Any = field(default_factory=threading.local, repr=False)
 
     def _llm(self) -> Any:
         if self._service is None:
-            from app.services.llm_service import LLMService
+            with self._lock:
+                if self._service is None:
+                    from app.services.llm_service import LLMService
 
-            self._service = LLMService()
+                    self._service = LLMService()
         return self._service
 
+    def thread_spent(self) -> float:
+        """What this thread's calls have cost so far (a meter: read before and after a call)."""
+
+        return float(getattr(self._local, "spent", 0.0))
+
     def _ask(self, task: str, payload: dict[str, Any], **fmt: Any) -> dict[str, Any]:
-        return self.ask_json(_TASKS[task].format(**fmt), payload, label=task)
+        return self.ask_json(_TASKS[task].format(**fmt), payload, system=_SYSTEMS.get(task, _SYSTEM), label=task)
 
     def ask_json(
         self,
@@ -843,7 +993,10 @@ class OpenAIRevueProvider:
             )
         except Exception as exc:  # noqa: BLE001 - the service falls back to authored lines
             raise RevueProviderError(str(exc)) from exc
-        self.spent_usd += float(getattr(result, "cost", 0.0) or 0.0)
+        cost = float(getattr(result, "cost", 0.0) or 0.0)
+        with self._lock:
+            self.spent_usd += cost
+        self._local.spent = self.thread_spent() + cost
         try:
             data = json.loads(result.content or "")
         except (TypeError, ValueError) as exc:
@@ -852,8 +1005,10 @@ class OpenAIRevueProvider:
             raise RevueProviderError(f"{label}: not an object")
         return data
 
-    def vocabulary(self, *, claims: list[dict[str, str]], count: int, language: str) -> list[dict[str, str]]:
-        data = self._ask("vocabulary", {"claims": claims}, count=count, language=language)
+    def vocabulary(
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+    ) -> list[dict[str, str]]:
+        data = self._ask("vocabulary", {"claims": claims, "prefer": list(prefer)}, count=count, language=language)
         return [row for row in data.get("items") or [] if isinstance(row, dict)]
 
     def reply(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -879,6 +1034,8 @@ class OpenAIRevueProvider:
             "guest",
             context,
             name=context.get("name"),
+            role=(context.get("voice") or {}).get("role") or "a guest",
+            angle=(context.get("angle") or {}).get("fr") or "",
             register=context.get("register"),
             max_words=context.get("max_words"),
             band=context.get("band"),
@@ -887,6 +1044,15 @@ class OpenAIRevueProvider:
 
 #: The authored fallback for everything but Romy's reply (see the module docstring).
 AUTHORED = FakeRevueProvider(name="authored-revue")
+
+
+def meter(provider: Any) -> float:
+    """A cost meter for one call: the provider's per-thread spend when it keeps one, else its total."""
+
+    per_thread = getattr(provider, "thread_spent", None)
+    if callable(per_thread):
+        return float(per_thread())
+    return float(getattr(provider, "spent_usd", 0.0) or 0.0)
 
 
 def scorer_for(provider: Any) -> grading.RubricScorer:
@@ -1352,6 +1518,7 @@ def evidence_view(payload: dict[str, Any]) -> RvEvidence:
         words=words,
         fact_fit=fact_fit if fact_fit in {"supported", "unsupported", "contradicted", "not_applicable"} else "not_applicable",
         register_note=register if register in {"ok", "vous_to_tu", "tu_to_vous"} else "ok",
+        pending=bool(payload.get("pending")),
     )
 
 
@@ -1364,9 +1531,175 @@ def comprehension_lost(text: str, dossier: EditorialDossier) -> bool:
     if not stripped or stripped in _META_LINES or is_question(stripped):
         return False
     haystack = " ".join([dossier.title_fr, dossier.summary_fr, *(c.fr for c in dossier.claims),
-                         *dossier.uncertainties, *(a.fr for a in dossier.angles)])
+                         *dossier.uncertainty_texts(), *(a.fr for a in dossier.angles)])
     words = content_words(stripped)
     return bool(words) and not (words & content_words(haystack))
+
+
+def guest_voice(voice_row: dict[str, str]) -> dict[str, str]:
+    """The guest's voice for a Papier line: the first sentence of their role and the first two
+    of their personality (the season's plot and their names for the learner stay out, §10e.4)."""
+
+    return {"role": _first_sentences(voice_row.get("role") or "", 1)[:220],
+            "personality": _first_sentences(voice_row.get("personality") or "", 2)[:260]}
+
+
+def _first_sentences(text: str, count: int) -> str:
+    """The first ``count`` sentences, never cutting inside «…» or (…)."""
+
+    depth, ends = 0, 0
+    for index, char in enumerate(text):
+        if char in "«(":
+            depth += 1
+        elif char in "»)":
+            depth = max(0, depth - 1)
+        elif char in ".!?" and depth == 0 and (index + 1 == len(text) or text[index + 1] == " "):
+            ends += 1
+            if ends == count:
+                return text[: index + 1]
+    return text
+
+
+def repeats_earlier(line: str, earlier: Sequence[str], *, share: float = 0.6) -> bool:
+    """§10e.4: a guest line whose content words are mostly those of one of their earlier lines."""
+
+    words = content_words(line)
+    if len(words) < 3:
+        return False
+    return any(len(words & content_words(previous)) >= share * len(words) for previous in earlier)
+
+
+def angle_changed(state: ConversationState) -> bool:
+    """§10e.3: the learner already moved Romy to the other angle once."""
+
+    return any(e.payload.get("reason") == "learner_interest" for e in _choices(state, "angle"))
+
+
+def question_proposed(state: ConversationState) -> bool:
+    """§10e.3: Romy already proposed the reader question in this Papier."""
+
+    return any(e.kind == "turn_romy" and e.payload.get("proposes_question") for e in state.events)
+
+
+_PROPOSAL = re.compile(
+    r"\b(on (la )?formule|je (te )?propose|on propose|on (la )?pose|question (aux|pour les|au|pour mes) lecteurs?"
+    r"|lecteurs?|redaction|on (leur )?demande)\b"
+)
+
+
+def strip_proposal(text: str, proposal: str | None) -> str:
+    """``text`` without the sentences that propose a reader question (a repeat, §10e.3)."""
+
+    target = fold_keep_length(proposal or "").strip(" ?.!«»")
+    kept = []
+    for sentence in _sentences(text):
+        folded = fold_keep_length(sentence)
+        if (target and target in folded) or ("question" in folded and _PROPOSAL.search(folded)):
+            continue
+        kept.append(sentence)
+    return " ".join(kept)
+
+
+_SILENT = (
+    "ne le disent pas", "ne disent pas", "ne le dit pas", "ne dit pas", "je n'ai rien", "n'en parlent pas",
+    "n'en parle pas", "ne precisent pas", "ne le precisent pas", "on ne sait pas", "aucune source",
+    "sont muettes", "je ne sais pas",
+)
+
+
+def says_sources_silent(text: str | None) -> bool:
+    """Romy says the sources do not answer («les sources ne le disent pas», «je n'ai rien»…)."""
+
+    folded = fold_keep_length(text)
+    if any(marker in folded for marker in _SILENT):
+        return True
+    return any("les sources" in s and re.search(r"\b(ne|n'|rien|aucun\w*|pas)\b", s) for s in _sentences(folded))
+
+
+def match_uncertainty(learner_text: str, reply_text: str, dossier: EditorialDossier):
+    """§10e.2: the uncertainty the learner's question is about, by shared content words
+    (the learner's words weigh double; the reply's count too), or None."""
+
+    asked, said = content_words(learner_text), content_words(reply_text)
+    best, best_score = None, 0
+    for uncertainty in dossier.uncertainties:
+        words = content_words(uncertainty.fr)
+        if not (asked & words) and len(said & words) < 2:
+            continue
+        score = 2 * len(asked & words) + len(said & words)
+        if score > best_score:
+            best, best_score = uncertainty, score
+    return best
+
+
+@dataclass
+class _ReplyJob:
+    """Everything Romy's reply needs, built on the request thread; generation reads nothing else."""
+
+    context: dict[str, Any]
+    limit: int
+    simplified: bool
+    band: str
+    shown: set[str]
+    question_proposed: bool
+    dossier: EditorialDossier
+    position: SeasonPosition | None
+    translation_language: str | None
+    learner_text: str
+    session_id: str
+
+
+@dataclass
+class _GuestJob:
+    """One guest line to write: who, which move, the context (DB reads done) and the rules' inputs."""
+
+    guest_id: str
+    move: str
+    reason_fr: str | None
+    enter: dict[str, Any] | None
+    context: dict[str, Any]
+    current: str | None
+    learner_statement: bool
+    band: str
+    topic: str
+    angle_purpose: str
+    position: SeasonPosition | None
+    session_id: str
+    earlier_lines: list[str] = field(default_factory=list)
+
+
+_POOL: ThreadPoolExecutor | None = None
+_POOL_LOCK = threading.Lock()
+_LATE: dict[tuple[str, int], Future] = {}
+
+
+def _pool() -> ThreadPoolExecutor:
+    global _POOL
+    with _POOL_LOCK:
+        if _POOL is None:
+            _POOL = ThreadPoolExecutor(max_workers=12, thread_name_prefix="revue")
+        return _POOL
+
+
+def _remember_late(session_id: str, turn_seq: int, future: Future) -> None:
+    with _POOL_LOCK:
+        _LATE[(session_id, turn_seq)] = future
+
+
+def _take_late(session_id: str, turn_seq: Any) -> Future | None:
+    with _POOL_LOCK:
+        return _LATE.pop((session_id, turn_seq), None) if isinstance(turn_seq, int) else None
+
+
+def _pending_evidence() -> dict[str, Any]:
+    """The turn's evidence while the critic is still out (§10e.8): unscored for now."""
+
+    return {
+        "rubric_version": grading.RUBRIC_ID, "capability_id": grading.CONVERSATION_CAPABILITY, "outcome": "unscored",
+        "capability_known": False, "correct": None, "words": [], "words_used": [], "word_outcomes": [],
+        "fact_fit": "not_applicable", "register": "ok", "band_fit": "at", "scorer": "pending", "scored": True,
+        "cost_usd": 0.0, "prompt_version": grading.CRITIC_PROMPT_VERSION,
+    }
 
 
 class RevueEncounter:
@@ -1539,7 +1872,7 @@ class RevueEncounter:
         state = ConversationState()
         state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
                      free_request=(free_request or None), snapshot=dossier.model_dump(mode="json"),
-                     cost_usd=round(self._spent() - spent_before, 6))
+                     cost_usd=round(self._spent() - spent_before, 6), prompt_version=VOCABULARY_PROMPT_VERSION)
         self._arrive(state, dossier, plan, request_miss=request_miss)
 
         row = RevueSession(
@@ -1563,7 +1896,8 @@ class RevueEncounter:
         return row
 
     def _spent(self) -> float:
-        return float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
+        # This thread's spend: a critic still running in the pool never lands on a request's event.
+        return meter(self.provider)
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -1581,29 +1915,47 @@ class RevueEncounter:
         return plan.validate_against(dossier)
 
     def _vocabulary(self, dossier: EditorialDossier, count: int, language: str) -> list[VocabItem]:
+        """The plan's 5/7 words (§10e.5): the provider's picks through
+        :func:`session.vocabulary_form` (no proper noun, contraction, number or short token;
+        a contraction becomes its article), catalogue words first so a correct use can be
+        credited; topped up from the claims, then from the summary."""
+
         claims = [{"id": c.id, "fr": c.fr} for c in [*dossier.facts(), *dossier.interpretations(), *dossier.forecasts()]]
         by_id = dossier.claims_by_id()
+        prefer = catalogue_words_in(claims)
         rows: list[dict[str, str]] = []
         try:
-            rows = list(self.provider.vocabulary(claims=claims, count=count, language=language))
+            rows = list(self.provider.vocabulary(claims=claims, count=count, language=language, prefer=prefer))
         except Exception as exc:  # noqa: BLE001
             logger.warning("revue: vocabulary provider failed ({}); authored extraction", exc)
         items: list[VocabItem] = []
         seen: set[str] = set()
 
-        def add(fr: str, gloss: str, claim_id: str) -> None:
-            key = _stem_key(fr)
+        def add(fr: str, gloss: str, claim_id: str, *, from_summary: bool = False) -> None:
             claim = by_id.get(claim_id)
-            if not fr or key in seen or claim is None or not _contains_word(claim.fr, fr) or len(items) >= count:
+            if claim is None or len(items) >= count:
+                return
+            form = vocabulary_form(fr, dossier.summary_fr if from_summary else claim.fr)
+            if not form:
+                return
+            key = _stem_key(form)
+            if key in seen or not (from_summary or appears_in(claim.fr, form)):
                 return
             seen.add(key)
-            items.append(VocabItem(fr=fr.strip(), gloss={language: gloss.strip()} if gloss.strip() else {}, claim_id=claim_id))
+            items.append(VocabItem(fr=form, gloss={language: gloss.strip()} if gloss.strip() else {}, claim_id=claim_id))
 
-        for row in rows:
+        cleaned = [row for row in rows if isinstance(row, dict)]
+        cleaned.sort(key=lambda row: not _catalogue_known(vocabulary_form(str(row.get("fr") or "")) or ""))
+        for row in cleaned:
             add(str(row.get("fr") or ""), str(row.get("gloss") or ""), str(row.get("claim_id") or ""))
-        if len(items) < count:
-            for row in extract_vocabulary(claims, count * 2):
-                add(row["fr"], "", row["claim_id"])
+        # Top up with nouns that come with their article: from the claims, then the summary; a
+        # bare word (a conjugated verb, an adjective) only when nothing else is left.
+        summary = [{"id": claims[0]["id"], "fr": dossier.summary_fr}] if claims else []
+        for source, strict, from_summary in ((claims, True, False), (summary, True, True), (claims, False, False)):
+            if len(items) >= count:
+                break
+            for row in extract_vocabulary(source, count * 3, strict=strict):
+                add(row["fr"], "", row["claim_id"], from_summary=from_summary)
         return items
 
     def _arrive(self, state: ConversationState, dossier: EditorialDossier, plan: SessionPlan, *, request_miss: str | None) -> None:
@@ -1644,6 +1996,9 @@ class RevueEncounter:
         if client_turn_id and learner_turns and learner_turns[-1].payload.get("client_turn_id") == client_turn_id:
             return self._turn_result(loaded, since=learner_turns[-1].seq)
 
+        # §10e.8: a critic that answered after its own turn's 2 s lands now, before this turn.
+        self._settle_evidence(loaded)
+
         text = re.sub(r"\s+", " ", learner_text or "").strip()
         before = state.turns_used
         budget = max(1, plan.budget.turns)
@@ -1659,6 +2014,14 @@ class RevueEncounter:
             state.append("support_changed", level=state.support_level + 1, reason="breakdown")
             simplified = True
 
+        # §10e.8: with a provider that can run calls side by side, the critic starts now and
+        # Romy's reply and the guest's line run in parallel; DB work stays on this thread.
+        concurrent = bool(getattr(self.provider, "concurrent", False))
+        rubric = self._rubric(loaded, kind="respond", claims=shown_before)
+        critic_future: Future | None = None
+        if concurrent and grading.needs_critic(rubric, text):
+            critic_future = _pool().submit(self._score, rubric, text)
+
         shift = None
         if before >= budget:
             # The column is full: no model call, the question is kept for next week.
@@ -1669,10 +2032,27 @@ class RevueEncounter:
             owner = self._owner(row)
             position = season_position(self.db, owner)
             world = knowledge.learner_world(self.db, owner)
-            outcome = self._reply(loaded, text, position=position, simplified=simplified,
-                                  knowledge_context=self._knowledge(loaded, owner, position, world, [ROMY_ID]))
+            reply_job = self._reply_job(loaded, text, position=position, simplified=simplified,
+                                        knowledge_context=self._knowledge(loaded, owner, position, world, [ROMY_ID]))
+            # A guest with a reason (§7) — in ``pursue`` only: the turn after the facts.
+            guest_job = (self._guest_job(loaded, owner, text, position=position, world=world)
+                         if before >= 1 else None)
+            if concurrent and guest_job is not None:
+                reply_future = _pool().submit(self._generate_reply, reply_job)
+                guest_future = _pool().submit(self._generate_guest, guest_job)
+                outcome, guest_out = reply_future.result(), guest_future.result()
+            else:
+                outcome = self._generate_reply(reply_job)
+                guest_out = self._generate_guest(guest_job) if guest_job is not None else None
+
             shift = outcome["shift"]
-            new_claims = [cid for cid in outcome["claims_cited"] if cid not in state.claims_shown]
+            shift_refused = None
+            angle_to = None
+            if shift == "angle":
+                angle_to, why = self._angle_change(loaded, text)
+                if angle_to is None:
+                    shift, shift_refused = None, why
+            new_claims = list(outcome["claims_cited"])
             if not state.claims_shown and not new_claims:
                 # The facts beat: Romy puts what she is sure of on the table (§5.3). The facts
                 # need no generation, so they come even when her line is the authored one.
@@ -1686,38 +2066,55 @@ class RevueEncounter:
                 text_fr=outcome["text_fr"],
                 translation=outcome["translation"],
                 claims_cited=outcome["claims_cited"],
+                claims_restated=outcome["claims_restated"],
+                uncertainty_id=outcome["uncertainty_id"],
                 uncertainty_index=outcome["uncertainty_index"],
                 uncertainty_text=uncertainty_text,
+                uncertainty_matched=outcome["uncertainty_matched"],
                 proposes_question=outcome["proposes_question"],
                 shift=shift,
+                shift_refused=shift_refused,
                 attempts=outcome["attempts"],
                 refused=outcome["refused"],
+                repaired=outcome["repaired"],
+                regenerated_for=outcome["regenerated_for"],
                 cost_usd=outcome["cost_usd"],
+                prompt_version=REPLY_PROMPT_VERSION,
+                seconds=outcome["seconds"],
             )
             if new_claims:
                 state.append("claim_shown", claim_ids=new_claims)
-            answerable = bool(outcome["claims_cited"]) and not uncertainty_text and outcome["role"] != "fallback"
-            # A guest with a reason (§7) — in ``pursue`` only: the turn after the facts.
-            if before >= 1:
-                self._guest_turn(loaded, owner, text, learner_seq=learner_event.seq, position=position, world=world)
-            if shift == "angle":
-                current = current_angle(dossier, plan, state)
-                other = next((a for a in dossier.angles if a.id != current.id), None)
-                if other is not None:
-                    state.append("choice", kind="angle", angle_id=other.id, reason="learner_interest")
+            answerable = bool(outcome["answer_ids"]) and not uncertainty_text and outcome["role"] != "fallback"
+            if guest_job is not None and guest_out is not None:
+                self._record_guest(loaded, guest_job, guest_out, learner_seq=learner_event.seq)
+            if angle_to is not None:
+                state.append("choice", kind="angle", angle_id=angle_to, reason="learner_interest")
 
         if question:
             state.append("question_raised", text=text, answerable=answerable, uncertainty_text=uncertainty_text,
                          turn_seq=learner_event.seq, kept=before >= budget)
 
-        evidence = self._grade(loaded, text, kind="respond", claims=shown_before)
+        pending = False
+        if critic_future is not None:
+            try:
+                evidence = critic_future.result(timeout=CRITIC_WAIT_SECONDS)
+            except FutureTimeout:
+                pending = True
+                _remember_late(str(row.id), learner_event.seq, critic_future)
+                evidence = _pending_evidence()
+            except Exception as exc:  # noqa: BLE001 - the deterministic rubric stands in
+                logger.warning("revue: critic failed ({}); deterministic rubric", exc)
+                evidence = grading.credited(grading.grade(text, rubric, grading.FakeRubricScorer()))
+        else:
+            evidence = self._score(rubric, text)
         # §5.3: a failed comprehension turn is an explicit «je ne comprends pas», a turn Romy
         # answers by simplifying, or (phase 2) an unscored turn that shows no grasp of the story.
         lost = evidence["outcome"] == "unscored" and comprehension_lost(text, dossier)
         breakdown = lexical_breakdown or shift == "simplify" or lost
         # ``counts``: a breakdown already answered by a simplification this turn starts a new streak.
+        extra = {"pending": True, "rubric_claim_ids": [c.id for c in shown_before]} if pending else {}
         state.append("evidence", **evidence, breakdown=breakdown, lost=lost, counts=breakdown and not simplified,
-                     turn_seq=learner_event.seq)
+                     turn_seq=learner_event.seq, **extra)
         if (
             not simplified
             and (shift == "simplify" or lost)
@@ -1735,13 +2132,28 @@ class RevueEncounter:
         self._save(loaded)
         return self._turn_result(loaded, since=learner_event.seq)
 
+    def _angle_change(self, loaded: Loaded, text: str) -> tuple[str | None, str | None]:
+        """§10e.3: the angle changes at most once a Papier, and only on a learner turn whose
+        words share a content word with the other angle (never on a quick reply)."""
+
+        dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
+        current = current_angle(dossier, plan, state)
+        other = next((a for a in dossier.angles if a.id != current.id), None)
+        if other is None:
+            return None, "no_other_angle"
+        if angle_changed(state):
+            return None, "angle_already_changed"
+        if text in _META_LINES or not (content_words(text) & content_words(other.fr)):
+            return None, "learner_did_not_ask"
+        return other.id, None
+
     # -- grading (phase 2) -------------------------------------------------------
 
-    def _grade(self, loaded: Loaded, text: str, *, kind: str, claims: list[Claim] | None = None) -> dict[str, Any]:
+    def _rubric(self, loaded: Loaded, *, kind: str, claims: list[Claim] | None = None) -> grading.Rubric:
         dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
         shown = claims if claims is not None else self._shown_claims(loaded)
         guest = state.guest_on_stage
-        rubric = grading.build_rubric(
+        return grading.build_rubric(
             kind=kind,  # type: ignore[arg-type]
             band=plan.learner.band,
             claims=shown or dossier.facts()[:FACTS_ON_ENTRY],
@@ -1750,9 +2162,41 @@ class RevueEncounter:
             register=knowledge.default_register(guest) if guest else "tu",
             summary_fr=dossier.summary_fr,
         )
-        evidence = grading.grade(text, rubric, self.scorer, fallback=grading.FakeRubricScorer(),
-                                 force=kind != "respond")
+
+    def _score(self, rubric: grading.Rubric, text: str, *, force: bool = False) -> dict[str, Any]:
+        """Pure (no DB): the rubric through the critic (or the deterministic one), Credit-checked."""
+
+        evidence = grading.grade(text, rubric, self.scorer, fallback=grading.FakeRubricScorer(), force=force)
         return grading.credited(evidence)
+
+    def _grade(self, loaded: Loaded, text: str, *, kind: str, claims: list[Claim] | None = None) -> dict[str, Any]:
+        return self._score(self._rubric(loaded, kind=kind, claims=claims), text, force=kind != "respond")
+
+    def _settle_evidence(self, loaded: Loaded) -> None:
+        """§10e.8: write the evidence of every turn whose critic had not answered within
+        :data:`CRITIC_WAIT_SECONDS`. The critic's future is kept in this process; when it is
+        gone (another worker, a restart) or failed, the turn is graded again now."""
+
+        state = loaded.state
+        settled = {e.payload.get("turn_seq") for e in state.events if e.kind == "evidence" and e.payload.get("late")}
+        pending = [e for e in state.events if e.kind == "evidence" and e.payload.get("pending")
+                   and e.payload.get("turn_seq") not in settled]
+        for event in pending:
+            seq = event.payload.get("turn_seq")
+            evidence = None
+            future = _take_late(str(loaded.row.id), seq)
+            if future is not None:
+                try:
+                    evidence = future.result(timeout=LATE_EVIDENCE_WAIT_SECONDS)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("revue: late critic failed ({}); grading the turn again", exc)
+            if evidence is None:
+                learner = next((e for e in state.events if e.seq == seq and e.kind == "turn_learner"), None)
+                ids = set(event.payload.get("rubric_claim_ids") or [])
+                claims = [c for c in loaded.dossier.claims if c.id in ids]
+                text = str(learner.payload.get("text_fr") or "") if learner else ""
+                evidence = self._score(self._rubric(loaded, kind="respond", claims=claims), text)
+            state.append("evidence", **evidence, breakdown=False, lost=False, counts=False, late=True, turn_seq=seq)
 
     # -- guests (phase 2, §7) ------------------------------------------------------
 
@@ -1797,59 +2241,43 @@ class RevueEncounter:
                 return guest, "topic_words", word
         return None
 
-    def _guest_turn(
+    def _guest_job(
         self,
         loaded: Loaded,
         owner: Any,
         text: str,
         *,
-        learner_seq: int,
         position: SeasonPosition | None,
         world: knowledge.LearnerWorld,
-    ) -> None:
+    ) -> _GuestJob | None:
+        """Who speaks this turn and the context they speak from (DB reads happen here)."""
+
         state = loaded.state
         on_stage = state.guest_on_stage
+        enter: dict[str, Any] | None = None
         if on_stage is None:
             candidate = self._guest_candidate(loaded, text, world)
             if candidate is None:
-                return
+                return None
             guest, trigger, word = candidate
             reason_fr = guest.reason_fr or policy.GUEST_REASON_FR.get(guest.id) or ""
-            state.append("guest_enter", id=guest.id, reason_fr=reason_fr, reason=guest.reason, trigger=trigger,
-                         word=word, turn_seq=learner_seq)
-            self._guest_line(loaded, owner, guest.id, text, move="enter", reason_fr=reason_fr,
-                             learner_seq=learner_seq, position=position, world=world)
-            return
-        spoken = [e for e in state.events if e.kind == "turn_guest" and e.payload.get("id") == on_stage
-                  and e.payload.get("move") != "enter" and e.payload.get("text_fr")]
-        if len(spoken) >= GUEST_LINES_AFTER_ENTRY:
-            return
-        self._guest_line(loaded, owner, on_stage, text, move="follow_up", reason_fr=None,
-                         learner_seq=learner_seq, position=position, world=world)
-
-    def _guest_line(
-        self,
-        loaded: Loaded,
-        owner: Any,
-        guest_id: str,
-        text: str,
-        *,
-        move: str,
-        reason_fr: str | None,
-        learner_seq: int,
-        position: SeasonPosition | None,
-        world: knowledge.LearnerWorld,
-    ) -> None:
-        """One guest line through the Knowledge check: one regeneration, then the authored line."""
-
-        dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
+            enter = {"id": guest.id, "reason_fr": reason_fr, "reason": guest.reason, "trigger": trigger, "word": word}
+            guest_id, move = guest.id, "enter"
+        else:
+            spoken = [e for e in state.events if e.kind == "turn_guest" and e.payload.get("id") == on_stage
+                      and e.payload.get("move") != "enter" and e.payload.get("text_fr")]
+            if len(spoken) >= GUEST_LINES_AFTER_ENTRY:
+                return None
+            guest_id, move, reason_fr = on_stage, "follow_up", None
+        dossier, plan = loaded.dossier, loaded.plan
         angle = current_angle(dossier, plan, state)
-        voice = knowledge.cast_voice(guest_id)
+        voice_row = knowledge.cast_voice(guest_id)
         current = state.guest_position(guest_id)
         context: dict[str, Any] = {
             "task": "guest",
             "cast_id": guest_id,
-            "name": voice["name"],
+            "name": voice_row["name"],
+            "voice": guest_voice(voice_row),
             "register": knowledge.default_register(guest_id),
             "move": move,
             "reason_fr": reason_fr,
@@ -1863,9 +2291,33 @@ class RevueEncounter:
             "history": self._history(loaded, keep_last=True),
             "knowledge": self._knowledge(loaded, owner, position, world, [guest_id]).get(guest_id, {}),
         }
-        spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
+        return _GuestJob(
+            guest_id=guest_id,
+            move=move,
+            reason_fr=reason_fr,
+            enter=enter,
+            context=context,
+            current=current,
+            learner_statement=word_count(text) >= GUEST_STATEMENT_WORDS and not is_question(text),
+            band=plan.learner.band,
+            topic=dossier.topic,
+            angle_purpose=angle.purpose,
+            position=position,
+            session_id=str(loaded.row.id),
+            earlier_lines=[str(e.payload.get("text_fr")) for e in state.events
+                           if e.kind == "turn_guest" and e.payload.get("id") == guest_id and e.payload.get("text_fr")],
+        )
+
+    def _generate_guest(self, job: _GuestJob) -> dict[str, Any]:
+        """One guest line, pure (no DB): the Knowledge check, ids, symbols, a stance on entry
+        and no offer of service (§10e.4) — one regeneration, then a repair or the authored line."""
+
+        started = time.perf_counter()
+        context = dict(job.context)
+        spent_before = meter(self.provider)
         attempts = 0
         problems: list[str] = []
+        regenerated_for: list[str] = []
         parsed: dict[str, Any] | None = None
         model_down = False
         for _attempt in range(2):
@@ -1873,38 +2325,62 @@ class RevueEncounter:
             try:
                 raw = self.provider.guest(context)
             except Exception as exc:  # noqa: BLE001 - the authored line keeps the guest in character
-                logger.bind(session_id=str(loaded.row.id)).warning("revue: guest provider failed ({})", exc)
+                logger.bind(session_id=job.session_id).warning("revue: guest provider failed ({})", exc)
                 model_down = True
                 break
             raw = raw if isinstance(raw, dict) else {}
             line = re.sub(r"\s+", " ", str(raw.get("line_fr") or "")).strip()
             parsed = {
                 "text_fr": line,
-                "position": raw.get("position") if raw.get("position") in {"for", "against", "moved"} else current,
-                "move": raw.get("move") if raw.get("move") in {"enter", "follow_up", "disagree", "moved"} else move,
+                "position": raw.get("position") if raw.get("position") in {"for", "against", "moved"} else None,
+                "move": raw.get("move") if raw.get("move") in {"enter", "follow_up", "disagree", "moved"} else job.move,
             }
             problems = []
             if not line:
                 break  # a guest may stay quiet (never on entry: see below)
+            hits = knowledge_hits([line], job.position)
+            leaks = voice.id_leaks(line)
+            signs = voice.symbols(line) if job.band in LOWER_BANDS else []
             if word_count(line) > GUEST_MAX_WORDS:
                 problems.append("too_long")
             if relative_dates(line):
                 problems.append("relative_date")
-            hits = knowledge_hits([line], position)
             if hits:
                 problems.append("knowledge")
+            if leaks:
+                problems.append("id_leak")
+            if signs:
+                problems.append("symbols")
+            if voice.is_service_offer(line):
+                problems.append("service_offer")
+            if job.move == "enter" and parsed["position"] not in {"for", "against"}:
+                problems.append("no_position")
+            if repeats_earlier(line, job.earlier_lines):
+                problems.append("repeat")
             if not problems:
                 break
-            context = {**context, "retry_feedback": {"problems": problems, "max_words": GUEST_MAX_WORDS,
-                                                     "forbidden": [hit.get("must_not_id") for hit in hits]}}
-        cost = round(float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before, 6)
+            regenerated_for = regenerated_for or list(problems)
+            context = {**context, "retry_feedback": {
+                "problems": problems, "max_words": GUEST_MAX_WORDS,
+                "forbidden": [hit.get("must_not_id") for hit in hits], "id_leaks": leaks, "symbols": signs,
+                "rules": "Take a side (for/against) with a reason from your own life; never offer a service; "
+                         "no ids, no symbols.",
+            }}
+        cost = round(meter(self.provider) - spent_before, 6)
         reason = None
         if model_down or parsed is None:
             reason = "model_down"
         elif "knowledge" in problems:
             reason = "knowledge_refused"
+        elif "service_offer" in problems:
+            reason = "service_offer"
         elif problems:
             line = parsed["text_fr"]
+            if "id_leak" in problems:
+                line = voice.strip_ids(line)
+                logger.bind(session_id=job.session_id, where="guest", cast_id=job.guest_id).info("revue_id_leak")
+            if "symbols" in problems:
+                line = voice.replace_symbols(line)
             if "relative_date" in problems:
                 line = drop_relative_sentences(line)
             if word_count(line) > GUEST_MAX_WORDS:
@@ -1912,44 +2388,66 @@ class RevueEncounter:
             parsed["text_fr"] = line
             if not line:
                 reason = "model_down"
-        elif not parsed["text_fr"] and move == "enter":
+        elif not parsed["text_fr"] and job.move == "enter":
             reason = "model_down"  # an entrance is never silent
         if reason is not None or parsed is None:
-            authored = knowledge.authored_guest_line(guest_id, dossier.topic)
-            parsed = {"text_fr": authored, "position": current or ("for" if move == "enter" else None), "move": move}
-        if not parsed["text_fr"]:
+            authored = knowledge.authored_guest_line(job.guest_id, job.topic)
+            parsed = {"text_fr": authored, "position": job.current, "move": job.move}
+        if parsed["text_fr"]:
+            parsed["text_fr"] = voice.french_typography(parsed["text_fr"])
+        position = parsed["position"] or job.current
+        move = parsed["move"]
+        if job.move == "enter":
+            move = "enter"
+            if position not in {"for", "against"}:
+                position = "against" if job.angle_purpose == "explain_disagreement" else "for"
+        elif (position == "moved" or move == "moved") and job.current != "moved" and not job.learner_statement:
+            # §10e.4: a mind changes only on the learner's point, never on a question or a nod.
+            position, move = job.current, ("disagree" if move == "moved" else move)
+        if job.current == "moved":
+            position = "moved"  # a mind once changed stays changed in v1
+        return {"text_fr": parsed["text_fr"], "position": position, "move": move, "reason": reason,
+                "attempts": attempts, "refused": problems, "regenerated_for": regenerated_for, "cost_usd": cost,
+                "seconds": round(time.perf_counter() - started, 3)}
+
+    def _record_guest(self, loaded: Loaded, job: _GuestJob, out: dict[str, Any], *, learner_seq: int) -> None:
+        state = loaded.state
+        if job.enter is not None:
+            state.append("guest_enter", **job.enter, turn_seq=learner_seq)
+        common = {"attempts": out["attempts"], "refused": out["refused"], "regenerated_for": out["regenerated_for"],
+                  "cost_usd": out["cost_usd"],
+                  "prompt_version": GUEST_PROMPT_VERSION, "seconds": out["seconds"], "turn_seq": learner_seq}
+        if not out["text_fr"]:
             # Quiet: recorded (cost, attempts) but never shown.
-            state.append("turn_guest", id=guest_id, text_fr=None, move=parsed["move"], position=current,
-                         reason=None, attempts=attempts, refused=problems, cost_usd=cost, turn_seq=learner_seq)
+            state.append("turn_guest", id=job.guest_id, text_fr=None, move=out["move"], position=job.current,
+                         reason=None, **common)
             return
-        new_position = parsed["position"]
-        if current == "moved" and new_position != "moved":
-            new_position = "moved"  # a mind once changed stays changed in v1
         state.append(
             "turn_guest",
-            id=guest_id,
-            text_fr=parsed["text_fr"],
-            move=parsed["move"],
-            position=new_position,
-            reason_fr=reason_fr if move == "enter" else None,
-            reason=reason,
-            attempts=attempts,
-            refused=problems,
-            cost_usd=cost,
-            turn_seq=learner_seq,
+            id=job.guest_id,
+            text_fr=out["text_fr"],
+            move=out["move"],
+            position=out["position"],
+            reason_fr=job.reason_fr if job.move == "enter" else None,
+            reason=out["reason"],
+            **common,
         )
-        if new_position and new_position != current:
-            state.append("guest_position", id=guest_id, position=new_position, previous=current, turn_seq=learner_seq)
+        if out["position"] and out["position"] != job.current:
+            state.append("guest_position", id=job.guest_id, position=out["position"], previous=job.current,
+                         turn_seq=learner_seq)
 
     @staticmethod
     def _breakdown_streak(state: ConversationState) -> int:
-        """Consecutive breakdown turns since the last support change (this turn's evidence excluded until written)."""
+        """Consecutive breakdown turns since the last support change (this turn's evidence excluded
+        until written; a late critic's evidence, §10e.8, is not a turn and is skipped)."""
 
         streak = 0
         for event in reversed(state.events):
             if event.kind == "support_changed":
                 break
             if event.kind == "evidence":
+                if event.payload.get("late"):
+                    continue
                 if event.payload.get("counts"):
                     streak += 1
                 else:
@@ -1992,7 +2490,7 @@ class RevueEncounter:
         # The learner's current line is the last item; it travels as ``learner_text``.
         return rows[:-1][-HISTORY_ITEMS:]
 
-    def _reply(
+    def _reply_job(
         self,
         loaded: Loaded,
         text: str,
@@ -2000,101 +2498,210 @@ class RevueEncounter:
         position: SeasonPosition | None,
         simplified: bool,
         knowledge_context: dict[str, dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
+    ) -> _ReplyJob:
+        """Romy's context (§10e.3): the claims not yet shown are the ones she may bring; the
+        shown ones are on the table, not to be restated; who is who; the flags that keep the
+        reader question and the angle change to once a Papier."""
+
         dossier, plan, state = loaded.dossier, loaded.plan, loaded.state
         support = current_support(plan, state)
         limit = max(8, support.reading_target_words // 2)
         if simplified:
             limit = max(8, limit - word_count(SIMPLIFY_LEAD))
         angle = current_angle(dossier, plan, state)
+        other = next((a for a in dossier.angles if a.id != angle.id), None)
         translation_language = _gloss_language_of(plan) if support.translation != "none" else None
+        shown = set(state.claims_shown)
+        sources = {s.id: s.name for s in dossier.sources}
         context: dict[str, Any] = {
             "task": "reply",
             "learner_text": text,
+            "who_is_who": {"tu": "the learner", "romy": "Romy, the journalist",
+                           "guest_on_stage": state.guest_on_stage},
             "claims": [
-                {"id": c.id, "kind": c.kind, "fr": c.fr, "attributed_to": c.attributed_to} for c in dossier.claims
+                {"id": c.id, "kind": c.kind, "fr": c.fr, "attributed_to": c.attributed_to,
+                 "source": sources.get(c.source_id, "")}
+                for c in dossier.claims if c.id not in shown
             ],
-            "uncertainties": list(dossier.uncertainties),
+            "claims_already_said": [{"id": c.id, "fr": c.fr} for c in dossier.claims if c.id in shown],
+            "uncertainties": [{"id": u.id, "fr": u.fr} for u in dossier.uncertainties],
             "angle": {"id": angle.id, "fr": angle.fr, "purpose": angle.purpose},
-            "angles": [{"id": a.id, "fr": a.fr, "purpose": a.purpose} for a in dossier.angles],
-            "support": {**support.model_dump(), "level": state.support_level},
+            "other_angle": {"id": other.id, "fr": other.fr} if other else None,
+            "angle_changed": angle_changed(state),
+            "question_proposed": question_proposed(state),
             "band": plan.learner.band,
             "max_words": limit,
-            "claims_shown": sorted(state.claims_shown),
             "history": self._history(loaded),
             "translation_language": translation_language,
             "guest_on_stage": state.guest_on_stage,
             "knowledge": (knowledge_context or {}).get(ROMY_ID),
         }
+        return _ReplyJob(context=context, limit=limit, simplified=simplified, band=plan.learner.band, shown=shown,
+                         question_proposed=question_proposed(state), dossier=dossier, position=position,
+                         translation_language=translation_language, learner_text=text, session_id=str(loaded.row.id))
+
+    def _generate_reply(self, job: _ReplyJob) -> dict[str, Any]:
+        """Romy's line, pure (no DB). Checked every attempt: empty, length, relative dates, the
+        Knowledge check, ids, symbols (A1–A2), orders to the learner, more than
+        :data:`MAX_NEW_CLAIMS` new claims — one regeneration naming the problem, then the
+        repairs (strip ids, words for symbols, drop the orders, cut) or the authored line."""
+
+        started = time.perf_counter()
+        dossier, limit, context = job.dossier, job.limit, dict(job.context)
         known = dossier.claims_by_id()
-        spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
+        spent_before = meter(self.provider)
         parsed: dict[str, Any] | None = None
         problems: list[str] = []
         attempts = 0
         model_down = False
+        new_ids: list[str] = []
+        regenerated_for: list[str] = []  # the first attempt's problems, kept for the sample's evidence
         for _attempt in range(2):
             attempts += 1
             try:
                 raw = self.provider.reply(context)
             except Exception as exc:  # noqa: BLE001 - the model is down: the authored line
-                logger.bind(session_id=str(loaded.row.id)).warning("revue: reply provider failed ({})", exc)
+                logger.bind(session_id=job.session_id).warning("revue: reply provider failed ({})", exc)
                 model_down = True
                 break
             parsed = self._parse_reply(raw, known, dossier)
+            reply_text = parsed["text_fr"]
+            new_ids = [cid for cid in parsed["claims_cited"] if cid not in job.shown]
+            hits = knowledge_hits([reply_text], job.position)
+            leaks = voice.id_leaks(reply_text) + voice.id_leaks(parsed["translation"])
+            signs = voice.symbols(reply_text) if job.band in LOWER_BANDS else []
+            orders = voice.imperatives(reply_text)
             problems = []
-            if not parsed["text_fr"]:
+            if not reply_text:
                 problems.append("empty")
-            if word_count(parsed["text_fr"]) > limit:
+            if word_count(reply_text) > limit:
                 problems.append("too_long")
-            if relative_dates(parsed["text_fr"]):
+            if relative_dates(reply_text):
                 problems.append("relative_date")
-            hits = knowledge_hits([parsed["text_fr"]], position)
             if hits:
                 problems.append("knowledge")
+            if leaks:
+                problems.append("id_leak")
+            if signs:
+                problems.append("symbols")
+            if orders:
+                problems.append("imperative")
+            if voice.meta_words(reply_text):
+                problems.append("app_words")
+            if len(new_ids) > MAX_NEW_CLAIMS:
+                problems.append("too_many_claims")
             if not problems:
                 break
+            regenerated_for = regenerated_for or list(problems)
             context = {**context, "retry_feedback": {
                 "problems": problems,
                 "max_words": limit,
-                "relative_dates": relative_dates(parsed["text_fr"]),
+                "relative_dates": relative_dates(reply_text),
                 "forbidden": [hit.get("must_not_id") for hit in hits],
+                "id_leaks": leaks,
+                "symbols": signs,
+                "imperatives": orders,
+                "new_claims": len(new_ids),
+                "max_new_claims": MAX_NEW_CLAIMS,
+                "app_words": voice.meta_words(reply_text),
+                "rules": "No ids or symbols in the text, no orders to the learner, at most two new claims, never "
+                         "mention the dossier.",
             }}
-        cost = float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before
-        base = {"translation": None, "claims_cited": [], "uncertainty_index": None, "uncertainty_text": None,
-                "proposes_question": None, "shift": None, "attempts": attempts, "refused": problems, "cost_usd": round(cost, 6)}
+        cost = meter(self.provider) - spent_before
+        base = {"translation": None, "claims_cited": [], "claims_restated": [], "answer_ids": [], "uncertainty_id": None,
+                "uncertainty_index": None, "uncertainty_text": None, "uncertainty_matched": False,
+                "proposes_question": None, "shift": None, "attempts": attempts, "refused": problems, "repaired": [],
+                "regenerated_for": regenerated_for,
+                "cost_usd": round(cost, 6), "seconds": round(time.perf_counter() - started, 3)}
         if model_down or parsed is None or "knowledge" in problems or "empty" in problems:
             reason = "knowledge_refused" if "knowledge" in problems else "model_down"
             return {**base, "role": "fallback", "reason": reason, "text_fr": FALLBACK_LINE,
                     "refused": problems or ["model_down"]}
         reply = parsed["text_fr"]
+        translation = parsed["translation"]
+        repaired: list[str] = []
+        structural = False  # the French lost or changed content: the translation no longer fits
+        unechoed = voice.strip_echo(reply, job.learner_text)
+        if unechoed != reply:
+            # §10e.3: Romy answers the learner's line; she does not read it back to them. The
+            # translation loses as many leading sentences as the French did (else it goes).
+            dropped = len(_sentences(reply)) - len(_sentences(unechoed))
+            parts = _sentences(translation or "")
+            if translation and 0 < dropped < len(parts) and len(_sentences(reply)) == len(parts):
+                translation = " ".join(parts[dropped:])
+            else:
+                structural = True
+            reply = unechoed
+            repaired.append("echo")
+        if "id_leak" in problems:
+            reply, translation = voice.strip_ids(reply), (voice.strip_ids(translation) if translation else translation)
+            repaired.append("id_leak")
+            logger.bind(session_id=job.session_id, where="reply").info("revue_id_leak")
+        if "symbols" in problems:
+            reply = voice.replace_symbols(reply)
+            repaired.append("symbols")
+        if "imperative" in problems:
+            kept = voice.drop_imperatives(reply)
+            if kept:
+                reply, structural = kept, True
+                repaired.append("imperative")
         if "relative_date" in problems:
-            reply = drop_relative_sentences(reply)
+            reply, structural = drop_relative_sentences(reply), True
+        if "app_words" in problems:
+            kept = " ".join(sentence for sentence in _sentences(reply) if not voice.meta_words(sentence))
+            if kept:
+                reply, structural = kept, True
+                repaired.append("app_words")
         if word_count(reply) > limit:
-            reply = truncate_to_words(reply, limit)
+            reply, structural = truncate_to_words(reply, limit), True
+        proposes = parsed["proposes_question"]
+        if proposes and job.question_proposed:
+            # §10e.3: the reader question is proposed once a Papier; later proposals become a plain reply.
+            plain = strip_proposal(reply, proposes)
+            if plain and plain != reply:
+                reply, structural = plain, True
+            proposes = None
+            repaired.append("question_repeat")
         if not reply:
             return {**base, "role": "fallback", "reason": "model_down", "text_fr": FALLBACK_LINE}
-        if simplified:
+        restated = [cid for cid in parsed["claims_cited"] if cid in job.shown]
+        if len(new_ids) > MAX_NEW_CLAIMS:
+            new_ids = new_ids[:MAX_NEW_CLAIMS]
+            repaired.append("too_many_claims")
+        uncertainty = dossier.uncertainty_by_id(parsed["uncertainty_id"]) if parsed["uncertainty_id"] else None
+        matched = False
+        if uncertainty is None and says_sources_silent(parsed["text_fr"]):
+            # §10e.2: the model said the sources are silent but cited no (valid) uncertainty id.
+            uncertainty = match_uncertainty(job.learner_text, parsed["text_fr"], dossier)
+            matched = uncertainty is not None
+        reply = voice.french_typography(reply)
+        if job.simplified:
             reply = f"{SIMPLIFY_LEAD} {reply}"
-        translation = parsed["translation"] if translation_language and reply == parsed["text_fr"] else None
-        return {**base, **{k: parsed[k] for k in ("claims_cited", "uncertainty_index", "uncertainty_text",
-                                                  "proposes_question", "shift")},
-                "role": "reply", "text_fr": reply, "translation": translation}
+        if not job.translation_language or structural:
+            translation = None
+        index = next((i for i, u in enumerate(dossier.uncertainties) if uncertainty and u.id == uncertainty.id), None)
+        return {**base, "role": "reply", "text_fr": reply, "translation": translation,
+                "claims_cited": new_ids, "claims_restated": restated, "answer_ids": parsed["claims_cited"],
+                "uncertainty_id": uncertainty.id if uncertainty else None, "uncertainty_index": index,
+                "uncertainty_text": uncertainty.fr if uncertainty else None, "uncertainty_matched": matched,
+                "proposes_question": proposes, "shift": parsed["shift"], "repaired": repaired}
 
     @staticmethod
     def _parse_reply(raw: Any, known: dict[str, Claim], dossier: EditorialDossier) -> dict[str, Any]:
         raw = raw if isinstance(raw, dict) else {}
         cited = [str(c) for c in raw.get("claims_cited") or [] if str(c) in known]
         cited = list(dict.fromkeys(cited))
-        index = raw.get("uncertainty_cited")
-        uncertainty_index = index if isinstance(index, int) and not isinstance(index, bool) and 0 <= index < len(dossier.uncertainties) else None
+        # §10e.2: uncertainties are cited by id; an index (the 2026-10-03 sample's off-by-one)
+        # is not trusted — the content matcher resolves it instead.
+        cited_u = raw.get("uncertainty_cited")
+        uncertainty_id = str(cited_u) if isinstance(cited_u, str) and dossier.uncertainty_by_id(str(cited_u)) else None
         shift = raw.get("shift") if raw.get("shift") in {"angle", "simplify"} else None
         proposes = raw.get("proposes_question")
         translation = raw.get("translation")
         return {
             "text_fr": re.sub(r"\s+", " ", str(raw.get("reply_fr") or "")).strip(),
             "claims_cited": cited,
-            "uncertainty_index": uncertainty_index,
-            "uncertainty_text": dossier.uncertainties[uncertainty_index] if uncertainty_index is not None else None,
+            "uncertainty_id": uncertainty_id,
             "proposes_question": str(proposes).strip() if isinstance(proposes, str) and proposes.strip() else None,
             "shift": shift,
             "translation": str(translation).strip() if isinstance(translation, str) and translation.strip() else None,
@@ -2136,9 +2743,11 @@ class RevueEncounter:
                 break
         cost = round(self._spent() - spent_before, 6)
         if exercise is None:
-            loaded.state.append("choice", kind="headline_exercise", dropped=True, reasons=reasons, cost_usd=cost)
+            loaded.state.append("choice", kind="headline_exercise", dropped=True, reasons=reasons, cost_usd=cost,
+                                prompt_version=HEADLINE_PROMPT_VERSION)
         else:
-            loaded.state.append("choice", kind="headline_exercise", dropped=False, exercise=exercise, cost_usd=cost)
+            loaded.state.append("choice", kind="headline_exercise", dropped=False, exercise=exercise, cost_usd=cost,
+                                prompt_version=HEADLINE_PROMPT_VERSION)
         self._save(loaded)
         return exercise
 
@@ -2151,8 +2760,10 @@ class RevueEncounter:
         answer_text = str(answer.get("text_fr") or "").strip()
         if not answer_text or len(distractors) != 2:
             return None
+        answer_text = voice.strip_ids(answer_text)
         rows = [("answer", answer_text, None)] + [
-            ("distractor", str(d.get("text_fr") or "").strip(), d.get("contradicted_by")) for d in distractors
+            ("distractor", voice.strip_ids(str(d.get("text_fr") or "").strip()), d.get("contradicted_by"))
+            for d in distractors
         ]
         if any(not text for _, text, _ in rows) or len({fold_keep_length(t) for _, t, _ in rows}) != 3:
             return None
@@ -2180,6 +2791,9 @@ class RevueEncounter:
         loaded = load(row)
         if row.status != "active" or loaded.state.closed:
             raise RevueError(409, "revue_session_closed")
+        if any(e.kind == "evidence" and e.payload.get("pending") for e in loaded.state.events):
+            self._settle_evidence(loaded)
+            self._save(loaded)
         served = served_make_options(loaded.plan)
         exercise = self._headline_exercise(loaded)
         options: list[Any] = []
@@ -2335,16 +2949,28 @@ class RevueEncounter:
             "language": _gloss_language_of(loaded.plan),
         }
         spent_before = self._spent()
-        try:
-            raw = self.provider.question(context)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("revue: question provider failed ({}); the learner's words stand", exc)
-            raw = AUTHORED.question(context)
-        proposal = re.sub(r"\s+", " ", str((raw or {}).get("proposal_fr") or "")).strip()
+        raw: Any = None
+        proposal = ""
+        for _attempt in range(2):
+            try:
+                raw = self.provider.question(context)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("revue: question provider failed ({}); the learner's words stand", exc)
+                raw = AUTHORED.question(context)
+            proposal = re.sub(r"\s+", " ", str((raw or {}).get("proposal_fr") or "")).strip()
+            leaks = voice.id_leaks(proposal)
+            if not leaks:
+                break
+            context = {**context, "retry_feedback": {"problems": ["id_leak"], "id_leaks": leaks}}
+        if voice.id_leaks(proposal):
+            proposal = voice.strip_ids(proposal)
+            logger.bind(session_id=str(loaded.row.id), where="question").info("revue_id_leak")
         position = season_position(self.db, self._owner(loaded.row))
         if not proposal or knowledge_hits([proposal], position) or relative_dates(proposal):
             proposal = AUTHORED.question(context)["proposal_fr"]
+        proposal = voice.french_typography(proposal)
         why = (raw or {}).get("why_native")
+        why = voice.strip_ids(why) if isinstance(why, str) else why
         draft = RvQuestionDraft(
             learner_fr=learner,
             proposal_fr=proposal,
@@ -2354,7 +2980,7 @@ class RevueEncounter:
         if not _choices(state, "make"):
             state.append("choice", kind="make", option="reader_question")
         state.append("choice", kind="question_draft", **draft.model_dump(mode="json"),
-                     cost_usd=round(self._spent() - spent_before, 6))
+                     cost_usd=round(self._spent() - spent_before, 6), prompt_version=QUESTION_PROMPT_VERSION)
         self._save(loaded)
         return RvQuestionProposeResult(draft=draft)
 
@@ -2387,6 +3013,7 @@ class RevueEncounter:
         existing = _closing_of(state)
         if existing is not None:
             return session_view(loaded), existing
+        self._settle_evidence(loaded)  # §10e.8: a late critic's words count in the kept words
 
         artifact = state.current_artifact
         shown = self._shown_claims(loaded) or dossier.facts()[:FACTS_ON_ENTRY]
@@ -2401,25 +3028,52 @@ class RevueEncounter:
             "open_question": question["text"] if question else None,
             "band": plan.learner.band,
         }
-        spent_before = float(getattr(self.provider, "spent_usd", 0.0) or 0.0)
-        try:
-            raw = self.provider.close(context)
-        except Exception as exc:  # noqa: BLE001 - an authored close with whatever exists
-            logger.warning("revue: close provider failed ({}); authored close", exc)
-            raw = AUTHORED.close(context)
-        raw = raw if isinstance(raw, dict) else {}
+        spent_before = self._spent()
         position = season_position(self.db, self._owner(row))
         kind = str(artifact.get("kind")) if artifact else "none"
-
-        romy_line = re.sub(r"\s+", " ", str(raw.get("romy_line_fr") or "")).strip()
-        if not romy_line or knowledge_hits([romy_line], position) or relative_dates(romy_line):
+        raw: dict[str, Any] = {}
+        romy_line = ""
+        problems: list[str] = []
+        regenerated_for: list[str] = []
+        for _attempt in range(2):
+            try:
+                raw = self.provider.close(context)
+            except Exception as exc:  # noqa: BLE001 - an authored close with whatever exists
+                logger.warning("revue: close provider failed ({}); authored close", exc)
+                raw = AUTHORED.close(context)
+            raw = raw if isinstance(raw, dict) else {}
+            romy_line = re.sub(r"\s+", " ", str(raw.get("romy_line_fr") or "")).strip()
+            # §10e.6: the close speaks the world's words; §10e.1: no ids anywhere the learner reads.
+            app = list(dict.fromkeys(voice.app_words(romy_line) + voice.meta_words(romy_line)))
+            leaks = voice.id_leaks(" ".join([romy_line, str(raw.get("headline_fr") or ""),
+                                             *[str(line or "") for line in raw.get("body_lines") or []]]))
+            problems = []
+            if not romy_line:
+                problems.append("empty")
+            if app:
+                problems.append("app_words")
+            if leaks:
+                problems.append("id_leak")
+            if knowledge_hits([romy_line], position):
+                problems.append("knowledge")
+            if relative_dates(romy_line):
+                problems.append("relative_date")
+            if not problems:
+                break
+            regenerated_for = regenerated_for or list(problems)
+            context = {**context, "retry_feedback": {"problems": problems, "app_words": app, "id_leaks": leaks}}
+        if "id_leak" in problems:
+            logger.bind(session_id=str(row.id), where="close").info("revue_id_leak")
+        romy_line = voice.strip_ids(romy_line)
+        if {"empty", "app_words", "knowledge", "relative_date"} & set(problems) or not romy_line:
             romy_line = CLOSE_LINES.get(kind, CLOSE_LINES["none"])
+        romy_line = voice.french_typography(romy_line)
 
         if artifact and kind != "short_report":
             headline = str(artifact.get("text_fr") or dossier.title_fr)
             contribution = [tuple(span) for span in artifact.get("contribution") or []]
         else:
-            headline = re.sub(r"\s+", " ", str(raw.get("headline_fr") or "")).strip() or dossier.title_fr
+            headline = voice.strip_ids(re.sub(r"\s+", " ", str(raw.get("headline_fr") or "")).strip()) or dossier.title_fr
             if knowledge_hits([headline], position) or relative_dates(headline):
                 headline = dossier.title_fr
             if artifact and fold_keep_length(headline) == fold_keep_length(str(artifact.get("text_fr") or "")):
@@ -2428,7 +3082,9 @@ class RevueEncounter:
 
         body: list[str] = []
         for line in raw.get("body_lines") or []:
-            line = re.sub(r"\s+", " ", str(line or "")).strip()
+            line = voice.strip_ids(re.sub(r"\s+", " ", str(line or "")).strip())
+            if plan.learner.band in LOWER_BANDS and voice.symbols(line):
+                line = voice.replace_symbols(line)
             if line and not knowledge_hits([line], position) and not relative_dates(line):
                 body.append(line)
         for claim in shown:
@@ -2472,8 +3128,9 @@ class RevueEncounter:
 
         keep_papier_words(self.db, row, dossier=dossier, plan=plan, state=state, kept=kept)
 
-        cost = round(float(getattr(self.provider, "spent_usd", 0.0) or 0.0) - spent_before, 6)
-        state.append("turn_romy", beat="close", role="close", text_fr=romy_line, cost_usd=cost)
+        cost = round(self._spent() - spent_before, 6)
+        state.append("turn_romy", beat="close", role="close", text_fr=romy_line, cost_usd=cost,
+                     prompt_version=CLOSE_PROMPT_VERSION, refused=problems, regenerated_for=regenerated_for)
         state.append("closed", closing=closing.model_dump(mode="json"))
         row.status = "closed"
         row.closed_at = datetime.now(UTC)

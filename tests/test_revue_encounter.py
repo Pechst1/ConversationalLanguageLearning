@@ -124,8 +124,8 @@ def test_acceptance_unexpected_question_becomes_the_reader_question(db: Session)
     reply = next(item for item in items_of(turn, "line") if item.role == "reply")
     uncertainty = items_of(turn, "uncertainty")
     dossier = next(d for d in evergreens_for_week(WEEK) if d.id == MARCHE)
-    assert "ne le disent pas" in reply.text_fr or any(u in reply.text_fr for u in dossier.uncertainties)
-    assert uncertainty and uncertainty[0].text_fr in dossier.uncertainties
+    assert "ne le disent pas" in reply.text_fr or any(u in reply.text_fr for u in dossier.uncertainty_texts())
+    assert uncertainty and uncertainty[0].text_fr in dossier.uncertainty_texts()
     questions = state_of(row).questions
     assert questions[-1]["text"] == PRICE_QUESTION
     assert questions[-1]["answerable"] is False
@@ -262,7 +262,8 @@ def test_reply_is_cut_to_the_word_target_and_loses_relative_dates(db: Session) -
     assert "emain" not in line.text_fr
     assert line.text_fr == "Paris compte 91 marchés."
     romy = [e for e in state_of(row).events if e.kind == "turn_romy"][-1]
-    assert romy.payload["claims_cited"] == ["c1"], "an unknown claim id is dropped"
+    # An unknown claim id is dropped; c1 is already on the table, so it is a restatement (§10e.3).
+    assert romy.payload["claims_cited"] == [] and romy.payload["claims_restated"] == ["c1"]
 
 
 def test_a_turn_without_a_target_word_is_unscored_without_a_critic_call(db: Session) -> None:

@@ -10770,6 +10770,11 @@ export interface components {
              */
             outcome: "correct" | "incorrect" | "unscored";
             /**
+             * Pending
+             * @default false
+             */
+            pending?: boolean;
+            /**
              * Register Note
              * @default ok
              * @enum {string}
