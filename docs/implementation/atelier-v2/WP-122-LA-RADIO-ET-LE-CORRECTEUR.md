@@ -93,4 +93,5 @@ notices stop being seeded.
 | Phase | Commit | What landed |
 |---|---|---|
 | — | — | defined 2026-10-03 |
-| A, B | (this commit) | La Radio: `radio.py` bulletin 45–60 s in the cast's voices cached in `line_audio_clips`, `/radio` listen-first + dictée, La Une chip (letter, Papier, Radio, words due), real bulletin 53 s for US$0.014. Le Correcteur: `correcteur.py` seeding from the learner's errata + classiques with facts proven unchanged, `/correcteur` desk, four outcomes, errata write-back, `revue_corrections` c8e0a2b4d6f9. Open: planner steps for both, Relevé/La Une entry for the Correcteur, spend cap on radio |
+| A, B | 914692f | La Radio: `radio.py` bulletin 45–60 s in the cast's voices cached in `line_audio_clips`, `/radio` listen-first + dictée, La Une chip (letter, Papier, Radio, words due), real bulletin 53 s for US$0.014. Le Correcteur: `correcteur.py` seeding from the learner's errata + classiques with facts proven unchanged, `/correcteur` desk, four outcomes, errata write-back, `revue_corrections` c8e0a2b4d6f9. Open: planner steps for both, Relevé/La Une entry for the Correcteur, spend cap on radio |
+| follow-ups | fec55dc | `radio` and `correcteur` desk steps, the Correcteur chip and Relevé row, the radio spend cap (`audio_reason: spend_cap`) |

@@ -106,4 +106,5 @@ card. 5. The Relecture asks the question, not «rewrite your answer».
 | Phase | Commit | What landed |
 |---|---|---|
 | — | — | defined 2026-10-03 |
-| A.0–A.3, B | (this commit) | kept words enter the SRS at close (`keep_revue_word`, one step ahead when used correctly), `words_due_by_place`, due dots on pins, «Réviser ici» with the journey's recall formats on the plate, La Relecture (six weeks, `revue_relectures` a7c9e1b3d5f8, side-by-side pair, Romy's authored line). Open: planner `relecture` step, «vu au …» line, Relevé due line, voice answer |
+| A.0–A.3, B | 914692f | kept words enter the SRS at close (`keep_revue_word`, one step ahead when used correctly), `words_due_by_place`, due dots on pins, «Réviser ici» with the journey's recall formats on the plate, La Relecture (six weeks, `revue_relectures` a7c9e1b3d5f8, side-by-side pair, Romy's authored line). Open: planner `relecture` step, «vu au …» line, Relevé due line, voice answer |
+| A.4, B step | fec55dc | the «vu au …» line on recall cards, the Relevé due line, the `relecture` desk step dealt by the planner |
