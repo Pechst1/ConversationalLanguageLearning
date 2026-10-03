@@ -34,6 +34,7 @@ from typing import Any
 
 from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
+    DESK_KINDS,
     DICTATION_RECALL_FORMATS,
     DayShape,
     RecallFormat,
@@ -459,6 +460,84 @@ def choose_day_shape(inputs: DayShapeInputs) -> DayShapeDecision:
 
 
 # --------------------------------------------------------------------------
+# «Le bureau»: the Revue's other desks as an optional step (WP-121/122)
+# --------------------------------------------------------------------------
+
+#: The shapes a desk step may be dealt on: the ordinary days. Never the Papier
+#: day (the Papier is that day's second half), never «jour court» (three steps,
+#: coming back after a missed day costs a scene and a reply, nothing more).
+DESK_SHAPES: frozenset[DayShape] = frozenset(
+    {DayShape.STANDARD, DayShape.LISTENING, DayShape.REPRISE, DayShape.LETTER}
+)
+#: Each desk's seeded weekday is Monday..Friday, so a desk whose day was a
+#: tentpole, a Papier day or a missed day still has the weekend to land on.
+DESK_WEEKDAYS = 5
+
+
+def desk_weekday(inputs: DayShapeInputs, desk: str) -> int:
+    """This learner's weekday for ``desk`` this week (0 = Monday … 4 = Friday)."""
+
+    return roll(*inputs.seed_parts, "desk", str(desk), faces=DESK_WEEKDAYS)
+
+
+def due_desks(
+    inputs: DayShapeInputs,
+    *,
+    shape: DayShape | str,
+    dealt_this_week: set[str] | frozenset[str] | tuple[str, ...] = (),
+) -> tuple[str, ...]:
+    """The desks today *may* deal, in the order they are tried.
+
+    * only on an ordinary day (:data:`DESK_SHAPES`) and never on a season
+      tentpole (nor on the Papier day: ``REVUE`` is not in :data:`DESK_SHAPES`);
+    * each desk at most once an ISO week (``dealt_this_week``), on or after its
+      own seeded weekday, so the three spread over the week rather than piling
+      onto Monday; a desk whose day passed without it (a tentpole, the Papier,
+      no offer that day) waits for the next ordinary day of the week;
+    * ordered by whose weekday came first, then :data:`DESK_KINDS`.
+
+    Whether a desk has anything to offer (its flag, its offer) is the caller's
+    question: :func:`choose_desk` takes the first one that does.
+    """
+
+    try:
+        day_shape = DayShape(str(shape))
+    except ValueError:
+        return ()
+    if inputs.tentpole or day_shape not in DESK_SHAPES:
+        return ()
+    dealt = {str(desk) for desk in dealt_this_week}
+    weekday = inputs.local_date.weekday()
+    due = sorted(
+        (desk_weekday(inputs, desk), DESK_KINDS.index(desk), desk)
+        for desk in DESK_KINDS
+        if desk not in dealt and weekday >= desk_weekday(inputs, desk)
+    )
+    return tuple(desk for _weekday, _rank, desk in due)
+
+
+def choose_desk(
+    inputs: DayShapeInputs,
+    *,
+    shape: DayShape | str,
+    offered: Callable[[str], bool] | set[str] | frozenset[str] | tuple[str, ...],
+    dealt_this_week: set[str] | frozenset[str] | tuple[str, ...] = (),
+) -> str | None:
+    """Which desk (``relecture`` · ``radio`` · ``correcteur``) today deals, or ``None``.
+
+    The first of :func:`due_desks` whose flag is on and whose offer is
+    non-empty — ``offered`` is that set, or a predicate asked lazily in order so
+    a desk that is not due never costs a query. At most one desk a day.
+    """
+
+    has = offered if callable(offered) else (lambda desk, pool=frozenset(offered): desk in pool)
+    for desk in due_desks(inputs, shape=shape, dealt_this_week=dealt_this_week):
+        if has(desk):
+            return desk
+    return None
+
+
+# --------------------------------------------------------------------------
 # Format rotation
 # --------------------------------------------------------------------------
 
@@ -528,6 +607,11 @@ __all__ = [
     "LISTEN_FIRST_EVERY_DAYS",
     "LISTEN_FIRST_MIN_BUDGET_SECONDS",
     "choose_day_shape",
+    "choose_desk",
+    "DESK_SHAPES",
+    "DESK_WEEKDAYS",
+    "desk_weekday",
+    "due_desks",
     "eligible_shapes",
     "is_listen_first_day",
     "is_revue_day",

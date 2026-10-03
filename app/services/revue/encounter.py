@@ -1084,15 +1084,50 @@ def _romy_role(payload: dict[str, Any]) -> str:
     return "fallback" if payload.get("kept") else str(payload.get("role") or "reply")
 
 
+_OUTCOME_RANK = {"unscored": 0, "incorrect": 1, "correct": 2}
+
+
+def _register_notes(state: ConversationState) -> dict[int, str]:
+    """``{learner turn seq: "vous_to_tu"|"tu_to_vous"}`` from the session's evidence events."""
+
+    notes: dict[int, str] = {}
+    for event in state.events:
+        if event.kind != "evidence":
+            continue
+        seq, register = event.payload.get("turn_seq"), event.payload.get("register")
+        if isinstance(seq, int) and register in {"vous_to_tu", "tu_to_vous"}:
+            notes[seq] = str(register)
+    return notes
+
+
+def word_outcomes(state: ConversationState) -> dict[str, str]:
+    """Each target word's best outcome across the session's evidence events (a word used
+    correctly once stays ``correct``), keyed by its folded French."""
+
+    best: dict[str, str] = {}
+    for event in state.events:
+        if event.kind != "evidence":
+            continue
+        for row in event.payload.get("word_outcomes") or []:
+            if not isinstance(row, dict) or not row.get("fr"):
+                continue
+            outcome = row.get("outcome") if row.get("outcome") in _OUTCOME_RANK else "unscored"
+            key = str(row["fr"]).strip().casefold()
+            if key not in best or _OUTCOME_RANK[outcome] > _OUTCOME_RANK[best[key]]:
+                best[key] = outcome
+    return best
+
+
 def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: ConversationState) -> list[Any]:
     items: list[Any] = []
     claims = dossier.claims_by_id()
+    registers = _register_notes(state)
     for event in state.events:
         payload = event.payload
         at = event.at.isoformat()
         if event.kind == "turn_learner":
             items.append(RvMineItem(id=str(event.seq), seq=event.seq, at=at, text_fr=str(payload.get("text_fr") or ""),
-                                    mode=payload.get("mode") or "text"))
+                                    mode=payload.get("mode") or "text", register_note=registers.get(event.seq)))
         elif event.kind == "turn_romy" and payload.get("beat") == "arrive":
             for index, sentence in enumerate(payload.get("narration") or []):
                 items.append(RvNarrationItem(id=f"{event.seq}.n{index}", seq=event.seq, at=at, text_fr=str(sentence)))
@@ -2416,10 +2451,12 @@ class RevueEncounter:
         )
         learner_texts = " ".join(str(e.payload.get("text_fr") or "") for e in state.events if e.kind == "turn_learner")
         language = _gloss_language_of(plan)
+        outcomes = word_outcomes(state)
         kept = RvKept(
             words=[
                 RvClosedWord(fr=item.fr, gloss=item.gloss.get(language, ""), claim_id=item.claim_id,
-                             used=_contains_word(learner_texts, item.fr))
+                             used=_contains_word(learner_texts, item.fr),
+                             outcome=outcomes.get(item.fr.strip().casefold()))
                 for item in plan.vocabulary
             ],
             claims=[rv_claim(dossier, c) for c in shown],

@@ -45,6 +45,8 @@ export type RadioBulletin = {
   week: string;
   seconds: number;
   audio: RadioAudio;
+  /** Why the bulletin is silent: `spend_cap` (the learner's daily spend cap — the page shows the text) or `tts_failed`. */
+  audioReason?: 'spend_cap' | 'tts_failed' | null;
   guestId: string;
   lines: RadioLine[];
   dictee: { lineIndex: number; words: number };
@@ -126,6 +128,7 @@ export function parseBulletin(raw: unknown): RadioBulletin {
     week: text(row.week),
     seconds: num(row.seconds),
     audio: playable ? 'ready' : audio === 'ready' ? 'unavailable' : audio,
+    audioReason: row.audio_reason === 'spend_cap' || row.audio_reason === 'tts_failed' ? row.audio_reason : null,
     guestId: text(row.guest_id),
     lines,
     dictee: { lineIndex: num(dictee.line_index, -1), words: num(dictee.words) },

@@ -121,7 +121,7 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
-import { drillGoalLine, type DrillGoal } from './drill-frame';
+import { drillGoalLine, recallMetLine, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
 import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
 import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
@@ -596,6 +596,13 @@ export function RecallStepView({
       )}
       {!step.prompt.prompt_fr && isMatch && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
+      )}
+      {/* WP-121 A.4: a word kept in a Papier says where it was met — the muted
+          context line the journey uses for a scene reference. */}
+      {recallMetLine(step.prompt) && (
+        <p className="av2-label" data-state="met-place" lang="fr">
+          {recallMetLine(step.prompt)}
+        </p>
       )}
       {/* WP-103 T3: every drill says what it asks for. */}
       {goal && <DrillGoalLine goal={goal} copy={copy} />}

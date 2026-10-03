@@ -620,7 +620,8 @@ export function RvThread({
               </li>
             );
           case 'mine': {
-            const note = registerNotes[item.id];
+            // This visit's note first; else the one the server replays on the line (a reload).
+            const note = registerNotes[item.id] ?? item.registerNote;
             return (
               <React.Fragment key={item.id}>
                 <li className="av2-thread__line" data-kind="mine" data-speaker="learner">

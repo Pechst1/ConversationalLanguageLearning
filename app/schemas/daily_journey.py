@@ -17,6 +17,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
+from app.schemas.revue_relecture import RelectureOffer
 from app.services.journey_contracts import (
     AssistanceLevel,
     CapabilityKey,
@@ -253,13 +254,24 @@ class RecallAnswerKey(JourneyModel):
     digests: list[str] = Field(default_factory=list)
 
 
+def _drop_required(schema: dict[str, Any], *keys: str) -> None:
+    """Keys a serializer omits when absent are not ``required`` in OpenAPI."""
+
+    for key in keys:
+        if key in schema.get("required", []):
+            schema["required"].remove(key)
+
+
+class RecallMet(JourneyModel):
+    """WP-121 A.4: the Papier a recalled word was kept in, as one French line."""
+
+    place_label_fr: str
+
+
 class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
-        json_schema_extra=lambda schema: (
-            schema["required"].remove("audio_url")
-            if "audio_url" in schema.get("required", []) else None
-        ),
+        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met"),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
@@ -314,6 +326,10 @@ class RecallPrompt(JourneyModel):
     #: WP-103 T3 (additive): the French the item starts from when it is shown (the
     #: sentence to correct, the learner's own wording to repair). Never the answer.
     source_fr: str | None = None
+    #: WP-121 A.4 (additive): where a card kept in a Papier was met — the small
+    #: context line under the prompt («vu au marché d'Aligre, semaine 41»).
+    #: Omitted for every other card.
+    met: RecallMet | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any):
@@ -325,6 +341,8 @@ class RecallPrompt(JourneyModel):
             and self.task_type not in ("listen_tap", "dictation")
         ):
             data.pop("audio_url", None)
+        if isinstance(data, dict) and data.get("met") is None:
+            data.pop("met", None)
         return data
 
 
@@ -556,6 +574,27 @@ class ReadPrompt(JourneyModel):
     character_name: str | None = None
 
 
+class DeskPrompt(JourneyModel):
+    """«Le bureau» (WP-121/122): one of the Revue's other desks, folded into an
+    ordinary practice day after the ending. Advanced, not answered — each desk
+    grades through its own routes. The client mounts:
+
+    * ``relecture`` — ``CarteRelecture`` on ``relecture`` (the offer of
+      ``GET /revue/relecture/offer``), answered with ``POST /revue/relecture/{session_id}``;
+    * ``radio`` — the Radio bulletin of ``dossier_id`` (``GET /revue/radio/{id}``),
+      listen first, then the dictée, then «C'est entendu»;
+    * ``correcteur`` — ``CorrecteurDesk`` on a new draft of ``dossier_id``
+      (``POST /revue/correcteur/{id}``).
+    """
+
+    desk: Literal["relecture", "radio", "correcteur"]
+    title_fr: str
+    dossier_id: str | None = None
+    relecture: RelectureOffer | None = None
+    #: The Radio's bulletin length, rounded to 5 s, when known.
+    seconds: int | None = None
+
+
 class _PublicStepBase(JourneyModel):
     id: str
     ordinal: int
@@ -599,8 +638,13 @@ class ReadStep(_PublicStepBase):
     prompt: ReadPrompt
 
 
+class DeskStep(_PublicStepBase):
+    kind: Literal[StepKind.DESK] = StepKind.DESK
+    prompt: DeskPrompt
+
+
 PublicStep = Annotated[
-    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep | ReadStep,
+    SceneStep | RecallStep | RespondStep | ResolutionStep | RuleStep | ForgeStep | ReadStep | DeskStep,
     Field(discriminator="kind"),
 ]
 

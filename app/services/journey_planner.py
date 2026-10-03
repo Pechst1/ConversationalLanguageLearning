@@ -45,6 +45,7 @@ from app.services.journey_contracts import (
     CLASSIC_RECALL_FORMATS,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
+    DESK_KINDS,
     INPUT_FLOOR_SHARE,
     LISTENING_RECALL_FORMATS,
     MAX_PLANNED_STEPS,
@@ -74,6 +75,7 @@ from app.services.journey_contracts import (
     rhythm_caps,
 )
 from app.services.journey_day_shapes import (
+    DESK_SHAPES,
     DayShapeInputs,
     LetterOffer,
     rotate_recall_formats,
@@ -2044,8 +2046,16 @@ def plan_journey(
     introduction: dict[str, Any] | None = None,
     forge: dict[str, Any] | None = None,
     reading: dict[str, Any] | list[dict[str, Any]] | None = None,
+    desk: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``desk`` («Le bureau», WP-121/122) is the one Revue desk today deals, as
+    :func:`desk_offer` shapes it — ``{"desk": "relecture"|"radio"|"correcteur",
+    "title_fr", "dossier_id", "relecture", "seconds"}``. Planned on a practice
+    day only, as one optional step after the ending (before the «Lecture»),
+    while the budget holds it; the day then gives up one ordinary recall item.
+    Never on «jour du Papier», «jour court», a tentpole or the first day.
 
     WP-93 «Plus d'histoire, moins d'exercices»: the page is priced by what is
     on it (:func:`scene_seconds`), at least :data:`INPUT_FLOOR_SHARE` of a
@@ -2126,7 +2136,7 @@ def plan_journey(
         # the budget). No practice items, rule, forge or «Lecture»: the player
         # mounts Le Papier after the ending, and the two together are the day.
         practice = False
-        introduction = forge = reading = None
+        introduction = forge = reading = desk = None
     profile = pace or PacingProfile()
     spt = profile.effective_seconds_per_token()
     multiplier = profile.effective_step_multiplier()
@@ -2250,6 +2260,7 @@ def plan_journey(
             forge=forge,
             reading=reading,
             scene_audio=scene_audio,
+            desk=desk,
         )
 
     # --- shape the recall steps inside whatever headroom is left -----------
@@ -2444,6 +2455,7 @@ def plan_journey(
                     # WP-103 T3: what to produce, and what it starts from.
                     "goal_native": recall.goal_native,
                     "source_fr": recall.source_fr,
+                    **recall_met(entry.candidate),
                 },
                 private_task=replace(recall, estimated_seconds=cost),
                 target=entry.target,
@@ -3506,6 +3518,15 @@ def add_listening_items(
     return placed
 
 
+def recall_met(candidate: LearningCandidate | None) -> dict[str, Any]:
+    """WP-121 A.4: ``{"met": {"place_label_fr": "vu au marché d'Aligre, semaine 41"}}``
+    for a card first kept in a Papier (the caller put the line in the candidate's
+    ``metadata["place_label_fr"]`` from ``kept_words.place_line_fr``), else ``{}``."""
+
+    label = str(((getattr(candidate, "metadata", None) or {}).get("place_label_fr")) or "").strip()
+    return {"met": {"place_label_fr": label}} if label else {}
+
+
 def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
     recall = item.task
     prompt: dict[str, Any] = {
@@ -3519,6 +3540,7 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         # WP-103 T3: what to produce, and what it starts from.
         "goal_native": recall.goal_native,
         "source_fr": recall.source_fr,
+        **recall_met(item.entry.candidate),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
         # WP-91: with a clip the phrase (or the dictated line) is heard, not
@@ -3537,6 +3559,95 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         optional=recall.optional,
         initial_status=StepStatus.PENDING,
     )
+
+
+#: «Le bureau»: what one desk step is priced at when the offer names no
+#: length — a Relecture is one or two sentences and the pair; the Radio is a
+#: ~50 s bulletin heard, read and one dictée; the Correcteur is three lines
+#: marked and the result.
+DESK_SECONDS: dict[str, int] = {"relecture": 120, "radio": 150, "correcteur": 150}
+
+
+def desk_offer(
+    desk: str,
+    *,
+    title_fr: str,
+    dossier_id: str | None = None,
+    relecture: dict[str, Any] | None = None,
+    seconds: int | None = None,
+) -> dict[str, Any]:
+    """The planner's ``desk`` argument: what the step will carry (all public)."""
+
+    return {
+        "desk": desk,
+        "title_fr": title_fr,
+        "dossier_id": dossier_id,
+        "relecture": dict(relecture) if relecture else None,
+        "seconds": int(seconds) if seconds else None,
+    }
+
+
+def _desk_step(
+    desk: dict[str, Any] | None,
+    *,
+    shape: DayShape,
+    shape_reason: str,
+    room: int,
+    notes: list[str],
+) -> PlannedStep | None:
+    """The day's one optional desk step, or ``None`` (never on a tentpole, the
+    first day, the Papier day or a short day; never past the budget)."""
+
+    if not isinstance(desk, dict):
+        return None
+    kind = str(desk.get("desk") or "")
+    if kind not in DESK_KINDS:
+        return None
+    if shape not in DESK_SHAPES or shape_reason in ("season_tentpole", "first_day"):
+        notes.append(f"desk {kind} not dealt on a {shape} day ({shape_reason or 'shape'})")
+        return None
+    if kind == "relecture" and not isinstance(desk.get("relecture"), dict):
+        return None
+    if kind in ("radio", "correcteur") and not desk.get("dossier_id"):
+        return None
+    cost = DESK_SECONDS[kind]
+    if cost > room:
+        notes.append(f"desk {kind} skipped: the day's budget does not hold it")
+        return None
+    notes.append(f"desk planned: {kind}, {cost}s")
+    return PlannedStep(
+        ordinal=0,
+        kind=StepKind.DESK,
+        estimated_seconds=cost,
+        public_prompt={
+            "desk": kind,
+            "title_fr": str(desk.get("title_fr") or ""),
+            "dossier_id": (str(desk["dossier_id"]) if desk.get("dossier_id") else None),
+            "relecture": dict(desk["relecture"]) if isinstance(desk.get("relecture"), dict) else None,
+            "seconds": int(desk["seconds"]) if desk.get("seconds") else None,
+        },
+        optional=True,
+    )
+
+
+def _drop_one_recall(items: list[PracticeItem]) -> list[PracticeItem] | None:
+    """The day's items less one ordinary recall — the last item after the
+    ending (a non-heard one first), else the last build, else the last warm-up.
+    ``None`` when there is nothing to give up."""
+
+    if not items:
+        return None
+    order = {"warmup": 0, "mid": 1, "post": 2}
+    ranked = sorted(
+        range(len(items)),
+        key=lambda index: (
+            order.get(items[index].slot, 0),
+            0 if items[index].audio_url else 1,
+            items[index].position,
+        ),
+    )
+    drop = ranked[-1]
+    return [item for index, item in enumerate(items) if index != drop]
 
 
 def _plan_practice_day(
@@ -3567,6 +3678,7 @@ def _plan_practice_day(
     forge: dict[str, Any] | None = None,
     reading: dict[str, Any] | list[dict[str, Any]] | None = None,
     scene_audio: bool = False,
+    desk: dict[str, Any] | None = None,
 ) -> PlannedJourney:
     """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
 
@@ -3627,6 +3739,12 @@ def _plan_practice_day(
         )
         notes.append(f"lecture planned: {variant}, {cost}s")
     read_cost = sum(step.estimated_seconds for step in read_steps)
+    # «Le bureau» (WP-121/122): one Revue desk, reserved like the «Lecture».
+    desk_step = _desk_step(
+        desk, shape=shape, shape_reason=shape_reason,
+        room=budget_seconds - (core + resolution_cost + read_cost), notes=notes,
+    )
+    desk_cost = desk_step.estimated_seconds if desk_step is not None else 0
     # WP-93: the input floor. The page (and the «Lecture») count; what they
     # leave short of the floor is kept free of drills — only a heard item may
     # use it. A page-less (legacy) brief has no page to price and keeps the
@@ -3688,7 +3806,7 @@ def _plan_practice_day(
         cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
         room = (
             budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
-            - read_cost - input_gap
+            - read_cost - desk_cost - input_gap
         )
         # The rule step and its items share the day's step envelope.
         kept = list(intro_items)[: max(0, min(caps.max_recall, caps.max_steps - 5))]
@@ -3702,6 +3820,7 @@ def _plan_practice_day(
         # so do the «Lecture» and the input floor (only heard items use it).
         headroom = (
             budget_seconds - (scene_cost + cost + resolution_cost) - forge_reserve - read_cost
+            - desk_cost
         )
         reserved = intro_reserve(turn_count)
         max_items: int | None = None
@@ -3788,6 +3907,17 @@ def _plan_practice_day(
         shape_reason = "shape_needs_a_recall_step"
         if not items:
             respond_cost, items = attempt(turns)
+    if desk_step is not None:
+        # «Le bureau»: the desk takes one ordinary recall's place, so the day
+        # keeps its step envelope. A shape that needs every item it has keeps
+        # them and gives up the desk instead.
+        dropped = _drop_one_recall(items)
+        if dropped is not None and len(dropped) < practice_day_shape_rule(shape, budget_seconds).min_recall:
+            notes.append(f"desk skipped: the {shape} day needs its {len(items)} recall item(s)")
+            desk_step = None
+        elif dropped is not None:
+            items = dropped
+            notes.append("desk: one ordinary recall item given up for it")
 
     practised = {target_identity(item.entry.target) for item in items}
     used_targets = list(selection.selected)
@@ -3972,6 +4102,8 @@ def _plan_practice_day(
     # the word from today (WP-93 put them after the reply) follow the ending.
     for item in [*placed("mid"), *placed("post")]:
         steps.append(_recall_step(len(steps), item))
+    if desk_step is not None:
+        steps.append(desk_step)
     steps.extend(read_steps)
 
     if forge:

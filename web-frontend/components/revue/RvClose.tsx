@@ -6,7 +6,8 @@
  * learner's part marked (underline + «toi»), three lines, the byline with
  * Romy's face. RvKept: the plan's words as WordToken rows with their gloss,
  * then the claims shown with their source lines. Phase 2: a word the rubric
- * found used correctly (WIRE §6.3 `words[].outcome`) wears the Relevé's mark for
+ * found used correctly (WIRE §6.3 `words[].outcome`, stored on the close's
+ * `kept.words[].outcome` so it survives a reload, §3.8) wears the Relevé's mark for
  * a learned word (the ink «known» token) and says so in words.
  *
  * WP-120: `RvCloseVignette` — the vignette the close minted, stamped in (300 ms,
@@ -90,7 +91,8 @@ export function RvKept({
       {words.length > 0 && (
         <ul className="rv-kept__rows">
           {words.map((word) => {
-            const right = wordOutcome(outcomes, word.fr) === 'correct';
+            // The close's stored outcome (survives a reload), else this visit's merged evidence.
+            const right = word.outcome === 'correct' || wordOutcome(outcomes, word.fr) === 'correct';
             return (
               <li key={`${word.claimId}-${word.fr}`} className="rv-kept__row" data-outcome={right ? 'correct' : undefined}>
                 <WordToken word={word.fr} gender={wordGender(word.fr)} state={right ? 'mastered' : word.used ? 'learning' : 'new'} size="sm" />

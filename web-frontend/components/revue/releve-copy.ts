@@ -25,6 +25,9 @@ export type ReleveCopy = {
   /** The journey player's Revue-day mount. */
   papier_loading: string;
   papier_error: string;
+  /** WP-121 A.4: «N mots t'attendent sur la carte» → /carte (when the map has due words). */
+  carte_due_one: string;
+  carte_due_other: string;
 };
 
 const FR: ReleveCopy = {
@@ -43,6 +46,8 @@ const FR: ReleveCopy = {
   claims_label: 'Les faits et leurs sources',
   papier_loading: 'Romy rassemble ses notes',
   papier_error: "Le Papier ne répond pas pour le moment. Ta journée est faite ; il t'attend sur La Une.",
+  carte_due_one: '1 mot t’attend sur la carte',
+  carte_due_other: '{n} mots t’attendent sur la carte',
 };
 
 const EN: ReleveCopy = {
@@ -61,6 +66,8 @@ const EN: ReleveCopy = {
   claims_label: 'The facts and their sources',
   papier_loading: 'Romy is gathering her notes',
   papier_error: "Le Papier isn't answering right now. Your day is done; it waits for you on La Une.",
+  carte_due_one: '1 word is waiting for you on the map',
+  carte_due_other: '{n} words are waiting for you on the map',
 };
 
 const DE: ReleveCopy = {
@@ -79,13 +86,15 @@ const DE: ReleveCopy = {
   claims_label: 'Die Fakten und ihre Quellen',
   papier_loading: 'Romy sammelt ihre Notizen',
   papier_error: 'Le Papier antwortet gerade nicht. Dein Tag ist geschafft; er wartet auf La Une auf dich.',
+  carte_due_one: '1 Wort wartet auf der Karte auf dich',
+  carte_due_other: '{n} Wörter warten auf der Karte auf dich',
 };
 
 export function releveCopy(language: unknown): ReleveCopy {
   return language === 'en' ? EN : language === 'de' ? DE : FR;
 }
 
-export function count(copy: ReleveCopy, stem: 'clippings' | 'words' | 'facts', n: number): string {
+export function count(copy: ReleveCopy, stem: 'clippings' | 'words' | 'facts' | 'carte_due', n: number): string {
   const template = n === 1 ? copy[`${stem}_one`] : copy[`${stem}_other`];
   return template.replace('{n}', String(n));
 }

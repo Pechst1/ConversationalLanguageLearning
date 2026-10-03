@@ -67,6 +67,7 @@ import {
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
+import { DeskStepView } from './DeskStep';
 import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
@@ -433,6 +434,17 @@ export function JourneySession({
                   onExit={onExit}
                   language={chromeLanguage}
                   speaker={speaker}
+                />
+              )}
+              {step.kind === 'desk' && (
+                // «Le bureau» (WP-121/122): one Revue desk after the ending —
+                // La Relecture, La Radio or Le Correcteur. Advanced, never answered.
+                <DeskStepView
+                  key={step.id}
+                  step={step}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  language={chromeLanguage}
                 />
               )}
               {step.kind === 'forge' && (

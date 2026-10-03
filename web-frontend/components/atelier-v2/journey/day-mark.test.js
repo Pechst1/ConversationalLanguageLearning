@@ -137,9 +137,10 @@ test('the step → shape mapping is the logo’s', () => {
   // WP-L4: the Règle is part of the Scène movement — a blue circle too.
   // WP-S4: the folded Forge is retrieval — the yellow square.
   // WP-93: a page to read (Relecture, Coulisses) is input — the blue circle.
+  // «Le bureau» (WP-121/122): a Revue desk after the ending is retrieval — the yellow square.
   assert.deepEqual(STEP_SHAPE, {
     scene: 'story', recall: 'reward', respond: 'action', resolution: 'done', rule: 'story', forge: 'reward',
-    read: 'story',
+    read: 'story', desk: 'reward',
   });
 });
 

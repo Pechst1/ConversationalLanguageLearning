@@ -208,3 +208,43 @@ test('Le Relevé mounts the section right after Le Registre', () => {
   const collection = source.indexOf('---- La Collection ----');
   assert.ok(registre > 0 && papier > registre && collection > papier);
 });
+
+// --- the Relevé's doors: the map's due words (WP-121 A.4) and the Correcteur (WP-122 §4) ---
+
+const { carteSummary } = require('./RvReleveSection.tsx');
+
+test('«N mots t’attendent sur la carte» → /carte when the map has due words, in fr/en/de', () => {
+  const entries = releve.parseReleve({ entries: [wireEntry()] });
+  const cases = [
+    ['fr', 3, '3 mots t’attendent sur la carte'],
+    ['en', 3, '3 words are waiting for you on the map'],
+    ['de', 3, '3 Wörter warten auf der Karte auf dich'],
+    ['fr', 1, '1 mot t’attend sur la carte'],
+  ];
+  for (const [language, due, line] of cases) {
+    const html = decode(render(h(RvReleveSection, { entries, language, now: NOW, carte: { pins: 2, due }, draft: null })));
+    assert.ok(html.includes(`<a class="nb-rv__door" data-releve-due="${due}" href="/carte">${line}</a>`), `${language} ${due}`);
+    assert.match(html, /data-carte-badge="2"/, 'the badge draws from the same read');
+  }
+  const none = decode(render(h(RvReleveSection, { entries, language: 'fr', now: NOW, carte: { pins: 2, due: 0 }, draft: null })));
+  assert.doesNotMatch(none, /data-releve-due/);
+  // One read: the summary of `GET /revue/carte` feeds both doors; a disabled Revue is zero.
+  assert.deepEqual(carteSummary({ enabled: true, view: { counts: { france: 4 }, dueTotal: 5 } }), { pins: 4, due: 5 });
+  assert.deepEqual(carteSummary({ enabled: false }), { pins: 0, due: 0 });
+  const source = fs.readFileSync(path.join(__dirname, 'RvReleveSection.tsx'), 'utf8');
+  assert.equal((source.match(/\.carte\(\)/g) || []).length, 1, 'one GET /revue/carte for the badge and the line');
+  assert.match(source, /<CarteBadge count=\{carte\.pins\}/);
+});
+
+test('«Le Correcteur · un brouillon t’attend» when the week has a draft to correct', () => {
+  const entries = releve.parseReleve({ entries: [wireEntry()] });
+  const draft = { id: 'evergreen-greve', titleFr: 'La grève' };
+  const fr = decode(render(h(RvReleveSection, { entries, language: 'fr', now: NOW, carte: { pins: 0, due: 0 }, draft })));
+  assert.ok(fr.includes('<a class="nb-rv__door" data-releve-correcteur="evergreen-greve" href="/correcteur?dossier=evergreen-greve">Le Correcteur · un brouillon t’attend</a>'), fr);
+  const en = visibleText(decode(render(h(RvReleveSection, { entries, language: 'en', now: NOW, carte: { pins: 0, due: 0 }, draft }))));
+  assert.match(en, /Le Correcteur · a draft is waiting for you/);
+  const de = visibleText(decode(render(h(RvReleveSection, { entries, language: 'de', now: NOW, carte: { pins: 0, due: 0 }, draft }))));
+  assert.match(de, /Le Correcteur · ein Entwurf wartet auf dich/);
+  const without = decode(render(h(RvReleveSection, { entries, language: 'fr', now: NOW, carte: { pins: 0, due: 0 }, draft: null })));
+  assert.doesNotMatch(without, /data-releve-correcteur/);
+});

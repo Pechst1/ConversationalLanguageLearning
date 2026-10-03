@@ -45,6 +45,11 @@ export type CorrecteurCopy = {
   status_selected: string;
   status_correct: string;
   status_wrong: string;
+  /** La Une's chip (short: the 25-word Home) and its accessible name. */
+  chip_label: string;
+  chip_aria: string;
+  /** The Relevé's «Le Papier» row. */
+  releve_row: string;
 };
 
 const FR: CorrecteurCopy = {
@@ -87,6 +92,9 @@ const FR: CorrecteurCopy = {
   status_selected: 'choisie',
   status_correct: 'juste',
   status_wrong: 'fausse',
+  chip_label: 'Le Correcteur',
+  chip_aria: 'Le Correcteur · un brouillon t’attend',
+  releve_row: 'Le Correcteur · un brouillon t’attend',
 };
 
 const EN: CorrecteurCopy = {
@@ -129,6 +137,9 @@ const EN: CorrecteurCopy = {
   status_selected: 'selected',
   status_correct: 'right',
   status_wrong: 'wrong',
+  chip_label: 'Le Correcteur',
+  chip_aria: 'Le Correcteur · a draft is waiting for you',
+  releve_row: 'Le Correcteur · a draft is waiting for you',
 };
 
 const DE: CorrecteurCopy = {
@@ -171,6 +182,9 @@ const DE: CorrecteurCopy = {
   status_selected: 'gewählt',
   status_correct: 'richtig',
   status_wrong: 'falsch',
+  chip_label: 'Le Correcteur',
+  chip_aria: 'Le Correcteur · ein Entwurf wartet auf dich',
+  releve_row: 'Le Correcteur · ein Entwurf wartet auf dich',
 };
 
 export function correcteurCopy(language: unknown): CorrecteurCopy {

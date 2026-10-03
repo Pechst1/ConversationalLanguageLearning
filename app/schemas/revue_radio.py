@@ -67,6 +67,9 @@ class RadioBulletinView(_RadioModel):
     week: str
     seconds: float
     audio: RadioAudio
+    #: Why ``audio`` is ``unavailable``: ``spend_cap`` (the learner's daily spend cap,
+    #: checked before synthesis — the page shows the text) or ``tts_failed``.
+    audio_reason: Literal["spend_cap", "tts_failed"] | None = None
     guest_id: str
     lines: list[RadioLine]
     dictee: RadioDictee

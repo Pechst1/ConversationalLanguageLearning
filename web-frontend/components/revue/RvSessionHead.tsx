@@ -2,8 +2,11 @@
  * WP-119 · RvSessionHead (× · five beats · the column) and RvColumn.
  *
  * The × leaves for La Une with no confirm: the state is append-only, nothing is
- * lost («Quitter la Revue — Romy garde tes notes»). After the close it is a back
- * arrow. `pursue` is the open part of the route, so its segment is double width.
+ * lost («Quitter la Revue — Romy garde tes notes»). After the close — and on a
+ * read-only replay (`back`) — it is a back arrow. `back` switches only the icon and
+ * its label: a read-only replay of an active session keeps its real beat bar
+ * (`ended` alone fills it). `pursue` is the open part of the route, so its segment
+ * is double width.
  *
  * RvColumn (design §3.8): seven short lines inked as the room is used, never a
  * number or a clock. The word shows only at 80 % («Bouclage», the last inked line
@@ -48,17 +51,20 @@ export type RvSessionHeadProps = {
   beat: RvBeat | null;
   room: RvRoom;
   onExit: () => void;
+  /** The session is closed: every beat is filled. */
   ended?: boolean;
+  /** The × becomes a back arrow (and its label «Retour»); the beats are untouched. Defaults to `ended`. */
+  back?: boolean;
   copy: RevueCopy;
 };
 
-export function RvSessionHead({ beat, room, onExit, ended = false, copy }: RvSessionHeadProps) {
+export function RvSessionHead({ beat, room, onExit, ended = false, back = ended, copy }: RvSessionHeadProps) {
   const segments = beatSegments(beat, ended);
   const at = segments.findIndex((segment) => segment.state === 'active');
   return (
     <div className="rv-head">
-      <IconAction label={ended ? copy.back_label : copy.exit_label} onClick={onExit}>
-        {ended ? <ArrowLeftIcon size={18} /> : <CrossIcon size={16} />}
+      <IconAction label={back ? copy.back_label : copy.exit_label} onClick={onExit}>
+        {back ? <ArrowLeftIcon size={18} /> : <CrossIcon size={16} />}
       </IconAction>
       <ol
         className="rv-head__beats"

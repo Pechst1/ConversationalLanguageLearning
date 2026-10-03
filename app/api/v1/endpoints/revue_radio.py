@@ -104,7 +104,9 @@ def read_bulletin(
     db: Session = Depends(get_db),
 ) -> RadioBulletinView:
     dossier = _dossier_or_404(dossier_id)
-    bulletin = radio.bulletin_for(db, dossier, band or radio.learner_band(current_user), owner_id=current_user.id)
+    bulletin = radio.bulletin_for(
+        db, dossier, band or radio.learner_band(current_user), owner_id=current_user.id, user=current_user
+    )
     if bulletin.synthesized_lines or bulletin.cached_lines:
         db.commit()
     dictee = bulletin.dictee
@@ -116,6 +118,7 @@ def read_bulletin(
         week=bulletin.week,
         seconds=bulletin.seconds,
         audio=bulletin.audio,  # type: ignore[arg-type]
+        audio_reason=bulletin.audio_reason,  # type: ignore[arg-type]
         guest_id=bulletin.guest_id,
         lines=[
             RadioLine(

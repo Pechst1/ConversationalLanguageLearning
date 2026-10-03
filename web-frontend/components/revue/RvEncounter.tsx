@@ -12,8 +12,8 @@
  * earlier day an «Hier · tu reprends ici» marker sits where today begins.
  *
  * One red press per screen: the arrive line, «C'est parti», «Continuer», or «On
- * l'envoie à la rédaction»; the close's terminal press is ink («Classer la
- * Revue»), since nothing is left to do.
+ * l'envoie à la rédaction»; the close's terminal press is ink («Classer le
+ * Papier»), since nothing is left to do.
  *
  * Phase 2 («Les invités», WIRE §6): a guest who speaks stands beside Romy on the
  * stage (sliding in on their entrance) and talks in their own bubbles; Romy's
@@ -588,7 +588,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   return (
     <div className="rv-encounter" data-beat={session.beat} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined}>
       <div className="rv-top">
-        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} room={room} onExit={onExit} ended={ended || readOnly} copy={copy} />
+        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} room={room} onExit={onExit} ended={ended} back={ended || readOnly} copy={copy} />
         {(hasSpoken || ended) && stage}
       </div>
       {!hasSpoken && !ended && stage}

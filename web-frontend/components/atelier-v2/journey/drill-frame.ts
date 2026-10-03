@@ -65,6 +65,14 @@ export function drillGoalLine(prompt: GoalPrompt | null | undefined): DrillGoal 
   return null;
 }
 
+/**
+ * WP-121 A.4: «vu au marché d'Aligre, semaine 41» — the small context line under a
+ * recall prompt whose word was kept in a Papier (`prompt.met.place_label_fr`), or null.
+ */
+export function recallMetLine(prompt: { met?: { place_label_fr?: string | null } | null } | null | undefined): string | null {
+  return clean(prompt?.met?.place_label_fr) || null;
+}
+
 /** The kinds whose step header is the drill's name, not the day's objective. */
 export const DRILL_KINDS = ['recall', 'rule', 'forge'] as const;
 export type DrillKind = (typeof DRILL_KINDS)[number];
@@ -75,7 +83,7 @@ export function isDrillKind(kind: unknown): kind is DrillKind {
 
 /** The steps that carry the day's objective: the story and the reply. */
 export function stepShowsDayObjective(kind: unknown): boolean {
-  return !isDrillKind(kind) && kind !== 'read';
+  return !isDrillKind(kind) && kind !== 'read' && kind !== 'desk';
 }
 
 function join(parts: Array<string | null | undefined>): string {
@@ -128,7 +136,7 @@ export function stepHeaderLine(input: {
 }): string {
   const { step } = input;
   if (step && isDrillKind(step.kind)) return drillHeaderLabel(step, input.language, input.copy) ?? '';
-  if (step && step.kind === 'read') return '';
+  if (step && (step.kind === 'read' || step.kind === 'desk')) return '';
   if (step && step.kind === 'respond') return clean(input.location);
   return join([input.location, input.objective]);
 }

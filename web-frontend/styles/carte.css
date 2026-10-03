@@ -193,6 +193,20 @@
   outline-offset: 2px;
 }
 .av2 .carte-badge__france { flex: none; }
+/* The Relevé's other doors under the badge: the map's due words (WP-121 A.4), the
+   Correcteur's waiting draft (WP-122 §4). A plain underlined line, no new colour. */
+.av2 .nb-rv__door {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--av2-tap, 44px);
+  color: var(--av2-ink);
+  font-family: var(--av2-serif);
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.av2 .nb-rv__door:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; }
 .av2 .carte-badge__name { font-family: var(--av2-serif); font-size: 16px; }
 .av2 .carte-badge__count {
   min-width: 22px;

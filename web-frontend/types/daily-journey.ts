@@ -49,6 +49,12 @@ export type ReadVariant = NonNullable<Schemas['ReadPrompt']['variant']>;
 export type ReadStatus = NonNullable<Schemas['ReadPrompt']['status']>;
 export type ReadPrompt = Schemas['ReadPrompt'];
 export type ReadStep = Schemas['ReadStep'];
+/** «Le bureau» (WP-121/122): one Revue desk after the ending. */
+export type DeskPrompt = Schemas['DeskPrompt'];
+export type DeskStep = Schemas['DeskStep'];
+export type DeskKind = DeskPrompt['desk'];
+/** WP-121 A.4: where a recalled word was kept in a Papier. */
+export type RecallMet = Schemas['RecallMet'];
 export type PublicStep = JourneySnapshot['steps'][number];
 export type ForgeEntry = Schemas['ForgeEntry'];
 export type PracticedTarget = Schemas['PracticedTarget'];

@@ -11,8 +11,9 @@
                      three «classiques»). ?band=A1|A2|B1 (options at A1–A2 only),
                      ?lang=de|en|fr.
 
-   No entry point yet: the Relevé and the planner's `correcteur` recall step link
-   here later (WP-122 §4.2); for now the page is reached by its URL. */
+   Reached from La Une's chip «Le Correcteur» (lib/correcteur-une.ts) and the Relevé's
+   «Le Correcteur · un brouillon t'attend»; the planner's `desk` step mounts the same
+   CorrecteurDesk inside the day (components/atelier-v2/journey/DeskStep.tsx). */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';

@@ -112,7 +112,7 @@ type RvItemBase = { id: string /* "<seq>" or "<seq>.<n>" — stable across repla
 | `narration` | `text_fr` | `RvNarration` (sans, no face) | the `arrive` beat: two sentences from place + time scope |
 | `summary` | `speaker: "romy_tremblay"`, `text_fr` | `HeardLine` «Écouter le résumé» | the `arrive` beat: the dossier's `summary_fr` |
 | `line` | `speaker`, `text_fr`, `role`, `translation: string \| null`, `glosses: RvGloss[]` | `RvLine` (speech bubble) | every Romy turn |
-| `mine` | `text_fr`, `mode: "text" \| "voice"` | the learner's bubble | every learner turn |
+| `mine` | `text_fr`, `mode: "text" \| "voice"`, `register_note: "vous_to_tu" \| "tu_to_vous" \| null` | the learner's bubble (and, with a note, the register note under it) | every learner turn; `register_note` from that turn's `evidence` event (2026-10-03), so the note survives a reload |
 | `claims` | `claims: RvClaim[]` (1–2) | `RvClaim` cards (the client folds them into «2 faits sur la table» once the learner speaks) | the claims Romy cites in that turn, first time shown only |
 | `uncertainty` | `text_fr` | `RvUncertainty` (dashed, «Les sources ne le disent pas») | Romy names a gap the dossier lists |
 | `shift` | `reason: "simplify" \| "angle" \| "bouclage" \| "boucle"`, `angle: {id, fr} \| null` | `RvShift` hairline (`role="status"`) | support changed / angle changed / the column reached 80 % or 100 % |
@@ -332,7 +332,9 @@ on stage, for what they witnessed — sets `status: "closed"`, and writes the se
 type RvClosing = {
   romy_line_fr: string;        // what she did with the contribution («J'ai mis ta question dans ma liste pour la rédaction.»)
   dispatch: RvDispatch;        // the clipping; the learner's part is in `contribution`
-  kept: { words: { fr: string; gloss: string; claim_id: string; used: boolean }[]; claims: RvClaim[] };   // «Pour ton Relevé»: words + claims shown, with source lines
+  kept: { words: { fr: string; gloss: string; claim_id: string; used: boolean;
+                  outcome: "correct" | "incorrect" | "unscored" | null }[];  // 2026-10-03: the word's best rubric outcome over the session's evidence events («correct» once stays correct), stored at close so the kept-word mark survives a reload; null = never graded (and on closings stored before)
+          claims: RvClaim[] };   // «Pour ton Relevé»: words + claims shown, with source lines
   question_kept_fr: string | null;   // an open question Romy keeps for the desk / next week
   vignette: VignetteView | null;     // WP-120 §4.3: the stamp minted at close; null when minting failed or is off
   colophon_fr: "La suite la semaine prochaine.";
@@ -502,3 +504,36 @@ vocabulary, headline exercise, question, close). The close writes one pilot-ledg
 `event_type = "revue_session"`, `entity_type = "revue_session"`, `entity_id` = the session id,
 `cost_usd` = the sum, `payload = {week, dossier_id, turns, guests, provider, grader}` — the cost report's
 `revue` line reads it by event type.
+
+## 7. Steps the planner deals («Le bureau», 2026-10-03)
+
+The Revue's other desks reach the daily journey as **one optional step** after the ending (before the
+«Lecture»), `kind: "desk"` in the journey snapshot (`app/schemas/daily_journey.py` `DeskStep`/`DeskPrompt`).
+Advanced, never answered: each desk grades on its own routes; «Passer» or the desk's own end advances the day.
+
+```ts
+type DeskPrompt = {
+  desk: "relecture" | "radio" | "correcteur";
+  title_fr: string;                      // the dossier's title
+  dossier_id: string | null;             // radio, correcteur
+  relecture: RelectureOffer | null;      // relecture: the offer of GET /revue/relecture/offer
+  seconds: number | null;                // radio: the bulletin's length, rounded to 5 s
+};
+```
+
+| `desk` | Target (read at planning time, nothing created) | The client mounts (`components/atelier-v2/journey/DeskStep.tsx`) | Grades through |
+|---|---|---|---|
+| `relecture` | `relecture.offer(db, user)` — the oldest Papier closed ≥ 6 weeks ago with a kept question or headline, never re-read | `CarteRelecture` on `relecture` (a pair already stored is fetched with `GET /revue/relecture/{id}` and shown) | `POST /revue/relecture/{session_id}` (`carteClient().relectureAnswer`) |
+| `radio` | `radio.radio_week(...)` — the rotation's next unheard bulletin, none heard today (the chip's rule) | `RadioBulletin` (listen first → read → the dictée → «C'est entendu») | `GET /revue/radio/{id}`, `POST …/dictee`, `POST …/heard` |
+| `correcteur` | `correcteur.week_for(...)` — the week's first dossier not yet corrected | `CorrecteurDesk` on a new draft (`POST /revue/correcteur/{id}`); «Dans le Relevé» at the result continues the day | `POST /revue/correcteur/{id}/marks` |
+
+**The rule** (`journey_day_shapes.due_desks` / `choose_desk`, `journey_planner._desk_step`):
+at most one desk a day; each desk at most once an ISO week, on or after its own seeded weekday (Mon–Fri, so a
+missed one still has the weekend); only on an ordinary practice day — never «jour du Papier», «jour court», a
+season tentpole or the first day, never on a classic (non-practice) day; only while its flag is on
+(`REVUE_ENABLED` for La Relecture, plus `REVUE_RADIO_ENABLED` for La Radio, `REVUE_CORRECTEUR_ENABLED` for Le
+Correcteur) and its offer is non-empty. A desk is priced at 120 s (Relecture) or 150 s (Radio, Correcteur),
+reserved from the day's drills, and the day gives up one ordinary recall item for it (the last item after the
+ending); a day whose budget cannot hold it, or whose shape needs every recall it has, plans no desk. «Dealt this
+week» is read from the learner's earlier journeys' `desk` steps.
+

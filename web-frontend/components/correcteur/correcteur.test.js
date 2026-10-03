@@ -183,3 +183,123 @@ test('the mock client grades with the same rules', async () => {
   assert.equal(result.counts.repaired, 3);
   assert.equal(result.romyLineFr, fixture.romy_lines.A.all_repaired);
 });
+
+// --- 6. La Une and the Relevé: «Le Correcteur · un brouillon t'attend» -------------
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { correcteurHomeChip, correcteurWaiting, withCorrecteurChip, correcteurHref } = require('../../lib/correcteur-une.ts');
+const { radioHomeChip, withRadioChip } = require('../../lib/radio-une.ts');
+const radioTypes = require('../../lib/radio-types.ts');
+const { parseWeek } = require('../../lib/correcteur-types.ts');
+
+const CR_WEEK = { enabled: true, week: parseWeek({ week: '2026-W40', label: 'Semaine 40', dossiers: [{ id: 'evergreen-greve-transports', title_fr: 'Grève', topic: 'work', evergreen: true }], corrected: [] }) };
+
+test('the chip «Le Correcteur» to the waiting draft; none when off, nothing waits, or one was corrected this week', () => {
+  const chip = correcteurHomeChip(CR_WEEK, 'fr');
+  assert.deepEqual(chip, {
+    id: 'correcteur',
+    label: 'Le Correcteur',
+    ariaLabel: 'Le Correcteur · un brouillon t’attend',
+    href: '/correcteur?dossier=evergreen-greve-transports',
+    shape: 'story',
+  });
+  assert.equal(correcteurHomeChip(CR_WEEK, 'en').ariaLabel, 'Le Correcteur · a draft is waiting for you');
+  assert.equal(correcteurHomeChip(CR_WEEK, 'de').ariaLabel, 'Le Correcteur · ein Entwurf wartet auf dich');
+  assert.equal(correcteurHomeChip({ enabled: false }, 'fr'), null);
+  assert.equal(correcteurHomeChip({ enabled: true, week: { ...CR_WEEK.week, dossiers: [] } }, 'fr'), null);
+  assert.equal(correcteurHomeChip({ enabled: true, week: { ...CR_WEEK.week, corrected: ['x'] } }, 'fr'), null);
+  assert.deepEqual(correcteurWaiting(CR_WEEK), { id: 'evergreen-greve-transports', titleFr: 'Grève' });
+  assert.equal(correcteurHref('a b'), '/correcteur?dossier=a%20b');
+  // Its place: after the Radio, else the Revue, else the letter, else first; never on the Papier day.
+  const ids = (chips) => chips.map((c) => c.id);
+  const [letter, revue, radio, words, cr] = ['courrier', 'revue', 'radio', 'lexique', 'correcteur'].map((id) => ({ id }));
+  assert.deepEqual(ids(withCorrecteurChip([letter, revue, radio, words], cr)), ['courrier', 'revue', 'radio', 'correcteur', 'lexique']);
+  assert.deepEqual(ids(withCorrecteurChip([revue, words], cr)), ['revue', 'correcteur', 'lexique']);
+  assert.deepEqual(ids(withCorrecteurChip([letter, words], cr)), ['courrier', 'correcteur', 'lexique']);
+  assert.deepEqual(ids(withCorrecteurChip([words], cr)), ['correcteur', 'lexique']);
+  assert.deepEqual(ids(withCorrecteurChip([words], cr, true)), ['lexique'], 'the Papier day keeps La Une whole');
+  assert.deepEqual(ids(withCorrecteurChip([letter], null)), ['courrier']);
+  const page = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'atelier.tsx'), 'utf8');
+  assert.match(page, /withCorrecteurChip<HomeChip>\(withRadioChip<HomeChip>\(/);
+});
+
+// HomeScreen's budget: at most two chips, in precedence letter · Papier · Radio · Correcteur · words due.
+const { HomeScreen } = require('../atelier-v2/home/HomeScreen.tsx');
+const { JourneyTodayCard } = require('../atelier-v2/journey/JourneyTodayCard.tsx');
+const journeyState = require('../atelier-v2/journey/journey-state.ts');
+const { dayMarkState } = require('../atelier-v2/journey/day-mark.ts');
+const { atelierCopy } = require('../../lib/atelier-v2-copy.ts');
+const revueTypes = require('../../lib/revue-types.ts');
+const { revueHomeChip } = require('../revue/revue-home.ts');
+const { WEB_ROOT } = require('../revue/revue-test-setup');
+
+const REPO_ROOT = path.resolve(WEB_ROOT, '..');
+const DAY = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'tests/fixtures/daily_journey_v1/public/first_day.json'), 'utf8')).response;
+const REVUE = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'components/revue/fixtures/mock-wire.json'), 'utf8'));
+const RADIO = { enabled: true, week: radioTypes.parseRadioWeek({ week: '2026-W40', current: { dossier_id: 'evergreen-greve-transports', title_fr: 'Grève', topic: 'work', evergreen: true }, queue: [], heard: [], heard_today: false, chip: true, seconds: 53 }) };
+const wordCount = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token)).length;
+const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const primaries = (html) => (html.match(/av2-btn--primary/g) || []).length;
+
+function home(language, chips, extra = {}) {
+  const envelope = { ...DAY, control_language: language };
+  const controller = {
+    phase: journeyState.phaseFromEnvelope(envelope),
+    feedback: { kind: 'idle' },
+    envelope,
+    journey: envelope.journey ?? null,
+    step: null,
+    respondPrompt: null,
+    controlLanguage: language,
+    legacyResume: envelope.legacy_resume ?? null,
+    progress: journeyState.journeyProgress(envelope.journey ?? null),
+    busy: false,
+    help: null,
+    actions: new Proxy({}, { get: () => () => Promise.resolve() }),
+  };
+  return render(
+    h(HomeScreen, {
+      dateLabel: 'mardi 23 septembre',
+      editionLabel: 'Édition Nº 4 · A1.1',
+      streak: 4,
+      level: { band: 'A1.1', percent: 60 },
+      language,
+      day: dayMarkState(null, language),
+      hero: h(JourneyTodayCard, { controller, onOpen: () => {} }),
+      chips,
+      ...extra,
+    }),
+  );
+}
+
+test('La Une budget: the Correcteur shows only when fewer than two of letter · Papier · Radio are on; ≤ 25 words, one press', () => {
+  const revueWeek = { enabled: true, offer: revueTypes.parseOffer(REVUE.offer) };
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = atelierCopy(language);
+    const letter = { id: 'courrier', label: copy.home_letter, ariaLabel: copy.home_letter_aria, href: '/missions?mission=1', shape: 'story' };
+    const words = { id: 'lexique', label: copy.home_words_many.replace('{n}', '3'), ariaLabel: copy.home_review_many.replace('{n}', '3'), href: '/vocabulary/review' };
+    const revue = revueHomeChip(revueWeek, language);
+    const radio = radioHomeChip(RADIO, language);
+    const cr = correcteurHomeChip(CR_WEEK, language);
+    const cases = [
+      [[letter, revue, words], radio, ['courrier', 'revue']],
+      [[revue, words], radio, ['revue', 'radio']],
+      [[revue, words], null, ['revue', 'correcteur']],
+      [[letter, words], null, ['courrier', 'correcteur']],
+      [[words], radio, ['radio', 'correcteur']],
+      [[words], null, ['correcteur', 'lexique']],
+    ];
+    for (const [base, radioChip, shown] of cases) {
+      const chips = withCorrecteurChip(withRadioChip(base, radioChip), cr);
+      const html = home(language, chips);
+      const drawn = [...html.matchAll(/data-chip="([^"]+)"/g)].map((m) => m[1]);
+      assert.deepEqual(drawn, shown, `${language}: ${base.map((c) => c.id).join('+')}${radioChip ? '+radio' : ''}`);
+      const count = wordCount(prose(html));
+      assert.ok(count <= 25, `${language}: ${count} words — ${prose(html)}`);
+      assert.equal(primaries(html), 1, 'a chip is never a press');
+    }
+    const done = home(language, withCorrecteurChip([words], cr), { dayDone: true });
+    assert.ok((done.match(/data-chip=/g) || []).length <= 1);
+  }
+});

@@ -30,7 +30,7 @@ import type { ControlLanguage, JourneySnapshot, PublicStep, StepKind } from '@/t
 
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
-export type DayMarkGroup = Exclude<StepKind, 'rule' | 'forge' | 'read'>;
+export type DayMarkGroup = Exclude<StepKind, 'rule' | 'forge' | 'read' | 'desk'>;
 
 /**
  * `done` — every step of the group is resolved; `active` — the learner is in
@@ -61,6 +61,8 @@ export const STEP_SHAPE: Record<StepKind, ShapeKind> = {
   rule: 'story',
   forge: 'reward',
   read: 'story',
+  // «Le bureau» (WP-121/122): a Revue desk after the ending is recall practice.
+  desk: 'reward',
 };
 
 /** The mark's group a step counts in: the Règle and a page to read are part of the Scène, the Forge of the Rappel. */
@@ -68,6 +70,7 @@ export function dayMarkGroupOf(kind: StepKind): DayMarkGroup {
   if (kind === 'rule') return 'scene';
   if (kind === 'forge') return 'recall';
   if (kind === 'read') return 'scene';
+  if (kind === 'desk') return 'recall';
   return kind;
 }
 

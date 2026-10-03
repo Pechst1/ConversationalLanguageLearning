@@ -264,3 +264,63 @@ def test_routes_answer_when_on(api: TestClient, monkeypatch) -> None:
     assert heard.status_code == 200, heard.text
     assert GREVE in heard.json()["heard"] and heard.json()["heard_today"] is True and heard.json()["chip"] is False
     assert api.get("/api/v1/revue/radio/nope", headers=headers).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# The spend cap (follow-up to WP-122 §3.3)
+# ---------------------------------------------------------------------------
+
+
+def _spend(db: Session, user: User, usd: float) -> None:
+    from app.services.pilot_events import PilotEventService
+
+    PilotEventService(db).record("journey_story_turn_cost", user_id=user.id, cost_usd=usd, payload={})
+    db.flush()
+
+
+def test_over_the_daily_spend_cap_the_bulletin_is_text_only_and_says_why(db_session: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "USER_DAILY_SPEND_CAP_USD", 0.50)
+    user = make_user(db_session)
+    # A band no other test speaks: a bulletin already cached anywhere costs nothing.
+    _spend(db_session, user, 0.49)  # ≥ 90 % of the cap, the line-audio route's threshold
+    tts = FakeTts()
+    bulletin = radio.bulletin_for(db_session, greve(), "A1", tts=tts, owner_id=user.id, provider=object(), week=WEEK, user=user)
+    assert tts.calls == [], "nothing is synthesised over the cap"
+    assert (bulletin.audio, bulletin.audio_reason) == ("unavailable", "spend_cap")
+    assert all(line.clip_url is None for line in bulletin.lines) and bulletin.lines
+    # Under the cap it speaks; a cached replay is never capped (it costs nothing).
+    other = make_user(db_session)
+    spoken = radio.bulletin_for(db_session, greve(), "A1", tts=tts, owner_id=other.id, provider=object(), week=WEEK)
+    assert spoken.audio == "ready" and spoken.audio_reason is None
+    _spend(db_session, other, 0.60)
+    calls = len(tts.calls)
+    again = radio.bulletin_for(db_session, greve(), "A1", tts=tts, owner_id=other.id, provider=object(), week=WEEK)
+    assert again.audio == "ready" and len(tts.calls) == calls
+    # A cap of 0 is off.
+    monkeypatch.setattr(settings, "USER_DAILY_SPEND_CAP_USD", 0.0)
+    assert radio.over_spend_cap(db_session, user.id, user=user) is False
+
+
+def test_the_route_shows_the_text_with_reason_spend_cap(api: TestClient, db_session: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_RADIO_ENABLED", True)
+    monkeypatch.setattr(settings, "USER_DAILY_SPEND_CAP_USD", 0.50)
+    monkeypatch.setattr(radio, "_default_synthesizer", lambda: object())
+    tts = FakeTts()
+    original = radio.bulletin_for
+
+    def with_fake(*args, **kwargs):  # noqa: ANN002, ANN003
+        kwargs["tts"] = tts
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(radio, "bulletin_for", with_fake)
+    headers = login(api)
+    me = api.get("/api/v1/users/me", headers=headers).json()
+    user = db_session.get(User, uuid.UUID(str(me["id"])))
+    _spend(db_session, user, 0.50)
+    view = api.get(f"/api/v1/revue/radio/{GREVE}?band=B2", headers=headers)
+    assert view.status_code == 200, view.text
+    body = view.json()
+    assert (body["audio"], body["audio_reason"]) == ("unavailable", "spend_cap")
+    assert body["lines"] and all(line["clip_url"] is None and line["text_fr"] for line in body["lines"])
+    assert tts.calls == []

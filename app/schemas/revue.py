@@ -189,6 +189,10 @@ class RvMineItem(_Item):
     kind: Literal["mine"] = "mine"
     text_fr: str
     mode: Literal["text", "voice"] = "text"
+    #: The rubric's register note on this line (from its ``evidence`` event), replayed
+    #: on every read so the note under the learner's line survives a reload; ``None``
+    #: when the register was fine or the turn was not graded.
+    register_note: Literal["vous_to_tu", "tu_to_vous"] | None = None
 
 
 class RvClaimsItem(_Item):
@@ -323,6 +327,11 @@ class RvClosedWord(RevueModel):
     gloss: str
     claim_id: str
     used: bool
+    #: The rubric's outcome for this word across the session's evidence (a word used
+    #: correctly once stays ``correct``), filled at close so the mark survives a reload;
+    #: ``None`` when the word never came up in a graded turn (and on closings stored
+    #: before this field).
+    outcome: Literal["correct", "incorrect", "unscored"] | None = None
 
 
 class RvKept(RevueModel):

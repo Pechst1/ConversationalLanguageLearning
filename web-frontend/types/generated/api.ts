@@ -7074,6 +7074,51 @@ export interface components {
             declaration?: string;
         };
         /**
+         * DeskPrompt
+         * @description «Le bureau» (WP-121/122): one of the Revue's other desks, folded into an
+         *     ordinary practice day after the ending. Advanced, not answered — each desk
+         *     grades through its own routes. The client mounts:
+         *
+         *     * ``relecture`` — ``CarteRelecture`` on ``relecture`` (the offer of
+         *       ``GET /revue/relecture/offer``), answered with ``POST /revue/relecture/{session_id}``;
+         *     * ``radio`` — the Radio bulletin of ``dossier_id`` (``GET /revue/radio/{id}``),
+         *       listen first, then the dictée, then «C'est entendu»;
+         *     * ``correcteur`` — ``CorrecteurDesk`` on a new draft of ``dossier_id``
+         *       (``POST /revue/correcteur/{id}``).
+         */
+        DeskPrompt: {
+            /**
+             * Desk
+             * @enum {string}
+             */
+            desk: "relecture" | "radio" | "correcteur";
+            /** Dossier Id */
+            dossier_id: string | null;
+            relecture: components["schemas"]["RelectureOffer"] | null;
+            /** Seconds */
+            seconds: number | null;
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** DeskStep */
+        DeskStep: {
+            /** Assistance Used */
+            assistance_used: components["schemas"]["AssistanceLevel"][];
+            /** Estimated Seconds */
+            estimated_seconds: number;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "desk";
+            /** Ordinal */
+            ordinal: number;
+            prompt: components["schemas"]["DeskPrompt"];
+            status: components["schemas"]["StepStatus"];
+        };
+        /**
          * DetectedErrorRead
          * @description Serialized error feedback for API consumers.
          */
@@ -8730,7 +8775,7 @@ export interface components {
             special: "epreuve" | null;
             status: components["schemas"]["JourneyStatus"];
             /** Steps */
-            steps: (components["schemas"]["SceneStep"] | components["schemas"]["RecallStep"] | components["schemas"]["RespondStep"] | components["schemas"]["ResolutionStep"] | components["schemas"]["RuleStep"] | components["schemas"]["ForgeStep"] | components["schemas"]["ReadStep"])[];
+            steps: (components["schemas"]["SceneStep"] | components["schemas"]["RecallStep"] | components["schemas"]["RespondStep"] | components["schemas"]["ResolutionStep"] | components["schemas"]["RuleStep"] | components["schemas"]["ForgeStep"] | components["schemas"]["ReadStep"] | components["schemas"]["DeskStep"])[];
             streak: components["schemas"]["StreakView"] | null;
             /** Timezone */
             timezone: string;
@@ -9692,6 +9737,8 @@ export interface components {
              * @enum {string}
              */
             audio: "ready" | "unavailable" | "text_only";
+            /** Audio Reason */
+            audio_reason?: ("spend_cap" | "tts_failed") | null;
             /** Band */
             band: string;
             dictee: components["schemas"]["RadioDictee"];
@@ -9876,6 +9923,14 @@ export interface components {
             version: number;
         };
         /**
+         * RecallMet
+         * @description WP-121 A.4: the Papier a recalled word was kept in, as one French line.
+         */
+        RecallMet: {
+            /** Place Label Fr */
+            place_label_fr: string;
+        };
+        /**
          * RecallOption
          * @description Never carries correctness: an option id says nothing about the answer.
          */
@@ -9900,6 +9955,7 @@ export interface components {
             help_available: components["schemas"]["HelpKind"][];
             /** Instruction Native */
             instruction_native: string;
+            met?: components["schemas"]["RecallMet"] | null;
             /** Optional */
             optional: boolean;
             /** Options */
@@ -10634,6 +10690,8 @@ export interface components {
             fr: string;
             /** Gloss */
             gloss: string;
+            /** Outcome */
+            outcome?: ("correct" | "incorrect" | "unscored") | null;
             /** Used */
             used: boolean;
         };
@@ -10984,6 +11042,8 @@ export interface components {
              * @enum {string}
              */
             mode?: "text" | "voice";
+            /** Register Note */
+            register_note?: ("vous_to_tu" | "tu_to_vous") | null;
             /** Seq */
             seq: number;
             /** Text Fr */

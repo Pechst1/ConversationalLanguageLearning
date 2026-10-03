@@ -194,6 +194,19 @@ class StepKind(StrEnum):
     #: another cast member's side («coulisses»). Optional, advanced not
     #: answered, at most one a day, after the ending.
     READ = "read"
+    #: WP-121/122 follow-up «Le bureau»: one of the Revue's other desks folded
+    #: into an ordinary practice day — ``relecture`` (answer your own Papier's
+    #: question again, WP-121 §B), ``radio`` (the week's bulletin, listen first,
+    #: then the dictée, WP-122 §3) or ``correcteur`` (Romy's seeded draft,
+    #: WP-122 §4). The desk is named by ``public_prompt["desk"]``. Optional,
+    #: advanced not answered (each desk grades through its own routes), at most
+    #: one a day, after the ending and before the «Lecture». See
+    #: :data:`DESK_KINDS` and ``journey_day_shapes.choose_desk``.
+    DESK = "desk"
+
+
+#: The three desks a «bureau» step can open (``public_prompt["desk"]``).
+DESK_KINDS: tuple[str, ...] = ("relecture", "radio", "correcteur")
 
 
 class DayShape(StrEnum):
@@ -925,6 +938,8 @@ class PlannedJourney:
             raise ValueError("only a practice day folds in the forge")
         if StepKind.READ in kinds:
             raise ValueError("only a practice day plans a «Lecture»")
+        if StepKind.DESK in kinds:
+            raise ValueError("only a practice day deals a desk step")
         if (
             first_day
             and kinds.count(StepKind.RESPOND) == 1
@@ -1012,11 +1027,19 @@ class PlannedJourney:
         resolution_at = kinds.index(StepKind.RESOLUTION)
         if resolution_at != kinds.index(StepKind.RESPOND) + 1:
             raise ValueError("nothing may sit between the reply and the ending")
-        if any(kind is not StepKind.RECALL for kind in body[resolution_at + 1 :]):
+        if any(kind not in (StepKind.RECALL, StepKind.DESK) for kind in body[resolution_at + 1 :]):
             raise ValueError("only practice may follow the ending")
+        # «Le bureau»: at most one desk a day, optional, after the ending.
+        if kinds.count(StepKind.DESK) > 1:
+            raise ValueError("a day deals at most one desk step")
         for step in self.steps:
             if step.kind is StepKind.READ and not step.optional:
                 raise ValueError("the «Lecture» is optional")
+            if step.kind is StepKind.DESK:
+                if not step.optional:
+                    raise ValueError("a desk step is optional")
+                if str((step.public_prompt or {}).get("desk") or "") not in DESK_KINDS:
+                    raise ValueError("a desk step names its desk")
         scene_at = kinds.index(StepKind.SCENE)
         respond_at = kinds.index(StepKind.RESPOND)
         allowed_before = (StepKind.RECALL, StepKind.RULE, StepKind.FORGE)

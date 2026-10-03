@@ -337,3 +337,20 @@ test('La Une: letter + Papier + Radio → the letter and the Papier (the Radio w
     assert.ok((done.match(/data-chip=/g) || []).length <= 1);
   }
 });
+
+test('over the daily spend cap: the wire says why, the page shows the text and no play', () => {
+  const wire = {
+    dossier_id: 'evergreen-greve-transports', title_fr: 'Grève', topic: 'work', band: 'A2', week: '2026-W40', seconds: 53,
+    audio: 'unavailable', audio_reason: 'spend_cap', guest_id: 'marin_leveque',
+    lines: [{ index: 0, speaker: 'romy_tremblay', speaker_name: 'Romy', role: 'lede', text_fr: 'Les transports sont en grève.', clip_url: null, claim_id: null }],
+    dictee: { line_index: 0, words: 5 }, stage: { plate_url: null, place_fr: 'Paris' },
+  };
+  const bulletin = types.parseBulletin(wire);
+  assert.equal(bulletin.audio, 'unavailable');
+  assert.equal(bulletin.audioReason, 'spend_cap');
+  assert.equal(types.parseBulletin({ ...wire, audio_reason: 'other' }).audioReason, null);
+  const html = surface({ bulletin });
+  assert.match(visibleText(html), /The sound can’t be played right now\. Here is the text\./);
+  assert.match(visibleText(html), /Les transports sont en grève/);
+  assert.equal(model.textVisible('idle', false, bulletin.audio), true);
+});

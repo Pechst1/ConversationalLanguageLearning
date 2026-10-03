@@ -119,7 +119,8 @@ export type RvGuestItem = ItemBase & {
   reason: RvFallbackReason | null;
   glosses: RvGloss[];
 };
-export type RvMineItem = ItemBase & { kind: 'mine'; textFr: string; mode: 'text' | 'voice' };
+/** `registerNote`: the rubric's note on this line, replayed by the server (WIRE §2), so it survives a reload. */
+export type RvMineItem = ItemBase & { kind: 'mine'; textFr: string; mode: 'text' | 'voice'; registerNote: Exclude<RvRegisterNote, 'ok'> | null };
 export type RvClaimsItem = ItemBase & { kind: 'claims'; claims: RvClaim[] };
 export type RvUncertaintyItem = ItemBase & { kind: 'uncertainty'; textFr: string };
 export type RvShiftItem = ItemBase & { kind: 'shift'; reason: RvShiftReason; angle: { id: string; fr: string } | null };
@@ -192,7 +193,8 @@ export type RvDossierView = {
   evergreen: boolean;
   sources: RvSource[];
 };
-export type RvKeptWord = { fr: string; gloss: string; claimId: string; used: boolean };
+/** `outcome`: the rubric's best outcome for the word over the session, stored at close (WIRE §3.8); null when never graded. */
+export type RvKeptWord = { fr: string; gloss: string; claimId: string; used: boolean; outcome: RvOutcome | null };
 export type RvClosing = {
   romyLineFr: string;
   dispatch: RvDispatch;
@@ -539,7 +541,13 @@ export function parseThreadItem(raw: Json): RvThreadItem | null {
         glosses: list(raw.glosses, parseGloss),
       };
     case 'mine':
-      return { ...base, kind: 'mine', textFr: str(raw.text_fr), mode: raw.mode === 'voice' ? 'voice' : 'text' };
+      return {
+        ...base,
+        kind: 'mine',
+        textFr: str(raw.text_fr),
+        mode: raw.mode === 'voice' ? 'voice' : 'text',
+        registerNote: raw.register_note === 'vous_to_tu' || raw.register_note === 'tu_to_vous' ? raw.register_note : null,
+      };
     case 'claims':
       return { ...base, kind: 'claims', claims: list(raw.claims, parseClaim) };
     case 'uncertainty':
@@ -604,7 +612,13 @@ export function parseClosing(raw: Json): RvClosing {
     romyLineFr: str(raw.romy_line_fr),
     dispatch: parseDispatch(isObject(raw.dispatch) ? raw.dispatch : {}),
     kept: {
-      words: list(kept.words, (word) => ({ fr: str(word.fr), gloss: str(word.gloss), claimId: str(word.claim_id), used: Boolean(word.used) })),
+      words: list(kept.words, (word) => ({
+        fr: str(word.fr),
+        gloss: str(word.gloss),
+        claimId: str(word.claim_id),
+        used: Boolean(word.used),
+        outcome: word.outcome === 'correct' || word.outcome === 'incorrect' || word.outcome === 'unscored' ? word.outcome : null,
+      })),
       claims: list(kept.claims, parseClaim),
     },
     questionKeptFr: strOrNull(raw.question_kept_fr),

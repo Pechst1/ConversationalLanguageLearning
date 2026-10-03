@@ -529,3 +529,48 @@ test('read-only replay (La Carte\'s «Relire»): the thread, no composer, no pre
   assert.doesNotMatch(replay, /Relire la conversation/);
   assert.doesNotMatch(replay, /rv-foot/);
 });
+
+test('a read-only replay of an active session keeps its real beat bar; only the icon is the back arrow', () => {
+  const room = { used: 2, phase: 'open', remainingTurns: 5 };
+  const back = render(h(RvSessionHead, { beat: 'pursue', room, onExit: () => {}, back: true, copy: FR }));
+  assert.match(back, /aria-label="Retour à La Une"/);
+  assert.deepEqual([...back.matchAll(/data-beat="(\w+)" data-state="(\w+)"/g)].map((m) => `${m[1]}:${m[2]}`), [
+    'arrive:done', 'facts:done', 'pursue:active', 'make:pending', 'close:pending',
+  ]);
+  // `ended` still fills every beat and implies the arrow.
+  const ended = render(h(RvSessionHead, { beat: 'close', room, onExit: () => {}, ended: true, copy: FR }));
+  assert.match(ended, /aria-label="Retour à La Une"/);
+  assert.ok(!/data-state="pending"/.test(ended));
+
+  const session = types.parseSessionView(MOCK.session_b1_guest);
+  assert.equal(session.status, 'active');
+  const html = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session, language: 'fr', onExit: () => {}, readOnly: true, now: new Date(at) }));
+  assert.match(html, /aria-label="Retour à La Une"/);
+  assert.match(html, /data-state="pending"/, 'the beats still to come are not filled on a replay');
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, 'RvEncounter.tsx'), 'utf8');
+  assert.match(source, /ended=\{ended\} back=\{ended \|\| readOnly\}/);
+  assert.doesNotMatch(source, /Classer la Revue/);
+});
+
+test('replayable evidence: the kept words wear their stored outcome and the line its register note after a reload', () => {
+  // The wire: `kept.words[].outcome` (WIRE §3.8) and the mine item's `register_note` (§2).
+  const close = types.parseCloseResult(MOCK.close_b1_write);
+  const stored = close.closing.kept.words.map((word, index) => ({ ...word, outcome: index === 0 ? 'correct' : null }));
+  const raw = JSON.parse(JSON.stringify(MOCK.close_b1_write));
+  raw.closing.kept.words = raw.closing.kept.words.map((word, index) => ({ ...word, outcome: index === 0 ? 'correct' : index === 1 ? 'bogus' : undefined }));
+  const parsed = types.parseCloseResult(raw).closing.kept.words;
+  assert.equal(parsed[0].outcome, 'correct');
+  assert.equal(parsed[1].outcome, null, 'an unknown outcome reads as none');
+  const { RvKept } = require('./index.ts');
+  // No evidence in this visit (a reload): the stored outcome alone marks the word.
+  const kept = render(h(RvKept, { words: stored, claims: [], copy: FR, outcomes: {} }));
+  assert.equal((kept.match(/data-outcome="correct"/g) || []).length, 1);
+  assert.match(kept, /bien employé/);
+
+  const mine = types.parseThreadItem({ ...MOCK.session_resume.thread.find((item) => item.kind === 'mine'), register_note: 'vous_to_tu' });
+  assert.equal(mine.registerNote, 'vous_to_tu');
+  assert.equal(types.parseThreadItem({ ...MOCK.session_resume.thread.find((item) => item.kind === 'mine'), register_note: 'ok' }).registerNote, null);
+  const html = render(h(RvThread, { items: [mine], support: SUPPORT_TAP, copy: revueCopy('fr'), registerNotes: {} }));
+  assert.match(html, /data-kind="mine"[\s\S]*data-kind="register"/);
+  assert.match(html, /Avec Romy, on se tutoie\./);
+});

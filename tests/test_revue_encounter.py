@@ -318,6 +318,32 @@ def test_register_note_when_the_learner_says_vous_to_romy(db: Session) -> None:
     assert result.evidence.register_note == "vous_to_tu"
 
 
+def test_the_word_marks_and_the_register_note_replay_after_a_reload(db: Session) -> None:
+    """WIRE §3.8 / §2 follow-up: the close carries each kept word's outcome, and the
+    learner's line carries its register note, so a reload (a GET replay) shows both."""
+
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, "Vous aimez les marchés de Paris ?")
+    revue.turn(row, "Il y a beaucoup de marchés à Paris, c'est bien.")
+    revue.turn(row, "Paris compte 300 marchés.")  # incorrect after a correct use: stays correct
+    _, closing = revue.close(row)
+    outcomes = {word.fr: word.outcome for word in closing.kept.words}
+    assert outcomes["marchés"] == "correct"
+    assert all(outcome in (None, "correct", "incorrect", "unscored") for outcome in outcomes.values())
+    # The replay: a fresh read of the stored session gives the same marks and the note.
+    replayed = revue.view(row)
+    assert {word.fr: word.outcome for word in replayed.closing.kept.words} == outcomes
+    mine = [item for item in replayed.thread if item.kind == "mine"]
+    assert mine[0].register_note == "vous_to_tu"
+    assert all(item.register_note is None for item in mine[1:])
+    # A closing stored before the field reads back with no outcome, never an error.
+    from app.schemas.revue import RvClosedWord
+
+    assert RvClosedWord.model_validate({"fr": "x", "gloss": "y", "claim_id": "c", "used": False}).outcome is None
+
+
 def test_the_critic_goes_through_the_provider_plumbing() -> None:
     stub = _StubLLM('{"words": [{"fr": "marchés", "outcome": "correct", "quote": "des marchés"}], '
                     '"fact_fit": "supported", "register": "ok", "band_fit": "at"}')

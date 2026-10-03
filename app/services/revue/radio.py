@@ -138,6 +138,9 @@ class Bulletin:
     dictee_index: int
     #: ``ready`` (every line has a clip), ``unavailable`` (none has), ``text_only`` (not asked).
     audio: str = "text_only"
+    #: Why ``audio`` is ``unavailable``: ``spend_cap`` (the learner's daily spend cap,
+    #: checked before any line is synthesised) or ``tts_failed``; ``None`` otherwise.
+    audio_reason: str | None = None
     synthesized_lines: int = 0
     cached_lines: int = 0
     cost_usd: float = 0.0
@@ -456,6 +459,42 @@ def _line_cost(clip: LineAudioClip) -> float:
     return estimate_tts_cost_usd(used, int(clip.char_count))
 
 
+def over_spend_cap(db: Session, owner_id: uuid.UUID, *, user: Any = None) -> bool:
+    """The learner's daily spend cap, read the way the line-audio route reads it
+    (``line_audio._cap_near``: at :data:`~app.services.line_audio.CAP_NEAR_SHARE` of
+    ``USER_DAILY_SPEND_CAP_USD``, the learner's own day). A cap of 0 is off; a ledger
+    read that fails never silences the bulletin."""
+
+    from app.services.line_audio import CAP_NEAR_SHARE
+    from app.services.spend_guard import daily_cap_usd, learner_zone, spend_today_usd
+
+    cap = daily_cap_usd()
+    if cap <= 0:
+        return False
+    try:
+        if user is None:
+            from app.db.models.user import User
+
+            user = db.get(User, owner_id)
+        spent = spend_today_usd(db, owner_id, zone=learner_zone(user))
+    except Exception as exc:  # noqa: BLE001 - a ledger read never costs the bulletin
+        logger.warning("revue radio: spend ledger unreadable ({})", exc)
+        return False
+    return spent >= cap * CAP_NEAR_SHARE
+
+
+def _cached_everywhere(db: Session, owner_id: uuid.UUID, lines: list[BulletinLine], band: str) -> bool:
+    """Would every line be served from a clip (the learner's or anyone's) — no TTS call?"""
+
+    for line in lines:
+        keys = _cache_keys(line.speaker, band)
+        if _find(db, clip_id=line.clip_id, keys=keys, owner_id=owner_id) is None and _find(
+            db, clip_id=line.clip_id, keys=keys, owner_id=None
+        ) is None:
+            return False
+    return True
+
+
 def bulletin_for(
     db: Session,
     dossier: EditorialDossier,
@@ -466,15 +505,30 @@ def bulletin_for(
     owner_id: uuid.UUID | None = None,
     provider: Synthesizer | None = None,
     week: str | None = None,
+    user: Any = None,
+    respect_cap: bool = True,
 ) -> Bulletin:
     """The bulletin, spoken for ``owner_id`` (the learner who will hear it).
 
     Without an owner the script comes back ``text_only`` (a clip row needs one). Every
     line is cached (see the module docstring), so a second call makes no TTS call.
+
+    Before anything is synthesised, the learner's daily spend cap is checked
+    (:func:`over_spend_cap`); over it, the bulletin is ``unavailable`` with
+    ``audio_reason="spend_cap"`` and the page shows the text. A bulletin served
+    wholly from cached clips costs nothing and is never capped.
     """
 
     bulletin = bulletin_script(dossier, band, week=week, guest_line=guest_line)
     if owner_id is None:
+        return bulletin
+    if (
+        respect_cap
+        and not _cached_everywhere(db, owner_id, bulletin.lines, bulletin.band)
+        and over_spend_cap(db, owner_id, user=user)
+    ):
+        bulletin.audio = "unavailable"
+        bulletin.audio_reason = "spend_cap"
         return bulletin
     clips: list[LineAudioClip] = []
     for line in bulletin.lines:
@@ -483,6 +537,7 @@ def bulletin_for(
         )
         if clip is None:
             bulletin.audio = "unavailable"
+            bulletin.audio_reason = "tts_failed"
             return bulletin
         clips.append(clip)
         if synthesized:

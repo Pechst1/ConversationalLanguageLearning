@@ -187,6 +187,7 @@ import {
   revueUneEntry,
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
+import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -2874,7 +2875,8 @@ function TodayView({
       ]
     : [];
   const radioWeek = useRadioWeek();
-  const homeChips: HomeChip[] = withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
+  const correcteurWeek = useCorrecteurWeek();
+  const homeChips: HomeChip[] = withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [

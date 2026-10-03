@@ -444,7 +444,8 @@ class Driver:
             if step is None:
                 break
             kind = step["kind"]
-            if kind in ("scene", "resolution", "rule"):
+            if kind in ("scene", "resolution", "rule", "desk"):
+                # «Le bureau» (WP-121/122): a desk is advanced; it grades on its own routes.
                 self.advance()
                 continue
             if kind == "recall":

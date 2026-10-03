@@ -123,6 +123,7 @@ from app.services.journey_day_shapes import (
     DayShapeDecision,
     DayShapeInputs,
     choose_day_shape,
+    choose_desk,
     letter_offer_for,
 )
 from app.services.journey_errata import errata_targets_for_user
@@ -1500,6 +1501,162 @@ class DailyJourneyService:
             )
         )
         return prompt
+
+    # ------------------------------------------------------------------
+    # WP-121/122 — «Le bureau»: the Revue's other desks as one optional step
+    # ------------------------------------------------------------------
+
+    def _desks_dealt_this_week(self, user: User, day: date) -> set[str]:
+        """The desks already planned on this learner's earlier days this ISO week."""
+
+        monday = day - timedelta(days=day.weekday())
+        rows = self.db.execute(
+            select(DailyJourneyStep.public_prompt)
+            .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+            .where(
+                DailyJourney.user_id == user.id,
+                DailyJourney.local_date >= monday,
+                DailyJourney.local_date < day,
+                DailyJourneyStep.kind == str(StepKind.DESK),
+            )
+        ).all()
+        return {
+            str(prompt.get("desk"))
+            for (prompt,) in rows
+            if isinstance(prompt, dict) and prompt.get("desk")
+        }
+
+    def _desk_offer(self, user: User, desk: str, day: date) -> dict[str, Any] | None:
+        """One desk's offer for ``day``, or ``None`` when its flag is off or it has
+        nothing to offer. Read only: nothing is created until the learner opens it."""
+
+        from app.services.journey_planner import desk_offer
+
+        moment = datetime.combine(day, datetime.min.time(), tzinfo=UTC) + timedelta(hours=12)
+        if desk == "relecture":
+            if not getattr(settings, "REVUE_ENABLED", False):
+                return None
+            from app.services.revue import relecture
+
+            offer = relecture.offer(self.db, user, now=moment)
+            if offer is None:
+                return None
+            return desk_offer(
+                "relecture", title_fr=offer.dossier_title_fr, relecture=offer.model_dump(mode="json")
+            )
+        if desk == "radio":
+            if not (
+                getattr(settings, "REVUE_ENABLED", False)
+                and getattr(settings, "REVUE_RADIO_ENABLED", False)
+            ):
+                return None
+            from app.services.revue import radio
+
+            rotation = radio.radio_week(self.db, user.id, now=moment)
+            if not rotation.chip or rotation.current is None:
+                return None
+            script = radio.bulletin_script(
+                rotation.current, radio.learner_band(user), week=rotation.week
+            )
+            return desk_offer(
+                "radio",
+                title_fr=rotation.current.title_fr,
+                dossier_id=rotation.current.id,
+                seconds=int(5 * round(script.seconds / 5)),
+            )
+        if desk == "correcteur":
+            if not getattr(settings, "REVUE_CORRECTEUR_ENABLED", False):
+                return None
+            from app.services.revue import correcteur, radio
+
+            week = correcteur.week_for(self.db, user, radio.current_week(moment))
+            first = next(iter(week.get("dossiers") or []), None)
+            if not first:
+                return None
+            return desk_offer("correcteur", title_fr=str(first["title_fr"]), dossier_id=str(first["id"]))
+        return None
+
+    def _desk_for_today(
+        self, user: User, journey: DailyJourney, dice: DayShapeInputs, shape: Any
+    ) -> dict[str, Any] | None:
+        """Today's desk offer (``journey_day_shapes.choose_desk``), or ``None``.
+
+        Flags off, nothing due this week or nothing on offer: no desk. A failure
+        costs the desk, never the day."""
+
+        if not (
+            getattr(settings, "REVUE_ENABLED", False)
+            or getattr(settings, "REVUE_CORRECTEUR_ENABLED", False)
+        ):
+            return None
+
+        def read() -> dict[str, Any] | None:
+            offers: dict[str, dict[str, Any] | None] = {}
+
+            def offered(desk: str) -> bool:
+                offers[desk] = self._desk_offer(user, desk, journey.local_date)
+                return offers[desk] is not None
+
+            chosen = choose_desk(
+                dice,
+                shape=shape,
+                offered=offered,
+                dealt_this_week=self._desks_dealt_this_week(user, journey.local_date),
+            )
+            return offers.get(chosen) if chosen else None
+
+        return run_best_effort(
+            self.db, "daily_journey: desk offer", read, default=None, log=logger
+        )
+
+    def _with_place_lines(self, user: User, candidates: list[Any]) -> list[Any]:
+        """WP-121 A.4: a vocabulary card kept in a Papier carries
+        ``metadata["place_label_fr"]`` («vu au marché d'Aligre, semaine 41»)."""
+
+        ids: dict[int, int] = {}
+        for index, candidate in enumerate(candidates):
+            target = getattr(candidate, "target", None)
+            if target is None or str(getattr(target, "kind", "")) != str(TargetKind.VOCABULARY):
+                continue
+            try:
+                ids[int(target.id)] = index
+            except (TypeError, ValueError):
+                continue
+        if not ids:
+            return candidates
+
+        def read() -> dict[int, str]:
+            from app.db.models.progress import UserVocabularyProgress
+            from app.services.kept_words import place_line_fr
+
+            rows = self.db.execute(
+                select(UserVocabularyProgress.word_id, UserVocabularyProgress.context).where(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.word_id.in_(list(ids)),
+                )
+            ).all()
+            lines: dict[int, str] = {}
+            for word_id, context in rows:
+                line = place_line_fr(context if isinstance(context, dict) else None)
+                if line:
+                    lines[int(word_id)] = line
+            return lines
+
+        lines = run_best_effort(
+            self.db, "daily_journey: place lines", read, default={}, log=logger
+        )
+        if not lines:
+            return candidates
+        from dataclasses import is_dataclass, replace
+
+        out = list(candidates)
+        for word_id, line in lines.items():
+            candidate = out[ids[word_id]]
+            if is_dataclass(candidate) and hasattr(candidate, "metadata"):
+                out[ids[word_id]] = replace(
+                    candidate, metadata={**dict(candidate.metadata or {}), "place_label_fr": line}
+                )
+        return out
 
     # ------------------------------------------------------------------
     # WP-93 — «Lecture»: a second page on a long rhythm
@@ -3061,6 +3218,15 @@ class DailyJourneyService:
             forge = None if first_day else self._forge_for_today(user, introduction)
             # WP-93 «Lecture»: Soutenu and Intensif buy a second page.
             reading = None if first_day else self._reading_for_today(user, fresh, result)
+            # WP-121/122 «Le bureau»: at most one Revue desk on an ordinary day.
+            desk = (
+                None
+                if first_day or is_tentpole(result.story_context)
+                else self._desk_for_today(user, fresh, dice, decision.shape)
+            )
+            if not first_day:
+                # WP-121 A.4: a card kept in a Papier says where it was met.
+                candidates = self._with_place_lines(user, list(candidates))
             plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
@@ -3081,6 +3247,7 @@ class DailyJourneyService:
                 introduction=introduction,
                 forge=forge,
                 reading=reading,
+                desk=desk,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -3799,6 +3966,7 @@ class DailyJourneyService:
         introduction: Any = None,
         forge: Any = None,
         reading: Any = None,
+        desk: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -3846,6 +4014,9 @@ class DailyJourneyService:
             if reading and "reading" in accepted:
                 # WP-93: the «Lecture», one optional page after the ending.
                 base["reading"] = reading
+            if desk and "desk" in accepted:
+                # WP-121/122 «Le bureau»: one optional Revue desk after the ending.
+                base["desk"] = desk
         return plan_journey(
             **base,
             day_shape=decision.shape,

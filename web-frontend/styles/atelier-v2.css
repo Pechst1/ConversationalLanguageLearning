@@ -1503,6 +1503,25 @@
   min-width: 0;
 }
 
+/* «Le bureau» (WP-121/122): one Revue desk after the ending, its surface inline. */
+.av2 .av2-desk {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.av2 .av2-desk__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.av2 .av2-desk__foot {
+  display: flex;
+  justify-content: center;
+}
+
 /* The graded card: verdict band, then the one forward action. */
 .av2 .av2-graded {
   display: flex;
