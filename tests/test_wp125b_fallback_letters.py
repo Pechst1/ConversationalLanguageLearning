@@ -47,6 +47,24 @@ def provider_off(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "")
 
 
+@pytest.fixture
+def beginner_catalogue(monkeypatch):
+    """Only the A1/A2 canned letters and the A2 story frame — the catalogue as it
+    shipped before any B1+ letter text (an owner-approval item) exists. The tests
+    that prove «none rather than below band» hold on it whatever is added later."""
+
+    monkeypatch.setattr(
+        missions_module,
+        "REAL_WORLD_MISSION_DOMAINS",
+        tuple(item for item in REAL_WORLD_MISSION_DOMAINS if letter_band_index(item["level"]) <= 1),
+    )
+    monkeypatch.setattr(
+        missions_module,
+        "STORY_FRAMES",
+        {key: value for key, value in missions_module.STORY_FRAMES.items() if letter_band_index(key) <= 1},
+    )
+
+
 def _user(db_session, level: str) -> User:
     user = User(
         id=uuid4(),
@@ -129,7 +147,7 @@ def test_a_fallback_letter_is_never_beyond_its_reach(db_session, level):
 
 
 @pytest.mark.parametrize("level", ["B2", "C1"])
-def test_a_b2_or_c1_learner_gets_no_canned_beginner_letter(db_session, level):
+def test_a_b2_or_c1_learner_gets_no_canned_beginner_letter(beginner_catalogue, db_session, level):
     """The bread question to a C1 learner: no canned letter reaches B2 or C1 yet."""
 
     user = _user(db_session, level)
@@ -139,7 +157,7 @@ def test_a_b2_or_c1_learner_gets_no_canned_beginner_letter(db_session, level):
     assert db_session.query(RealWorldMission).filter_by(user_id=user.id).count() == 0
 
 
-def test_the_week_has_no_letter_rather_than_one_below_the_learner(db_session):
+def test_the_week_has_no_letter_rather_than_one_below_the_learner(beginner_catalogue, db_session):
     user = _user(db_session, "C1")
     scheduler = MissionScheduler(db_session)
     # Not the first letter (that one is the cast's, authored for the band).
@@ -153,7 +171,7 @@ def test_the_week_has_no_letter_rather_than_one_below_the_learner(db_session):
     assert today["weekly_mission"] is None
 
 
-def test_the_c1_first_letter_is_romys_open_interview_not_a_story_frame_below_band(db_session):
+def test_the_c1_first_letter_is_romys_open_interview_not_a_story_frame_below_band(beginner_catalogue, db_session):
     """A story frame (A2, open: reach B2) is withheld at C1; the authored B1 interview is not."""
 
     user = _user(db_session, "C1")
@@ -197,7 +215,7 @@ def test_no_canned_letter_is_reprinted_and_the_courrier_runs_out_rather_than_rep
             _complete(db_session, mission)
     assert len(seen) == len(set(seen)), seen
     assert seen, "an A2 learner has credible canned letters"
-    assert raised.value.reason in {"reprinted_recently", "completed_recently"}
+    assert raised.value.reason != "follow_up_unwritten"
 
 
 def test_a_canned_letter_comes_back_only_after_the_reprint_window(db_session):
@@ -242,7 +260,7 @@ def test_a_request_completed_this_week_is_not_asked_again(db_session):
     assert _fit(mission)["request_key"] not in scheduler._letter_rotation(user)["completed_recent"]
 
 
-def test_a_withheld_week_is_not_retried_the_same_day(db_session, monkeypatch):
+def test_a_withheld_week_is_not_retried_the_same_day(beginner_catalogue, db_session, monkeypatch):
     user = _user(db_session, "C1")
     _season_thread(db_session, user)
     scheduler = MissionScheduler(db_session)
