@@ -3652,11 +3652,12 @@ def _advanced_task(
     language: ControlLanguage,
     day_key: str,
     avoid: set[str],
+    level: str | None = None,
 ) -> RecallTask | None:
     if fmt == "contrast":
         for partner in partners:
             task = grammar_items.contrast_item(
-                brief, partner, language=language, day_key=day_key, avoid=avoid
+                brief, partner, language=language, day_key=day_key, avoid=avoid, level=level
             )
             if task is not None:
                 return task
@@ -3668,11 +3669,15 @@ def _advanced_task(
             task = grammar_items.transform_item(
                 {**brief, "contrast_pairs": [pair]}, language=language, review=True
             )
-            if task is not None and not (grammar_items.item_sentences(task) & avoid):
+            if (
+                task is not None
+                and not (grammar_items.item_sentences(task) & avoid)
+                and grammar_items.within_band(task.solution_fr, level)
+            ):
                 return task
         return None
     if fmt == "free":
-        return grammar_items.free_sentence_item(brief, language=language, avoid=avoid)
+        return grammar_items.free_sentence_item(brief, language=language, avoid=avoid, level=level)
     return None
 
 
@@ -3774,7 +3779,7 @@ def fill_advanced_practice(
                     continue
                 task = _advanced_task(
                     fmt, brief, partners=partners_of(brief), language=language, day_key=day_key,
-                    avoid=held,
+                    avoid=held, level=scenario.level_band,
                 )
                 if task is None or not shape_allows_format(shape, task.task_type):
                     continue

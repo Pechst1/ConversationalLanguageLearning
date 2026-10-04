@@ -14,7 +14,7 @@ and returns problems as strings, like :func:`tests.walk_checks.check_life`.
   French sentence (the line printed to work on, or the answer).
 * :func:`check_page_review_is_a_met_unit` — a tentpole's review in context
   (a ``rule`` step with ``review``) comes after the ending, and its unit was met
-  on an earlier day (a rule read, or an item on it).
+  before it (a rule read, or an item on it, earlier that day or before).
 """
 from __future__ import annotations
 
@@ -23,10 +23,12 @@ import unicodedata
 from typing import Any
 
 ADVANCED = ("b1", "b2", "c1")
-#: The pre-WP-129 B1 lives held 2.9–3.1 items a day; with WP-129 an average
-#: B1 life holds 5.5 (8–12 on a day without a new rule, 3–4 on a rule day,
-#: whose reply and guided items fill the budget).
-B1_MIN_MEAN_ITEMS = 5.0
+#: The pre-WP-129 B1 lives held 2.9–3.1 items a day. With WP-129 a day without
+#: a new rule holds 6–12 (the free time is mixed-unit practice); a rule day stays
+#: at 2–4, its reply and the Essai fill the budget. So the floor is held on the
+#: days without a rule, where the fill works, and on the whole life more loosely.
+B1_MIN_MEAN_ITEMS = 4.0
+B1_MIN_MEAN_ITEMS_WITHOUT_RULE = 6.0
 B1_MIN_INTERLEAVED_SHARE = 0.30
 
 
@@ -71,6 +73,7 @@ def check_b1_practice(record: dict[str, Any]) -> list[str]:
     if not str(record.get("persona") or "").startswith(ADVANCED):
         return []
     items = interleaved = days = 0
+    free_items = free_days = 0
     for day in record.get("days") or []:
         if not _events(day) or (day.get("time_budget") or {}).get("longer_day"):
             continue
@@ -79,12 +82,20 @@ def check_b1_practice(record: dict[str, Any]) -> list[str]:
         recalls = _recalls(day)
         items += len(recalls)
         interleaved += sum(1 for event in recalls if _grammar_unit(event) not in (None, intro))
+        if intro is None:
+            free_days += 1
+            free_items += len(recalls)
     if not days:
         return []
     problems: list[str] = []
     mean = items / days
     if mean < B1_MIN_MEAN_ITEMS:
         problems.append(f"{_who(record)}: {mean:.1f} practice items a day (at least {B1_MIN_MEAN_ITEMS:.0f})")
+    if free_days and free_items / free_days < B1_MIN_MEAN_ITEMS_WITHOUT_RULE:
+        problems.append(
+            f"{_who(record)}: {free_items / free_days:.1f} practice items on a day without a new rule "
+            f"(at least {B1_MIN_MEAN_ITEMS_WITHOUT_RULE:.0f})"
+        )
     share = interleaved / items if items else 0.0
     if share < B1_MIN_INTERLEAVED_SHARE:
         problems.append(
@@ -123,9 +134,8 @@ def check_page_review_is_a_met_unit(record: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     met: set[str] = set()
     for day in record.get("days") or []:
-        events = _events(day)
         ended = False
-        for event in events:
+        for event in _events(day):
             kind, prompt = _step(event)
             if kind == "resolution":
                 ended = True
@@ -135,10 +145,11 @@ def check_page_review_is_a_met_unit(record: dict[str, Any]) -> list[str]:
                     problems.append(f"{_who(record)} day {day.get('day')}: the page review shows unit {unit}, not met before")
                 if not ended:
                     problems.append(f"{_who(record)} day {day.get('day')}: the page review comes before the ending")
-        for event in events:
-            kind, prompt = _step(event)
-            if kind == "rule" and not prompt.get("review"):
+            elif kind == "rule":
                 met.add(str(prompt.get("concept_id")))
+            # A unit already practised (a due Rappel earlier the same day, or any
+            # grammar item before) is one the learner has met — a placed learner
+            # meets the units below their band outside the walk's record.
             unit = _grammar_unit(event)
             if unit is not None:
                 met.add(unit)
@@ -174,6 +185,7 @@ def practice_summary(record: dict[str, Any]) -> dict[str, float]:
 __all__ = [
     "B1_MIN_INTERLEAVED_SHARE",
     "B1_MIN_MEAN_ITEMS",
+    "B1_MIN_MEAN_ITEMS_WITHOUT_RULE",
     "check_b1_practice",
     "check_life_wp129",
     "check_one_sentence_one_item",

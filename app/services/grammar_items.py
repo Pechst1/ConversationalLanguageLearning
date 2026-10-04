@@ -32,8 +32,11 @@ due rules ask for production even at low stability.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from app.services.chrome_language import french_chrome
@@ -839,6 +842,59 @@ def item_sentences(task: RecallTask) -> set[str]:
     return out
 
 
+_BANDS = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+
+
+@lru_cache(maxsize=1)
+def _word_bands() -> dict[str, int]:
+    """Each French word's band in the core lexicon (a form takes its lemma's)."""
+
+    path = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_core_lexicon.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    bands: dict[str, int] = {}
+    for lemma, entry in (data.get("lemmas") or {}).items():
+        if isinstance(entry, dict) and " " not in lemma:
+            band = _BANDS.get(str(entry.get("band") or "")[:2].upper(), 1)
+            bands[lemma.casefold()] = min(band, bands.get(lemma.casefold(), band))
+    lemma_band = dict(bands)
+    for form, lemma in (data.get("forms") or {}).items():
+        band = lemma_band.get(str(lemma).casefold())
+        if band is not None:
+            bands[form.casefold()] = min(band, bands.get(form.casefold(), band))
+    return bands
+
+
+def within_band(text: str | None, level: str | None, *, slack: int = 1) -> bool:
+    """WP-129: is every word of ``text`` at most ``slack`` bands above ``level``?
+
+    A catalogue sentence written for a unit's own band may hold a word a B1
+    learner has not met; a practice item of an earlier unit stays at the
+    learner's level. A capitalised word after the first is a name.
+    """
+
+    if not level:
+        return True
+    bands = _word_bands()
+    limit = _BANDS.get(str(level)[:2].upper(), 1) + slack
+    for index, raw in enumerate(re.findall(r"[^\W\d_]+(?:['’-][^\W\d_]+)*", str(text or ""))):
+        if index and raw[:1].isupper():
+            continue
+        whole = fold_apostrophes(raw).casefold()
+        token = whole.split("'")[-1]
+        band = bands.get(whole, bands.get(token))
+        for ending, infinitive in (("ées", "er"), ("és", "er"), ("ée", "er"), ("é", "er")):
+            if band is not None and token.endswith(ending):
+                verb = bands.get(token[: -len(ending)] + infinitive)
+                band = min(band, verb) if verb is not None else band
+                break
+        if band is not None and band > limit:
+            return False
+    return True
+
+
 def _unit_title(brief: dict[str, Any], *, short: bool = False) -> str:
     """The unit's French name; ``short`` keeps its head («Le plus-que-parfait :
     le passé du passé» → «Le plus-que-parfait»)."""
@@ -878,6 +934,7 @@ def contrast_item(
     language: ControlLanguage,
     day_key: str = "",
     avoid: set[str] | None = None,
+    level: str | None = None,
 ) -> RecallTask | None:
     """«Which rule does this sentence use?» — two partner units, one sentence.
 
@@ -900,7 +957,8 @@ def contrast_item(
     pairs.sort(key=lambda pair: _digest("contrast", day_key, pair[0].get("concept_id")))
     for owner, other in pairs:
         sentences = [
-            text for text in _discriminating_sentences(owner, other) if _fold(text) not in avoid
+            text for text in _discriminating_sentences(owner, other)
+            if _fold(text) not in avoid and within_band(text, level)
         ]
         if not sentences:
             continue
@@ -936,6 +994,7 @@ def free_sentence_item(
     *,
     language: ControlLanguage,
     avoid: set[str] | None = None,
+    level: str | None = None,
 ) -> RecallTask | None:
     """«Write a sentence of your own that uses …» — free production of a unit.
 
@@ -951,7 +1010,10 @@ def free_sentence_item(
     if not title:
         return None
     avoid = avoid or set()
-    models = [text for text in form_sentences(brief, []) if _fold(text) not in avoid]
+    models = [
+        text for text in form_sentences(brief, [])
+        if _fold(text) not in avoid and within_band(text, level)
+    ]
     if not models:
         return None
     model = models[0]
@@ -989,6 +1051,7 @@ __all__ = [
     "free_sentence_item",
     "free_sentence_uses_unit",
     "item_sentences",
+    "within_band",
     "detector_span",
     "fold_apostrophes",
     "mentions_rule",
