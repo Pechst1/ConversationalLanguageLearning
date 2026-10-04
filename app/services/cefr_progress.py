@@ -763,8 +763,7 @@ def with_live_grammar(db: Session, user: User, payload: dict[str, Any]) -> dict[
         except Exception:  # pragma: no cover - defensive
             logger.exception("cefr_progress: level could not be recomputed for a newly held unit")
         else:
-            fresh_coverage = fresh.get("coverage")
-            if isinstance(fresh_coverage, dict) and fresh_coverage.get("band") == coverage.get("band"):
+            if isinstance(fresh.get("coverage"), dict):
                 return fresh
     return {
         **payload,
