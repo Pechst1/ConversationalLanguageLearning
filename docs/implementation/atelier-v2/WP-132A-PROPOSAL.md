@@ -1,6 +1,6 @@
 # WP-132A — two story beats (proposal, 2026-10-04)
 
-**Status: proposal for the owner's approval. No story text is committed.** The bible lines and level variants below exist only in [WP-132A-PROPOSAL.patch](WP-132A-PROPOSAL.patch). The validator support they need is committed, and it does nothing until the data changes (`scripts/season_levels.py`, `tests/test_wp132a_validators.py`).
+**Status: approved by the owner on 2026-10-04 and applied.** The patch is applied to `t2.json`, `levels_a.json`, `levels_b.json` and the bible `02-la-haut.md`. `season_check` is ok for t1–t8, and `season_levels --strict` reports 0 problems. The two optional candidates in t4 and t6 were not applied.
 
 Sources: review §2.3 F-6 and §6, owner decision 7 ([EXPERIENCE-REVIEW-2026-10-04.md](EXPERIENCE-REVIEW-2026-10-04.md)), package WP-132 «A» ([WORK-PACKAGES-2026-10-04-experience.md](WORK-PACKAGES-2026-10-04-experience.md)), and [SEASON-LEVELS.md](SEASON-LEVELS.md).
 

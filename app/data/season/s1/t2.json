@@ -1076,7 +1076,25 @@
                 "a2": "Lila s'en souviendra.",
                 "native": {"en": "Lila will remember.", "de": "Lila wird sich daran erinnern."}
               },
-              "sets": {"s1.lila_has_key": true}
+              "sets": {"s1.lila_has_key": true},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.key.double.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "mood": "happy",
+                      "direction": "her hand closes on nothing, as if the key were already in it",
+                      "say": {
+                        "a2": "Un double… pour moi ? Sept heures, alors. Tu ne m'entendras pas.",
+                        "b1": "Un double… rien que pour moi ? Alors à sept heures. Promis, tu ne m'entendras même pas.",
+                        "native": {"en": "A copy… for me? Seven o'clock, then. You won't hear me.", "de": "Ein Zweitschlüssel… für mich? Also um sieben. Du wirst mich nicht hören."}
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               "id": "pas_encore",

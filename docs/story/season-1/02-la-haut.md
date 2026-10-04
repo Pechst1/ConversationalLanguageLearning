@@ -152,7 +152,7 @@ The calendar fills the screen with the prompt **«Elle avait tout prévu ?» Mon
 **P8.** *Visual:* The door, coat on. Lila hesitates on the threshold and looks back at the room: the light will come back tomorrow.
 - LILA · A2 «Tu me prêtes une clé ? Le matin, ici, la lumière… Je peux peindre avant l'école.» · B1 «Tu me prêterais un double ? La lumière du matin, ici… Je pourrais peindre avant l'école.»
 
-- **[ Lui faire un double ]**, subtitle «Lila s'en souviendra.» → `s1.lila_has_key = true`. In gap 2 she starts painting here at 7 a.m. You find her coffee cup in the sink.
+- **[ Lui faire un double ]**, subtitle «Lila s'en souviendra.» → `s1.lila_has_key = true`. LILA *(her hand closes on nothing, as if the key were already in it)* · A2 «Un double… pour moi ? Sept heures, alors. Tu ne m'entendras pas.» · B1 «Un double… rien que pour moi ? Alors à sept heures. Promis, tu ne m'entendras même pas.» In gap 2 she starts painting here at 7 a.m. You find her coffee cup in the sink.
 - **[ Pas encore ]**, subtitle «Lila comprendra.» → `false`. LILA · A2 «Pas encore. D'accord. J'aime bien "encore".»
 
 > **Note.** This small, practical choice decides where Berlin is discovered (T5 B) and which gesture closes the season on the platform (T8). Neither card is cold. «Pas encore» is a real, warm answer.

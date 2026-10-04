@@ -190,12 +190,12 @@
       }
     },
     "88291ad8517b": {
-      "a1": "Odile ne donne pas cette clé. À personne.",
+      "a1": "Cette clé ? Avec Odile, c'était non. À personne.",
       "b2": "Cette clé, elle ne la prêtait jamais. À personne.",
       "c1": "Cette clé-là, elle ne la confiait à personne.",
       "a1_native": {
-        "en": "Odile doesn't give this key away. Not to anyone.",
-        "de": "Odile gibt diesen Schlüssel nicht her. Niemandem."
+        "en": "This key? With Odile, it was no. Not to anyone.",
+        "de": "Dieser Schlüssel? Bei Odile hieß es nein. Für niemanden."
       }
     },
     "a58f3673581e": {
@@ -649,21 +649,21 @@
       }
     },
     "8fc9b9dfbe87": {
-      "a1": "En bas : \"Elle veut partir depuis des mois.\"",
+      "a1": "En bas, on dit : \"Partir, c'était son idée.\"",
       "b2": "En bas, Gus et Marin racontent qu'elle avait tout prévu, qu'elle voulait rentrer chez les siens depuis des mois.",
       "c1": "En bas, la version officielle, c'est qu'elle avait tout prévu. Qu'elle rêvait de rentrer chez les siens depuis des mois.",
       "a1_native": {
-        "en": "Downstairs they say: \"She has wanted to leave for months.\"",
-        "de": "Unten heißt es: \"Sie will schon seit Monaten weg.\""
+        "en": "Downstairs they say: \"Leaving was her idea.\"",
+        "de": "Unten heißt es: \"Wegzugehen war ihre Idee.\""
       }
     },
     "749219271c9c": {
-      "a1": "Elle veut partir ? Montre.",
+      "a1": "C'était son idée ? Montre.",
       "b2": "«Elle avait tout prévu» ? Montre ce qui cloche.",
       "c1": "«Elle avait tout prévu», vraiment ? Montre ce qui cloche.",
       "a1_native": {
-        "en": "She wants to leave? Show me.",
-        "de": "Sie will weg? Zeig es mir."
+        "en": "It was her idea? Show me.",
+        "de": "Es war ihre Idee? Zeig es mir."
       }
     },
     "863dd58e3140": {
@@ -739,7 +739,7 @@
       }
     },
     "7a7fc80c9768": {
-      "a1": "Alors ? Pourquoi elle part, Odile ?",
+      "a1": "Alors ? Pourquoi elle est partie, Odile ?",
       "b2": "Alors, à ton avis, pourquoi est-ce qu'elle est partie ?",
       "c1": "Alors, d'après toi, qu'est-ce qui l'a fait partir ?",
       "a1_native": {
@@ -829,12 +829,12 @@
       }
     },
     "7e4271f31265": {
-      "a1": "Odile sait une chose sur Lila. Lila, silence. À suivre…",
+      "a1": "Odile savait une chose sur Lila. Lila aussi. À suivre…",
       "b2": "Odile connaissait un secret de Lila. Et Lila a rangé la photo un peu trop vite. À suivre…",
       "c1": "Odile en savait long sur Lila. Et Lila a escamoté la photo un peu vite. À suivre…",
       "a1_native": {
-        "en": "Odile knows something about Lila. Lila: silence. To be continued…",
-        "de": "Odile weiß etwas über Lila. Lila: Schweigen. Fortsetzung folgt…"
+        "en": "Odile knew something about Lila. So does Lila. To be continued…",
+        "de": "Odile wusste etwas über Lila. Lila auch. Fortsetzung folgt…"
       }
     },
     "77e1c3c90cdf": {
@@ -964,12 +964,12 @@
       }
     },
     "3fd4cd99849b": {
-      "a1": "Elle veut acheter le Mistral. Avec nous. Marin va adorer.",
+      "a1": "C'était son idée. Le Mistral à nous. Marin va adorer.",
       "b2": "Elle voulait racheter les murs du Mistral, avec tout le quartier. Marin va en devenir fou.",
       "c1": "Elle comptait racheter les murs du Mistral avec tout le quartier. Marin va en faire une syncope.",
       "a1_native": {
-        "en": "She wants to buy Le Mistral. With us. Marin is going to love this.",
-        "de": "Sie will das Mistral kaufen. Mit uns. Marin wird das lieben."
+        "en": "It was her idea. Le Mistral, ours. Marin is going to love this.",
+        "de": "Das war ihre Idee. Das Mistral, unseres. Marin wird das lieben."
       }
     },
     "87b06b1cfa16": {
@@ -1081,12 +1081,12 @@
       }
     },
     "6e1789e7fe4a": {
-      "a1": "Odile a un plan. Une question pour Lila. À suivre…",
+      "a1": "Odile : un plan. Une question pour Lila. À suivre…",
       "b2": "Odile avait un plan pour le Mistral, et une question à poser à Lila. Personne n'y a encore répondu. À suivre…",
       "c1": "Odile avait un plan pour le Mistral — et une question pour Lila, restée sans réponse. À suivre…",
       "a1_native": {
-        "en": "Odile has a plan. A question for Lila. To be continued…",
-        "de": "Odile hat einen Plan. Eine Frage an Lila. Fortsetzung folgt…"
+        "en": "Odile: a plan. A question for Lila. To be continued…",
+        "de": "Odile: ein Plan. Eine Frage an Lila. Fortsetzung folgt…"
       }
     },
     "611dde027b54": {
@@ -1369,21 +1369,21 @@
       }
     },
     "bb8bc81227f0": {
-      "a1": "Oui, voilà. C'est l'idée d'Odile. Regarde.",
+      "a1": "Oui, voilà. C'était l'idée d'Odile. Regarde.",
       "b2": "Justement. C'était son plan à elle. Regarde.",
       "c1": "Justement. C'était son idée à elle. Regarde.",
       "a1_native": {
-        "en": "Yes, exactly. It's Odile's idea. Look.",
-        "de": "Ja, genau. Es ist Odiles Idee. Schau."
+        "en": "Yes, exactly. It was Odile's idea. Look.",
+        "de": "Ja, genau. Das war Odiles Idee. Schau."
       }
     },
     "7ddbf002eb1a": {
-      "a1": "Odile me comprend.",
+      "a1": "Odile savait tout de moi.",
       "b2": "Elle me connaissait par cœur.",
       "c1": "Elle me connaissait comme sa poche.",
       "a1_native": {
-        "en": "Odile understands me.",
-        "de": "Odile versteht mich."
+        "en": "Odile knew everything about me.",
+        "de": "Odile wusste alles über mich."
       }
     },
     "de245a97020f": {
@@ -1630,12 +1630,12 @@
       }
     },
     "60e2d4537a95": {
-      "a1": "Ta grand-mère voit tout. Même ça.",
+      "a1": "Ta grand-mère ? Elle savait tout. Même ça.",
       "b2": "Ta grand-mère ne ratait rien. Pas même ça.",
       "c1": "Rien n'échappait à ta grand-mère. Pas même ça.",
       "a1_native": {
-        "en": "Your grandmother sees everything. Even that.",
-        "de": "Deine Großmutter sieht alles. Sogar das."
+        "en": "Your grandmother? She knew everything. Even that.",
+        "de": "Deine Großmutter? Sie wusste alles. Sogar das."
       }
     },
     "a370c79f933a": {
@@ -2185,6 +2185,15 @@
       "a1_native": {
         "en": "On Monday, thirty people will say: \"What photo?\" And tonight, Lila isn't telling everything either. She turns her phone over. Why? She has a story too. To be continued…",
         "de": "Am Montag werden dreißig Leute sagen: „Welches Foto?“ Und heute Abend sagt auch Lila nicht alles. Sie dreht ihr Handy um. Warum? Auch sie hat eine Geschichte. Fortsetzung folgt…"
+      }
+    },
+    "9d8f939acdaa": {
+      "a1": "Un double ? Merci. Sept heures. Toi, tu dors.",
+      "b2": "Un double… pour moi ? Va pour sept heures. Je serai discrète : tu ne m'entendras pas.",
+      "c1": "Un double… rien qu'à moi ? Sept heures, donc. Je serai plus discrète qu'une souris.",
+      "a1_native": {
+        "en": "A copy? Thank you. Seven o'clock. You'll be asleep.",
+        "de": "Ein Zweitschlüssel? Danke. Sieben Uhr. Du schläfst dann."
       }
     }
   },

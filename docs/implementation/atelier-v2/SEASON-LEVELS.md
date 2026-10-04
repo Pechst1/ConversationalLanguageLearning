@@ -9,7 +9,12 @@ The bible lines stay in `app/data/season/s1/t*.json`; their a1 / b2 / c1 variant
 A1 coverage runs from 95.5 % to 97.9 % per file, B2 from 96.9 % to 98.5 %, and C1 from 95.6 % to 98.3 %. No `b1` variants were written, because the A2 line reads fine at B1.
 
 How the A1 lines were written:
-- Every A2.1+ detector counts as "above A1", so A1 lines use the present tense and the futur proche only. They avoid the passé composé, the imparfait, object pronouns before the verb, `ne … jamais/rien/plus`, `tout le/tous les`, `personne ne`, `quelqu'un/quelque chose`, adverbs in -ment, `premier/moitié/jusqu'à`, `pour + infinitive`, and `dans/depuis + number`. Odile's past is told in the present ("Odile ne donne pas cette clé. À personne.").
+- Every A2.1+ detector counts as "above A1", so A1 lines use the present tense and the futur proche only. They avoid the passé composé, the imparfait, object pronouns before the verb, `ne … jamais/rien/plus`, `tout le/tous les`, `personne ne`, `quelqu'un/quelque chose`, adverbs in -ment, `premier/moitié/jusqu'à`, `pour + infinitive`, and `dans/depuis + number`. Odile's past is told in the present ("Odile ne donne pas cette clé. À personne."), with one exception: **WP-132A** (owner-approved 2026-10-04).
+  - Three glossed past chunks, «elle est partie», «c'était» and «elle savait», may tell Odile's past. Their subject is «elle» or «Odile», or the impersonal «c'était».
+  - A line may hold at most one chunk, and the chunk takes the line's one word outside the list.
+  - The translation beside the line is the chunk's gloss.
+  - `scripts/season_levels.py` (`A1_PAST_CHUNKS`) reads each chunk as its present form for the grammar detectors. It still counts each word on its own for coverage, and reports chunk lines separately.
+  - Eleven A1 lines in t1–t4 and t8 use a chunk; for example, T1 Margaux says «Cette clé ? Avec Odile, c'était non. À personne.». See [WP-132A-PROPOSAL.md](WP-132A-PROPOSAL.md).
 - Each A1 line is ≤ 10 words. Long speeches and documents get an easy-read version of 30 words or more (Marin's co-op pitch, Gus's account of the fire, Margaux's confession, the season question, the t4 hooks).
 - The budget is one word per line outside the A1 list. Words like *vendre, feu, mur, garder, promesse, Solvel, Paris* and *Mistral* all count against it ("Mistral" and "Solvel" are not in the name list), so A1 often says "le café" for the Mistral.
 - C1 detectors also apply to B2 and below, and some are coarse. `REGISTER_QUESTIONS` flags "Vous êtes qui ?". `NARRATION_LITERARY` flags any "<word> Lila" before a later verb. `PERCEPTION_INFINITIVE` flags "laisser partir/tomber". The affected lines were rephrased.

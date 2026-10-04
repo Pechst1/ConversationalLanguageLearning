@@ -127,19 +127,30 @@ def _running(out: str) -> int:
     return int(match.group(1))
 
 
-def test_todays_data_reports_no_chunk(baseline, monkeypatch, capsys):
+#: The t2 A1 lines that tell Odile's past with a chunk since the owner approved
+#: WP-132A (2026-10-04); KEY is one of them.
+APPROVED_T2_CHUNK_LINES = ["8fc9b9dfbe87", "749219271c9c", "7a7fc80c9768", "7e4271f31265", "3fd4cd99849b"]
+
+
+def _chunk_lines(out: str) -> list[str]:
+    match = re.search(r"glossed A1 past chunks.*\n\s+t2\s+a1: \d+ — (.+)", out)
+    return match.group(1).split(", ") if match else []
+
+
+def test_the_approved_data_reports_its_chunk_lines(baseline, monkeypatch, capsys):
     code, out = _run(baseline, None, monkeypatch, capsys)
     assert code == 0, out
-    assert "glossed A1 past chunks" not in out
+    assert _chunk_lines(out) == APPROVED_T2_CHUNK_LINES, out
 
 
 def test_a_glossed_chunk_passes_and_is_reported_apart_with_its_words_counted(baseline, monkeypatch, capsys):
-    _code, before = _run(baseline, None, monkeypatch, capsys)
     old = "Alors ? Pourquoi elle part, Odile ?"
     new = "Alors ? Pourquoi elle est partie, Odile ?"
+    _code, before = _run(baseline, old, monkeypatch, capsys)
+    assert KEY not in _chunk_lines(before), before
     code, out = _run(baseline, new, monkeypatch, capsys)
     assert code == 0, out
-    assert re.search(rf"glossed A1 past chunks.*\n\s+t2\s+a1: 1 — {KEY}", out), out
+    assert KEY in _chunk_lines(out), out
     # «est partie» is two running words in the coverage, never one token.
     resolver = season_levels.default_resolver()
     known = season_levels._known("A1", frozenset({"odile"}))
