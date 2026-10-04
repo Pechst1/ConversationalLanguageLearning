@@ -391,7 +391,9 @@ def drill(client: TestClient, db: Session, headers: dict[str, str], *, quality: 
                 "status_code": submitted.status_code,
             }
         )
-    return {"summary": context.get("summary"), "cards": reviewed}
+    # WP-131: what the day's allowance still held after this deck (the drill's
+    # «Encore N mots» continuation; the walk records it, it does not take it).
+    return {"summary": context.get("summary"), "cards": reviewed, "new_words_left_today": context.get("new_words_left_today")}
 
 
 #: What each quality writes back to a correspondent.

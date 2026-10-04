@@ -1049,6 +1049,19 @@ def _scene_lexicon_candidates(
 
     entries = lexicon_of(scenario)
     if not entries:
+        # WP-131: a B1+ season tentpole carries no bible lexicon (it is written
+        # for A1–A2). Its words are derived from the lines at the learner's own
+        # level — new anchors at the band and one below, a foundational word only
+        # when the learner holds it due (app/services/season_lexicon).
+        from app.services.season_lexicon import scene_entries
+
+        try:
+            with db.begin_nested():
+                entries = scene_entries(db, user=user, scenario=scenario)
+        except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
+            logger.warning("journey_learning_season_lexicon_unavailable")
+            entries = []
+    if not entries:
         return []
     draft = draft_of(scenario)
     sentences = {
