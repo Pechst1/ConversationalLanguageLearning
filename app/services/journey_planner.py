@@ -4976,15 +4976,27 @@ def _plan_practice_day(
         notes.append("longer day: the new rule does not fit the rhythm; the day is the story and its rule")
     if reemploi and not intro_reserve(turns):
         # WP-130 B: the reply asks for a «Réemploi» only when it fits the day
-        # with the shape's items. A slow band composes the unit's sentence in
-        # every exchange (WP-128), which a ten-minute A1 day cannot hold: the
-        # opportunity then goes to the coach's two-line scene, priced as an item.
+        # and costs it at most one item. A slow band composes the unit's
+        # sentence in every exchange (WP-128): on an A1/A2 day that is minutes,
+        # and the day's practice («fewer replies, more items», WP-129) would
+        # pay for it. The opportunity then goes to the coach's two-line scene,
+        # priced as one item.
+        asked_cost, asked_items = respond_cost, items
+        priced = reemploi
+        reemploi = 0
+        plain_cost, plain_items = attempt(turns)
         rule_now = practice_day_shape_rule(shape, budget_seconds)
-        spent = scene_cost + respond_cost + resolution_cost + forge_reserve + read_cost + desk_cost
-        if spent + sum(item.cost for item in items) > budget_seconds or len(items) < rule_now.min_recall:
-            reemploi = 0
-            respond_cost, items = attempt(turns)
-            notes.append("réemploi: the reply cannot hold the unit's sentence inside the budget")
+        spent = scene_cost + asked_cost + resolution_cost + forge_reserve + read_cost + desk_cost
+        if (
+            spent + sum(item.cost for item in asked_items) <= budget_seconds
+            and len(asked_items) >= rule_now.min_recall
+            and len(asked_items) >= len(plain_items) - 1
+        ):
+            reemploi = priced
+            respond_cost, items = asked_cost, asked_items
+        else:
+            respond_cost, items = plain_cost, plain_items
+            notes.append("réemploi: the reply would cost the day its items; the coach's scene asks instead")
     if (
         not forced_intro
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
