@@ -1,6 +1,7 @@
 """Real-world scenario mission services."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import unicodedata
@@ -64,9 +65,174 @@ MISSION_FORMATS = ("chat_message", "voicemail_reply", "email_formal", "admin_for
 MISSION_FORMAT_ALTERNATIVES = ("chat_message", "email_formal", "voicemail_reply")
 
 
+# ---------------------------------------------------------------------------
+# WP-125B — credible fallback letters
+# ---------------------------------------------------------------------------
+#
+# The canned letters below are what a learner reads whenever the model cannot
+# write one (and, provider-off, every day). The review found them repeated —
+# «Plus de pain blanc» six times in a month to a B1 learner — and far below the
+# learner — the same A1 bread question sent to a C1 learner. Three rules now
+# decide whether a fallback letter is sent at all; when none passes, the day has
+# no new letter rather than a repeat:
+#
+# * **level** — every fallback letter carries the band it is written at. A
+#   *closed* letter (one question, one transaction) reaches one band above its
+#   own; an *open* one (the learner tells their own story at any length) two.
+#   Nothing is sent to a learner beyond its reach.
+# * **recency** — a request the learner completed in the last
+#   ``COMPLETED_REQUEST_DAYS`` is not asked again (by any letter, generated or
+#   not), and a canned letter is not reprinted within ``CANNED_REUSE_DAYS``. A
+#   deliberate follow-up is allowed only with its own authored text, which names
+#   the earlier exchange (``follow_ups``); without one the affair ends quietly.
+# * **story** — while a season is running, a canned letter whose premise the
+#   season contradicts (``season_safe: False``: a job, a cat, a friend who already
+#   says «tu») is not sent; the season's cast and registers stand.
+
+#: The CEFR bands a letter is written at and a learner is placed in (C1 ends the scale).
+LETTER_BANDS: tuple[str, ...] = ("A1", "A2", "B1", "B2", "C1")
+#: How far above its own band a letter stays credible: a closed request one band,
+#: an open invitation (the learner's own account, any length) two.
+CLOSED_LETTER_REACH = 1
+OPEN_LETTER_REACH = 2
+#: A completed request is not asked again within this many days (unless as a follow-up).
+COMPLETED_REQUEST_DAYS = 7
+#: A canned letter's exact text is not reprinted within this many days.
+CANNED_REUSE_DAYS = 28
+#: Where the fit of a letter is stamped on its ``prompt_payload``.
+LETTER_FIT_KEY = "letter_fit"
+
+
+def letter_band_index(value: Any) -> int:
+    """``A1`` → 0 … ``C1`` → 4; C2 counts as C1, anything unreadable as A1."""
+
+    code = str(value or "").strip().upper()[:2]
+    if code == "C2":
+        code = "C1"
+    return LETTER_BANDS.index(code) if code in LETTER_BANDS else 0
+
+
+def letter_reach(level: Any, *, open_ended: bool = False) -> str:
+    """The highest learner band a letter written at ``level`` stays credible for."""
+
+    reach = letter_band_index(level) + (OPEN_LETTER_REACH if open_ended else CLOSED_LETTER_REACH)
+    return LETTER_BANDS[min(len(LETTER_BANDS) - 1, reach)]
+
+
+def letter_reaches(level: Any, learner_band: Any, *, open_ended: bool = False) -> bool:
+    return letter_band_index(learner_band) <= letter_band_index(letter_reach(level, open_ended=open_ended))
+
+
+class NoCredibleLetter(Exception):
+    """No letter today: every fallback left is a repeat, below the learner, or off-story."""
+
+    def __init__(self, reason: str, *, chain_id: str | None = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.chain_id = chain_id
+
+
+def canned_letter_problem(
+    item: dict[str, Any],
+    rotation: dict[str, Any],
+    *,
+    follow_up: bool = False,
+) -> str | None:
+    """Why this canned letter may not be printed for this learner today, or ``None``.
+
+    ``rotation`` is :meth:`MissionScheduler._letter_rotation`'s view. A follow-up
+    (letter 2+ of an affair, with its own authored text) is exempt from the two
+    recency rules: it is the same request on purpose, and it says so.
+    """
+
+    domain = str(item.get("domain") or "")
+    if not letter_reaches(item.get("level"), rotation.get("band"), open_ended=bool(item.get("open_ended"))):
+        return "below_band"
+    if rotation.get("season_active") and not item.get("season_safe", True):
+        return "off_story"
+    if not follow_up and domain in rotation.get("completed_recent", ()):
+        return "completed_recently"
+    if not follow_up and domain in rotation.get("canned_recent", ()):
+        return "reprinted_recently"
+    if not follow_up and item.get("once") and domain in rotation.get("canned_ever", ()):
+        # A letter about a one-off moment (the end of a stay) is never reprinted.
+        return "sent_once"
+    return None
+
+
+def canned_letter_credible(item: dict[str, Any], rotation: dict[str, Any]) -> bool:
+    return canned_letter_problem(item, rotation) is None
+
+
+def canned_follow_ups(domain: Any) -> list[str]:
+    """The authored follow-up openings of a canned letter (letters 2, 3… of its affair)."""
+
+    for item in REAL_WORLD_MISSION_DOMAINS:
+        if str(item.get("domain")) == str(domain or ""):
+            return [str(text) for text in item.get("follow_ups") or [] if str(text).strip()]
+    return []
+
+
+def _aware(moment: datetime | None) -> datetime | None:
+    if moment is None:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _parse_moment(value: Any) -> datetime | None:
+    try:
+        return _aware(datetime.fromisoformat(str(value))) if value else None
+    except ValueError:
+        return None
+
+
+#: WP-125B: what a letter costs, so the day can offer it as an optional extension
+#: with an honest number (WP-128 shows it). The same reading and composing speeds
+#: the life walk times a learner with (tests/experience_walk.py), per band.
+LETTER_READ_WPM: dict[str, int] = {"A1": 45, "A2": 70, "B1": 100, "B2": 140, "C1": 180}
+LETTER_COMPOSE_WPM: dict[str, int] = {"A1": 5, "A2": 8, "B1": 11, "B2": 15, "C1": 19}
+#: Reading the answer back and the feedback, and moving through the screens.
+LETTER_FEEDBACK_SECONDS = 45
+
+
+def letter_estimate_seconds(
+    *,
+    band: Any,
+    french: list[Any],
+    objectives: list[dict[str, Any]],
+    reply_words: int,
+) -> int:
+    """Reading the letter and its asks, writing a reply of ``reply_words``, the answer back."""
+
+    code = LETTER_BANDS[letter_band_index(band)]
+
+    def count(value: Any) -> int:
+        return len(re.findall(r"\S+", str(value or "")))
+
+    read_words = sum(count(text) for text in french) + sum(
+        count(item.get("label")) for item in objectives if isinstance(item, dict)
+    )
+    seconds = (
+        read_words / LETTER_READ_WPM[code] * 60
+        + max(0, int(reply_words)) / LETTER_COMPOSE_WPM[code] * 60
+        + LETTER_FEEDBACK_SECONDS
+    )
+    return int(round(seconds))
+
+
+#: Each entry: ``level`` (the band its French is written at) and, where Season 1
+#: contradicts its premise, ``season_safe: False`` with the reason. Optional:
+#: ``open_ended`` (the learner's own account, reach two bands), ``once`` (a
+#: one-off moment, never reprinted) and ``follow_ups``, authored openings for
+#: letters 2, 3… of the same affair, each naming the earlier exchange. None of
+#: the optional texts exist yet: new letter text waits for the owner (WP-125B
+#: proposal).
 REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     {
         "domain": "food_dining",
+        "level": "A1",
+        # Season 1: the season's quartier baker is Mme Diallo (cast); a second «boulangère du quartier» contradicts her.
+        "season_safe": False,
         "label": "Manger dehors",
         "categories": {"food_drink"},
         "title": "Plus de pain blanc",
@@ -87,6 +253,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "housing",
+        "level": "A2",
         "label": "Le logement",
         "categories": {"home_objects", "nature_weather"},
         "title": "Le radiateur est froid",
@@ -107,6 +274,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "neighbours",
+        "level": "A2",
         "label": "Les voisins",
         "categories": {"people_relationships", "communication", "home_objects"},
         "title": "Un mot de la voisine",
@@ -127,6 +295,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "deliveries_admin",
+        "level": "A2",
         "label": "Colis et papiers",
         "categories": {"communication", "technology_media", "places_infrastructure"},
         "title": "Le colis perdu",
@@ -147,6 +316,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "health",
+        "level": "A2",
+        # Season 1: a week-long visitor has no standing dentist appointment, nor «cours» on Friday.
+        "season_safe": False,
         "label": "La santé",
         "categories": {"body_health", "time_calendar"},
         "title": "Un message du dentiste",
@@ -167,6 +339,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "transport",
+        "level": "A1",
         "label": "Les transports",
         "categories": {"transport_travel", "time_calendar", "places_infrastructure"},
         "title": "Pas de train",
@@ -187,6 +360,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "social_plans",
+        "level": "A1",
+        # Season 1: a friend outside the cast who already says «tu»; the protagonist has just arrived.
+        "season_safe": False,
         "label": "Sorties entre amis",
         "categories": {"people_relationships", "arts_leisure", "food_drink"},
         "title": "Au parc ce midi",
@@ -207,6 +383,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "work",
+        "level": "A1",
+        # Season 1: the protagonist has no job or colleague in Paris.
+        "season_safe": False,
         "label": "Le travail",
         "categories": {"work_money", "time_calendar", "communication"},
         "title": "Vingt minutes de retard",
@@ -227,6 +406,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "services",
+        "level": "A2",
         "label": "Les services",
         "categories": {"technology_media", "communication", "work_money"},
         "title": "Trois jours sans internet",
@@ -247,6 +427,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "shopping",
+        "level": "A1",
         "label": "Les achats",
         "categories": {"clothing", "work_money", "communication"},
         "title": "Pas la bonne taille",
@@ -267,6 +448,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "bureaucracy",
+        "level": "A2",
         "label": "La mairie",
         "categories": {"society_politics", "places_infrastructure", "communication"},
         "title": "Un papier pour la mairie",
@@ -287,6 +469,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
     },
     {
         "domain": "everyday_warmth",
+        "level": "A2",
+        # Season 1: the protagonist has no cat, and a stranger would not say «tu».
+        "season_safe": False,
         "label": "Petits bonheurs",
         "categories": {"people_relationships", "emotions_abstract", "communication"},
         "title": "Un mot sur le chat",
@@ -330,6 +515,8 @@ CAST_ROLES_FR: dict[str, str] = {
 FIRST_LETTERS: dict[str, dict[str, Any]] = {
     "A": {
         "domain": "cast_first_letter",
+        # WP-125B: one closed question (when do you come by?), A1 French.
+        "level": "A1",
         "label": "Le Mistral",
         "character_id": "margaux_barman",
         "title": "Votre écharpe au Mistral",
@@ -357,6 +544,10 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
     },
     "B": {
         "domain": "cast_first_letter",
+        # WP-125B: B1 French, and open — three questions about the learner's own
+        # arrival, answered at whatever length and level the learner writes.
+        "level": "B1",
+        "open_ended": True,
         "label": "Le Mistral",
         "character_id": "romy_tremblay",
         "title": "Trois questions de Romy",
@@ -393,10 +584,14 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
 }
 
 
-def first_letter_for(user: User, *, register: str = "vous") -> dict[str, Any]:
-    """The authored first letter for this learner's band, in their register with the writer."""
+def first_letter_for(user: User, *, register: str = "vous", band: str | None = None) -> dict[str, Any]:
+    """The authored first letter for this learner's band, in their register with the writer.
 
-    band = str(getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1")
+    ``band`` is the scheduler's letter band (WP-125B: the higher of declared and
+    measured); without it the stored estimate is read, as before.
+    """
+
+    band = band or str(getattr(user, "cefr_estimate", None) or getattr(user, "proficiency_level", None) or "A1")
     band = band.strip().upper()[:2]
     letter = dict(FIRST_LETTERS["B" if band.startswith(("B", "C")) else "A"])
     if register == "tu":
@@ -406,6 +601,32 @@ def first_letter_for(user: User, *, register: str = "vous") -> dict[str, Any]:
     for key in ("opening_message_tu", "brief_tu"):
         letter.pop(key, None)
     return letter
+
+
+#: WP-125B: the frame a story-born letter is printed in when no model wrote it,
+#: keyed by the band its French is written at. Open: the learner gives their view
+#: of a scene they played. The highest frame at or below the learner's band is
+#: used, and a learner beyond every frame's reach gets no frame letter.
+STORY_FRAMES: dict[str, dict[str, Any]] = {
+    "A2": {
+        "open_ended": True,
+        "vous": "Bonjour, c'est {name}. Je pense encore à notre dernière rencontre. Et vous, qu'en pensez-vous ?",
+        "tu": "Salut, c'est {name}. Je pense encore à notre dernière rencontre. Et toi, tu en penses quoi ?",
+    },
+}
+
+
+def story_frame_for(learner_band: Any) -> tuple[str, dict[str, Any]]:
+    """``(level, frame)``: the richest story frame at or below the learner's band."""
+
+    learner = letter_band_index(learner_band)
+    eligible = [level for level in STORY_FRAMES if letter_band_index(level) <= learner]
+    level = (
+        max(eligible, key=letter_band_index)
+        if eligible
+        else min(STORY_FRAMES, key=letter_band_index)
+    )
+    return level, STORY_FRAMES[level]
 
 
 def letter_level_brief(known: Any, level: Any) -> dict[str, Any]:
@@ -1084,7 +1305,16 @@ class MissionGenerator:
         chain: dict[str, Any] | None = None,
         correspondence: dict[str, Any] | None = None,
         authored_letter: dict[str, Any] | None = None,
+        rotation: dict[str, Any] | None = None,
+        withhold: bool = False,
     ) -> dict[str, Any]:
+        """The letter's whole payload.
+
+        WP-125B: ``rotation`` (the learner's band, recent letters and season, from
+        :meth:`MissionScheduler._letter_rotation`) steers the choice; with
+        ``withhold`` a fallback letter that is not credible for this learner raises
+        :class:`NoCredibleLetter` instead of being sent.
+        """
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
         authored_letter = authored_letter if isinstance(authored_letter, dict) else None
         custom_context = self._custom_context(custom_context)
@@ -1129,6 +1359,7 @@ class MissionGenerator:
                 fuel_source=fuel_source,
                 seed=tuple(seed),
                 forced_domain=(chain or {}).get("domain"),
+                rotation=rotation,
             )
         source_snapshot = await self._source_snapshot(
             user=user,
@@ -1169,6 +1400,7 @@ class MissionGenerator:
         )
         if authored_letter and authored_letter.get("success_signal_i18n"):
             messenger["success_signal_i18n"] = dict(authored_letter["success_signal_i18n"])
+        scenario: dict[str, Any] | None = None
         if mission_type != "news_summary" and not authored_letter:
             scenario = self._llm_scenario(
                 user=user,
@@ -1189,6 +1421,7 @@ class MissionGenerator:
         if vocabulary:
             messenger = self._with_vocabulary_focus(messenger, vocabulary)
         messenger = self._with_correspondence(messenger, correspondence=correspondence, chain=chain)
+        band = (rotation or {}).get("band") or self._letter_band(user)
         if custom_context:
             title, brief, messenger, custom_objectives = self._customize_mission(
                 mission_type=mission_type,
@@ -1197,8 +1430,24 @@ class MissionGenerator:
                 messenger=messenger,
                 custom_context=custom_context,
                 concepts=concepts,
+                learner_band=band,
             )
             objectives = [*custom_objectives, *objectives]
+        letter_fit, messenger = self._letter_fit(
+            band=band,
+            rotation=rotation,
+            variety=variety,
+            messenger=messenger,
+            generated=bool(scenario),
+            authored_letter=authored_letter,
+            custom_context=custom_context,
+            chain=chain,
+        )
+        if withhold and letter_fit.get("withheld"):
+            raise NoCredibleLetter(
+                str(letter_fit["withheld"]),
+                chain_id=str((chain or {}).get("chain_id") or "") or None,
+            )
         conversation_opening = messenger.get("opening_message") or self._conversation_opening(
             mission_type=mission_type,
             source_snapshot=source_snapshot,
@@ -1270,6 +1519,14 @@ class MissionGenerator:
                 variety=variety,
             ),
         }
+        # WP-125B: the letter's own cost, read by the day as an optional extension.
+        letter_fit["estimated_seconds"] = letter_estimate_seconds(
+            band=band,
+            french=[messenger.get("opening_message"), brief],
+            objectives=objectives,
+            reply_words=int(cefr_generation_profile(band).get("min_words") or 0),
+        )
+        prompt_payload[LETTER_FIT_KEY] = letter_fit
         target_vocabulary_ids = [item["word_id"] for item in vocabulary]
         target_vocabulary_ids.extend(error.linked_word_id for error in errata if error.linked_word_id)
         return {
@@ -1294,6 +1551,104 @@ class MissionGenerator:
         if cadence == "post_session":
             return 2
         return 1
+
+    def _letter_band(self, user: User) -> str:
+        """The band a letter must not fall far below (WP-125B).
+
+        The highest of what the learner declared and what was measured: a C1
+        learner whose measured estimate has not caught up yet is still not sent
+        an A1 bread question.
+        """
+
+        values = (
+            getattr(user, "proficiency_level", None),
+            getattr(user, "cefr_estimate", None),
+            _learner_level_code(self.db, user),
+        )
+        index = max((letter_band_index(value) for value in values if value), default=0)
+        return LETTER_BANDS[index]
+
+    def _letter_fit(
+        self,
+        *,
+        band: str,
+        rotation: dict[str, Any] | None,
+        variety: dict[str, Any],
+        messenger: dict[str, Any],
+        generated: bool,
+        authored_letter: dict[str, Any] | None,
+        custom_context: dict[str, Any],
+        chain: dict[str, Any] | None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """``(letter_fit, messenger)``: what this letter is, at which level, for whom.
+
+        ``letter_fit`` is stamped on the payload: ``source`` (``generated``,
+        ``canned``, ``story_frame``, ``authored`` or ``custom``), ``level`` and
+        ``reach`` (the band its French is at, and the highest learner band it is
+        credible for), ``request_key`` (what it asks, for the recency rule),
+        ``follow_up_of`` (the earlier letter of the same affair it answers) and
+        ``withheld`` — the reason a fallback letter is not credible today, or
+        ``None``. A canned follow-up gets its own authored opening, which names
+        the earlier exchange; without one it is withheld.
+        """
+
+        fit: dict[str, Any] = {
+            "band": band,
+            "served_at": datetime.now(UTC).isoformat(),
+            "follow_up_of": str((chain or {}).get("after_mission_id") or "") or None,
+            "withheld": None,
+        }
+        source = (custom_context or {}).get("source")
+        if authored_letter:
+            fit.update(
+                source="authored",
+                level=str(authored_letter.get("level") or band),
+                open_ended=bool(authored_letter.get("open_ended")),
+                request_key=str(authored_letter.get("domain") or "cast_first_letter"),
+            )
+        elif source == "story_born":
+            about = f"{custom_context.get('character_name')}|{custom_context.get('summary_fr')}"
+            key = "story:" + hashlib.sha256(about.encode("utf-8")).hexdigest()[:12]
+            if generated:
+                fit.update(source="generated", level=band, open_ended=True, request_key=key)
+            else:
+                level, frame = story_frame_for(band)
+                open_ended = bool(frame.get("open_ended", True))
+                fit.update(source="story_frame", level=level, open_ended=open_ended, request_key=key)
+                if not letter_reaches(level, band, open_ended=open_ended):
+                    fit["withheld"] = "below_band"
+        elif custom_context:
+            fit.update(source="custom", level=band, open_ended=True, request_key=None)
+        elif generated:
+            fit.update(
+                source="generated",
+                level=band,
+                open_ended=False,
+                request_key=str(variety.get("domain") or "") or None,
+            )
+        else:
+            fit.update(
+                source="canned",
+                level=str(variety.get("level") or "A1"),
+                open_ended=bool(variety.get("open_ended")),
+                request_key=str(variety.get("domain") or "") or None,
+            )
+            if chain:
+                # A follow-up reprinting letter 1 word for word asks the learner the
+                # question they just answered. Only an authored follow-up, written
+                # for letter 1's canned text, may carry the affair on.
+                follow_ups = [str(text) for text in variety.get("follow_ups") or [] if str(text).strip()]
+                step = int(chain.get("index") or 2) - 2
+                if chain.get("after_source") == "canned" and 0 <= step < len(follow_ups):
+                    messenger = {**messenger, "opening_message": follow_ups[step]}
+                    problem = canned_letter_problem(variety, rotation, follow_up=True) if rotation else None
+                else:
+                    problem = "follow_up_unwritten"
+            else:
+                problem = canned_letter_problem(variety, rotation) if rotation else None
+            fit["withheld"] = problem
+        fit["reach"] = letter_reach(fit["level"], open_ended=fit["open_ended"])
+        return fit, messenger
 
     @staticmethod
     def _min_words(*, mission_type: str, stakes_level: int) -> int:
@@ -1632,6 +1987,7 @@ class MissionGenerator:
         fuel_source: str,
         seed: tuple[Any, ...] = (),
         forced_domain: str | None = None,
+        rotation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Seeded weighted sampling over domain × contact × format (WP-64).
 
@@ -1646,6 +2002,14 @@ class MissionGenerator:
         domains and a hard ban on them would empty the pool. When a chain is
         running, ``forced_domain`` pins the setup: letter 2 of an affair is from
         the same person about the same thing, and that is the point.
+
+        WP-125B narrows the catalogue first (``rotation``, see
+        :meth:`MissionScheduler._letter_rotation`): a request completed in the
+        last week is out, a premise the running season contradicts is out, and
+        when no model can write the letter, only the canned letters still
+        credible for this learner (band, reprint window) are in. Each narrowing
+        steps aside when it would empty the catalogue; :meth:`build_payload`
+        then withholds a canned letter that is not credible.
         """
 
         category = active_category
@@ -1663,13 +2027,21 @@ class MissionGenerator:
                 and str(item.get("contact_name") or "") not in recent_contacts
             )
 
+        catalogue = list(REAL_WORLD_MISSION_DOMAINS)
+        if rotation:
+            for keep in (
+                lambda item: str(item.get("domain")) not in rotation.get("completed_recent", ()),
+                lambda item: not rotation.get("season_active") or item.get("season_safe", True),
+                lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
+            ):
+                catalogue = [item for item in catalogue if keep(item)] or catalogue
         pool: list[dict[str, Any]] = []
         if forced_domain:
             pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
         if not pool:
             matching = [
                 item
-                for item in REAL_WORLD_MISSION_DOMAINS
+                for item in catalogue
                 if category and category in item.get("categories", set())
             ]
             if matching:
@@ -1681,9 +2053,9 @@ class MissionGenerator:
             fresh_matching = [item for item in matching if fresh(item)]
             pool = (
                 fresh_matching
-                or [item for item in REAL_WORLD_MISSION_DOMAINS if fresh(item)]
+                or [item for item in catalogue if fresh(item)]
                 or matching
-                or list(REAL_WORLD_MISSION_DOMAINS)
+                or catalogue
             )
         # The last letter's channel is out whenever anything else is left: the same
         # channel twice in a row reads as a repeat even when the setup changed.
@@ -1900,10 +2272,15 @@ class MissionGenerator:
         messenger: dict[str, Any],
         custom_context: dict[str, Any],
         concepts: list[GrammarConcept],
+        learner_band: Any = None,
     ) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
         if custom_context.get("source") == "story_born":
             return self._story_born_mission(
-                title=title, brief=brief, messenger=messenger, custom_context=custom_context
+                title=title,
+                brief=brief,
+                messenger=messenger,
+                custom_context=custom_context,
+                learner_band=learner_band,
             )
         scenario = custom_context["scenario"]
         relationship = custom_context.get("relationship") or self._infer_relationship(scenario)
@@ -1967,6 +2344,7 @@ class MissionGenerator:
         brief: str,
         messenger: dict[str, Any],
         custom_context: dict[str, Any],
+        learner_band: Any = None,
     ) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
         """A cast member's letter about a scene (WP-64), printed in French only (WP-99).
 
@@ -2002,12 +2380,9 @@ class MissionGenerator:
             "scene_anchor": (messenger.get("scene_anchor") if generated else None)
             or "Un message, après la dernière scène du feuilleton",
             "inbox_context": custom_context["scenario"],
+            # WP-125B: without a model, the frame for the learner's band.
             "opening_message": (messenger.get("opening_message") if generated else None)
-            or (
-                f"Salut, c'est {name}. Je pense encore à notre dernière rencontre. Et toi, tu en penses quoi ?"
-                if tu
-                else f"Bonjour, c'est {name}. Je pense encore à notre dernière rencontre. Et vous, qu'en pensez-vous ?"
-            ),
+            or str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=name),
             "ambient_cues": (messenger.get("ambient_cues") if generated else None)
             or [f"un message de {name}", "la dernière scène", "une réponse courte"],
             "quick_replies": (messenger.get("quick_replies") if generated else None)
@@ -3115,17 +3490,10 @@ class MissionCorrectionService:
             }
             for obj in objectives
         ]
-        missing_targets = [
-            {
-                "external_id": str(obj.get("external_id") or obj.get("id") or "target"),
-                "label": str(obj.get("label") or learner_text("mission.target_generic_label", language)),
-                "detected_count": 0,
-                "target_count": int(obj.get("target_count") or 1),
-                "missing_count": int(obj.get("target_count") or 1),
-            }
-            for obj in objectives
-            if obj.get("kind") in {"grammar", "source"} and stripped
-        ]
+        # WP-125B: no grader looked for the letter's grammar targets, so none is
+        # reported missing. «detected 0, missing 1» for every target was a claim
+        # the fallback never measured — the same claim F-18 removed from the reply.
+        missing_targets: list[dict[str, Any]] = []
         errata: list[dict[str, Any]] = list(deterministic_errata or [])
         if not stripped:
             errata.append(
@@ -4032,14 +4400,20 @@ class MissionScheduler:
             # answer it), else the week's letter, authored for the band.
             candidate, _authored = self._first_letter(user)
             if candidate:
-                story_mission = await self.create(
-                    user=user,
-                    mission_type="message",
-                    cadence="ad_hoc",
-                    use_news=False,
-                    story_letter=candidate,
-                )
-                weekly = None
+                try:
+                    story_mission = await self.create(
+                        user=user,
+                        mission_type="message",
+                        cadence="ad_hoc",
+                        use_news=False,
+                        story_letter=candidate,
+                        withhold_if_not_credible=True,
+                    )
+                    weekly = None
+                except NoCredibleLetter:
+                    # WP-125B: the story's frame is below this learner; the
+                    # authored first letter for their band is not.
+                    weekly = await self.ensure_weekly(user, story_first_letter=False)
             else:
                 weekly = await self.ensure_weekly(user)
         elif self._first_letter_waiting(user):
@@ -4133,6 +4507,8 @@ class MissionScheduler:
 
         if self._open_ad_hoc_letter(user) is not None:
             return None
+        if courrier.withheld_today(self.db, user=user, kind="extra"):
+            return None
         # WP-69: the day's Courrier outranks the extra, so a failure here rolls
         # back to a SAVEPOINT (only this attempt), never the whole session.
         created: RealWorldMission | None = None
@@ -4142,13 +4518,21 @@ class MissionScheduler:
                 story_letter = courrier.story_letter_candidate(self.db, user=user)
                 if not story_letter:
                     return None
-            created = await self.create(
-                user=user,
-                mission_type="message",
-                cadence="ad_hoc",
-                use_news=False,
-                story_letter=story_letter,
-            )
+            try:
+                created = await self.create(
+                    user=user,
+                    mission_type="message",
+                    cadence="ad_hoc",
+                    use_news=False,
+                    story_letter=story_letter,
+                    withhold_if_not_credible=True,
+                )
+            except NoCredibleLetter as exc:
+                # WP-125B: fewer letters, never a repeat or a beginner prompt.
+                logger.info("Courrier: no extra letter today ({})", exc.reason)
+                if not exc.chain_id:
+                    courrier.note_withheld(self.db, user=user, kind="extra", reason=exc.reason)
+                created = None
         return created
 
     def _this_weeks_letter(self, user: User) -> RealWorldMission | None:
@@ -4191,10 +4575,19 @@ class MissionScheduler:
                 return True
         return False
 
-    async def ensure_weekly(self, user: User) -> RealWorldMission:
+    async def ensure_weekly(self, user: User, *, story_first_letter: bool = True) -> RealWorldMission | None:
+        """The week's letter — or ``None`` when no credible one is left (WP-125B).
+
+        A canned fallback that would repeat a request, sit far below the learner
+        or contradict the season is not sent; the Courrier then has no new letter
+        today rather than a repeat, and tries again tomorrow.
+        """
+
         existing = self._this_weeks_letter(user)
         if existing:
             return existing
+        if courrier.withheld_today(self.db, user=user, kind="weekly"):
+            return None
         first_letter = self._standalone_count(user=user) == 0
         # WP-115d «La lettre à répondre»: the week's letter needs the learner's due
         # words — the hardest first. The ribbon shows their meaning, never the French,
@@ -4205,15 +4598,30 @@ class MissionScheduler:
                 from app.services.story_words import letter_due_words
 
                 recall_ids = letter_due_words(self.db, user=user)
-        mission = await self.create(
-            user=user,
-            mission_type="message",
-            cadence="weekly",
-            use_news=False,
-            # WP-99 (W13): the learner's very first letter is the cast's.
-            first_letter=first_letter,
-            preferred_vocabulary_ids=recall_ids or None,
-        )
+        mission: RealWorldMission | None = None
+        # Twice at most: an affair whose next letter cannot be written ends on the
+        # first try (NoCredibleLetter closes it), and the week's own letter follows.
+        for _attempt in range(2):
+            try:
+                mission = await self.create(
+                    user=user,
+                    mission_type="message",
+                    cadence="weekly",
+                    use_news=False,
+                    # WP-99 (W13): the learner's very first letter is the cast's.
+                    first_letter=first_letter,
+                    preferred_vocabulary_ids=recall_ids or None,
+                    withhold_if_not_credible=True,
+                    story_first_letter=story_first_letter,
+                )
+                break
+            except NoCredibleLetter as exc:
+                logger.info("Courrier: no weekly letter today ({})", exc.reason)
+                if not exc.chain_id:
+                    courrier.note_withheld(self.db, user=user, kind="weekly", reason=exc.reason)
+                    return None
+        if mission is None:
+            return None
         if recall_ids:
             payload = dict(mission.prompt_payload or {})
             asked = {int(item.get("word_id") or 0) for item in payload.get("target_vocabulary") or [] if isinstance(item, dict)}
@@ -4223,24 +4631,29 @@ class MissionScheduler:
                 self.db.commit()
         return mission
 
-    def _first_letter(self, user: User) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    def _first_letter(
+        self, user: User, *, story: bool = True
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         """``(story_letter, authored_letter)`` for a learner's first letter — one is set.
 
         A story-born letter from Romy or Margaux when the ledger has a scene one
-        of them witnessed; else the authored first letter for the learner's band.
+        of them witnessed (and ``story``); else the authored first letter for the
+        learner's band.
         """
 
         candidate = None
-        with best_effort(self.db, "Courrier: first-letter candidate"):
-            candidate = courrier.first_letter_candidate(
-                self.db, user=user, writers=FIRST_LETTER_WRITERS
-            )
+        if story:
+            with best_effort(self.db, "Courrier: first-letter candidate"):
+                candidate = courrier.first_letter_candidate(
+                    self.db, user=user, writers=FIRST_LETTER_WRITERS
+                )
         if candidate:
             return candidate, None
         thread = courrier.active_thread(self.db, user)
-        letter = first_letter_for(user, register="vous")
+        band = self.generator._letter_band(user)
+        letter = first_letter_for(user, register="vous", band=band)
         register = courrier.learner_register(thread, letter["character_id"])
-        return None, first_letter_for(user, register=register)
+        return None, first_letter_for(user, register=register, band=band)
 
     async def create(
         self,
@@ -4262,7 +4675,16 @@ class MissionScheduler:
         stakes_level: int | None = None,
         story_letter: dict[str, Any] | None = None,
         first_letter: bool = False,
+        withhold_if_not_credible: bool = False,
+        story_first_letter: bool = True,
     ) -> RealWorldMission:
+        """Build and store one letter.
+
+        WP-125B: the scheduler's own letters pass ``withhold_if_not_credible``; a
+        fallback letter that is a repeat, far below the learner or off-story then
+        raises :class:`NoCredibleLetter` (and ends an affair it could not carry
+        on) instead of being sent. A letter the learner asked for is never withheld.
+        """
         authored_letter: dict[str, Any] | None = None
         if (
             first_letter
@@ -4270,7 +4692,7 @@ class MissionScheduler:
             and serial_thread_id is None
             and not _compact_text(custom_scenario)
         ):
-            story_letter, authored_letter = self._first_letter(user)
+            story_letter, authored_letter = self._first_letter(user, story=story_first_letter)
         else:
             first_letter = False
         # WP-64 — a story-born letter: a character who was in yesterday's scene
@@ -4368,31 +4790,48 @@ class MissionScheduler:
             ),
             origin="story_born" if story_letter else ("cast" if authored_letter else ("chain" if chain_step else "courrier")),
         )
+        # WP-125B: the learner's band, recent letters and season steer and gate
+        # the scheduler's letters; a learner's own scenario is theirs to ask for.
+        rotation = (
+            self._letter_rotation(user)
+            if standalone and (not has_custom_context or story_letter)
+            else None
+        )
         ordinal = self._standalone_count(user=user) if standalone else 0
         seed = (
             (user.id, courrier.iso_week_key(), ordinal, cadence)
             if standalone
             else (user.id, str(serial_thread_id), episode_index)
         )
-        payload = await self.generator.build_payload(
-            user=user,
-            mission_type=mission_type,
-            cadence=cadence,
-            atelier_session=atelier_session,
-            preferred_concept_ids=preferred_concept_ids,
-            preferred_errata_ids=preferred_errata_ids,
-            preferred_vocabulary_ids=preferred_vocabulary_ids,
-            use_news=use_news,
-            custom_context=custom_context if has_custom_context else None,
-            stakes_level=stakes_level,
-            active_category=active_category,
-            recent_variety=recent_variety,
-            fuel_source=fuel_source,
-            seed=seed,
-            chain=chain_step,
-            correspondence=correspondence,
-            authored_letter=authored_letter,
-        )
+        try:
+            payload = await self.generator.build_payload(
+                user=user,
+                mission_type=mission_type,
+                cadence=cadence,
+                atelier_session=atelier_session,
+                preferred_concept_ids=preferred_concept_ids,
+                preferred_errata_ids=preferred_errata_ids,
+                preferred_vocabulary_ids=preferred_vocabulary_ids,
+                use_news=use_news,
+                custom_context=custom_context if has_custom_context else None,
+                stakes_level=stakes_level,
+                active_category=active_category,
+                recent_variety=recent_variety,
+                fuel_source=fuel_source,
+                seed=seed,
+                chain=chain_step,
+                correspondence=correspondence,
+                authored_letter=authored_letter,
+                rotation=rotation,
+                withhold=withhold_if_not_credible and not authored_letter,
+            )
+        except NoCredibleLetter as exc:
+            # An affair whose next letter cannot be written credibly ends here, so
+            # it does not hold every later letter back behind it.
+            if exc.chain_id:
+                courrier.close_chain(self.db, user=user, chain_id=exc.chain_id)
+                self.db.commit()
+            raise
         # The first letter is still the week's letter when it is story-born.
         iso = (
             date.today().isocalendar()
@@ -4532,6 +4971,12 @@ class MissionScheduler:
                 ordinal=self._standalone_count(user=user),
                 week=courrier.iso_week_key(),
             )
+            fit = (mission.prompt_payload or {}).get(LETTER_FIT_KEY) or {}
+            if opened and fit.get("source") == "canned":
+                # WP-125B: a canned letter carries an affair only as far as it has
+                # authored follow-ups; reprinting letter 1 is not a letter 2.
+                written = len(canned_follow_ups(fit.get("request_key")))
+                opened = {**opened, "total": min(int(opened["total"]), 1 + written)} if written else None
             if opened:
                 mission.chain_id = opened["chain_id"]
                 mission.chain_index = opened["index"]
@@ -4568,6 +5013,69 @@ class MissionScheduler:
             courrier.note_story_letter(self.db, user=user, candidate=story_letter, mission_id=mission.id)
         self.db.commit()
         self.db.refresh(mission)
+
+    def _letter_rotation(self, user: User) -> dict[str, Any]:
+        """What the learner's recent letters and story allow today (WP-125B).
+
+        ``band`` (see :meth:`MissionGenerator._letter_band`), ``completed_recent``
+        (requests answered in the last ``COMPLETED_REQUEST_DAYS``),
+        ``canned_recent`` (canned letters printed in the last
+        ``CANNED_REUSE_DAYS``), ``season_active`` and ``model_available``. Dates
+        are the app's own clock (``completed_at`` and the stamped ``served_at``),
+        never the database's ``created_at`` default.
+        """
+
+        now = datetime.now(UTC)
+        rows = (
+            self.db.query(RealWorldMission)
+            .filter(RealWorldMission.user_id == user.id, RealWorldMission.serial_thread_id.is_(None))
+            .order_by(RealWorldMission.created_at.desc())
+            .limit(60)
+            .all()
+        )
+        completed_recent: set[str] = set()
+        canned_recent: set[str] = set()
+        canned_ever: set[str] = set()
+        for row in rows:
+            prompt = row.prompt_payload or {}
+            fit = prompt.get(LETTER_FIT_KEY) if isinstance(prompt.get(LETTER_FIT_KEY), dict) else {}
+            custom = prompt.get("custom_context") if isinstance(prompt.get("custom_context"), dict) else {}
+            variety = prompt.get("variety") if isinstance(prompt.get("variety"), dict) else {}
+            # An older letter without a fit: a scenario letter's request is its domain;
+            # a story-born or learner-written one asked something of its own.
+            key = fit.get("request_key") if fit else (None if custom else variety.get("domain"))
+            if not key:
+                continue
+            done = _aware(row.completed_at)
+            if row.status == "completed" and done and now - done < timedelta(days=COMPLETED_REQUEST_DAYS):
+                completed_recent.add(str(key))
+            served = _parse_moment(fit.get("served_at")) if fit else None
+            if fit.get("source") == "canned":
+                canned_ever.add(str(key))
+                if served and now - served < timedelta(days=CANNED_REUSE_DAYS):
+                    canned_recent.add(str(key))
+        return {
+            "band": self.generator._letter_band(user),
+            "completed_recent": completed_recent,
+            "canned_recent": canned_recent,
+            "canned_ever": canned_ever,
+            "season_active": self._season_active(user),
+            "model_available": _safe_llm() is not None,
+        }
+
+    def _season_active(self, user: User) -> bool:
+        """The learner plays a scripted season (or will, once their story begins)."""
+
+        try:
+            from app.services.living_story import STATE_KEY
+            from app.services.season.runtime import season_id_for
+
+            thread = courrier.active_thread(self.db, user)
+            live = (thread.state or {}).get(STATE_KEY) if thread is not None else None
+            return season_id_for(live if isinstance(live, dict) else None) is not None
+        except Exception:  # noqa: BLE001 - a letter is never lost to a season read
+            logger.debug("Courrier: season state unreadable")
+            return False
 
     def _active_coverage_category(self, *, user: User) -> str | None:
         excluded = {"verbs", "uncategorized", "complete", "adjectives_adverbs", "function_words"}
@@ -6258,6 +6766,15 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
     if getattr(mission, "serial_thread_id", None) and isinstance(outcome, dict):
         payload["outcome"] = outcome
     payload.update(_courrier_fields(mission))
+    # WP-125B: the letter's own time estimate (WP-128 offers it as an optional
+    # extension), and how it fits the learner. ``None`` on letters written before.
+    fit = (mission.prompt_payload or {}).get(LETTER_FIT_KEY)
+    fit = fit if isinstance(fit, dict) else {}
+    seconds = fit.get("estimated_seconds")
+    payload["estimated_seconds"] = int(seconds) if isinstance(seconds, (int, float)) else None
+    payload["letter_fit"] = {
+        key: fit.get(key) for key in ("source", "level", "reach", "request_key", "follow_up_of")
+    } if fit else None
     if include_children:
         payload["attempts"] = [
             {

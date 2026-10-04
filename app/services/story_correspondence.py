@@ -775,6 +775,9 @@ def open_chain_step(
         "after_outcome": outcome,
         "after_summary_fr": summarise_letter(mission),
         "after_mission_id": str(mission.id),
+        # WP-125B: how letter k was written. A canned letter k can only be followed
+        # by its own authored follow-up, never by a reprint of itself.
+        "after_source": str(((mission.prompt_payload or {}).get("letter_fit") or {}).get("source") or "") or None,
         # The affair tightens: letter 2 of 3 matters more than letter 1.
         "stakes_level": max(1, min(3, int(getattr(mission, "stakes_level", None) or 1) + 1)),
         "queued_at": datetime.now(UTC).isoformat(),
@@ -815,6 +818,42 @@ def close_chain(db: Session, *, user: User, chain_id: str | None) -> None:
     state[CORRESPONDENCE_KEY] = courrier
     _save(thread, state)
     db.add(thread)
+
+
+# ---------------------------------------------------------------------------
+# WP-125B — a day without a credible letter
+# ---------------------------------------------------------------------------
+
+
+def _today_key(now: datetime | None = None) -> str:
+    return (now or datetime.now(UTC)).date().isoformat()
+
+
+def withheld_today(db: Session, *, user: User, kind: str, now: datetime | None = None) -> bool:
+    """A letter of this ``kind`` was already found not credible today: do not retry.
+
+    Without the note every Courrier visit would retry the writer (and, when the
+    provider is down, wait on it again) only to withhold the same letter.
+    """
+
+    marks = correspondence_state(active_thread(db, user)).get("withheld") or {}
+    return isinstance(marks, dict) and marks.get(str(kind)) == _today_key(now)
+
+
+def note_withheld(db: Session, *, user: User, kind: str, reason: str, now: datetime | None = None) -> None:
+    thread = active_thread(db, user)
+    if thread is None:
+        return
+    state = _state(thread)
+    courrier = dict(state.get(CORRESPONDENCE_KEY) or {})
+    marks = dict(courrier.get("withheld") or {})
+    marks[str(kind)] = _today_key(now)
+    marks[f"{kind}_reason"] = str(reason)
+    courrier["withheld"] = marks
+    state[CORRESPONDENCE_KEY] = courrier
+    _save(thread, state)
+    db.add(thread)
+    db.commit()
 
 
 # ---------------------------------------------------------------------------
