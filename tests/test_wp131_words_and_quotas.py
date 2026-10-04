@@ -427,6 +427,13 @@ def test_lemma_resolution_prefers_precision() -> None:
     assert season_lexicon.lemma_of("signe", capitalised=True) == "signer"
 
 
+def _nameless(sentence: str) -> bool:
+    from app.services.lexical_coverage import tokenize
+
+    names = season_lexicon._season_cast_tokens("s1")
+    return not any(token.key in names for token in tokenize(sentence))
+
+
 def _tentpole_scenario(level: str, draft_line: str) -> SimpleNamespace:
     page = {"season_id": "s1", "tentpole": "t1", "day": "a", "variant": None, "band": level.upper()}
     draft = {"premise_fr": "", "panels": [{"narration_fr": "", "dialogue": [{"character_id": "x", "text_fr": draft_line}]}]}
@@ -437,8 +444,8 @@ def test_b2_scene_words_come_from_the_printed_lines_and_are_glossed(db_session: 
     user = _learner(db_session)
     user.native_language = "de"
     anchors = season_lexicon.page_anchors({"season_id": "s1", "tentpole": "t1", "day": "a", "band": "B2"})
-    new = [a for a in anchors if a["role"] == "new"]
-    assert new, "t1.a holds B2 words"
+    new = [a for a in anchors if a["role"] == "new" and _nameless(a["sentence_fr"])]
+    assert len(new) >= 2, "t1.a holds B2 words in lines that name nobody"
     line = " ".join(a["sentence_fr"] for a in new[:2])
     entries = season_lexicon.scene_entries(db_session, user=user, scenario=_tentpole_scenario("b2", line))
     assert [e["lemma"] for e in entries] == [a["lemma"] for a in new[:2]]
@@ -451,7 +458,7 @@ def test_b2_scene_words_come_from_the_printed_lines_and_are_glossed(db_session: 
 def test_a_foundational_word_is_offered_only_when_it_is_due(db_session: Session) -> None:
     user = _learner(db_session)
     anchors = season_lexicon.page_anchors({"season_id": "s1", "tentpole": "t1", "day": "a", "band": "B2"})
-    base = next(a for a in anchors if a["role"] == "foundational")
+    base = next(a for a in anchors if a["role"] == "foundational" and _nameless(a["sentence_fr"]))
     scenario = _tentpole_scenario("b2", base["sentence_fr"])
     assert all(e["lemma"] != base["lemma"] for e in season_lexicon.scene_entries(db_session, user=user, scenario=scenario))
     word = _word(db_session, base["lemma"])
@@ -466,6 +473,27 @@ def test_a_foundational_word_is_offered_only_when_it_is_due(db_session: Session)
     progress.due_at = progress.next_review_date = datetime.now(UTC) + timedelta(days=9)
     db_session.flush()
     assert all(e["lemma"] != base["lemma"] for e in season_lexicon.scene_entries(db_session, user=user, scenario=scenario))
+
+
+def test_a_scene_word_is_never_practised_in_a_line_that_names_a_character(db_session: Session) -> None:
+    # Found by the life walk: day one's cloze «Augustin, vous êtes bien trop … pour
+    # ce siècle» named Augustin before the learner had met him.
+    user = _learner(db_session)
+    anchors = season_lexicon.page_anchors({"season_id": "s1", "tentpole": "t1", "day": "a", "band": "C1"})
+    new = next(a for a in anchors if a["role"] == "new")
+    named = _tentpole_scenario("c1", f"Augustin, voici le mot {new['surface_fr']}.")
+    assert season_lexicon.scene_entries(db_session, user=user, scenario=named) == []
+    plain = _tentpole_scenario("c1", f"Voici le mot {new['surface_fr']}.")
+    assert [e["lemma"] for e in season_lexicon.scene_entries(db_session, user=user, scenario=plain)] == [new["lemma"]]
+
+
+def test_season_words_never_reach_above_the_level() -> None:
+    from app.services.lexical_coverage import load_lexicon
+
+    lemmas = load_lexicon().lemmas
+    for level in ("A1", "A2", "B1", "B2", "C1"):
+        bands = {season_lexicon._band_level(lemmas[w].get("band")) for w in season_lexicon.season_words(level)}
+        assert max(bands) <= season_lexicon._band_level(level), level
 
 
 def test_season_words_are_per_level() -> None:

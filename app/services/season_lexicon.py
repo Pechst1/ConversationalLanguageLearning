@@ -95,6 +95,9 @@ def _says(node: Any) -> Iterator[Any]:
             yield from _says(value)
 
 
+_TITLES = frozenset({"mme", "maître", "monsieur", "madame", "mademoiselle"})
+
+
 def _cast_tokens(season: Any) -> frozenset[str]:
     from app.services.lexical_coverage import fold
     from app.services.season.world import season_cast_names
@@ -103,8 +106,12 @@ def _cast_tokens(season: Any) -> frozenset[str]:
     names = list(season_cast_names(season.id).values()) + [member.name for member in season.cast]
     for name in names:
         for piece in str(name or "").replace("-", " ").split():
-            tokens.add(fold(piece).strip(".,"))
-    return frozenset(token for token in tokens if token)
+            # Proper names only: «Augustin», «Roncourt» — not «le brocanteur»'s
+            # article or the title «Mme».
+            clean = piece.strip(".,«»")
+            if len(clean) >= 3 and clean[:1].isupper() and clean.isalpha():
+                tokens.add(fold(clean))
+    return frozenset(token for token in tokens if token not in _TITLES)
 
 
 #: Auxiliaries: grammar, not words to drill in a scene.
@@ -264,6 +271,7 @@ def source_digest(season_id: str) -> str:
 def build(season_id: str = "s1") -> dict[str, Any]:
     """The season's lexicon file content (deterministic)."""
 
+    from app.services.lexical_coverage import load_lexicon
     from app.services.season.format import load_season
 
     season = load_season(season_id)
@@ -278,7 +286,13 @@ def build(season_id: str = "s1") -> dict[str, Any]:
             for level in ALL_LEVELS:
                 band = level.upper()
                 texts = [say.text(band) for say in says]
-                season_words[level] |= set(_words_in(texts, cast=cast))
+                # Only words at or below the level: the drill must not reach above
+                # the learner's band because the story happens to print a word.
+                season_words[level] |= {
+                    lemma
+                    for lemma in _words_in(texts, cast=cast)
+                    if _band_level(load_lexicon().lemmas[lemma].get("band")) <= _band_level(level)
+                }
                 if level in ADVANCED_LEVELS:
                     by_level[level] = day_anchors(texts, level, cast=cast)
             days[day_key(tentpole_id, day.day, day.variant)] = by_level
@@ -338,6 +352,16 @@ def page_anchors(page: dict[str, Any] | None) -> list[dict[str, Any]]:
     return list((load(season_id).get("days", {}).get(key) or {}).get(level) or [])
 
 
+@lru_cache(maxsize=4)
+def _season_cast_tokens(season_id: str) -> frozenset[str]:
+    from app.services.season.format import load_season
+
+    try:
+        return _cast_tokens(load_season(season_id))
+    except Exception:  # noqa: BLE001 - no season, no names to avoid
+        return frozenset()
+
+
 def _due_held_word_ids(db: Any, user: Any, word_ids: list[int], now: datetime) -> set[int]:
     """The words among ``word_ids`` the learner holds a card for that is due now."""
 
@@ -373,7 +397,7 @@ def scene_entries(
     anything that is not a B1+ season tentpole.
     """
 
-    from app.services.lexical_coverage import fold
+    from app.services.lexical_coverage import fold, tokenize
     from app.services.scene_items import contains_surface, draft_of, scene_texts
     from app.services.season.runtime import SEASON_CONTEXT_KEY
 
@@ -385,10 +409,20 @@ def scene_entries(
     if not anchors:
         return []
     texts = scene_texts(draft_of(scenario))
+    names = _season_cast_tokens(str((season_ctx.get("page") or {}).get("season_id") or "s1"))
+
+    def practisable(text: str, surface: str) -> bool:
+        # The practice item is cut from this sentence: it must print the word and
+        # must not name a character (the learner may not have met them yet).
+        if not contains_surface(text, surface):
+            return False
+        sentence = _sentence_with(text, surface)
+        return not any(token.key in names for token in tokenize(sentence))
+
     printed = [
         (anchor, ref)
         for anchor in anchors
-        for ref in [next((ref for ref, text in texts.items() if contains_surface(text, anchor.get("surface_fr"))), None)]
+        for ref in [next((ref for ref, text in texts.items() if practisable(text, anchor.get("surface_fr") or "")), None)]
         if ref is not None
     ]
     if not printed:

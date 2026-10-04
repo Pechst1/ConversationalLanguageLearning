@@ -705,7 +705,7 @@ class ProgressService:
 
         from sqlalchemy import Text, cast
 
-        from app.services.core_lexicon import CORE_DECK, CORPUS_TAG
+        from app.services.core_lexicon import CORE_DECK, CORPUS_TAG, band_level
         from app.services.journey_content import learner_level_band
         from app.services.season_lexicon import season_words
         from app.services.word_order import NewWord, order_new_words
@@ -717,7 +717,12 @@ class ProgressService:
         if story:
             rows += list(
                 self.db.scalars(
-                    new_stmt.where(core_word, VocabularyWord.normalized_word.in_(story))
+                    new_stmt.where(
+                        core_word,
+                        VocabularyWord.normalized_word.in_(story),
+                        # The story's words never pull the drill above the learner's band.
+                        VocabularyWord.difficulty_level <= band_level(learner_level_band(user)),
+                    )
                     .order_by(*base_order)
                     .limit(new_limit * 2)
                 )
