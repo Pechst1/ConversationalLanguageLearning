@@ -104,8 +104,9 @@ def _user(db_session, *, email: str, level: str = "A1", estimate: str = "A1.1") 
 def test_lexicon_declares_its_provenance_and_is_not_empty():
     lexicon = load_lexicon()
 
-    # WP-L2 extended the list to ~2,500 lemmas through B1 and added sub_band.
-    assert lexicon.version == "fr-core-lexicon-v2"
+    # WP-L2 extended the list to ~2,500 lemmas through B1 and added sub_band;
+    # the 2026-10-03 content program (v3) runs it through C1.
+    assert lexicon.version == "fr-core-lexicon-v3"
     assert len(lexicon.lemmas) > 500
     # A word list with no stated origin is a word list nobody can audit.
     assert lexicon.provenance["function_words"].startswith("Seeded from spaCy")
@@ -123,8 +124,9 @@ def test_core_lemmas_accumulate_upward_through_the_bands():
     assert a1 < b1
     assert "café" in a1
     assert "démarche" in b1 and "démarche" not in a1
-    # A band above the list's top still gets everything, never nothing.
-    assert lexicon.core_lemmas("C1") == lexicon.core_lemmas("B1")
+    # v3 runs through C1, and a band above the list's top still gets everything.
+    assert lexicon.core_lemmas("B1") < lexicon.core_lemmas("C1")
+    assert lexicon.core_lemmas("C2") == lexicon.core_lemmas("C1")
 
 
 @pytest.mark.parametrize(
@@ -266,7 +268,8 @@ def test_unknown_words_split_into_targets_and_accidents():
     )
 
     assert [word.lemma for word in result.targets] == ["chauffage"]
-    assert {word.lemma for word in result.accidental} == {"cassé"}
+    # Lexicon v3 knows «casser», so the participle resolves to its lemma.
+    assert {word.lemma for word in result.accidental} == {"casser"}
 
 
 def test_a_target_still_counts_against_coverage():
@@ -361,7 +364,8 @@ def test_a_scene_whose_only_unknowns_are_todays_targets_passes():
     )
 
     assert verdict.accepted is True
-    assert {word.lemma for word in verdict.result.targets} == {"chauffage", "cassé"}
+    # The target is named as written («cassé»); it resolves to «casser» (lexicon v3).
+    assert {word.lemma for word in verdict.result.targets} == {"chauffage", "casser"}
     assert verdict.result.accidental == ()
 
 

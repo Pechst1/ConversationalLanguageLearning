@@ -4,6 +4,10 @@ set -euo pipefail
 if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
   echo "Running database migrations"
   alembic upgrade head
+  # Content program 2026-10-03: the core word list (A1 → C1) ships with the
+  # image like the migrations; the sync is idempotent and a no-op when current.
+  echo "Syncing the core lexicon"
+  python scripts/sync_core_lexicon.py
 fi
 
 if [ "${BOOTSTRAP_REFERENCE_DATA:-0}" = "1" ]; then

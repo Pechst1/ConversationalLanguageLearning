@@ -622,6 +622,7 @@ def text_coverage(
     proper_count = 0
     unknown_counts: dict[str, int] = {}
     unknown_surface: dict[str, str] = {}
+    target_lemmas: set[str] = set()
 
     for token in tokenize(text):
         running += 1
@@ -653,6 +654,10 @@ def text_coverage(
         lemma = _best_lemma(candidates, lexicon)
         unknown_counts[lemma] = unknown_counts.get(lemma, 0) + 1
         unknown_surface.setdefault(lemma, token.surface)
+        # A target is named as the scene wrote it («cassé»); with lexicon v3
+        # the token resolves to its lemma («casser»), so any candidate counts.
+        if any(c in target_keys or strip_accents(c) in target_keys for c in (token.key, *candidates)):
+            target_lemmas.add(lemma)
 
     unknown = [
         UnknownWord(
@@ -661,7 +666,9 @@ def text_coverage(
             count=count,
             rank=lexicon.rank(lemma),
             band=lexicon.band(lemma),
-            is_target=lemma in target_keys or strip_accents(lemma) in target_keys,
+            is_target=lemma in target_lemmas
+            or lemma in target_keys
+            or strip_accents(lemma) in target_keys,
         )
         for lemma, count in unknown_counts.items()
     ]
@@ -838,7 +845,7 @@ REJECT_ABOVE_BAND = "above_band_words"
 def far_above_band_words(result: CoverageResult) -> tuple[UnknownWord, ...]:
     """Accidental unknowns two or more bands above the learner (B1+ for an A1
     reader: «geste», «commercial»). Up to A2, a word the core lexicon does not
-    list at all counts as far too: the lexicon runs through B1, so what it
+    list at all counts as far too: the lexicon runs through C1, so what it
     lacks is rarer still."""
 
     ceiling = band_index(result.band)
