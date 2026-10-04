@@ -16,9 +16,11 @@ the journey now *offers* that evidence on time:
    category: assisted or insufficiently spaced evidence never holds a unit;
 6. a deterministic successful learner holds a unit between days 14 and 21;
 7. WP-129's B1+ free sentence («Écrivez une phrase à vous…») is an
-   independent use when it is answered without help (no model sentence is
-   shown before the answer, one attempt); with the hint or the solution it is
-   supported production, never a free use;
+   independent use when the learner writes a sentence of their own without
+   help (no model sentence is shown before the answer, one attempt). With the
+   hint or the solution, or when the answer is a sentence the app displayed for
+   the unit (the model shown after a miss, a rule-card example, a contrast
+   pair's ✓), it is supported production: met and scheduled, never a free use;
 8. the life-walk check (tests/walk_checks_wp130b.py) fires on a bad chain.
 """
 from __future__ import annotations
@@ -43,6 +45,7 @@ from app.services.journey_contracts import (
     InputMode,
     StepKind,
     TargetKind,
+    TaskOutcome,
 )
 from tests.test_wp_l4_concept_life import (
     DAY0,
@@ -235,10 +238,13 @@ def test_the_free_sentence_is_an_independent_use_only_without_help(
     assert task.prompt_fr is None and task.source_fr is None
     assert task.solution_fr not in str(task.instruction_native) + str(task.goal_native or "")
     pool = [*(pair["right"] for pair in brief["contrast_pairs"]), *brief["examples"], task.solution_fr]
-    own = next(
+    shown = next(
         grammar_items.plain(text) for text in pool
         if grammar_items.free_sentence_uses_unit(brief, grammar_items.plain(text))
     )
+    # The learner's own sentence: one the app never displayed for the unit.
+    own = shown.rstrip(" .!?") + ", je crois."
+    assert grammar_items.free_sentence_uses_unit(brief, own)
     for assistance, expected in (
         (AssistanceLevel.NONE, EvidenceKind.PRODUCED_INDEPENDENT),
         (AssistanceLevel.HINT, EvidenceKind.PRODUCED_SUPPORTED),
@@ -255,6 +261,48 @@ def test_the_free_sentence_is_an_independent_use_only_without_help(
         )
         assert concept_life.is_free_use(evidence) is (assistance is AssistanceLevel.NONE)
 
+
+def test_a_free_sentence_that_types_back_a_shown_sentence_is_not_a_free_use(
+    db_session: Session, catalogue: str
+) -> None:
+    """The model (shown after a miss), the rule card's examples and the ✓ of the
+    contrast pairs are displayed sentences: typed back, they are met and
+    scheduled, as supported production — never an independent use."""
+
+    user = _learner(db_session)
+    task, brief = _free_sentence(db_session)
+    shown = [task.solution_fr, *brief["examples"], *(pair["right"] for pair in brief["contrast_pairs"])]
+    for text in shown:
+        evaluation = journey_learning.evaluate_recall(
+            db_session, user=user, task=task,
+            answer=AttemptAnswer(mode=InputMode.TEXT, text=grammar_items.plain(text)),
+            assistance=AssistanceLevel.NONE,
+        )
+        for observation in evaluation.observations:
+            assert observation.evidence_kind is not EvidenceKind.PRODUCED_INDEPENDENT, text
+            evidence = journey_learning.grammar_journey_evidence(
+                observation.evidence_kind, task_format=observation.task_format,
+                assistance=observation.assistance,
+            )
+            assert not concept_life.is_free_use(evidence), text
+    model = journey_learning.evaluate_recall(
+        db_session, user=user, task=task,
+        answer=AttemptAnswer(mode=InputMode.TEXT, text=task.solution_fr), assistance=AssistanceLevel.NONE,
+    )
+    assert model.outcome is TaskOutcome.MET, "still right: it schedules the unit"
+    assert model.observations[0].evidence_kind is EvidenceKind.PRODUCED_SUPPORTED
+
+
+def test_the_coach_scene_stays_at_the_learner_level(monkeypatch) -> None:
+    from app.services import practice_level
+
+    brief = {"external_id": "FR2_A11_ETRE", "concept_id": 1, "title_fr": "Être"}
+    task = journey_learning.coach_scene_review_task(brief, language="en", day_key="d", level="A1")
+    if task is not None:
+        assert all(practice_level.within_band(text, "A1") for text in task.accepted_answers)
+    monkeypatch.setattr(practice_level, "within_band", lambda text, level, **_k: False)
+    assert journey_learning.coach_scene_review_task(brief, language="en", day_key="d", level="A1") is None
+    assert journey_learning.coach_scene_review_task(brief, language="en", day_key="d") is not None or task is None
 
 # ---------------------------------------------------------------------------
 # 1–6. Through the real learning adapter and planner, day by day

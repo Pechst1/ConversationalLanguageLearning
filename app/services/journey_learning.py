@@ -840,7 +840,9 @@ def select_learning_candidates(
                     for candidate in selected]
     else:
         selected = _glosses_in_language(db, selected, str(scenario.control_language))
-    selected = _with_grammar_briefs(db, user=user, candidates=selected)
+    selected = _with_grammar_briefs(
+        db, user=user, candidates=selected, level=getattr(scenario, "level_band", None)
+    )
     return _with_level_fit(selected, scenario=scenario)
 
 
@@ -1317,7 +1319,7 @@ def _with_held_opportunity_brief(brief: dict[str, Any], kind: str | None) -> dic
 
 
 def _with_grammar_briefs(
-    db: Session, *, user: User, candidates: list[LearningCandidate]
+    db: Session, *, user: User, candidates: list[LearningCandidate], level: str | None = None
 ) -> list[LearningCandidate]:
     """Attach each grammar candidate's unit brief (what the planner poses it from)."""
 
@@ -1354,7 +1356,7 @@ def _with_grammar_briefs(
         brief = _with_held_opportunity_brief(
             brief, (candidate.metadata or {}).get("held_opportunity")
         )
-        brief = _with_coach_scene(brief, language=str(language))
+        brief = _with_coach_scene(brief, language=str(language), level=level)
         if concept is not None:
             # WP-129: the catalogue's partner units, for the B1+ contrast items.
             from app.services.grammar_catalog import concept_syllabus
@@ -2052,6 +2054,32 @@ def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | N
     return grammar_items.free_sentence_uses_unit(brief, text)
 
 
+def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-130 B: is the learner's free sentence one the app has *shown* for the unit?
+
+    The model sentence (shown after a miss), the rule card's and the unit's
+    examples and the ✓ side of its contrast pairs are displayed sentences. Typing
+    one back is a correct production, but a reproduced displayed example, not
+    an independent use: it keeps that category (``produced_supported``), so it
+    schedules the unit without counting towards «Tenue».
+    """
+
+    from app.services import grammar_items, grammar_units
+
+    folded = grammar_items._fold(grammar_items.plain(text))
+    if not folded:
+        return False
+    shown = [*(task.accepted_answers or []), task.solution_fr]
+    try:
+        concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
+    except Exception:  # noqa: BLE001 - the model sentence alone is then the check
+        concept = None
+    if concept is not None:
+        shown += grammar_units.examples(concept)
+        shown += [pair["right"] for pair in grammar_units.contrast_pairs(concept)]
+    return any(folded == grammar_items._fold(grammar_items.plain(item)) for item in shown if item)
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -2157,6 +2185,13 @@ def evaluate_recall(
         # WP-L4: a grammar unit is credited with the weight of the format.
         # WP-94: the Rappel's coach mini-scene proves free use, not a transform.
         observation = replace(observation, task_format=task.evidence_format or task.task_type)
+        if (
+            _is_free_sentence(task)
+            and observation.evidence_kind is EvidenceKind.PRODUCED_INDEPENDENT
+            and _free_sentence_copies_shown(db, task, answer.text)
+        ):
+            # WP-130 B: a displayed example typed back keeps its category.
+            observation = replace(observation, evidence_kind=EvidenceKind.PRODUCED_SUPPORTED)
     correction = None
     typed = typed_verdict
     if not is_correct:
@@ -3652,7 +3687,7 @@ _COACH_SCENE_INSTRUCTION: dict[str, str] = {
 
 
 def coach_scene_review_task(
-    brief: dict[str, Any], *, language: str, day_key: str
+    brief: dict[str, Any], *, language: str, day_key: str, level: str | None = None
 ) -> RecallTask | None:
     """A strong unit's Rappel: the rule's coach says a line, the learner replies.
 
@@ -3666,6 +3701,10 @@ def coach_scene_review_task(
     variants, and credited as free use (``evidence_format="conversation"``).
     ``None`` when the unit has no bank templates, no coach, or no item that
     can be a scene with that coach — then the reply asks for it, as before.
+
+    WP-130 B: with the learner's ``level``, a scene whose answer holds a word
+    more than one band above it is passed over (the scene now carries the
+    free-use opportunity whenever the reply cannot: it is posed far more often).
     """
 
     from app.services import forge_coaches, grammar_items, item_bank
@@ -3689,6 +3728,11 @@ def coach_scene_review_task(
         name = str(coach.get("name") or "")
         template = _COACH_SCENE_INSTRUCTION.get(language, _COACH_SCENE_INSTRUCTION["en"])
         accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
+        if level:
+            from app.services.practice_level import within_band
+
+            if not all(within_band(text, level) for text in accepted):
+                continue
         return RecallTask(
             task_type="short_answer",
             # FORGE-DE: a German learner reads the German meaning when the item has one.
@@ -3749,7 +3793,9 @@ def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> di
     }
 
 
-def _with_coach_scene(brief: dict[str, Any], *, language: str) -> dict[str, Any]:
+def _with_coach_scene(
+    brief: dict[str, Any], *, language: str, level: str | None = None
+) -> dict[str, Any]:
     """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
 
     JSON-safe (the planner stays pure: it rebuilds the ``RecallTask`` from this
@@ -3762,7 +3808,7 @@ def _with_coach_scene(brief: dict[str, Any], *, language: str) -> dict[str, Any]
         return brief
     try:
         task = coach_scene_review_task(
-            brief, language=language, day_key=datetime.now(UTC).date().isoformat()
+            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level
         )
     except Exception:  # pragma: no cover - a Rappel item is never worth the day
         logger.exception("journey_coach_scene_unavailable")
