@@ -164,12 +164,30 @@ def canned_letter_credible(item: dict[str, Any], rotation: dict[str, Any]) -> bo
     return canned_letter_problem(item, rotation) is None
 
 
-def canned_follow_ups(domain: Any) -> list[str]:
-    """The authored follow-up openings of a canned letter (letters 2, 3… of its affair)."""
+def follow_ups_of(item: dict[str, Any]) -> list[dict[str, str]]:
+    """A canned letter's authored follow-ups as ``{opening_message, brief?}`` (letters 2, 3…).
+
+    An entry is the follow-up's opening, or a dict with its own ``brief`` too.
+    """
+
+    result: list[dict[str, str]] = []
+    for entry in item.get("follow_ups") or []:
+        if isinstance(entry, dict):
+            opening = str(entry.get("opening_message") or "").strip()
+            brief = str(entry.get("brief") or "").strip()
+        else:
+            opening, brief = str(entry or "").strip(), ""
+        if opening:
+            result.append({"opening_message": opening, **({"brief": brief} if brief else {})})
+    return result
+
+
+def canned_follow_ups(domain: Any) -> list[dict[str, str]]:
+    """The authored follow-ups of the canned letter for ``domain``."""
 
     for item in REAL_WORLD_MISSION_DOMAINS:
         if str(item.get("domain")) == str(domain or ""):
-            return [str(text) for text in item.get("follow_ups") or [] if str(text).strip()]
+            return follow_ups_of(item)
     return []
 
 
@@ -1443,6 +1461,7 @@ class MissionGenerator:
             custom_context=custom_context,
             chain=chain,
         )
+        brief = str(letter_fit.pop("follow_up_brief", None) or brief)
         if withhold and letter_fit.get("withheld"):
             raise NoCredibleLetter(
                 str(letter_fit["withheld"]),
@@ -1637,10 +1656,12 @@ class MissionGenerator:
                 # A follow-up reprinting letter 1 word for word asks the learner the
                 # question they just answered. Only an authored follow-up, written
                 # for letter 1's canned text, may carry the affair on.
-                follow_ups = [str(text) for text in variety.get("follow_ups") or [] if str(text).strip()]
+                follow_ups = follow_ups_of(variety)
                 step = int(chain.get("index") or 2) - 2
                 if chain.get("after_source") == "canned" and 0 <= step < len(follow_ups):
-                    messenger = {**messenger, "opening_message": follow_ups[step]}
+                    messenger = {**messenger, "opening_message": follow_ups[step]["opening_message"]}
+                    if follow_ups[step].get("brief"):
+                        fit["follow_up_brief"] = follow_ups[step]["brief"]
                     problem = canned_letter_problem(variety, rotation, follow_up=True) if rotation else None
                 else:
                     problem = "follow_up_unwritten"

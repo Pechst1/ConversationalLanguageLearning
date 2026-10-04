@@ -332,7 +332,9 @@ def test_an_authored_follow_up_names_the_earlier_exchange(db_session, monkeypatc
     domain = _fit(first)["request_key"]
     follow_up = "Merci pour votre réponse d'hier. Il reste une seule question."
     patched = tuple(
-        {**item, "follow_ups": [follow_up]} if item["domain"] == domain else item
+        {**item, "follow_ups": [{"opening_message": follow_up, "brief": "Répondez à sa dernière question."}]}
+        if item["domain"] == domain
+        else item
         for item in REAL_WORLD_MISSION_DOMAINS
     )
     monkeypatch.setattr(missions_module, "REAL_WORLD_MISSION_DOMAINS", patched)
@@ -354,6 +356,8 @@ def test_an_authored_follow_up_names_the_earlier_exchange(db_session, monkeypatc
     assert messenger["opening_message"] != (first.prompt_payload or {})["messenger"]["opening_message"]
     assert "suite de" in messenger["chain_note"]
     assert payload["prompt_payload"][LETTER_FIT_KEY]["follow_up_of"] == str(first.id)
+    assert payload["brief"] == "Répondez à sa dernière question."
+    assert "follow_up_brief" not in payload["prompt_payload"][LETTER_FIT_KEY]
 
 
 # ---------------------------------------------------------------------------
