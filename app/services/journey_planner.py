@@ -299,6 +299,9 @@ DICTATION_MIN_WORDS = 2
 #: therefore holds three real listening items a day.
 LISTEN_TAP_ITEMS_BY_BUDGET: dict[int, int] = {300: 1, 600: 2, 1200: 3, 1800: 4}
 DICTATION_ITEMS_PER_DAY = 1
+#: WP-129: a thin A1/A2 day (fewer of today's words than the day has room for)
+#: dictates up to this many more lines of the story.
+THIN_DAY_EXTRA_DICTATIONS = 2
 #: Seeing the colour and tapping «Continuer».
 QUICK_FEEDBACK_SECONDS = 2
 #: A practice day aims for this many quick items: with the reply that is six
@@ -317,6 +320,15 @@ RULE_CARD_LOOK_SECONDS = 15
 #: WP-L4 «Réemploi»: at most this many grammar units are asked for in the
 #: reply, the day's new unit included (§2.4: ≤ 2 per day).
 MAX_REPLY_GRAMMAR_TARGETS = 2
+#: WP-129 (owner decision 2026-10-04, «fewer replies, more items»). At A1 and
+#: A2 a composed word costs 12 and 7.5 seconds (WP-128), so three exchanges
+#: filled a ten-minute day and left about four items. On Léger and Régulier
+#: the core reply asks for this many exchanges — or the authored page's minimum (a «Le choix», a gate,
+#: a turn that routes or sets a flag), whichever is more; the rest are optional
+#: and not counted in the core estimate. The story is still played in full:
+#: an authored page's unreached turns settle as written (``season.runtime``).
+LOW_BAND_CORE_REPLY_TURNS = 2
+LOW_BANDS = frozenset({"A1", "A2"})
 
 RecallTaskType = Literal["choice", "tiles", "short_answer"]
 
@@ -2471,8 +2483,14 @@ def plan_journey(
     forge: dict[str, Any] | None = None,
     reading: dict[str, Any] | list[dict[str, Any]] | None = None,
     desk: dict[str, Any] | None = None,
+    page_review: list[dict[str, Any]] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``page_review`` (WP-129, content program D7) — on a tentpole day, the
+    briefs of units the page uses that the learner met on an earlier day: one
+    of them is reviewed after the ending, in a line of the page
+    (:func:`page_review_step`). Never an introduction, never credited.
 
     ``desk`` («Le bureau», WP-121/122) is the one Revue desk today deals, as
     :func:`desk_offer` shapes it — ``{"desk": "relecture"|"radio"|"correcteur",
@@ -2587,6 +2605,14 @@ def plan_journey(
     candidates = [
         candidate for candidate in candidates if not (candidate.metadata or {}).get("partner_only")
     ]
+    # WP-129: introduced units a B1+ day may practise in its free time — never a
+    # reply obligation, so they stay out of the selection.
+    practice_units = [
+        candidate for candidate in candidates if (candidate.metadata or {}).get("practice_unit")
+    ]
+    candidates = [
+        candidate for candidate in candidates if not (candidate.metadata or {}).get("practice_unit")
+    ]
     candidates = merge_errata_candidates(candidates, errata_targets)
     if first_day:
         # WP-93 (W11): the taste already taught these; day 1 teaches new words.
@@ -2625,6 +2651,20 @@ def plan_journey(
         turns = 1
     # WP-113: an authored day's «Le choix» is never cut by the rhythm.
     turns = max(turns, int(getattr(task, "min_turns", 0) or 0))
+    optional_turns = 0
+    if practice and not first_day and band in LOW_BANDS and rhythm_caps(budget_seconds).budget_seconds <= 600:
+        # WP-129 (owner decision): fewer reply exchanges, more practice items —
+        # on Léger and Régulier, where the reply filled the day. Soutenu and
+        # Intensif keep their four: a longer rhythm buys story and input
+        # (WP-93), and their days had room for items already.
+        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, int(getattr(task, "min_turns", 0) or 0))
+        if turns > core_turns:
+            optional_turns = turns - core_turns
+            turns = core_turns
+            notes.append(
+                f"core reply: {turns} exchange(s) at {band}; {optional_turns} more optional, "
+                "not in the core estimate"
+            )
     # WP-93: the page is heard as well as read when the deployment speaks —
     # priced from Régulier up; the five-minute day reads it (its audio is a
     # replay the learner may take, not a cost the day promises).
@@ -2713,6 +2753,8 @@ def plan_journey(
             desk=desk,
             band=band,
             story_longer=longer_day,
+            practice_units=practice_units,
+            page_review=page_review,
         )
         if practice_plan is not None:
             return practice_plan
@@ -3345,17 +3387,56 @@ def _task_face(task: RecallTask) -> tuple[str, ...]:
     )
 
 
+#: WP-129: two grids that share this many French cards are one grid twice
+#: (EXPERIENCE-REVIEW F-14: «vendredi/pas/chose/lettre», then «chose/lettre/pas/votre»).
+GRID_OVERLAP_CARDS = 2
+
+
+def _french_cards(task: RecallTask) -> set[str]:
+    return {
+        _fold(str(option.get("text_fr") or ""))
+        for option in task.options or []
+        if option.get("side") != "native" and str(option.get("text_fr") or "").strip()
+    }
+
+
+def overlaps_the_day(task: RecallTask, tasks: list[RecallTask], avoid: set[str] | frozenset[str] = frozenset()) -> bool:
+    """WP-129: does ``task`` materially repeat an item already in the day?
+
+    Two items on one sentence (the line one prints to work on, or its answer:
+    :func:`grammar_items.item_sentences`) — Wave 1 posed two Rappels for two
+    units on «Tu as une minute ?» — or two matching grids that share
+    :data:`GRID_OVERLAP_CARDS` French cards. ``avoid`` is sentences the day
+    already holds outside ``tasks`` (the rule's guided items).
+    """
+
+    own = grammar_items.item_sentences(task)
+    if own & set(avoid):
+        return True
+    cards = _french_cards(task) if task.task_type == "match_pairs" else set()
+    for other in tasks:
+        if own & grammar_items.item_sentences(other):
+            return True
+        if cards and other.task_type == "match_pairs" and len(cards & _french_cards(other)) >= GRID_OVERLAP_CARDS:
+            return True
+    return False
+
+
 def _repeats_the_day(
-    task: RecallTask, entry: SelectedTarget, items: list[PracticeItem], *, slot: str | None = None
+    task: RecallTask, entry: SelectedTarget, items: list[PracticeItem], *, slot: str | None = None,
+    avoid: set[str] | frozenset[str] = frozenset(),
 ) -> bool:
     """EXERCISE-QA (learner walk): never the same item twice in a day — two
     «match the pairs» over the same four words differ only in which pair is
     graded — and never ask to *produce* a word in the same block as an item that
     puts it on the screen (that is copying, not recall; the scene between two
-    blocks is the spacing that makes the second one a retrieval)."""
+    blocks is the spacing that makes the second one a retrieval). WP-129: nor
+    an item that materially overlaps one already placed (:func:`overlaps_the_day`)."""
 
     face = _task_face(task)
     if any(_task_face(item.task) == face for item in items):
+        return True
+    if overlaps_the_day(task, [item.task for item in items], avoid):
         return True
     identity = target_identity(entry.target)
     block = _BLOCK_OF.get(str(slot), str(slot)) if slot is not None else None
@@ -3384,8 +3465,12 @@ def fill_practice_items(
     max_items: int | None = None,
     partners: list[TargetRef] | tuple[TargetRef, ...] = (),
     caps: RhythmCaps | None = None,
+    avoid_sentences: set[str] | frozenset[str] = frozenset(),
 ) -> list[PracticeItem]:
     """Place the day's quick items inside ``headroom`` seconds.
+
+    WP-129: ``avoid_sentences`` — sentences the day already holds (the rule's
+    guided items); no item repeats one, nor one placed here.
 
     Deterministic: the same inputs place the same items. A target comes back
     at most :data:`PRACTICE_MAX_USES_PER_TARGET` times and never twice in the
@@ -3437,12 +3522,16 @@ def fill_practice_items(
                     continue
                 if uses.get(target_identity(entry.target)):
                     continue
+                held = set(avoid_sentences)
+                for item in items:
+                    held |= grammar_items.item_sentences(item.task)
                 task = grammar_items.review_item(
                     {**brief, "level": scenario.level_band},
                     sentences=list(safe_sentences),
                     language=scenario.control_language,
                     day_key=day_key,
                     meanings=line_meanings(scenario),
+                    avoid=held,
                 )
                 if task is None and grammar_items.review_band(brief.get("stability")) == "high":
                     # WP-94: past 10 days of stability the Rappel is the coach's
@@ -3450,6 +3539,8 @@ def fill_practice_items(
                     # Built by the learning adapter (``coach_scene`` on the brief).
                     task = _coach_scene_task(brief)
                 if task is None or not shape_allows_format(shape, task.task_type):
+                    continue
+                if overlaps_the_day(task, [item.task for item in items], avoid_sentences):
                     continue
                 if grammar_uses(items) >= 1 and _same_concept_last(items, entry.target):
                     continue
@@ -3510,7 +3601,7 @@ def fill_practice_items(
                 )
                 if task is None:
                     continue
-                if _repeats_the_day(task, entry, items, slot=slot):
+                if _repeats_the_day(task, entry, items, slot=slot, avoid=avoid_sentences):
                     continue
                 cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
                 if cost > headroom:
@@ -3528,6 +3619,273 @@ def fill_practice_items(
         used_today[placed.task.task_type] = used_today.get(placed.task.task_type, 0) + 1
         items.append(placed)
     return items
+
+
+# ---------------------------------------------------------------------------
+# WP-129 — practice that fills a B1+ day: mixed units, contrasts, free sentences
+# ---------------------------------------------------------------------------
+
+#: The bands whose practice is production and mixed-unit (the chrome is French).
+ADVANCED_BANDS = frozenset({"B1", "B2", "C1", "C2"})
+#: WP-129 (owner decision 4): a B1+ day's practice items at each rhythm, the
+#: rule's guided items included. A *ceiling* the seconds, the learner's
+#: introduced units and each item's quality decide under — never a count to
+#: meet: an item that cannot be posed honestly is not posed.
+ADVANCED_ITEM_TARGET: dict[int, int] = {300: 5, 600: 9, 1200: 12, 1800: 14}
+#: How often one unit comes back in this fill (never twice in one format).
+ADVANCED_ITEMS_PER_UNIT = 2
+#: The fill's formats: a contrast between two introduced partner units, a
+#: repair (✗ → ✓) and a free sentence of the learner's own.
+ADVANCED_FORMATS: tuple[str, ...] = ("contrast", "transform", "free")
+
+
+def _unit_brief(entry: SelectedTarget) -> dict[str, Any] | None:
+    brief = (entry.candidate.metadata or {}).get("grammar_brief")
+    return brief if isinstance(brief, dict) and brief.get("concept_id") is not None else None
+
+
+def _advanced_task(
+    fmt: str,
+    brief: dict[str, Any],
+    *,
+    partners: list[dict[str, Any]],
+    language: ControlLanguage,
+    day_key: str,
+    avoid: set[str],
+) -> RecallTask | None:
+    if fmt == "contrast":
+        for partner in partners:
+            task = grammar_items.contrast_item(
+                brief, partner, language=language, day_key=day_key, avoid=avoid
+            )
+            if task is not None:
+                return task
+        return None
+    if fmt == "transform":
+        pairs = list(brief.get("contrast_pairs") or [])
+        pairs.sort(key=lambda pair: _digest(day_key, str(brief.get("concept_id")), str(pair.get("wrong"))))
+        for pair in pairs:
+            task = grammar_items.transform_item(
+                {**brief, "contrast_pairs": [pair]}, language=language, review=True
+            )
+            if task is not None and not (grammar_items.item_sentences(task) & avoid):
+                return task
+        return None
+    if fmt == "free":
+        return grammar_items.free_sentence_item(brief, language=language, avoid=avoid)
+    return None
+
+
+def is_interleaved_item(item: PracticeItem, intro_identity: str | None) -> bool:
+    """WP-129: a grammar item on a unit other than today's new one — practice
+    of an earlier unit mixed into the day (a contrast is one by construction)."""
+
+    return item.entry.target.kind is TargetKind.GRAMMAR and target_identity(item.entry.target) != intro_identity
+
+
+def fill_advanced_practice(
+    *,
+    scenario: ScenarioBrief,
+    shape: DayShape,
+    units: list[SelectedTarget],
+    items: list[PracticeItem],
+    headroom: int,
+    spt: float,
+    multiplier: float,
+    caps: RhythmCaps,
+    max_items: int | None = None,
+    reserved: int = 0,
+    avoid_sentences: set[str] | frozenset[str] = frozenset(),
+    day_key: str = "",
+) -> list[PracticeItem]:
+    """WP-129 — fill a B1+ day's free practice time with mixed-unit production.
+
+    ``units`` are grammar units the learner has *already been introduced to*
+    (the due Rappel units and ``practice_unit`` candidates, each with its
+    brief); today's new unit is never among them (its guided items are
+    ``reserved``). Round by round, each unit gets at most
+    :data:`ADVANCED_ITEMS_PER_UNIT` items in different formats — a contrast
+    with an introduced ``contrast_partners`` unit, a repair, a free sentence —
+    never the same unit twice running (interleaving), never a sentence the day
+    already holds, up to :data:`ADVANCED_ITEM_TARGET` and inside ``headroom``.
+    After the ending («post»): the episode is never interrupted. Below B1 the
+    day is returned unchanged.
+    """
+
+    if scenario.level_band not in ADVANCED_BANDS:
+        return items
+    rule = practice_day_shape_rule(shape, caps.budget_seconds)
+    cap = min(caps.max_recall, rule.max_recall, max_items if max_items is not None else caps.max_recall)
+    want = min(cap, ADVANCED_ITEM_TARGET.get(caps.budget_seconds, 5) - max(0, reserved))
+    placed = list(items)
+    if len(placed) >= want or headroom <= 0:
+        return placed
+    by_external: dict[str, dict[str, Any]] = {}
+    pool: list[tuple[SelectedTarget, dict[str, Any]]] = []
+    for entry in units:
+        brief = _unit_brief(entry)
+        if brief is None or entry.target.kind is not TargetKind.GRAMMAR:
+            continue
+        if any(target_identity(entry.target) == target_identity(other.target) for other, _b in pool):
+            continue
+        pool.append((entry, brief))
+        if brief.get("external_id"):
+            by_external[str(brief["external_id"])] = brief
+
+    def partners_of(brief: dict[str, Any]) -> list[dict[str, Any]]:
+        own = str(brief.get("external_id") or "")
+        named = [by_external[ref] for ref in brief.get("contrast_partners") or [] if ref in by_external]
+        # The catalogue names a pair on one side only, sometimes: both directions.
+        named += [
+            other for ref, other in by_external.items()
+            if own and own in (other.get("contrast_partners") or []) and other not in named and ref != own
+        ]
+        return named
+
+    # Units with an introduced partner first: the contrast is the point (§2.5).
+    pool.sort(key=lambda pair: 0 if partners_of(pair[1]) else 1)
+    uses: dict[str, int] = {}
+    formats_used: dict[str, set[str]] = {}
+    for item in placed:
+        identity = target_identity(item.entry.target)
+        uses[identity] = uses.get(identity, 0) + 1
+        formats_used.setdefault(identity, set()).add(
+            "free" if item.task.evidence_format == grammar_items.FREE_SENTENCE_FORMAT
+            else "contrast" if item.task.task_type == "classify" else str(item.task.task_type)
+        )
+    language = scenario.control_language
+    offset = int(_digest("advanced", day_key)[:2], 16)
+    for round_index in range(ADVANCED_ITEMS_PER_UNIT):
+        for unit_index, (entry, brief) in enumerate(pool):
+            if len(placed) >= want:
+                return placed
+            identity = target_identity(entry.target)
+            if uses.get(identity, 0) >= round_index + 1 or uses.get(identity, 0) >= ADVANCED_ITEMS_PER_UNIT:
+                continue
+            if placed and target_identity(placed[-1].entry.target) == identity:
+                continue
+            held = set(avoid_sentences)
+            for item in placed:
+                held |= grammar_items.item_sentences(item.task)
+            start = offset + round_index + unit_index
+            order = [ADVANCED_FORMATS[(start + k) % len(ADVANCED_FORMATS)] for k in range(len(ADVANCED_FORMATS))]
+            for fmt in order:
+                if fmt in formats_used.get(identity, set()):
+                    continue
+                task = _advanced_task(
+                    fmt, brief, partners=partners_of(brief), language=language, day_key=day_key,
+                    avoid=held,
+                )
+                if task is None or not shape_allows_format(shape, task.task_type):
+                    continue
+                if overlaps_the_day(task, [item.task for item in placed], avoid_sentences):
+                    continue
+                cost = grammar_item_seconds(task, spt=spt, multiplier=multiplier)
+                if cost > headroom:
+                    continue
+                owner = target_identity(task.target)
+                owner_entry = entry if owner == identity else next(
+                    (other for other, _b in pool if target_identity(other.target) == owner), entry
+                )
+                if placed and target_identity(placed[-1].entry.target) == owner:
+                    continue
+                placed.append(
+                    PracticeItem(
+                        slot="post", position=_next_position(placed, "post"),
+                        entry=owner_entry, task=task, cost=cost,
+                    )
+                )
+                headroom -= cost
+                uses[owner] = uses.get(owner, 0) + 1
+                formats_used.setdefault(owner, set()).add(fmt)
+                if owner != identity:
+                    # The contrast drew on both units: it is this unit's turn too.
+                    formats_used.setdefault(identity, set()).add(fmt)
+                break
+    return placed
+
+
+#: WP-129 / content program D7 «Rayons X»: looking at the card again, behind
+#: the page's own line (the line and the rule's one sentence are priced too).
+PAGE_REVIEW_LOOK_SECONDS = 8
+
+
+def page_review_contract_ready() -> bool:
+    """Does the day's contract accept the review step after the ending?
+
+    The review is a ``rule`` step marked ``review`` after the ending; the
+    contract (``journey_contracts.PAGE_REVIEW_AFTER_ENDING``) and the wire
+    (``RulePrompt.review``) carry it. Until both do, no review is planned.
+    """
+
+    from app.services import journey_contracts
+
+    return bool(getattr(journey_contracts, "PAGE_REVIEW_AFTER_ENDING", False))
+
+
+def page_review_step(
+    scenario: ScenarioBrief,
+    briefs: list[dict[str, Any]] | None,
+    *,
+    spt: float,
+    multiplier: float,
+    band: str | None = None,
+) -> PlannedStep | None:
+    """WP-129 / D7 — after a tentpole's ending, one unit the learner has *already
+    met*, shown in a line of the level-resolved page they just read.
+
+    ``briefs`` are the briefs of units the page uses (``units.json``) that the
+    learner was introduced to on an earlier day, in preference order. The first
+    whose detector marks a line of today's page (its panels, as rendered at the
+    learner's band) is shown on its own rule card, that line as the card's
+    headline, the form in ``[…]`` (the x-ray). ``None`` when no met unit is in a
+    line: nothing is shown rather than a new unit dressed as review. Reading it
+    introduces nothing and credits nothing (``review``: the state machine
+    stores no ``concept_id`` for it).
+    """
+
+    lines = [grammar_items.plain(text) for text in scene_sentences(*page_texts(scene_page(scenario)))]
+    if not lines or not briefs:
+        return None
+    speakers = scene_speakers(scenario)
+    language = str(scenario.control_language or "")
+    for brief in briefs:
+        card = brief.get("rule_card")
+        if not isinstance(card, dict) or not brief.get("detectors") or brief.get("concept_id") is None:
+            continue
+        for text in lines:
+            if not 3 <= len(text.split()) <= 24:
+                continue
+            bounds = grammar_items.rule_span(brief, text)
+            if bounds is None:
+                continue
+            start, end = bounds
+            marked = f"{text[:start]}[{text[start:end]}]{text[end:]}"
+            speaker = speakers.get(grammar_items._fold(text))
+            shown = {**card, "example": {"fr": marked}, "speaker": speaker or None, "from_scene": True}
+            rule = card.get("rule") if isinstance(card.get("rule"), dict) else {}
+            native = str(rule.get(language) or rule.get("en") or "")
+            cost = round(
+                PAGE_REVIEW_LOOK_SECONDS * multiplier
+                + _reading_seconds(spt, text) * page_reading_factor(band)
+                + _tokens(native) * NATIVE_SECONDS_PER_TOKEN
+            )
+            return PlannedStep(
+                ordinal=0,
+                kind=StepKind.RULE,
+                estimated_seconds=max(1, cost),
+                public_prompt={
+                    "concept_id": int(brief["concept_id"]),
+                    "title_native": str(brief.get("title_native") or ""),
+                    "title_fr": str(brief.get("title_fr") or ""),
+                    "rule_card": shown,
+                    "scene_example_fr": marked,
+                    "scene_example_speaker": speaker or None,
+                    "review": True,
+                },
+                target=grammar_items.grammar_target(brief),
+            )
+    return None
 
 
 def grammar_uses(items: list[PracticeItem]) -> int:
@@ -3807,6 +4165,7 @@ def top_up_from_scene(
     multiplier: float,
     target_items: int | None = None,
     caps: RhythmCaps | None = None,
+    avoid_sentences: set[str] | frozenset[str] = frozenset(),
 ) -> list[PracticeItem]:
     """WP-86 — the floor: when today's words leave the day thin, the scene
     itself poses the rest («Qui a dit ça ?», a cloze, a rebuilt line).
@@ -3858,7 +4217,7 @@ def top_up_from_scene(
             continue
         slot_items = [item for item in placed if item.slot in ("mid", "post")]
         slot = "mid" if len(slot_items) % 2 == 0 else "post"
-        if _repeats_the_day(task, entry, placed, slot=slot):
+        if _repeats_the_day(task, entry, placed, slot=slot, avoid=avoid_sentences):
             continue
         position = 1 + max((item.position for item in placed if item.slot == slot), default=-1)
         taken.add(kind)
@@ -3887,6 +4246,7 @@ def add_listening_items(
     max_items: int | None = None,
     partners: list[TargetRef] | tuple[TargetRef, ...] = (),
     extra_heard: int = 0,
+    avoid_sentences: set[str] | frozenset[str] = frozenset(),
 ) -> list[PracticeItem]:
     """WP-91 — with audio on, the day *hears* its words: listen-and-tap items
     carry a clip of the phrase, and dictations ask for lines of the scene.
@@ -4030,7 +4390,26 @@ def add_listening_items(
             candidates.index(line),
         ),
     )
-    for line in ranked[:wanted_dictations]:
+    if scenario.level_band in LOW_BANDS and caps.budget_seconds > RHYTHM_FIVE_MINUTES:
+        # WP-129 (owner decision: fewer replies, more items). The time the
+        # shorter reply frees is not drills for their own sake: when today's
+        # words are too few to fill the day, the story's own lines are heard and
+        # written down — input and output in one — up to
+        # :data:`THIN_DAY_EXTRA_DICTATIONS` more, inside the cap and the seconds.
+        deficit = caps.target_items - len(placed)
+        extra_dictations = max(0, min(THIN_DAY_EXTRA_DICTATIONS, deficit - wanted_dictations))
+    else:
+        extra_dictations = 0
+    ranked = [
+        line for line in ranked
+        # WP-129: a line the rule's guided items work on is not dictated too.
+        if grammar_items._fold(grammar_items.plain(line.text_fr)) not in set(avoid_sentences)
+    ]
+    dictated = 0
+    for line in ranked:
+        if dictated >= wanted_dictations + extra_dictations:
+            break
+        index_line = dictated
         entry = owner(line) or entries[0]
         task = build_dictation_task(
             target=entry.target, line=line, optional=True,
@@ -4043,10 +4422,35 @@ def add_listening_items(
             slot=slot, position=_next_position(placed, slot), entry=entry, task=task,
             cost=cost, audio_url=line_audio_url(line.voice, line.text_fr),
         )
+        same = next(
+            (
+                index for index, other in enumerate(placed)
+                if grammar_items.item_sentences(task) & grammar_items.item_sentences(other.task)
+            ),
+            None,
+        )
+        if same is not None:
+            # WP-129: the day already works on this line (a rebuilt line, a
+            # cloze): the dictation takes that item's place rather than posing
+            # the same sentence twice — or the line is left to it.
+            other = placed[same]
+            if other.task.task_type not in LISTENING_RECALL_FORMATS and cost - other.cost <= room:
+                room -= cost - other.cost
+                placed[same] = replace(
+                    dictation, slot=slot,
+                    position=other.position if other.slot == slot else _next_position(placed, slot),
+                )
+                dictated += 1
+            # Else the line stays the other item's, and the next line is tried.
+            continue
         if len(placed) < cap and cost <= room:
             placed.append(dictation)
             room -= cost
+            dictated += 1
             continue
+        if index_line >= wanted_dictations:
+            # A thin day's extra line is added or not: it never displaces an item.
+            break
         # At the cap or out of seconds: in place of the last item not heard.
         for index in range(len(placed) - 1, -1, -1):
             other = placed[index]
@@ -4060,6 +4464,9 @@ def add_listening_items(
                 position=other.position if other.slot == slot else _next_position(placed, slot),
             )
             break
+        # Placed or not, this is the line the day offered: the next is not tried
+        # for the same slot (the pre-WP-129 behaviour at the cap).
+        dictated += 1
     return placed
 
 
@@ -4226,6 +4633,8 @@ def _plan_practice_day(
     desk: dict[str, Any] | None = None,
     band: str | None = None,
     story_longer: bool = False,
+    practice_units: list[LearningCandidate] | None = None,
+    page_review: list[dict[str, Any]] | None = None,
 ) -> PlannedJourney | None:
     """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
 
@@ -4373,6 +4782,17 @@ def _plan_practice_day(
     reemploi = unit_sentence_words(reemploi_briefs[0], band) if reemploi_briefs else 0
     emploi = unit_sentence_words(introduction, band) if intro_card else 0
 
+    # WP-129: the units a B1+ day may mix in — the due Rappel units and the
+    # introduced ``practice_unit`` candidates, never today's new unit.
+    unit_entries = [
+        entry for entry in entries
+        if entry.target.kind is TargetKind.GRAMMAR and _unit_brief(entry) is not None
+    ] + [
+        SelectedTarget(candidate=candidate, fit=0.0, demonstrated=False)
+        for candidate in practice_units or []
+        if target_identity(candidate.target) != intro_identity
+    ]
+
     forced_intro = False
 
     def intro_reserve(turn_count: int) -> list[tuple[RecallTask, int]]:
@@ -4420,6 +4840,19 @@ def _plan_practice_day(
             max_items = max(0, min(caps.max_recall, caps.max_steps - 5) - len(reserved))
             target_items = max(0, caps.target_items - len(reserved))
         drills = headroom - input_gap
+        # WP-129: the rule's guided items already work on these sentences.
+        avoid = set()
+        for guided, _cost in reserved:
+            avoid |= grammar_items.item_sentences(guided)
+        day_key = "|".join(dice.seed_parts) if dice is not None else str(scenario.scenario_key)
+        mixed = scenario.level_band in ADVANCED_BANDS and bool(unit_entries)
+        word_cap = max_items
+        if mixed:
+            # WP-129 (owner decision 4): about half of a B1+ day is interleaved
+            # practice of earlier units — the words' fill leaves it that room.
+            target = ADVANCED_ITEM_TARGET.get(caps.budget_seconds, 5) - len(reserved)
+            leave = max(0, target // 2)
+            word_cap = leave if max_items is None else min(max_items, leave)
         filled = fill_practice_items(
             scenario=scenario,
             shape=shape,
@@ -4433,7 +4866,23 @@ def _plan_practice_day(
             multiplier=multiplier,
             partners=partners or [],
             caps=caps,
+            max_items=word_cap,
+            avoid_sentences=avoid,
+        )
+        # WP-129: a B1+ day fills its free time with mixed-unit production.
+        filled = fill_advanced_practice(
+            scenario=scenario,
+            shape=shape,
+            units=unit_entries,
+            items=filled,
+            headroom=max(0, drills - sum(item.cost for item in filled)),
+            spt=spt,
+            multiplier=multiplier,
+            caps=caps,
             max_items=max_items,
+            reserved=len(reserved),
+            avoid_sentences=avoid,
+            day_key=day_key,
         )
         # WP-86: a thin day is topped up from the scene's own lines.
         topped = top_up_from_scene(
@@ -4447,6 +4896,7 @@ def _plan_practice_day(
             multiplier=multiplier,
             caps=caps,
             target_items=target_items,
+            avoid_sentences=avoid,
         )
         if not audio_available:
             return cost, topped
@@ -4464,6 +4914,7 @@ def _plan_practice_day(
             max_items=max_items,
             partners=partners or [],
             extra_heard=caps.max_heard if scene_page(scenario) else 0,
+            avoid_sentences=avoid,
         )
 
     respond_cost, items = attempt(turns)
@@ -4533,6 +4984,35 @@ def _plan_practice_day(
         elif dropped is not None:
             items = dropped
             notes.append("desk: one ordinary recall item given up for it")
+
+    # WP-129 / D7: a tentpole's review in context, after the ending — inside the
+    # budget, giving up an ordinary item after the ending if it must, else not shown.
+    review_step = (
+        page_review_step(scenario, page_review, spt=spt, multiplier=multiplier, band=band)
+        if page_review and not forced_intro and page_review_contract_ready()
+        else None
+    )
+    if review_step is not None:
+        reserved_now = intro_reserve(turns)
+        spent = (
+            scene_cost + respond_cost + resolution_cost + desk_cost + read_cost
+            + (intro_card_cost + sum(cost for _t, cost in reserved_now) if reserved_now else 0)
+        )
+        while review_step is not None and spent + sum(item.cost for item in items) + review_step.estimated_seconds > budget_seconds:
+            dropped = _drop_one_recall(items)
+            if dropped is None or len(dropped) < practice_day_shape_rule(shape, budget_seconds).min_recall:
+                notes.append("page review skipped: the day's budget does not hold it")
+                review_step = None
+                break
+            items = dropped
+            notes.append("page review: one ordinary item after the ending given up for it")
+        if review_step is not None:
+            notes.append(
+                f"page review: {review_step.target.kind}:{review_step.target.id} in a line of the page"
+                if review_step.target is not None else "page review planned"
+            )
+    elif page_review:
+        notes.append("page review: no unit met earlier is in a line of today's page")
 
     practised = {target_identity(item.entry.target) for item in items}
     used_targets = list(selection.selected)
@@ -4713,6 +5193,9 @@ def _plan_practice_day(
             },
         )
     )
+    if review_step is not None:
+        # D7: straight after the ending, while the page is fresh.
+        steps.append(replace(review_step, ordinal=len(steps)))
     # WP-109 «Une seule maison»: the episode is never interrupted. The builds and
     # the word from today (WP-93 put them after the reply) follow the ending.
     for item in [*placed("mid"), *placed("post")]:
@@ -4735,6 +5218,15 @@ def _plan_practice_day(
             budget_seconds - sum(step.estimated_seconds for step in steps)
             - max(0, input_gap - heard)
         )
+        if room < FORGE_MIN_SECONDS and not audio_available:
+            # WP-129: on a day without audio no heard item can use the input
+            # floor, so it stood empty while the folded forge (owner decision 3;
+            # since WP-128 an extension with its own estimate) was dropped from
+            # Soutenu (tests/test_forge_integration.py, the A1 café). The forge
+            # may then take its *minimum* block from the floor — never more: the
+            # day's input share stays WP-93's.
+            whole = budget_seconds - sum(step.estimated_seconds for step in steps)
+            room = min(whole, FORGE_MIN_SECONDS)
         forge_step = _forge_step(
             forge_at,
             forge=forge,

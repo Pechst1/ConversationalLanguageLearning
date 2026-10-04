@@ -212,6 +212,13 @@ export type RuleCardProps = {
   sceneListenLabel?: string;
   /** F-1: open the expansion from the start (the Cahier's unit page). */
   defaultOpen?: boolean;
+  /**
+   * WP-129 (content program D7): after a tentpole's ending, a rule the learner
+   * met earlier, seen in a line of the page (`sceneAnchor`). Says so in the
+   * eyebrow, and its one action is «Continue», never «Essayer»: nothing is
+   * introduced and nothing is asked.
+   */
+  review?: boolean;
 };
 
 function SceneAnchor({
@@ -272,6 +279,7 @@ export function RuleCard({
   sceneVoice = null,
   sceneListenLabel,
   defaultOpen = false,
+  review = false,
 }: RuleCardProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
   const [showTranslation, setShowTranslation] = useState(false);
@@ -306,8 +314,15 @@ export function RuleCard({
   const showKey = useColourKey(tones.mark || tones.silent);
 
   return (
-    <section className="rc" data-variant={variant} aria-label={copy.eyebrow}>
-      {variant === 'intro' && <p className="av2-label av2-label--story rc-eyebrow">{copy.eyebrow}</p>}
+    <section
+      className="rc"
+      data-variant={variant}
+      data-review={review || undefined}
+      aria-label={review ? copy.reviewEyebrow : copy.eyebrow}
+    >
+      {variant === 'intro' && (
+        <p className="av2-label av2-label--story rc-eyebrow">{review ? copy.reviewEyebrow : copy.eyebrow}</p>
+      )}
 
       {sceneAnchor && (
         <SceneAnchor
@@ -521,7 +536,7 @@ export function RuleCard({
 
       {variant === 'intro' && onDone && (
         <button type="button" className="av2-btn av2-btn--primary rc-done" onClick={onDone}>
-          {copy.tryIt}
+          {review ? copy.reviewDone : copy.tryIt}
         </button>
       )}
     </section>

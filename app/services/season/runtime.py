@@ -441,6 +441,21 @@ def panel_images(page: dict[str, Any], scene_panels: list[dict[str, Any]]) -> li
     return images
 
 
+def routes_the_story(turn: dict[str, Any]) -> bool:
+    """Does what the learner answers here change the story? A «Le choix» or a
+    «Convaincre», Lila's gate, a reply that sets (or conditionally sets) a flag,
+    or a turn whose answer is a flag's value."""
+
+    if turn.get("from_solve") in ("choix", "convaincre") or turn.get("gate") or turn.get("choice"):
+        return True
+    if turn.get("value_flag") or turn.get("sets_if"):
+        return True
+    return any(
+        isinstance(reply, dict) and (reply.get("sets") or reply.get("sets_if"))
+        for reply in turn.get("replies") or []
+    )
+
+
 def tentpole_brief(today: Today, context: dict[str, Any]):
     """Today's authored page as the brief the journey plans and binds. No model call."""
 
@@ -481,8 +496,13 @@ def tentpole_brief(today: Today, context: dict[str, Any]):
     repeats = any(reply.get("repeat_once") for turn in turns for reply in turn.get("replies") or [])
     # WP-113: the conversation must reach the day's last posed solve and Lila's gate
     # (both move the story), and a «Convaincre» can take one exchange per objection.
+    # WP-129 (owner decision 2026-10-04): the A1/A2 core reply asks for fewer
+    # exchanges, never fewer than the page needs — a turn whose answer routes the
+    # story or sets a flag (its replies' ``sets`` / ``sets_if``, a ``value_flag``)
+    # is never dropped either; only a turn whose ``sets`` hold whatever is said
+    # may go unreached (``_settle_tentpole`` sets them).
     last_posed = max(
-        (i for i, turn in enumerate(turns) if turn.get("from_solve") in ("choix", "convaincre") or turn.get("gate")),
+        (i for i, turn in enumerate(turns) if routes_the_story(turn)),
         default=-1,
     )
     exchanges = sum(exchanges_for(turn) for turn in turns)

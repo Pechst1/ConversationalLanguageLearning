@@ -192,6 +192,9 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
     for step in getattr(plan, "steps", None) or []:
         if str(getattr(step, "kind", "")) == str(StepKind.RULE):
             prompt = dict(getattr(step, "public_prompt", None) or {})
+            if prompt.get("review"):
+                # WP-129 (D7): a review in context introduces nothing.
+                continue
             return {
                 "concept_id": prompt.get("concept_id"),
                 "title_native": prompt.get("title_native"),
@@ -620,7 +623,22 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
             task = private.get("recall_task") if isinstance(private.get("recall_task"), dict) else {}
             prompt["prompt_fr"] = task.get("prompt_fr")
             prompt["audio_url"] = None
+    elif StepKind(step.kind) is StepKind.RULE and "review" in prompt and not _RULE_PROMPT_HAS_REVIEW:
+        # WP-129 (D7): the tentpole's review in context says ``review`` to the
+        # client once ``RulePrompt`` carries the field; a schema without it
+        # (strict: ``extra="forbid"``) is not handed a key it would refuse.
+        prompt.pop("review", None)
     return prompt
+
+
+def _rule_prompt_has_review() -> bool:
+    from app.schemas.daily_journey import RulePrompt
+
+    return "review" in RulePrompt.model_fields
+
+
+#: WP-129: read once — the schema does not change under a running process.
+_RULE_PROMPT_HAS_REVIEW = _rule_prompt_has_review()
 
 
 #: Evidence kinds that mean the learner *wrote the target*, as opposed to having
@@ -3383,6 +3401,13 @@ class DailyJourneyService:
             forge = None if first_day else self._forge_for_today(user, introduction, story_units)
             # WP-93 «Lecture»: Soutenu and Intensif buy a second page.
             reading = None if first_day else self._reading_for_today(user, fresh, result)
+            # WP-129 (content program D7): a tentpole page reviews a unit the
+            # learner met earlier, in one of its own lines, after the ending.
+            page_review = (
+                self._page_review_for_today(user, story_units)
+                if not first_day and is_tentpole(result.story_context) and not _is_reprise(result)
+                else None
+            )
             # WP-121/122 «Le bureau»: at most one Revue desk on an ordinary day.
             desk = (
                 None
@@ -3413,6 +3438,7 @@ class DailyJourneyService:
                 forge=forge,
                 reading=reading,
                 desk=desk,
+                page_review=page_review,
             )
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
@@ -4126,6 +4152,46 @@ class DailyJourneyService:
             log=logger,
         )
 
+    def _page_review_for_today(self, user: User, story_units: list[str] | None) -> list[dict[str, Any]] | None:
+        """WP-129 (D7): briefs of the units today's tentpole page uses that the
+        learner was introduced to before today — the page's own order, a unit
+        not yet held first. ``None`` when there are none (nothing is reviewed:
+        a new unit is never shown as review). A failure costs the review only."""
+
+        if not story_units or not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+
+        def briefs() -> list[dict[str, Any]] | None:
+            from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+            from app.services.chrome_language import user_chrome_language
+            from app.services.concept_life import concept_brief
+
+            today = _utcnow()
+            rows = (
+                self.db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.introduced_at < today,
+                    GrammarConcept.active.is_(True),
+                    GrammarConcept.external_id.in_(list(story_units)),
+                )
+                .all()
+            )
+            order = {unit: index for index, unit in enumerate(story_units)}
+            rows.sort(key=lambda row: (row[0].held_at is not None, order.get(row[1].external_id, 10**6)))
+            language = str(user_chrome_language(user))
+            out = [
+                concept_brief(self.db, concept, control_language=language, stability=progress.stability)
+                for progress, concept in rows[:8]
+            ]
+            return out or None
+
+        return run_best_effort(
+            self.db, "daily_journey: page review", briefs, default=None, log=logger
+        )
+
     def _forge_for_today(
         self, user: User, introduction: Any, story_units: list[str] | None = None
     ) -> dict[str, Any] | None:
@@ -4217,6 +4283,7 @@ class DailyJourneyService:
         forge: Any = None,
         reading: Any = None,
         desk: Any = None,
+        page_review: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -4267,6 +4334,9 @@ class DailyJourneyService:
             if desk and "desk" in accepted:
                 # WP-121/122 «Le bureau»: one optional Revue desk after the ending.
                 base["desk"] = desk
+            if page_review and "page_review" in accepted:
+                # WP-129 (D7): a unit met earlier, reviewed in a line of the page.
+                base["page_review"] = page_review
         return plan_journey(
             **base,
             day_shape=decision.shape,
@@ -4363,6 +4433,11 @@ class DailyJourneyService:
                     "input_modes",
                     ["text", "voice"] if input_mode is InputMode.VOICE else ["text"],
                 )
+            elif kind is StepKind.RULE and public_prompt.get("review"):
+                # WP-129 (D7): the tentpole's review of a unit already met, in a
+                # line of the page. Reading it introduces nothing and credits
+                # nothing: no ``concept_id`` for `_mark_rule_read` to act on.
+                private_task["review_concept_id"] = public_prompt.get("concept_id")
             elif kind is StepKind.RULE:
                 # WP-L4: which unit advancing this step introduces.
                 private_task["concept_id"] = public_prompt.get("concept_id")
