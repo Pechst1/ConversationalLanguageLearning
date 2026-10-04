@@ -710,6 +710,10 @@ def check_life(record: dict[str, Any]) -> list[str]:
                 # before placement; three is the catalogue's first units.
                 if unit_level and unit_level < level - 2:
                     problems.append(f"{label}: a level-{level} learner's letter asks for {objective!r} (3+ levels below)")
+    # Wave 1 package checks (each in its own module, wired here by the orchestrator).
+    from tests.walk_checks_wp125a import check_letter_omissions
+
+    problems.extend(check_letter_omissions(record))
     return problems
 
 
