@@ -220,7 +220,7 @@ def test_an_unknown_starting_point_is_refused(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. Placement is offered after day 3, never at sign-up
+# 2. Placement is offered after the first ending (WP-126), never at sign-up
 # ---------------------------------------------------------------------------
 
 
@@ -263,35 +263,42 @@ def test_nobody_is_offered_placement_at_sign_up(client: TestClient, db_session: 
     headers = register(client, email(), starting_point="comfortable")
     response = client.get("/api/v1/placement/offer", headers=headers)
     assert response.status_code == 200, response.text
-    assert response.json() == {"offer": False}
+    assert response.json()["offer"] is False
 
 
-def test_after_three_days_a_learner_who_declared_some_french_is_offered_placement(
+def test_after_the_first_ending_a_learner_who_declared_some_french_is_offered_placement(
     client: TestClient, db_session: Session
 ) -> None:
+    # WP-126: the offer follows the first completed ending (it was day three).
     address = email()
     headers = register(client, address, starting_point="some")
     user = user_by_email(db_session, address)
-    _completed_days(db_session, user, 2)
-    assert client.get("/api/v1/placement/offer", headers=headers).json() == {"offer": False}
+    assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is False
     _completed_days(db_session, user, 1)
-    assert client.get("/api/v1/placement/offer", headers=headers).json() == {"offer": True}
+    assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is True
 
 
 def test_a_new_learner_is_offered_placement_only_when_their_days_say_so(
     db_session: Session, client: TestClient
 ) -> None:
-    struggling_email, strong_email = email(), email()
+    # WP-126: own-band (A1) success is never evidence of being above A1; days
+    # served *above* the learner's band, met unaided, on three distinct days are.
+    struggling_email, strong_email, above_email = email(), email(), email()
     register(client, struggling_email, starting_point="new")
     register(client, strong_email, starting_point="new")
+    register(client, above_email, starting_point="new")
     struggling = user_by_email(db_session, struggling_email)
     strong = user_by_email(db_session, strong_email)
+    above = user_by_email(db_session, above_email)
     _completed_days(db_session, struggling, 4, met_unaided=False)
     _completed_days(db_session, strong, 4, met_unaided=True)
+    _completed_days(db_session, above, 3, band="A2", met_unaided=True)
 
     assert placement_offer(db_session, struggling) is False
-    assert placement_offer(db_session, strong) is True
-    assert journey_placement_evidence(db_session, strong)["above_band"] is True
+    assert placement_offer(db_session, strong) is False
+    assert journey_placement_evidence(db_session, strong)["above_band"] is False
+    assert placement_offer(db_session, above) is True
+    assert journey_placement_evidence(db_session, above)["above_band"] is True
 
 
 def test_a_taken_or_declined_placement_is_never_offered_again(
@@ -312,7 +319,6 @@ def test_journey_evidence_is_the_placement_prior(db_session: Session, client: Te
     user = user_by_email(db_session, address)
     assert opening_band(user) == "A1.2"
     _completed_days(db_session, user, 4, band="A2", met_unaided=True)
-    user.cefr_estimate = "A2.1"
     db_session.commit()
     evidence = journey_placement_evidence(db_session, user)
     assert evidence["band"] == "A2"

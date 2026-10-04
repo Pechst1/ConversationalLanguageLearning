@@ -27,7 +27,8 @@ from app.services.placement import (
     PlacementService,
     hint_by_language,
     latest_placement_prior,
-    placement_offer,
+    placement_offer_state,
+    reconcile_after_placement,
 )
 
 router = APIRouter(prefix="/placement", tags=["placement"])
@@ -141,9 +142,14 @@ def read_state(
 
 
 class PlacementOffer(BaseModel):
-    """WP-75: whether to offer the placement now. Never true at sign-up."""
+    """WP-75 / WP-126: whether to offer the placement now. Never true at sign-up."""
 
     offer: bool
+    #: WP-126: a placement is open — the offer reads «Reprendre», not «Commencer».
+    resume: bool = False
+    #: Why (``declared`` / ``journey_evidence`` / ``resume``) or why not
+    #: (``too_early`` / ``settled`` / ``beginner``).
+    reason: str | None = None
 
 
 @router.get("/offer", response_model=PlacementOffer)
@@ -151,10 +157,11 @@ def read_offer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PlacementOffer:
-    """True after three completed days, before any placement was taken or
-    declined, and only when it can tell the learner something (they declared
-    more than «Nouveau», or their days say they are above their band)."""
-    return PlacementOffer(offer=placement_offer(db, current_user))
+    """WP-126: true from the first completed ending on, before any placement was
+    taken or declined, and only when it can tell the learner something (they
+    declared more than «Nouveau», or their days say they are *above* their band).
+    An open placement is offered for resuming."""
+    return PlacementOffer(**placement_offer_state(db, current_user))
 
 
 @router.post("/start", response_model=PlacementEnvelope)
@@ -191,6 +198,7 @@ def respond(
         # The estimate is the CEFR service's prior from here on; recompute so
         # Home and Le Cahier answer with the new level on their next read.
         CEFRProgressService(db).recompute(current_user, source="placement")
+        reconcile_after_placement(db, current_user)
     return _envelope(db, current_user, session)
 
 
@@ -204,6 +212,7 @@ def finish(
     session = _load(db, current_user, session_id)
     session = PlacementService(db).finish_now(session)
     CEFRProgressService(db).recompute(current_user, source="placement")
+    reconcile_after_placement(db, current_user)
     return _envelope(db, current_user, session)
 
 
