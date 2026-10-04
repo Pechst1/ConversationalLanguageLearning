@@ -547,7 +547,11 @@ def test_one_unit_over_twenty_one_days(db_session: Session, catalogue: str) -> N
         if due:
             items = _grammar_steps(today.plan(), concept_id)
             band = grammar_items.review_band(before.stability)
-            if band == "high":
+            if concept_life.held_opportunity(before, now=today.now) == concept_life.OPPORTUNITY_FREE_USE:
+                # WP-130 B: a unit owed its second free use is asked for (the
+                # reply, or the coach's scene), never shown in a Rappel item first.
+                assert all(i.private_task.evidence_format == "conversation" for i in items), items
+            elif band == "high":
                 assert not items, "a strong unit is asked for in the reply"
             else:
                 assert len(items) == 1, "one interleaved Rappel item a day"

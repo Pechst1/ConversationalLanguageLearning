@@ -99,6 +99,11 @@ class LifeAnswerer(walk.Answerer):
         right = self.rng.random() < accuracy
         if not right:
             return driver.recall_answer(step, correct=False), "wrong"
+        if task_type == "short_answer" and not (step.get("prompt") or {}).get("prompt_fr") and task.get("accepted_answers"):
+            # WP-130 B: a free sentence («Écrivez une phrase à vous…») is written in the
+            # learner's own words: the model is never shown before the answer.
+            own = str(task["accepted_answers"][0]).rstrip(" .!?") + ", je crois."
+            return {"mode": "text", "text": own}, "right-own-sentence"
         if typed and self.quality != "strong":
             accepted = list(task.get("accepted_answers") or [])
             if accepted and self.rng.random() < 0.6:
