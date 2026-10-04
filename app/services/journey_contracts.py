@@ -209,6 +209,15 @@ class StepKind(StrEnum):
 #: The three desks a «bureau» step can open (``public_prompt["desk"]``).
 DESK_KINDS: tuple[str, ...] = ("relecture", "radio", "correcteur")
 
+#: WP-128. The optional extensions a day may carry inside its plan, by the
+#: name their separate estimate goes by (``reading`` · ``forge`` · ``desk``).
+#: Everything else in a plan is the recommended core path the rhythm budgets.
+EXTENSION_STEP_KINDS: dict[StepKind, str] = {
+    StepKind.READ: "reading",
+    StepKind.FORGE: "forge",
+    StepKind.DESK: "desk",
+}
+
 
 class DayShape(StrEnum):
     """WP-66 — what *kind* of day this is.
@@ -945,6 +954,33 @@ class PlannedJourney:
     #: after the reply. ``False`` for every plan written before plan contract
     #: version 3, which then validates exactly as it did.
     practice: bool = False
+    #: WP-128. The story alone (scene, reply, ending) does not fit the rhythm
+    #: even at the band's prior: the day is planned as the story only and every
+    #: surface shows its longer estimate before the learner starts. A page is
+    #: never cut to fit. ``False`` for every plan written before WP-128.
+    longer_day: bool = False
+
+    def core_seconds(self) -> int:
+        """WP-128: the recommended core path — the story and its practice.
+
+        Everything except the optional extensions (:data:`EXTENSION_STEP_KINDS`:
+        the «Lecture», a folded forge block, a desk), which carry their own
+        estimates and are never a hidden completion requirement.
+        """
+
+        return sum(
+            step.estimated_seconds for step in self.steps if step.kind not in EXTENSION_STEP_KINDS
+        )
+
+    def extension_seconds(self) -> dict[str, int]:
+        """WP-128: each optional extension planned inside the day, by kind."""
+
+        out: dict[str, int] = {}
+        for step in self.steps:
+            if step.kind in EXTENSION_STEP_KINDS:
+                key = EXTENSION_STEP_KINDS[step.kind]
+                out[key] = out.get(key, 0) + int(step.estimated_seconds)
+        return out
 
     def validate(self) -> None:
         """Guard the CONTRACTS §3/§9 envelope at the producer boundary.
@@ -1027,7 +1063,15 @@ class PlannedJourney:
         mandatory = sum(
             step.estimated_seconds for step in self.steps if not step.optional
         )
-        if mandatory > self.budget_seconds:
+        if self.longer_day:
+            # WP-128: a longer day is the story alone, never padded past the rhythm.
+            if any(
+                step.kind not in (StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION)
+                and step.estimated_seconds > 0
+                for step in self.steps
+            ):
+                raise ValueError("a longer day holds the story only")
+        elif mandatory > self.budget_seconds:
             raise ValueError(
                 f"mandatory estimate {mandatory}s exceeds budget {self.budget_seconds}s"
             )
@@ -1140,7 +1184,18 @@ class PlannedJourney:
             if gap:
                 raise ValueError(gap)
         total = sum(step.estimated_seconds for step in self.steps)
-        if total > self.budget_seconds:
+        if self.longer_day:
+            # WP-128: a longer practice day is the story and its rule — the card
+            # and its guided items before the scene — and nothing else.
+            rule_at = kinds.index(StepKind.RULE) if StepKind.RULE in kinds else None
+            if rule_at is None:
+                raise ValueError("a longer practice day is the story and its rule")
+            for index, kind in enumerate(kinds):
+                if kind in EXTENSION_STEP_KINDS:
+                    raise ValueError("a longer day carries no extension")
+                if kind is StepKind.RECALL and not rule_at < index < scene_at:
+                    raise ValueError("a longer day holds no practice beyond the rule's own items")
+        elif total > self.budget_seconds:
             raise ValueError(f"estimate {total}s exceeds budget {self.budget_seconds}s")
 
 

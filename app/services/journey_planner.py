@@ -128,8 +128,27 @@ DEMONSTRATED_EVIDENCE_KINDS = frozenset({"produced_independent", "used_again_lat
 #: token. 0.45 s/token ≈ 133 words per minute — a beginner reading French with a
 #: native gloss, not a native skimming their own language.
 DEFAULT_SECONDS_PER_TOKEN = 0.45
+#: WP-128. The prior is level-aware: what a *mixed* prompt (a native
+#: instruction around a French line) costs a reader of this band. Each value is
+#: the mean of the band's French reading pace and a native reader's
+#: (``tests/experience_walk.Timer``: French 45 / 70 / 100 / 140 / 180 wpm at
+#: A1…C1, native 220 wpm → (1.33 + 0.27) / 2 = 0.80 at A1, 0.56 at A2, 0.44 at
+#: B1, 0.35 at B2, 0.30 at C1), rounded to the review's proposal. B1 keeps the
+#: old 0.45, which was a B1 reader's pace all along. Unknown bands read B1.
+READING_PRIOR_SECONDS_PER_TOKEN: dict[str, float] = {
+    "A1": 0.75,
+    "A2": 0.60,
+    "B1": 0.45,
+    "B2": 0.38,
+    "C1": 0.32,
+    "C2": 0.32,
+}
 #: A measured pace outside this band is a measurement artefact, not a learner.
-SECONDS_PER_TOKEN_BOUNDS = (0.30, 0.70)
+#: WP-128: widened with the level-aware prior and calibrated *with* the page
+#: factor below — 1.0 s a token on a prompt is a page read at 2.0 s a token by
+#: an A1 reader (30 wpm, the slowest real reader the walk's Timer models after
+#: its ×1.4 «struggling» factor), 0.25 is a native skim (240 wpm).
+SECONDS_PER_TOKEN_BOUNDS = (0.25, 1.00)
 #: A measured per-step multiplier is clamped here too. Beyond 1.35 the honest
 #: answer is a shorter plan, not a longer estimate.
 STEP_MULTIPLIER_BOUNDS = (0.80, 1.35)
@@ -139,8 +158,8 @@ STEP_MULTIPLIER_BOUNDS = (0.80, 1.35)
 #: the learner's own pace instead of the priors.
 MIN_PACE_OBSERVATIONS = 3
 
-#: Orientation, looking at the art, deciding to begin.
-SCENE_BASE_SECONDS = 12
+#: Orientation, looking at the art, deciding to begin. WP-128: 12 → 6.
+SCENE_BASE_SECONDS = 6
 #: WP-93 «Price the input». A page is priced by what is on it: each panel is
 #: looked at (its art, then «Suivant»), each line of narration or dialogue may
 #: send the learner to a word's help, and the French itself is read at a
@@ -148,17 +167,78 @@ SCENE_BASE_SECONDS = 12
 #: the reading pace is scaled by :data:`PAGE_READING_FACTOR` (0.45 × 2 = 0.9 s
 #: a word ≈ 67 words a minute, an A1–A2 reader of L2 prose). A painted panel
 #: is looked at before it is read: eight seconds.
-SCENE_PANEL_SECONDS = 8
-SCENE_LINE_HELP_SECONDS = 2
+#: WP-128: three seconds a panel and one a line. The words are priced by the
+#: band's prose pace now, so the orientation is only the glance and the tap:
+#: the walk's Timer gives a panel 2 s and a «Suivant» 1.5 s, and the old 8 + 2
+#: made the scene the one step priced at twice its time at every level.
+SCENE_PANEL_SECONDS = 3
+SCENE_LINE_HELP_SECONDS = 1
 PAGE_READING_FACTOR = 2.0
+#: WP-128. The factor shrinks with the band: a page is pure French prose, a
+#: prompt is half native, and the gap between the two closes as French reading
+#: approaches native speed. Calibrated *with* the prior, so a page is never
+#: priced twice for being French: prior × factor is the band's prose pace in
+#: the walk's Timer — French at 45 / 70 / 100 / 140 / 180 wpm plus, at A1–A2,
+#: half a glance at each line's gloss (1.47 / 0.99 / 0.60 / 0.43 / 0.33 s a
+#: word). A1 keeps the old 2.0 (0.75 × 2.0 = 1.5); C1 reads a page almost as
+#: it reads a prompt (0.32 × 1.05 = 0.34). The review's priors × the old 2.0
+#: would have charged B2 0.76 s a word, nearly twice the Timer's.
+PAGE_READING_FACTOR_BY_BAND: dict[str, float] = {
+    "A1": 2.0,
+    "A2": 1.65,
+    "B1": 1.35,
+    "B2": 1.15,
+    "C1": 1.05,
+    "C2": 1.05,
+}
+#: WP-128. Composing a reply in French, seconds per word, thinking included —
+#: 60 / the Timer's 5 / 8 / 11 / 15 / 19 words a minute on a phone. The reply
+#: is the largest part of a beginner's day (the walk's A1 day spent 60 % of its
+#: minutes there, against a flat 38 s a turn), so it is priced by band.
+COMPOSE_SECONDS_PER_WORD: dict[str, float] = {
+    "A1": 12.0,
+    "A2": 7.5,
+    "B1": 5.5,
+    "B2": 4.0,
+    "C1": 3.2,
+    "C2": 3.2,
+}
+#: WP-128. How long a reply is expected to be: the scene's own suggested reply
+#: (the size of answer the objective asks for), never shorter than one
+#: sentence at the band, and at most two sentences. The floor sits between the
+#: season's authored A1 example answers (4–6 words, a later exchange often a
+#: card) and the free replies the walk's learners write on generated days
+#: (9–13 words): 7 at A1, one more word a band up to 10.
+REPLY_WORDS_FLOOR: dict[str, int] = {"A1": 7, "A2": 8, "B1": 9, "B2": 10, "C1": 10, "C2": 10}
+REPLY_WORDS_CEILING = 16
+#: WP-128. The single repair slot is a whole extra exchange when it is used —
+#: the story keeps talking through it — which the walk saw on a fifth to two
+#: fifths of days; priced as this share of one exchange, never under
+#: :data:`REPAIR_ALLOWANCE_SECONDS`.
+REPAIR_TURN_SHARE = 0.35
+#: WP-128. Per exchange, besides composing: reading the character's answer
+#: (about this many words of French prose) and sending.
+RESPOND_REPLY_TOKENS = 12
+RESPOND_TURN_FIXED_SECONDS = 4
+#: WP-128: «Le choix» — deciding between the cards and tapping one.
+CHOICE_TAP_SECONDS = 4
+#: WP-128. A native-language explanation (a rule card's rule) — 220 wpm.
+NATIVE_SECONDS_PER_TOKEN = 0.27
+#: WP-128. Typing a short answer on a phone, seconds per character (the
+#: Timer's 0.35 s), after a fixed start.
+TYPING_SECONDS_PER_CHAR = 0.35
+TYPED_START_SECONDS = 3
+TYPED_FORMATS = frozenset({"short_answer", "transform"})
 #: WP-93 (W5/W11). What the landing page's taste («Romy», then «Commandez un
 #: café.») already taught, as in ``web-frontend/lib/onboarding-taste.ts``: the
 #: learner answered «Bonjour !» / «Merci !» to Romy and built «Un café, s'il vous
 #: plaît» for Margaux. Day 1 never drills them again. Kept in sync by hand: the
 #: taste is authored client-side and has no server copy.
 TASTE_WORDS_FR: tuple[str, ...] = ("un café", "s'il vous plaît", "bonjour", "merci")
-#: Reading the ending, the summary, and closing the day.
-RESOLUTION_BASE_SECONDS = 45
+#: Reading the ending, the summary, and closing the day. WP-128: 45 → 12. The
+#: ending's own lines are priced by their words on top; the walk's Timer spends
+#: 6–15 s on the whole ending, so 45 s of base made every day look 30 s longer.
+RESOLUTION_BASE_SECONDS = 12
 #: Answering cost per recall renderer. WP-66's three additions are priced from
 #: the renderer they reuse: a classify is a two-option pick (cheaper than a
 #: four-option choice), a word bank is tiles plus the chips that have to be
@@ -232,6 +312,8 @@ RHYTHM_FIVE_MINUTES = 300
 MATCH_PAIR_COUNT = 4
 #: WP-L4 «Règle»: the rule card is a thirty-second read (§2.1).
 RULE_CARD_SECONDS = 30
+#: WP-128: looking at the card before its words are read (its words are priced).
+RULE_CARD_LOOK_SECONDS = 15
 #: WP-L4 «Réemploi»: at most this many grammar units are asked for in the
 #: reply, the day's new unit included (§2.4: ≤ 2 per day).
 MAX_REPLY_GRAMMAR_TARGETS = 2
@@ -404,6 +486,33 @@ class PlanUnavailable(RuntimeError):
         self.reason = reason
 
 
+def _band_key(band: str | None) -> str | None:
+    coarse = str(band or "").strip().upper()[:2]
+    return coarse if coarse in READING_PRIOR_SECONDS_PER_TOKEN else None
+
+
+def reading_prior(band: str | None) -> float:
+    """WP-128: the band's prior reading pace for a mixed prompt (B1 when unknown)."""
+
+    key = _band_key(band)
+    return READING_PRIOR_SECONDS_PER_TOKEN[key] if key else DEFAULT_SECONDS_PER_TOKEN
+
+
+def page_reading_factor(band: str | None) -> float:
+    """WP-128: how much slower than a prompt a page of French prose reads.
+
+    ``None`` (a caller that names no band) keeps the WP-93 factor.
+    """
+
+    key = _band_key(band)
+    return PAGE_READING_FACTOR_BY_BAND[key] if key else PAGE_READING_FACTOR
+
+
+def compose_seconds_per_word(band: str | None) -> float:
+    key = _band_key(band) or "B1"
+    return COMPOSE_SECONDS_PER_WORD[key]
+
+
 @dataclass(frozen=True, slots=True)
 class PacingProfile:
     """Measured active pace, or nothing yet.
@@ -416,7 +525,9 @@ class PacingProfile:
     waiting or a backgrounded app cannot leak into the learning estimate.
     """
 
-    seconds_per_token: float = DEFAULT_SECONDS_PER_TOKEN
+    #: WP-128: ``None`` — nothing measured per token (the WP-L6 profile
+    #: measures a step multiplier only), so reading keeps the band's prior.
+    seconds_per_token: float | None = None
     step_multiplier: float = 1.0
     observations: int = 0
 
@@ -424,9 +535,11 @@ class PacingProfile:
     def is_trusted(self) -> bool:
         return self.observations >= MIN_PACE_OBSERVATIONS
 
-    def effective_seconds_per_token(self) -> float:
-        if not self.is_trusted:
-            return DEFAULT_SECONDS_PER_TOKEN
+    def effective_seconds_per_token(self, band: str | None = None) -> float:
+        """The measured pace once trusted and measured, else the band's prior."""
+
+        if not self.is_trusted or self.seconds_per_token is None:
+            return reading_prior(band)
         low, high = SECONDS_PER_TOKEN_BOUNDS
         return min(max(float(self.seconds_per_token), low), high)
 
@@ -1904,20 +2017,22 @@ def page_texts(panels: list[dict[str, Any]]) -> list[str]:
 
 
 def page_seconds(
-    texts: list[str], *, panels: int, spt: float, multiplier: float, audio: bool
+    texts: list[str], *, panels: int, spt: float, multiplier: float, audio: bool,
+    band: str | None = None,
 ) -> float:
     """WP-93: looking at ``panels`` panels, reading ``texts`` at a learner's
     pace with a word's help now and then, and — when the deployment speaks —
-    hearing every line once."""
+    hearing every line once. WP-128: the prose factor is the band's."""
 
     orientation = SCENE_PANEL_SECONDS * panels + SCENE_LINE_HELP_SECONDS * len(texts)
-    reading = _reading_seconds(spt, *texts) * PAGE_READING_FACTOR
+    reading = _reading_seconds(spt, *texts) * page_reading_factor(band)
     playback = _tokens(*texts) * AUDIO_PLAYBACK_SECONDS_PER_TOKEN if audio else 0.0
     return orientation * multiplier + reading + playback
 
 
 def scene_seconds(
-    scenario: ScenarioBrief, *, spt: float, multiplier: float, audio: bool = False
+    scenario: ScenarioBrief, *, spt: float, multiplier: float, audio: bool = False,
+    band: str | None = None,
 ) -> int:
     """Orientation, the setup and the objective, then the page itself.
 
@@ -1931,6 +2046,16 @@ def scene_seconds(
     reading = _reading_seconds(
         spt, scenario.setup_fr, scenario.setup_native, scenario.objective_native
     )
+    key = _band_key(band)
+    if key:
+        # WP-128: the setup's gloss is half-glanced at A1–A2 and not leaned on
+        # from B1, where the chrome is French; the setup itself is prose.
+        gloss = 0.5 if key in ("A1", "A2") else 0.0
+        reading = (
+            _reading_seconds(spt, scenario.setup_fr) * page_reading_factor(band)
+            + _tokens(scenario.objective_native) * NATIVE_SECONDS_PER_TOKEN
+            + gloss * _tokens(scenario.setup_native) * NATIVE_SECONDS_PER_TOKEN
+        )
     panels = scene_page(scenario)
     if not panels:
         reading += _reading_seconds(spt, scenario.opening_line_fr)
@@ -1939,13 +2064,15 @@ def scene_seconds(
     opening = " ".join(str(scenario.opening_line_fr or "").split())
     if opening and not any(_fold(opening) in _fold(text) for text in texts):
         texts.append(opening)
-    page = page_seconds(texts, panels=len(panels), spt=spt, multiplier=multiplier, audio=audio)
+    page = page_seconds(
+        texts, panels=len(panels), spt=spt, multiplier=multiplier, audio=audio, band=band
+    )
     return max(1, round(SCENE_BASE_SECONDS * multiplier + reading + page))
 
 
 def reading_step_seconds(
     reading: dict[str, Any], scenario: ScenarioBrief, *, spt: float, multiplier: float,
-    audio: bool,
+    audio: bool, band: str | None = None,
 ) -> int:
     """WP-93 «Lecture»: a second page. A «relecture» is priced from yesterday's
     page as stored; «coulisses» is written after the plan, so it is priced as
@@ -1963,7 +2090,9 @@ def reading_step_seconds(
         1,
         round(
             SCENE_BASE_SECONDS * multiplier
-            + page_seconds(texts, panels=panels, spt=spt, multiplier=multiplier, audio=heard)
+            + page_seconds(
+                texts, panels=panels, spt=spt, multiplier=multiplier, audio=heard, band=band
+            )
         ),
     )
 
@@ -1982,7 +2111,25 @@ def quick_recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> 
     see the colour. The cards themselves are priced inside the answer."""
 
     fixed = QUICK_ANSWER_SECONDS.get(task.task_type, 10) + QUICK_FEEDBACK_SECONDS
-    reading = _reading_seconds(spt, task.instruction_native, task.prompt_fr)
+    # WP-128: everything the item prints is read — its goal, its source line
+    # and its cards too (a matching grid is eight cards; at A1 reading them is
+    # most of the item) — at the band's prompt pace.
+    reading = _reading_seconds(
+        spt,
+        task.instruction_native,
+        task.prompt_fr,
+        getattr(task, "goal_native", None),
+        getattr(task, "source_fr", None),
+        *(str(option.get("text_fr") or "") for option in task.options or []),
+    )
+    if task.task_type in TYPED_FORMATS:
+        # WP-128: a typed answer is typed — a start, then its characters
+        # (the walk's Timer: 3 s, then 0.35 s a character).
+        fixed = (
+            TYPED_START_SECONDS
+            + TYPING_SECONDS_PER_CHAR * len(str(task.solution_fr or ""))
+            + QUICK_FEEDBACK_SECONDS
+        )
     if task.task_type == str(RecallFormat.DICTATION):
         # WP-91: heard twice, then typed — priced per word of the line.
         words = _tokens(task.solution_fr)
@@ -1990,8 +2137,60 @@ def quick_recall_seconds(task: RecallTask, *, spt: float, multiplier: float) -> 
     return max(1, round(fixed * multiplier + reading))
 
 
-def respond_seconds(task: ResponseTask, *, turns: int, spt: float, multiplier: float) -> int:
+def expected_reply_words(task: ResponseTask, band: str | None = None) -> int:
+    """WP-128: the reply's expected length — the suggested reply's, at least
+    the band's sentence (:data:`REPLY_WORDS_FLOOR`), at most two sentences."""
+
+    floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
+    words = max(_tokens(getattr(task, "suggested_response_fr", None)), floor)
+    return min(words, REPLY_WORDS_CEILING)
+
+
+def authored_turns(scenario: ScenarioBrief) -> list[tuple[str, int]]:
+    """WP-128: an authored (season) page's exchanges as ``(kind, words)`` —
+    ``("card", words on the cards)`` for «Le choix», else ``("reply", the length
+    of the turn's authored example answer)``. Empty for a generated day."""
+
+    context = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    season = context.get("season") if isinstance(context.get("season"), dict) else {}
+    out: list[tuple[str, int]] = []
+    for turn in season.get("turns") or []:
+        if not isinstance(turn, dict):
+            continue
+        replies = [reply for reply in turn.get("replies") or [] if isinstance(reply, dict)]
+        if turn.get("choice"):
+            out.append(("card", sum(_tokens(str(reply.get("label") or "")) for reply in replies)))
+            continue
+        lengths = sorted(
+            _tokens(str((reply.get("examples") or [""])[0])) for reply in replies if reply.get("examples")
+        )
+        out.append(("reply", lengths[len(lengths) // 2] if lengths else 0))
+    return out
+
+
+def unit_sentence_words(brief: dict[str, Any] | None, band: str | None) -> int:
+    """WP-128: the extra sentence a reply that asks for a unit costs — its first
+    example's length, else one sentence at the band."""
+
+    examples = (brief or {}).get("examples") if isinstance(brief, dict) else None
+    first = next((str(item) for item in examples or [] if str(item or "").strip()), "")
+    return _tokens(first) or REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
+
+
+def respond_seconds(
+    task: ResponseTask, *, turns: int, spt: float, multiplier: float, band: str | None = None,
+    asks_unit: int = 0, authored: list[tuple[str, int]] | None = None,
+) -> int:
     """WP-03's authored envelope, floored by an explicit bottom-up model.
+
+    WP-128: with a ``band`` the reply is priced bottom-up only, by what it
+    asks of a reader and writer of that band — per exchange, composing the
+    expected reply (:func:`expected_reply_words` × the band's
+    :data:`COMPOSE_SECONDS_PER_WORD`), reading the character's answer as
+    prose and sending it; once, the opening line and the objective, the
+    normal feedback and the single repair. The authored envelope is a
+    level-blind guess and no longer floors it. Without a band (legacy
+    callers) the WP-03 envelope stands.
 
     The bottom-up model is reading the character line and the objective, one
     composition block per allowed turn, the normal feedback, and the single
@@ -2006,12 +2205,93 @@ def respond_seconds(task: ResponseTask, *, turns: int, spt: float, multiplier: f
     reading = _reading_seconds(spt, task.opening_line_fr, task.objective_native)
     reading += _playback_seconds(None, task.opening_line_fr)
     repair = REPAIR_ALLOWANCE_SECONDS if task.repair_allowed else 0
+    if _band_key(band):
+        unit_words = max(0, int(asks_unit or 0))
+
+        def exchange(words: int) -> float:
+            # The reply asks for a grammar unit («Emploi»/«Réemploi») in every
+            # exchange: a learner who does what it asks writes one more sentence
+            # that uses it, each time.
+            words = min(REPLY_WORDS_CEILING + unit_words, words + unit_words)
+            return (words * compose_seconds_per_word(band) + RESPOND_TURN_FIXED_SECONDS) * multiplier
+
+        answer = RESPOND_REPLY_TOKENS * spt * page_reading_factor(band)
+        default_turn = exchange(expected_reply_words(task, band)) + answer
+
+        def card(labels_words: int) -> float:
+            return labels_words * spt * page_reading_factor(band) + CHOICE_TAP_SECONDS * multiplier
+
+        if authored:
+            # An authored page says what each exchange asks: a card to tap, or
+            # an answer the size of its own example (never under the band's
+            # sentence: a learner's own answer is rarely shorter than the model's).
+            costs = []
+            for index in range(turns):
+                kind, words = authored[index] if index < len(authored) else ("reply", 0)
+                if kind == "card":
+                    costs.append(card(words))
+                else:
+                    floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
+                    costs.append(exchange(max(floor, words)) + answer)
+        else:
+            costs = [default_turn] * turns
+            cards = [c for c in getattr(task, "opening_choices", None) or [] if isinstance(c, dict)]
+            if cards and costs:
+                # WP-113 «Le choix»: the first exchange is a card, read and tapped.
+                costs[0] = card(sum(_tokens(str(c.get("label_fr") or "")) for c in cards))
+        if task.repair_allowed:
+            # The repair slot, when used, is one more exchange like the last.
+            repair_cost = max(
+                REPAIR_ALLOWANCE_SECONDS * multiplier,
+                REPAIR_TURN_SHARE * (costs[-1] if costs else default_turn),
+            )
+        else:
+            repair_cost = 0.0
+        once = RESPOND_FEEDBACK_SECONDS * multiplier + repair_cost + reading
+        return max(1, round(sum(costs) + once))
     fixed = RESPOND_TURN_SECONDS * turns + RESPOND_FEEDBACK_SECONDS + repair
     bottom_up = fixed * multiplier + reading
-    authored = float(task.estimated_seconds or 0)
+    envelope = float(task.estimated_seconds or 0)
     dropped = max(0, (task.max_turns or MAX_RESPOND_TURNS) - turns)
-    authored = max(0.0, authored - RESPOND_TURN_SECONDS * dropped) * multiplier
-    return max(1, round(max(authored, bottom_up)))
+    envelope = max(0.0, envelope - RESPOND_TURN_SECONDS * dropped) * multiplier
+    return max(1, round(max(envelope, bottom_up)))
+
+
+def story_alone_seconds(scenario: ScenarioBrief, *, pace: PacingProfile | None = None) -> int:
+    """WP-128: the story alone — the page, the reply at its minimum, the ending —
+    at the band's prior. What an offer whose page is known costs at the least:
+    above the rhythm, the day is a longer day before it is planned."""
+
+    band = _band_key(scenario.level_band)
+    profile = pace or PacingProfile()
+    spt = profile.effective_seconds_per_token(band)
+    multiplier = profile.effective_step_multiplier()
+    task = scenario.response_task
+    authored = authored_turns(scenario)
+    turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    outcome = default_outcome_key(scenario)
+    ending = (
+        resolution_seconds(scenario, outcome, spt=spt, multiplier=multiplier) if outcome else 0
+    )
+    return (
+        scene_seconds(scenario, spt=spt, multiplier=multiplier, band=band)
+        + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored)
+        + ending
+    )
+
+
+def reply_input_seconds(
+    task: ResponseTask, *, turns: int, spt: float, band: str | None = None
+) -> int:
+    """WP-128: the French the reply makes the learner read — the opening line and
+    each of the character's answers — which is input as much as a page is (WP-93's
+    floor counts reading and listening). Zero for a caller that names no band,
+    which keeps the WP-93 floor exactly."""
+
+    if not _band_key(band):
+        return 0
+    tokens = _tokens(task.opening_line_fr) + RESPOND_REPLY_TOKENS * max(0, turns)
+    return round(tokens * spt * page_reading_factor(band))
 
 
 def resolution_seconds(
@@ -2282,8 +2562,12 @@ def plan_journey(
         practice = False
         introduction = forge = reading = desk = None
     profile = pace or PacingProfile()
-    spt = profile.effective_seconds_per_token()
+    # WP-128: the reading prior, the page's prose factor and the reply's
+    # composition are the scene's band's.
+    band = _band_key(scenario.level_band)
+    spt = profile.effective_seconds_per_token(band)
     multiplier = profile.effective_step_multiplier()
+    authored = authored_turns(scenario)
     notes: list[str] = []
     if pace is not None and not profile.is_trusted:
         notes.append(
@@ -2345,39 +2629,61 @@ def plan_journey(
     # priced from Régulier up; the five-minute day reads it (its audio is a
     # replay the learner may take, not a cost the day promises).
     scene_audio = bool(audio_available) and budget_seconds > RHYTHM_FIVE_MINUTES
-    scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier, audio=scene_audio)
+    scene_cost = scene_seconds(
+        scenario, spt=spt, multiplier=multiplier, audio=scene_audio, band=band
+    )
     resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
-    respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
-    while scene_cost + respond_cost + resolution_cost > budget_seconds and turns > 1:
+    respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored)
+    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    while scene_cost + respond_cost + resolution_cost > budget_seconds and turns > min_turns:
         turns -= 1
-        respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
+        respond_cost = respond_seconds(
+            task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored
+        )
         notes.append("response reduced to one turn to keep the plan inside the budget")
     if scene_cost + respond_cost + resolution_cost > budget_seconds and scene_audio:
         # The lines' audio is a replay the learner may skip; a five-minute day
         # that cannot also hold it is priced as read.
         scene_audio = False
-        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier)
+        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier, band=band)
         notes.append("scene priced without its audio to keep the plan inside the budget")
     if scene_cost + respond_cost + resolution_cost > budget_seconds and (
-        spt != DEFAULT_SECONDS_PER_TOKEN or multiplier != 1.0
+        spt > reading_prior(band) or multiplier > 1.0
     ):
         # A measured pace this slow cannot fit a scene that still has a real
         # ending. The plan stays whole and the estimate falls back to the base
         # pace rather than silently deleting the objective or the resolution.
-        spt = DEFAULT_SECONDS_PER_TOKEN
+        spt = reading_prior(band)
         multiplier = 1.0
-        scene_cost = scene_seconds(scenario, spt=spt, multiplier=multiplier, audio=scene_audio)
+        scene_cost = scene_seconds(
+            scenario, spt=spt, multiplier=multiplier, audio=scene_audio, band=band
+        )
         resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
-        respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
+        respond_cost = respond_seconds(
+            task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored
+        )
         notes.append("measured pace set aside to the base pace: the core plan did not fit")
-    if scene_cost + respond_cost + resolution_cost > budget_seconds:
-        # Scene, response and resolution are not removable (CONTRACTS §3). If
-        # they cannot fit even at the base pace the content is too long to be a
-        # five-minute journey, and saying so beats shipping a false promise.
-        raise PlanUnavailable("scene_exceeds_budget")
+    longer_day = scene_cost + respond_cost + resolution_cost > budget_seconds
+    if longer_day:
+        # WP-128. Scene, response and resolution are not removable (CONTRACTS
+        # §3), and a page is never cut. A page that cannot fit the rhythm even
+        # at the band's prior is a *longer day*: planned as the story alone —
+        # no practice, no rule, no forge, no «Lecture» — and flagged, so every
+        # surface says the longer estimate before the learner starts. (It used
+        # to refuse the day: `PlanUnavailable("scene_exceeds_budget")`.)
+        notes.append(
+            f"longer day: the story alone is {scene_cost + respond_cost + resolution_cost}s "
+            f"against a {budget_seconds}s rhythm; nothing else is planned"
+        )
+        forge = reading = desk = None
+        if introduction is None or first_day:
+            # The new unit, when there is one, is kept (a deferral would hand
+            # tomorrow the same unit again; a reprise would repeat forever):
+            # the practice day plans the story and its rule, flagged.
+            practice = False
 
     if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
-        return _plan_practice_day(
+        practice_plan = _plan_practice_day(
             scenario=scenario,
             task=task,
             outcome_key=outcome_key,
@@ -2405,7 +2711,12 @@ def plan_journey(
             reading=reading,
             scene_audio=scene_audio,
             desk=desk,
+            band=band,
+            story_longer=longer_day,
         )
+        if practice_plan is not None:
+            return practice_plan
+        # WP-128: a longer story whose unit has no card to show: the story alone.
 
     # --- shape the recall steps inside whatever headroom is left -----------
     def shape_recalls(
@@ -2497,6 +2808,7 @@ def plan_journey(
     )
     if (
         not first_day
+        and not longer_day
         and turns > 1
         and dropped
         and not any(not skipped for _e, _t, _c, skipped in recalls)
@@ -2504,7 +2816,9 @@ def plan_journey(
         # WP-93: a page priced by its panels can leave a five-minute day no
         # room for a single recall; the reply gives up its second turn (it
         # keeps its repair) — the trade WP-75 made for day one.
-        shorter = respond_seconds(task, turns=turns - 1, spt=spt, multiplier=multiplier)
+        shorter = respond_seconds(
+            task, turns=turns - 1, spt=spt, multiplier=multiplier, band=band, authored=authored
+        )
         retry = shape_recalls(budget_seconds - (scene_cost + shorter + resolution_cost))
         if any(not skipped for _e, _t, _c, skipped in retry[0]):
             turns, respond_cost = turns - 1, shorter
@@ -2719,6 +3033,7 @@ def plan_journey(
         rationale=rationale,
         day_shape=shape,
         shape_reason=shape_reason,
+        longer_day=longer_day,
     )
     plan.validate()
     if len(plan.steps) > MAX_PLANNED_STEPS:  # pragma: no cover - validate() already raises
@@ -3226,21 +3541,48 @@ def _same_concept_last(items: list[PracticeItem], target: TargetRef) -> bool:
 
 
 def grammar_item_seconds(task: RecallTask, *, spt: float, multiplier: float) -> int:
-    """A grammar item is a quick item whose cards are sentences: they are read."""
+    """A grammar item is a quick item whose cards are sentences: they are read.
 
-    reading = _reading_seconds(spt, *(str(option.get("text_fr") or "") for option in task.options)) \
-        if task.task_type == "choice" else 0.0
-    return max(1, round(quick_recall_seconds(task, spt=spt, multiplier=multiplier) + reading))
+    WP-128: :func:`quick_recall_seconds` now reads every item's cards, so the
+    sentences are no longer added a second time here.
+    """
+
+    return quick_recall_seconds(task, spt=spt, multiplier=multiplier)
 
 
-def rule_card_seconds(card: dict[str, Any] | None, *, spt: float, multiplier: float) -> int:
-    """The Règle: thirty seconds with the card, plus reading its French."""
+def rule_card_seconds(
+    card: dict[str, Any] | None, *, spt: float, multiplier: float,
+    band: str | None = None, language: str | None = None,
+) -> int:
+    """The Règle: thirty seconds with the card, plus reading its French.
+
+    WP-128: with a ``band`` the card is priced by what it prints — the rule in
+    the learner's language at a native pace, its French (the example, the
+    pattern's rows, the contrast) at the band's prose pace — after ten seconds
+    of looking at it. The walk's Timer read an A1 card in 50–85 s, not 33.
+    """
 
     card = card or {}
     texts = [str((card.get("example") or {}).get("fr") or "")]
     contrast = card.get("contrast") or {}
     texts.extend([str(contrast.get("wrong") or ""), str(contrast.get("right") or "")])
-    return max(1, round(RULE_CARD_SECONDS * multiplier + _reading_seconds(spt, *texts) * 0.5))
+    if not _band_key(band):
+        return max(
+            1, round(RULE_CARD_SECONDS * multiplier + _reading_seconds(spt, *texts) * 0.5)
+        )
+    texts.extend(
+        str((row or {}).get("fr") or "")
+        for row in ((card.get("pattern") or {}).get("rows") or [])
+        if isinstance(row, dict)
+    )
+    rule = card.get("rule") or {}
+    if isinstance(rule, dict):
+        rule_text = rule.get(language or "") or next(iter(rule.values()), "")
+    else:
+        rule_text = rule
+    french = _reading_seconds(spt, *texts) * page_reading_factor(band)
+    native = _tokens(str(rule_text or "")) * NATIVE_SECONDS_PER_TOKEN
+    return max(1, round(RULE_CARD_LOOK_SECONDS * multiplier + french + native))
 
 
 def _unit_ids(brief: dict[str, Any]) -> set[str]:
@@ -3446,7 +3788,11 @@ def _introduction_items(
     if len(guided) < 2:
         # A rule with nothing to try is a lecture, not an Essai.
         return None, 0, []
-    return card, rule_card_seconds(card, spt=spt, multiplier=multiplier), guided
+    cost = rule_card_seconds(
+        card, spt=spt, multiplier=multiplier,
+        band=scenario.level_band, language=str(scenario.control_language or ""),
+    )
+    return card, cost, guided
 
 
 def top_up_from_scene(
@@ -3878,8 +4224,14 @@ def _plan_practice_day(
     reading: dict[str, Any] | list[dict[str, Any]] | None = None,
     scene_audio: bool = False,
     desk: dict[str, Any] | None = None,
-) -> PlannedJourney:
+    band: str | None = None,
+    story_longer: bool = False,
+) -> PlannedJourney | None:
     """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
+
+    WP-128: ``story_longer`` — the story alone is longer than the rhythm; the
+    day is then the story and its rule (a flagged longer day), or ``None`` when
+    there is no rule to plan, for the caller's story-alone day.
 
     WP-93 (W5): the scene's page ends on the question the reply answers, so
     nothing sits between them — the builds that used to come between the
@@ -3901,11 +4253,12 @@ def _plan_practice_day(
 
     caps = rhythm_caps(budget_seconds)
     forge_reserve = forge_reserve_seconds(forge)
+    authored = authored_turns(scenario)
     # WP-93 «Lecture»: the long rhythms' extra pages (one on Soutenu, two on
     # Intensif), reserved before any drill, in the order offered.
     read_steps: list[PlannedStep] = []
     offers = [reading] if isinstance(reading, dict) else list(reading or [])
-    core = scene_cost + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier)
+    core = scene_cost + respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored)
     for offer in offers:
         if len(read_steps) >= caps.max_reads or budget_seconds < READ_MIN_BUDGET_SECONDS:
             break
@@ -3914,7 +4267,9 @@ def _plan_practice_day(
         ):
             continue
         heard = bool(offer.get("audio_available", audio_available)) and bool(audio_available)
-        cost = reading_step_seconds(offer, scenario, spt=spt, multiplier=multiplier, audio=heard)
+        cost = reading_step_seconds(
+            offer, scenario, spt=spt, multiplier=multiplier, audio=heard, band=band
+        )
         spent = sum(step.estimated_seconds for step in read_steps)
         if core + resolution_cost + spent + cost > budget_seconds:
             notes.append("lecture skipped: the day's budget does not hold another page")
@@ -3951,7 +4306,9 @@ def _plan_practice_day(
     input_gap = 0
     if scene_page(scenario):
         floor = round(INPUT_FLOOR_SHARE * budget_seconds)
-        input_gap = max(0, floor - scene_cost - read_cost)
+        input_gap = max(
+            0, floor - scene_cost - read_cost - reply_input_seconds(task, turns=turns, spt=spt, band=band)
+        )
         if input_gap:
             notes.append(f"input floor: {input_gap}s kept for reading and listening")
     entries = practice_entries(scenario, selection, affordances)
@@ -3991,21 +4348,52 @@ def _plan_practice_day(
         multiplier=multiplier,
         shape=shape,
     )
+    if story_longer and not intro_card:
+        return None
     intro_identity = (
         target_identity(grammar_items.grammar_target(introduction)) if intro_card else None
     )
     if intro_identity:
         entries = [entry for entry in entries if target_identity(entry.target) != intro_identity]
 
+    # WP-128: a reply that asks for a unit («Réemploi» of a strong due unit, or
+    # today's «Emploi») is priced a sentence longer.
+    # The sentence is the unit's own model sentence (its first example), the
+    # one the rule card and the hint show.
+    reemploi_briefs = [
+        (entry.candidate.metadata or {}).get("grammar_brief")
+        for entry in entries
+        if entry.target.kind is TargetKind.GRAMMAR
+        and isinstance((entry.candidate.metadata or {}).get("grammar_brief"), dict)
+        and ((entry.candidate.metadata or {}).get("grammar_brief") or {}).get("detectors")
+        and grammar_items.review_band(
+            ((entry.candidate.metadata or {}).get("grammar_brief") or {}).get("stability")
+        ) == "high"
+    ]
+    reemploi = unit_sentence_words(reemploi_briefs[0], band) if reemploi_briefs else 0
+    emploi = unit_sentence_words(introduction, band) if intro_card else 0
+
+    forced_intro = False
+
     def intro_reserve(turn_count: int) -> list[tuple[RecallTask, int]]:
         """The guided items that fit, keeping at least room for the core day."""
 
         if not intro_card:
             return []
-        cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
+        if forced_intro:
+            # WP-128: a longer rule day — the card and its two first guided items.
+            return list(intro_items)[:2]
+        cost = respond_seconds(
+            task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+            asks_unit=emploi
+        )
+        # WP-128: the input floor keeps *drills* off the reading's room; the
+        # rule and its Essai are the day's grammar intake, which a deferral would
+        # hand tomorrow's director again (a reprise that cannot introduce its
+        # unit repeats forever), so they are not held to it.
         room = (
             budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
-            - read_cost - desk_cost - input_gap
+            - read_cost - desk_cost
         )
         # The rule step and its items share the day's step envelope.
         kept = list(intro_items)[: max(0, min(caps.max_recall, caps.max_steps - 5))]
@@ -4014,7 +4402,10 @@ def _plan_practice_day(
         return kept if len(kept) >= 2 else []
 
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
-        cost = respond_seconds(task, turns=turn_count, spt=spt, multiplier=multiplier)
+        cost = respond_seconds(
+            task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+            asks_unit=(emploi if intro_reserve(turn_count) else 0) or reemploi,
+        )
         # WP-S4: the folded forge keeps its room free of quick items; WP-93:
         # so do the «Lecture» and the input floor (only heard items use it).
         headroom = (
@@ -4076,13 +4467,38 @@ def _plan_practice_day(
         )
 
     respond_cost, items = attempt(turns)
-    if intro_card and not intro_reserve(turns) and turns > 1 and intro_reserve(turns - 1):
-        # The new unit is worth the reply's second turn.
-        turns -= 1
+    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    if intro_card and not intro_reserve(turns) and turns > min_turns:
+        # The new unit is worth the reply's second turn. WP-128: and, when the
+        # band composes slowly, its third — down to the reply's minimum (one
+        # exchange, or «Le choix»'s) — rather than deferring the rule again.
+        fewer = next(
+            (count for count in range(turns - 1, min_turns - 1, -1) if intro_reserve(count)),
+            None,
+        )
+        if fewer is not None:
+            dropped_turns = turns - fewer
+            turns = fewer
+            respond_cost, items = attempt(turns)
+            notes.append(
+                f"reply reduced by {dropped_turns} turn(s) so the new rule fits the budget"
+            )
+    if intro_card and not intro_reserve(turns):
+        # WP-128. Even the reply's minimum leaves the rule no room: a slow band
+        # on a short rhythm (A1 on Léger). Deferring would defer it every day —
+        # and a reprise that cannot introduce its unit repeats forever — so the
+        # day is the story and its rule, nothing else, and it is a *longer
+        # day*, said before the learner starts: never a hidden expansion.
+        forced_intro = True
+        turns = min_turns
+        read_steps, desk_step, desk_cost, read_cost = [], None, 0, 0
+        forge, forge_reserve = None, 0
         respond_cost, items = attempt(turns)
-        notes.append("reply reduced to one turn so the new rule fits the budget")
+        items = []
+        notes.append("longer day: the new rule does not fit the rhythm; the day is the story and its rule")
     if (
-        caps.budget_seconds <= RHYTHM_FIVE_MINUTES
+        not forced_intro
+        and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
         and len(items) + len(intro_reserve(turns)) < caps.target_items
         and turns > 1
         and not (intro_card and not intro_reserve(turns - 1))
@@ -4097,7 +4513,7 @@ def _plan_practice_day(
             notes.append("reply reduced to one turn so the practice items fit the budget")
 
     rule = practice_day_shape_rule(shape, budget_seconds)
-    if len(items) < rule.min_recall:
+    if len(items) < rule.min_recall and not forced_intro:
         notes.append(
             f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
             f"{len(items)} recall step(s), {rule.min_recall} required"
@@ -4359,6 +4775,7 @@ def _plan_practice_day(
         day_shape=shape,
         shape_reason=shape_reason,
         practice=True,
+        longer_day=forced_intro,
     )
     plan.validate()
     return plan
@@ -4407,16 +4824,57 @@ def expected_day_seconds(budget_seconds: int, recent: list[int] | None = None) -
     return min(budget, int(budget * share))
 
 
+#: WP-128. One card of the word drill: seeing it, typing or turning it, the
+#: verdict and «Weiter» (the walk's Timer: 4 s + 0.35 s a typed character +
+#: reading + 1.5 s) — about nine seconds.
+WORD_CARD_SECONDS = 9
+#: WP-128. The drill a day offers at most (``review.tsx``: 30 due cards).
+WORD_DRILL_MAX_CARDS = 30
+#: WP-128. A Courrier letter: about this many words of French to read (the
+#: letter and its answer back), and a reply of two and a half sentences.
+LETTER_READ_TOKENS = 60
+LETTER_REPLY_SENTENCES = 2.5
+
+
+def word_drill_seconds(cards: int) -> int:
+    """WP-128: the drill's own estimate for ``cards`` waiting cards (0: none)."""
+
+    return max(0, min(int(cards or 0), WORD_DRILL_MAX_CARDS)) * WORD_CARD_SECONDS
+
+
+def letter_seconds(band: str | None) -> int:
+    """WP-128: one Courrier reply's own estimate at ``band`` — read the letter
+    and its answer back as prose, compose the reply at the band's pace."""
+
+    key = _band_key(band) or "B1"
+    reading = LETTER_READ_TOKENS * reading_prior(key) * page_reading_factor(key)
+    compose = LETTER_REPLY_SENTENCES * REPLY_WORDS_FLOOR[key] * compose_seconds_per_word(key)
+    return round(reading + compose + 3 * RESPOND_TURN_FIXED_SECONDS)
+
+
 def input_seconds(plan: PlannedJourney) -> int:
     """WP-93: the day's reading and listening — the page, the heard items (a
-    recall step that carries a clip) and the «Lecture»."""
+    recall step that carries a clip) and the «Lecture». WP-128: and the French
+    the reply makes the learner read (:func:`reply_input_seconds`), as the
+    planner's floor counts it."""
 
     total = 0
+    band = _band_key(plan.scenario.level_band)
     for step in plan.steps:
         if step.kind in (StepKind.SCENE, StepKind.READ):
             total += step.estimated_seconds
         elif step.kind is StepKind.RECALL and (step.public_prompt or {}).get("audio_url"):
             total += step.estimated_seconds
+        elif step.kind is StepKind.RESPOND and isinstance(step.private_task, ResponseTask):
+            total += min(
+                step.estimated_seconds,
+                reply_input_seconds(
+                    step.private_task,
+                    turns=int(step.private_task.max_turns or 1),
+                    spt=reading_prior(band),
+                    band=band,
+                ),
+            )
     return total
 
 
@@ -4610,6 +5068,21 @@ __all__ = [
     "supported_input_modes",
     "target_identity",
     "target_reason",
+    # WP-128
+    "COMPOSE_SECONDS_PER_WORD",
+    "PAGE_READING_FACTOR_BY_BAND",
+    "READING_PRIOR_SECONDS_PER_TOKEN",
+    "REPLY_WORDS_FLOOR",
+    "WORD_CARD_SECONDS",
+    "compose_seconds_per_word",
+    "expected_reply_words",
+    "letter_seconds",
+    "page_reading_factor",
+    "reading_prior",
+    "authored_turns",
+    "reply_input_seconds",
+    "story_alone_seconds",
+    "word_drill_seconds",
     # WP-93 / WP-92
     "PAGE_READING_FACTOR",
     "SCENE_LINE_HELP_SECONDS",
