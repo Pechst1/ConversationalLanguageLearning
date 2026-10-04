@@ -121,14 +121,8 @@ def _is_french(concept: GrammarConcept) -> bool:
     return str(getattr(concept, "language", "") or "fr").strip().casefold().startswith(("fr", "français"))
 
 
-def band_unit_ids(db: Session, band: str) -> list[int]:
-    """The active grammar units (concept ids) of one sub-band, in teaching order."""
-
-    from app.services.grammar_catalog import (
-        FRENCH_CORE_CATALOG_V2_VERSION,
-        active_catalog_version,
-        concept_sub_band,
-    )
+def _french_units(db: Session) -> list[GrammarConcept]:
+    """The active French units, in teaching order."""
 
     concepts = (
         db.query(GrammarConcept)
@@ -136,7 +130,16 @@ def band_unit_ids(db: Session, band: str) -> list[int]:
         .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
         .all()
     )
-    concepts = [concept for concept in concepts if _is_french(concept)]
+    return [concept for concept in concepts if _is_french(concept)]
+
+
+def _units_of_band(concepts: list[GrammarConcept], band: str) -> list[int]:
+    from app.services.grammar_catalog import (
+        FRENCH_CORE_CATALOG_V2_VERSION,
+        active_catalog_version,
+        concept_sub_band,
+    )
+
     if active_catalog_version() == FRENCH_CORE_CATALOG_V2_VERSION:
         return [concept.id for concept in concepts if concept_sub_band(concept) == band]
     # v1: the band's CEFR level, halved by teaching order.
@@ -149,6 +152,27 @@ def band_unit_ids(db: Session, band: str) -> list[int]:
     half = math.ceil(len(in_level) / 2)
     part = in_level[:half] if band.endswith(".1") else in_level[half:]
     return [concept.id for concept in part]
+
+
+def band_unit_ids(db: Session, band: str) -> list[int]:
+    """The active grammar units (concept ids) of one sub-band, in teaching order."""
+
+    return _units_of_band(_french_units(db), band)
+
+
+def unit_bands(db: Session) -> dict[int, str]:
+    """Every active French unit's sub-band, as :func:`band_unit_ids` assigns it.
+
+    WP-130 A: the notebook names the band a unit counts for in the level, so
+    the two can be compared band by band (catalogue v1 has no ``sub_band``).
+    """
+
+    concepts = _french_units(db)
+    out: dict[int, str] = {}
+    for band in SUB_BANDS:
+        for unit_id in _units_of_band(concepts, band):
+            out.setdefault(unit_id, band)
+    return out
 
 
 def held_unit_ids(db: Session, user: Any, *, now: datetime | None = None) -> set[int]:
@@ -309,6 +333,11 @@ class BandCoverage:
     words_total: int
     checkpoint_passed: bool = False
     unit_ids: tuple[int, ...] = field(default=(), repr=False)
+    #: WP-130 A: the band's units the learner has met but does not hold yet,
+    #: in the notebook's words (``concept_life.progress_stage``). Display only:
+    #: neither enters the percent or the coverage.
+    units_introduced: int = 0
+    units_practising: int = 0
 
     @property
     def units_required(self) -> int:
@@ -357,6 +386,8 @@ class BandCoverage:
             "label": f"{self.band} · {self.percent} %",
             "units": {
                 "held": self.units_held,
+                "practising": self.units_practising,
+                "introduced": self.units_introduced,
                 "total": self.units_total,
                 "required": self.units_required,
                 "met": self.units_met,
@@ -387,11 +418,14 @@ def band_coverage(
     known: set[str] | None = None,
     checkpoint_passed: bool = False,
 ) -> BandCoverage:
+    from app.services.concept_life import STAGE_INTRODUCED, STAGE_PRACTISING, unit_stage_counts
+
     now = now or datetime.now(UTC)
     unit_ids = band_unit_ids(db, band)
     held = held if held is not None else held_unit_ids(db, user, now=now)
     words = band_words(band)
     known = known if known is not None else known_lemmas(db, user, now=now)
+    stages = unit_stage_counts(db, user.id, unit_ids)
     return BandCoverage(
         band=band,
         units_held=len(held & set(unit_ids)),
@@ -400,6 +434,8 @@ def band_coverage(
         words_total=len(words),
         checkpoint_passed=checkpoint_passed,
         unit_ids=tuple(unit_ids),
+        units_introduced=stages[STAGE_INTRODUCED],
+        units_practising=stages[STAGE_PRACTISING],
     )
 
 
@@ -419,4 +455,5 @@ __all__ = [
     "known_lemmas",
     "lemmas_of_card",
     "next_band",
+    "unit_bands",
 ]

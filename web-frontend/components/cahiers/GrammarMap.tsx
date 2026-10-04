@@ -176,7 +176,8 @@ export function GrammarMapView({
     <Surface as="section" className="gm" aria-label={copy.map_label}>
       <div className="gm-head">
         <p className="gm-title">{copy.map_title}</p>
-        <p className="gm-counts">{fillMomentum(copy.map_counts, counts)}</p>
+        {/* WP-130 A: the notebook's words — every rule met and not held is «en route». */}
+        <p className="gm-counts">{fillMomentum(copy.map_counts, { held: counts.held, practising: counts.introduced + counts.proficient })}</p>
       </div>
       {bands.map((band) => (
         <div className="gm-band" key={band.band}>

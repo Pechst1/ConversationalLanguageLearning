@@ -33,6 +33,7 @@ import type {
   DossierVocabulary,
   DossierWord,
 } from '@/services/api';
+import { levelStageCounts, stageCountsText } from '@/lib/grammar-stages';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { dayNumber, dossierCopy, fill, longDate, shortDate, type DossierCopy } from './dossier-copy';
@@ -213,6 +214,12 @@ export function coverageRows(
         total: coverage.units.total,
       }),
     });
+    // WP-130 A: the same units in the notebook's words, counted live by the
+    // server with the notebook's own function («6 en route · 0 tenue»).
+    const stages = levelStageCounts(coverage.units);
+    if (stages) {
+      rows.push({ key: 'stages', label: copy.row_stages, value: stageCountsText(stages, language) });
+    }
   }
   if (coverage.words && coverage.words.total > 0) {
     rows.push({

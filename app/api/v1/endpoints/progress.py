@@ -35,7 +35,7 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.cefr_progress import CEFRProgressService, with_can_do_line
+from app.services.cefr_progress import CEFRProgressService, with_can_do_line, with_live_grammar
 from app.services.daily_words import DailyWordSlateService
 from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
@@ -51,7 +51,9 @@ def get_cefr_progress(
 ) -> CEFRProgressResponse:
     """Return the visible CEFR estimate and next-level forecast."""
 
-    return CEFRProgressResponse(**with_can_do_line(db, current_user, CEFRProgressService(db).current(current_user)))
+    # WP-130 A: the band's grammar counts are read live, as the notebook reads them.
+    payload = with_live_grammar(db, current_user, CEFRProgressService(db).current(current_user))
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
 
 
 @router.post("/cefr/recompute", response_model=CEFRProgressResponse)

@@ -8041,6 +8041,10 @@ export interface components {
             exercise_tags?: string[];
             /** External Id */
             external_id: string | null;
+            /** Held Missing */
+            held_missing?: {
+                [key: string]: unknown;
+            }[];
             /** Id */
             id: number;
             /** Is Foundation */
@@ -8049,6 +8053,8 @@ export interface components {
             language: string;
             /** Level */
             level: string;
+            /** Level Band */
+            level_band?: string | null;
             /** Localized Category */
             localized_category?: string | null;
             /** Localized Subskill */
@@ -8084,6 +8090,13 @@ export interface components {
             source_refs?: {
                 [key: string]: unknown;
             };
+            /**
+             * Stage
+             * @default new
+             */
+            stage?: string;
+            /** Stage Label */
+            stage_label?: string | null;
             /** State */
             state: string;
             /** State Label */
@@ -8124,6 +8137,10 @@ export interface components {
             due_errata_count: number;
             /** External Id */
             external_id: string | null;
+            /** Held Missing */
+            held_missing?: {
+                [key: string]: unknown;
+            }[];
             /** Id */
             id: number;
             /** Is Foundation */
@@ -8132,6 +8149,8 @@ export interface components {
             language: string;
             /** Level */
             level: string;
+            /** Level Band */
+            level_band?: string | null;
             /** Localized Category */
             localized_category?: string | null;
             /** Localized Subskill */
@@ -8154,6 +8173,13 @@ export interface components {
             source_refs?: {
                 [key: string]: unknown;
             };
+            /**
+             * Stage
+             * @default new
+             */
+            stage?: string;
+            /** Stage Label */
+            stage_label?: string | null;
             /** State */
             state: string;
             /** State Label */
@@ -8247,6 +8273,10 @@ export interface components {
             };
             /** New Available */
             new_available: number;
+            /** Stage Counts */
+            stage_counts?: {
+                [key: string]: number;
+            };
             /** Started */
             started: number;
             /** State Counts */

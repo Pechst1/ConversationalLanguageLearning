@@ -53,6 +53,8 @@ export type DossierCopy = {
   ladder_basis_one_test: string;
   ladder_declared: string;
   row_units: string;
+  /** WP-130 A: the band's rules in the notebook's words («6 en route · 0 tenue»). */
+  row_stages: string;
   row_words: string;
   row_checkpoint: string;
   row_value: string;
@@ -185,6 +187,7 @@ const FR: DossierCopy = {
   ladder_declared:
     'Le niveau devient « estimé » après le bilan, et « mesuré » après {required} réponses en séance.',
   row_units: 'Notions tenues',
+  row_stages: 'Notions du niveau',
   row_words: 'Mots connus',
   row_checkpoint: 'Épreuve',
   row_value: '{have} / {required} (sur {total})',
@@ -319,6 +322,7 @@ const EN: DossierCopy = {
   ladder_declared:
     'The level becomes “estimated” after the placement test, and “measured” after {required} answers in sessions.',
   row_units: 'Rules held',
+  row_stages: 'This level’s rules',
   row_words: 'Words known',
   row_checkpoint: 'Level test',
   row_value: '{have} / {required} (of {total})',
@@ -452,12 +456,13 @@ const DE: DossierCopy = {
   ladder_basis_one_test: 'anhand eines korrigierten Tests',
   ladder_declared:
     'Nach dem Einstufungstest gilt das Niveau als „geschätzt“, nach {required} Antworten in den Übungen als „gemessen“.',
-  row_units: 'Sichere Regeln',
+  row_units: 'Gefestigte Regeln',
+  row_stages: 'Regeln dieses Niveaus',
   row_words: 'Bekannte Wörter',
   row_checkpoint: 'Niveauprüfung',
   row_value: '{have} / {required} (von {total})',
   coverage_rule:
-    'Um {band} abzuschließen: 85 % der Regeln sicher beherrschen und 80 % der Wörter kennen. Die Prüfung kommt in der Geschichte, sobald das Niveau abgedeckt ist.',
+    'Um Kurs {band} abzudecken: 85 % der Regeln gefestigt und 80 % der Wörter bekannt. Die Prüfung kommt in der Geschichte, sobald das Niveau abgedeckt ist.',
   cp_ready: 'bereit — sie kommt in der Geschichte',
   cp_failed_dated: 'Wiederholung ab {date}',
   cp_failed: 'Wiederholung nach einer Woche Festigung',

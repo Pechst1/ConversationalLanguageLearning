@@ -45,16 +45,6 @@ export type ReleveCopy = {
   rules_due: string;
   rules_gap: string;
   rules_bar: string;
-  grammar_new_one: string;
-  grammar_new_many: string;
-  grammar_fragile_one: string;
-  grammar_fragile_many: string;
-  grammar_building_one: string;
-  grammar_building_many: string;
-  grammar_solid_one: string;
-  grammar_solid_many: string;
-  grammar_mastered_one: string;
-  grammar_mastered_many: string;
   // La Collection
   collection_title: string;
   collection_failed: string;
@@ -140,16 +130,6 @@ const FR: ReleveCopy = {
   rules_due: 'Règles à revoir aujourd’hui',
   rules_gap: 'Le compte des règles n’a pas suivi cette fois-ci.',
   rules_bar: 'Règles : {list}',
-  grammar_new_one: 'nouvelle',
-  grammar_new_many: 'nouvelles',
-  grammar_fragile_one: 'fragile',
-  grammar_fragile_many: 'fragiles',
-  grammar_building_one: 'en cours',
-  grammar_building_many: 'en cours',
-  grammar_solid_one: 'solide',
-  grammar_solid_many: 'solides',
-  grammar_mastered_one: 'maîtrisée',
-  grammar_mastered_many: 'maîtrisées',
   collection_title: 'La collection',
   collection_failed: 'La collection n’a pas pu être sortie de sa boîte.',
   collection_empty_title: 'Rien d’accroché encore',
@@ -233,16 +213,6 @@ const EN: ReleveCopy = {
   rules_due: 'Rules to review today',
   rules_gap: 'The rule count did not load this time.',
   rules_bar: 'Rules: {list}',
-  grammar_new_one: 'new',
-  grammar_new_many: 'new',
-  grammar_fragile_one: 'shaky',
-  grammar_fragile_many: 'shaky',
-  grammar_building_one: 'in progress',
-  grammar_building_many: 'in progress',
-  grammar_solid_one: 'solid',
-  grammar_solid_many: 'solid',
-  grammar_mastered_one: 'mastered',
-  grammar_mastered_many: 'mastered',
   collection_title: 'Your collection',
   collection_failed: 'Your collection could not be loaded.',
   collection_empty_title: 'Nothing here yet',
@@ -326,16 +296,6 @@ const DE: ReleveCopy = {
   rules_due: 'Heute zu wiederholende Regeln',
   rules_gap: 'Die Regelzahl wurde diesmal nicht geladen.',
   rules_bar: 'Regeln: {list}',
-  grammar_new_one: 'neu',
-  grammar_new_many: 'neu',
-  grammar_fragile_one: 'wackelig',
-  grammar_fragile_many: 'wackelig',
-  grammar_building_one: 'in Arbeit',
-  grammar_building_many: 'in Arbeit',
-  grammar_solid_one: 'sicher',
-  grammar_solid_many: 'sicher',
-  grammar_mastered_one: 'beherrscht',
-  grammar_mastered_many: 'beherrscht',
   collection_title: 'Ihre Sammlung',
   collection_failed: 'Ihre Sammlung konnte nicht geladen werden.',
   collection_empty_title: 'Noch nichts hier',

@@ -728,6 +728,57 @@ def with_can_do_line(db: Session, user: User, payload: dict[str, Any]) -> dict[s
     return {**payload, **line}
 
 
+def with_live_grammar(db: Session, user: User, payload: dict[str, Any]) -> dict[str, Any]:
+    """WP-130 A: the band's grammar read live, so the level and the notebook agree.
+
+    The stored payload is a snapshot (written when a session, a letter or a
+    scene completes); the notebook reads the units as they are now. The band's
+    units are counted with the notebook's own function
+    (``concept_life.unit_stage_counts``). When a unit came to be held since the
+    snapshot, the level is recomputed (without writing) so its percent moves
+    with it; otherwise only the «introduced» and «practising» counts, which the
+    percent does not use, are refreshed. Never raises.
+    """
+
+    coverage = payload.get("coverage")
+    if not isinstance(coverage, dict) or not coverage.get("band"):
+        return payload
+    from app.services.concept_life import (
+        STAGE_HELD,
+        STAGE_INTRODUCED,
+        STAGE_PRACTISING,
+        unit_stage_counts,
+    )
+    from app.services.level_coverage import band_unit_ids
+
+    try:
+        stages = unit_stage_counts(db, user.id, band_unit_ids(db, str(coverage["band"])))
+    except Exception:  # pragma: no cover - a level line must never 500 an endpoint
+        logger.exception("cefr_progress: live grammar counts could not be read")
+        return payload
+    units = coverage.get("units") if isinstance(coverage.get("units"), dict) else {}
+    if int(units.get("held") or 0) != stages[STAGE_HELD]:
+        try:
+            fresh = CEFRProgressService(db).recompute(user, source="grammar_held", persist=False, track=False)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("cefr_progress: level could not be recomputed for a newly held unit")
+        else:
+            fresh_coverage = fresh.get("coverage")
+            if isinstance(fresh_coverage, dict) and fresh_coverage.get("band") == coverage.get("band"):
+                return fresh
+    return {
+        **payload,
+        "coverage": {
+            **coverage,
+            "units": {
+                **units,
+                STAGE_PRACTISING: stages[STAGE_PRACTISING],
+                STAGE_INTRODUCED: stages[STAGE_INTRODUCED],
+            },
+        },
+    }
+
+
 def _band_below(level: str | None) -> str | None:
     if not level or level not in CEFR_LEVELS:
         return None
@@ -737,6 +788,7 @@ def _band_below(level: str | None) -> str | None:
 
 __all__ = [
     "with_can_do_line",
+    "with_live_grammar",
     "CEFR_LEVELS",
     "CEFR_PROGRESS_VERSION",
     "DECLARED_LEVEL_EVIDENCE_ATTEMPTS",

@@ -142,6 +142,128 @@ def concept_stage(progress: Any | None) -> str:
     return STAGE_NEW
 
 
+# ---------------------------------------------------------------------------
+# WP-130 A — one vocabulary for every progress surface
+# ---------------------------------------------------------------------------
+#
+# The notebook (Cahier), its Relevé and the level (Dossier) name a unit's state
+# with the same three words, and count them from the same function. Labels and
+# reads only: the held conditions above are unchanged.
+
+#: The words for the three states a learner sees (singular, plural). German has
+#: one word per state: «gefestigt» is «tenue» and nothing else.
+STAGE_LABELS: dict[str, dict[str, tuple[str, str]]] = {
+    "en": {
+        STAGE_INTRODUCED: ("introduced", "introduced"),
+        STAGE_PRACTISING: ("practising", "practising"),
+        STAGE_HELD: ("held", "held"),
+    },
+    "de": {
+        STAGE_INTRODUCED: ("eingeführt", "eingeführt"),
+        STAGE_PRACTISING: ("in Übung", "in Übung"),
+        STAGE_HELD: ("gefestigt", "gefestigt"),
+    },
+    "fr": {
+        STAGE_INTRODUCED: ("découverte", "découvertes"),
+        STAGE_PRACTISING: ("en route", "en route"),
+        STAGE_HELD: ("tenue", "tenues"),
+    },
+}
+
+#: The visible states, in the order a line lists them.
+VISIBLE_STAGES: tuple[str, ...] = (STAGE_INTRODUCED, STAGE_PRACTISING, STAGE_HELD)
+
+
+def progress_stage(progress: Any | None) -> str:
+    """The stage every progress surface shows (WP-130 A).
+
+    Like :func:`concept_stage`, except that *held* is the recorded «Tenue»
+    (``held_at``): exactly the units the level counts
+    (:func:`held_concept_ids`), so the notebook can never call a unit held that
+    the level does not count, nor the other way round.
+    """
+
+    if progress is None:
+        return STAGE_NEW
+    if getattr(progress, "held_at", None) is not None:
+        return STAGE_HELD
+    if int(getattr(progress, "reps", 0) or 0) > 0:
+        return STAGE_PRACTISING
+    if getattr(progress, "introduced_at", None) is not None:
+        return STAGE_INTRODUCED
+    return STAGE_NEW
+
+
+def stage_counts(progresses: Any) -> dict[str, int]:
+    """``{"introduced": n, "practising": n, "held": n}`` over progress rows."""
+
+    counts = dict.fromkeys(VISIBLE_STAGES, 0)
+    for progress in progresses:
+        stage = progress_stage(progress)
+        if stage in counts:
+            counts[stage] += 1
+    return counts
+
+
+def unit_stage_counts(db: Session, user_id: UUID, unit_ids: Any) -> dict[str, int]:
+    """:func:`stage_counts` for some units of one learner (the level's band)."""
+
+    ids = [int(unit_id) for unit_id in unit_ids]
+    if not ids:
+        return dict.fromkeys(VISIBLE_STAGES, 0)
+    rows = (
+        db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user_id, UserGrammarProgress.concept_id.in_(ids))
+        .all()
+    )
+    return stage_counts(rows)
+
+
+def stage_label(stage: str, language: str | None = "en", *, count: int = 1) -> str | None:
+    """The learner's word for a stage, or ``None`` for a unit not met yet."""
+
+    table = STAGE_LABELS.get(str(language or "en")[:2].lower(), STAGE_LABELS["en"])
+    pair = table.get(stage)
+    if pair is None:
+        return None
+    # French puts 0 and 1 in the singular; English and German labels do not vary.
+    return pair[0] if count <= 1 else pair[1]
+
+
+#: What a unit still needs before it is held (:func:`held_missing`).
+MISSING_FIRST_FREE_USE = "free_use_first"
+MISSING_SECOND_FREE_USE = "free_use_second"
+MISSING_SPACED = "spaced"
+
+
+def held_missing(progress: Any | None) -> list[dict[str, Any]]:
+    """The «Tenue» evidence a unit still lacks, in the order it can come.
+
+    Each entry is ``{"code": …, "not_before": "YYYY-MM-DD" | None}``: the first
+    free use; the second, on a day at least :data:`HELD_FREE_USE_GAP_DAYS`
+    after the first; the spaced success, at least :data:`HELD_SPACED_AFTER_DAYS`
+    after the introduction. Empty for a held unit and for one never met. Reads
+    the same fields as :func:`held_conditions`.
+    """
+
+    if progress is None or progress_stage(progress) in {STAGE_HELD, STAGE_NEW}:
+        return []
+    missing: list[dict[str, Any]] = []
+    free_use, spaced = held_conditions(progress)
+    first = _aware(getattr(progress, "free_use_first_at", None))
+    if not free_use:
+        if first is None:
+            missing.append({"code": MISSING_FIRST_FREE_USE, "not_before": None})
+        else:
+            day = first.date() + timedelta(days=HELD_FREE_USE_GAP_DAYS)
+            missing.append({"code": MISSING_SECOND_FREE_USE, "not_before": day.isoformat()})
+    if not spaced:
+        introduced = _aware(getattr(progress, "introduced_at", None))
+        day = (introduced + timedelta(days=HELD_SPACED_AFTER_DAYS)).date() if introduced else None
+        missing.append({"code": MISSING_SPACED, "not_before": day.isoformat() if day else None})
+    return missing
+
+
 def held_concept_ids(db: Session, user_id: UUID) -> set[int]:
     """The units this learner holds (WP-L7's coverage numerator)."""
 
@@ -343,15 +465,21 @@ def introducible(brief: dict[str, Any]) -> bool:
 __all__ = [
     "HELD_FREE_USE_GAP_DAYS",
     "HELD_SPACED_AFTER_DAYS",
+    "MISSING_FIRST_FREE_USE",
+    "MISSING_SECOND_FREE_USE",
+    "MISSING_SPACED",
     "NEW_CONCEPTS_PER_WEEK",
+    "STAGE_LABELS",
     "STAGE_HELD",
     "STAGE_INTRODUCED",
     "STAGE_NEW",
     "STAGE_PRACTISING",
+    "VISIBLE_STAGES",
     "concept_brief",
     "concept_stage",
     "held_concept_ids",
     "held_conditions",
+    "held_missing",
     "introduced_concept_ids",
     "introduction_due",
     "introduction_for_today",
@@ -360,6 +488,10 @@ __all__ = [
     "is_held",
     "mark_introduced",
     "note_concept_evidence",
+    "progress_stage",
+    "stage_counts",
+    "stage_label",
+    "unit_stage_counts",
     "weekly_concept_quota",
     "weekly_concept_rate",
 ]

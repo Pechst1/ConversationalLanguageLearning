@@ -32,6 +32,7 @@ import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { grammarLine, levelStageCounts } from '@/lib/grammar-stages';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
   type CEFRProgress,
@@ -263,13 +264,17 @@ export default function NotebookEntryPage() {
 
   // Kicker: real counts in the rules register, the CEFR line elsewhere.
   const cefrLine = cefr?.estimate ? fill(t.notebook.cefr_line, { level: cefr.estimate }) : null;
+  // WP-130 A: in the rules register, the level's own grammar line — the band in
+  // force and its units in the level's words («A1.1 · Grammaire : 6 en route ·
+  // 0 tenue»), the same counts the Dossier shows.
+  const levelCounts = levelStageCounts(cefr?.coverage?.units);
+  const levelGrammarLine = levelCounts && cefr?.coverage?.band
+    ? `${cefr.coverage.band} · ${grammarLine(levelCounts, language)}`
+    : cefrLine;
   const total = Number(grammarSummary?.total_concepts || 0);
-  const started = Number(grammarSummary?.started || 0);
-  const countsLine = total > 0
-    ? `${countLabel(t.cahier, 'concepts', total)} · ${countLabel(t.cahier, 'seen', started)}`
-    : null;
+  const countsLine = total > 0 ? countLabel(t.cahier, 'concepts', total) : null;
   const kicker = visibleMode === 'grammar' && countsLine
-    ? [countsLine, cefrLine].filter(Boolean).join(' · ')
+    ? [countsLine, levelGrammarLine].filter(Boolean).join(' · ')
     : [cahierModeLabel(t, visibleMode), cefrLine].filter(Boolean).join(' · ');
 
   return (

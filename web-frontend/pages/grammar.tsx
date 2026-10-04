@@ -40,6 +40,23 @@ import { useChromeLanguage } from '@/lib/learner-language';
 import { cardExamples, plainText, usableCard, usableXray } from '@/lib/rule-card';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 import { forgeCopy } from '@/lib/forge-copy';
+import {
+  countStages,
+  missingLine,
+  stageCountsText,
+  stageLabel,
+  stageOf,
+  type GrammarStage,
+} from '@/lib/grammar-stages';
+import type { components } from '@/types/generated/api';
+
+/* WP-130 A: the unit's stage in the level's words, the band it counts for in
+ * the level and the «Tenue» evidence it still lacks (see lib/grammar-stages). */
+type StagedFields = Partial<
+  Pick<components['schemas']['GrammarNotebookItemRead'], 'stage' | 'stage_label' | 'level_band' | 'held_missing'>
+>;
+type NotebookRow = GrammarNotebookItem & StagedFields;
+type NotebookPage = GrammarNotebookDetail & StagedFields;
 
 /* Map the backend grammar state (German keys from determine_state, or already
  * localized variants) to one of five learner states; fall back to mastery. */
@@ -58,12 +75,13 @@ function grammarState(state: string | null | undefined, mastery: number): Gramma
   return 'new';
 }
 
-/* The design's glyph token: blue circle = en cours, ink square = maîtrisé,
- * red square = fragile or with an erratum due, line circle = à venir. */
-function conceptTone(state: GrammarState, due: boolean): ConceptTone {
+/* The design's glyph token: blue circle = en route, ink square = tenue (the
+ * level's «held», WP-130 A — never a practice score), red square = fragile or
+ * with an erratum due, line circle = à venir. */
+function conceptTone(state: GrammarState, stage: GrammarStage, due: boolean): ConceptTone {
   if (due || state === 'fragile') return 'fragile';
-  if (state === 'mastered') return 'done';
-  if (state === 'solid' || state === 'building') return 'progress';
+  if (stage === 'held') return 'done';
+  if (stage === 'practising' || stage === 'introduced') return 'progress';
   return 'new';
 }
 
@@ -83,21 +101,18 @@ function conceptGlyph(title: string, tone: ConceptTone): string {
   return letters.charAt(0).toUpperCase() + letters.slice(1, 2).toLowerCase();
 }
 
-function lowerFirst(value: string) {
-  return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
-}
-
 // The scale runs A1.1 … C1.2 (content program D4: C2 is out of scope).
 const GRAMMAR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 const SUB_BANDS = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2', 'C1.1', 'C1.2'];
 
 /* F-1: the register grouped by sub-band (v2: the unit's own; v1: its level),
    lowest first; within a band the server's teaching order is kept. */
-type ConceptGroup = { band: string; concepts: GrammarNotebookItem[] };
-function groupBySubBand(concepts: GrammarNotebookItem[]): ConceptGroup[] {
+type ConceptGroup = { band: string; concepts: NotebookRow[] };
+function groupBySubBand(concepts: NotebookRow[]): ConceptGroup[] {
   const groups: ConceptGroup[] = [];
   concepts.forEach((concept) => {
-    const band = String(concept.sub_band || concept.level || '').trim() || '—';
+    // WP-130 A: the band the unit counts for in the level (v1 included).
+    const band = String(concept.level_band || concept.sub_band || concept.level || '').trim() || '—';
     const group = groups.find((item) => item.band === band);
     if (group) group.concepts.push(concept);
     else groups.push({ band, concepts: [concept] });
@@ -165,7 +180,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     error: notebookError,
     isLoading,
     mutate: mutateNotebook,
-  } = useSWR<GrammarNotebookItem[]>(
+  } = useSWR<NotebookRow[]>(
     ['/grammar/notebook', notebookParams],
     async () => api.getGrammarNotebook(notebookParams)
   );
@@ -218,7 +233,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     error: selectedError,
     isLoading: detailLoading,
     mutate: mutateSelected,
-  } = useSWR<GrammarNotebookDetail | null>(
+  } = useSWR<NotebookPage | null>(
     selectedId ? ['/grammar/notebook/detail', selectedId, locale] : null,
     async () => (selectedId ? api.getGrammarNotebookConcept(selectedId, { locale }) : null)
   );
@@ -273,7 +288,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
   );
   const shownGroups = useMemo(() => groupBySubBand(shownConcepts), [shownConcepts]);
   const orderedConcepts = useMemo(
-    () => groupBySubBand(concepts).reduce<GrammarNotebookItem[]>((all, group) => all.concat(group.concepts), []),
+    () => groupBySubBand(concepts).reduce<NotebookRow[]>((all, group) => all.concat(group.concepts), []),
     [concepts],
   );
   const filtersActive = level !== 'all' || activeSearch.length > 0 || dueOnly;
@@ -319,20 +334,27 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
         </div>
       ) : shownConcepts.length ? (
         <div className="nb-list" aria-label={t.grammar.index_label}>
-          {shownGroups.map((group) => (
-          <div className="nb-band" key={group.band} role="group" aria-label={group.band}>
-          {shownGroups.length > 1 && <p className="nb-band__label" aria-hidden="true">{group.band}</p>}
+          {shownGroups.map((group) => {
+          // WP-130 A: the band's units in the level's words («A1.1 · 6 en route · 0 tenue»),
+          // counted from the whole band, whatever the filter shows.
+          const bandRows = concepts.filter((c) => String(c.level_band || c.sub_band || c.level || '').trim() === group.band);
+          const bandLine = `${group.band} · ${stageCountsText(countStages(bandRows), language)}`;
+          return (
+          <div className="nb-band" key={group.band} role="group" aria-label={bandLine}>
+          <p className="nb-band__label" aria-hidden="true">{bandLine}</p>
           <div className="nb-band__rows" role="list">
           {group.concepts.map((concept) => {
             const mastery = Math.round(concept.mastery || 0);
             const due = (concept.due_errata_count || 0) > 0;
             const errata = due ? concept.due_errata_count : concept.recent_errata_count;
             const state = grammarState(concept.state, concept.mastery || 0);
-            const tone = conceptTone(state, due);
+            const stage = stageOf(concept);
+            const tone = conceptTone(state, stage, due);
             const title = concept.title_fr || concept.display_title || concept.name;
             const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
             // The status word is chrome: the learner's language, never the server's French.
-            const stateLabel = t.grammar[`status_${state}` as const] || lowerFirst(concept.state_label || '');
+            // WP-130 A: the stage the level counts, the score only as practice.
+            const stateLabel = stageLabel(concept, language);
             const meta = [
               concept.level,
               cat,
@@ -356,7 +378,8 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
           })}
           </div>
           </div>
-          ))}
+          );
+          })}
         </div>
       ) : filtersActive ? (
         <StateBlock
@@ -378,6 +401,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
   const ficheView = selected ? (
     <GrammarFiche
       t={t}
+      language={language}
       concept={selected}
       index={selectedIndex >= 0 ? selectedIndex + 1 : null}
       onBack={deselectConcept}
@@ -429,7 +453,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       </Head>
       <CahierStyles />
       <AtelierV2Root as="main" language={language} className="nb-page" aria-label={t.grammar.page_label}>
-        <CahierHead kicker={isLoading ? t.grammar.kicker_loading : `${countLabel(t.cahier, 'concepts', concepts.length)} · ${countLabel(t.cahier, 'seen', totals.started)}`}>
+        <CahierHead kicker={isLoading ? t.grammar.kicker_loading : `${countLabel(t.cahier, 'concepts', concepts.length)} · ${stageCountsText(countStages(concepts), language)}`}>
           <NotebookModeTabs active="grammar" hrefFor={standaloneHref} />
         </CahierHead>
         <div className="nb-body">{pageContent}</div>
@@ -475,6 +499,7 @@ function ErratumLine({ erratum }: { erratum: AtelierErratum }) {
 
 function GrammarFiche({
   t,
+  language,
   concept,
   index,
   onBack,
@@ -489,7 +514,8 @@ function GrammarFiche({
   onNotesSave,
 }: {
   t: CahierCopy;
-  concept: GrammarNotebookDetail;
+  language: string;
+  concept: NotebookPage;
   index: number | null;
   onBack: () => void;
   notesEditing: boolean;
@@ -526,7 +552,10 @@ function GrammarFiche({
   const nextReview = formatDate(concept.next_review, t.cahier.locale);
   const due = (concept.due_errata_count || 0) > 0;
   const state = grammarState(concept.state, concept.mastery || 0);
-  const tone = conceptTone(state, due);
+  const stage = stageOf(concept);
+  const tone = conceptTone(state, stage, due);
+  // WP-130 A: what the unit still needs to be held, said plainly (no praise).
+  const missing = missingLine(concept.held_missing, language);
   const tokenKind = tone === 'fragile' ? 'action' : tone === 'done' ? 'done' : 'story';
   const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
   // WP-S3 — «Épreuve de la règle», open for every rule from day one (owner,
@@ -565,8 +594,9 @@ function GrammarFiche({
           <ProgressRule value={mastery} max={10} label={t.grammar.mastery} caption={`${mastery} / 10`} />
           <span className="av2-byline">
             <ShapeToken kind={tokenKind} size="sm" />
-            <span className="av2-label">{t.grammar[`status_${state}` as const] || concept.state_label}</span>
+            <span className="av2-label">{stageLabel(concept, language)}</span>
           </span>
+          {missing && <span className="av2-label nb-fiche__missing">{missing}</span>}
           {nextReview && <span className="av2-label">{fill(t.grammar.next_review, { date: nextReview })}</span>}
         </div>
       </header>

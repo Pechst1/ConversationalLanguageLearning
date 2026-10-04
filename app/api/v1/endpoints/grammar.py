@@ -29,6 +29,14 @@ from app.db.models.user import User
 from app.schemas import TokenPayload
 from app.services.achievement_service import AchievementService
 from app.services.atelier_assets import AtelierAssetService
+from app.services.concept_life import (
+    STAGE_HELD,
+    STAGE_NEW,
+    held_missing,
+    progress_stage,
+    stage_counts,
+    stage_label,
+)
 from app.services.error_memory import serialize_error_memory
 from app.services.grammar import GrammarService, personal_note
 from app.services.grammar_catalog import (
@@ -37,6 +45,7 @@ from app.services.grammar_catalog import (
     concept_sub_band,
 )
 from app.services.grammar_map import card_with_partner_titles, unit_xray
+from app.services.level_coverage import unit_bands
 from app.services.rule_cards import rule_card_for
 
 router = APIRouter(prefix="/grammar", tags=["grammar"])
@@ -146,6 +155,14 @@ class GrammarNotebookItemRead(BaseModel):
     blueprint_quality: dict[str, Any] = Field(default_factory=dict)
     # F-1: the v2 sub-band («A2.1»), so the index can group A1.1 … C1.2; None for v1 rows.
     sub_band: str | None = None
+    # WP-130 A: the unit's state in the words the level uses — ``new`` ·
+    # ``introduced`` · ``practising`` · ``held`` (held = the «Tenue» the level
+    # counts) — its label in ``locale``, the band it counts for in the level
+    # (v1 included), and the «Tenue» evidence it still lacks.
+    stage: str = "new"
+    stage_label: str | None = None
+    level_band: str | None = None
+    held_missing: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class GrammarNotebookDetailRead(GrammarNotebookItemRead):
@@ -187,6 +204,10 @@ class GrammarSummaryResponse(BaseModel):
     new_available: int
     state_counts: dict[str, int]
     level_counts: dict[str, int]
+    # WP-130 A: the catalogue's units by the stage the notebook and the level
+    # name (``introduced`` · ``practising`` · ``held``). ``state_counts`` are
+    # the scheduler's score states, not what the learner holds.
+    stage_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class DueConceptRead(BaseModel):
@@ -349,17 +370,38 @@ def _progress_payload(progress: UserGrammarProgress | None) -> GrammarNotebookPr
         score=progress.score,
         reps=progress.reps,
         state=progress.state,
-        state_label=progress.state_label,
+        state_label=notebook_state_label(progress),
         notes=personal_note(progress.notes),
         last_review=_iso(progress.last_review),
         next_review=_iso(progress.next_review),
     )
 
 
+#: WP-130 A — the notebook's French state label. The scheduler's score states
+#: («Solide», «Acquis») read as *held*; the level counts a unit only once it is
+#: «tenue». So the label is the unit's stage, and the score only qualifies the
+#: practice («solide à l'entraînement»), never the unit.
+_PRACTICE_QUALIFIER_FR = {
+    "ausbaufähig": "fragile à l’entraînement",
+    "gefestigt": "solide à l’entraînement",
+    "gemeistert": "solide à l’entraînement",
+}
+
+
+def notebook_state_label(progress: UserGrammarProgress | None) -> str:
+    stage = progress_stage(progress)
+    if stage == STAGE_NEW:
+        return "Nouveau"
+    label = stage_label(stage, "fr") or ""
+    label = label[:1].upper() + label[1:]
+    qualifier = _PRACTICE_QUALIFIER_FR.get(str(getattr(progress, "state", "") or "")) if stage != STAGE_HELD else None
+    return f"{label} · {qualifier}" if qualifier else label
+
+
 def _progress_state(progress: UserGrammarProgress | None) -> tuple[float, str, str, str | None]:
     if not progress:
         return 0.0, "neu", "Nouveau", None
-    return progress.score, progress.state, progress.state_label, _iso(progress.next_review)
+    return progress.score, progress.state, notebook_state_label(progress), _iso(progress.next_review)
 
 
 def _notebook_item_payload(
@@ -370,8 +412,12 @@ def _notebook_item_payload(
     recent_count: int,
     localization: GrammarConceptLocalization | None = None,
     fr_localization: GrammarConceptLocalization | None = None,
+    *,
+    locale: str = "en",
+    level_band: str | None = None,
 ) -> dict[str, Any]:
     mastery, state, state_label, next_review = _progress_state(progress)
+    stage = progress_stage(progress)
     localized_title = localization.title if localization else None
     return {
         "id": concept.id,
@@ -401,6 +447,10 @@ def _notebook_item_payload(
         "blueprint_status": blueprint.get("blueprint_status") or "approved",
         "blueprint_quality": blueprint.get("blueprint_quality") or {},
         "sub_band": concept_sub_band(concept) or None,
+        "stage": stage,
+        "stage_label": stage_label(stage, locale),
+        "level_band": level_band,
+        "held_missing": held_missing(progress),
     }
 
 
@@ -473,6 +523,8 @@ def _notebook_detail_payload(
     progress: UserGrammarProgress | None,
     asset_service: AtelierAssetService,
     localization: GrammarConceptLocalization | None = None,
+    *,
+    locale: str = "en",
 ) -> GrammarNotebookDetailRead:
     blueprint = asset_service.approved_blueprint_payload(concept)
     due_errata, recent_errata = _concept_errata(db, user, concept.id)
@@ -489,7 +541,15 @@ def _notebook_detail_payload(
         )
     )
     item = _notebook_item_payload(
-        concept, progress, blueprint, len(due_errata), len(recent_errata), localization, fr_localization
+        concept,
+        progress,
+        blueprint,
+        len(due_errata),
+        len(recent_errata),
+        localization,
+        fr_localization,
+        locale=locale,
+        level_band=unit_bands(db).get(concept.id),
     )
     return GrammarNotebookDetailRead(
         **item,
@@ -594,6 +654,7 @@ def get_grammar_notebook(
     )
 
     asset_service = AtelierAssetService(db)
+    bands = unit_bands(db)
     rows: list[GrammarNotebookItemRead] = []
     for concept in concepts:
         blueprint = asset_service.approved_blueprint_payload(concept)
@@ -609,6 +670,8 @@ def get_grammar_notebook(
                     int(recent_counts.get(concept.id, 0)),
                     localization_by_concept.get(concept.id),
                     fr_by_concept.get(concept.id),
+                    locale=locale,
+                    level_band=bands.get(concept.id),
                 )
             )
         )
@@ -644,7 +707,9 @@ def get_grammar_notebook_concept(
         .filter(UserGrammarProgress.user_id == current_user.id, UserGrammarProgress.concept_id == concept.id)
         .first()
     )
-    return _notebook_detail_payload(db, current_user, concept, progress, AtelierAssetService(db), localization)
+    return _notebook_detail_payload(
+        db, current_user, concept, progress, AtelierAssetService(db), localization, locale=locale
+    )
 
 
 @router.patch("/notebook/{concept_id}/notes", response_model=GrammarNotebookDetailRead)
@@ -725,7 +790,17 @@ def get_summary(
 ) -> GrammarSummaryResponse:
     """Get grammar progress summary for dashboard."""
     summary = service.get_summary(user=current_user)
-    return GrammarSummaryResponse(**summary)
+    rows = (
+        service.db.query(UserGrammarProgress)
+        .join(GrammarConcept, UserGrammarProgress.concept_id == GrammarConcept.id)
+        .filter(
+            UserGrammarProgress.user_id == current_user.id,
+            GrammarConcept.active.is_(True),
+            GrammarConcept.catalog_version == active_catalog_version(),
+        )
+        .all()
+    )
+    return GrammarSummaryResponse(**{**summary, "stage_counts": stage_counts(rows)})
 
 
 @router.get("/due", response_model=list[DueConceptRead])

@@ -36,6 +36,7 @@ import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import SealCollection from '@/components/releve/SealCollection';
 import { RvReleveSection } from '@/components/revue/RvReleveSection';
 import { fill, plural, releveCopy, type ReleveCopy } from '@/components/releve/releve-copy';
+import { stageWord, type VisibleStage } from '@/lib/grammar-stages';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
   type AtelierAlmanac,
@@ -51,14 +52,14 @@ import api, {
    label is read from `releve-copy.ts` in the chrome language (WP-82). Anything
    unmapped falls back to a neutral line rather than leaking the key. */
 
-type GrammarStem = 'grammar_new' | 'grammar_fragile' | 'grammar_building' | 'grammar_solid' | 'grammar_mastered';
-
-const GRAMMAR_STATES: Array<{ key: string; label: GrammarStem; tone: string }> = [
-  { key: 'neu', label: 'grammar_new', tone: 'new' },
-  { key: 'ausbaufähig', label: 'grammar_fragile', tone: 'fragile' },
-  { key: 'in_arbeit', label: 'grammar_building', tone: 'building' },
-  { key: 'gefestigt', label: 'grammar_solid', tone: 'solid' },
-  { key: 'gemeistert', label: 'grammar_mastered', tone: 'mastered' },
+/* WP-130 A: the register counts rules by the stage the level counts
+   (`stage_counts`: introduced · practising · held), in the notebook's words —
+   never by the scheduler's score states, which read as «held» («maîtrisées»)
+   for rules the level does not count. */
+const GRAMMAR_STAGE_TONES: Array<{ key: VisibleStage; tone: string }> = [
+  { key: 'introduced', tone: 'new' },
+  { key: 'practising', tone: 'building' },
+  { key: 'held', tone: 'mastered' },
 ];
 
 type CollectibleStem =
@@ -240,16 +241,19 @@ export default function Releve() {
   ];
 
   /* ---- Le Registre (GET /analytics/summary + GET /grammar/summary) ---- */
-  const grammarCounts = useMemo(() => normalizedCounts(grammar?.state_counts), [grammar]);
+  const grammarCounts = useMemo(
+    () => normalizedCounts((grammar as { stage_counts?: Record<string, number> } | null | undefined)?.stage_counts),
+    [grammar],
+  );
   const grammarStarted = Number(grammar?.started || 0);
   const grammarTotal = Number(grammar?.total_concepts || 0);
   const grammarBar = useMemo(
     () =>
-      GRAMMAR_STATES.map((state) => {
-        const n = Number(grammarCounts[state.key.normalize('NFC')] || 0);
-        return { key: state.key, tone: state.tone, n, label: plural(copy, state.label, n) };
+      GRAMMAR_STAGE_TONES.map((state) => {
+        const n = Number(grammarCounts[state.key] || 0);
+        return { key: state.key, tone: state.tone, n, label: stageWord(state.key, chromeLanguage, n).replace(/^\d+ /, '') };
       }).filter((state) => state.n > 0),
-    [grammarCounts, copy]
+    [grammarCounts, chromeLanguage]
   );
 
   /* ---- La Collection (GET /achievements/my + GET /atelier/almanac) ---- */
@@ -401,7 +405,7 @@ export default function Releve() {
                     <i
                       key={state.key}
                       data-tone={state.tone}
-                      style={{ width: (100 * state.n) / Math.max(1, grammarStarted) + '%' }}
+                      style={{ width: (100 * state.n) / Math.max(1, grammarBar.reduce((sum, row) => sum + row.n, 0)) + '%' }}
                     />
                   ))}
                 </div>

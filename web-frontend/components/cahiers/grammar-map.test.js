@@ -148,10 +148,11 @@ test('momentum copy: three complete tables, sentence case, no empty string', () 
 });
 
 test('the map speaks the chrome language by level (A1 en, A2 de, B1 fr); titles stay French', () => {
+  // WP-130 A: a rule met and not held is «practising / in Übung / en route» on every surface.
   const cases = [
-    [chromeLanguage('en', 'A1.1'), 'Your grammar map', 'Un, une, des: introduced · Review due'],
-    [chromeLanguage('de', 'A2.1'), 'Deine Grammatikkarte', 'Un, une, des: eingeführt · Wiederholung fällig'],
-    [chromeLanguage('de', 'B1.1'), 'Votre carte de grammaire', 'Un, une, des : découverte · Révision prévue'],
+    [chromeLanguage('en', 'A1.1'), 'Your grammar map', 'Un, une, des: practising · Review due'],
+    [chromeLanguage('de', 'A2.1'), 'Deine Grammatikkarte', 'Un, une, des: in Übung · Wiederholung fällig'],
+    [chromeLanguage('de', 'B1.1'), 'Votre carte de grammaire', 'Un, une, des : en route · Révision prévue'],
   ];
   for (const [language, title, aria] of cases) {
     const html = renderMap(language);
