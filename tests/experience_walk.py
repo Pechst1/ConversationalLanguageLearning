@@ -442,6 +442,11 @@ def courrier(client: TestClient, headers: dict[str, str], *, quality: str, band:
             "opening_message": messenger.get("opening_message"),
             "objectives": [o.get("label") or o.get("text") for o in mission.get("objectives") or []],
             "target_vocabulary": [t.get("word") or t.get("lemma") for t in mission.get("target_vocabulary") or []],
+            # WP-125B: what the letter is (level, reach, request, follow-up) and what it costs.
+            "letter_fit": mission.get("letter_fit"),
+            "estimated_seconds": mission.get("estimated_seconds"),
+            "chain_note": messenger.get("chain_note"),
+            "follow_up_of": (mission.get("letter_fit") or {}).get("follow_up_of"),
         }
         record["letters"].append(letter)
         if quality == "struggling" and rng.random() < 0.5:

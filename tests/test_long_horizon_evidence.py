@@ -706,6 +706,18 @@ def horizon_run(
         monkeypatch.setattr(daily_journey_service, "_utcnow", clock)
         monkeypatch.setattr(daily_journey_service, "choose_day_shape", spy)
         monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+        # WP-125B: provider-off, a canned letter carries an affair only as far as
+        # it has authored follow-ups, and none ship yet (owner approval). The
+        # harness gives each canned letter test follow-ups, so the chain, lapse
+        # and cooling mechanics stay under 126-day evidence.
+        monkeypatch.setattr(
+            missions_module,
+            "REAL_WORLD_MISSION_DOMAINS",
+            tuple(
+                {**item, "follow_ups": [f"(test) {item['title']} : suite {n}." for n in (2, 3, 4)]}
+                for item in missions_module.REAL_WORLD_MISSION_DOMAINS
+            ),
+        )
         # One clock for every package that schedules something. In production
         # these are all the same wall clock; a run that advances one of them and
         # not the others would produce an errata queue that is never due and a

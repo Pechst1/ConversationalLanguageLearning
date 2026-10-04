@@ -21,7 +21,7 @@ import pytest
 from app.core import test_clock
 from tests import experience_walk as life
 from tests import learner_walk as walk
-from tests import walk_checks, walk_checks_wp126
+from tests import walk_checks, walk_checks_wp125b, walk_checks_wp126
 from tests.test_learner_walk import (  # noqa: F401 - fixtures
     assembled_client,
     journey_enabled,
@@ -134,6 +134,8 @@ def test_a_month_of_a_whole_life(
     problems = walk_checks.check_life(record)
     # WP-126/127: ≤ 48 check items a visit; no own-band offer to «Nouveau»; B2/C1 day one at its band.
     problems += walk_checks_wp126.check_life_wp126(record)
+    problems += walk_checks_wp125b.check_letter_repeats(record)
+    problems += walk_checks_wp125b.check_letter_levels(record)
     transcripts = [day["journey"] for day in record["days"]]
     problems += walk_checks.run_all(transcripts, db=db_session)
     assert not problems, "\n".join(problems[:60]) + (f"\n… {len(problems) - 60} more" if len(problems) > 60 else "")
