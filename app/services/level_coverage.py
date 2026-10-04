@@ -1,14 +1,14 @@
 """WP-L7 — the level as syllabus coverage of a sub-band.
 
 The level a learner is shown is the sub-band they are working through
-(A1.1 … B2.2). A band is *covered* when three things are true:
+(A1.1 … C1.2). A band is *covered* when three things are true:
 
 * **units held** — at least :data:`UNITS_HELD_SHARE` (85 %) of the band's
   grammar units are held (:func:`held_unit_ids`: WP-L4's «Tenue»);
 * **words known** — at least :data:`WORDS_KNOWN_SHARE` (80 %) of the band's core
   words are known: a card for the lemma with retrievability ≥
   :data:`WORD_KNOWN_RETRIEVABILITY` (0.85), seen at least twice and not in
-  relearning;
+  relearning — or met in reading often enough (:func:`read_lemmas`, 2026-10-03);
 * **the checkpoint** — the band's «épreuve» is passed
   (:mod:`app.services.level_checkpoint`). Coverage of the first two makes the
   learner *ready* for it.
@@ -44,7 +44,9 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.vocabulary import VocabularyWord
 
 #: The sub-bands the level walks, lowest first (mirrors ``cefr_progress.CEFR_LEVELS``).
-SUB_BANDS: tuple[str, ...] = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2")
+SUB_BANDS: tuple[str, ...] = (
+    "A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2",
+)
 
 UNITS_HELD_SHARE = 0.85
 WORDS_KNOWN_SHARE = 0.80
@@ -171,7 +173,7 @@ def held_unit_ids(db: Session, user: Any, *, now: datetime | None = None) -> set
 
 @lru_cache(maxsize=16)
 def band_words(band: str) -> frozenset[str]:
-    """The band's core lemmas (folded), closed-class words excluded."""
+    """The band's core lemmas (folded), closed-class words and numerals excluded."""
 
     from app.services.lexical_coverage import load_lexicon
 
@@ -179,7 +181,9 @@ def band_words(band: str) -> frozenset[str]:
     return frozenset(
         lemma
         for lemma, entry in lexicon.lemmas.items()
-        if str(entry.get("sub_band") or "") == band and lemma not in CLOSED_CLASS_WORDS
+        if str(entry.get("sub_band") or "") == band
+        and lemma not in CLOSED_CLASS_WORDS
+        and not entry.get("numeral")
     )
 
 
@@ -225,8 +229,57 @@ def is_word_known(progress: UserVocabularyProgress, *, now: datetime) -> bool:
     return retrievability >= WORD_KNOWN_RETRIEVABILITY
 
 
+#: 2026-10-03 (owner: faster than Duolingo) — receptive vocabulary from reading.
+#: A word a story scene taught (glossed, in a sentence) counts as known once it
+#: was met in this many different sentences on this many different days and the
+#: learner never needed to keep it as a card. Above B1 most words are learned
+#: this way; a production card for every one of them was the level's bottleneck.
+READ_MIN_SENTENCES = 3
+READ_MIN_DAYS = 3
+
+
+def read_lemmas(db: Session, user: Any) -> set[str]:
+    """Core lemmas this learner knows from reading (see :data:`READ_MIN_SENTENCES`)."""
+
+    from app.db.models.session import WordInteraction
+    from app.services.kept_words import KEPT_INTERACTION_TYPE, SCENE_LEXICON_INTERACTION_TYPE
+
+    rows = (
+        db.query(WordInteraction.word_id, WordInteraction.interaction_type,
+                 WordInteraction.context_sentence, WordInteraction.created_at)
+        .filter(
+            WordInteraction.user_id == user.id,
+            WordInteraction.interaction_type.in_([SCENE_LEXICON_INTERACTION_TYPE, KEPT_INTERACTION_TYPE]),
+        )
+        .all()
+    )
+    kept: set[int] = set()
+    sentences: dict[int, set[str]] = {}
+    days: dict[int, set[Any]] = {}
+    for word_id, kind, sentence, created in rows:
+        if kind == KEPT_INTERACTION_TYPE:
+            kept.add(word_id)
+            continue
+        sentences.setdefault(word_id, set()).add(str(sentence or "").strip().casefold())
+        if created is not None:
+            days.setdefault(word_id, set()).add(created.date())
+    read_ids = [
+        word_id
+        for word_id, seen in sentences.items()
+        if word_id not in kept
+        and len(seen) >= READ_MIN_SENTENCES
+        and len(days.get(word_id, ())) >= READ_MIN_DAYS
+    ]
+    if not read_ids:
+        return set()
+    known: set[str] = set()
+    for word in db.query(VocabularyWord).filter(VocabularyWord.id.in_(read_ids)).all():
+        known |= lemmas_of_card(word)
+    return known
+
+
 def known_lemmas(db: Session, user: Any, *, now: datetime | None = None) -> set[str]:
-    """Every core lemma for which the learner holds a known card."""
+    """Every core lemma the learner knows: a known card, or met often enough in reading."""
 
     now = now or datetime.now(UTC)
     rows = (
@@ -239,7 +292,7 @@ def known_lemmas(db: Session, user: Any, *, now: datetime | None = None) -> set[
     for progress, word in rows:
         if is_word_known(progress, now=now):
             known |= lemmas_of_card(word)
-    return known
+    return known | read_lemmas(db, user)
 
 
 # ---------------------------------------------------------------------------

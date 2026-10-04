@@ -53,6 +53,8 @@ import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDo
 import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
 import { SeasonReturnGallerySections } from '@/components/atelier-v2/__fixtures__/SeasonReturnGallery';
 import { TestFeedbackGallerySections } from '@/components/atelier-v2/__fixtures__/TestFeedbackGallery';
+import { RuleCardGallerySections } from '@/components/atelier-v2/__fixtures__/RuleCardGallery';
+import { BandCheckGallerySections } from '@/components/atelier-v2/__fixtures__/BandCheckGallery';
 import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
 import {
   CrCorrespondent,
@@ -679,6 +681,14 @@ export default function AtelierV2Gallery() {
           {/* WP-103 «Retour d'essai»: the goal line, «Afficher le texte», the printed
               corrections, the exchange cue, «Je relis…» and «Corrigez la phrase». */}
           <TestFeedbackGallerySections language={language} Section={Section} />
+
+          {/* F-1: the rule card v2+ (colour key, «More», steps, examples, traps,
+              «Compare with») and the x-ray sentence, on real A1.1–B1.1 units. */}
+          <RuleCardGallerySections language={language} Section={Section} />
+
+          {/* SPEED-1 «Vérification du lexique»: entry points, intro, a question,
+              the send, and the three result cards. */}
+          <BandCheckGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar

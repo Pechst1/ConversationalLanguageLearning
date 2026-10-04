@@ -47,6 +47,7 @@ import {
   Surface,
   textAnswerField,
 } from '@/components/atelier-v2/ui';
+import { BandCheckEntry } from '@/components/atelier-v2/band-check';
 import api, { type PlacementEnvelope } from '@/services/api';
 import { useLearnerLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
@@ -399,6 +400,11 @@ export default function PlacementPage() {
           </details>
         )}
 
+        {/* SPEED-1: the words of the levels below the estimate can be
+            confirmed in about two minutes per level instead of re-learned.
+            Rendered only while a sub-band is still uncredited; a secondary
+            action, so «Ouvrir ma première séance» stays the one primary. */}
+        <BandCheckEntry origin="placement" language={language} />
       </PlacementFrame>
     </>
   );

@@ -49,6 +49,8 @@ import {
 import { crLetterHeadline } from '@/components/courrier/courrier-copy';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleTestOut } from './RuleTestOut';
+import { ruleTestOutCopy } from './rule-test-out';
 import {
   checkAnswerLocally,
   correctOptionLocally,
@@ -91,6 +93,7 @@ import {
   sceneOpensOnAudio,
   textOffered,
   verdictTitleKey,
+  showsVerdict,
   voiceOffered,
   wordBankHasSpareChips,
   type JourneyFeedback,
@@ -963,8 +966,11 @@ export function RespondStepView({
   const wide = widenCopy(copy);
   // WP-D2 / WP-89: the latest line is said beside the face, which reacts only
   // to the closing verdict — mid-conversation it never frowns.
+  // QA-STORY: a story reply is never graded, so the face never reacts to a verdict.
   const sayingMood: FaceMood =
-    closing && feedback.kind === 'graded' ? expressionForVerdict(feedback.verdict) : 'neutral';
+    closing && feedback.kind === 'graded' && showsVerdict(step.kind)
+      ? expressionForVerdict(feedback.verdict)
+      : 'neutral';
 
   // --- the thread (WP-89) ---------------------------------------------------
   const sent = sentRef.current;
@@ -1268,18 +1274,54 @@ export function RuleStepView({
   language,
   onContinue,
   journeyId = null,
-}: { step: RuleStep; language: ControlLanguage; journeyId?: string | null } & Pick<
-  StepViewCommonProps,
-  'copy' | 'busy' | 'onContinue'
->) {
+  initialCheck = 'card',
+}: {
+  step: RuleStep;
+  language: ControlLanguage;
+  journeyId?: string | null;
+  /** SPEED-3: where the step opens (`card` in the app; the tests open the others). */
+  initialCheck?: RuleCheckPhase;
+} & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
   const card = step.prompt.rule_card;
   // WP-92: the day's own line using the rule, when the scene carried it — the
   // card's first anchor, said by its speaker (their voice when there is one).
   const anchor = ruleSceneAnchor(step.prompt);
   const voice = useStepVoice(journeyId, step.id);
+  // SPEED-3 «Je connais déjà — vérifier»: a short test-out instead of the card.
+  const [check, setCheck] = useState<RuleCheckPhase>(initialCheck);
+  const checkCopy = ruleTestOutCopy(language);
   const proceed = () => {
     if (!busy) onContinue();
   };
+  if (check === 'running') {
+    return (
+      <RuleTestOut
+        conceptId={step.prompt.concept_id}
+        language={language}
+        onCancel={() => setCheck('card')}
+        onEnd={(end) => setCheck(end.outcome)}
+      />
+    );
+  }
+  if (check === 'passed') {
+    // A pass holds the unit: one confirmation, then the day goes on.
+    return (
+      <section className="av2-stack av2-step" data-step="rule" data-check="passed">
+        <p className="av2-label av2-label--story">{copy.today_eyebrow}</p>
+        <h2 className="av2-headline" lang={step.prompt.title_fr ? 'fr' : undefined}>
+          {step.prompt.title_fr ? frenchSpacing(step.prompt.title_fr) : step.prompt.title_native}
+        </h2>
+        <FeedbackBand tone="correct" title={checkCopy.passed_title} detail={checkCopy.passed_body} />
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.scene_continue}
+        </Action>
+      </section>
+    );
+  }
+  // The card is read after a fail (or a check that could not run), never re-offered.
+  const checkNote =
+    check === 'failed' ? checkCopy.failed : check === 'unavailable' ? checkCopy.unavailable : null;
+  const offerCheck = check === 'card' && Number.isFinite(Number(step.prompt.concept_id));
   if (!usableCard(card)) {
     // A card the client cannot draw still lets the learner through.
     return (
@@ -1296,7 +1338,8 @@ export function RuleStepView({
     );
   }
   return (
-    <section className="av2-stack av2-step" data-step="rule">
+    <section className="av2-stack av2-step" data-step="rule" data-check={check}>
+      {checkNote ? <Notice>{checkNote}</Notice> : null}
       <RuleCard
         card={card}
         language={language}
@@ -1307,9 +1350,18 @@ export function RuleStepView({
         sceneVoice={anchor ? voice : null}
         sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}
       />
+      {offerCheck ? (
+        // A quiet second way through: never competing with «Essayer».
+        <Action tone="quiet" disabled={busy} onClick={() => setCheck('running')}>
+          {checkCopy.action}
+        </Action>
+      ) : null}
     </section>
   );
 }
+
+/** SPEED-3: the Règle step's short test-out — offered, running, or settled. */
+export type RuleCheckPhase = 'card' | 'running' | 'passed' | 'failed' | 'unavailable';
 
 // ---------------------------------------------------------------------------
 // Forge — WP-S4 «La Forge», folded into a Soutenu/Intensif day
@@ -1499,6 +1551,7 @@ export function JourneyFeedbackView({
   onRetry,
   onDismiss,
   speaker = null,
+  stepKind = null,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
@@ -1507,6 +1560,8 @@ export function JourneyFeedbackView({
   onDismiss: () => void;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
+  /** QA-STORY: the step's kind — a story reply (`respond`) gets no verdict. */
+  stepKind?: string | null;
 }) {
   const wide = widenCopy(copy);
   // WP-76: the verdict is a sheet pinned to the bottom of the screen. When it
@@ -1603,6 +1658,26 @@ export function JourneyFeedbackView({
       // the verdict — «Written reply from the script» told the learner nothing
       // they could act on. The payload still carries `reply_source`.
       const { result, verdict } = feedback;
+      if (!showsVerdict(stepKind)) {
+        // QA-STORY: a story reply is never «Richtig»: the scene answered it. What is
+        // left is the margin correction (if any) and the way on.
+        return (
+          <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
+            {result.correction && (
+              <Correction
+                label={copy.correction}
+                spanFr={result.correction.span_fr}
+                correctedFr={result.correction.corrected_fr}
+                noteNative={result.correction.note_native}
+                notesNative={correctionNotes(result.correction)}
+              />
+            )}
+            <Action tone="primary" onClick={onContinue}>
+              {wide.action_continue}
+            </Action>
+          </div>
+        );
+      }
       // W7: «with help» only when help was really used.
       const title = copy[verdictTitleKey(verdict, result.assistance_level)];
       // WP-77: the character reacts to *your* answer — pleased or cross, small.
@@ -1634,6 +1709,10 @@ export function JourneyFeedbackView({
                 // WP-103: one line per issue, never the same explanation twice.
                 notesNative={correctionNotes(result.correction)}
               />
+            )}
+            {/* QA-CLOSE: a forgiven slip on a hit, named in one line. */}
+            {!result.correction && result.slip_note_native && (
+              <p className="av2-graded__slip">{result.slip_note_native}</p>
             )}
           </FeedbackBand>
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}

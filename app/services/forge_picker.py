@@ -224,6 +224,16 @@ def _introduced(progress: UserGrammarProgress) -> bool:
     return progress.introduced_at is not None or int(progress.reps or 0) > 0
 
 
+def _second_new_rule_due(db: Session, user: Any, *, now: datetime) -> bool:
+    """A rhythm above seven new rules a week (Intensif) takes a second one on
+    some days: the forge then opens on a new rule, not on the one already read."""
+
+    from app.services import concept_life
+
+    quota = concept_life.weekly_concept_quota(db, user, now=now)
+    return quota > concept_life.INTAKE_WINDOW_DAYS and concept_life.introduction_due(db, user, now=now)
+
+
 def _anchor(
     db: Session,
     user: Any,
@@ -258,7 +268,7 @@ def _anchor(
         ),
         reverse=True,
     )
-    if introduced_today:
+    if introduced_today and not _second_new_rule_due(db, user, now=now):
         return introduced_today[0][1], REASON_INTRODUCED_TODAY, False
 
     for concept_id in errata_ids:
@@ -491,21 +501,42 @@ def forge_plan(
     )
 
 
-def forge_anchor_id(db: Session, user: Any, now: datetime | None = None) -> int | None:
+def forge_anchor_id(
+    db: Session, user: Any, now: datetime | None = None, *, preferred_concept_id: int | None = None
+) -> int | None:
     """Today's rule alone (the forge entry's ``concept``), or None."""
 
-    plan = forge_plan(db, user, now)
+    plan = forge_plan(db, user, now, preferred_concept_id=preferred_concept_id)
     anchor = plan.anchor
     return anchor.concept_id if anchor is not None else None
 
 
-def forge_anchor_brief(db: Session, user: Any, *, now: datetime | None = None) -> dict[str, Any] | None:
+def story_review_concept_id(db: Session, user: Any, unit_ids: list[str]) -> int | None:
+    """T-1: the first unit today's tentpole page uses that this learner has met and
+    not yet holds (catalogue order); else one they hold; else ``None``."""
+
+    if not unit_ids:
+        return None
+    language = _language(user)
+    rows = [
+        (progress, concept)
+        for progress, concept in _progress_rows(db, user, language)
+        if concept.external_id in set(unit_ids) and _introduced(progress)
+    ]
+    order = {unit: index for index, unit in enumerate(unit_ids)}
+    rows.sort(key=lambda row: (row[0].held_at is not None, order.get(row[1].external_id, 10**6)))
+    return rows[0][1].id if rows else None
+
+
+def forge_anchor_brief(
+    db: Session, user: Any, *, now: datetime | None = None, preferred_concept_id: int | None = None
+) -> dict[str, Any] | None:
     """``{"concept_id", "title_native", "title_fr"}`` of today's rule, for the fold."""
 
     from app.services.concept_life import concept_brief
     from app.services.journey_contracts import normalize_control_language
 
-    concept_id = forge_anchor_id(db, user, now)
+    concept_id = forge_anchor_id(db, user, now, preferred_concept_id=preferred_concept_id)
     concept = db.get(GrammarConcept, concept_id) if concept_id is not None else None
     if concept is None:
         return None
@@ -537,6 +568,7 @@ __all__ = [
     "forge_anchor_id",
     "forge_budget_seconds",
     "forge_is_folded",
+    "story_review_concept_id",
     "forge_plan",
     "unit_caps",
 ]

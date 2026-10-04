@@ -2,7 +2,7 @@ import type { components } from '@/types/generated/api';
 import { rememberCastVariants } from '@/lib/cast-variants';
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
-import type { RuleCardData } from '@/lib/rule-card';
+import type { RuleCardData, XrayPayload } from '@/lib/rule-card';
 import type { ForgeCoach } from '@/lib/forge-coach';
 import type { EclairResult, EclairRound } from '@/lib/eclair';
 import type { GrammarMapPayload } from '@/lib/grammar-map';
@@ -869,6 +869,14 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
 
 export type VocabularyWord = components['schemas']['VocabularyWordRead'];
 
+/* ---- SPEED-1 «Vérification du lexique» (/vocabulary/band-check) ---------- */
+export type BandCheckSubBand = components['schemas']['BandCheckSubBand'];
+export type BandCheckItem = components['schemas']['BandCheckItem'];
+export type BandCheckStart = components['schemas']['BandCheckStart'];
+export type BandCheckResult = components['schemas']['BandCheckResult'];
+/** item id → the chosen option's index, or null for «je ne sais pas». */
+export type BandCheckAnswers = Record<string, number | null>;
+
 export interface VocabularyBiographyOrigin {
   label: string;
   source_type: string;
@@ -1028,6 +1036,10 @@ export interface ConjugationReviewResponse {
   reps: number;
   lapses: number;
   next_review?: string | null;
+  /** QA-CLOSE: the server's verdict on `answer_text` (null for a self-rating). */
+  correct?: boolean | null;
+  expected?: string | null;
+  note_native?: string | null;
 }
 
 export interface WeeklyDossierStats {
@@ -1266,6 +1278,8 @@ export interface GrammarNotebookItem {
   motif?: Record<string, any>;
   blueprint_status?: string | null;
   blueprint_quality?: Record<string, any>;
+  /** F-1: the v2 sub-band («A2.1»); null for a v1 row. */
+  sub_band?: string | null;
 }
 
 export interface GrammarNotebookDetail extends GrammarNotebookItem {
@@ -1280,6 +1294,10 @@ export interface GrammarNotebookDetail extends GrammarNotebookItem {
   due_errata: AtelierErratum[];
   recent_errata: AtelierErratum[];
   personal_notes?: string | null;
+  /** F-1: the authored rule card (every learner language; partners titled), or null. */
+  rule_card?: RuleCardData | null;
+  /** F-1: the unit's x-ray sentence and its marks, or null. */
+  xray?: XrayPayload | null;
 }
 
 export interface DueGrammarConcept {
@@ -2394,6 +2412,21 @@ class ApiService {
     return this.atelierGet('/vocabulary/coverage');
   }
 
+  /* SPEED-1 — a two-minute check that credits a whole sub-band below the
+     learner's level. The sample is seeded per day server-side, so a re-fetch
+     the same day is the same check; the POST is graded against that sample. */
+  async getBandChecks(): Promise<BandCheckSubBand[]> {
+    return this.atelierGet<BandCheckSubBand[]>('/vocabulary/band-check');
+  }
+
+  async startBandCheck(subBand: string): Promise<BandCheckStart> {
+    return this.atelierGet<BandCheckStart>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`);
+  }
+
+  async submitBandCheck(subBand: string, answers: BandCheckAnswers): Promise<BandCheckResult> {
+    return this.atelierPost<BandCheckResult>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`, { answers });
+  }
+
   async getWordsOfTheDay(): Promise<DailyWordSlate> {
     return this.atelierGet('/vocabulary/words-of-the-day');
   }
@@ -2407,6 +2440,9 @@ class ApiService {
     tense: string;
     rating: number;
     response_time_ms?: number;
+    /** QA-CLOSE: the person asked and the typed form — graded on the server. */
+    person?: string;
+    answer_text?: string;
   }): Promise<ConjugationReviewResponse> {
     return this.atelierPost('/vocabulary/conjugation/review', data);
   }
@@ -2435,9 +2471,10 @@ class ApiService {
     word_id: number;
     rating: number;
     response_time_ms?: number;
-    /** WP-115a: an answered card's format and result — the server earns the grade. */
+    /** WP-115a: an answered card's format — the server earns the grade. */
     format?: 'flashcard' | 'typed' | 'cloze' | 'audio' | 'choice' | 'spoken';
-    correct?: boolean;
+    /** QA-CLOSE: what the learner typed or said; the server grades it (`correct` is not trusted). */
+    answer_text?: string;
   }): Promise<AnkiReviewResponse> {
     return this.atelierPost('/anki/review', data);
   }
@@ -2599,9 +2636,15 @@ class ApiService {
     return this.atelierGet<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
   }
 
-  /** WP-S3 — «Épreuve de la règle»: five mixed items; a pass holds the rule. */
-  async startForgeTestOut(conceptId: number) {
-    return this.atelierPost<AtelierSessionStart>('/atelier/forge/test-out', { concept_id: conceptId });
+  /**
+   * WP-S3 — «Épreuve de la règle»: five mixed items; a pass holds the rule.
+   * SPEED-3: `short` is the journey's three-item check; `source` names the surface.
+   */
+  async startForgeTestOut(
+    conceptId: number,
+    options: { short?: boolean; source?: 'journey' | 'cahier' | 'forge' } = {},
+  ) {
+    return this.atelierPost<AtelierSessionStart>('/atelier/forge/test-out', { concept_id: conceptId, ...options });
   }
 
   /** WP-S3 — per rule: the forge rung, the stage, the next due date. */

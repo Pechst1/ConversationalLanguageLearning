@@ -48,7 +48,9 @@ def start_test_out(
     current_user: User = Depends(get_atelier_user),
 ) -> AtelierSessionStartResponse:
     try:
-        session = ForgeService(db).start_test_out(user=current_user, concept_id=payload.concept_id)
+        session = ForgeService(db).start_test_out(
+            user=current_user, concept_id=payload.concept_id, short=payload.short, source=payload.source
+        )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grammar concept not found") from exc
     return _session_response(db, current_user, session, fast_path=True, background_tasks=background_tasks)

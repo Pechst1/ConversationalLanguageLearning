@@ -117,6 +117,14 @@ TEST_OUT_RUNGS: tuple[Rung, ...] = (
     Rung.FREE_USE,
 )
 TEST_OUT_PASS_CORRECT = 4
+#: SPEED-3: the journey's short check («Je connais déjà — vérifier»): three
+#: items — tell right from wrong, repair, use it freely. A pass needs all three
+#: (``min(TEST_OUT_PASS_CORRECT, 3)``), production included.
+TEST_OUT_SHORT_RUNGS: tuple[Rung, ...] = (
+    Rung.DISCRIMINATE,
+    Rung.TRANSFORM,
+    Rung.FREE_USE,
+)
 
 MODE_SEANCE = "seance"
 MODE_TEST_OUT = "test_out"
@@ -353,13 +361,14 @@ class ForgeState:
         return cls(mode=MODE_SEANCE, length=max(1, int(length)), tracks=tracks)
 
     @classmethod
-    def test_out(cls, concept_id: int) -> ForgeState:
+    def test_out(cls, concept_id: int, *, short: bool = False) -> ForgeState:
+        rungs = TEST_OUT_SHORT_RUNGS if short else TEST_OUT_RUNGS
         track = RuleTrack(concept_id=int(concept_id), role=Role.TODAY.value, rung=0)
         return cls(
             mode=MODE_TEST_OUT,
-            length=len(TEST_OUT_RUNGS),
+            length=len(rungs),
             tracks=[track],
-            plan=[int(rung) for rung in TEST_OUT_RUNGS],
+            plan=[int(rung) for rung in rungs],
         )
 
     # -- (de)serialisation, for the session's JSON column --------------------
@@ -683,6 +692,7 @@ __all__ = [
     "SEANCE_SECONDS_BY_RHYTHM",
     "SPACED_RUNGS",
     "TEST_OUT_RUNGS",
+    "TEST_OUT_SHORT_RUNGS",
     "TOP_RUNG",
     "EvidenceDecision",
     "ForgeState",

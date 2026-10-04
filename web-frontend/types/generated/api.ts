@@ -4639,6 +4639,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vocabulary/band-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Band Checks
+         * @description The sub-bands below the learner's level whose words a short check can credit.
+         */
+        get: operations["list_band_checks_api_v1_vocabulary_band_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vocabulary/band-check/{sub_band}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start Band Check
+         * @description Today's check for one sub-band: meaning choices, no answer key.
+         */
+        get: operations["start_band_check_api_v1_vocabulary_band_check__sub_band__get"];
+        put?: never;
+        /**
+         * Submit Band Check
+         * @description Grade the check; a pass gives the sub-band's words settled, known cards.
+         */
+        post: operations["submit_band_check_api_v1_vocabulary_band_check__sub_band__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vocabulary/conjugation/review": {
         parameters: {
             query?: never;
@@ -5015,6 +5059,8 @@ export interface components {
          * @description Payload for submitting an Anki-style review.
          */
         AnkiReviewRequest: {
+            /** Answer Text */
+            answer_text?: string | null;
             /** Correct */
             correct?: boolean | null;
             /** Direction */
@@ -5036,14 +5082,20 @@ export interface components {
          * @description Response for an Anki review submission.
          */
         AnkiReviewResponse: {
+            /** Correct */
+            correct?: boolean | null;
             /** Due At */
             due_at?: string | null;
             /** Ease Factor */
             ease_factor?: number | null;
+            /** Expected */
+            expected?: string | null;
             /** Interval Days */
             interval_days?: number | null;
             /** Next Review */
             next_review?: string | null;
+            /** Note Native */
+            note_native?: string | null;
             /** Phase */
             phase?: string | null;
             /**
@@ -5697,6 +5749,13 @@ export interface components {
         AtelierForgeTestOutRequest: {
             /** Concept Id */
             concept_id: number;
+            /**
+             * Short
+             * @default false
+             */
+            short?: boolean;
+            /** Source */
+            source?: ("journey" | "cahier" | "forge") | null;
         };
         /** AtelierPlateRead */
         AtelierPlateRead: {
@@ -5917,6 +5976,8 @@ export interface components {
              * @enum {string}
              */
             reply_source: "authored" | "model" | "none";
+            /** Slip Note Native */
+            slip_note_native: string | null;
             task_outcome: components["schemas"]["TaskOutcome"];
         };
         /**
@@ -6028,6 +6089,55 @@ export interface components {
             opening_message: string;
             /** Session Id */
             session_id: string;
+        };
+        /** BandCheckItem */
+        BandCheckItem: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /** Options */
+            options: string[];
+        };
+        /** BandCheckResult */
+        BandCheckResult: {
+            /** Correct */
+            correct: number;
+            /** Credited Words */
+            credited_words: number;
+            /** Missed */
+            missed: string[];
+            /** Passed */
+            passed: boolean;
+            /** Sub Band */
+            sub_band: string;
+            /** Total */
+            total: number;
+        };
+        /** BandCheckStart */
+        BandCheckStart: {
+            /** Items */
+            items: components["schemas"]["BandCheckItem"][];
+            /** Pass Share */
+            pass_share: number;
+            /** Sub Band */
+            sub_band: string;
+        };
+        /** BandCheckSubBand */
+        BandCheckSubBand: {
+            /** Credited */
+            credited: boolean;
+            /** Sub Band */
+            sub_band: string;
+            /** Words */
+            words: number;
+        };
+        /** BandCheckSubmit */
+        BandCheckSubmit: {
+            /** Answers */
+            answers?: {
+                [key: string]: number | null;
+            };
         };
         /** Body_import_anki_cards_api_v1_anki_import_post */
         Body_import_anki_cards_api_v1_anki_import_post: {
@@ -6775,8 +6885,12 @@ export interface components {
          * @description Payload for rating one verb x tense conjugation item.
          */
         ConjugationReviewRequest: {
+            /** Answer Text */
+            answer_text?: string | null;
             /** Lemma */
             lemma: string;
+            /** Person */
+            person?: string | null;
             /** Rating */
             rating: number;
             /** Response Time Ms */
@@ -6789,12 +6903,18 @@ export interface components {
          * @description Result after scheduling a conjugation item.
          */
         ConjugationReviewResponse: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Expected */
+            expected?: string | null;
             /** Lapses */
             lapses: number;
             /** Lemma */
             lemma: string;
             /** Next Review */
             next_review?: string | null;
+            /** Note Native */
+            note_native?: string | null;
             /** Proficiency Score */
             proficiency_score: number;
             /** Reps */
@@ -7836,6 +7956,10 @@ export interface components {
             }[];
             /** Recent Errata Count */
             recent_errata_count: number;
+            /** Rule Card */
+            rule_card?: {
+                [key: string]: unknown;
+            } | null;
             /** Source Refs */
             source_refs?: {
                 [key: string]: unknown;
@@ -7844,10 +7968,16 @@ export interface components {
             state: string;
             /** State Label */
             state_label: string;
+            /** Sub Band */
+            sub_band?: string | null;
             /** Subskill */
             subskill: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Xray */
+            xray?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * GrammarNotebookItemRead
@@ -7908,6 +8038,8 @@ export interface components {
             state: string;
             /** State Label */
             state_label: string;
+            /** Sub Band */
+            sub_band?: string | null;
             /** Subskill */
             subskill: string | null;
             /** Title Fr */
@@ -10531,6 +10663,22 @@ export interface components {
                 [key: string]: string;
             } | null;
         };
+        /**
+         * RuleCardLink
+         * @description A partner unit to compare with, by id, with its note and (when known) titles.
+         */
+        RuleCardLink: {
+            /** Id */
+            id: string;
+            /** Note */
+            note?: {
+                [key: string]: string;
+            } | null;
+            /** Title */
+            title?: {
+                [key: string]: string;
+            } | null;
+        };
         /** RuleCardPattern */
         RuleCardPattern: {
             /**
@@ -10553,9 +10701,17 @@ export interface components {
          */
         RuleCardPayload: {
             contrast?: components["schemas"]["RuleCardContrast"] | null;
+            /** Contrast With */
+            contrast_with?: components["schemas"]["RuleCardLink"][] | null;
             example: components["schemas"]["RuleCardExample"];
+            /** Examples */
+            examples?: components["schemas"]["RuleCardExample"][] | null;
             /** From Scene */
             from_scene?: boolean | null;
+            /** How */
+            how?: {
+                [key: string]: string;
+            } | null;
             /** More */
             more?: {
                 [key: string]: string;
@@ -10567,6 +10723,8 @@ export interface components {
             };
             /** Speaker */
             speaker?: string | null;
+            /** Traps */
+            traps?: components["schemas"]["RuleCardTrap"][] | null;
         };
         /** RuleCardRow */
         RuleCardRow: {
@@ -10578,6 +10736,20 @@ export interface components {
             p?: string | null;
             /** Shape */
             shape?: string | null;
+        };
+        /**
+         * RuleCardTrap
+         * @description A real learner mistake, its fix and why (content program 2026-10-03).
+         */
+        RuleCardTrap: {
+            /** Right */
+            right: string;
+            /** Why */
+            why?: {
+                [key: string]: string;
+            } | null;
+            /** Wrong */
+            wrong: string;
         };
         /**
          * RulePrompt
@@ -21716,6 +21888,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VocabularyBiographyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_band_checks_api_v1_vocabulary_band_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandCheckSubBand"][];
+                };
+            };
+        };
+    };
+    start_band_check_api_v1_vocabulary_band_check__sub_band__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sub_band: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandCheckStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_band_check_api_v1_vocabulary_band_check__sub_band__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sub_band: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BandCheckSubmit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandCheckResult"];
                 };
             };
             /** @description Validation Error */

@@ -32,6 +32,7 @@ import {
   type ShapeKind,
 } from '@/components/atelier-v2/ui';
 import { FragilityBadge, WordBiographySheet } from '@/components/mobile';
+import { BandCheckEntry } from '@/components/atelier-v2/band-check';
 import apiService, {
   GraphicNovelScene,
   MissionTargetVocabulary,
@@ -1228,6 +1229,10 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         <ShapeToken kind="action" size="sm" />
         {cta}
       </Link>
+
+      {/* SPEED-1: a secondary way into «Vérification du lexique» while a
+          sub-band below the learner's level is still uncredited. */}
+      <BandCheckEntry origin="lexique" language={language} />
 
       <LxSearch value={query} onChange={setQuery} />
 

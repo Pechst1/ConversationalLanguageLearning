@@ -212,7 +212,7 @@ def test_low_accuracy_throttles_and_needs_85_to_release(db_session: Session) -> 
 
 
 def test_grammar_intake_halves_with_the_throttle(db_session: Session, monkeypatch) -> None:
-    for minutes, full, halved in ((5, 1.0, 0.5), (10, 2.0, 1.0), (20, 3.0, 1.5), (30, 4.0, 2.0)):
+    for minutes, full, halved in ((5, 2.0, 1.0), (10, 4.0, 2.0), (20, 6.0, 3.0), (30, 8.0, 4.0)):  # 2026-10-03 quotas
         user = _learner(db_session, minutes=minutes)
         monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *a, **k: 1.0)
         assert concept_life.weekly_concept_rate(db_session, user, now=NOW) == full
@@ -220,7 +220,9 @@ def test_grammar_intake_halves_with_the_throttle(db_session: Session, monkeypatc
         assert concept_life.weekly_concept_rate(db_session, user, now=NOW) == halved
 
 
-def test_leger_throttled_introduces_one_unit_every_two_weeks(db_session: Session, monkeypatch) -> None:
+def test_leger_throttled_introduces_one_unit_a_week(db_session: Session, monkeypatch) -> None:
+    # 2026-10-03: Léger takes two units a week (one every three days); halved,
+    # one a week.
     from app.db.models.grammar import GrammarConcept
 
     user = _learner(db_session, minutes=5)
@@ -228,14 +230,14 @@ def test_leger_throttled_introduces_one_unit_every_two_weeks(db_session: Session
     db_session.add(concept)
     db_session.flush()
     db_session.add(
-        UserGrammarProgress(user_id=user.id, concept_id=concept.id, introduced_at=NOW - timedelta(days=8))
+        UserGrammarProgress(user_id=user.id, concept_id=concept.id, introduced_at=NOW - timedelta(days=4))
     )
     db_session.flush()
     monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *a, **k: 1.0)
     assert concept_life.introduction_due(db_session, user, now=NOW) is True
     monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *a, **k: 0.5)
     assert concept_life.introduction_due(db_session, user, now=NOW) is False
-    assert concept_life.introduction_due(db_session, user, now=NOW + timedelta(days=6)) is True
+    assert concept_life.introduction_due(db_session, user, now=NOW + timedelta(days=3)) is True
 
 
 def test_the_notice_payload(db_session: Session) -> None:

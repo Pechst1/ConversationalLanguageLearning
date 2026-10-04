@@ -33,11 +33,15 @@ from app.core.srs.memory import Evidence, EvidenceFormat, grade_evidence
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 
 #: §2.2 — new grammar units a week, per rhythm.
+#: 2026-10-03 (owner: «substantially faster than Duolingo»): doubled. The
+#: intake throttle still halves it while reviews pile up or accuracy drops.
+#: Intensif's 8 means one day of the week introduces two (the journey's rule
+#: and the forge's).
 NEW_CONCEPTS_PER_WEEK: dict[str, int] = {
-    "leger": 1,
-    "regulier": 2,
-    "soutenu": 3,
-    "intensif": 4,
+    "leger": 2,
+    "regulier": 4,
+    "soutenu": 6,
+    "intensif": 8,
 }
 #: Held needs two correct free uses at least this many days apart…
 HELD_FREE_USE_GAP_DAYS = 7
@@ -211,6 +215,9 @@ def introductions_in_window(
         .filter(
             UserGrammarProgress.user_id == user.id,
             UserGrammarProgress.introduced_at.isnot(None),
+            # 2026-10-03 (speed): a unit the learner tested out of was already
+            # known; it does not use a slot of the week's intake.
+            UserGrammarProgress.tested_out_at.is_(None),
         )
         .all()
     )
@@ -224,8 +231,8 @@ def introductions_in_window(
 def introduction_due(db: Session, user: Any, *, now: datetime) -> bool:
     """May today introduce a new unit? The rhythm's weekly quota, spread out.
 
-    Régulier's two a week are at least three days apart (7 // quota), so a
-    week is not two new rules on Monday and Tuesday and none after.
+    Régulier's four a week are at least a day apart (7 // quota), so a week
+    is not four new rules in a row and none after.
     """
 
     now = _aware(now) or datetime.now(UTC)
@@ -242,6 +249,12 @@ def introduction_due(db: Session, user: Any, *, now: datetime) -> bool:
     if len(in_week) >= quota:
         return False
     if recent:
+        # More than seven a week (Intensif's 8) needs a day with two: the day's
+        # cap is ceil(quota / 7), and the spacing then only separates days.
+        per_day = max(1, -(-quota // INTAKE_WINDOW_DAYS))
+        today = [stamp for stamp in recent if stamp.date() == now.date()]
+        if per_day > 1:
+            return len(today) < per_day and len(in_week) < quota
         if (now.date() - recent[-1].date()).days < spacing:
             return False
     return True
@@ -296,13 +309,35 @@ def introduction_for_today(
     from app.services.atelier import AtelierScheduler
 
     language = str(getattr(user, "target_language", None) or "fr")
-    picked = AtelierScheduler(db).next_new_concepts(user, limit=1, language=language)
-    if not picked:
-        return None
-    brief = concept_brief(db, picked[0], control_language=control_language)
-    if not brief.get("rule_card") or not brief.get("examples"):
-        return None
-    return brief
+    # EXERCISE-QA: the first unit in line that can actually be introduced. Taking
+    # only the first one let a unit with too little to practise (a B1/C1 Essai
+    # is built from ✗/✓ pairs) refuse its introduction every single day and hold
+    # the learner's whole grammar track behind it.
+    picked = AtelierScheduler(db).next_new_concepts(user, limit=INTRODUCTION_LOOKAHEAD, language=language)
+    for concept in picked:
+        brief = concept_brief(db, concept, control_language=control_language)
+        if brief.get("rule_card") and brief.get("examples") and introducible(brief):
+            return brief
+    return None
+
+
+#: How many units in line :func:`introduction_for_today` looks at.
+INTRODUCTION_LOOKAHEAD = 3
+
+
+def introducible(brief: dict[str, Any]) -> bool:
+    """Can this unit's Essai hold two items whatever today's scene says?
+
+    From B1 the Essai is written repairs, one per ✗/✓ pair (``grammar_items.
+    guided_items``), so it needs two pairs. Below B1 the items come from the
+    scene and the authored examples; the planner decides on the day.
+    """
+
+    from app.services.chrome_language import french_chrome
+
+    if not french_chrome(brief.get("level")):
+        return True
+    return len(brief.get("contrast_pairs") or []) >= 2
 
 
 __all__ = [
@@ -320,6 +355,7 @@ __all__ = [
     "introduced_concept_ids",
     "introduction_due",
     "introduction_for_today",
+    "introducible",
     "is_free_use",
     "is_held",
     "mark_introduced",

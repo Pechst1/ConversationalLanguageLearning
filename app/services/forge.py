@@ -863,17 +863,33 @@ class ForgeService:
         self.db.refresh(session)
         return state
 
-    def start_test_out(self, *, user: User, concept_id: int, now: datetime | None = None) -> AtelierSession:
-        """«Épreuve de la règle»: five mixed items, any rule, from day one."""
+    def start_test_out(
+        self,
+        *,
+        user: User,
+        concept_id: int,
+        now: datetime | None = None,
+        short: bool = False,
+        source: str | None = None,
+    ) -> AtelierSession:
+        """«Épreuve de la règle»: five mixed items, any rule, from day one.
+
+        SPEED-3: ``short`` is the journey's three-item check (the Règle step's
+        «Je connais déjà — vérifier»); ``source`` names the surface that
+        started it (``journey`` · ``cahier`` · ``forge``) for the pilot events.
+        """
 
         concept = self.db.get(GrammarConcept, int(concept_id))
         if concept is None or not concept.active:
             raise LookupError("concept not available")
-        state = ForgeState.test_out(concept.id)
+        state = ForgeState.test_out(concept.id, short=short)
+        quote: dict[str, Any] = {"concept_roles": {str(concept.id): "fragile"}, "forge_mode": core.MODE_TEST_OUT}
+        if source:
+            quote["test_out_source"] = str(source)
         session = AtelierSession(
             user_id=user.id,
             selected_concept_ids=[concept.id],
-            quote_payload={"concept_roles": {str(concept.id): "fragile"}, "forge_mode": core.MODE_TEST_OUT},
+            quote_payload=quote,
             status=TEST_OUT_STATUS,
             recap_payload={},
         )
@@ -886,7 +902,12 @@ class ForgeService:
             user_id=user.id,
             entity_type="grammar_concept",
             entity_id=concept.id,
-            payload={"concept_id": concept.id, "external_id": concept.external_id},
+            payload={
+                "concept_id": concept.id,
+                "external_id": concept.external_id,
+                "length": state.length,
+                "source": source,
+            },
         )
         self.db.commit()
         self.db.refresh(session)

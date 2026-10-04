@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, func, not_, or_, select
+from sqlalchemy import and_, case, func, not_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -482,6 +482,13 @@ class ProgressService:
             UserVocabularyProgress.provenance == KEPT_PROVENANCE,
             cast(VocabularyWord.topic_tags, Text).like(f"%{SCENE_LEXICON_TAG}%"),
         )
+        # Content program 2026-10-03: the core list (A1 → C1) is the planned
+        # supply of new words, synced into the catalogue at deploy time
+        # (scripts/sync_core_lexicon.py). Its rows have no direction, like the story's.
+        from app.services.core_lexicon import CORE_DECK, band_level
+        from app.services.journey_content import learner_level_band
+
+        core_word = VocabularyWord.deck_name == CORE_DECK
         direction_filter = (
             self._shared_direction_filter(direction)
             if include_shared_phrases
@@ -490,7 +497,7 @@ class ProgressService:
         # Only the learner's own cards (the query that joins their progress) may admit
         # a story word with no direction; the catalogue's new words keep the old rule.
         own_direction_filter = (
-            or_(direction_filter, and_(VocabularyWord.direction.is_(None), story_word))
+            or_(direction_filter, and_(VocabularyWord.direction.is_(None), or_(story_word, core_word)))
             if direction_filter is not None and not include_shared_phrases
             else direction_filter
         )
@@ -506,7 +513,9 @@ class ProgressService:
             .where(func.lower(VocabularyWord.word).notin_(stopwords))
         )
         if not include_shared_phrases:
-            progress_stmt = progress_stmt.where(or_(VocabularyWord.is_anki_card.is_(True), story_word))
+            progress_stmt = progress_stmt.where(
+                or_(VocabularyWord.is_anki_card.is_(True), story_word, core_word)
+            )
         if own_direction_filter is not None:
             progress_stmt = progress_stmt.where(own_direction_filter)
         if deck_filter is not None:
@@ -583,16 +592,48 @@ class ProgressService:
         words_seen_subquery = select(UserVocabularyProgress.word_id).where(
             UserVocabularyProgress.user_id == user.id
         )
+        # A word the learner already has a card for — from any deck — is not new.
+        lemmas_seen_subquery = (
+            select(VocabularyWord.normalized_word)
+            .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+            .where(UserVocabularyProgress.user_id == user.id)
+        )
+        # The core list starts at the learner's own band and climbs in list order.
+        core_new = and_(
+            core_word,
+            VocabularyWord.difficulty_level >= band_level(learner_level_band(user)),
+            # Grammar words (mais, donc, avec…) are taught by the grammar units.
+            or_(VocabularyWord.part_of_speech.is_(None), VocabularyWord.part_of_speech != "function"),
+        )
         new_conditions = [
             not_(VocabularyWord.id.in_(words_seen_subquery)),
+            or_(not_(core_word), not_(VocabularyWord.normalized_word.in_(lemmas_seen_subquery))),
             VocabularyWord.language == target_language,
             func.length(VocabularyWord.word) > 2,
             func.lower(VocabularyWord.word).notin_(stopwords),
         ]
+        # A word a story scene taught this learner (glossed, in a sentence) and
+        # that they have not practised yet comes first: met words are the
+        # cheapest to keep, and skipping the day's practice no longer loses them.
+        from app.db.models.session import WordInteraction
+        from app.services.kept_words import SCENE_LEXICON_INTERACTION_TYPE
+
+        met_in_story = select(WordInteraction.word_id).where(
+            WordInteraction.user_id == user.id,
+            WordInteraction.interaction_type == SCENE_LEXICON_INTERACTION_TYPE,
+        )
+        met_word = VocabularyWord.id.in_(met_in_story)
         if not include_shared_phrases:
-            new_conditions.append(VocabularyWord.is_anki_card.is_(True))
+            new_conditions.append(or_(VocabularyWord.is_anki_card.is_(True), core_new, met_word))
+        else:
+            new_conditions.append(or_(not_(core_word), core_new, met_word))
         if direction_filter is not None:
-            new_conditions.append(direction_filter)
+            new_conditions.append(
+                or_(
+                    direction_filter,
+                    and_(or_(core_word, met_word), VocabularyWord.direction.is_(None)),
+                )
+            )
         if deck_filter is not None:
             new_conditions.append(deck_filter)
 
@@ -603,11 +644,27 @@ class ProgressService:
         if excluded_new:
             new_stmt = new_stmt.where(VocabularyWord.id.notin_(excluded_new))
         new_stmt = new_stmt.order_by(
+            # An imported deck is the learner's own choice of curriculum; the
+            # core list fills in after it, and is the whole supply without one.
+            case((met_word, 0), else_=1).asc(),
+            case((core_word, 1), else_=0).asc(),
             VocabularyWord.frequency_rank.asc().nullslast(),
             VocabularyWord.difficulty_level.asc().nullslast(),
             func.lower(VocabularyWord.word).asc(),
-        ).limit(new_limit)
+        ).limit(max(new_limit * 3, new_limit))
 
+        # The same lemma can sit in an imported deck and in the core list; it is
+        # introduced once.
+        new_words: list[VocabularyWord] = []
+        new_lemmas: set[str] = set()
+        for word in self.db.scalars(new_stmt):
+            key = (word.normalized_word or word.word or "").strip().lower()
+            if key in new_lemmas:
+                continue
+            new_lemmas.add(key)
+            new_words.append(word)
+            if len(new_words) >= new_limit:
+                break
         selected_new = [
             self._serialize_vocabulary_recommendation(
                 word=word,
@@ -617,7 +674,7 @@ class ProgressService:
                 native_language=user.native_language,
                 level=getattr(user, "proficiency_level", None),
             )
-            for word in self.db.scalars(new_stmt)
+            for word in new_words
         ]
 
         items = (selected_due + selected_fragile + selected_new)[:limit]

@@ -224,7 +224,7 @@ def _free_use_sentence(brief: dict) -> str:
 
 
 def test_the_weekly_quota_follows_the_rhythm_and_is_spread_out(db_session: Session) -> None:
-    for minutes, quota in ((5, 1), (10, 2), (20, 3), (30, 4)):
+    for minutes, quota in ((5, 2), (10, 4), (20, 6), (30, 8)):  # 2026-10-03 quotas
         user = _learner(db_session, minutes=minutes)
         assert concept_life.weekly_concept_quota(db_session, user, now=DAY0) == quota
         assert concept_life.NEW_CONCEPTS_PER_WEEK[
@@ -237,10 +237,9 @@ def test_the_weekly_quota_follows_the_rhythm_and_is_spread_out(db_session: Sessi
     db_session.flush()
     assert concept_life.introduction_due(db_session, user, now=DAY0)
     concept_life.mark_introduced(db_session, user=user, concept_id=concept.id, now=DAY0)
-    # Régulier: two a week, at least three days apart.
-    assert not concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(days=1))
-    assert not concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(days=2))
-    assert concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(days=3))
+    # Régulier (2026-10-03): four a week, never two on one day.
+    assert not concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(hours=6))
+    assert concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(days=1))
 
 
 def test_the_intake_uses_the_one_picker_and_its_prerequisites(db_session: Session, catalogue: str) -> None:

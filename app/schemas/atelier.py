@@ -158,6 +158,10 @@ class AtelierAttemptResponse(BaseModel):
 
 class AtelierForgeTestOutRequest(BaseModel):
     concept_id: int
+    #: SPEED-3: the journey's three-item check instead of the five-item épreuve.
+    short: bool = False
+    #: SPEED-3: the surface that started it, for the pilot events.
+    source: Literal["journey", "cahier", "forge"] | None = None
 
 
 class AtelierForgeStateResponse(BaseModel):

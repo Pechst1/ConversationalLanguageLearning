@@ -39,6 +39,9 @@ from app.services.journey_rhythm import budget_seconds_for
 from app.services.streak import local_today, user_timezone
 
 DEFAULT_NEW_WORDS_PER_DAY = 10
+#: 2026-10-03 (owner): the rhythm sets the default daily intake; a learner's own
+#: ``new_words_per_day`` setting still wins, and the throttle still halves it.
+RHYTHM_NEW_WORDS: dict[str, int] = {"leger": 5, "regulier": 10, "soutenu": 18, "intensif": 30}
 #: The plan_selection key holding the vocabulary ids today's journey introduces.
 JOURNEY_NEW_WORDS_KEY = "new_word_ids"
 #: §5.1's honest cost, as a planning prior: each new word a day costs about
@@ -80,8 +83,10 @@ def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
 
 
 def _quota(user: Any, factor: float) -> int:
+    from app.services.journey_rhythm import rhythm_of
+
     raw = getattr(user, "new_words_per_day", None)
-    quota = int(raw) if raw else DEFAULT_NEW_WORDS_PER_DAY
+    quota = int(raw) if raw else RHYTHM_NEW_WORDS.get(rhythm_of(user), DEFAULT_NEW_WORDS_PER_DAY)
     return max(0, int(quota * factor))
 
 

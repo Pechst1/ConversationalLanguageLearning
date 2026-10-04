@@ -33,6 +33,7 @@ from app.schemas.vocabulary import (
     VocabularyWordRead,
 )
 from app.services.conjugation import ConjugationService
+from app.services.core_lexicon import CORE_DECK
 from app.services.daily_words import DailyWordSlateService
 from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
@@ -43,6 +44,99 @@ from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
+
+# ---------------------------------------------------------------------------
+# «Vérification du lexique» (2026-10-03): skip the words a learner already knows.
+# Declared first: a later ``/{word_id}`` route would otherwise capture «band-check».
+# ---------------------------------------------------------------------------
+
+
+class BandCheckItem(BaseModel):
+    id: str
+    fr: str
+    options: list[str]
+
+
+class BandCheckSubBand(BaseModel):
+    sub_band: str
+    words: int
+    credited: bool
+
+
+class BandCheckStart(BaseModel):
+    sub_band: str
+    items: list[BandCheckItem]
+    pass_share: float
+
+
+class BandCheckSubmit(BaseModel):
+    #: item id → the chosen option's index, or null for «je ne sais pas».
+    answers: dict[str, int | None] = Field(default_factory=dict)
+
+
+class BandCheckResult(BaseModel):
+    sub_band: str
+    correct: int
+    total: int
+    passed: bool
+    credited_words: int
+    missed: list[str]
+
+
+@router.get("/band-check", response_model=list[BandCheckSubBand])
+def list_band_checks(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> list[dict[str, Any]]:
+    """The sub-bands below the learner's level whose words a short check can credit."""
+
+    from app.services import band_check
+
+    return band_check.checkable(db, current_user)
+
+
+@router.get("/band-check/{sub_band}", response_model=BandCheckStart)
+def start_band_check(
+    sub_band: str,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """Today's check for one sub-band: meaning choices, no answer key."""
+
+    from app.services import band_check
+
+    allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
+    if sub_band not in allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
+    return {"sub_band": sub_band, "items": band_check.sample(current_user, sub_band), "pass_share": band_check.PASS_SHARE}
+
+
+@router.post("/band-check/{sub_band}", response_model=BandCheckResult)
+def submit_band_check(
+    sub_band: str,
+    payload: BandCheckSubmit,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """Grade the check; a pass gives the sub-band's words settled, known cards."""
+
+    from app.services import band_check
+
+    allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
+    if sub_band not in allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
+    result = band_check.submit(db, current_user, sub_band, payload.answers)
+    db.commit()
+    return result
+
+
+
+def _core_sub_band(word: VocabularyWord) -> str:
+    """The sub-band tag of a core-list row («A1.1»), else its band."""
+
+    tags = [str(tag) for tag in (word.topic_tags or [])]
+    return next((tag for tag in tags if len(tag) == 4 and tag[2] == "."), next(
+        (tag for tag in tags if len(tag) == 2 and tag[:1] in "ABC"), ""))
 
 def optional_viewer(
     token: str | None = Depends(deps.optional_oauth2_scheme),
@@ -886,9 +980,18 @@ def submit_conjugation_review(
             tense=payload.tense,
             rating=payload.rating,
             response_time_ms=payload.response_time_ms,
+            person=payload.person,
+            answer_text=payload.answer_text,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    verdict = getattr(progress, "last_verdict", None)
+    note = None
+    if verdict is not None:
+        from app.services.answer_acceptance import feedback_note
+        from app.services.chrome_language import user_chrome_language
+
+        note = feedback_note(verdict, str(user_chrome_language(current_user)))
     return ConjugationReviewResponse(
         lemma=progress.verb_lemma,
         tense=progress.tense,
@@ -897,6 +1000,9 @@ def submit_conjugation_review(
         reps=progress.reps or 0,
         lapses=progress.lapses or 0,
         next_review=progress.next_review_date,
+        correct=verdict.correct if verdict is not None else None,
+        expected=verdict.expected if verdict is not None else None,
+        note_native=note,
     )
 
 
@@ -1020,7 +1126,10 @@ def get_vocabulary_word_biography(
             event_type="origin",
             label=f"Entré par {origin.label}",
             description=(
-                f"Rang de fréquence {word.frequency_rank}"
+                # The core list's rank is a learning order, not a frequency.
+                f"Lexique de base · {_core_sub_band(word)}"
+                if word.deck_name == CORE_DECK
+                else f"Rang de fréquence {word.frequency_rank}"
                 if word.frequency_rank
                 else word.definition or word.usage_notes
             ),
@@ -1164,3 +1273,4 @@ def get_vocabulary_word(
     payload = _word_payload(word, viewer_language)
     cache_backend.set("vocabulary:item", cache_key, payload, ttl_seconds=3600)
     return payload
+
