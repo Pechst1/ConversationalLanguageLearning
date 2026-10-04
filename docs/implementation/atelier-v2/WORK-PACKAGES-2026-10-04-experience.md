@@ -100,6 +100,63 @@ Sizes are relative scope estimates: S = contained, M = cross-file, L = stateful 
 
 **Done when:** the fixes are in an identified commit; the complete life matrix passes on it in one run; CI runs the walk; every baseline failure has a disposition. This is not complete on the strength of the 44-test run alone.
 
+**Gate run (2026-10-04, commit `cab1fb5`, clean worktree, no `.env`).**
+- Life walk, all 15 lives in one run: **15 passed** in 13 min 55 s. The per-life metrics reproduce the review's §3 "after" table within noise. The exception is the A1 average life: 143 new words, against 182 in the review, which is the known throttle oscillation (WP-131).
+- Learner walk `-m walk`: **5 passed** (1 min 34 s).
+- Full backend suite (serial): **6,133 passed, 27 skipped, 10 failed** (17 min 28 s). Dispositions:
+  - `test_wp69_schema_guard` (5): the production-hardening workstream's unapplied migration `b9d1f3a5c7e0`. Owner: that workstream.
+  - `test_revue_relecture` (1): the pydantic forward reference `Rubric`. Owner: the revue workstream.
+  - `test_wp96_story_archive` (2): an environment artefact. The test needs `SERIAL_WORLD_ENABLED`, which comes from the owner's `.env`; a clean checkout defaults it to off. Owner: the serial workstream (the test should set the flag itself).
+  - `test_revue_encounter::…tentpole_is_refused…` and `test_wp74_honest_data::test_corrected_catalogue_word_is_queued_without_a_fake_review` (1 each): order-dependent; both pass in isolation. To be fixed in the test-isolation work (E-2).
+  - `test_mobile_capture_harness` did not fail in the clean tree; it depends on the shared checkout's uncommitted capture script.
+
+**CI job, to be added to `.github/workflows/walk.yml` by its current owner.** This has not been applied, because another session is editing the workflows. The life walk takes about 14 minutes locally and probably 25–35 minutes on a hosted runner, so it gets its own job and never extends the 30-minute browser job. Pull requests run three representative lives. The nightly schedule and a manual dispatch run all 15 lives.
+
+```yaml
+  life-walk:
+    name: Life walk · ${{ github.event_name == 'pull_request' && '3 lives' || '15 lives × 30 days' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || 75 }}
+    env:
+      SECRET_KEY: ci-secret-key
+      WALK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+          python -m spacy download fr_core_news_sm
+      - name: Learner walk (5 × 30 days)
+        run: python -m pytest tests/test_learner_walk.py -m walk -q
+      - name: Life walk
+        env:
+          EXPERIENCE_OUT: experience-out
+        # The walk pins the v2 catalogue and the s1 season itself (production_day / season_on fixtures),
+        # whatever the suite-wide v1 default in tests/conftest.py.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m pytest tests/test_experience_walk.py -m walk -q \
+              -k "a1-de-fresh-strong or b2-en-average or c1-de-struggling"
+          else
+            python -m pytest tests/test_experience_walk.py -m walk -q
+          fi
+      - name: Upload life records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: life-walk-${{ github.run_number }}
+          path: experience-out
+          retention-days: 14
+          if-no-files-found: warn
+```
+
+The three pull-request lives cover the beginner season path, the placed B2 learner with the throttle edge, and the struggling C1 learner who has the longest onboarding. Unlike the browser walk, this job gates merges from the start: it already passes, and every check in it is an invariant.
+
 ### WP-123b — Walk coverage, long-horizon workload and data audit (parallel)
 
 **Scope.**
