@@ -40,6 +40,18 @@ INCORRECT_PRODUCTION_EVENTS = {
     "incorrect_production",
 }
 MISSING_TARGET_EVENTS = {"missed_target", "missing_target", "avoided_target"}
+#: WP-125A (owner decision 6, 2026-10-04): a suggested word the learner simply
+#: did not use in a letter is an *unobserved learning opportunity*. It is no
+#: recall attempt, so it is neither a lapse nor credit: no progress write, no
+#: erratum, the existing due date untouched. Recorded only for the dossier and
+#: for audits (``policy`` tells it apart from pre-WP-125A ``missed_target`` rows).
+UNUSED_TARGET_EVENT = "unused_target"
+UNUSED_TARGET_EVENT_TYPES = frozenset({UNUSED_TARGET_EVENT, "target_not_used", "missed_opportunity"})
+LETTER_OMISSION_POLICY = "letter-omission-v1"
+#: Sources where an omitted suggested word is an opportunity, never a miss. A
+#: ``missed_target`` reaching the credit service from one of them (an older
+#: payload, a provider's own event) is read as unobserved.
+OPTIONAL_TARGET_SOURCES = frozenset({"mission"})
 
 
 @dataclass(slots=True)
@@ -105,6 +117,18 @@ class VocabularyCreditService:
             lock_learning_credit(self.db, user)
         normalized_event = str(event_type or "seen_context").strip().lower()
         credit_kind = self._credit_kind(normalized_event)
+        if credit_kind == "missed_target" and source_type in OPTIONAL_TARGET_SOURCES:
+            credit_kind = "unobserved"
+        if credit_kind == "unobserved":
+            # WP-125A: nothing was observed, so nothing is written — no progress
+            # row is created, an existing one keeps its due date and mastery.
+            existing = self.progress_service.get_progress(user_id=user.id, word_id=word.id)
+            return VocabularyCreditResult(
+                word_id=word.id,
+                event_type=normalized_event,
+                credit_kind=credit_kind,
+                progress_id=str(existing.id) if existing is not None and existing.id else None,
+            )
         progress_event = self._progress_event_for(credit_kind)
         # WP-16 / decision D-0: one daily Séance, one credit. The daily journey
         # is the day's séance and the legacy exercise loop is «Plus de pratique».
@@ -202,6 +226,7 @@ class VocabularyCreditService:
             "produced_supported": 0,
             "produced_incorrect": 0,
             "missed_target": 0,
+            "unobserved": 0,
             "errata_created": 0,
         }
         for result in results:
@@ -280,6 +305,8 @@ class VocabularyCreditService:
             return "produced_incorrect"
         if event_type in MISSING_TARGET_EVENTS:
             return "missed_target"
+        if event_type in UNUSED_TARGET_EVENT_TYPES:
+            return "unobserved"
         if event_type in RECOGNITION_EVENTS:
             return "recognized"
         if event_type in SEEN_EVENTS:

@@ -731,6 +731,28 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Noch keine Antwort",
         "fr": "Pas encore de réponse",
     },
+    # WP-125A: a suggested word the learner did not use is an unobserved
+    # opportunity, never a shortfall. Neutral, no praise either way.
+    "mission.vocabulary_used": {
+        "en": "“{word}” appears in your reply.",
+        "de": "„{word}“ steht in deiner Antwort.",
+        "fr": "« {word} » figure dans votre réponse.",
+    },
+    "mission.vocabulary_unused": {
+        "en": "“{word}” did not come up this time; the review date for this word is unchanged.",
+        "de": "„{word}“ kam diesmal nicht vor. Seine Wiederholung bleibt, wie sie war.",
+        "fr": "« {word} » n’a pas servi cette fois. Sa révision reste inchangée.",
+    },
+    "mission.vocabulary_translation_why": {
+        "en": "You wrote the meaning (“{meaning}”) rather than the French word “{word}”.",
+        "de": "Du hast die Bedeutung („{meaning}“) geschrieben statt des französischen Worts „{word}“.",
+        "fr": "Vous avez écrit le sens (« {meaning} ») plutôt que le mot français « {word} ».",
+    },
+    "mission.vocabulary_translation_hint": {
+        "en": "Write “{word}” itself in a French sentence.",
+        "de": "Schreib „{word}“ selbst in einen französischen Satz.",
+        "fr": "Écrivez « {word} » lui-même dans une phrase française.",
+    },
     "mission.target_generic_label": {
         "en": "Target",
         "de": "Ziel",
