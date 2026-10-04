@@ -705,7 +705,7 @@ class ProgressService:
 
         from sqlalchemy import Text, cast
 
-        from app.services.core_lexicon import CORE_DECK, CORPUS_TAG, band_level
+        from app.services.core_lexicon import CORE_DECK, CORPUS_TAG, SUB_BANDS, band_level
         from app.services.journey_content import learner_level_band
         from app.services.season_lexicon import season_words
         from app.services.word_order import NewWord, order_new_words
@@ -713,13 +713,33 @@ class ProgressService:
         window = max(new_limit * 6, 48)
         rows: list[VocabularyWord] = list(self.db.scalars(new_stmt.order_by(*base_order).limit(window)))
         corpus_word = cast(VocabularyWord.topic_tags, Text).like(f"%{CORPUS_TAG}%")
+        # The other two streams stay inside the sub-band the list has reached: the
+        # level gate counts a sub-band's own words, so the story may reorder the
+        # sub-band but never pull the next one forward (the A1 walk lost a third
+        # of its A1.1 coverage when it did).
+        sub_band = next(
+            (
+                tag
+                for word in rows
+                if word.deck_name == CORE_DECK
+                for tag in (word.topic_tags or [])
+                if tag in SUB_BANDS
+            ),
+            None,
+        )
+        same_sub_band = (
+            # «A1.1» is no substring of any other tag; no quotes, so the pattern
+            # reads the same on SQLite's JSON text and PostgreSQL's array text.
+            cast(VocabularyWord.topic_tags, Text).like(f"%{sub_band}%") if sub_band else None
+        )
         story = sorted(season_words(learner_level_band(user)))
-        if story:
+        if story and same_sub_band is not None:
             rows += list(
                 self.db.scalars(
                     new_stmt.where(
                         core_word,
                         VocabularyWord.normalized_word.in_(story),
+                        same_sub_band,
                         # The story's words never pull the drill above the learner's band.
                         VocabularyWord.difficulty_level <= band_level(learner_level_band(user)),
                     )
@@ -727,11 +747,14 @@ class ProgressService:
                     .limit(new_limit * 2)
                 )
             )
-        rows += list(
-            self.db.scalars(
-                new_stmt.where(core_word, not_(corpus_word)).order_by(*base_order).limit(new_limit * 2)
+        if same_sub_band is not None:
+            rows += list(
+                self.db.scalars(
+                    new_stmt.where(core_word, not_(corpus_word), same_sub_band)
+                    .order_by(*base_order)
+                    .limit(new_limit * 2)
+                )
             )
-        )
         ids = [int(word.id) for word in rows]
         met_ids = {
             int(value)

@@ -147,6 +147,31 @@ def _learner(db: Session, *, minutes: int = 10, quota: int | None = None) -> Use
     return user
 
 
+_CREATED: list[int] = []
+
+
+@pytest.fixture(autouse=True)
+def _forget_test_words(db_session: Session):
+    """The suite shares one database: the cards this module makes (rank 1, Anki
+    cards) would otherwise be every later learner's first new words."""
+
+    yield
+    if not _CREATED:
+        return
+    db_session.rollback()
+    progress_ids = [
+        row.id for row in db_session.query(UserVocabularyProgress).filter(UserVocabularyProgress.word_id.in_(_CREATED))
+    ]
+    if progress_ids:
+        db_session.query(ReviewLog).filter(ReviewLog.progress_id.in_(progress_ids)).delete(synchronize_session=False)
+        db_session.query(UserVocabularyProgress).filter(UserVocabularyProgress.id.in_(progress_ids)).delete(
+            synchronize_session=False
+        )
+    db_session.query(VocabularyWord).filter(VocabularyWord.id.in_(_CREATED)).delete(synchronize_session=False)
+    db_session.commit()
+    _CREATED.clear()
+
+
 def _word(db: Session, text: str, *, rank: int = 100) -> VocabularyWord:
     word = VocabularyWord(
         word=text,
@@ -158,6 +183,7 @@ def _word(db: Session, text: str, *, rank: int = 100) -> VocabularyWord:
     )
     db.add(word)
     db.flush()
+    _CREATED.append(int(word.id))
     return word
 
 
@@ -589,6 +615,23 @@ def test_the_drill_spreads_the_a1_numbers_over_real_catalogue_rows(db_session: S
     for words in shown:
         flags = [walk_checks_wp131.is_numeral(word) for word in words]
         assert len(words) == 8 and longest_numeral_run(flags) <= 1 and sum(flags) <= 2, words
+
+
+def test_story_words_never_pull_the_next_sub_band_forward(db_session: Session) -> None:
+    # Found by the life walk: A1 story words from A1.2 cost a third of the A1.1
+    # coverage the level gate counts (known words 189 → 126).
+    from app.services.core_lexicon import ensure_core_lexicon
+    from app.services.progress import ProgressService
+
+    ensure_core_lexicon(db_session)
+    user = _learner(db_session)
+    result = ProgressService(db_session).get_vocabulary_recommendations(
+        user=user, limit=20, due_limit=0, fragile_limit=0, new_limit=8
+    )
+    ids = [item["word_id"] for item in result["items"] if item["bucket"] == "new"]
+    rows = db_session.query(VocabularyWord).filter(VocabularyWord.id.in_(ids)).all()
+    core = [row for row in rows if row.deck_name == "Lexique de base"]
+    assert len(rows) == 8 and all("A1.1" in (row.topic_tags or []) for row in core)
 
 
 def test_a_c1_learner_gets_no_block_of_corpus_words(db_session: Session) -> None:
