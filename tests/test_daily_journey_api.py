@@ -195,7 +195,11 @@ def test_create_read_help_attempt_advance_pause_resume_finish(
     assert 3 <= len(kinds) <= 5
     scene = step_of(journey, "scene")
     assert journey["current_step_id"] == scene["id"]
-    assert sum(step["estimated_seconds"] for step in journey["steps"]) <= 300
+    # WP-128: inside the rhythm, or a flagged longer day that is the story alone.
+    assert (
+        sum(step["estimated_seconds"] for step in journey["steps"]) <= journey["budget_seconds"]
+        or journey["time_estimate"]["longer_day"]
+    )
     assert_no_private_material(journey)
 
     # Reading is a read: same ids, same revision.

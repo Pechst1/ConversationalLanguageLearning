@@ -97,7 +97,9 @@ def _lexicon_candidates():
 def test_a_thin_day_is_topped_up_from_the_scene_inside_its_minutes() -> None:
     for language in ("en", "de", "fr"):
         plan = planner.plan_journey(
-            scenario=_scene_brief(control_language=language),
+            # WP-128: WP-78's six interactions in five minutes are an A2
+            # learner's; at A1 the reply is priced at 5 words a minute.
+            scenario=_scene_brief(control_language=language, level_band="A2"),
             # Two words and nothing due: the fill alone cannot make a day of it.
             candidates=_lexicon_candidates()[:2],
             practice=True,

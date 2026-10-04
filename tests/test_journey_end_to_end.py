@@ -1341,7 +1341,12 @@ def test_an_empty_queue_still_produces_a_real_day_and_real_evidence(
     assert [s["kind"] for s in journey["steps"]] == ["scene", "respond", "resolution"], (
         "nothing was due, so no recall step may be invented"
     )
-    assert journey["estimated_active_seconds"] <= 300
+    # WP-128: at an A1 learner's pace the café may be longer than five minutes;
+    # then it says so (a longer day), and it is never more than the story.
+    assert (
+        journey["estimated_active_seconds"] <= journey["budget_seconds"]
+        or journey["time_estimate"]["longer_day"]
+    )
 
     driver.play(answer="Bonjour, je voudrais un café en terrasse, s'il vous plaît.")
     driver.finish("complete")
@@ -1366,9 +1371,15 @@ def test_a_hundred_overdue_words_still_fit_the_five_minute_envelope(
 
     driver = Driver(assembled_client, headers, db=db_session)
     journey = driver.create(expect=(201,))
-    assert journey["estimated_active_seconds"] <= journey["budget_seconds"] == 300
+    assert journey["budget_seconds"] == 300
     recalls = [s for s in journey["steps"] if s["kind"] == "recall"]
-    assert 0 < len(recalls) <= 2, f"{len(recalls)} recall steps would blow the budget"
+    if journey["time_estimate"]["longer_day"]:
+        # WP-128: the café alone is longer than five minutes at this pace — the
+        # day is the story, flagged, and the hundred words add nothing to it.
+        assert recalls == []
+    else:
+        assert journey["estimated_active_seconds"] <= 300
+        assert 0 < len(recalls) <= 2, f"{len(recalls)} recall steps would blow the budget"
 
 
 def test_an_advanced_learner_gets_french_chrome_without_a_below_level_note(

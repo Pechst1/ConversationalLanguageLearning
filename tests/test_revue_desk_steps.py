@@ -169,7 +169,9 @@ def test_the_desk_never_touches_the_day_shape_dice() -> None:
 
 def _plan(budget: int, *, scenario=None, shape: DayShape = DayShape.STANDARD, **extra):
     return planner.plan_journey(
-        scenario=scenario or engine_brief(),
+        # WP-128: an A2 learner's day; an A1 Régulier day is mostly its reply
+        # and has no room for a desk (the desk is an optional extension).
+        scenario=scenario or engine_brief(level_band="A2"),
         candidates=_queue(rhythm_caps(budget).candidate_limit),
         budget_seconds=budget,
         practice=extra.pop("practice", True),

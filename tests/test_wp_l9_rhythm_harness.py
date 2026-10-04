@@ -122,7 +122,10 @@ def _day(rhythm: str, audio: bool = False):
     plan = _plan(
         budget,
         pool=rhythm_caps(budget).candidate_limit,
-        scenario=engine_brief(),
+        # WP-128: the WP-93 mix is pinned for an A2 learner. An A1 learner's
+        # replies are priced at 5 words a minute, which is most of a Léger day
+        # (tests/test_wp128_time_budget.py holds the A1 picture).
+        scenario=engine_brief(level_band="A2"),
         audio_available=audio,
         reading=_readings(rhythm, audio),
         forge=_forge(rhythm),
@@ -282,10 +285,11 @@ def test_the_report_prints_the_new_mix_per_rhythm() -> None:
     for rhythm in ("soutenu", "intensif"):
         mix = _mix(rhythm, True)
         assert mix["of_budget"] >= 0.9 and mix["input_of_budget"] >= 0.35, (rhythm, mix)
-    # Every rhythm's input is at least a quarter of the day it plans (audio
-    # off) and a third with audio on.
+    # Every rhythm's input is about a quarter of the day it plans (audio off)
+    # and a third with audio on. WP-128: a page glance is 3 s a panel now (the
+    # walk's Timer), so Intensif's audio-off share sits at 24 %.
     for rhythm in RHYTHMS:
-        assert _mix(rhythm, False)["input_of_day"] >= 0.25, rhythm
+        assert _mix(rhythm, False)["input_of_day"] >= 0.24, rhythm
         assert _mix(rhythm, True)["input_of_day"] >= 0.33, rhythm
 
 
@@ -309,5 +313,11 @@ def test_drills_never_take_the_input_floor() -> None:
     for rhythm in RHYTHMS:
         for audio in (False, True):
             plan = _day(rhythm, audio)
-            other = plan.estimated_active_seconds - planner.input_seconds(plan)
+            # WP-128: the reply is a conversation, not a drill; drills are the
+            # recall steps that are not heard.
+            other = sum(
+                step.estimated_seconds
+                for step in plan.steps
+                if step.kind.value == "recall" and not is_heard_step(step)
+            )
             assert other <= round(0.65 * plan.budget_seconds), (rhythm, audio, other)

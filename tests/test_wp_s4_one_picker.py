@@ -429,7 +429,9 @@ def test_the_soutenu_day_serves_the_forge_step_and_returns_to_it(
 ) -> None:
     FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
     email = f"wp-s4-fold-{uuid.uuid4().hex[:8]}@example.com"
-    headers = register(assembled_client, email)
+    # WP-128: an A2 learner. At an A1 learner's composing pace the Soutenu day's
+    # four exchanges and its rule leave La Forge (an optional extension) no room.
+    headers = register(assembled_client, email, cefr="A2.1")
     user = db_session.get(User, learner_id(db_session, email))
     user.daily_goal_minutes = 20
     db_session.commit()

@@ -572,8 +572,13 @@ def test_first_day_planning_keeps_two_new_words_and_makes_them_required(
     kinds = [str(step.kind) for step in first.steps]
     assert kinds.index("respond") == kinds.index("scene") + 1, "W5: nothing interrupts the question"
     leger = journey_planner.plan_journey(scenario=brief, candidates=candidates, first_day=True)
-    assert [str(step.kind) for step in leger.steps].count("recall") >= 1
-    assert leger.estimated_active_seconds <= 300
+    # WP-128: at an A1 learner's pace the café alone is longer than five
+    # minutes — the Léger first day is the story, whole, flagged a longer day.
+    if leger.longer_day:
+        assert [str(step.kind) for step in leger.steps] == ["scene", "respond", "resolution"]
+    else:
+        assert [str(step.kind) for step in leger.steps].count("recall") >= 1
+        assert leger.estimated_active_seconds <= 300
     assert all(not step.optional for step in recalls)
     assert first.shape_reason == "first_day"
     # The catalogue rows are reused, never duplicated.

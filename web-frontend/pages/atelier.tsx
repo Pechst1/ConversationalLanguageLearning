@@ -116,6 +116,7 @@ import {
   JourneyTodayCard,
   useDailyJourney,
 } from '@/components/atelier-v2/journey';
+import { extensionMinutes } from '@/components/atelier-v2/journey/time-estimate';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
 import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
@@ -2826,12 +2827,15 @@ function TodayView({
         );
       })()
     : null;
+  // WP-128: each chip carries its own estimate; none of it is the day's minutes.
+  const dayTime = (dayEnvelope as TodayEnvelope | null)?.time_estimate ?? null;
   const dayChips: HomeChip[] = homeDay
     ? [
         ...(courrierEntry
           ? [{
               id: 'courrier',
               label: homeCopy.home_letter,
+              meta: extensionMinutes(dayTime, 'letter', chromeLanguage),
               ariaLabel: homeCopy.home_letter_aria,
               href: courrierEntry.href,
               shape: 'story' as const,
@@ -2846,6 +2850,7 @@ function TodayView({
               ariaLabel: vocabularyReviewDue === 1
                 ? homeCopy.home_review_one
                 : homeCopy.home_review_many.replace('{n}', String(vocabularyReviewDue)),
+              meta: extensionMinutes(dayTime, 'words', chromeLanguage),
               href: '/vocabulary/review',
               shape: 'reward' as const,
             }]
@@ -2859,6 +2864,7 @@ function TodayView({
             ? {
                 id: 'forge',
                 label: forgeEntry.label,
+                meta: extensionMinutes(dayTime, 'forge', chromeLanguage),
                 ariaLabel: `${forgeEntry.label} · ${forgeEntry.minutes} min`,
                 href: forgeEntry.href,
                 shape: 'reward' as const,

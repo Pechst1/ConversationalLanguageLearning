@@ -418,7 +418,9 @@ def test_a_missed_day_still_outranks_the_cadence() -> None:
 
 def _day(client: TestClient, db: Session, prefix: str) -> tuple[dict[str, str], Driver, uuid.UUID]:
     email = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com"
-    headers = register(client, email)
+    # WP-128: an A2 learner. At an A1 learner's composing pace the Régulier day
+    # is mostly its reply, and the listening items are what it gives up.
+    headers = register(client, email, cefr="A2.1")
     user_id = learner_id(db, email)
     seed_due_vocabulary(db, user_id, CAFE_WORDS)
     driver = Driver(client, headers, db=db)

@@ -92,7 +92,8 @@ def test_the_page_is_priced_by_its_panels_lines_and_audio() -> None:
     pageless = planner.scene_seconds(without_page(engine_brief()), **kwargs)
     heard = planner.scene_seconds(engine_brief(), audio=True, **kwargs)
     # Five panels and eight lines are read, not glanced at (the 39 s of W-§3).
-    assert paged >= 120 > pageless
+    # WP-128: a glance is 3 s a panel and 1 s a line now; the words are read.
+    assert paged >= 100 > pageless
     assert heard > paged
     # A page-less (legacy) brief keeps the pre-WP-93 price exactly.
     assert planner.scene_seconds(_brief(), **kwargs) == planner.scene_seconds(
@@ -171,7 +172,13 @@ def test_recall_is_capped_per_rhythm(budget: int, cap: int) -> None:
 def test_drills_never_take_the_input_floor_on_a_paged_day() -> None:
     for budget in RHYTHM_BUDGETS:
         plan = _plan(budget)
-        drills = plan.estimated_active_seconds - planner.input_seconds(plan)
+        # WP-128: the reply is a conversation — input and output — not a drill;
+        # at A1 it is half the day, so the drills are counted as what they are.
+        drills = sum(
+            step.estimated_seconds
+            for step in plan.steps
+            if step.kind is StepKind.RECALL and not (step.public_prompt or {}).get("audio_url")
+        )
         assert drills <= round(0.65 * budget), (budget, drills, plan.rationale)
 
 

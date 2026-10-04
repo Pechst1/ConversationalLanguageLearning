@@ -1693,6 +1693,8 @@
 /* WP-81: the one quiet row under the day's plan — at most two chips. */
 .av2 .av2-home__chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .av2 .av2-home__chips .av2-chip { text-decoration: none; }
+/* WP-128: an activity's own estimate («≈ 4 min»), quieter than its name. */
+.av2 .av2-chip__meta { font-weight: 400; white-space: nowrap; }
 
 /* The episode card is one tap target. */
 .av2 .av2-home__episode {

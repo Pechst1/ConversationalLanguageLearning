@@ -122,6 +122,7 @@ function recapFor(result: 'passed' | 'failed'): Recap {
     collectible_ids: [],
     story_outcome: null,
     active_seconds: 560,
+    estimated_core_seconds: 540,
     steps_done: 5,
     level: result === 'passed' ? 'A1.2' : 'A1.1',
     level_up:

@@ -234,7 +234,12 @@ def test_the_real_chain_produces_a_valid_bounded_plan(db_session, learner, scena
     assert kinds.count("respond") == 1
     assert kinds.count("recall") <= MAX_RECALL_STEPS
     mandatory = sum(s.estimated_seconds for s in plan.steps if not s.optional)
-    assert mandatory <= 300, f"{scenario_key}: {mandatory}s"
+    # WP-128: at an A1 learner's pace an authored page may be longer than five
+    # minutes. It is then the story alone, flagged — never squeezed, never refused.
+    if plan.longer_day:
+        assert kinds == ["scene", "respond", "resolution"], f"{scenario_key}: {kinds}"
+    else:
+        assert mandatory <= 300, f"{scenario_key}: {mandatory}s"
 
 
 @pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))

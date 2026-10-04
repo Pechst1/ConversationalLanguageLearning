@@ -126,8 +126,10 @@ def test_leger_still_fits_five_minutes_and_is_the_wp78_day() -> None:
 @pytest.mark.parametrize("audio", [False, True])
 def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace(audio: bool) -> None:
     # WP-93: a real day has a page (the story engine's four to six panels),
-    # and the page is priced by what is on it.
-    plan = _plan(600, scenario=engine_brief(), audio_available=audio)
+    # and the page is priced by what is on it. WP-128: the movements below are
+    # an A2 learner's; an A1 learner composes three replies at 5 words a minute,
+    # which is most of ten minutes (tests/test_wp128_time_budget.py).
+    plan = _plan(600, scenario=engine_brief(level_band="A2"), audio_available=audio)
     plan.validate()
     assert 480 <= plan.estimated_active_seconds <= 600, plan.rationale
     kinds = [step.kind for step in plan.steps]
@@ -184,9 +186,10 @@ def test_a_thin_pool_makes_a_shorter_day_never_a_padded_one() -> None:
 
 def test_a_trusted_slow_pace_plans_fewer_items_inside_the_same_budget() -> None:
     # WP-93: on a paged day the recall cap no longer binds first — the seconds do.
-    prior = _plan(600, scenario=engine_brief())
+    # WP-128: at A2 — an A1 Régulier day is already mostly its reply.
+    prior = _plan(600, scenario=engine_brief(level_band="A2"))
     slow = planner.plan_journey(
-        scenario=engine_brief(),
+        scenario=engine_brief(level_band="A2"),
         candidates=_queue(16),
         budget_seconds=600,
         practice=True,
@@ -285,7 +288,12 @@ def test_a_leger_learner_gets_a_five_minute_day(
     )
     assert created.status_code in (200, 201, 202), created.text
     assert created.json()["budget_seconds"] == 300
-    assert created.json()["estimated_active_seconds"] <= 300
+    # WP-128: the authored café at an A1 learner's pace is longer than five
+    # minutes; it is the story alone, whole, and it says so before Start.
+    body = created.json()
+    if body["estimated_active_seconds"] > 300:
+        assert body["time_estimate"]["longer_day"] is True
+        assert [step["kind"] for step in body["steps"]] == ["scene", "respond", "resolution"]
 
 
 # ---------------------------------------------------------------------------

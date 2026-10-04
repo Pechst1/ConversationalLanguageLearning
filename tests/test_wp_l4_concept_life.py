@@ -319,7 +319,18 @@ def test_leger_fits_an_introduction_inside_five_minutes(db_session: Session, cat
         dice=DayShapeInputs(user_id="leger", local_date=DAY0.date()), introduction=brief,
     )
     plan.validate()
-    assert plan.estimated_active_seconds <= 300
+    # WP-128: an A1 reply is priced at an A1 learner's pace, and the café and
+    # its rule are longer than five minutes. The rule is not deferred (a
+    # deferral would repeat every Léger day): the day is the story and its
+    # rule, nothing else, flagged a longer day before Start.
+    assert plan.estimated_active_seconds <= 300 or plan.longer_day
+    if plan.longer_day:
+        kinds = [step.kind for step in plan.steps]
+        assert StepKind.FORGE not in kinds and StepKind.READ not in kinds
+        assert all(
+            kinds.index(StepKind.RULE) < index < kinds.index(StepKind.SCENE)
+            for index, kind in enumerate(kinds) if kind is StepKind.RECALL
+        )
     assert StepKind.RULE in [step.kind for step in plan.steps]
 
 

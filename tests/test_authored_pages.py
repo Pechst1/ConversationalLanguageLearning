@@ -92,11 +92,15 @@ def test_an_erratum_the_scene_cannot_afford_is_not_a_reply_chip(db_session):
     # WP-93 prices the authored page by what is on it (125 s, not 39 s): the
     # pre-WP-78 five-minute day no longer has room for a drill, so the pin is
     # held on the practice day production plans.
-    plan = plan_journey(scenario=brief, candidates=[_erratum()], practice=True)
+    # WP-128: on Régulier, the rhythm production plans by default — an A1 reply
+    # is priced at an A1 learner's pace, and five minutes are the story alone.
+    plan = plan_journey(scenario=brief, candidates=[_erratum()], practice=True, budget_seconds=600)
     assert "err-1" not in _reply_targets(plan)
     assert any(
         (step.target and step.target.id == "err-1") for step in plan.steps
     ), "the erratum is still practised"
 
     written_for_it = replace(brief, story_context={"draft": {}})
-    assert "err-1" in _reply_targets(plan_journey(scenario=written_for_it, candidates=[_erratum()]))
+    assert "err-1" in _reply_targets(
+        plan_journey(scenario=written_for_it, candidates=[_erratum()], budget_seconds=600)
+    )

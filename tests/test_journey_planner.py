@@ -186,7 +186,11 @@ def _assert_envelope(plan: PlannedJourney) -> None:
     assert kinds[-1] is StepKind.RESOLUTION
     assert kinds.count(StepKind.RESPOND) == 1
     assert kinds.count(StepKind.RECALL) <= MAX_RECALL_STEPS
-    assert plan.estimated_active_seconds <= plan.budget_seconds
+    # WP-128: inside the budget, or a flagged longer day that is the story alone.
+    if plan.longer_day:
+        assert kinds == [StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION]
+    else:
+        assert plan.estimated_active_seconds <= plan.budget_seconds
     assert plan.estimated_active_seconds == sum(s.estimated_seconds for s in plan.steps)
     respond = next(step for step in plan.steps if step.kind is StepKind.RESPOND)
     assert respond.public_prompt["max_turns"] <= MAX_RESPOND_TURNS
@@ -293,7 +297,11 @@ def test_a_new_learner_with_nothing_due_still_reaches_a_real_ending() -> None:
 
 
 def test_a_returning_learner_gets_one_task_per_target_not_fifteen() -> None:
-    plan = plan_journey(scenario=_brief(), candidates=[SCENE_FITTING, POLITE, NEW_ANCHOR])
+    # WP-128: an A1 reply is priced at the band's composing pace; the two
+    # recalls are tested on Régulier, where the café's reply leaves them room.
+    plan = plan_journey(
+        scenario=_brief(), candidates=[SCENE_FITTING, POLITE, NEW_ANCHOR], budget_seconds=600
+    )
     recalls = [step for step in plan.steps if step.kind is StepKind.RECALL]
     assert len(recalls) == MAX_RECALL_STEPS
     # Three selected targets under the legacy ladder would owe 45 exercises.
@@ -381,7 +389,9 @@ def test_scenario_fit_beats_an_unrelated_urgent_word() -> None:
 def test_an_unrelated_target_is_rehearsed_but_never_elicited_in_the_reply() -> None:
     """CONTRACTS §7: no elicitation obligation, no manufactured lapse."""
 
-    plan = plan_journey(scenario=_brief(), candidates=[SCENE_FITTING, UNRELATED_URGENT])
+    plan = plan_journey(
+        scenario=_brief(), candidates=[SCENE_FITTING, UNRELATED_URGENT], budget_seconds=600
+    )
     respond = next(step for step in plan.steps if step.kind is StepKind.RESPOND)
     elicited = {target["id"] for target in respond.public_prompt["targets"]}
     assert SCENE_FITTING.target.id in elicited
@@ -428,7 +438,7 @@ def test_a_fragile_queue_keeps_the_most_urgent_two() -> None:
         )
         for index in range(1, 6)
     ]
-    plan = plan_journey(scenario=_brief(), candidates=fragile)
+    plan = plan_journey(scenario=_brief(), candidates=fragile, budget_seconds=600)
     assert plan.selected_target_ids == ["vocabulary:v-5", "vocabulary:v-4"]
     assert len(plan.omitted_candidate_ids) == 3
 
@@ -522,17 +532,24 @@ def test_the_core_plan_survives_a_scenario_that_only_fits_at_the_base_pace() -> 
     assert "set aside to the base pace" in plan.rationale
 
 
-def test_content_too_long_for_five_minutes_is_refused_not_squeezed() -> None:
-    """The scene, the response and the ending are not removable (CONTRACTS §3)."""
+def test_content_too_long_for_five_minutes_is_a_longer_day_not_squeezed() -> None:
+    """The scene, the response and the ending are not removable (CONTRACTS §3).
+
+    WP-128: nor is the day refused. The story alone is planned, whole, and
+    flagged a longer day, so every surface says its estimate before Start.
+    """
 
     huge = _brief(
         setup_fr=" ".join(["mot"] * 300),
         setup_native=" ".join(["word"] * 300),
         response_task=_response_task(estimated_seconds=200),
     )
-    with pytest.raises(PlanUnavailable) as excinfo:
-        plan_journey(scenario=huge, candidates=[])
-    assert excinfo.value.reason == "scene_exceeds_budget"
+    plan = plan_journey(scenario=huge, candidates=[SCENE_FITTING])
+    assert plan.longer_day
+    assert _kinds(plan) == [StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION]
+    assert plan.steps[0].public_prompt["setup_fr"] == huge.setup_fr
+    assert plan.estimated_active_seconds > plan.budget_seconds
+    assert "longer day" in plan.rationale
 
 
 def test_the_estimate_covers_answering_feedback_and_exactly_one_repair() -> None:
@@ -930,7 +947,8 @@ def test_the_real_wp03_brief_and_wp05_queue_plan_a_real_five_minute_day(db_sessi
         _assert_envelope(plan)
         assert plan.scenario is brief
         # A brand-new learner has nothing due; the day is still a real day.
-        assert plan.estimated_active_seconds <= DEFAULT_BUDGET_SECONDS
+        # WP-128: inside five minutes, or the story alone, flagged longer.
+        assert plan.estimated_active_seconds <= DEFAULT_BUDGET_SECONDS or plan.longer_day
         assert plan.steps[0].public_prompt["setup_fr"] == brief.setup_fr
         respond = next(step for step in plan.steps if step.kind is StepKind.RESPOND)
         assert respond.public_prompt["character_id"] == brief.character_id
@@ -1721,6 +1739,8 @@ def test_a_month_of_plans_poses_at_least_five_of_the_six_formats():
             shape_reason=decision.reason,
             dice=inputs,
             audio_available=True,
+            # WP-128: Régulier, where an A1 reply leaves the recalls room.
+            budget_seconds=600,
         )
         plan.validate()
         previous = plan.day_shape

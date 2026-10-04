@@ -99,7 +99,10 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
     )
     plan.validate()
     assert plan.practice is True
-    assert _graded(plan) >= 6, plan.rationale
+    # WP-128: an A1 reply is composed at the band's pace (5 words a minute in
+    # the walk's Timer), so the honest five-minute A1 day holds four or five
+    # graded interactions; WP-78's six hold from A2.
+    assert _graded(plan) >= (4 if band == "A1" else 6), plan.rationale
     # The stated minutes are the estimate, and the estimate is the whole day.
     assert plan.estimated_active_seconds == sum(step.estimated_seconds for step in plan.steps)
     assert plan.estimated_active_seconds <= plan.budget_seconds == 300
@@ -107,13 +110,14 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
     kinds = [step.kind for step in plan.steps]
     scene_at = kinds.index(StepKind.SCENE)
     respond_at = kinds.index(StepKind.RESPOND)
-    assert 2 <= scene_at <= MAX_WARMUP_RECALL_STEPS, "two or three warm-ups before the scene"
+    if band != "A1":  # WP-128: an honest A1 Léger day has room for one or two
+        assert 2 <= scene_at <= MAX_WARMUP_RECALL_STEPS, "two or three warm-ups before the scene"
     # WP-93 (W5): nothing between the scene's question and the reply.
     # WP-109: nothing between the reply and the ending either — the builds and
     # the word from today follow the ending.
     assert respond_at == scene_at + 1, "the reply answers the scene's question next"
     assert kinds[respond_at + 1] is StepKind.RESOLUTION, "the ending follows the reply"
-    assert 2 <= kinds[respond_at + 2:].count(StepKind.RECALL) <= 3
+    assert (1 if band == "A1" else 2) <= kinds[respond_at + 2:].count(StepKind.RECALL) <= 3
     assert all(kind is StepKind.RECALL for kind in kinds[respond_at + 2:]), "practice after the ending"
     for step in plan.steps:
         serialized = json.dumps(step.public_prompt, ensure_ascii=False, default=str)
@@ -126,7 +130,7 @@ def test_a_practice_day_has_six_graded_interactions_inside_its_minutes(band, lan
         assert len(set(quick)) >= 2
         assert sum(kind in {"short_answer", "transform", "dictation"} for kind in quick) / len(quick) >= .6
     else:
-        assert len(set(quick)) >= 4, f"a mix, not one format five times: {quick}"
+        assert len(set(quick)) >= (3 if band == "A1" else 4), f"a mix, not one format five times: {quick}"
 
 
 def test_the_median_of_a_month_of_practice_days_holds_six() -> None:
@@ -135,8 +139,9 @@ def test_the_median_of_a_month_of_practice_days_holds_six() -> None:
         dice = DayShapeInputs(
             user_id="learner-b", local_date=(datetime(2026, 9, 1) + timedelta(days=day)).date()
         )
+        # WP-128: WP-78's six are an A2 learner's five minutes (see above).
         plan = planner.plan_journey(
-            scenario=_brief(), candidates=_queue(), practice=True, dice=dice,
+            scenario=_brief(level_band="A2"), candidates=_queue(), practice=True, dice=dice,
             day_shape=DayShape.STANDARD,
         )
         assert plan.estimated_active_seconds <= plan.budget_seconds
@@ -151,7 +156,9 @@ def test_quick_items_are_priced_at_ten_seconds_or_so_not_a_constant() -> None:
     )
     recalls = [step for step in plan.steps if step.kind is StepKind.RECALL]
     for step in recalls:
-        assert step.estimated_seconds <= 18, (step.public_prompt["task_type"], step.estimated_seconds)
+        # WP-128: the cards are read at the band's pace — eight tiles or a line
+        # to rebuild at A1 are twenty-odd seconds (the walk's Timer: 22–44 s).
+        assert step.estimated_seconds <= 30, (step.public_prompt["task_type"], step.estimated_seconds)
     # A slower measured pace costs more seconds, never a made-up minute count.
     slow = planner.plan_journey(
         scenario=_brief(),
@@ -161,7 +168,8 @@ def test_quick_items_are_priced_at_ten_seconds_or_so_not_a_constant() -> None:
         pace=planner.PacingProfile(0.70, 1.35, 40),
     )
     assert slow.estimated_active_seconds <= slow.budget_seconds
-    assert _graded(slow) >= 3
+    # WP-128: a trusted slow A1 learner's five minutes: the reply and a warm-up.
+    assert _graded(slow) >= 2
 
 
 def test_practice_off_is_the_classic_day_byte_for_byte() -> None:
@@ -467,7 +475,8 @@ def test_a_practice_day_is_played_end_to_end_without_leaking_a_key(
     assert journey["status"] == "active"
     kinds = [step["kind"] for step in journey["steps"]]
     graded = kinds.count("recall") + kinds.count("respond")
-    assert graded >= 6, kinds
+    # WP-128: an A1 day is priced at an A1 learner's pace (five from WP-78's six).
+    assert graded >= 5, kinds
     # WP-L6: a new learner is on Régulier; the day fits its ten minutes.
     assert journey["estimated_active_seconds"] <= journey["budget_seconds"] == 600
     # WP-109: practice wraps the episode — before the scene and after the ending.
@@ -480,7 +489,7 @@ def test_a_practice_day_is_played_end_to_end_without_leaking_a_key(
     results = driver.play(answer="Bonjour, je voudrais un café en terrasse, s'il vous plaît.")
     assert driver.journey["current_step_id"] is None
     verdicts = [r for r in results if r.get("task_outcome") and not r.get("pending")]
-    assert len(verdicts) >= 6
+    assert len(verdicts) >= 5
     recall_met = [
         r for r in results[:-1] if r["task_outcome"] == "met"
     ]
