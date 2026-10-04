@@ -336,9 +336,12 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
         <div className="nb-list" aria-label={t.grammar.index_label}>
           {shownGroups.map((group) => {
           // WP-130 A: the band's units in the level's words («A1.1 · 6 en route · 0 tenue»),
-          // counted from the whole band, whatever the filter shows.
+          // counted over the whole band (the due chip filters here, a level chip
+          // keeps whole bands); a search returns part of a band, so it shows no counts.
           const bandRows = concepts.filter((c) => String(c.level_band || c.sub_band || c.level || '').trim() === group.band);
-          const bandLine = `${group.band} · ${stageCountsText(countStages(bandRows), language)}`;
+          const bandLine = activeSearch
+            ? group.band
+            : `${group.band} · ${stageCountsText(countStages(bandRows), language)}`;
           return (
           <div className="nb-band" key={group.band} role="group" aria-label={bandLine}>
           <p className="nb-band__label" aria-hidden="true">{bandLine}</p>
