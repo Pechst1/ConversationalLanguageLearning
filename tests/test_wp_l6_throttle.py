@@ -203,10 +203,14 @@ def test_low_accuracy_throttles_and_needs_85_to_release(db_session: Session) -> 
     assert reviews == 25 and accuracy == 15 / 25
     status = intake_throttle.throttle_status(db_session, user, now=NOW)
     assert status.active and status.reasons == ("accuracy",)
-    # A week later the bad day has left the window, but 82 % is not enough.
+    assert status.factor == 0.5  # 60 % is below the 70 % floor: halved
+    # A week later the bad day has left the window, but 82 % is not enough to
+    # release. WP-131: accuracy is graded, not a cliff — at 82 % intake is 0.9,
+    # no longer halved (this test pinned 0.5 when the factor was binary).
     later = NOW + timedelta(days=8)
     _reviews(db_session, rows, right=41, wrong=9, at=later - timedelta(days=1))
-    assert intake_throttle.throttle_factor(db_session, user, now=later) == 0.5
+    status = intake_throttle.throttle_status(db_session, user, now=later)
+    assert status.active and status.factor == 0.9
     _reviews(db_session, rows, right=40, wrong=0, at=later - timedelta(hours=1))
     assert intake_throttle.throttle_factor(db_session, user, now=later) == 1.0
 

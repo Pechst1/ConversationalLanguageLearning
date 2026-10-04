@@ -33,9 +33,21 @@ flip back and forth every morning.
 (``payload.state`` = ``on`` / ``off``): every change writes one, which is both
 the pilot's record and the hysteresis memory — no column, no migration.
 
-While engaged, :func:`intake_throttle_factor` is :data:`THROTTLE_FACTOR` (0.5):
-the vocabulary pace (the owner's up-to-20 words a day and the journey's rhythm
-share) and the grammar quota (``concept_life`` → ``forge_plan``) both halve.
+While engaged for the backlog, :func:`intake_throttle_factor` is
+:data:`THROTTLE_FACTOR` (0.5): the vocabulary pace (the owner's up-to-20 words a
+day and the journey's rhythm share) and the grammar quota (``concept_life`` →
+``forge_plan``) both halve.
+
+**WP-131 — accuracy is graded, not a cliff.** An average learner reviews at
+about 78–82 %, right on the 80 % edge, so a binary halving turned noise into
+8-or-3 new words a day (and the same code gave one A1 life 237 new words and
+the next 143). Accuracy now scales intake continuously
+(:func:`accuracy_factor`): full at :data:`ACCURACY_EXIT` (85 %) and above,
+:data:`THROTTLE_FACTOR` at :data:`ACCURACY_FLOOR` (70 %) and below, linear in
+between. A 2-point wobble moves intake by about one word, never by half; a
+struggling learner (≤ 70 %) is still halved. The state machine above is
+unchanged: it still decides the notice («on consolide») and the pilot record,
+and the backlog's halving keeps its hysteresis and hold.
 """
 from __future__ import annotations
 
@@ -57,8 +69,11 @@ BACKLOG_ENTER_DAYS = 1.5
 BACKLOG_EXIT_DAYS = 1.0
 #: Engage below this 7-day review accuracy…
 ACCURACY_ENTER = 0.80
-#: …release only at or above this one.
+#: …release only at or above this one. WP-131: also where intake is full again.
 ACCURACY_EXIT = 0.85
+#: WP-131: at or below this accuracy intake is :data:`THROTTLE_FACTOR`; between
+#: it and :data:`ACCURACY_EXIT` the factor is linear (no cliff at 80 %).
+ACCURACY_FLOOR = 0.70
 ACCURACY_WINDOW_DAYS = 7
 #: Below this many reviews in the window, accuracy is not measured.
 ACCURACY_MIN_REVIEWS = 20
@@ -206,6 +221,41 @@ def recovered(signals: ThrottleSignals) -> bool:
     return signals.backlog_days <= BACKLOG_EXIT_DAYS and accuracy_ok
 
 
+def accuracy_factor(accuracy: float | None) -> float:
+    """WP-131: the multiplier review accuracy puts on new intake, graded.
+
+    1.0 at :data:`ACCURACY_EXIT` and above (or unmeasured), :data:`THROTTLE_FACTOR`
+    at :data:`ACCURACY_FLOOR` and below, linear in between — so noise around the
+    old 80 % edge moves intake by a word, not by half.
+    """
+
+    if accuracy is None or accuracy >= ACCURACY_EXIT:
+        return 1.0
+    if accuracy <= ACCURACY_FLOOR:
+        return THROTTLE_FACTOR
+    share = (accuracy - ACCURACY_FLOOR) / (ACCURACY_EXIT - ACCURACY_FLOOR)
+    return round(THROTTLE_FACTOR + (1.0 - THROTTLE_FACTOR) * share, 2)
+
+
+def intake_factor(signals: ThrottleSignals, *, active: bool, backlog_episode: bool) -> float:
+    """WP-131: today's multiplier on new intake (1.0 = none), no I/O.
+
+    * The **backlog** halves, with the state machine's hysteresis: while the
+      throttle is engaged for a backlog (``backlog_episode``, which includes its
+      hold) or the pile is still above the release line.
+    * **Accuracy** is graded (:func:`accuracy_factor`) whatever the state.
+
+    The smaller of the two wins.
+    """
+
+    backlog = (
+        THROTTLE_FACTOR
+        if active and (backlog_episode or signals.backlog_days > BACKLOG_EXIT_DAYS)
+        else 1.0
+    )
+    return min(backlog, accuracy_factor(signals.accuracy))
+
+
 def decide(
     signals: ThrottleSignals,
     *,
@@ -231,6 +281,14 @@ def decide(
 
 
 def last_state(db: Session, user: Any) -> tuple[bool, datetime | None]:
+    active, since, _reasons = _last_event(db, user)
+    return active, since
+
+
+def _last_event(db: Session, user: Any) -> tuple[bool, datetime | None, tuple[str, ...]]:
+    """``(active, since, reasons)`` of the learner's last throttle event: the
+    reasons it engaged for say whether the episode is a backlog one (WP-131)."""
+
     row = db.execute(
         select(PilotEvent)
         .where(PilotEvent.user_id == user.id, PilotEvent.event_type == EVENT_TYPE)
@@ -238,8 +296,9 @@ def last_state(db: Session, user: Any) -> tuple[bool, datetime | None]:
         .limit(1)
     ).scalars().first()
     if row is None:
-        return False, None
+        return False, None, ()
     payload = row.payload or {}
+    reasons = tuple(str(reason) for reason in payload.get("reasons") or [] if reason)
     active = str(payload.get("state") or "") == "on"
     since = payload.get("since") or None
     stamp: datetime | None = None
@@ -248,7 +307,7 @@ def last_state(db: Session, user: Any) -> tuple[bool, datetime | None]:
             stamp = _aware(datetime.fromisoformat(since))
         except ValueError:
             stamp = None
-    return active, stamp or _aware(row.occurred_at)
+    return active, stamp or _aware(row.occurred_at), reasons
 
 
 def throttle_status(
@@ -262,14 +321,17 @@ def throttle_status(
 
     now = _aware(now) or datetime.now(UTC)
     signals = read_signals(db, user, now=now)
-    was_active, since = last_state(db, user)
+    was_active, since, episode = _last_event(db, user)
     active, reasons = decide(signals, was_active=was_active, since=since, now=now)
+    # The episode's own reasons (recorded when it engaged), or today's on entry.
+    episode = reasons if active and not was_active else (episode if was_active else ())
+    factor = intake_factor(signals, active=active, backlog_episode="backlog" in (*episode, *reasons))
     if active != was_active:
         since = now if active else None
         if record:
             from app.services.pilot_events import PilotEventService
 
-            status = ThrottleStatus(active, THROTTLE_FACTOR if active else 1.0, reasons, signals, since)
+            status = ThrottleStatus(active, factor, reasons, signals, since)
             PilotEventService(db).record(
                 EVENT_TYPE,
                 user_id=user.id,
@@ -285,7 +347,7 @@ def throttle_status(
             db.flush()
     return ThrottleStatus(
         active=active,
-        factor=THROTTLE_FACTOR if active else 1.0,
+        factor=factor,
         reasons=reasons,
         signals=signals,
         since=since if active else None,
@@ -313,6 +375,7 @@ def intake_notice(db: Session, user: Any, *, now: datetime | None = None) -> dic
 __all__ = [
     "ACCURACY_ENTER",
     "ACCURACY_EXIT",
+    "ACCURACY_FLOOR",
     "BACKLOG_ENTER_DAYS",
     "BACKLOG_EXIT_DAYS",
     "EVENT_TYPE",
@@ -320,8 +383,10 @@ __all__ = [
     "THROTTLE_FACTOR",
     "ThrottleSignals",
     "ThrottleStatus",
+    "accuracy_factor",
     "decide",
     "due_backlog",
+    "intake_factor",
     "intake_notice",
     "review_accuracy",
     "review_capacity_seconds",

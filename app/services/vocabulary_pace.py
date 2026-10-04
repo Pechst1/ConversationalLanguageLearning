@@ -56,10 +56,11 @@ SECONDS_PER_REVIEW = 6
 def intake_throttle_factor(db: Session, user: Any, *, now: datetime | None = None) -> float:
     """WP-L6 auto-throttle: the multiplier on today's new intake (1.0 = none).
 
-    §2.2: when the due backlog exceeds 1.5 days of review capacity, or 7-day
-    review accuracy falls below 80 %, new intake halves until it recovers
-    (with hysteresis) and the learner reads «Cette semaine, on consolide.»
-    See :mod:`app.services.intake_throttle`.
+    §2.2: when the due backlog exceeds 1.5 days of review capacity, new intake
+    halves until it recovers (with hysteresis) and the learner reads «Cette
+    semaine, on consolide.» WP-131: 7-day review accuracy scales intake
+    continuously, from full at 85 % to half at 70 %, so an average learner's
+    intake no longer swings on noise. See :mod:`app.services.intake_throttle`.
     """
 
     from app.services.intake_throttle import throttle_factor
@@ -222,18 +223,56 @@ def vocabulary_pace_limit(db: Session, user: Any, requested: int) -> tuple[int, 
     ceiling, never a reason to lose the deck.
     """
 
+    limit, reserved, _room = vocabulary_pace_allowance(db, user, requested)
+    return limit, reserved
+
+
+#: WP-131 (owner decision 9): one drill session introduces at most this many new
+#: words (``pages/vocabulary/review.tsx`` asks for it). What the day's allowance
+#: still holds after it is offered as an explicit, bounded continuation («Encore
+#: N mots»), never forced into one long session.
+DRILL_SESSION_NEW_WORDS = 8
+
+
+def vocabulary_pace_allowance(
+    db: Session, user: Any, requested: int
+) -> tuple[int, set[int], int | None]:
+    """``(new_limit, reserved_ids, room)`` for the word drill.
+
+    ``room`` is what the day's allowance leaves the drill right now (the quota,
+    throttled, minus today's introductions and the journey's reservation or
+    pending share); ``None`` when it was not read — a review-only request
+    («Encore 5 minutes», ``requested == 0``), a demo account, a broken read.
+    """
+
     if not getattr(user, "id", None) or requested <= 0:
-        return max(0, requested), set()
+        return max(0, requested), set(), None
     try:
         with db.begin_nested():
             room, reserved = drill_new_word_room(db, user)
     except Exception:  # noqa: BLE001 - the deck is worth more than the ceiling
-        return requested, set()
-    return min(requested, room), reserved
+        return requested, set(), None
+    return min(requested, room), reserved, room
+
+
+def new_words_left_today(room: int | None, new_limit: int, served: int) -> int | None:
+    """WP-131: what the day's allowance still holds after this deck's new words.
+
+    ``None`` when the room was not read. ``0`` when the deck served fewer new
+    words than it was allowed: the supply ran out, so a continuation would be
+    an empty deck.
+    """
+
+    if room is None:
+        return None
+    if served < new_limit:
+        return 0
+    return max(0, room - served)
 
 
 __all__ = [
     "DEFAULT_NEW_WORDS_PER_DAY",
+    "DRILL_SESSION_NEW_WORDS",
     "JOURNEY_NEW_WORDS_KEY",
     "daily_quota",
     "drill_new_word_room",
@@ -242,7 +281,9 @@ __all__ = [
     "journey_new_word_room",
     "journey_reservation",
     "journey_word_share",
+    "new_words_left_today",
     "review_load_estimate",
     "todays_journey",
+    "vocabulary_pace_allowance",
     "vocabulary_pace_limit",
 ]

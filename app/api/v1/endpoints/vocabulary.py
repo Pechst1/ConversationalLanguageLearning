@@ -39,7 +39,7 @@ from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
-from app.services.vocabulary_pace import vocabulary_pace_limit
+from app.services.vocabulary_pace import new_words_left_today, vocabulary_pace_allowance
 from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
@@ -880,8 +880,9 @@ def get_vocabulary_due_context(
 
     # WP-L6: the word drill introduces only what the learner's vocabulary
     # pace leaves after today's journey (one intake pool), and never a word
-    # the journey has reserved.
-    new_limit, reserved_new = vocabulary_pace_limit(db, current_user, new_limit)
+    # the journey has reserved. WP-131: the room is kept, so the deck can say
+    # what the day's allowance still holds after it.
+    new_limit, reserved_new, new_room = vocabulary_pace_allowance(db, current_user, new_limit)
     # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
     try:
         from app.services.vocabulary_pace import reviews_left_today
@@ -906,6 +907,9 @@ def get_vocabulary_due_context(
         direction=direction,
         topic_tags=resolved_topic_tags,
         linked_word_ids=resolved_linked_ids,
+    )
+    payload["new_words_left_today"] = new_words_left_today(
+        new_room, new_limit, len(payload.get("new_words") or [])
     )
     if episodic_anchor:
         anchor_word_ids = {int(word_id) for word_id in resolved_linked_ids}

@@ -14043,6 +14043,8 @@ export interface components {
             linked_words: components["schemas"]["VocabularyRecommendationItem"][];
             /** New Words */
             new_words: components["schemas"]["VocabularyRecommendationItem"][];
+            /** New Words Left Today */
+            new_words_left_today?: number | null;
             summary: components["schemas"]["VocabularyDueContextSummary"];
             /** Topic Compatible Words */
             topic_compatible_words: components["schemas"]["VocabularyRecommendationItem"][];
