@@ -64,7 +64,8 @@ import {
   type InterludeView,
   type SeasonPremiereView,
 } from './season-return-model';
-import { formatDuration, joinMeta, type JourneyPhase } from './journey-state';
+import { joinMeta, type JourneyPhase } from './journey-state';
+import { coreEstimateLabel, extensionLabel } from './time-estimate';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneyTodayCardProps = {
@@ -293,7 +294,16 @@ function JourneyTodayBody({
             estimatedSeconds: null,
             language: controlLanguage,
           });
-      const estimate = gentle ? null : formatDuration(scenario.estimated_seconds, controlLanguage);
+      // WP-128: one estimate — the core the rhythm budgets (or the longer day
+      // the story alone makes) — and the words' own minutes beside it, never
+      // folded into it: the drill is optional.
+      const timeEstimate = phase.envelope.time_estimate ?? null;
+      const estimate = gentle
+        ? null
+        : joinMeta(
+            coreEstimateLabel(timeEstimate, scenario.estimated_seconds, controlLanguage),
+            extensionLabel(timeEstimate, 'words', controlLanguage),
+          ) || null;
       return (
         <Card
           copy={copy}
@@ -356,11 +366,16 @@ function JourneyTodayBody({
         estimatedSeconds: phase.journey.estimated_active_seconds,
         language: controlLanguage,
       });
+      // WP-128: a day the story alone makes longer than the rhythm says so here,
+      // before the learner goes on — the plan's own number.
+      const longer = phase.journey.time_estimate?.longer_day
+        ? coreEstimateLabel(phase.journey.time_estimate, null, controlLanguage)
+        : null;
       return (
         <Card
           copy={copy}
           eyebrow={
-            joinMeta(headlineKicker(headline), gentle, scenario.location_name) ||
+            joinMeta(headlineKicker(headline), gentle, longer, scenario.location_name) ||
             copy.today_eyebrow
           }
           title={headlineTitle(headline, scenario.title_fr)}
