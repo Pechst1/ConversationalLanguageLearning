@@ -5088,7 +5088,8 @@ class MissionScheduler:
             "canned_recent": canned_recent,
             "canned_ever": canned_ever,
             "season_active": self._season_active(user),
-            "model_available": _safe_llm() is not None,
+            # Read from the switch, not by building a client: asking is not free.
+            "model_available": bool(settings.ATELIER_LLM_ENABLED),
         }
 
     def _season_active(self, user: User) -> bool:
