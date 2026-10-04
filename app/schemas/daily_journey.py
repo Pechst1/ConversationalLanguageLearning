@@ -561,6 +561,11 @@ class RulePrompt(JourneyModel):
     #: the scene holds none (or the day was planned before WP-92).
     scene_example_fr: str | None = None
     scene_example_speaker: str | None = None
+    #: WP-129 (content program D7): after a tentpole's ending, a unit the learner
+    #: met on an earlier day, in a line of the page they just read
+    #: (scene_example_fr). Read, never answered: it introduces nothing and
+    #: credits nothing. False for the day's new rule.
+    review: bool = False
 
 
 class ForgePrompt(JourneyModel):

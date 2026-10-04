@@ -124,6 +124,17 @@ INPUT_FLOOR_SHARE = 0.35
 #: WP-93. The «Lecture» step (a second page to read) is planned only from this
 #: budget up: Soutenu and Intensif buy input, not more drills.
 READ_MIN_BUDGET_SECONDS = 1200
+#: WP-129 (content program D7): a tentpole day may show, straight after the
+#: ending, a *review* of a unit the learner met earlier, in a line of the page —
+#: a rule step whose public_prompt["review"] is true. It introduces
+#: nothing and credits nothing; the day's one introduction is the other rule.
+PAGE_REVIEW_AFTER_ENDING = True
+
+
+def is_review_rule_step(step: Any) -> bool:
+    """WP-129: a rule step that reviews a met unit after the ending."""
+
+    return getattr(step, "kind", None) is StepKind.RULE and bool((getattr(step, "public_prompt", None) or {}).get("review"))
 
 
 def rhythm_caps(budget_seconds: int | None) -> RhythmCaps:
@@ -1095,6 +1106,14 @@ class PlannedJourney:
         caps = rhythm_caps(self.budget_seconds)
         shape = str(self.day_shape)
         kinds = [step.kind for step in self.steps]
+        # WP-129 (D7): the review after the ending is read like practice; every
+        # rule below is the day's introduction.
+        reviews = [index for index, step in enumerate(self.steps) if is_review_rule_step(step)]
+        if len(reviews) > 1:
+            raise ValueError("a day reviews at most one unit in its page")
+        if reviews and StepKind.RESOLUTION in kinds and reviews[0] < kinds.index(StepKind.RESOLUTION):
+            raise ValueError("the page's review comes after the ending")
+        kinds = [kind for index, kind in enumerate(kinds) if index not in reviews]
         if len(self.steps) > caps.max_steps:
             raise ValueError(f"plan has {len(self.steps)} steps, max {caps.max_steps}")
         if kinds.count(StepKind.SCENE) != 1:

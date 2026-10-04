@@ -1321,7 +1321,9 @@ export function RuleStepView({
   // The card is read after a fail (or a check that could not run), never re-offered.
   const checkNote =
     check === 'failed' ? checkCopy.failed : check === 'unavailable' ? checkCopy.unavailable : null;
-  const offerCheck = check === 'card' && Number.isFinite(Number(step.prompt.concept_id));
+  // WP-129 (D7): a review in the page after the ending — no test-out, no «Essayer».
+  const review = Boolean(step.prompt.review);
+  const offerCheck = !review && check === 'card' && Number.isFinite(Number(step.prompt.concept_id));
   if (!usableCard(card)) {
     // A card the client cannot draw still lets the learner through.
     return (
@@ -1344,6 +1346,7 @@ export function RuleStepView({
         card={card}
         language={language}
         variant="intro"
+        review={review}
         conceptId={step.prompt.concept_id}
         onDone={proceed}
         sceneAnchor={anchor}

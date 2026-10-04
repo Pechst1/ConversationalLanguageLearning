@@ -10921,6 +10921,11 @@ export interface components {
         RulePrompt: {
             /** Concept Id */
             concept_id: number;
+            /**
+             * Review
+             * @default false
+             */
+            review: boolean;
             rule_card: components["schemas"]["RuleCardPayload"];
             /** Scene Example Fr */
             scene_example_fr: string | null;

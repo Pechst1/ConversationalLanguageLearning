@@ -204,6 +204,7 @@ const RULE_STEP: RuleStep = {
   assistance_used: [],
   prompt: {
     concept_id: 21,
+    review: false,
     title_native: 'The pronoun before the verb',
     title_fr: 'Le pronom avant le verbe',
     rule_card: {
