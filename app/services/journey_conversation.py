@@ -2612,7 +2612,7 @@ def _observations_for(
         # exist (WP-L4), a reply's grammar evidence comes only from a
         # correction, whose erratum carries the concept (journey_learning).
         used = target.kind is not TargetKind.GRAMMAR and answer_matches(
-            text, [target.label_fr]
+            text, [target.label_fr], within_reply=True
         )
         if used:
             observations.append(

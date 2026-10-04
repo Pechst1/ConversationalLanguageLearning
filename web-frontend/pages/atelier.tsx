@@ -11,7 +11,7 @@ import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
-import { classificationCopy, classificationGoal } from '@/lib/classification-copy';
+import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -66,7 +66,6 @@ import {
   EpOpt,
   EpSlug,
   EpSetLine,
-  EpCases,
   EpConfidence,
   EpVerdict,
   EpBar,
@@ -3949,7 +3948,12 @@ function ExerciseFeedbackMoment({
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
   const language = useControlLanguage();
-  const display = (value: string) => isLabelCompare ? classificationCopy(value, language) : value;
+  // QA-FORGE: a judgement's key («À corriger») is shown as its label in the learner's language.
+  const judgementItem = isLabelCompare && classifyItem
+    && (classifyItem.classify_kind === 'judgement' || (!classifyItem.classify_kind && isJudgementLabels(classifyItem.labels)));
+  const display = (value: string) => judgementItem
+    ? judgementLabel(value, language, classifyItem?.label_l10n)
+    : isLabelCompare ? classificationCopy(value, language) : value;
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
@@ -4238,21 +4242,36 @@ function RecognizePanel({
           <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
             {localizedCue(item, 'prompt', cueLanguage)}
           </EpPrompt>
-          <ForgeGoalLine goal={item.classify_kind === 'minimal_pair' ? itemGoal(item, '') : drillGoalLine({ goal_native: classificationGoal(cueLanguage) })} />
-          <EpCases boxes={(item.labels || []).map((label: string) => ({
-            label: classificationCopy(label, cueLanguage),
-            slugs: [
-              <EpOpt
-                key={label}
-                chosen={answers[item.id] === label}
-                right={submitted && normalizeClient(label) === normalizeClient(feedback?.target)}
-                wrong={submitted && answers[item.id] === label && !feedback?.correct}
-                disabled={submitted}
-                onClick={() => updateAnswer(item.id, label)}
-                contentLang=""
-              >{t.place_here}</EpOpt>,
-            ],
-          }))} />
+          {/* QA-FORGE: one question, two (or more) plain answers — buttons in the
+              learner's language for a judgement, the French sentences for a
+              minimal pair, the category names for a sort. No drop zones. */}
+          {(() => {
+            const judgement = item.classify_kind === 'judgement' || (!item.classify_kind && isJudgementLabels(item.labels));
+            const pair = item.classify_kind === 'minimal_pair';
+            const goal = judgement
+              ? drillGoalLine({ goal_native: String(item.goal_native || '').trim() || judgementQuestion(cueLanguage) })
+              : pair
+                ? itemGoal(item, '')
+                : drillGoalLine({ goal_native: classificationGoal(cueLanguage) });
+            return (
+              <>
+                <ForgeGoalLine goal={goal} />
+                <EpOpts>
+                  {(item.labels || []).map((label: string) => (
+                    <EpOpt
+                      key={label}
+                      chosen={answers[item.id] === label}
+                      right={submitted && normalizeClient(label) === normalizeClient(feedback?.target)}
+                      wrong={submitted && answers[item.id] === label && !feedback?.correct}
+                      disabled={submitted}
+                      onClick={() => updateAnswer(item.id, label)}
+                      contentLang={pair ? 'fr' : cueLanguage}
+                    >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage)}</EpOpt>
+                  ))}
+                </EpOpts>
+              </>
+            );
+          })()}
         </>
       )}
     </div>

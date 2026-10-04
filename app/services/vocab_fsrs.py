@@ -149,6 +149,36 @@ class VocabularyFSRS:
 _EARNED = {"typed": 2, "cloze": 2, "audio": 2, "spoken": 2, "choice": 1}
 
 
+def card_french(word: object) -> list[str]:
+    """QA-CLOSE: the French a drill card asks for — ``french_translation`` (each of
+    its «, ; /» variants) and the word itself when the card is French."""
+
+    import re
+
+    out: list[str] = []
+    translation = str(getattr(word, "french_translation", None) or "").strip()
+    if translation:
+        out.extend(part.strip() for part in re.split(r"[;,/]", translation) if part.strip())
+    if str(getattr(word, "language", "") or "").lower().startswith("fr") or not out:
+        surface = str(getattr(word, "word", None) or "").strip()
+        if surface:
+            out.append(surface)
+    return list(dict.fromkeys(out))
+
+
+def grade_card_answer(word: object, answer_text: str | None, language: str | None = None):
+    """QA-CLOSE (owner decision a): a drill card's typed answer, graded on the server.
+
+    ``(verdict, note_native)`` — the one acceptance contract (typography never
+    counts, accents lenient-but-named, an article optional with the right gender).
+    """
+
+    from app.services.answer_acceptance import feedback_note, judge
+
+    verdict = judge(answer_text, card_french(word), article_optional=True)
+    return verdict, feedback_note(verdict, language)
+
+
 def earned_rating(review_format: str | None, correct: bool | None, rating: int) -> int:
     if review_format in _EARNED and correct is not None:
         return _EARNED[review_format] if correct else 0

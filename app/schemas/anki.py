@@ -170,7 +170,13 @@ class AnkiReviewRequest(BaseModel):
     #: stands); ``typed``/``cloze``/``audio``/``choice`` are graded by the answer
     #: itself (``correct``), and the rating is then earned, not chosen.
     format: Literal["flashcard", "typed", "cloze", "audio", "choice", "spoken"] | None = None
+    #: Deprecated (QA-CLOSE 2026-10-03): the server no longer trusts it. An answered
+    #: card sends ``answer_text`` and is graded on the server; a request without it
+    #: is a self-rated flashcard review (its ``rating`` stands).
     correct: bool | None = None
+    #: QA-CLOSE: what the learner typed (or said), graded on the server against the
+    #: card's French through ``answer_acceptance.judge``.
+    answer_text: str | None = Field(None, max_length=300)
     direction: Literal["fr_to_native", "native_to_fr"] | None = None
 
 
@@ -184,6 +190,13 @@ class AnkiReviewResponse(BaseModel):
     interval_days: int | None = None
     due_at: str | None = None
     next_review: str | None = None
+    #: QA-CLOSE: the server's verdict on ``answer_text`` (``None`` for a self-rated card).
+    correct: bool | None = None
+    #: The card's French the answer was measured against.
+    expected: str | None = None
+    #: One short line in the learner's language: a forgiven slip on a hit, or why
+    #: a near miss was refused.
+    note_native: str | None = None
 
 
 class AnkiCardUpdate(BaseModel):

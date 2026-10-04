@@ -205,6 +205,73 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
 
 
+def _trap_windows(wrong: str, right: str) -> tuple[list[str], list[str]] | None:
+    """The ✗ and ✓ token windows of one contrast pair: the words that differ, after
+    up to two words of left context («n'ai pas une» / «n'ai pas de»). A pair that
+    only drops a word keeps one word of right context so the window is not empty."""
+
+    from app.services.answer_acceptance import fold_typography as fold
+
+    bad, good = fold(wrong).split(), fold(right).split()
+    if not bad or not good or bad == good:
+        return None
+    prefix = 0
+    while prefix < min(len(bad), len(good)) and bad[prefix] == good[prefix]:
+        prefix += 1
+    suffix = 0
+    while (
+        suffix < min(len(bad), len(good)) - prefix
+        and bad[len(bad) - 1 - suffix] == good[len(good) - 1 - suffix]
+    ):
+        suffix += 1
+    start = max(prefix - 2, 0)
+    tail = 1 if suffix and (len(bad) - suffix == prefix or len(good) - suffix == prefix) else 0
+    bad_window = bad[start: len(bad) - suffix + tail]
+    good_window = good[start: len(good) - suffix + tail]
+    # A window of one bare word is too weak a signal («es» is French everywhere).
+    if len(bad_window) < 2:
+        return None
+    return bad_window, good_window
+
+
+def _contains(words: list[str], window: list[str]) -> bool:
+    size = len(window)
+    return any(words[index:index + size] == window for index in range(len(words) - size + 1))
+
+
+def free_use_acceptable(concept: Any, text: str, accepted: Any = None) -> dict[str, Any]:
+    """QA-CLOSE 2026-10-03: is a free sentence that uses the rule also acceptable French
+    *in the rule*? A detector hit alone said «Je ne mange pas du pain» passes the
+    negation test-out. The sentence is refused when it is not an accepted answer
+    (:func:`answer_acceptance.judge`) and it carries one of the unit's authored ✗
+    forms (``grammar_units.contrast_pairs``) — the trap the rule is about.
+
+    ``{"acceptable": bool, "wrong": ✗ window | None, "right": ✓ window | None}``.
+    """
+
+    from app.services.answer_acceptance import fold_typography as fold
+    from app.services.answer_acceptance import judge
+
+    keys = [answer for answer in accepted or [] if str(answer or "").strip()]
+    if keys and judge(text, keys).correct:
+        return {"acceptable": True, "wrong": None, "right": None}
+    try:
+        from app.services.grammar_units import contrast_pairs
+
+        pairs = contrast_pairs(concept) if concept is not None else []
+    except Exception:  # pragma: no cover - a catalogue read never fails a grade
+        pairs = []
+    words = fold(text).split()
+    for pair in pairs:
+        windows = _trap_windows(pair.get("wrong") or "", pair.get("right") or "")
+        if windows is None:
+            continue
+        bad, good = windows
+        if _contains(words, bad) and not _contains(words, good):
+            return {"acceptable": False, "wrong": " ".join(bad), "right": " ".join(good)}
+    return {"acceptable": True, "wrong": None, "right": None}
+
+
 def production_local_check(
     concept: Any, text: str, model_answer: Any = None, accepted: Any = None
 ) -> dict[str, Any]:
@@ -578,7 +645,8 @@ def classify_follow_up(
 
     code = _language(language)
     meaning = str(key.get("meaning") or "").strip()
-    goal = (goal_l10n("repair", meaning) if meaning else {
+    meaning_de = str((key.get("meaning_l10n") or {}).get("de") or "").strip() or None
+    goal = (goal_l10n("repair", meaning, meaning_de) if meaning else {
         "en": "Correct the sentence.", "de": "Korrigiere den Satz.", "fr": "Corrigez la phrase.",
     })
     source = str(item.get("source_fr") or item.get("prompt") or "").strip()

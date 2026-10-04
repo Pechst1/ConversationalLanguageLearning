@@ -35,6 +35,37 @@ def _slug(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "_", _normalize(value)).strip("_") or "unknown"
 
 
+def review_answer_repairs(answer: str, target: str, original: str = "") -> bool:
+    """EXERCISE-QA: does a retyped answer repair the erratum?
+
+    The shared contract (``answer_acceptance.judge``): typography never counts.
+    When the erratum *was* an accent («probleme» → «problème») the accent is the
+    whole point and is graded strictly; retyping the error no longer files it as
+    repaired. A correction of two or more words also counts inside a longer
+    answer, on word boundaries (never as a bare substring).
+    """
+
+    from app.services.answer_acceptance import fold_all, fold_typography, judge, strip_accents
+
+    if not fold_all(answer) or not fold_all(target):
+        return False
+    accent_erratum = bool(original) and strip_accents(fold_typography(original)) == strip_accents(
+        fold_typography(target)
+    ) and fold_typography(original) != fold_typography(target)
+    policy = "strict" if accent_erratum else "lenient"
+    if judge(answer, [target], accents=policy, typo=not accent_erratum).correct:
+        return True
+    wanted = fold_typography(target).split()
+    words = fold_typography(answer).split()
+    if len(wanted) < 2:
+        return False
+    for start in range(len(words) - len(wanted) + 1):
+        window = " ".join(words[start : start + len(wanted)])
+        if judge(window, [target], accents=policy, typo=False).correct:
+            return True
+    return False
+
+
 def _normalize_review_answer(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", _normalize(value)).strip()
 
@@ -601,10 +632,7 @@ class ErrorMemoryService:
         target = str(error.correction or "").strip()
         answer = str(answer_text or "").strip()
         answer_norm = _normalize_review_answer(answer)
-        target_norm = _normalize_review_answer(target)
-        is_correct = bool(answer_norm and target_norm) and (
-            answer_norm == target_norm or (len(target_norm.split()) >= 2 and target_norm in answer_norm)
-        )
+        is_correct = review_answer_repairs(answer, target, str(error.original_text or ""))
         score = 4 if is_correct else (2 if answer_norm else 1)
         reviewed = self.review_error(user=user, error_id=error.id, rating=score, repaired=is_correct)
         if not reviewed:

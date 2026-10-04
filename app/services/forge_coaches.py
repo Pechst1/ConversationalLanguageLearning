@@ -170,6 +170,16 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
         return None
     if str(item.target) not in reply:
         return None
+    # FORGE-DE: the reply's German meaning, cut the same way as the English one.
+    reply_de = None
+    german = getattr(item, "de", None)
+    if german:
+        german = _strip_vocative(str(german), french=False)
+        split_de = _split_question(german)
+        if split and split_en:
+            reply_de = split_de[1] if split_de else None
+        elif not split_de:
+            reply_de = german
     return {
         "coach": coach_payload,
         "lines": [
@@ -178,6 +188,7 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
         ],
         "reply": reply,
         "reply_en": reply_en,
+        "reply_de": reply_de,
     }
 
 

@@ -127,9 +127,11 @@ def test_a_thin_day_is_topped_up_from_the_scene_inside_its_minutes() -> None:
         kinds = [step.kind for step in plan.steps]
         scene_at = kinds.index(StepKind.SCENE)
         formats = [step.private_task.task_type for step in plan.steps if step.kind is StepKind.RECALL]
-        assert "who_said" in formats, plan.rationale
+        # QA-PRACTICE (owner, 2026-10-03): «Qui a dit ça ?» tests the plot, not
+        # French — it is no longer dealt, and the floor still makes a full day.
+        assert "who_said" not in formats, plan.rationale
         for index, step in enumerate(plan.steps):
-            if step.kind is StepKind.RECALL and step.private_task.task_type in ("who_said", "unscramble"):
+            if step.kind is StepKind.RECALL and step.private_task.task_type == "unscramble":
                 assert index > scene_at, "a scene item is never posed before the scene"
 
 
@@ -143,13 +145,23 @@ def test_the_floor_never_quotes_the_reply_and_ties_every_item_to_a_word() -> Non
         assert "Vous avez une idée" not in json.dumps(task.options, ensure_ascii=False)
         assert task.prompt_fr != "Vous avez une idée ?"
     kinds = {task.task_type for _t, task in tasks}
-    assert {"who_said", "choice"} <= kinds
+    assert "choice" in kinds and "who_said" not in kinds
 
 
 def _who_said_task():
+    """A «Qui a dit ça ?» as a journey planned before QA-PRACTICE stored it: the
+    floor no longer deals one, but an old step must still render and grade."""
+
+    from app.services.scene_items import SceneLine, build_who_said_task, cast_names
+
     brief = _scene_brief()
-    targets = [(c.target, c.metadata) for c in _lexicon_candidates()]
-    return next(task for _t, task in floor_tasks(brief, targets) if task.task_type == "who_said")
+    target = _lexicon_candidates()[1].target
+    line = SceneLine("margaux_barman", "Vous avez une idée ?", "panel:1:line:1")
+    task = build_who_said_task(
+        target=target, line=line, names=cast_names(brief), optional=True, control_language="en"
+    )
+    assert task is not None
+    return task
 
 
 def test_who_said_grades_by_id_on_the_device_and_schedules_nothing() -> None:

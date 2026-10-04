@@ -623,6 +623,21 @@ def guided_items(
             task = transform_item({**brief, "contrast_pairs": [pair]}, language=language, meanings=meanings)
             if task and task.prompt_fr not in {item.prompt_fr for item in items}:
                 items.append(task)
+        # EXERCISE-QA: a repair whose answer the learner has just read is copying,
+        # not retrieval. The card prints its ✗/✓ contrast and the warm-up prints its
+        # right answer; with enough other pairs, the Essai never asks to rewrite
+        # either — else the warm-up gives way (the repairs are the point from B1).
+        shown = {_fold(plain(str(((brief.get("rule_card") or {}).get("contrast") or {}).get("right") or "")))}
+        fresh = [item for item in items if _fold(str(item.solution_fr or "")) not in shown]
+        if len(fresh) >= 2:
+            items = fresh
+        if recognise is not None:
+            answer = _fold(str(recognise.solution_fr or ""))
+            unspoiled = [item for item in items if _fold(str(item.solution_fr or "")) != answer]
+            if len(unspoiled) >= 2:
+                items = unspoiled
+            elif len(unspoiled) != len(items):
+                recognise = None
         return ([recognise] if recognise and len(items) >= 2 else []) + items[:3]
     if recognise is not None:
         items.append(recognise)

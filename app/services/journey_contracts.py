@@ -18,6 +18,7 @@ implementing packages own that:
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -512,6 +513,43 @@ def normalize_answer_text(value: str | None) -> str:
     for source, replacement in _QUOTE_FOLD.items():
         text = text.replace(source, replacement)
     return " ".join(text.split())
+
+
+#: French articles a vocabulary label may carry («un appartement», «l'eau»).
+_FRENCH_ARTICLE = re.compile(r"^(?:(le|la|les|un|une|des|du)\s+|(l')\s*)(?=\S)", re.IGNORECASE)
+#: A gloss that names its article («eine Wohnung», «an apartment», «la clé»).
+_GLOSS_ARTICLE = re.compile(
+    r"^(ein|eine|einen|einem|einer|der|die|das|den|dem|a|an|the|le|la|les|un|une|des|l')(\s+|(?<=')\s*)\S",
+    re.IGNORECASE,
+)
+
+
+def split_article(label: str | None) -> tuple[str | None, str]:
+    """``("un", "appartement")`` for «un appartement»; ``(None, label)`` when the
+    label has no leading article (smart apostrophes folded first)."""
+
+    text = normalize_answer_text(label).strip()
+    match = _FRENCH_ARTICLE.match(text)
+    if not match:
+        return None, text
+    noun = text[match.end():].strip()
+    article = (match.group(1) or match.group(2)).lower()
+    return (article, noun) if noun else (None, text)
+
+
+def article_optional(target: TargetRef | None) -> bool:
+    """QA-PRACTICE (owner, 2026-10-03): «Wie sagt man „Wohnung“ auf Französisch?»
+    asks for the noun. When the vocabulary label carries an article and the gloss
+    the learner is shown does not, the article is not part of the question: the
+    noun alone, or with any article, is the word."""
+
+    if target is None or target.kind is not TargetKind.VOCABULARY:
+        return False
+    article, _noun = split_article(target.label_fr)
+    if article is None:
+        return False
+    gloss = normalize_answer_text(target.label_native).strip()
+    return bool(gloss) and not _GLOSS_ARTICLE.match(gloss)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1144,6 +1182,10 @@ class RecallEvaluation:
     correction: Correction | None = None
     pending: bool = False
     failure_reason: str | None = None
+    #: QA-CLOSE (owner decision d): a forgiven slip on a hit, named in one short
+    #: line in the learner's language («Richtig — achte auf den Akzent: «très»»).
+    #: Never a correction: nothing is filed as an erratum.
+    slip_note_native: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1191,6 +1233,15 @@ class ResponseEvaluation:
     #: WP-113: what the learner is asked to do next, in their language, when the
     #: next question is a posed solve (it replaces the day's objective line).
     next_task_native: str | None = None
+    #: QA-STORY 2026-10-03: which authored route this exchange took on a season page,
+    #: ``{turn, reply}`` (``reply`` is ``__ask_again__`` when the scene asked again).
+    #: Kept with the exchange so a replay never re-reads it differently.
+    route: dict[str, str] | None = None
+    #: QA-STORY: the next question's own hint and example reply (the day's first
+    #: hint belongs to the first question only).
+    next_hint_native: str | None = None
+    next_suggested_fr: str | None = None
+    next_translation_native: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

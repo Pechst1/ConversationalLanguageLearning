@@ -112,6 +112,45 @@ jobs:
               out.write(f"### Backend\n\n{line}\n")
           PY
 
+  learner-walk:
+    name: Backend · learner walk (30 days × 5 personas)
+    # EXERCISE-QA 2026-10-03: the long tier of tests/test_learner_walk.py, which the
+    # default run skips. Same environment as the backend job (in-memory SQLite).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/atelier_ci
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRET_KEY: ci-secret-key
+      WALK_TRANSCRIPTS: /tmp/learner-walk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+          python -m spacy download fr_core_news_sm
+
+      - name: Run the long learner walk
+        run: pytest -q -p no:cacheprovider -m walk tests/test_learner_walk.py
+
+      - name: Walk transcripts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: learner-walk-transcripts
+          path: /tmp/learner-walk
+          if-no-files-found: ignore
+
   postgres:
     name: PostgreSQL · migrations + row locks
     # SQLite serialises every writer, so the row-lock paths (the story writer's

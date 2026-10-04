@@ -372,9 +372,14 @@ def start_round(db: Session, *, user: User, pair: str | None = None, concept_id:
 
 
 def _normalize(value: Any) -> str:
-    from app.services.item_bank import normalize
+    """EXERCISE-QA: a tap on one of two sentences, compared like the page does
+    (``lib/eclair.ts``): typography folded, accents **kept** — a minimal pair can
+    differ by an accent alone («Il a» / «Il à»), and the server must not grade the
+    wrong card right where the page graded it wrong."""
 
-    return normalize(value)
+    from app.services.answer_acceptance import fold_typography
+
+    return fold_typography(value)
 
 
 def grade_answers(items: list[dict[str, Any]], answers: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:

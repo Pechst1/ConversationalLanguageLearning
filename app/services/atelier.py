@@ -57,10 +57,10 @@ from app.services.forge_grading import (
     classify_follow_up,
     describe_diff,
     drop_false_english,
+    free_use_acceptable,
     notes_native,
     production_local_check,
     refine_production_correction,
-    same_answer,
     token_diff,
 )
 from app.services.glosses import (
@@ -71,7 +71,7 @@ from app.services.glosses import (
     normalize_language,
 )
 from app.services.grammar import GrammarService
-from app.services.grammar_catalog import FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_band
 from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
@@ -81,6 +81,7 @@ from app.services.item_bank import (
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
 from app.services.learner_copy import learner_text as _copy
+from app.services.learner_copy import word_count as _word_count
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.rule_cards import rule_card_for
@@ -129,20 +130,28 @@ def _verdict_passes(verdict: Any) -> bool:
     return str(verdict or "") in {"correct", "accepted"}
 
 
-def _test_out_local_grade(local_check: dict[str, Any], text: str) -> dict[str, Any] | None:
+def _test_out_local_grade(
+    local_check: dict[str, Any], text: str, acceptable: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
     """A test-out's free production, graded by the local check alone (WP-S3 × WP-S1).
 
     The rule's detector decides: a sentence that uses the rule is right, one
     that does not is wrong. Without a detector reading (no rule to read it
     against), only a near-copy of the model answer is taken as right; anything
     else stays unchecked, which a test-out scores as a miss.
+
+    QA-CLOSE: a detector hit is not enough — the sentence must also be acceptable
+    in the rule (``forge_grading.free_use_acceptable``): «Je n'ai pas une maison»
+    uses the negation and still fails the negation test-out.
     """
 
     if not str(text or "").strip():
         return None
     detector = local_check.get("detector")
     similarity = local_check.get("model_similarity")
-    if detector == "hit" or (detector == "unknown" and isinstance(similarity, (int, float)) and similarity >= 0.8):
+    if acceptable is not None and not acceptable.get("acceptable", True):
+        verdict, score = "incorrect", 1.0
+    elif detector == "hit" or (detector == "unknown" and isinstance(similarity, (int, float)) and similarity >= 0.8):
         verdict, score = "correct", 4.0
     elif detector == "miss":
         verdict, score = "incorrect", 1.0
@@ -695,6 +704,34 @@ def _normalize(value: Any) -> str:
     text = re.sub(r"[.!?;:,\u00ab\u00bb]", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def _keyed_verdict(
+    concept: Any,
+    item: dict[str, Any],
+    learner: Any,
+    target: Any,
+    *,
+    keys: list[Any] | None = None,
+    others: list[Any] | None = None,
+) -> Any:
+    """QA-CLOSE: a keyed Forge answer through :func:`answer_acceptance.judge`.
+
+    Typography never counts; accents are strict where the item tests them
+    (:func:`answer_acceptance.accent_policy`); a keyed answer has no typo
+    tolerance (a tap or a rewrite of a given line, not free typing)."""
+
+    from app.services.answer_acceptance import accent_policy, judge
+
+    options = [
+        *(item.get("choices") or []),
+        *(item.get("options") or []),
+        *(item.get("labels") or []),
+        *(item.get("distractors") or []),
+        *(others or []),
+    ]
+    policy = accent_policy(unit=concept, item=item, target=target, others=[o for o in options if isinstance(o, str)])
+    return judge(learner, keys or [target], accents=policy, typo=False)
 
 
 def _normalize_keeping_accents(value: Any) -> str:
@@ -2201,6 +2238,15 @@ def placement_band(db: Session, user: User) -> str | None:
     return _coarse_band(prior.get("level"))
 
 
+def _sub_band_rank(concept: GrammarConcept) -> int:
+    """The concept's half-step (A1.1 = 0 … C1.2 = 9); v1 rows without one sort first."""
+
+    from app.services.level_coverage import SUB_BANDS
+
+    sub_band = concept_sub_band(concept)
+    return SUB_BANDS.index(sub_band) if sub_band in SUB_BANDS else -1
+
+
 def _cefr_levels_at_or_below(user: User, *, placement: str | None = None) -> list[str]:
     """Coarse CEFR bucket (A1..C2) a cold-start concept pick should not exceed.
 
@@ -2379,6 +2425,10 @@ class AtelierScheduler:
                 GrammarConcept.difficulty_order.asc(),
                 GrammarConcept.id.asc(),
             ).all()
+            # 2026-10-03: the sub-band leads. Foundation-first alone put A1.2
+            # units ahead of A1.1 ones (il y a, faire/prendre came after twelve
+            # A1.2 units); v1 rows carry no sub-band and keep the old order.
+            candidates.sort(key=_sub_band_rank)
             picked.extend([concept for concept in candidates if ready(concept)][:remaining])
         return picked
 
@@ -3541,13 +3591,30 @@ class AtelierExerciseGenerator:
             if cleaned:
                 examples.append(cleaned)
 
-        candidates = [*default_candidates, *examples]
+        # 2026-10-03 content program: the unit's own reviewed sentences come
+        # first — its anchors and its rule card's examples, each of which its
+        # detector is tested to recognise. The profile's generic sentences only
+        # fill in, and only when they really use the rule: they served «Je
+        # pratique cette règle…» and the subjunctive for «après que» before.
+        from app.services.grammar_items import plain
+
+        card = rule_card_for(concept.external_id) or {}
+        card_examples = [
+            plain(str((row or {}).get("fr") or ""))
+            for row in [card.get("example") or {}, *(card.get("examples") or [])]
+            if isinstance(row, dict)
+        ]
+        own = [sentence for sentence in [*examples, *card_examples] if sentence]
+        candidates = [*own, *default_candidates]
+        own_keys = {_normalize(sentence) for sentence in own}
         accepted: list[str] = []
         seen: set[str] = set()
         for sentence in candidates:
             if _normalize(sentence) in seen:
                 continue
-            if count_concept_hits(concept, sentence, task_text=concept.core_rule or concept.name or "") <= 0:
+            if _normalize(sentence) not in own_keys and count_concept_hits(
+                concept, sentence, task_text=concept.core_rule or concept.name or ""
+            ) <= 0:
                 continue
             accepted.append(sentence)
             seen.add(_normalize(sentence))
@@ -5227,11 +5294,18 @@ class AtelierCorrectionService:
                 local_check = production_local_check(
                     local_concept, text, model_answer, _accepted_answers(prompt_payload)
                 )
-            test_out_grade = (
-                _test_out_local_grade(local_check, text)
-                if local_check is not None and session is not None and session.status == "test_out"
+            is_test_out = local_check is not None and session is not None and session.status == "test_out"
+            acceptable = (
+                free_use_acceptable(local_concept, text, _accepted_answers(prompt_payload))
+                if is_test_out
                 else None
             )
+            if acceptable is not None and acceptable["acceptable"] and any(
+                item.get("task_error_type") not in {"task_compliance", "length_compliance"} for item in kept
+            ):
+                # The rule-based correction found an error of form in the sentence.
+                acceptable = {"acceptable": False, "wrong": None, "right": None}
+            test_out_grade = _test_out_local_grade(local_check, text, acceptable) if is_test_out else None
             if test_out_grade is not None:
                 # WP-S3 × WP-S1: «Épreuve de la règle» is decided on the spot by
                 # the local check (the rule's detector, closeness to the model
@@ -5241,6 +5315,8 @@ class AtelierCorrectionService:
                 correction["local_check"] = local_check
                 if test_out_grade["verdict"] == "correct":
                     correction["errata"] = []
+                elif acceptable and acceptable.get("wrong"):
+                    correction["local_check"] = {**local_check, "trap": {"wrong": acceptable["wrong"], "right": acceptable["right"]}}
             elif local_check is not None and text.strip() and self._can_schedule_ai_review():
                 correction["local_check"] = local_check
                 correction["assessment_status"] = "provisional"
@@ -5447,17 +5523,22 @@ class AtelierCorrectionService:
         items = prompt_payload.get("items") or []
         errata: list[dict[str, Any]] = []
         corrected: dict[str, Any] = {}
+        accent_notes: list[dict[str, Any]] = []
         correct_count = 0
         for item in items:
             item_id = item["id"]
             learner = answers.get(item_id)
             learner_text = _join_french_tokens(learner) if mode == "word_bank" and isinstance(learner, list) else str(learner or "")
-            learner_norm = _normalize(learner_text)
             target = item.get("correct_label") if mode == "classify" else item.get("correct_answer")
-            target_norm = _normalize(target)
             corrected[item_id] = target
-            if learner_norm == target_norm:
+            # QA-CLOSE: the one acceptance contract — typography never counts; an
+            # accent is lenient-but-named unless the item tests it (an option that
+            # differs from the key by accents alone, a spelling unit).
+            verdict = _keyed_verdict(concept, item, learner_text, target)
+            if verdict.correct:
                 correct_count += 1
+                if verdict.accent_slip:
+                    accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": target})
                 continue
             if mode == "word_bank" and not item.get("lesson_external_id"):
                 errata.extend(self._word_bank_errata(concept, item, learner_text, str(target or "")))
@@ -5471,6 +5552,7 @@ class AtelierCorrectionService:
             "concept_hits": [serialize_concept_hit(concept, correct_count, len(items))] if concept else [],
             "missing_targets": [],
             "errata": errata,
+            **({"accent_notes": accent_notes} if accent_notes else {}),
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
 
@@ -5558,7 +5640,7 @@ class AtelierCorrectionService:
             # background relecture writes the full explanation a moment later.
             language = self.explanation_language
             why = _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
-            explanation = str(item.get("explanation") or self._why_for(concept) or "").strip()
+            explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             if normalize_language(language) == "en" and explanation:
                 why = f"{why} {explanation}"
             else:
@@ -5566,7 +5648,9 @@ class AtelierCorrectionService:
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
-                repair=infer_grammar_profile(concept).pattern,
+                # QA-FORGE: the profile's pattern is an English formula
+                # («subject + present verb ending»); other languages get their own line.
+                repair=infer_grammar_profile(concept).pattern if normalize_language(language) == "en" else self._repair_for(concept),
                 task_type=self._task_type_for(concept, item),
             )
         if mode == "fill":
@@ -5579,7 +5663,7 @@ class AtelierCorrectionService:
             label=self._label_for(concept, item),
             learner_text=learner_text,
             target=target,
-            why=item.get("why_wrong") or self._why_for(concept),
+            why=item.get("why_wrong") or self._why_for(concept, item),
             repair=item.get("repair_hint") or self._repair_for(concept),
             task_type=self._task_type_for(concept, item),
         )
@@ -6041,10 +6125,13 @@ class AtelierCorrectionService:
             # punctuation) never costs a point; an accent slip is forgiven but
             # noted; any listed alternative rewrite is as good as the key.
             keys = [target, *[str(value) for value in (item.get("accepted_answers") or []) if str(value or "").strip()]]
-            matches = [same_answer(learner, key) for key in keys]
-            if any(match for match, _slip in matches) or self._close_enough_transform(concept, learner, target):
+            # QA-CLOSE: graded by the acceptance contract — an accent slip is
+            # forgiven and named unless the item tests the accent (a/à, a final
+            # «-é», a spelling unit, a source that differs by an accent alone).
+            verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")])
+            if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
-                if any(match and slip for match, slip in matches) and not any(match and not slip for match, slip in matches):
+                if verdict.correct and verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
@@ -6159,7 +6246,9 @@ class AtelierCorrectionService:
                         "why_wrong": _copy(
                             "atelier.output.target_count_why",
                             self.explanation_language,
-                            label=req.get("label"),
+                            # QA-FORGE: the rule's name in the learner's language
+                            # (never the English catalogue name in a German note).
+                            label=(_concept_title_for(concept, self.explanation_language) if concept else "") or req.get("label"),
                             target_count=req.get("target_count", 1),
                             detected_count=req.get("detected_count", 0),
                         ),
@@ -6438,13 +6527,13 @@ class AtelierCorrectionService:
             "why_wrong": _copy(
                 "atelier.writing.too_short_why",
                 self.explanation_language,
-                written=word_total,
+                written_words=_word_count(word_total, self.explanation_language),
                 required=min_words,
             ),
             "repair_hint": _copy(
                 "atelier.writing.too_short_repair",
                 self.explanation_language,
-                missing=shortfall,
+                missing_words=_word_count(shortfall, self.explanation_language),
             ),
             "severity": 2,
             "recurring": False,
@@ -7217,17 +7306,16 @@ class AtelierCorrectionService:
         return None
 
     def _close_enough_transform(self, concept: GrammarConcept | None, learner: str, target: str) -> bool:
+        # QA-CLOSE: an accent-folded equality is not «close enough» — the
+        # acceptance contract (``_keyed_verdict``) already judged the accents.
         learner_norm = _normalize(learner)
-        target_norm = _normalize(target)
-        if learner_norm == target_norm:
-            return True
         profile = infer_grammar_profile(concept) if concept else None
         if profile and profile.key == "si_present_result_form":
             if "quand" in learner_norm:
                 return False
             return " si " in f" {learner_norm} " and not re.search(r"\b(si\s+\w+ra|si\s+\w+ras|si\s+\w+rai)\b", learner_norm)
-        if profile and profile.key == "article_after_negation":
-            return "pas de" in learner_norm or "pas d'" in learner_norm
+        # QA-CLOSE: no «contains "pas de"» shortcut — «Je ne pas de café bois»
+        # passed. The key and its accepted alternatives decide.
         return False
 
     def _erratum(
@@ -7246,7 +7334,7 @@ class AtelierCorrectionService:
             "display_label": self._label_for(concept, item),
             "learner_text": "" if learner is None else (" ".join(learner) if isinstance(learner, list) else str(learner)),
             "corrected_target": "" if target is None else str(target),
-            "why_wrong": self._why_for(concept) if is_rewrite else (item.get("why_wrong") or self._why_for(concept)),
+            "why_wrong": self._why_for(concept, item) if is_rewrite else (item.get("why_wrong") or self._why_for(concept, item)),
             "repair_hint": self._repair_for(concept) if is_rewrite else (item.get("repair_hint") or self._repair_for(concept)),
             "severity": severity,
             "recurring": recurring,
@@ -7258,6 +7346,9 @@ class AtelierCorrectionService:
     def _label_for(self, concept: GrammarConcept | None, item: dict[str, Any]) -> str:
         if item.get("errata_label"):
             label = str(item["errata_label"])
+        elif concept and normalize_language(self.explanation_language) != "en":
+            # QA-FORGE: the profiles' labels are English; the rule's own title instead.
+            label = _concept_title_for(concept, self.explanation_language)
         elif concept:
             label = infer_grammar_profile(concept, task_text=" ".join(str(item.get(key) or "") for key in ("instruction", "prompt", "label"))).label
         else:
@@ -7269,17 +7360,30 @@ class AtelierCorrectionService:
             return infer_grammar_profile(concept, task_text=" ".join(str(item.get(key) or "") for key in ("instruction", "prompt", "label"))).key
         return str(item.get("type") or "grammar_target")
 
-    def _why_for(self, concept: GrammarConcept | None) -> str:
+    def _why_for(self, concept: GrammarConcept | None, item: dict[str, Any] | None = None) -> str:
+        # FORGE-DE: a bank item quotes the rule of its own unit — a concept that
+        # maps to several units (être, -er verbs, modals…) would otherwise show
+        # every unit's rule, or another unit's («-er» on «veux»).
+        from app.services.item_bank import item_unit_rule
+
+        own = item_unit_rule(item, self.explanation_language) if item else None
+        if own:
+            return own
         if self.explanation_language == "fr":
             from app.services.grammar_units import french_rule
             return (french_rule(concept) if concept else None) or _copy("atelier.generic.why", "fr")
+        if self.explanation_language == "de":
+            # QA-FORGE: the profiles' principles are English; a German learner
+            # reads the authored German rule, else the generic German line.
+            from app.services.grammar_units import native_rule
+            return (native_rule(concept, "de") if concept else None) or _copy("atelier.generic.why", "de")
         if concept:
             return infer_grammar_profile(concept).principle
         return _copy("atelier.generic.why", self.explanation_language)
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
-        if self.explanation_language == "fr":
-            return _copy("atelier.generic.repair", "fr")
+        if self.explanation_language in {"fr", "de"}:
+            return _copy("atelier.generic.repair", self.explanation_language)
         if concept:
             return infer_grammar_profile(concept).repair
         return _copy("atelier.generic.repair", self.explanation_language)
@@ -7670,6 +7774,8 @@ def serialize_concept(
     Callers with several concepts should bulk-fetch the localizations and pass
     them in rather than triggering per-concept lookups.
     """
+    from app.services.grammar_map import card_with_partner_titles, unit_xray
+
     return {
         "id": concept.id,
         "external_id": concept.external_id,
@@ -7685,7 +7791,10 @@ def serialize_concept(
         "exercise_tags": concept.exercise_tags or [],
         "is_foundation": concept.is_foundation,
         # WP-L10: the authored rule card (all learner languages), or None.
-        "rule_card": rule_card_for(concept.external_id),
+        # F-1: its «Compare with» partners carry their titles.
+        "rule_card": card_with_partner_titles(rule_card_for(concept.external_id)),
+        # F-1: the unit's x-ray sentence and its marks, or None.
+        "xray": unit_xray(concept),
         # WP-S5: the cast member who teaches this rule (card and feedback face).
         "coach": _coach_for_concept(concept.external_id),
     }

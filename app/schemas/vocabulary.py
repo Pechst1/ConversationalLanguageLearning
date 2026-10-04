@@ -170,6 +170,10 @@ class ConjugationReviewRequest(BaseModel):
     tense: str = Field(min_length=1, max_length=80)
     rating: int = Field(ge=0, le=3)
     response_time_ms: int | None = Field(None, ge=0)
+    #: QA-CLOSE (owner decision a): the person asked and what the learner typed —
+    #: graded on the server. Without ``answer_text`` the rating is a self-rating.
+    person: str | None = Field(None, max_length=20)
+    answer_text: str | None = Field(None, max_length=160)
 
 
 class ConjugationReviewResponse(BaseModel):
@@ -182,3 +186,7 @@ class ConjugationReviewResponse(BaseModel):
     reps: int
     lapses: int
     next_review: datetime | None = None
+    #: QA-CLOSE: the server's verdict on ``answer_text`` (``None`` for a self-rating).
+    correct: bool | None = None
+    expected: str | None = None
+    note_native: str | None = None

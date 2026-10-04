@@ -585,15 +585,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Absatz zu kurz",
         "fr": "Paragraphe trop court",
     },
+    # EXERCISE-QA: the counts arrive already pluralised (``word_count``), so no
+    # learner reads «Wort/Wörter» or «word(s)».
     "atelier.writing.too_short_why": {
-        "en": "{written} word(s) written, {required} required for this assignment.",
-        "de": "{written} Wort/Wörter geschrieben, {required} für diese Aufgabe verlangt.",
-        "fr": "{written} mot(s) écrits, {required} requis pour cette consigne.",
+        "en": "{written_words} written; this assignment asks for {required}.",
+        "de": "{written_words} geschrieben; diese Aufgabe verlangt {required}.",
+        "fr": "{written_words} écrits ; cette consigne en demande {required}.",
     },
     "atelier.writing.too_short_repair": {
-        "en": "Add {missing} more word(s) to complete the paragraph.",
-        "de": "Ergänze {missing} Wort/Wörter, um den Absatz zu vervollständigen.",
-        "fr": "Ajoutez {missing} mot(s) pour compléter le paragraphe.",
+        "en": "Add {missing_words} to complete the paragraph.",
+        "de": "Ergänze noch {missing_words}, um den Absatz zu vervollständigen.",
+        "fr": "Ajoutez encore {missing_words} pour compléter le paragraphe.",
     },
     "atelier.lexical_gap.label": {
         "en": "French word needed",
@@ -1118,6 +1120,24 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "C’est ce qu’on venait de vous demander : on dit « {correct} », pas « {wrong} ».",
     },
 }
+
+
+#: EXERCISE-QA: «1 Wort» / «3 Wörter» — never «Wort/Wörter», «word(s)», «mot(s)».
+_WORD_COUNT: dict[str, tuple[str, str]] = {
+    "en": ("{count} word", "{count} words"),
+    "de": ("{count} Wort", "{count} Wörter"),
+    "fr": ("{count} mot", "{count} mots"),
+}
+
+
+def word_count(count: int, native_language: str | None) -> str:
+    """A pluralised word count in the learner's language."""
+
+    language = copy_language(native_language)
+    one, many = _WORD_COUNT[language]
+    # French counts 0 and 1 in the singular («0 mot»); English and German only 1.
+    singular = int(count) in ((0, 1) if language == "fr" else (1,))
+    return (one if singular else many).format(count=int(count))
 
 
 def copy_language(native_language: Any) -> str:

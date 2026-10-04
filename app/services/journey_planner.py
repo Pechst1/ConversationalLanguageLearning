@@ -68,11 +68,13 @@ from app.services.journey_contracts import (
     StepStatus,
     TargetKind,
     TargetRef,
+    article_optional,
     day_shape_rule,
     normalize_answer_text,
     practice_day_shape_rule,
     recall_goal,
     rhythm_caps,
+    split_article,
 )
 from app.services.journey_day_shapes import (
     DESK_SHAPES,
@@ -270,10 +272,31 @@ _ERROR_INSTRUCTION: dict[str, str] = {
     "fr": "Écrivez ceci correctement en français.",
 }
 _HINT_TEMPLATE: dict[str, str] = {
-    "en": 'It is {count} word(s) long and starts with "{initial}".',
-    "de": 'Es ist {count} Wort/Wörter lang und beginnt mit „{initial}“.',
-    "fr": "C'est {count} mot(s) et ça commence par « {initial} ».",
+    "en": 'It is {words} long and starts with "{initial}".',
+    "de": 'Es ist {words} lang und beginnt mit „{initial}“.',
+    "fr": "C'est {words} et ça commence par « {initial} ».",
 }
+#: QA-PRACTICE (owner, 2026-10-03): «Wie sagt man „Wohnung“?» hinted «2 Wort/Wörter,
+#: beginnt mit „u“» — the article, which a gloss without one never asked for. A noun
+#: asked from such a gloss is hinted by the noun, and the article is said optional.
+_NOUN_HINT_TEMPLATE: dict[str, str] = {
+    "en": 'A noun starting with "{initial}" (the article is optional).',
+    "de": 'Ein Nomen, das mit „{initial}“ beginnt (der Artikel ist freiwillig).',
+    "fr": "Un nom qui commence par « {initial} » (l'article est facultatif).",
+}
+#: One word / several words, in each chrome language (never «Wort/Wörter»).
+_WORD_COUNT: dict[str, tuple[str, str]] = {
+    "en": ("{count} word", "{count} words"),
+    "de": ("{count} Wort", "{count} Wörter"),
+    "fr": ("{count} mot", "{count} mots"),
+}
+
+
+def word_count_phrase(count: int, control_language: Any) -> str:
+    """«1 Wort» / «3 Wörter», «1 word» / «3 words», «1 mot» / «3 mots»."""
+
+    one, many = _WORD_COUNT.get(str(control_language or "en")[:2], _WORD_COUNT["en"])
+    return (one if int(count) == 1 else many).format(count=int(count))
 
 # -- WP-66: the three Séance formats, posed in the journey -------------------
 #: A word bank is tiles with chips that are *not* in the answer, so the chip row
@@ -295,9 +318,10 @@ _CLASSIFY_GENDER_INSTRUCTION: dict[str, str] = {
     "de": "Maskulin oder feminin?",
     "fr": "Masculin ou féminin ?",
 }
+#: QA-CLOSE (owner decision e): the labels are chrome, in the learner's language.
 _CLASSIFY_GENDER_LABELS: dict[str, tuple[str, str]] = {
     "en": ("masculine", "feminine"),
-    "de": ("maskulin", "feminin"),
+    "de": ("männlich", "weiblich"),
     "fr": ("masculin", "féminin"),
 }
 _CLASSIFY_ADDRESS_INSTRUCTION: dict[str, str] = {
@@ -311,12 +335,12 @@ _CLASSIFY_ADDRESS_LABELS: tuple[str, str] = ("tu", "vous")
 #: A directed rewrite names the form to use and never writes the answer word.
 _TRANSFORM_INSTRUCTION: dict[str, str] = {
     "en": 'Say the same thing with "{pronoun}": change "{span}".',
-    "de": 'Sag dasselbe mit "{pronoun}": ändere "{span}".',
+    "de": "Sag dasselbe mit „{pronoun}“: ändere „{span}“.",
     "fr": "Dites la même chose avec « {pronoun} » : changez « {span} ».",
 }
 _TRANSFORM_HINT: dict[str, str] = {
     "en": 'Only the part with "{span}" changes.',
-    "de": 'Nur der Teil mit "{span}" ändert sich.',
+    "de": "Nur der Teil mit „{span}“ ändert sich.",
     "fr": "Seule la partie avec « {span} » change.",
 }
 # -- WP-78: the quick formats --------------------------------------------------
@@ -342,9 +366,9 @@ _DICTATION_INSTRUCTION: dict[str, str] = {
     "fr": "Écoutez et écrivez ce que vous entendez.",
 }
 _DICTATION_HINT: dict[str, str] = {
-    "en": "It is {count} word(s) long.",
-    "de": "Es sind {count} Wort/Wörter.",
-    "fr": "C'est {count} mot(s).",
+    "en": "The line has {words}.",
+    "de": "Der Satz hat {words}.",
+    "fr": "La phrase a {words}.",
 }
 #: A scene sentence is rebuilt only when it is short enough to be a quick item
 #: and long enough to be a puzzle.
@@ -475,6 +499,20 @@ def _tokens(*texts: str | None) -> int:
 
 def _fold(value: str | None) -> str:
     return normalize_answer_text(value).casefold()
+
+
+#: Leading articles of the three languages a card may be in.
+_ANY_ARTICLE = re.compile(
+    r"^(?:le|la|les|un|une|des|du|l'|ein|eine|einen|der|die|das|a|an|the)(?:\s+|(?<=')\s*)(?=\S)",
+    re.IGNORECASE,
+)
+
+
+def _bare(value: str | None) -> str:
+    """A card's text without its leading article (French, German or English), folded:
+    «un appartement» and «appartement», «eine Wohnung» and «Wohnung» are one card."""
+
+    return _ANY_ARTICLE.sub("", _fold(value).strip(), count=1).strip()
 
 
 def candidate_is_demonstrated(candidate: LearningCandidate) -> bool:
@@ -732,12 +770,54 @@ def _affordances_for(scenario: ScenarioBrief) -> list[str]:
 # --------------------------------------------------------------------------
 
 
-def _distractors(target: TargetRef, affordances: list[str], limit: int = 2) -> list[str]:
-    """Scene phrases that are plausible here but are not the answer."""
+_FR_ARTICLE = re.compile(r"^(?:(le|la|les|un|une|des|du)\s+|(l')\s*)(?=\S)", re.IGNORECASE)
+_ELIDES = re.compile(r"^[aeiouyhàâéèêëîïôûù]", re.IGNORECASE)
+
+
+def _shaped_like(label: str, phrase: str, genders: dict[str, str] | None) -> str | None:
+    """``phrase`` in the same shape as ``label``: with an article of the same kind
+    when the label has one, bare when it has none; ``None`` when that cannot be
+    done honestly (a noun of unknown gender, a verb beside a noun).
+
+    QA-PRACTICE: «une lettre» beside «appartement» and «clé» was the only card
+    with an article — the answer, picked out by its shape."""
+
+    label_article = _FR_ARTICLE.match(" ".join(label.split()))
+    phrase = " ".join(phrase.split())
+    phrase_article = _FR_ARTICLE.match(phrase)
+    if bool(label_article) == bool(phrase_article):
+        return phrase
+    if phrase_article:
+        return phrase[phrase_article.end():].strip() or None
+    kind = (label_article.group(1) or label_article.group(2)).lower()
+    gender = (genders or {}).get(_fold(phrase))
+    if gender not in ("m", "f") or kind in ("les", "des", "du"):
+        return None
+    if kind in ("un", "une"):
+        return ("un " if gender == "m" else "une ") + phrase
+    if _ELIDES.match(phrase):
+        return "l'" + phrase
+    return ("le " if gender == "m" else "la ") + phrase
+
+
+def _distractors(
+    target: TargetRef,
+    affordances: list[str],
+    limit: int = 2,
+    *,
+    genders: dict[str, str] | None = None,
+) -> list[str]:
+    """Scene phrases that are plausible here but are not the answer, each in the
+    answer's shape (article or none, :func:`_shaped_like`)."""
 
     label = _fold(target.label_fr)
     pool: list[str] = []
-    for phrase in affordances:
+    for raw in affordances:
+        phrase = _shaped_like(target.label_fr or "", raw, genders) if label else raw
+        if not phrase:
+            continue
+        if _bare(phrase) == _bare(label):
+            continue
         folded = _fold(phrase)
         if not folded or folded == label:
             continue
@@ -751,10 +831,17 @@ def _distractors(target: TargetRef, affordances: list[str], limit: int = 2) -> l
 
 
 def _hint_for(target: TargetRef, control_language: ControlLanguage) -> str:
-    words = (target.label_fr or "").split()
+    """The paid letter hint. A noun whose article the prompt does not ask for
+    (:func:`journey_learning.article_optional`) is hinted by the noun itself."""
+
+    label = " ".join((target.label_fr or "").split())
+    _article, noun = split_article(label)
+    if noun and article_optional(target):
+        return _localized(_NOUN_HINT_TEMPLATE, control_language).format(initial=noun[:1])
+    words = label.split()
     initial = words[0][:1] if words and words[0] else "?"
     return _localized(_HINT_TEMPLATE, control_language).format(
-        count=len(words) or 1, initial=initial
+        words=word_count_phrase(len(words) or 1, control_language), initial=initial
     )
 
 
@@ -808,7 +895,12 @@ def build_recall_task(
         return None
     gloss = (target.label_native or "").strip() or None
     tokens = label_fr.split()
-    distractors = _distractors(target, affordances)
+    genders = {
+        _fold(entry.get("surface_fr")): str(entry.get("gender") or "")
+        for entry in lexicon_of(scenario)
+        if entry.get("surface_fr") and entry.get("gender") in ("m", "f")
+    }
+    distractors = _distractors(target, affordances, genders=genders)
     prompt_fr: str | None = None
     instruction_override: str | None = None
 
@@ -1048,9 +1140,14 @@ def build_classify_task(
         noun = " ".join(tokens[1:]).strip()
         if not noun or _GENDER_ARTICLES.get(noun.casefold()) is not None:
             return None
+        # QA-CLOSE (owner decision e): «masculin/féminin» was French chrome for a
+        # German A1 learner. The labels follow the control language; outside
+        # French they are the learner's own words (``side: native``).
+        masculine, feminine = _CLASSIFY_GENDER_LABELS.get(str(control_language), _CLASSIFY_GENDER_LABELS["fr"])
+        side = {} if str(control_language) == "fr" else {"side": "native"}
         options = [
-            {"id": "cls_" + _digest(target.id, "masculin")[:8], "text_fr": "masculin"},
-            {"id": "cls_" + _digest(target.id, "feminin")[:8], "text_fr": "féminin"},
+            {"id": "cls_" + _digest(target.id, "masculin")[:8], "text_fr": masculine, **side},
+            {"id": "cls_" + _digest(target.id, "feminin")[:8], "text_fr": feminine, **side},
         ]
         correct = options[0]["id"] if gender == "m" else options[1]["id"]
         return RecallTask(
@@ -1074,6 +1171,10 @@ def build_classify_task(
         return None
     observed = pragmatics.address_register(label_fr)
     if observed not in _CLASSIFY_ADDRESS_LABELS:
+        return None
+    if observed in re.split(r"[^a-zàâçéèêëîïôûùüÿœ]+", _fold(label_fr)):
+        # QA-PRACTICE: «s'il vous plaît» — tu or vous? The answer is printed in
+        # the question; a classify is honest only when the verb carries it.
         return None
     options = [
         {"id": "cls_" + _digest(target.id, label)[:8], "text_fr": label}
@@ -1194,18 +1295,20 @@ def _gloss_partners(
 ) -> list[TargetRef]:
     """Other glossed words of today, none sharing a French side or a meaning."""
 
-    taken_fr = {_fold(target.label_fr)}
-    taken_gloss = {_fold(_glossed(target))}
+    # QA-PRACTICE: compared without articles — «appartement» beside «un
+    # appartement» (or «Wohnung» beside «eine Wohnung») made two right answers.
+    taken_fr = {_bare(target.label_fr)}
+    taken_gloss = {_bare(_glossed(target))}
     partners: list[TargetRef] = []
     ranked = sorted(pool, key=lambda item: _digest(target.id, "partner", target_identity(item)))
     for item in ranked:
         gloss = _glossed(item)
         if gloss is None or target_identity(item) == target_identity(target):
             continue
-        if _fold(item.label_fr) in taken_fr or _fold(gloss) in taken_gloss:
+        if _bare(item.label_fr) in taken_fr or _bare(gloss) in taken_gloss:
             continue
-        taken_fr.add(_fold(item.label_fr))
-        taken_gloss.add(_fold(gloss))
+        taken_fr.add(_bare(item.label_fr))
+        taken_gloss.add(_bare(gloss))
         partners.append(item)
         if len(partners) == count:
             break
@@ -1395,7 +1498,11 @@ def build_unscramble_task(
     )
     if chosen is None:
         return None
-    tokens = chosen.split()
+    from app.services.scene_items import tile_words
+
+    tokens = tile_words(chosen)
+    if len(tokens) < low:
+        return None
     ordered = [
         {"id": "tile_" + _digest(target.id, "unscramble", str(index), token)[:8], "text_fr": token}
         for index, token in enumerate(tokens)
@@ -1537,7 +1644,9 @@ def build_dictation_task(
         target=target,
         optional=optional,
         accepted_answers=[line.text_fr],
-        hint_native=_localized(_DICTATION_HINT, control_language).format(count=words),
+        hint_native=_localized(_DICTATION_HINT, control_language).format(
+            words=word_count_phrase(words, control_language)
+        ),
         translation_native=None,
         solution_fr=line.text_fr,
         estimated_seconds=0,
@@ -2860,6 +2969,50 @@ def _slot_formats(
     return sorted(allowed, key=key)
 
 
+#: The day's item blocks as the learner meets them: the warm-ups before the scene,
+#: and everything after it («mid» and «post» end up side by side after the ending).
+_BLOCK_OF: dict[str, str] = {"warmup": "before", "mid": "after", "post": "after"}
+#: Formats that ask for French to be produced from memory.
+_PRODUCTION_FORMATS = frozenset({"short_answer", "transform", "dictation"})
+
+
+def _task_face(task: RecallTask) -> tuple[str, ...]:
+    """What the learner sees of an item, folded: two items with one face are one item."""
+
+    cards = sorted(_fold(str(option.get("text_fr") or "")) for option in task.options or [])
+    return (
+        str(task.task_type),
+        _fold(task.instruction_native),
+        _fold(task.prompt_fr),
+        _fold(task.goal_native),
+        "|".join(cards),
+    )
+
+
+def _repeats_the_day(
+    task: RecallTask, entry: SelectedTarget, items: list[PracticeItem], *, slot: str | None = None
+) -> bool:
+    """EXERCISE-QA (learner walk): never the same item twice in a day — two
+    «match the pairs» over the same four words differ only in which pair is
+    graded — and never ask to *produce* a word in the same block as an item that
+    puts it on the screen (that is copying, not recall; the scene between two
+    blocks is the spacing that makes the second one a retrieval)."""
+
+    face = _task_face(task)
+    if any(_task_face(item.task) == face for item in items):
+        return True
+    identity = target_identity(entry.target)
+    block = _BLOCK_OF.get(str(slot), str(slot)) if slot is not None else None
+    for item in items:
+        if block is not None and _BLOCK_OF.get(item.slot, item.slot) != block:
+            continue
+        if target_identity(item.entry.target) != identity:
+            continue
+        if task.task_type in _PRODUCTION_FORMATS or item.task.task_type in _PRODUCTION_FORMATS:
+            return True
+    return False
+
+
 def fill_practice_items(
     *,
     scenario: ScenarioBrief,
@@ -2999,6 +3152,8 @@ def fill_practice_items(
                     sentences=readable,
                 )
                 if task is None:
+                    continue
+                if _repeats_the_day(task, entry, items, slot=slot):
                     continue
                 cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
                 if cost > headroom:
@@ -3315,6 +3470,8 @@ def top_up_from_scene(
             continue
         slot_items = [item for item in placed if item.slot in ("mid", "post")]
         slot = "mid" if len(slot_items) % 2 == 0 else "post"
+        if _repeats_the_day(task, entry, placed, slot=slot):
+            continue
         position = 1 + max((item.position for item in placed if item.slot == slot), default=-1)
         taken.add(kind)
         if task.task_type != "who_said":

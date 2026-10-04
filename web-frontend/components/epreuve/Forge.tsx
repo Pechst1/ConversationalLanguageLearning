@@ -286,9 +286,33 @@ export function ForgeStyles() {
   .av2 .forge-stair__step[data-state='current'] { animation: av2-pop 0.3s; transform-box: fill-box; transform-origin: 50% 100%; }
 }
 
-.av2 .forge-count { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: baseline; justify-content: center; gap: 8px; white-space: nowrap; }
+/* QA-FORGE: the name and the count never share a cramped line. On a wide bar
+   they sit side by side; on a phone (or whenever they would not fit) the count
+   wraps under the name instead of running into it («La Forg2 von 12»). */
+.av2 .forge-count {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 8px;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+}
+.av2 .forge-count__name,
+.av2 .forge-count__n { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .av2 .forge-count__name { font-size: var(--av2-t-label); font-weight: 700; color: var(--av2-ink); }
 .av2 .forge-count__n { font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) {
+  .av2 .forge-count { flex-direction: column; align-items: center; gap: 0; }
+}
+/* QA-FORGE: an answer in the learner's own language («Stimmt so», «Muss
+   korrigiert werden») is chrome, set in the sans; French options keep the
+   Garamond italic. */
+.av2 .ep-opt > span[lang]:not([lang='fr']) { font-family: var(--av2-sans); font-style: normal; font-weight: 600; }
 
 .av2 .forge-head { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .av2 .forge-head__row { display: flex; align-items: center; gap: 12px; min-width: 0; }

@@ -92,12 +92,15 @@ export default function ConjugationReviewPage() {
     if (!current || saving) return;
     setSaving(true);
     try {
+      // QA-CLOSE: a typed form is graded on the server; the rating alone is a self-rating.
       const result = await apiService.submitConjugationReview({
         lemma: current.lemma,
         tense: current.tense,
         rating,
+        ...(typed.trim() ? { person: current.person, answer_text: typed } : {}),
       });
       toast.success(nextReviewText(t, result.next_review));
+      if (result.note_native) toast(result.note_native);
       setItems((previous) => previous.slice(1));
       setCompleted((value) => value + 1);
       setTyped('');

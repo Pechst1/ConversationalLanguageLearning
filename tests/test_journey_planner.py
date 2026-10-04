@@ -1211,9 +1211,10 @@ def test_a_gender_classify_never_prints_the_article_that_answers_it():
     assert task is not None and task.task_type == str(RecallFormat.CLASSIFY)
     assert task.prompt_fr == "terrasse", "the article is the answer, not the prompt"
     assert "une" not in (task.prompt_fr or "").split()
-    assert [option["text_fr"] for option in task.options] == ["masculin", "féminin"]
+    # QA-CLOSE (owner decision e): the labels are in the learner's language.
+    assert [option["text_fr"] for option in task.options] == ["masculine", "feminine"]
     correct = next(o for o in task.options if o["id"] == task.correct_option_id)
-    assert correct["text_fr"] == "féminin"
+    assert correct["text_fr"] == "feminine"
     # Neither the letter hint nor the gloss may be offered: both spell out the
     # article. The paid solution still reveals the whole form.
     assert task.hint_native is None and task.translation_native is None
@@ -1236,9 +1237,14 @@ def test_a_noun_behind_an_elided_article_gets_no_gender_classify():
 
 
 def test_an_address_classify_reads_the_register_off_the_phrase():
-    task = planner.build_classify_task(
-        target=ADDRESS_READY.target, optional=False, control_language="fr"
+    # QA-PRACTICE: «tu prends un café — tu ou vous ?» prints its answer; the
+    # classify is posed only when the register is carried by another form.
+    assert (
+        planner.build_classify_task(target=ADDRESS_READY.target, optional=False, control_language="fr")
+        is None
     )
+    possessive = TargetRef(kind=TargetKind.GRAMMAR, id="g-ton", label_fr="ton nom ?", label_native="your name?")
+    task = planner.build_classify_task(target=possessive, optional=False, control_language="fr")
     assert task is not None and task.task_type == str(RecallFormat.CLASSIFY)
     assert [option["text_fr"] for option in task.options] == ["tu", "vous"]
     correct = next(o for o in task.options if o["id"] == task.correct_option_id)

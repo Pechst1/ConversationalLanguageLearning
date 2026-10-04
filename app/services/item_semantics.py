@@ -272,6 +272,9 @@ def link_clash(head: dict[str, Any], dependent: dict[str, Any]) -> Clash | None:
     if head.get("p") == 1 and dependent.get("members") and dependent.get("g") and head.get("g") != dependent["g"]:
         # «Tu es contente, Marin»: said to Marin, «tu» is Marin.
         return Clash("address", f"{head.get('fr')} ({head.get('g')}) to {dependent.get('fr')}")
+    if head.get("p") == 1 and dependent.get("members") and dependent.get("address") == "vous":
+        # QA-FORGE: the learner says «vous» to Gus (season.json registers).
+        return Clash("register", f"tu to {dependent.get('fr')}")
     number = _number(dependent)
     if number is not None and head.get("age") and not (head["age"][0] <= number <= head["age"][1]):
         return Clash("cast_fact", f"{head.get('fr')} is not {number}")
@@ -332,6 +335,49 @@ _EN_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 
+#: QA-FORGE (2026-10-03): the cast's registers (app/data/season/s1/season.json):
+#: the learner says «vous» to Gus and to M. Marchand, «tu» to the others.
+VOUS_ADDRESSEES = frozenset({"gus", "marchand"})
+_ADDRESSEE_NAMES = r"(Margaux|Marin|Romy|Lila|Gus|Monsieur Marchand|M\. Marchand)"
+#: «…, Lila ?» / «…, Gus.» / «Lila, …» — one person spoken to by name.
+_ADDRESSED_END = re.compile(rf",\s*{_ADDRESSEE_NAMES}\s*([.?!])")
+_ADDRESSED_START = re.compile(rf"(?:^|[.?!]\s+){_ADDRESSEE_NAMES},\s")
+_TU_MARK = re.compile(r"\b(?:tu|toi|te|t'|ton|ta|tes)\b|-toi\b", re.IGNORECASE)
+_VOUS_SUBJECT = re.compile(r"(?<!s'il )(?<!rendez-)\bvous\b(?! plaît)", re.IGNORECASE)
+
+
+def _addressee_id(name: str) -> str:
+    return "marchand" if "marchand" in name.lower() else name.lower()
+
+
+def address_violations(sentence: str) -> list[Clash]:
+    """A line said to one named person must use that person's register, and a
+    statement never tells the addressee where they are or what they are
+    («Vous sommes au bureau de l'ONG, Gus.», «Tu es malade, Marin.»)."""
+
+    text = re.sub(r"[’ʼ‘]", "'", str(sentence or ""))
+    found: list[Clash] = []
+    addressed: list[tuple[str, str]] = []  # (person, the clause said to them)
+    for match in _ADDRESSED_END.finditer(text):
+        start = max(text.rfind(mark, 0, match.start()) for mark in ".?!")
+        clause = text[start + 1: match.start()]
+        if re.search(r"\bet\s*$", clause):
+            continue
+        addressed.append((_addressee_id(match.group(1)), clause + match.group(2)))
+    for match in _ADDRESSED_START.finditer(text):
+        rest = text[match.end():]
+        end = min([index for index in (rest.find(mark) for mark in ".?!") if index >= 0] or [len(rest)])
+        addressed.append((_addressee_id(match.group(1)), rest[: end + 1]))
+    for person, clause in addressed:
+        if person in VOUS_ADDRESSEES and _TU_MARK.search(clause):
+            found.append(Clash("register", f"tu to {person}: {sentence}"))
+        elif person not in VOUS_ADDRESSEES and _VOUS_SUBJECT.search(clause):
+            found.append(Clash("register", f"vous to {person}: {sentence}"))
+        elif not clause.rstrip().endswith("?") and re.match(r"\s*(?:tu|vous)\b", clause, re.IGNORECASE):
+            found.append(Clash("told_to_self", sentence))
+    return found
+
+
 def sentence_violations(sentence: str, english: str = "") -> list[Clash]:
     """Rules read off the finished French sentence and its English cue."""
 
@@ -367,6 +413,7 @@ def sentence_violations(sentence: str, english: str = "") -> list[Clash]:
     names = [m.group(1).lower() for m in _CAST_RE.finditer(sentence)]
     if len(names) != len({_CAST_NAMES[name] for name in names}):
         found.append(Clash("identity", sentence))
+    found.extend(address_violations(sentence))
     if english:
         if _EN_FUTURE.search(english) and not _EN_FUTURE_OK.search(english):
             found.append(Clash("english_tense", english))

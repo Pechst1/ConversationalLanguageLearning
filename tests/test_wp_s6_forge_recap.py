@@ -58,21 +58,26 @@ def test_bank_cues_offer_the_learner_language_and_keep_the_english_prompt():
     pair = ib.pair_item(item)
     assert pair is not None
     assert pair["prompt_l10n"]["en"] == pair["prompt"]
-    assert pair["prompt_l10n"]["de"].startswith("Welcher Satz bedeutet")
-    assert pair["prompt_l10n"]["fr"].startswith("Quelle phrase veut dire")
+    # QA-FORGE: the English gloss stays in the English cue; FORGE-DE: the German
+    # cue quotes the item's German meaning.
+    assert item.de
+    assert pair["prompt_l10n"]["de"] == f"Welcher Satz sagt: „{item.de}“?"
+    assert pair["prompt_l10n"]["fr"] == "Quelle phrase est correcte ?"
+    assert item.en not in pair["prompt_l10n"]["de"] + pair["prompt_l10n"]["fr"]
 
     output = ib.output_item(item, round_name="sentence", requirement={"label": "X", "target_count": 1})
     assert output["prompt_l10n"]["en"] == output["prompt"]
     # WP-103 T11: no pseudo-scene from outside the learner's story — a plain ask.
     assert output["prompt"] == f'Say in French: "{item.en}"'
-    assert output["prompt_l10n"]["de"].startswith("Sag auf Französisch")
-    assert "Dites en français" in output["prompt_l10n"]["fr"]
+    assert output["prompt_l10n"]["de"] == f"Sag auf Französisch: „{item.de}“"
+    assert "en français" in output["prompt_l10n"]["fr"]
+    assert item.en not in output["prompt_l10n"]["de"] + output["prompt_l10n"]["fr"]
 
     gloss = bank.generate("FR2_A12_CONNECTORS", 1, seed="wp-s6")[0]
     repair = ib.transform_item(gloss)
     if repair is not None:
         assert repair["instruction_l10n"]["en"] == repair["instruction"]
-        assert repair["instruction_l10n"]["de"].startswith("Korrigiere den Satz")
+        assert repair["instruction_l10n"]["de"] == f"Korrigiere den Satz, sodass er sagt: „{gloss.de}“"
 
     produce = ib.produce_block(item, item, requirement={"label": "X", "target_count": 1})
     assert produce["prompt_l10n"]["en"] == produce["prompt"]

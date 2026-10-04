@@ -326,7 +326,9 @@ def _is_generic_output_ladder_prompt(value: Any) -> bool:
 def _quoted_fragments(value: Any) -> list[str]:
     text = str(value or "")
     fragments: list[str] = []
-    for match in re.finditer(r"'([^']+)'|\"([^\"]+)\"|«([^»]+)»", text):
+    # German „…“ and typographic “…” quote too (QA-PRACTICE: the journey's German
+    # transform instruction is written with German quotes).
+    for match in re.finditer(r"'([^']+)'|\"([^\"]+)\"|«([^»]+)»|„([^“”]+)[“”]|“([^”]+)”", text):
         fragment = next((group for group in match.groups() if group), "")
         if fragment.strip():
             fragments.append(fragment.strip())

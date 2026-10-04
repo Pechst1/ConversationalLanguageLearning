@@ -200,6 +200,7 @@
   },
   {
    "id": "gus",
+   "address": "vous",
    "fr": "Gus",
    "g": "m",
    "en": "Gus",
@@ -3504,6 +3505,7 @@
   {
    "id": "ngo_office",
    "fr": "bureau de l'ONG",
+   "band": "B1",
    "g": "m",
    "en": "NGO office",
    "kind": "place",
@@ -4089,7 +4091,6 @@
     "vehicle",
     "books",
     "place",
-    "person",
     "luggage",
     "music_obj",
     "art",
@@ -4936,8 +4937,6 @@
     "furniture",
     "art",
     "accessory",
-    "place",
-    "person",
     "animal",
     "dish"
    ],
@@ -8160,6 +8159,7 @@
   {
    "id": "dîner",
    "inf": "dîner",
+   "daypart": "evening",
    "en": [
     "have dinner",
     "has dinner",
@@ -14259,12 +14259,12 @@
    {
     "fr": "simple",
     "en": "simple",
-    "tags": []
+    "tags": ["person"]
    },
    {
     "fr": "facile",
     "en": "easy",
-    "tags": []
+    "tags": ["person"]
    },
    {
     "fr": "cher",
@@ -14279,17 +14279,17 @@
    {
     "fr": "gratuit",
     "en": "free",
-    "tags": []
+    "tags": ["person"]
    },
    {
     "fr": "parfait",
     "en": "perfect",
-    "tags": []
+    "tags": ["person"]
    },
    {
     "fr": "impossible",
     "en": "impossible",
-    "tags": []
+    "tags": ["person"]
    }
   ],
   "adj_qc": [
@@ -14734,7 +14734,7 @@
     "n": "s",
     "en": "you",
     "en_p": "2",
-    "tags": []
+    "tags": ["2s"]
    },
    {
     "id": "tu_f",
@@ -14744,7 +14744,7 @@
     "n": "s",
     "en": "you",
     "en_p": "2",
-    "tags": []
+    "tags": ["2s"]
    },
    {
     "id": "vous_m",
@@ -14754,7 +14754,7 @@
     "n": "p",
     "en": "you",
     "en_p": "2",
-    "tags": []
+    "tags": ["2p"]
    },
    {
     "id": "vous_f",
@@ -14764,6 +14764,2706 @@
     "n": "p",
     "en": "you",
     "en_p": "2",
+    "tags": ["2p"]
+   }
+  ],
+  "pl_noun": [
+   {
+    "id": "pl_gateau",
+    "fr": "gâteau",
+    "g": "m",
+    "pl": "gâteaux",
+    "pl_x": [
+     "gâteaus"
+    ],
+    "en": "cake",
+    "en_pl": "cakes",
+    "kind": "food",
+    "dom": [
+     "bakery",
+     "sweet"
+    ],
+    "tags": [
+     "bakery",
+     "buy",
+     "gift",
+     "sweet"
+    ]
+   },
+   {
+    "id": "pl_tableau",
+    "fr": "tableau",
+    "g": "m",
+    "pl": "tableaux",
+    "pl_x": [
+     "tableaus"
+    ],
+    "en": "painting",
+    "en_pl": "paintings",
+    "kind": "obj",
+    "dom": [
+     "art"
+    ],
+    "tags": [
+     "art",
+     "buy",
+     "gift",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_chapeau",
+    "fr": "chapeau",
+    "g": "m",
+    "pl": "chapeaux",
+    "pl_x": [
+     "chapeaus"
+    ],
+    "en": "hat",
+    "en_pl": "hats",
+    "kind": "obj",
+    "dom": [
+     "clothing"
+    ],
+    "tags": [
+     "buy",
+     "clothing",
+     "gift",
+     "lose",
+     "possess"
+    ]
+   },
+   {
+    "id": "pl_manteau",
+    "fr": "manteau",
+    "g": "m",
+    "pl": "manteaux",
+    "pl_x": [
+     "manteaus"
+    ],
+    "en": "coat",
+    "en_pl": "coats",
+    "kind": "obj",
+    "dom": [
+     "clothing"
+    ],
+    "tags": [
+     "buy",
+     "clothing",
+     "possess"
+    ]
+   },
+   {
+    "id": "pl_couteau",
+    "fr": "couteau",
+    "g": "m",
+    "pl": "couteaux",
+    "pl_x": [
+     "couteaus"
+    ],
+    "en": "knife",
+    "en_pl": "knives",
+    "kind": "obj",
+    "dom": [
+     "tableware"
+    ],
+    "tags": [
+     "buy",
+     "tableware"
+    ]
+   },
+   {
+    "id": "pl_bijou",
+    "fr": "bijou",
+    "g": "m",
+    "pl": "bijoux",
+    "pl_x": [
+     "bijous"
+    ],
+    "en": "jewel",
+    "en_pl": "jewels",
+    "kind": "obj",
+    "dom": [
+     "accessory"
+    ],
+    "tags": [
+     "accessory",
+     "buy",
+     "gift",
+     "lose",
+     "possess"
+    ]
+   },
+   {
+    "id": "pl_jeu",
+    "fr": "jeu",
+    "g": "m",
+    "pl": "jeux",
+    "pl_x": [
+     "jeus"
+    ],
+    "en": "game",
+    "en_pl": "games",
+    "kind": "obj",
+    "dom": [
+     "books"
+    ],
+    "tags": [
+     "books",
+     "buy",
+     "gift",
+     "possess"
+    ]
+   },
+   {
+    "id": "pl_journal",
+    "fr": "journal",
+    "g": "m",
+    "pl": "journaux",
+    "pl_x": [
+     "journals"
+    ],
+    "en": "newspaper",
+    "en_pl": "newspapers",
+    "kind": "obj",
+    "dom": [
+     "press"
+    ],
+    "tags": [
+     "buy",
+     "possess",
+     "press"
+    ]
+   },
+   {
+    "id": "pl_cadeau",
+    "fr": "cadeau",
+    "g": "m",
+    "pl": "cadeaux",
+    "pl_x": [
+     "cadeaus"
+    ],
+    "en": "present",
+    "en_pl": "presents",
+    "kind": "obj",
+    "tags": [
+     "gift"
+    ]
+   },
+   {
+    "id": "pl_colis",
+    "fr": "colis",
+    "g": "m",
+    "pl": "colis",
+    "pl_x": [
+     "coliss"
+    ],
+    "en": "parcel",
+    "en_pl": "parcels",
+    "kind": "obj",
+    "tags": [
+     "gift"
+    ]
+   },
+   {
+    "id": "pl_bateau",
+    "fr": "bateau",
+    "g": "m",
+    "pl": "bateaux",
+    "pl_x": [
+     "bateaus"
+    ],
+    "en": "boat",
+    "en_pl": "boats",
+    "kind": "obj",
+    "tags": [
+     "canal"
+    ]
+   },
+   {
+    "id": "pl_oiseau",
+    "fr": "oiseau",
+    "g": "m",
+    "pl": "oiseaux",
+    "pl_x": [
+     "oiseaus"
+    ],
+    "en": "bird",
+    "en_pl": "birds",
+    "kind": "obj",
+    "dom": [
+     "animal"
+    ],
+    "tags": [
+     "animal",
+     "canal"
+    ]
+   },
+   {
+    "id": "pl_tapis",
+    "fr": "tapis",
+    "g": "m",
+    "pl": "tapis",
+    "pl_x": [
+     "tapiss"
+    ],
+    "en": "rug",
+    "en_pl": "rugs",
+    "kind": "obj",
+    "dom": [
+     "furniture"
+    ],
+    "tags": [
+     "buy",
+     "furniture",
+     "possess"
+    ]
+   },
+   {
+    "id": "pl_bus",
+    "fr": "bus",
+    "g": "m",
+    "pl": "bus",
+    "pl_x": [
+     "buss"
+    ],
+    "en": "bus",
+    "en_pl": "buses",
+    "kind": "obj",
+    "tags": [
+     "transport"
+    ]
+   },
+   {
+    "id": "pl_train",
+    "fr": "train",
+    "g": "m",
+    "pl": "trains",
+    "pl_x": [],
+    "en": "train",
+    "en_pl": "trains",
+    "kind": "obj",
+    "tags": [
+     "transport"
+    ]
+   },
+   {
+    "id": "pl_carnet",
+    "fr": "carnet",
+    "g": "m",
+    "pl": "carnets",
+    "pl_x": [],
+    "en": "notebook",
+    "en_pl": "notebooks",
+    "kind": "obj",
+    "dom": [
+     "stationery"
+    ],
+    "tags": [
+     "buy",
+     "lose",
+     "possess",
+     "stationery"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_carton",
+    "fr": "carton",
+    "g": "m",
+    "pl": "cartons",
+    "pl_x": [],
+    "en": "box",
+    "en_pl": "boxes",
+    "kind": "obj",
+    "dom": [
+     "luggage"
+    ],
+    "tags": [
+     "luggage",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_plante",
+    "fr": "plante",
+    "g": "f",
+    "pl": "plantes",
+    "pl_x": [],
+    "en": "plant",
+    "en_pl": "plants",
+    "kind": "obj",
+    "dom": [
+     "plant"
+    ],
+    "tags": [
+     "buy",
+     "gift",
+     "plant",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_tasse",
+    "fr": "tasse",
+    "g": "f",
+    "pl": "tasses",
+    "pl_x": [],
+    "en": "cup",
+    "en_pl": "cups",
+    "kind": "obj",
+    "dom": [
+     "tableware"
+    ],
+    "tags": [
+     "buy",
+     "tableware"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_affiche",
+    "fr": "affiche",
+    "g": "f",
+    "pl": "affiches",
+    "pl_x": [],
+    "en": "poster",
+    "en_pl": "posters",
+    "kind": "obj",
+    "dom": [
+     "art"
+    ],
+    "tags": [
+     "art",
+     "buy",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_cle",
+    "fr": "clé",
+    "g": "f",
+    "pl": "clés",
+    "pl_x": [],
+    "en": "key",
+    "en_pl": "keys",
+    "kind": "obj",
+    "dom": [
+     "keys"
+    ],
+    "tags": [
+     "keys",
+     "lose",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_bague",
+    "fr": "bague",
+    "g": "f",
+    "pl": "bagues",
+    "pl_x": [],
+    "en": "ring",
+    "en_pl": "rings",
+    "kind": "obj",
+    "dom": [
+     "accessory"
+    ],
+    "tags": [
+     "accessory",
+     "buy",
+     "gift",
+     "lose",
+     "possess"
+    ],
+    "story": true
+   },
+   {
+    "id": "pl_croissant",
+    "fr": "croissant",
+    "g": "m",
+    "pl": "croissants",
+    "pl_x": [],
+    "en": "croissant",
+    "en_pl": "croissants",
+    "kind": "food",
+    "dom": [
+     "bakery"
+    ],
+    "tags": [
+     "bakery",
+     "buy"
+    ]
+   },
+   {
+    "id": "pl_livre",
+    "fr": "livre",
+    "g": "m",
+    "pl": "livres",
+    "pl_x": [],
+    "en": "book",
+    "en_pl": "books",
+    "kind": "obj",
+    "dom": [
+     "books"
+    ],
+    "tags": [
+     "books",
+     "buy",
+     "gift",
+     "possess"
+    ]
+   }
+  ],
+  "pl_q": [
+   {
+    "id": "plq_2",
+    "fr": "deux",
+    "en": "two",
+    "tags": [
+     "few"
+    ]
+   },
+   {
+    "id": "plq_3",
+    "fr": "trois",
+    "en": "three",
+    "tags": [
+     "few"
+    ]
+   },
+   {
+    "id": "plq_4",
+    "fr": "quatre",
+    "en": "four",
+    "tags": []
+   },
+   {
+    "id": "plq_some",
+    "fr": "quelques",
+    "en": "a few",
+    "tags": []
+   },
+   {
+    "id": "plq_several",
+    "fr": "plusieurs",
+    "en": "several",
+    "tags": []
+   }
+  ],
+  "excl_event": [
+   {
+    "id": "ev_flat",
+    "fr": "a trouvé un appartement près du canal",
+    "en": "found a flat near the canal",
+    "fr2": "as trouvé un appartement près du canal",
+    "en2": "You found a flat near the canal",
+    "tags": [
+     "sg",
+     "luck",
+     "news"
+    ]
+   },
+   {
+    "id": "ev_tickets",
+    "fr": "a gagné deux billets pour le concert",
+    "en": "won two tickets for the concert",
+    "fr2": "as gagné deux billets pour le concert",
+    "en2": "You won two tickets for the concert",
+    "tags": [
+     "sg",
+     "luck"
+    ]
+   },
+   {
+    "id": "ev_ring",
+    "fr": "a retrouvé la bague à la brocante",
+    "en": "found the ring again at the flea market",
+    "fr2": "as retrouvé la bague à la brocante",
+    "en2": "You found the ring again at the flea market",
+    "tags": [
+     "sg",
+     "luck",
+     "surprise"
+    ]
+   },
+   {
+    "id": "ev_painting",
+    "fr": "a vendu un tableau à la brocante",
+    "en": "sold a painting at the flea market",
+    "fr2": "as vendu un tableau à la brocante",
+    "en2": "You sold a painting at the flea market",
+    "tags": [
+     "sg",
+     "luck",
+     "news"
+    ]
+   },
+   {
+    "id": "ev_notcoming",
+    "fr": "ne vient pas ce soir",
+    "en": "is not coming tonight",
+    "fr2": "ne viens pas ce soir",
+    "en2": "You are not coming tonight",
+    "tags": [
+     "sg",
+     "shame"
+    ]
+   },
+   {
+    "id": "ev_metro",
+    "fr": "a raté le dernier métro",
+    "en": "missed the last metro",
+    "fr2": "as raté le dernier métro",
+    "en2": "You missed the last metro",
+    "tags": [
+     "sg",
+     "shame",
+     "bad_day"
+    ]
+   },
+   {
+    "id": "ev_notebook",
+    "fr": "a perdu le carnet de Gus",
+    "en": "lost Gus's notebook",
+    "fr2": "as perdu le carnet de Gus",
+    "en2": "You lost Gus's notebook",
+    "tags": [
+     "sg",
+     "shame",
+     "bad_day"
+    ]
+   },
+   {
+    "id": "ev_closed",
+    "fr": "a trouvé le Mistral fermé",
+    "en": "found Le Mistral closed",
+    "fr2": "as trouvé le Mistral fermé",
+    "en2": "You found Le Mistral closed",
+    "tags": [
+     "sg",
+     "shame"
+    ]
+   },
+   {
+    "id": "ev_leaving",
+    "fr": "quitte le quartier en juin",
+    "en": "is leaving the neighbourhood in June",
+    "fr2": "quittes le quartier en juin",
+    "en2": "You're leaving the neighbourhood in June",
+    "tags": [
+     "sg",
+     "shame",
+     "news"
+    ]
+   },
+   {
+    "id": "ev_flowers",
+    "fr": "arrive au Mistral avec un gâteau",
+    "en": "is arriving at Le Mistral with a cake",
+    "fr2": "arrives au Mistral avec un gâteau",
+    "en2": "You're arriving at Le Mistral with a cake",
+    "tags": [
+     "sg",
+     "surprise"
+    ]
+   },
+   {
+    "id": "ev_building",
+    "fr": "habite aussi dans l'immeuble",
+    "en": "also lives in the building",
+    "fr2": "habites aussi dans l'immeuble",
+    "en2": "You also live in the building",
+    "tags": [
+     "sg",
+     "coincidence",
+     "surprise"
+    ]
+   },
+   {
+    "id": "ev_samebook",
+    "fr": "lit le roman de Marin",
+    "en": "is reading Marin's novel",
+    "fr2": "lis le roman de Marin",
+    "en2": "You're reading Marin's novel",
+    "tags": [
+     "sg",
+     "coincidence"
+    ]
+   },
+   {
+    "id": "ev_cousin",
+    "fr": "connaît le frère de Romy",
+    "en": "knows Romy's brother",
+    "fr2": "connais le frère de Romy",
+    "en2": "You know Romy's brother",
+    "tags": [
+     "sg",
+     "coincidence",
+     "surprise"
+    ]
+   },
+   {
+    "id": "ev_picnic",
+    "fr": "propose un pique-nique au canal",
+    "en": "suggests a picnic by the canal",
+    "fr2": "proposes un pique-nique au canal",
+    "en2": "You're suggesting a picnic by the canal",
+    "tags": [
+     "sg",
+     "idea"
+    ]
+   },
+   {
+    "id": "ev_party",
+    "fr": "veut faire une fête au Mistral",
+    "en": "wants to have a party at Le Mistral",
+    "fr2": "veux faire une fête au Mistral",
+    "en2": "You want to have a party at Le Mistral",
+    "tags": [
+     "sg",
+     "idea"
+    ]
+   },
+   {
+    "id": "ev_cinema",
+    "fr": "propose d'aller au cinéma",
+    "en": "suggests going to the cinema",
+    "fr2": "proposes d'aller au cinéma",
+    "en2": "You're suggesting going to the cinema",
+    "tags": [
+     "sg",
+     "idea"
+    ]
+   },
+   {
+    "id": "ev_keys",
+    "fr": "a perdu les clés du Mistral",
+    "en": "lost the keys to Le Mistral",
+    "fr2": "as perdu les clés du Mistral",
+    "en2": "You lost the keys to Le Mistral",
+    "tags": [
+     "sg",
+     "bad_day",
+     "shame"
+    ]
+   },
+   {
+    "id": "ev_midnight",
+    "fr": "a travaillé jusqu'à minuit",
+    "en": "worked until midnight",
+    "fr2": "as travaillé jusqu'à minuit",
+    "en2": "You worked until midnight",
+    "tags": [
+     "sg",
+     "bad_day"
+    ]
+   },
+   {
+    "id": "ev_boxes",
+    "fr": "a laissé des cartons partout",
+    "en": "left boxes everywhere",
+    "fr2": "as laissé des cartons partout",
+    "en2": "You left boxes everywhere",
+    "tags": [
+     "sg",
+     "mess"
+    ]
+   },
+   {
+    "id": "ev_cups",
+    "fr": "a laissé des tasses partout",
+    "en": "left cups everywhere",
+    "fr2": "as laissé des tasses partout",
+    "en2": "You left cups everywhere",
+    "tags": [
+     "sg",
+     "mess"
+    ]
+   },
+   {
+    "id": "ev_guitar",
+    "fr": "joue de la guitare à minuit",
+    "en": "plays the guitar at midnight",
+    "fr2": "joues de la guitare à minuit",
+    "en2": "You play the guitar at midnight",
+    "tags": [
+     "sg",
+     "noise"
+    ]
+   },
+   {
+    "id": "ev_radiator",
+    "fr": "tape sur le radiateur",
+    "en": "is banging on the radiator",
+    "fr2": "tapes sur le radiateur",
+    "en2": "You're banging on the radiator",
+    "tags": [
+     "sg",
+     "noise"
+    ]
+   },
+   {
+    "id": "ev_window",
+    "fr": "a une fenêtre sur le canal",
+    "en": "has a window over the canal",
+    "fr2": "as une fenêtre sur le canal",
+    "en2": "You have a window over the canal",
+    "tags": [
+     "sg",
+     "view"
+    ]
+   },
+   {
+    "id": "ev_roof",
+    "fr": "a une terrasse sur le toit",
+    "en": "has a terrace on the roof",
+    "fr2": "as une terrasse sur le toit",
+    "en2": "You have a terrace on the roof",
+    "tags": [
+     "sg",
+     "view"
+    ]
+   },
+   {
+    "id": "ev_job",
+    "fr": "a un nouveau travail",
+    "en": "has a new job",
+    "fr2": "as un nouveau travail",
+    "en2": "You have a new job",
+    "tags": [
+     "sg",
+     "news"
+    ]
+   },
+   {
+    "id": "ev_novel",
+    "fr": "a fini le roman",
+    "en": "finished the novel",
+    "fr2": "as fini le roman",
+    "en2": "You finished the novel",
+    "tags": [
+     "sg",
+     "news"
+    ]
+   },
+   {
+    "id": "evp_flowers",
+    "fr": "a apporté des fleurs",
+    "en": "brought flowers",
+    "fr2": "as apporté des fleurs",
+    "en2": "You brought flowers",
+    "tags": [
+     "pl",
+     "flowers"
+    ]
+   },
+   {
+    "id": "evp_paintings",
+    "fr": "a peint des tableaux pour le Mistral",
+    "en": "painted pictures for Le Mistral",
+    "fr2": "as peint des tableaux pour le Mistral",
+    "en2": "You painted pictures for Le Mistral",
+    "tags": [
+     "pl",
+     "paintings"
+    ]
+   },
+   {
+    "id": "evp_crepes",
+    "fr": "a fait des crêpes",
+    "en": "made crêpes",
+    "fr2": "as fait des crêpes",
+    "en2": "You made crêpes",
+    "tags": [
+     "pl",
+     "crepes"
+    ]
+   },
+   {
+    "id": "evp_chairs",
+    "fr": "a trouvé des chaises à la brocante",
+    "en": "found chairs at the flea market",
+    "fr2": "as trouvé des chaises à la brocante",
+    "en2": "You found chairs at the flea market",
+    "tags": [
+     "pl",
+     "chairs"
+    ]
+   },
+   {
+    "id": "evp_photos",
+    "fr": "a pris des photos du canal",
+    "en": "took photos of the canal",
+    "fr2": "as pris des photos du canal",
+    "en2": "You took photos of the canal",
+    "tags": [
+     "pl",
+     "photos"
+    ]
+   }
+  ],
+  "excl_noun": [
+   {
+    "id": "ex_surprise",
+    "fr": "surprise",
+    "g": "f",
+    "en_excl": "What a surprise",
+    "kinds": [
+     "surprise"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_belle_surprise",
+    "fr": "belle surprise",
+    "g": "f",
+    "en_excl": "What a lovely surprise",
+    "kinds": [
+     "surprise"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_chance",
+    "fr": "chance",
+    "g": "f",
+    "en_excl": "What luck",
+    "kinds": [
+     "luck"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_bonne_nouvelle",
+    "fr": "bonne nouvelle",
+    "g": "f",
+    "en_excl": "What good news",
+    "kinds": [
+     "luck",
+     "news"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_dommage",
+    "fr": "dommage",
+    "g": "m",
+    "en_excl": "What a shame",
+    "kinds": [
+     "shame"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_catastrophe",
+    "fr": "catastrophe",
+    "g": "f",
+    "en_excl": "What a disaster",
+    "kinds": [
+     "shame",
+     "bad_day"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_coincidence",
+    "fr": "coïncidence",
+    "g": "f",
+    "en_excl": "What a coincidence",
+    "kinds": [
+     "coincidence"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_bonne_idee",
+    "fr": "bonne idée",
+    "g": "f",
+    "en_excl": "What a good idea",
+    "kinds": [
+     "idea"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_super_idee",
+    "fr": "idée géniale",
+    "g": "f",
+    "en_excl": "What a brilliant idea",
+    "kinds": [
+     "idea"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_journee",
+    "fr": "journée",
+    "g": "f",
+    "en_excl": "What a day",
+    "kinds": [
+     "bad_day"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_bazar",
+    "fr": "bazar",
+    "g": "m",
+    "en_excl": "What a mess",
+    "kinds": [
+     "mess"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_desordre",
+    "fr": "désordre",
+    "g": "m",
+    "en_excl": "What a mess",
+    "kinds": [
+     "mess"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_bruit",
+    "fr": "bruit",
+    "g": "m",
+    "en_excl": "What a noise",
+    "kinds": [
+     "noise"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_vacarme",
+    "fr": "vacarme",
+    "g": "m",
+    "en_excl": "What a racket",
+    "kinds": [
+     "noise"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_belle_vue",
+    "fr": "belle vue",
+    "g": "f",
+    "en_excl": "What a beautiful view",
+    "kinds": [
+     "view"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_chance_incroyable",
+    "fr": "chance incroyable",
+    "g": "f",
+    "en_excl": "What incredible luck",
+    "kinds": [
+     "luck"
+    ],
+    "tags": [
+     "sg"
+    ]
+   },
+   {
+    "id": "ex_fleurs",
+    "fr": "belles fleurs",
+    "g": "f",
+    "en_excl": "What beautiful flowers",
+    "kinds": [
+     "flowers"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_jolies_fleurs",
+    "fr": "jolies fleurs",
+    "g": "f",
+    "en_excl": "What pretty flowers",
+    "kinds": [
+     "flowers"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_tableaux",
+    "fr": "beaux tableaux",
+    "g": "m",
+    "en_excl": "What beautiful paintings",
+    "kinds": [
+     "paintings"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_couleurs",
+    "fr": "belles couleurs",
+    "g": "f",
+    "en_excl": "What beautiful colours",
+    "kinds": [
+     "paintings",
+     "photos"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_crepes",
+    "fr": "bonnes crêpes",
+    "g": "f",
+    "en_excl": "What good crêpes",
+    "kinds": [
+     "crepes"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_chaises",
+    "fr": "jolies chaises",
+    "g": "f",
+    "en_excl": "What pretty chairs",
+    "kinds": [
+     "chairs"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_photos",
+    "fr": "belles photos",
+    "g": "f",
+    "en_excl": "What beautiful photos",
+    "kinds": [
+     "photos"
+    ],
+    "tags": [
+     "pl"
+    ]
+   },
+   {
+    "id": "ex_beaux_meubles",
+    "fr": "beaux meubles",
+    "g": "m",
+    "en_excl": "What beautiful furniture",
+    "kinds": [
+     "chairs"
+    ],
+    "tags": [
+     "pl"
+    ]
+   }
+  ],
+  "excl_adj_event": [
+   {
+    "id": "eva_paint",
+    "fr": "a peint le canal au coucher du soleil",
+    "en": "painted the canal at sunset",
+    "tags": [
+     "beau"
+    ]
+   },
+   {
+    "id": "eva_sing",
+    "fr": "chante une chanson de Piaf",
+    "en": "is singing a Piaf song",
+    "tags": [
+     "beau"
+    ]
+   },
+   {
+    "id": "eva_photo",
+    "fr": "montre ses photos du canal",
+    "en": "is showing the photos of the canal",
+    "tags": [
+     "beau"
+    ]
+   },
+   {
+    "id": "eva_imitate",
+    "fr": "imite le propriétaire",
+    "en": "is imitating the landlord",
+    "tags": [
+     "drole"
+    ]
+   },
+   {
+    "id": "eva_hat",
+    "fr": "porte le chapeau de Gus",
+    "en": "is wearing Gus's hat",
+    "tags": [
+     "drole"
+    ]
+   },
+   {
+    "id": "eva_story",
+    "fr": "raconte une histoire sur le Mistral",
+    "en": "is telling a story about Le Mistral",
+    "tags": [
+     "drole"
+    ]
+   },
+   {
+    "id": "eva_tart",
+    "fr": "a fait une tarte aux pommes",
+    "en": "made an apple tart",
+    "tags": [
+     "bon"
+    ]
+   },
+   {
+    "id": "eva_soup",
+    "fr": "a préparé une soupe au fromage",
+    "en": "made a cheese soup",
+    "tags": [
+     "bon"
+    ]
+   },
+   {
+    "id": "eva_lamp",
+    "fr": "a payé deux cents euros pour une lampe",
+    "en": "paid two hundred euros for a lamp",
+    "tags": [
+     "cher"
+    ]
+   },
+   {
+    "id": "eva_rent",
+    "fr": "paie mille euros de loyer",
+    "en": "pays a thousand euros in rent",
+    "tags": [
+     "cher"
+    ]
+   },
+   {
+    "id": "eva_coffee",
+    "fr": "t'a apporté un café",
+    "en": "brought you a coffee",
+    "tags": [
+     "gentil"
+    ]
+   },
+   {
+    "id": "eva_help",
+    "fr": "t'aide à porter les cartons",
+    "en": "is helping you carry the boxes",
+    "tags": [
+     "gentil"
+    ]
+   },
+   {
+    "id": "eva_quit",
+    "fr": "quitte Paris demain",
+    "en": "is leaving Paris tomorrow",
+    "tags": [
+     "triste"
+    ]
+   },
+   {
+    "id": "eva_letters",
+    "fr": "trouve des lettres sans signature",
+    "en": "is finding letters with no signature",
+    "tags": [
+     "bizarre"
+    ]
+   },
+   {
+    "id": "eva_radiator",
+    "fr": "entend des voix dans le radiateur",
+    "en": "is hearing voices in the radiator",
+    "tags": [
+     "bizarre"
+    ]
+   }
+  ],
+  "excl_adj": [
+   {
+    "id": "exa_beau",
+    "fr": "beau",
+    "en_excl": "How beautiful",
+    "kinds": [
+     "beau"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_joli",
+    "fr": "joli",
+    "en_excl": "How pretty",
+    "kinds": [
+     "beau"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_drole",
+    "fr": "drôle",
+    "en_excl": "How funny",
+    "kinds": [
+     "drole"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_bon",
+    "fr": "bon",
+    "en_excl": "How good",
+    "kinds": [
+     "bon"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_delicieux",
+    "fr": "délicieux",
+    "en_excl": "How delicious",
+    "kinds": [
+     "bon"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_cher",
+    "fr": "cher",
+    "en_excl": "How expensive",
+    "kinds": [
+     "cher"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_gentil",
+    "fr": "gentil",
+    "en_excl": "How kind",
+    "kinds": [
+     "gentil"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_triste",
+    "fr": "triste",
+    "en_excl": "How sad",
+    "kinds": [
+     "triste"
+    ],
+    "tags": []
+   },
+   {
+    "id": "exa_bizarre",
+    "fr": "bizarre",
+    "en_excl": "How strange",
+    "kinds": [
+     "bizarre"
+    ],
+    "tags": []
+   }
+  ],
+  "er_spell": [
+   {
+    "id": "sp_manger_1p",
+    "fr": "mangeons",
+    "x": [
+     "mangons"
+    ],
+    "en": "eat",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "au Mistral",
+      "en": "at Le Mistral"
+     },
+     {
+      "fr": "à midi",
+      "en": "at noon"
+     },
+     {
+      "fr": "des crêpes",
+      "en": "crêpes"
+     },
+     {
+      "fr": "chez Lila",
+      "en": "at Lila's place"
+     },
+     {
+      "fr": "ensemble",
+      "en": "together"
+     },
+     {
+      "fr": "avec Romy",
+      "en": "with Romy"
+     }
+    ]
+   },
+   {
+    "id": "sp_voyager_1p",
+    "fr": "voyageons",
+    "x": [
+     "voyagons"
+    ],
+    "en": "travel",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "en train",
+      "en": "by train"
+     },
+     {
+      "fr": "avec Gus",
+      "en": "with Gus"
+     },
+     {
+      "fr": "beaucoup",
+      "en": "a lot"
+     },
+     {
+      "fr": "en Italie",
+      "en": "in Italy"
+     },
+     {
+      "fr": "avec Romy",
+      "en": "with Romy"
+     }
+    ]
+   },
+   {
+    "id": "sp_nager_1p",
+    "fr": "nageons",
+    "x": [
+     "nagons"
+    ],
+    "en": "swim",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "à la piscine",
+      "en": "at the pool"
+     },
+     {
+      "fr": "le dimanche",
+      "en": "on Sundays"
+     },
+     {
+      "fr": "dans la mer",
+      "en": "in the sea"
+     },
+     {
+      "fr": "avec Romy",
+      "en": "with Romy"
+     },
+     {
+      "fr": "le matin",
+      "en": "in the morning"
+     }
+    ]
+   },
+   {
+    "id": "sp_partager_1p",
+    "fr": "partageons",
+    "x": [
+     "partagons"
+    ],
+    "en": "share",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "l'appartement",
+      "en": "the flat"
+     },
+     {
+      "fr": "une pizza",
+      "en": "a pizza"
+     },
+     {
+      "fr": "un taxi",
+      "en": "a taxi"
+     },
+     {
+      "fr": "le loyer",
+      "en": "the rent"
+     },
+     {
+      "fr": "une table au Mistral",
+      "en": "a table at Le Mistral"
+     }
+    ]
+   },
+   {
+    "id": "sp_ranger_1p",
+    "fr": "rangeons",
+    "x": [
+     "rangons"
+    ],
+    "en": "tidy",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "les cartons de Gus",
+      "en": "Gus's boxes"
+     },
+     {
+      "fr": "la cuisine",
+      "en": "the kitchen"
+     },
+     {
+      "fr": "le salon",
+      "en": "the living room"
+     },
+     {
+      "fr": "les tasses du Mistral",
+      "en": "the cups at Le Mistral"
+     }
+    ]
+   },
+   {
+    "id": "sp_changer_1p",
+    "fr": "changeons",
+    "x": [
+     "changons"
+    ],
+    "en": "change",
+    "tags": [
+     "1p"
+    ],
+    "comps": [
+     {
+      "fr": "de table",
+      "en": "tables"
+     },
+     {
+      "fr": "de quartier",
+      "en": "neighbourhoods"
+     },
+     {
+      "fr": "d'avis",
+      "en": "our minds"
+     },
+     {
+      "fr": "de métro à Bastille",
+      "en": "metro lines at Bastille"
+     }
+    ]
+   },
+   {
+    "id": "sp_acheter_1s",
+    "fr": "j'achète",
+    "x": [
+     "j'achette"
+    ],
+    "en": "I'm buying",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "du pain au marché du canal",
+      "en": "bread at the canal market"
+     },
+     {
+      "fr": "des fleurs pour Lila",
+      "en": "flowers for Lila"
+     },
+     {
+      "fr": "un billet pour Lyon",
+      "en": "a ticket for Lyon"
+     },
+     {
+      "fr": "le journal",
+      "en": "the newspaper"
+     },
+     {
+      "fr": "une lampe à la brocante",
+      "en": "a lamp at the flea market"
+     }
+    ]
+   },
+   {
+    "id": "sp_appeler_1s",
+    "fr": "j'appelle",
+    "x": [
+     "j'appele"
+    ],
+    "en": "I'm calling",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "Marin",
+      "en": "Marin"
+     },
+     {
+      "fr": "le propriétaire",
+      "en": "the landlord"
+     },
+     {
+      "fr": "un taxi",
+      "en": "a taxi"
+     },
+     {
+      "fr": "la banque",
+      "en": "the bank"
+     },
+     {
+      "fr": "Romy",
+      "en": "Romy"
+     }
+    ]
+   },
+   {
+    "id": "sp_jeter_1s",
+    "fr": "je jette",
+    "x": [
+     "je jete"
+    ],
+    "en": "I'm throwing away",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "les vieux journaux",
+      "en": "the old newspapers"
+     },
+     {
+      "fr": "les cartons",
+      "en": "the boxes"
+     },
+     {
+      "fr": "le vieux tapis",
+      "en": "the old rug"
+     },
+     {
+      "fr": "les fleurs fanées",
+      "en": "the dead flowers"
+     }
+    ]
+   },
+   {
+    "id": "sp_envoyer_1s",
+    "fr": "j'envoie",
+    "x": [
+     "j'envoye"
+    ],
+    "en": "I'm sending",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "un message à Romy",
+      "en": "a message to Romy"
+     },
+     {
+      "fr": "une lettre au propriétaire",
+      "en": "a letter to the landlord"
+     },
+     {
+      "fr": "des photos à Lila",
+      "en": "photos to Lila"
+     },
+     {
+      "fr": "un e-mail à Gus",
+      "en": "an email to Gus"
+     }
+    ]
+   },
+   {
+    "id": "sp_nettoyer_1s",
+    "fr": "je nettoie",
+    "x": [
+     "je nettoye"
+    ],
+    "en": "I'm cleaning",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "la cuisine",
+      "en": "the kitchen"
+     },
+     {
+      "fr": "le salon",
+      "en": "the living room"
+     },
+     {
+      "fr": "les tasses du Mistral",
+      "en": "the cups from Le Mistral"
+     },
+     {
+      "fr": "le radiateur",
+      "en": "the radiator"
+     }
+    ]
+   },
+   {
+    "id": "sp_s_ennuyer_1s",
+    "fr": "je m'ennuie",
+    "x": [
+     "je m'ennuye"
+    ],
+    "en": "I get bored",
+    "tags": [
+     "1s"
+    ],
+    "comps": [
+     {
+      "fr": "au bureau",
+      "en": "at the office"
+     },
+     {
+      "fr": "sans Lila",
+      "en": "without Lila"
+     },
+     {
+      "fr": "le dimanche",
+      "en": "on Sundays"
+     },
+     {
+      "fr": "à la réunion",
+      "en": "at the meeting"
+     }
+    ]
+   },
+   {
+    "id": "sp_acheter_3s",
+    "fr": "achète",
+    "x": [
+     "achette"
+    ],
+    "en": "is buying",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "du pain au marché du canal",
+      "en": "bread at the canal market"
+     },
+     {
+      "fr": "des fleurs pour Lila",
+      "en": "flowers for Lila"
+     },
+     {
+      "fr": "un billet pour Lyon",
+      "en": "a ticket for Lyon"
+     },
+     {
+      "fr": "le journal",
+      "en": "the newspaper"
+     },
+     {
+      "fr": "une lampe à la brocante",
+      "en": "a lamp at the flea market"
+     }
+    ]
+   },
+   {
+    "id": "sp_appeler_3s",
+    "fr": "appelle",
+    "x": [
+     "appele"
+    ],
+    "en": "is calling",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "Marin",
+      "en": "Marin"
+     },
+     {
+      "fr": "le propriétaire",
+      "en": "the landlord"
+     },
+     {
+      "fr": "un taxi",
+      "en": "a taxi"
+     },
+     {
+      "fr": "la banque",
+      "en": "the bank"
+     },
+     {
+      "fr": "Romy",
+      "en": "Romy"
+     }
+    ]
+   },
+   {
+    "id": "sp_jeter_3s",
+    "fr": "jette",
+    "x": [
+     "jete"
+    ],
+    "en": "is throwing away",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "les vieux journaux",
+      "en": "the old newspapers"
+     },
+     {
+      "fr": "les cartons",
+      "en": "the boxes"
+     },
+     {
+      "fr": "le vieux tapis",
+      "en": "the old rug"
+     },
+     {
+      "fr": "les fleurs fanées",
+      "en": "the dead flowers"
+     }
+    ]
+   },
+   {
+    "id": "sp_envoyer_3s",
+    "fr": "envoie",
+    "x": [
+     "envoye"
+    ],
+    "en": "is sending",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "un message à Romy",
+      "en": "a message to Romy"
+     },
+     {
+      "fr": "une lettre au propriétaire",
+      "en": "a letter to the landlord"
+     },
+     {
+      "fr": "des photos à Lila",
+      "en": "photos to Lila"
+     },
+     {
+      "fr": "un e-mail à Gus",
+      "en": "an email to Gus"
+     }
+    ]
+   },
+   {
+    "id": "sp_nettoyer_3s",
+    "fr": "nettoie",
+    "x": [
+     "nettoye"
+    ],
+    "en": "is cleaning",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "la cuisine",
+      "en": "the kitchen"
+     },
+     {
+      "fr": "le salon",
+      "en": "the living room"
+     },
+     {
+      "fr": "les tasses du Mistral",
+      "en": "the cups from Le Mistral"
+     },
+     {
+      "fr": "le radiateur",
+      "en": "the radiator"
+     }
+    ]
+   },
+   {
+    "id": "sp_s_ennuyer_3s",
+    "fr": "s'ennuie",
+    "x": [
+     "s'ennuye"
+    ],
+    "en": "gets bored",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "au bureau",
+      "en": "at the office"
+     },
+     {
+      "fr": "sans Lila",
+      "en": "without Lila"
+     },
+     {
+      "fr": "le dimanche",
+      "en": "on Sundays"
+     },
+     {
+      "fr": "à la réunion",
+      "en": "at the meeting"
+     }
+    ]
+   },
+   {
+    "id": "sp_essuyer_3s",
+    "fr": "essuie",
+    "x": [
+     "essuye"
+    ],
+    "en": "is wiping",
+    "tags": [
+     "3s"
+    ],
+    "comps": [
+     {
+      "fr": "les tables du Mistral",
+      "en": "the tables at Le Mistral"
+     },
+     {
+      "fr": "les verres",
+      "en": "the glasses"
+     },
+     {
+      "fr": "le comptoir",
+      "en": "the counter"
+     }
+    ]
+   },
+   {
+    "id": "sp_acheter_3p",
+    "fr": "achètent",
+    "x": [
+     "achettent"
+    ],
+    "en": "are buying",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "du pain au marché du canal",
+      "en": "bread at the canal market"
+     },
+     {
+      "fr": "des fleurs pour Lila",
+      "en": "flowers for Lila"
+     },
+     {
+      "fr": "un billet pour Lyon",
+      "en": "a ticket for Lyon"
+     },
+     {
+      "fr": "le journal",
+      "en": "the newspaper"
+     },
+     {
+      "fr": "une lampe à la brocante",
+      "en": "a lamp at the flea market"
+     }
+    ]
+   },
+   {
+    "id": "sp_appeler_3p",
+    "fr": "appellent",
+    "x": [
+     "appelent"
+    ],
+    "en": "are calling",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "Marin",
+      "en": "Marin"
+     },
+     {
+      "fr": "le propriétaire",
+      "en": "the landlord"
+     },
+     {
+      "fr": "un taxi",
+      "en": "a taxi"
+     },
+     {
+      "fr": "la banque",
+      "en": "the bank"
+     },
+     {
+      "fr": "Romy",
+      "en": "Romy"
+     }
+    ]
+   },
+   {
+    "id": "sp_jeter_3p",
+    "fr": "jettent",
+    "x": [
+     "jetent"
+    ],
+    "en": "are throwing away",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "les vieux journaux",
+      "en": "the old newspapers"
+     },
+     {
+      "fr": "les cartons",
+      "en": "the boxes"
+     },
+     {
+      "fr": "le vieux tapis",
+      "en": "the old rug"
+     },
+     {
+      "fr": "les fleurs fanées",
+      "en": "the dead flowers"
+     }
+    ]
+   },
+   {
+    "id": "sp_envoyer_3p",
+    "fr": "envoient",
+    "x": [
+     "envoyent"
+    ],
+    "en": "are sending",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "un message à Romy",
+      "en": "a message to Romy"
+     },
+     {
+      "fr": "une lettre au propriétaire",
+      "en": "a letter to the landlord"
+     },
+     {
+      "fr": "des photos à Lila",
+      "en": "photos to Lila"
+     },
+     {
+      "fr": "un e-mail à Gus",
+      "en": "an email to Gus"
+     }
+    ]
+   },
+   {
+    "id": "sp_nettoyer_3p",
+    "fr": "nettoient",
+    "x": [
+     "nettoyent"
+    ],
+    "en": "are cleaning",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "la cuisine",
+      "en": "the kitchen"
+     },
+     {
+      "fr": "le salon",
+      "en": "the living room"
+     },
+     {
+      "fr": "les tasses du Mistral",
+      "en": "the cups from Le Mistral"
+     },
+     {
+      "fr": "le radiateur",
+      "en": "the radiator"
+     }
+    ]
+   },
+   {
+    "id": "sp_s_ennuyer_3p",
+    "fr": "s'ennuient",
+    "x": [
+     "s'ennuyent"
+    ],
+    "en": "get bored",
+    "tags": [
+     "3p"
+    ],
+    "comps": [
+     {
+      "fr": "au bureau",
+      "en": "at the office"
+     },
+     {
+      "fr": "sans Lila",
+      "en": "without Lila"
+     },
+     {
+      "fr": "le dimanche",
+      "en": "on Sundays"
+     },
+     {
+      "fr": "à la réunion",
+      "en": "at the meeting"
+     }
+    ]
+   }
+  ],
+  "conn_obj": [
+   {
+    "id": "co_0",
+    "fr": "Margaux",
+    "en": "Margaux",
+    "tags": []
+   },
+   {
+    "id": "co_1",
+    "fr": "Marin",
+    "en": "Marin",
+    "tags": []
+   },
+   {
+    "id": "co_2",
+    "fr": "le quartier",
+    "en": "the neighbourhood",
+    "tags": []
+   },
+   {
+    "id": "co_3",
+    "fr": "un bon restaurant près d'ici",
+    "en": "a good restaurant near here",
+    "tags": []
+   },
+   {
+    "id": "co_4",
+    "fr": "le propriétaire",
+    "en": "the landlord",
+    "tags": []
+   },
+   {
+    "id": "co_5",
+    "fr": "cette chanson",
+    "en": "this song",
+    "tags": []
+   },
+   {
+    "id": "co_6",
+    "fr": "le marché du canal",
+    "en": "the canal market",
+    "tags": []
+   },
+   {
+    "id": "co_7",
+    "fr": "Lyon",
+    "en": "Lyon",
+    "tags": []
+   },
+   {
+    "id": "co_8",
+    "fr": "les amis de Romy",
+    "en": "Romy's friends",
+    "tags": []
+   },
+   {
+    "id": "co_9",
+    "fr": "le frère de Gus",
+    "en": "Gus's brother",
+    "tags": []
+   },
+   {
+    "id": "co_10",
+    "fr": "la brocante du dimanche",
+    "en": "the Sunday flea market",
+    "tags": []
+   },
+   {
+    "id": "co_11",
+    "fr": "un bon médecin",
+    "en": "a good doctor",
+    "tags": []
+   },
+   {
+    "id": "co_12",
+    "fr": "tous les cafés du quartier",
+    "en": "all the cafés in the neighbourhood",
+    "tags": []
+   },
+   {
+    "id": "co_13",
+    "fr": "le roman de Marin",
+    "en": "Marin's novel",
+    "tags": []
+   }
+  ],
+  "know_clause": [
+   {
+    "id": "kc_0",
+    "fr": "où habite Lila",
+    "en": "where Lila lives",
+    "tags": []
+   },
+   {
+    "id": "kc_1",
+    "fr": "si Gus vient ce soir",
+    "en": "if Gus is coming tonight",
+    "tags": []
+   },
+   {
+    "id": "kc_2",
+    "fr": "que Romy est journaliste",
+    "en": "that Romy is a journalist",
+    "tags": [
+     "that"
+    ]
+   },
+   {
+    "id": "kc_3",
+    "fr": "comment aller au canal",
+    "en": "how to get to the canal",
+    "tags": []
+   },
+   {
+    "id": "kc_4",
+    "fr": "pourquoi Marin est en retard",
+    "en": "why Marin is late",
+    "tags": []
+   },
+   {
+    "id": "kc_5",
+    "fr": "quand le marché du canal ouvre",
+    "en": "when the canal market opens",
+    "tags": []
+   },
+   {
+    "id": "kc_6",
+    "fr": "qui a pris la bague",
+    "en": "who took the ring",
+    "tags": []
+   },
+   {
+    "id": "kc_7",
+    "fr": "combien coûte le billet",
+    "en": "how much the ticket costs",
+    "tags": []
+   },
+   {
+    "id": "kc_8",
+    "fr": "où sont les clés",
+    "en": "where the keys are",
+    "tags": []
+   },
+   {
+    "id": "kc_9",
+    "fr": "comment s'appelle le voisin",
+    "en": "what the neighbour is called",
+    "tags": []
+   },
+   {
+    "id": "kc_10",
+    "fr": "que le Mistral ferme à minuit",
+    "en": "that Le Mistral closes at midnight",
+    "tags": [
+     "that"
+    ]
+   },
+   {
+    "id": "kc_11",
+    "fr": "si Margaux travaille demain",
+    "en": "if Margaux is working tomorrow",
+    "tags": []
+   },
+   {
+    "id": "kc_12",
+    "fr": "qui habite au troisième étage",
+    "en": "who lives on the third floor",
+    "tags": []
+   },
+   {
+    "id": "kc_13",
+    "fr": "pourquoi le radiateur fait du bruit",
+    "en": "why the radiator is making noise",
+    "tags": []
+   }
+  ],
+  "skill": [
+   {
+    "id": "sk_0",
+    "fr": "nager",
+    "en": "swim",
+    "tags": []
+   },
+   {
+    "id": "sk_1",
+    "fr": "conduire",
+    "en": "drive",
+    "tags": []
+   },
+   {
+    "id": "sk_2",
+    "fr": "cuisiner",
+    "en": "cook",
+    "tags": []
+   },
+   {
+    "id": "sk_3",
+    "fr": "jouer de la guitare",
+    "en": "play the guitar",
+    "tags": []
+   },
+   {
+    "id": "sk_4",
+    "fr": "parler italien",
+    "en": "speak Italian",
+    "tags": []
+   },
+   {
+    "id": "sk_5",
+    "fr": "faire du vélo",
+    "en": "ride a bike",
+    "tags": []
+   },
+   {
+    "id": "sk_6",
+    "fr": "lire une carte",
+    "en": "read a map",
+    "tags": []
+   },
+   {
+    "id": "sk_7",
+    "fr": "danser le tango",
+    "en": "dance the tango",
+    "tags": []
+   },
+   {
+    "id": "sk_8",
+    "fr": "réparer un vélo",
+    "en": "fix a bike",
+    "tags": []
+   }
+  ],
+  "peur_of": [
+   {
+    "id": "po_0",
+    "fr": "du chien",
+    "en": "of the dog",
+    "tags": []
+   },
+   {
+    "id": "po_1",
+    "fr": "du noir",
+    "en": "of the dark",
+    "tags": []
+   },
+   {
+    "id": "po_2",
+    "fr": "du propriétaire",
+    "en": "of the landlord",
+    "tags": []
+   },
+   {
+    "id": "po_3",
+    "fr": "de l'examen",
+    "en": "of the exam",
+    "tags": []
+   },
+   {
+    "id": "po_4",
+    "fr": "des voisins",
+    "en": "of the neighbours",
+    "tags": []
+   },
+   {
+    "id": "po_5",
+    "fr": "de Gus",
+    "en": "of Gus",
+    "tags": []
+   },
+   {
+    "id": "po_6",
+    "fr": "de l'orage",
+    "en": "of the storm",
+    "tags": []
+   },
+   {
+    "id": "po_7",
+    "fr": "du radiateur",
+    "en": "of the radiator",
+    "tags": []
+   },
+   {
+    "id": "po_8",
+    "fr": "de la réunion",
+    "en": "of the meeting",
+    "tags": []
+   }
+  ],
+  "imp_soyez": [
+   {
+    "id": "sy_0",
+    "fr": "à l'heure au Mistral",
+    "en": "on time at Le Mistral",
+    "tags": []
+   },
+   {
+    "id": "sy_1",
+    "fr": "au marché du canal à huit heures",
+    "en": "at the canal market at eight",
+    "tags": []
+   },
+   {
+    "id": "sy_2",
+    "fr": "devant l'immeuble à midi",
+    "en": "in front of the building at noon",
+    "tags": []
+   },
+   {
+    "id": "sy_3",
+    "fr": "à la gare à neuf heures",
+    "en": "at the station at nine",
+    "tags": []
+   },
+   {
+    "id": "sy_4",
+    "fr": "prêts à sept heures",
+    "en": "ready at seven",
+    "tags": []
+   },
+   {
+    "id": "sy_5",
+    "fr": "à la rédaction à dix heures",
+    "en": "at the newsroom at ten",
+    "tags": []
+   }
+  ],
+  "imp_ayez": [
+   {
+    "id": "ay_0",
+    "fr": "votre billet à la main",
+    "en": "your ticket in your hand",
+    "tags": []
+   },
+   {
+    "id": "ay_1",
+    "fr": "un peu de patience",
+    "en": "a little patience",
+    "tags": []
+   },
+   {
+    "id": "ay_2",
+    "fr": "vos clés sur vous",
+    "en": "your keys on you",
+    "tags": []
+   },
+   {
+    "id": "ay_3",
+    "fr": "votre carte avec vous",
+    "en": "your card with you",
+    "tags": []
+   }
+  ],
+  "imp_sache": [
+   {
+    "id": "sa_0",
+    "fr": "je suis là pour toi",
+    "en": "I'm here for you",
+    "tags": []
+   },
+   {
+    "id": "sa_1",
+    "fr": "la porte reste ouverte",
+    "en": "the door stays open",
+    "tags": []
+   },
+   {
+    "id": "sa_2",
+    "fr": "le Mistral ferme à minuit",
+    "en": "Le Mistral closes at midnight",
+    "tags": []
+   },
+   {
+    "id": "sa_3",
+    "fr": "tout le monde t'attend",
+    "en": "everyone is waiting for you",
+    "tags": []
+   },
+   {
+    "id": "sa_4",
+    "fr": "Gus a tout entendu",
+    "en": "Gus heard everything",
+    "tags": []
+   },
+   {
+    "id": "sa_5",
+    "fr": "Romy écrit un article sur nous",
+    "en": "Romy is writing an article about us",
+    "tags": []
+   }
+  ],
+  "notice": [
+   {
+    "id": "nt_0",
+    "fr": "Note de M. Marchand",
+    "en": "Note from Mr Marchand",
+    "tags": [
+     "building"
+    ]
+   },
+   {
+    "id": "nt_1",
+    "fr": "Panneau dans l'escalier",
+    "en": "Sign on the stairs",
+    "tags": [
+     "building"
+    ]
+   },
+   {
+    "id": "nt_2",
+    "fr": "Affiche au Mistral",
+    "en": "Notice at Le Mistral",
+    "tags": [
+     "cafe"
+    ]
+   },
+   {
+    "id": "nt_3",
+    "fr": "Ardoise au Mistral",
+    "en": "Board at Le Mistral",
+    "tags": [
+     "cafe"
+    ]
+   },
+   {
+    "id": "nt_4",
+    "fr": "Mail de la rédaction",
+    "en": "Email from the newsroom",
+    "tags": [
+     "office"
+    ]
+   },
+   {
+    "id": "nt_5",
+    "fr": "Pancarte au marché du canal",
+    "en": "Sign at the canal market",
+    "tags": [
+     "market"
+    ]
+   }
+  ],
+  "imp_veuillez": [
+   {
+    "id": "vz_0",
+    "fr": "fermer la porte de l'immeuble",
+    "en": "close the building door",
+    "kinds": [
+     "building"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_1",
+    "fr": "ne pas laisser les vélos dans l'entrée",
+    "en": "do not leave bikes in the hall",
+    "kinds": [
+     "building"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_2",
+    "fr": "payer le loyer avant le cinq",
+    "en": "pay the rent before the fifth",
+    "kinds": [
+     "building"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_3",
+    "fr": "sortir les poubelles le mardi",
+    "en": "put the bins out on Tuesdays",
+    "kinds": [
+     "building"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_4",
+    "fr": "parler moins fort après minuit",
+    "en": "speak more quietly after midnight",
+    "kinds": [
+     "building",
+     "cafe"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_5",
+    "fr": "patienter",
+    "en": "wait",
+    "kinds": [
+     "cafe",
+     "market",
+     "office"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_6",
+    "fr": "commander au comptoir",
+    "en": "order at the counter",
+    "kinds": [
+     "cafe"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_7",
+    "fr": "rendre les tasses au comptoir",
+    "en": "return the cups to the counter",
+    "kinds": [
+     "cafe"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_8",
+    "fr": "payer en espèces",
+    "en": "pay in cash",
+    "kinds": [
+     "cafe",
+     "market"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_9",
+    "fr": "envoyer les articles avant midi",
+    "en": "send the articles before noon",
+    "kinds": [
+     "office"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_10",
+    "fr": "garder le silence en réunion",
+    "en": "keep quiet in meetings",
+    "kinds": [
+     "office"
+    ],
+    "tags": []
+   },
+   {
+    "id": "vz_11",
+    "fr": "ne pas toucher les fruits",
+    "en": "do not touch the fruit",
+    "kinds": [
+     "market"
+    ],
+    "tags": []
+   }
+  ],
+  "cond_ctx": [
+   {
+    "id": "cc_ideal",
+    "fr": "Dans un monde idéal",
+    "en": "In an ideal world",
+    "tags": []
+   },
+   {
+    "id": "cc_million",
+    "fr": "Avec un million d'euros",
+    "en": "With a million euros",
+    "tags": []
+   },
+   {
+    "id": "cc_life",
+    "fr": "Dans une autre vie",
+    "en": "In another life",
+    "tags": []
+   },
+   {
+    "id": "cc_nowork",
+    "fr": "Sans ce travail",
+    "en": "Without this job",
+    "tags": []
+   },
+   {
+    "id": "cc_dream",
+    "fr": "Dans mes rêves",
+    "en": "In my dreams",
+    "tags": [
+     "1s"
+    ]
+   },
+   {
+    "id": "cc_possible",
+    "fr": "Si c'était possible",
+    "en": "If it were possible",
     "tags": []
    }
   ]

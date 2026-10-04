@@ -508,7 +508,7 @@ def test_golden_path_writes_real_learning_evidence_and_agrees_with_itself(
     email = f"wp12-golden-{uuid.uuid4().hex[:8]}@example.com"
     headers = register(assembled_client, email)
     user_id = learner_id(db_session, email)
-    seed_due_vocabulary(db_session, user_id, CAFE_WORDS)
+    seeded = seed_due_vocabulary(db_session, user_id, CAFE_WORDS)
 
     driver = Driver(assembled_client, headers, db=db_session)
 
@@ -553,18 +553,29 @@ def test_golden_path_writes_real_learning_evidence_and_agrees_with_itself(
     # SRS moved only for what was practised.
     practised = {p["target"]["label_fr"] for p in recap["practiced_targets"]}
     assert practised, "the recap must name what was practised"
-    rows = {
-        row.word: progress
-        for progress, row in db_session.query(UserVocabularyProgress, VocabularyWord)
+    # By catalogue id, not by spelling: the catalogue is shared by the whole run and
+    # another suite may have added its own «bonjour». The reply then credits that
+    # row (a new progress, reps 1) beside the seeded one, and a dict keyed on the
+    # word kept whichever came last — the test failed in some orders only.
+    practised_ids = {
+        str(p["target"]["id"])
+        for p in recap["practiced_targets"]
+        if p["target"].get("kind") == "vocabulary"
+    }
+    seeded_ids = {row.id for row in seeded}
+    rows = (
+        db_session.query(UserVocabularyProgress, VocabularyWord)
         .join(VocabularyWord, UserVocabularyProgress.word_id == VocabularyWord.id)
         .filter(UserVocabularyProgress.user_id == user_id)
         .all()
-    }
-    for word, progress in rows.items():
-        if word in practised:
-            assert progress.reps > 2, f"{word} was practised but its schedule did not move"
+    )
+    for progress, row in rows:
+        if row.id not in seeded_ids:
+            assert str(row.id) in practised_ids, f"{row.word} was credited but is not in the recap"
+        elif str(row.id) in practised_ids:
+            assert progress.reps > 2, f"{row.word} was practised but its schedule did not move"
         else:
-            assert progress.reps == 2, f"{word} was omitted and must stay exactly as due"
+            assert progress.reps == 2, f"{row.word} was omitted and must stay exactly as due"
 
     # The journey's LearningSession closes only on an honest complete.
     session_row = (
@@ -1314,6 +1325,14 @@ def test_an_unfinished_legacy_session_is_offered_and_never_converted(
 def test_an_empty_queue_still_produces_a_real_day_and_real_evidence(
     assembled_client: TestClient, journey_enabled: None, clock: Clock, db_session: Session
 ) -> None:
+    # The premise is an empty catalogue: no word the reply could touch is tracked.
+    # The run shares one database, and a «bonjour» another suite left behind was
+    # credited from «Bonjour, je voudrais…» (practiced_targets == [bonjour]) in
+    # some orders. The catalogue is emptied here, as the `french_vocabulary`
+    # fixture does on teardown.
+    db_session.query(UserVocabularyProgress).delete()
+    db_session.query(VocabularyWord).delete()
+    db_session.commit()
     email = f"wp12-empty-{uuid.uuid4().hex[:8]}@example.com"
     headers = register(assembled_client, email)
 

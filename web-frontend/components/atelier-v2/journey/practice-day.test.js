@@ -393,3 +393,37 @@ test('«Qui a dit ça ?» renders the line and one face per card', () => {
     ['lila_bonnet', 'romy_tremblay', 'marin_leveque'],
   );
 });
+
+// QA-PRACTICE (owner, 2026-10-03): a wrong unscramble said «Noch nicht» and no
+// more. The server now sends the correction (the words placed → the sentence,
+// and where it went wrong); the verdict band shows it like any other item's.
+test('a wrong unscramble shows the right order and what went wrong', () => {
+  const DE = journeyCopy('de');
+  const html = renderToStaticMarkup(
+    React.createElement(steps.JourneyFeedbackView, {
+      feedback: {
+        kind: 'graded',
+        verdict: 'wrong',
+        result: {
+          task_outcome: 'not_yet',
+          assistance_level: 'none',
+          correction: {
+            span_fr: "d'Odile, L'appartement pour Solvel ? C'est vrai ?",
+            corrected_fr: "L'appartement d'Odile, pour Solvel ? C'est vrai ?",
+            note_native: 'Der Satz beginnt nicht mit „d’Odile,“. Oben steht die richtige Reihenfolge.',
+            notes_native: ['Der Satz beginnt nicht mit „d’Odile,“. Oben steht die richtige Reihenfolge.'],
+          },
+        },
+        replySource: 'unknown',
+      },
+      copy: DE,
+      onContinue() {},
+      onRetry() {},
+      onDismiss() {},
+      stepKind: 'recall',
+    }),
+  );
+  assert.ok(html.includes(DE.wrong), 'the verdict is still «Noch nicht»');
+  assert.ok(html.includes('L&#x27;appartement d&#x27;Odile, pour Solvel ? C&#x27;est vrai ?'), 'the right order is shown');
+  assert.ok(html.includes('Der Satz beginnt nicht mit'), 'and what went wrong');
+});

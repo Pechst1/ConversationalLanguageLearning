@@ -62,6 +62,9 @@ minversion = "7.0"
 # "N passed, M failed" line — a run then gave no count at all.
 addopts = "-ra"
 testpaths = ["tests"]
+markers = [
+    "walk: the long learner walk (tests/test_learner_walk.py); runs only with `-m walk` or WALK=1",
+]
 
 [tool.ruff]
 line-length = 100

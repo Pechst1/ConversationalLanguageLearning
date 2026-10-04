@@ -293,7 +293,12 @@ export default function JournalTab() {
               <p className="jn-hint">{t.hint}</p>
             </Surface>
             <p className="jn-count" aria-live="polite">
-              {fill(t.word_count, { n: wordCount(draft), min: minWords })}
+              {fill(
+                wordCount(draft) === 1 || (wordCount(draft) === 0 && t.word_count_zero_singular)
+                  ? t.word_count_one
+                  : t.word_count,
+                { n: wordCount(draft), min: minWords },
+              )}
             </p>
           </section>
           {/* The screen foot. Last in the flow, so the action is never under the

@@ -15,6 +15,11 @@ export interface AnkiReviewResponse {
   interval_days?: number | null;
   due_at?: string | null;
   next_review?: string | null;
+  /** QA-CLOSE: the server's verdict on `answer_text` (null for a self-rated card). */
+  correct?: boolean | null;
+  expected?: string | null;
+  /** One short line in the learner's language: a forgiven slip, or why a near miss failed. */
+  note_native?: string | null;
 }
 
 export type AnyReviewResponse = ReviewResponse | AnkiReviewResponse;

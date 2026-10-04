@@ -368,14 +368,26 @@ def submit_anki_review(
             db.add(progress)
             db.flush([progress])
 
-        from app.services.vocab_fsrs import earned_rating
+        from app.services.chrome_language import user_chrome_language
+        from app.services.vocab_fsrs import earned_rating, grade_card_answer
 
+        # QA-CLOSE (owner decision a): an answered card is graded here, from the
+        # text — the client's ``correct`` is never trusted. Without ``answer_text``
+        # the review is a self-rated flashcard (an honest rating by design).
+        verdict = note_native = None
+        review_format = payload.format or "flashcard"
+        if review_format != "flashcard" and str(payload.answer_text or "").strip():
+            verdict, note_native = grade_card_answer(
+                word, payload.answer_text, str(user_chrome_language(current_user))
+            )
+        elif review_format != "flashcard":
+            review_format = "flashcard"
         # WP-115a: an answered card earns its grade; a self-rated flashcard (and an
         # imported Anki deck, which keeps SM-2 and self-rating) keeps the button.
         rating = (
             payload.rating
             if progress.scheduler == "anki"
-            else earned_rating(payload.format, payload.correct, payload.rating)
+            else earned_rating(review_format, verdict.correct if verdict is not None else None, payload.rating)
         )
         srs = EnhancedSRSService(db)
         srs.process_review(
@@ -383,7 +395,7 @@ def submit_anki_review(
             rating=rating,
             response_time_ms=payload.response_time_ms,
             source="drill",
-            review_format=payload.format or "flashcard",
+            review_format=review_format,
             direction=payload.direction,
         )
         DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
@@ -398,6 +410,9 @@ def submit_anki_review(
             interval_days=getattr(progress, "interval_days", None),
             due_at=progress.due_at.isoformat() if getattr(progress, "due_at", None) else None,
             next_review=progress.next_review_date.isoformat() if getattr(progress, "next_review_date", None) else None,
+            correct=verdict.correct if verdict is not None else None,
+            expected=verdict.expected if verdict is not None else None,
+            note_native=note_native,
         )
     except HTTPException:
         raise

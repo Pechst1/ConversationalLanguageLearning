@@ -54,7 +54,8 @@ def test_the_drill_grades_a_typed_answer_and_logs_what_the_review_was(client: Te
     response = client.post(
         "/api/v1/anki/review",
         headers=headers,
-        json={"word_id": word.id, "rating": 3, "format": "typed", "correct": True, "direction": "native_to_fr"},
+        # QA-CLOSE: the server grades the typed text; ``correct`` is no longer trusted.
+        json={"word_id": word.id, "rating": 3, "format": "typed", "answer_text": "la clé", "direction": "native_to_fr"},
     )
     assert response.status_code == 200, response.text
     db_session.expire_all()

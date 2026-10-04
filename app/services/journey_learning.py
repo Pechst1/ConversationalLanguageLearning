@@ -33,7 +33,6 @@ evidence only — it never credits a schedule, a lapse or a vocabulary word.
 """
 from __future__ import annotations
 
-import difflib
 import hashlib
 import re
 import unicodedata
@@ -80,8 +79,10 @@ from app.services.journey_contracts import (
     TargetObservation,
     TargetRef,
     TaskOutcome,
+    article_optional,
     evidence_source_key,
     normalize_answer_text,
+    split_article,
     strongest_assistance,
 )
 from app.services.unified_srs import DueLearningItem, ItemType, UnifiedSRSService
@@ -273,9 +274,11 @@ def fold_for_comparison(value: str | None) -> str:
     provider invents, which must never turn a correct answer into a mistake.
     """
 
-    text = normalize_answer_text(value).lower()
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(char for char in text if not unicodedata.combining(char))
+    from app.services.answer_acceptance import fold_all
+
+    # EXERCISE-QA: «œ»/«æ» are spelled out first («sœur» = «soeur»); the old
+    # fold dropped them, so a German keyboard's «soeur» was graded wrong.
+    text = fold_all(normalize_answer_text(value))
     text = re.sub(r"[^0-9a-z\s]+", " ", text)
     return " ".join(text.split())
 
@@ -297,14 +300,51 @@ def _contains_run(haystack: list[str], needle: list[str]) -> bool:
     return False
 
 
-def answer_matches(answer: str | None, accepted: Iterable[str | None]) -> bool:
+#: An answer may hold the accepted one inside a short frame («c'est un
+#: appartement», «Bonjour, un café, s'il vous plaît, merci»): at most this many
+#: extra words, or as many as the answer itself has. «euh je ne sais pas» is not
+#: an answer of «pas» (the learner walk found it graded right).
+CONTAINED_ANSWER_PADDING = 2
+
+
+def _recall_accent_policy(db: Session | None, task: RecallTask) -> str:
+    """QA-CLOSE (owner decision c): accents are strict on a spelling unit's items
+    (``FR2_A12_ER_SPELLING``) and on an item whose source or options differ from
+    the key by accents alone; lenient-but-named everywhere else."""
+
+    from app.services.answer_acceptance import accent_policy
+
+    unit = None
+    if db is not None and task.target.kind == TargetKind.GRAMMAR and str(task.target.id).isdigit():
+        try:
+            from app.db.models.grammar import GrammarConcept
+
+            concept = db.get(GrammarConcept, int(task.target.id))
+            unit = getattr(concept, "external_id", None)
+        except Exception:  # noqa: BLE001 - a policy lookup never fails a grade
+            unit = None
+    keys = _accepted_answers(task)
+    others = [task.source_fr, *(str(option.get("text") or option.get("label_fr") or "") for option in task.options or [])]
+    return accent_policy(unit=unit, target=keys[0] if keys else None, others=[o for o in others if o])
+
+
+def answer_matches(
+    answer: str | None,
+    accepted: Iterable[str | None],
+    *,
+    accents: str = "lenient",
+    within_reply: bool = False,
+) -> bool:
     """Is this a reasonable rendering of one of the accepted answers?
 
-    Exact string comparison is not the test: correct but differently worded
-    French must not be penalised. An answer counts when it folds to an accepted
-    answer, contains it as a contiguous run of words, or is within a single
-    typo of it.
+    EXERCISE-QA: the one acceptance contract (``answer_acceptance.judge``) —
+    typography never counts, an accent slip is forgiven unless the accent is
+    grammar (a/à, ou/où, a final «-é»), one typo is forgiven unless it makes
+    another form («parle/parles», «du/de» never pass). A word or short phrase
+    also counts when the answer holds it as a run of words.
     """
+
+    from app.services.answer_acceptance import judge
 
     folded = fold_for_comparison(answer)
     if not folded:
@@ -314,14 +354,32 @@ def answer_matches(answer: str | None, accepted: Iterable[str | None]) -> bool:
         target = fold_for_comparison(candidate)
         if not target:
             continue
-        if folded == target:
+        if judge(answer, [candidate], accents=accents).correct:
             return True
         target_tokens = target.split()
-        if _contains_run(answer_tokens, target_tokens):
-            return True
-        if len(target) >= 6 and difflib.SequenceMatcher(None, folded, target).ratio() >= 0.92:
-            return True
+        # A recall answer may frame the key in a few words; a free reply
+        # (``within_reply``: a target used in the learner's own sentence) may be
+        # any length — «Un café en terrasse, s'il vous plaît» uses «en terrasse».
+        short_enough = within_reply or len(answer_tokens) <= len(target_tokens) + max(
+            CONTAINED_ANSWER_PADDING, len(target_tokens)
+        )
+        if short_enough and _contains_run(answer_tokens, target_tokens):
+            if judge(" ".join(_original_run(answer, len(target_tokens), target_tokens)), [candidate], accents=accents).correct:
+                return True
     return False
+
+
+def _original_run(answer: str | None, length: int, target_tokens: list[str]) -> list[str]:
+    """The learner's own words (accents as typed) that fold to ``target_tokens``."""
+
+    from app.services.answer_acceptance import fold_typography
+
+    words = fold_typography(answer).replace("'", "' ").split()
+    folded = [fold_for_comparison(word) for word in words]
+    for start in range(len(words) - length + 1):
+        if folded[start : start + length] == target_tokens:
+            return words[start : start + length]
+    return words
 
 
 def _source_id_for(source_key: str) -> str:
@@ -766,13 +824,86 @@ def select_learning_candidates(
         selected = _with_grammar_rappel(
             db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
         )
+    selected = _one_target_per_word(selected)
     if scenario.control_language == "fr" and user.native_language != "fr":
         # The catalogue's stored translation is English/German. French tasks
         # use the scene's sentence instead of posing that foreign gloss.
         selected = [replace(candidate, target=replace(candidate.target, label_native=None))
                     if candidate.target.kind is TargetKind.VOCABULARY else candidate
                     for candidate in selected]
+    else:
+        selected = _glosses_in_language(db, selected, str(scenario.control_language))
     return _with_grammar_briefs(db, user=user, candidates=selected)
+
+
+def _one_target_per_word(candidates: list[LearningCandidate]) -> list[LearningCandidate]:
+    """QA-PRACTICE: the scene's «appartement» and the deck's «un appartement» are
+    one word. Two targets for it made a day ask its gender twice and put both in
+    one matching grid. The first (the higher-ranked source) is kept."""
+
+    seen: set[str] = set()
+    kept: list[LearningCandidate] = []
+    for candidate in candidates:
+        if candidate.target.kind is TargetKind.VOCABULARY:
+            _article, noun = split_article(candidate.target.label_fr)
+            key = fold_for_comparison(noun)
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+        kept.append(candidate)
+    return kept
+
+
+def _glosses_in_language(
+    db: Session, candidates: list[LearningCandidate], language: str
+) -> list[LearningCandidate]:
+    """QA-PRACTICE: a German learner was asked «Welcher französische Ausdruck
+    bedeutet „a letter“?» — ``word_gloss`` falls back to another language's gloss
+    when the learner's own is missing, which is right for a word list and wrong
+    for a question. A vocabulary gloss that is a catalogue row's gloss *in
+    another language* is replaced by the row's own-language gloss, or dropped
+    (the planner then poses the word in a format that needs no meaning)."""
+
+    from app.services.glosses import _GLOSS_COLUMNS
+
+    own_column = _GLOSS_COLUMNS.get(language)
+    if own_column is None:
+        return candidates
+    ids = {
+        int(candidate.target.id)
+        for candidate in candidates
+        if candidate.target.kind is TargetKind.VOCABULARY
+        and candidate.target.label_native
+        and str(candidate.target.id).isdigit()
+    }
+    if not ids:
+        return candidates
+    try:
+        with db.begin_nested():
+            words = {word.id: word for word in db.query(VocabularyWord).filter(VocabularyWord.id.in_(ids)).all()}
+    except Exception:  # noqa: BLE001 - a gloss check never costs the day
+        logger.warning("journey_learning_gloss_language_check_unavailable")
+        return candidates
+    checked: list[LearningCandidate] = []
+    for candidate in candidates:
+        target = candidate.target
+        word = words.get(int(target.id)) if str(target.id).isdigit() else None
+        if word is None or target.kind is not TargetKind.VOCABULARY or not target.label_native:
+            checked.append(candidate)
+            continue
+        gloss = fold_for_comparison(target.label_native)
+        own = " ".join(str(getattr(word, own_column, None) or "").split())
+        foreign = {
+            fold_for_comparison(getattr(word, column, None))
+            for code, column in _GLOSS_COLUMNS.items()
+            if code != language and getattr(word, column, None)
+        }
+        if gloss in foreign and gloss != fold_for_comparison(own):
+            target = replace(target, label_native=own or None)
+            candidate = replace(candidate, target=target)
+        checked.append(candidate)
+    return checked
 
 
 #: WP-L4 — due grammar units a day's Rappel poses, by rhythm budget. One
@@ -1388,7 +1519,84 @@ def _accepted_answers(task: RecallTask) -> list[str]:
         accepted.append(task.solution_fr)
     if not accepted and task.prompt_fr:
         accepted.append(task.prompt_fr)
+    if task.task_type == "short_answer" and not task.prompt_fr and article_optional(task.target):
+        # The bare noun: ``answer_matches`` accepts any answer that holds it as a
+        # run of words, so «appartement», «l'appartement» (U+2019 too) and
+        # «un appartement» all count.
+        _article, noun = split_article(task.target.label_fr)
+        accepted.append(noun)
     return accepted
+
+
+#: Formats answered by placing tiles in order.
+TILE_ORDER_FORMATS = frozenset({"tiles", "word_bank", "unscramble"})
+#: Formats graded by option id or tile order — never the learner's own French.
+IDENTITY_GRADED_FORMATS = TILE_ORDER_FORMATS | {"choice", "classify", "listen_tap", "who_said", "match_pairs"}
+#: QA-PRACTICE: what a rebuilt sentence got wrong, in the learner's language.
+_ORDER_NOTES: dict[str, dict[str, str]] = {
+    "from": {
+        "en": "From “{word}” on, the order is off. The right order is above.",
+        "de": "Ab „{word}“ stimmt die Reihenfolge nicht mehr. Oben steht die richtige.",
+        "fr": "À partir de « {word} », l'ordre ne va plus. Le bon ordre est au-dessus.",
+    },
+    "first": {
+        "en": "The sentence does not start with “{word}”. The right order is above.",
+        "de": "Der Satz beginnt nicht mit „{word}“. Oben steht die richtige Reihenfolge.",
+        "fr": "La phrase ne commence pas par « {word} ». Le bon ordre est au-dessus.",
+    },
+    "missing": {
+        "en": "Some words are missing. The whole sentence is above.",
+        "de": "Es fehlen Wörter. Oben steht der ganze Satz.",
+        "fr": "Il manque des mots. La phrase entière est au-dessus.",
+    },
+    "extra": {
+        "en": "Some tiles were not needed. The sentence is above.",
+        "de": "Manche Bausteine gehörten nicht dazu. Oben steht der Satz.",
+        "fr": "Certains mots étaient en trop. La phrase est au-dessus.",
+    },
+}
+
+
+def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
+    by_id = {str(option.get("id")): str(option.get("text_fr") or "") for option in task.options}
+    return [by_id[str(tile)] for tile in tile_ids if by_id.get(str(tile))]
+
+
+def recall_learner_text(task: RecallTask, answer: AttemptAnswer) -> str:
+    """What the learner actually *said* with this attempt, as French text.
+
+    A tile answer arrives as ids; its correction must show the words the
+    learner placed («tile_3f… tile_a1…» is not a sentence, and the old
+    ``answer.text`` was empty, so the correction was dropped and a wrong
+    unscramble showed «Noch nicht» without the sentence).
+    """
+
+    if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
+        return " ".join(_tile_texts(task, answer.tile_ids))
+    # A pick is corrected on the device (the right card lights up); its typed
+    # text, if any, is what the server's correction is checked against.
+    return normalize_answer_text(answer.text)
+
+
+def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
+    """Where a rebuilt sentence went wrong, in the learner's language."""
+
+    expected = [str(tile) for tile in task.correct_tile_order]
+    submitted = [str(tile) for tile in tile_ids]
+    table = lambda key: _ORDER_NOTES[key].get(language) or _ORDER_NOTES[key]["en"]  # noqa: E731
+    if not expected or submitted == expected:
+        return None
+    if any(tile not in expected for tile in submitted):
+        return table("extra")
+    if len(submitted) < len(expected) and submitted == expected[: len(submitted)]:
+        return table("missing")
+    index = next((i for i, (got, want) in enumerate(zip(submitted, expected, strict=False)) if got != want), None)
+    if index is None:
+        return table("missing")
+    word = (_tile_texts(task, [submitted[index]]) or [""])[0]
+    if not word:
+        return None
+    return table("first" if index == 0 else "from").format(word=word)
 
 
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
@@ -1443,12 +1651,15 @@ def evaluate_recall(
 ) -> RecallEvaluation:
     """Grade one recall opportunity. Pure policy — writes nothing."""
 
-    del db, user  # canonical writes happen in apply_learning_evidence
+    # Canonical writes happen in apply_learning_evidence; ``db`` only names the
+    # grammar unit (accent policy) and ``user`` the note language.
+    accents = _recall_accent_policy(db, task)
 
     if is_infrastructure_failure(answer):
         return unscored_recall_evaluation(
             assistance=assistance, reason="transcription_unavailable"
         )
+    typed_verdict = None
 
     modality = answer.mode
     if answer.is_blank:
@@ -1489,12 +1700,18 @@ def evaluate_recall(
         expected = [str(tile) for tile in task.correct_tile_order]
         submitted = [str(tile) for tile in answer.tile_ids]
         is_correct = bool(expected) and submitted == expected
-        learner_text = " ".join(submitted) if submitted else answer.text
+        # The words placed, not their ids: the correction shows this span.
+        learner_text = recall_learner_text(task, answer) if submitted else answer.text
         opportunity = "tiles"
     else:
-        is_correct = answer_matches(answer.text, _accepted_answers(task))
+        is_correct = answer_matches(answer.text, _accepted_answers(task), accents=accents)
         learner_text = answer.text
         opportunity = "open_production"
+        from app.services.answer_acceptance import judge
+
+        typed_verdict = judge(
+            answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
+        )
 
     observation = classify_observation(
         target=task.target,
@@ -1515,12 +1732,38 @@ def evaluate_recall(
         # WP-94: the Rappel's coach mini-scene proves free use, not a transform.
         observation = replace(observation, task_format=task.evidence_format or task.task_type)
     correction = None
+    typed = typed_verdict
     if not is_correct:
-        correction = build_correction(
-            learner_text=learner_text,
-            corrected_fr=task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None),
-            note_native=task.hint_native or task.instruction_native,
-        )
+        note = task.hint_native or task.instruction_native
+        if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
+            from app.services.chrome_language import user_chrome_language
+
+            note = tile_order_note(task, answer.tile_ids, str(user_chrome_language(user))) or note
+        elif typed is not None and typed.note is not None:
+            # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
+            # ending, an elision, a gender) beats the item's generic hint.
+            from app.services.answer_acceptance import feedback_note
+            from app.services.chrome_language import user_chrome_language
+
+            note = feedback_note(typed, str(user_chrome_language(user))) or note
+        expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None)
+        correction = build_correction(learner_text=learner_text, corrected_fr=expected, note_native=note)
+        if correction is None and typed is not None and typed.note == "accent" and learner_text and expected:
+            # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
+            # the folds see no difference, the learner must still see the answer.
+            candidate = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
+            correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+    slip_note = None
+    if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+        # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
+        from app.services.answer_acceptance import feedback_note
+        from app.services.chrome_language import user_chrome_language
+
+        slip_note = feedback_note(typed, str(user_chrome_language(user)))
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
         assistance=assistance,
@@ -1528,6 +1771,7 @@ def evaluate_recall(
         correction=correction,
         pending=False,
         failure_reason=None,
+        slip_note_native=slip_note,
     )
 
 
@@ -2602,7 +2846,16 @@ def apply_learning_evidence(
         ),
         None,
     )
-    if correction is not None and validate_correction(
+    # QA-PRACTICE: a sentence rebuilt from tiles in the wrong order is shown its
+    # correction, but the order was the app's shuffle, not the learner's own
+    # French: it is not an erratum to drill later.
+    # The same holds for every format graded by identity: a wrong card
+    # («féminin» for «un appartement») is not French to repair later.
+    rebuilt = any(
+        getattr(observation, "task_format", None) in IDENTITY_GRADED_FORMATS
+        for observation in evaluation.observations
+    )
+    if correction is not None and not rebuilt and validate_correction(
         correction, learner_text if learner_text else correction.span_fr
     ):
         correction_key = evidence_source_key(
@@ -2968,7 +3221,10 @@ def coach_scene_review_task(
         accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
         return RecallTask(
             task_type="short_answer",
-            instruction_native=template.format(name=name, meaning=scene["reply_en"]),
+            # FORGE-DE: a German learner reads the German meaning when the item has one.
+            instruction_native=template.format(
+                name=name, meaning=(scene.get("reply_de") if language == "de" else None) or scene["reply_en"]
+            ),
             prompt_fr=f"{name} : « {line['fr']} »",
             options=[],
             target=grammar_items.grammar_target(brief),

@@ -788,14 +788,18 @@ export default function VocabularyReviewPage() {
     try {
       // WP-115a: a card the learner answered is graded by the answer (the server
       // earns the grade); a card only turned over stays a self-rated flashcard.
+      // QA-CLOSE: the typed text goes to the server, which grades it.
       const answered = graded
-        ? { format: gradedFormat(mode, spokenAnswer), correct: typedMatches }
+        ? { format: gradedFormat(mode, spokenAnswer), answer_text: typedAnswer }
         : { format: 'flashcard' as const };
       const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
       toast.success(reviewMessage(t, response));
+      if (response.note_native) toast(response.note_native);
       setReviewedIds((prev) => new Set(prev).add(current.word_id));
       // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
-      const wrong = graded ? !typedMatches : rating === 0;
+      // The server's verdict decides; the device's own fold only when it sent none.
+      const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
+      const wrong = graded ? !serverCorrect : rating === 0;
       setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
       setSpokenAnswer(false);
       setLastRating(rating);

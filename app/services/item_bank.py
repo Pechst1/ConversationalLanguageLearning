@@ -52,6 +52,8 @@ from pathlib import Path
 from typing import Any
 
 from app.services import item_semantics as semantics
+from app.services.item_bank_de import GermanFilters, RenderError, german_violations
+from app.services.item_bank_de import merge_overlay as merge_german
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "data" / "grammar_templates"
 ITEM_BANK_VERSION = "forge-bank-1"
@@ -138,6 +140,15 @@ def finish_english(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"\s+([.,?!:;])", r"\1", text)
     text = re.sub(r"([.?!]\s+)([a-z])", lambda match: match.group(1) + match.group(2).upper(), text)
+    return capitalize_first(text)
+
+
+def finish_german(text: str) -> str:
+    """FORGE-DE: spacing and sentence capitals of a German rendering."""
+
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"\s+([.,?!:;])", r"\1", text)
+    text = re.sub(r"([.?!]\s+)(\w)", lambda match: match.group(1) + match.group(2).upper(), text)
     return capitalize_first(text)
 
 
@@ -397,6 +408,9 @@ def lexicon() -> Lexicon:
         for index, entry in enumerate(entries):
             entry.setdefault("id", f"{entry.get('fr', index)}")
             entry.setdefault("tags", [])
+    # FORGE-DE: the German side of every entry (``deu``/``deu_*``), from its own file.
+    if (TEMPLATE_DIR / "lexicon_de.json").exists():
+        merge_german(_read_json("lexicon_de.json"), verbs=verbs, pools=pools)
     return Lexicon(pools=pools, verbs=verbs, morph=Morph(verbs))
 
 
@@ -420,10 +434,6 @@ def template_units() -> list[str]:
 # --------------------------------------------------------------------------- #
 # Filters
 # --------------------------------------------------------------------------- #
-
-
-class RenderError(ValueError):
-    """A frame cannot be rendered with these bindings; the sampler skips it."""
 
 
 def _person(entry: dict[str, Any]) -> int:
@@ -656,7 +666,7 @@ def _tonic(entry: dict[str, Any]) -> str:
     return "elles" if _gender(entry) == "f" else "eux"
 
 
-class Filters:
+class Filters(GermanFilters):
     """The template filters, bound to one lexicon."""
 
     def __init__(self, lex: Lexicon) -> None:
@@ -1481,6 +1491,8 @@ class BankItem:
     frame_times: tuple[str, ...] = field(default=(), compare=False, hash=False, repr=False)
     #: WP-S5: the frame's coach line, when the sentence answers one.
     ask: dict[str, str] | None = field(default=None, compare=False, hash=False, repr=False)
+    #: FORGE-DE: the German meaning (``None`` when the frame has no reliable German).
+    de: str | None = field(default=None, compare=False, hash=False, repr=False)
 
     @cached_property
     def fingerprint(self) -> str:
@@ -1504,6 +1516,8 @@ class _Frame:
     #: WP-S5: an optional coach line (``{"fr", "en"}``, with slots) the
     #: sentence answers — the free-use rung's two-line scene.
     ask: dict[str, str] | None = None
+    #: FORGE-DE: the German rendering (``g_*`` filters), when the frame has one.
+    de: str | None = None
 
 
 #: WP-S5: how much likelier a story entry (a cast member, a bible place, a
@@ -1521,26 +1535,63 @@ def _story_weight(entry: dict[str, Any], story: frozenset[str]) -> float:
 
 
 #: WP-S5: the share of a frame's items said *to* a cast member («J'ai
-#: faim, Lila.», «Tu viens au Mistral, Gus ?»), when the frame names nobody
+#: faim, Lila.», «Tu viens au Mistral, Lila ?»), when the frame names nobody
 #: of the story itself. A line addressed to someone is still the learner's
 #: own sentence — the pronoun the rule is about stays the subject.
-VOCATIVE_SHARE = 0.6
+#: QA-FORGE (2026-10-03): which frames may carry a name is now narrower
+#: (:func:`_with_vocative`); the share is 0.65 so that 80 % of items stay story-linked.
+VOCATIVE_SHARE = 0.65
 _CAST_POOLS = frozenset({"cast", "person3", "pair", "subj"})
+#: QA-FORGE: a sentence that already has a clause break or a connector keeps
+#: no vocative («Il est malade, donc il rentre en taxi, Lila.»).
+_NO_VOCATIVE_TEXT = re.compile(
+    r",|\b(?:parce que|parce qu'|donc|comme|car|quand|lorsque|mais|dès que|si on|si tu)\b|^\s*c'est\b",
+    re.IGNORECASE,
+)
+def _with_tags(spec: str, *tags: str) -> str:
+    """``spec`` with more tag filters (``pron:!on@X`` + ``!2p`` → ``pron:!on,!2p@X``)."""
+
+    head, at, dependency = spec.partition("@")
+    name, colon, tag_text = head.partition(":")
+    existing = [tag for tag in tag_text.split(",") if tag.strip()] if colon else []
+    return f"{name}:{','.join([*existing, *tags])}{at}{dependency}"
 
 
-def _with_vocative(frame: _Frame) -> list[_Frame]:
+def _with_vocative(frame: _Frame, viable: Any = None) -> list[_Frame]:
+    """``frame`` and, when it reads naturally said to someone, its vocative twin.
+
+    QA-FORGE (2026-10-03) rules, from the owner's «Vous sommes au bureau de
+    l'ONG, Gus.»: a statement never tells the addressee about themselves
+    («Tu es malade, Marin.»), «vous» (a plural in the lexicon) is never said to
+    one named person, a «tu» question goes only to a cast member the learner
+    says «tu» to, and a sentence with a clause break keeps no name.
+    ``viable(spec)`` says whether a slot spec still has candidates.
+    """
+
     fr, en = frame.fr.rstrip(), frame.en.rstrip()
     pools = {spec.split("@")[0].split(":")[0] for spec in frame.slots.values()}
+    literal = _literal_text(fr)
+    # the frame's words with the target's forms kept («[[Vous voudriez // …]]»)
+    words = _SLOT_RE.sub(" ", fr).replace("[[", "").replace("]]", "")
+    # …and the words a filter writes («{S|after_sv:parce que:être}»)
+    filter_words = re.sub(r"[{}|:\[\]/]", " ", fr)
     eligible = (
         fr[-1:] in {".", "?", "!"}
         and en[-1:] in {".", "?", "!"}
         and not pools & _CAST_POOLS
-        and not semantics.members({"fr": _literal_text(fr)})
+        and not semantics.members({"fr": literal})
         and "s'il vous plaît" not in fr
         and "s'il te plaît" not in fr
         # «Voici Lila. C'est …»: two statements, the scene is already there
         and not re.search(r"[.!]\s", _literal_text(fr[:-1]))
+        and not _NO_VOCATIVE_TEXT.search(words)
+        and not _NO_VOCATIVE_TEXT.search(filter_words.replace(",", " "))
+        # a literal «vous» is never said to one named person; a literal «tu»
+        # only in a question (and then never to Gus, below)
+        and not re.search(r"\bvous\b", words, re.IGNORECASE)
+        and ("?" in fr or not re.search(r"\b(?:tu|toi|te)\b", words, re.IGNORECASE))
     )
+    literal_tu = bool(re.search(r"\b(?:tu|toi|te)\b", words, re.IGNORECASE))
     if not eligible:
         return [frame]
 
@@ -1555,6 +1606,7 @@ def _with_vocative(frame: _Frame) -> list[_Frame]:
         return f"{text[:-1].rstrip()}, {{VOC}}{text[-1]}"
 
     fr_voc, en_voc = address(fr), address(en)
+    de_voc = address(frame.de.rstrip()) if frame.de and frame.de.rstrip()[-1:] in {".", "?", "!"} else None
     if fr_voc is None or en_voc is None or any(spec.startswith("num:age") for spec in frame.slots.values()):
         return [frame]
     # Said to Lila, «tu» is Lila: the vocative agrees with a «tu» subject.
@@ -1566,16 +1618,41 @@ def _with_vocative(frame: _Frame) -> list[_Frame]:
         ),
         None,
     )
+    slots = dict(frame.slots)
+    if subject:
+        question = "?" in fr
+        # A question may go to «tu» (and to «nous» never: «Rentrons-nous, Marin ?»);
+        # a statement to the addressee about themselves never.
+        slots[subject] = _with_tags(slots[subject], "!2p", "!1p", *(() if question else ("!2s",)))
+        if viable is not None and not viable(slots[subject]):
+            return [frame]
     plain = replace(frame, weight=frame.weight * (1 - VOCATIVE_SHARE))
     said_to = replace(
         frame,
         frame_id=f"{frame.frame_id}~voc",
         fr=fr_voc,
         en=en_voc,
-        slots={**frame.slots, "VOC": f"cast@{subject}" if subject else "cast"},
+        de=de_voc,
+        # the register (a «tu» question never goes to Gus) is checked per binding:
+        # :func:`app.services.item_semantics.link_clash`
+        slots={**slots, "VOC": f"cast@{subject}" if subject else ("cast:!gus" if literal_tu else "cast")},
         weight=frame.weight * VOCATIVE_SHARE,
     )
     return [plain, said_to]
+
+
+_BAND_ORDER = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+
+
+def _band_rank(band: Any) -> int:
+    return _BAND_ORDER.get(str(band or "A1").upper()[:2], 1)
+
+
+def _unit_level(unit: str) -> str:
+    """«FR2_A11_ETRE» → «A1» (the unit id carries its CEFR band)."""
+
+    match = re.match(r"FR2_([ABC][12])", str(unit or ""))
+    return match.group(1) if match else "C2"
 
 
 def _literal_text(fr: str) -> str:
@@ -1621,11 +1698,22 @@ class ItemBank:
                     gloss=bool(raw.get("gloss", spec.get("gloss", False))),
                     times=(*(raw.get("times") or ()), *semantics.time_marks(_literal_text(raw["fr"]))),
                     ask=raw.get("ask") if isinstance(raw.get("ask"), dict) else None,
+                    de=raw.get("de") if isinstance(raw.get("de"), str) else None,
                 )
             )
-        frames = [twin for frame in frames for twin in _with_vocative(frame)]
+        frames = [twin for frame in frames for twin in _with_vocative(frame, self._viable)]
         self._frames[unit] = frames
         return frames
+
+    def _viable(self, spec: str) -> bool:
+        """Whether a slot spec (with no dependency) still has lexicon entries."""
+
+        if "@" in spec:
+            return True
+        try:
+            return bool(self._candidates(spec, {}))
+        except (RenderError, KeyError):
+            return False
 
     # -- slot binding ---------------------------------------------------------
     def _candidates(self, spec: str, bindings: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1697,6 +1785,9 @@ class ItemBank:
             if slot not in frame.fr and slot not in frame.en and not any(slot in value for value in frame.slots.values() if value != spec):
                 continue
             entries = self._candidates(spec, bindings)
+            # QA-FORGE: an entry marked above the unit's band (``"band": "B1"``,
+            # «le bureau de l'ONG») stays out of an A1 unit.
+            entries = [entry for entry in entries if _band_rank(entry.get("band")) <= _band_rank(_unit_level(frame.unit))]
             if slot in needs_comps:
                 entries = [entry for entry in entries if entry.get("comps")]
             pool_key = spec.split("@")[0].split(":")[0]
@@ -1725,7 +1816,9 @@ class ItemBank:
         return bindings
 
     # -- expression rendering ---------------------------------------------------
-    def _eval(self, match: re.Match[str], bindings: dict[str, dict[str, Any]], english: bool = False) -> str | list[str]:
+    def _eval(
+        self, match: re.Match[str], bindings: dict[str, dict[str, Any]], english: bool = False, german: bool = False
+    ) -> str | list[str]:
         slot, key, filter_text = match.group(1), match.group(2), match.group(3)
         if slot not in bindings:
             raise RenderError(f"unbound slot {slot}")
@@ -1736,6 +1829,11 @@ class ItemBank:
                 raise RenderError(f"{slot} has no {key}")
             return value if isinstance(value, list) else str(value)
         if not filter_text:
+            if german:
+                # FORGE-DE: a plain slot is its German, never its French.
+                if entry.get("deu") is None or isinstance(entry.get("deu"), dict):
+                    raise RenderError(f"{slot} has no German")
+                return str(entry["deu"])
             if english and entry.get("en") is not None:
                 return str(entry.get("en"))
             return str(entry.get("fr") or "")
@@ -1743,12 +1841,14 @@ class ItemBank:
         method = getattr(self.filters, _FILTER_ALIASES.get(name, name), None)
         if method is None:
             raise RenderError(f"unknown filter {name}")
-        args: list[Any] = [bindings.get(arg, arg) for arg in raw_args]
-        return method(entry, *args)
+        args: list[Any] = [bindings.get(arg, arg) for arg in raw_args if "=" not in arg]
+        # FORGE-DE: ``key=value`` arguments (a value naming a bound slot is its entry).
+        kwargs = {key: bindings.get(value, value) for key, _, value in (arg.partition("=") for arg in raw_args if "=" in arg)}
+        return method(entry, *args, **kwargs)
 
-    def _render_text(self, text: str, bindings: dict[str, dict[str, Any]], english: bool = False) -> str:
+    def _render_text(self, text: str, bindings: dict[str, dict[str, Any]], english: bool = False, german: bool = False) -> str:
         def replace(match: re.Match[str]) -> str:
-            value = self._eval(match, bindings, english)
+            value = self._eval(match, bindings, english, german)
             if isinstance(value, list):
                 raise RenderError("a trap filter outside a target")
             return value
@@ -1862,7 +1962,20 @@ class ItemBank:
             ),
             frame_times=frame.times,
             ask=self._render_ask(frame, bindings),
+            de=self.render_german(frame, bindings),
         )
+
+    def render_german(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> str | None:
+        """FORGE-DE: the frame's German meaning, or ``None`` when it has none or
+        these bindings lack German (an item never carries a wrong German line)."""
+
+        if not frame.de:
+            return None
+        try:
+            text = self._render_text(frame.de, bindings, german=True)
+        except (RenderError, KeyError, IndexError, TypeError):
+            return None
+        return finish_german(text)
 
     def _render_ask(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> dict[str, str] | None:
         if not frame.ask:
@@ -1951,6 +2064,29 @@ def default_bank() -> ItemBank:
     return ItemBank()
 
 
+@lru_cache(maxsize=1)
+def _german_verbs() -> tuple[tuple[dict[str, Any], ...], dict[str, set[int]]]:
+    from app.services.item_bank_de import _finite_forms
+
+    lex = lexicon()
+    verbs = [entry["deu"] for entry in lex.verbs.values() if isinstance(entry.get("deu"), dict)]
+    verbs += [comp["deu_verb"] for entry in lex.verbs.values() for comp in entry.get("comps") or [] if isinstance(comp.get("deu_verb"), dict)]
+    verbs += [entry["deu_verb"] for pool in lex.pools.values() for entry in pool if isinstance(entry.get("deu_verb"), dict)]
+    return tuple(verbs), _finite_forms(verbs)
+
+
+def german_problems(item: BankItem) -> list[str]:
+    """FORGE-DE quality gate: obvious errors in an item's German meaning
+    (:func:`app.services.item_bank_de.german_violations`), checked against the
+    nouns the item is built from and every German verb the lexicon knows."""
+
+    if not item.de:
+        return []
+    verbs, finite = _german_verbs()
+    nouns = [entry for _, entry in item.bindings if entry.get("dg")]
+    return german_violations(item.de, nouns=nouns, verbs=list(verbs), finite=finite)
+
+
 # --------------------------------------------------------------------------- #
 # Units, detectors, v1 → v2
 # --------------------------------------------------------------------------- #
@@ -1994,6 +2130,34 @@ def unit_row(unit: str) -> dict[str, Any]:
     return _v2_rows().get(unit) or {}
 
 
+def item_unit(item: dict[str, Any] | None) -> str | None:
+    """FORGE-DE: the bank unit a served item was rendered from (``bank_unit``, else
+    its id «fr2-a12-modals-fill-…»), or ``None`` for an item not from the bank."""
+
+    if not isinstance(item, dict):
+        return None
+    unit = item.get("bank_unit")
+    if isinstance(unit, str) and unit in unit_templates():
+        return unit
+    item_id = str(item.get("id") or "")
+    for candidate in sorted(unit_templates(), key=len, reverse=True):
+        if item_id.startswith(candidate.lower().replace("_", "-") + "-"):
+            return candidate
+    return None
+
+
+def item_unit_rule(item: dict[str, Any] | None, language: Any = "en") -> str | None:
+    """FORGE-DE: the short rule of the item's own unit, in the learner's language."""
+
+    unit = item_unit(item)
+    if not unit:
+        return None
+    code = str(language or "en").strip().lower()[:2]
+    rules = (unit_row(unit).get("syllabus") or {}).get("rule_short") or {}
+    rule = rules.get(code) if isinstance(rules, dict) else None
+    return str(rule).strip() if rule else None
+
+
 def unit_band(unit: str) -> str:
     return str(unit_row(unit).get("level") or "A1")
 
@@ -2029,25 +2193,26 @@ _INSTRUCTIONS = {
 
 
 #: WP-S6: the cue templates around a bank item, in the three chrome languages
-#: (the séance's own words, `lib/language-rule.ts`). Only the ask and the
-#: situation move: the meaning is the frame's English gloss (the bank has no
-#: German or French frames), and the French sentences stay French. The English
-#: column is exactly the `prompt` / `instruction` the item already carries.
+#: (the séance's own words, `lib/language-rule.ts`). QA-FORGE (2026-10-03, the
+#: owner: never show English to a non-English learner) keeps the English gloss in
+#: the English column only; FORGE-DE gives the German column the item's German
+#: meaning (``_CUES_DE_MEANING``) when it has one; the French cues are self-sufficient.
+#: The English column is exactly the `prompt` / `instruction` the item carries.
 _CUES: dict[str, dict[str, str]] = {
     "pair": {
         "en": 'Which sentence says: "{meaning}"',
-        "de": "Welcher Satz bedeutet: „{meaning}“",
-        "fr": "Quelle phrase veut dire : « {meaning} »",
+        "de": "Welcher Satz ist richtig?",
+        "fr": "Quelle phrase est correcte ?",
     },
     "transform_gloss": {
         "en": 'Correct the sentence so that it means: "{meaning}"',
-        "de": "Korrigiere den Satz, sodass er bedeutet: „{meaning}“",
-        "fr": "Corrigez la phrase pour qu’elle veuille dire : « {meaning} »",
+        "de": "Korrigiere den Fehler im Satz.",
+        "fr": "Corrigez l’erreur dans la phrase.",
     },
     "say": {
         "en": '{scene} Say in French: "{meaning}"',
-        "de": "{scene} Sag auf Französisch: „{meaning}“",
-        "fr": "{scene} Dites en français : « {meaning} »",
+        "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
+        "fr": "{scene} Écrivez une courte phrase à vous en français, avec la règle du jour.",
     },
     "message": {
         "en": (
@@ -2055,14 +2220,73 @@ _CUES: dict[str, dict[str, str]] = {
             'Include the idea "{meaning}" and add a reason or a detail of your own.'
         ),
         "de": (
-            "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze). "
-            "Bring den Gedanken „{meaning}“ unter und füge einen Grund oder ein eigenes Detail hinzu."
+            "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze), "
+            "mit der Regel von heute, und füge einen Grund oder ein eigenes Detail hinzu."
         ),
         "fr": (
-            "{scene} Écrivez un court message en français (deux ou trois phrases). "
-            "Reprenez l’idée « {meaning} » et ajoutez une raison ou un détail à vous."
+            "{scene} Écrivez un court message en français (deux ou trois phrases), "
+            "avec la règle du jour, et ajoutez une raison ou un détail à vous."
         ),
     },
+}
+
+#: FORGE-DE: the German cues when the item has a German meaning (``BankItem.de``).
+_CUES_DE_MEANING: dict[str, str] = {
+    "pair": "Welcher Satz sagt: „{meaning}“?",
+    "transform_gloss": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+    "say": "{scene} Sag auf Französisch: „{meaning}“",
+    "message": (
+        "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze) mit der Idee "
+        "„{meaning}“ und füge einen Grund oder ein eigenes Detail hinzu."
+    ),
+}
+
+#: QA-FORGE: the bank's English instructions (``instruction_key``) in the other
+#: chrome languages, so no English instruction reaches a German learner.
+INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
+    "forge.word_bank": {
+        "en": "Build the sentence. One chip is not needed.",
+        "de": "Bau den Satz. Ein Wort brauchst du nicht.",
+        "fr": "Construisez la phrase. Un mot est en trop.",
+    },
+    "forge.word_bank_all": {
+        "en": "Build the sentence with the chips.",
+        "de": "Bau den Satz aus den Wörtern.",
+        "fr": "Construisez la phrase avec les mots.",
+    },
+    "forge.transform": {
+        "en": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
+        "de": "Korrigiere den Fehler im Satz. Der Rest bleibt gleich.",
+        "fr": "Corrigez l’erreur dans la phrase. Le reste ne change pas.",
+    },
+    "forge.sentence": {
+        "en": "Write the sentence in French.",
+        "de": "Schreib den Satz auf Französisch.",
+        "fr": "Écrivez la phrase en français.",
+    },
+    "forge.speak": {
+        "en": "Say it aloud in French, then check the transcript.",
+        "de": "Sag es laut auf Französisch und prüf dann die Abschrift.",
+        "fr": "Dites-le à voix haute en français, puis vérifiez la transcription.",
+    },
+    "forge.conversation": {
+        "en": "Answer the message in French, with the rule of the day.",
+        "de": "Antworte auf Französisch, mit der Regel von heute.",
+        "fr": "Répondez en français, avec la règle du jour.",
+    },
+    "forge.scene": {
+        "en": "Answer in French, with the rule of the day.",
+        "de": "Antworte auf Französisch, mit der Regel von heute.",
+        "fr": "Répondez en français, avec la règle du jour.",
+    },
+}
+
+#: QA-FORGE: a judgement item's two answers are keys («Correct», «À corriger»);
+#: the learner reads them in their own language, never one English and one French.
+JUDGEMENT_LABELS: dict[str, dict[str, str]] = {
+    "en": {"Correct": "Correct", "À corriger": "Needs fixing"},
+    "de": {"Correct": "Stimmt so", "À corriger": "Muss korrigiert werden"},
+    "fr": {"Correct": "Correcte", "À corriger": "À corriger"},
 }
 
 #: The default situations, as short native-language situations (WP-S6).
@@ -2092,102 +2316,218 @@ _SCENES_L10N: dict[str, dict[str, str]] = {
 
 #: WP-103 T3: what every drill asks for, in the learner's language — the meaning of
 #: the sentence to produce («Build: "Lila is looking for a big poster."»). The
-#: meaning is the frame's English gloss (the bank has no German or French frames).
+#: meaning is the frame's English gloss, kept in the English goal only (QA-FORGE);
+#: a German goal quotes the item's German meaning (FORGE-DE, ``_GOALS_DE_MEANING``),
+#: a French goal says what to do without one («Corrigez l’erreur dans la phrase.»).
 _GOALS: dict[str, dict[str, str]] = {
     "build": {
         "en": 'Build: "{meaning}"',
-        "de": "Bau den Satz: „{meaning}“",
-        "fr": "Construisez : « {meaning} »",
+        "de": "Bau den Satz aus den Wörtern.",
+        "fr": "Remettez les mots dans l’ordre pour construire la phrase.",
     },
     "fill": {
         "en": 'Complete the sentence: "{meaning}"',
-        "de": "Ergänze den Satz: „{meaning}“",
-        "fr": "Complétez la phrase : « {meaning} »",
+        "de": "Ergänze den Satz mit der richtigen Form.",
+        "fr": "Complétez la phrase avec la forme qui convient.",
     },
     "repair": {
         "en": 'Correct it so that it says: "{meaning}"',
-        "de": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
-        "fr": "Corrigez la phrase pour dire : « {meaning} »",
+        "de": "Korrigiere den Fehler im Satz.",
+        "fr": "Corrigez l’erreur dans la phrase.",
     },
     "pick": {
         "en": 'Pick the sentence that says: "{meaning}"',
-        "de": "Wähle den Satz, der sagt: „{meaning}“",
-        "fr": "Choisissez la phrase qui dit : « {meaning} »",
+        "de": "Welcher Satz ist richtig?",
+        "fr": "Quelle phrase est correcte ?",
     },
     "say": {
         "en": 'Say in French: "{meaning}"',
-        "de": "Sag auf Französisch: „{meaning}“",
-        "fr": "Dites en français : « {meaning} »",
+        "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
+        "fr": "Écrivez une courte phrase à vous en français, avec la règle du jour.",
     },
     "reply": {
         "en": 'Reply in French: "{meaning}"',
-        "de": "Antworte auf Französisch: „{meaning}“",
-        "fr": "Répondez en français : « {meaning} »",
+        "de": "Antworte auf Französisch, mit der Regel von heute.",
+        "fr": "Répondez en français, avec la règle du jour.",
     },
     "message": {
         "en": 'Write a short message in French with the idea "{meaning}"',
-        "de": "Schreib eine kurze Nachricht auf Französisch mit dem Gedanken „{meaning}“",
-        "fr": "Écrivez un court message en français avec l’idée « {meaning} »",
+        "de": "Schreib eine kurze Nachricht auf Französisch, mit der Regel von heute.",
+        "fr": "Écrivez un court message en français, avec la règle du jour.",
     },
     "judge": {
-        "en": "Is this sentence right, or does it need correcting?",
-        "de": "Ist dieser Satz richtig, oder muss er korrigiert werden?",
-        "fr": "Cette phrase est-elle juste, ou faut-il la corriger ?",
+        "en": "Is this sentence correct?",
+        "de": "Ist der Satz richtig?",
+        "fr": "Cette phrase est-elle correcte ?",
     },
 }
 
 
-def goal_l10n(kind: str, meaning: str | None = None) -> dict[str, str]:
-    """``{en, de, fr}`` for one drill goal (WP-103 T3)."""
+#: FORGE-DE: the German goals when the item has a German meaning (``BankItem.de``):
+#: the translate steps come back («Sag auf Französisch: „…“»), in German only.
+_GOALS_DE_MEANING: dict[str, str] = {
+    "build": "Bau den Satz: „{meaning}“",
+    "fill": "Ergänze den Satz: „{meaning}“",
+    "repair": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+    "pick": "Welcher Satz sagt: „{meaning}“?",
+    "say": "Sag auf Französisch: „{meaning}“",
+    "reply": "Antworte auf Französisch: „{meaning}“",
+    "message": "Schreib eine kurze Nachricht auf Französisch mit der Idee „{meaning}“.",
+}
+
+
+def goal_l10n(kind: str, meaning: str | None = None, meaning_de: str | None = None) -> dict[str, str]:
+    """``{en, de, fr}`` for one drill goal (WP-103 T3); with ``meaning_de`` the
+    German goal quotes the German meaning (FORGE-DE)."""
 
     table = _GOALS[kind]
-    return {language: template.format(meaning=meaning or "").strip() for language, template in table.items()}
+    out = {language: template.format(meaning=meaning or "").strip() for language, template in table.items()}
+    if meaning_de and kind in _GOALS_DE_MEANING:
+        out["de"] = _GOALS_DE_MEANING[kind].format(meaning=meaning_de.strip())
+    return out
 
 
-def _goal(kind: str, meaning: str | None = None) -> dict[str, Any]:
+def _goal(kind: str, meaning: str | None = None, meaning_de: str | None = None) -> dict[str, Any]:
     """The goal fields a bank item carries: ``goal_native`` (English, the default)
     and ``goal_l10n``; the learner's language is picked on the way out
     (:func:`with_goal`)."""
 
-    l10n = goal_l10n(kind, meaning)
+    l10n = goal_l10n(kind, meaning, meaning_de)
     return {"goal_native": l10n["en"], "goal_l10n": l10n}
+
+
+def _meaning_l10n(item: BankItem) -> dict[str, Any]:
+    """FORGE-DE: the item's meaning per language (German only where it is reliable)."""
+
+    return {"meaning_l10n": {"en": item.en, "de": item.de}} if item.de else {}
 
 
 #: Rounds/modes whose item must say what to produce (the WP-103 contract).
 GOAL_REQUIRED_MODES = frozenset({"word_bank", "fill", "transform", "rewrite", "tiles", "unscramble"})
 
 
+def _is_judgement(item: dict[str, Any]) -> bool:
+    if item.get("classify_kind"):
+        return item.get("classify_kind") == "judgement"
+    labels = [normalize(label) for label in item.get("labels") or [] if isinstance(label, str)]
+    return sorted(labels) == sorted([normalize("Correct"), normalize("À corriger")])
+
+
+def _goal_kind(item: dict[str, Any]) -> str | None:
+    """Which drill a stored item is, for a goal it does not carry."""
+
+    if _is_judgement(item):
+        return "judge"
+    if item.get("classify_kind") == "minimal_pair":
+        return "pick"
+    if "answer_tokens" in item:
+        return "build"
+    if "source" in item and "expected_answer" in item:
+        return "repair"
+    if "choices" in item or "blank" in item:
+        return "fill"
+    return None
+
+
+def _without_gloss(prompt: Any, meaning: Any) -> Any:
+    """«Je reste ___ (I stay …)» → «Je reste ___»: the bank's English gloss off a French prompt."""
+
+    if not isinstance(prompt, str) or not isinstance(meaning, str) or not meaning.strip():
+        return prompt
+    tail = f"({meaning.strip()})"
+    stripped = prompt.rstrip()
+    return stripped[: -len(tail)].rstrip() if stripped.endswith(tail) else prompt
+
+
 def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
     """``item`` with ``goal_native`` in the learner's language, and ``source_fr``
     for a repair (WP-103 T3). An item written before WP-103 — the séance's model
     sets, the curated fallbacks — gets its goal from what it already carries: a
-    word bank's ``meaning_cue``, a repair's or a fill's ``meaning``."""
+    word bank's ``meaning_cue``, a repair's or a fill's ``meaning``.
+
+    QA-FORGE (2026-10-03): for a German or French learner nothing English is
+    served — the meaning cue (an English gloss) is dropped, the instruction is
+    the localized one, a gloss in brackets leaves the French prompt, and a
+    judgement's two answers carry their labels (``label_l10n``)."""
 
     if not isinstance(item, dict):
         return item
     out = dict(item)
     code = str(language or "en").strip().lower()[:2]
+    if code not in {"en", "de", "fr"}:
+        code = "en"
+    kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
+    if kind == "judge":
+        # A stored judgement may still carry the old two-clause ask.
+        l10n = goal_l10n("judge")
+        out["goal_l10n"] = l10n
+        out["label_l10n"] = JUDGEMENT_LABELS
     if l10n:
         out["goal_native"] = l10n.get(code) or l10n.get("en") or out.get("goal_native")
     elif not out.get("goal_native"):
         meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
-        if meaning:
-            kind = "build" if "answer_tokens" in out else ("repair" if "source" in out else "fill")
+        if meaning and kind in {"build", "repair", "fill"}:
             out["goal_native"] = goal_l10n(kind, meaning).get(code) or goal_l10n(kind, meaning)["en"]
     if out.get("source") and not out.get("source_fr") and ("expected_answer" in out):
         out["source_fr"] = out["source"]
-    if code == "fr":
-        # Stored sets carry English meaning cues. French chrome uses the task's
-        # existing French source, rather than embedding English in a French goal.
+    key = out.get("instruction_key")
+    if isinstance(key, str) and key in INSTRUCTIONS_L10N:
+        table = dict(out.get("instruction_l10n") or {}) if isinstance(out.get("instruction_l10n"), dict) else {}
+        out["instruction_l10n"] = {**INSTRUCTIONS_L10N[key], **{k: v for k, v in table.items() if k == "en"}}
+    meanings = out.get("meaning_l10n") if isinstance(out.get("meaning_l10n"), dict) else {}
+    native_meaning = str(meanings.get(code) or "").strip() if code != "en" else ""
+    if code != "en":
+        # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
+        # a German meaning, when the item carries one, takes their place.
+        if kind in {"build", "repair", "fill", "pick"}:
+            out["goal_native"] = goal_l10n(kind, None, native_meaning or None).get(code)
         if "answer_tokens" in out:
-            out["goal_native"] = "Remettez les mots dans l’ordre pour construire la phrase."
-            out["meaning_cue"] = None
-            out["prompt"] = out["goal_native"]
-        elif out.get("source_fr"):
-            out["goal_native"] = "Corrigez la phrase en gardant le même sens."
-        elif "blank" in out or "correct_answer" in out:
-            out["goal_native"] = "Complétez la phrase avec la forme qui convient."
+            out["meaning_cue"] = native_meaning or None
+            if isinstance(key, str) and key in INSTRUCTIONS_L10N:
+                out["prompt"] = INSTRUCTIONS_L10N[key][code]
+                out["goal_native"] = out["prompt"]
+            else:
+                out["prompt"] = out["goal_native"]
+            if native_meaning:
+                out["goal_native"] = goal_l10n("build", None, native_meaning).get(code)
+        if isinstance(key, str) and key in INSTRUCTIONS_L10N and "instruction" in out:
+            out["instruction"] = INSTRUCTIONS_L10N[key][code]
+        meaning = out.pop("meaning", None)
+        if kind in {"fill", "judge"}:
+            gloss_free = _without_gloss(out.get("prompt"), meaning)
+            if native_meaning and gloss_free != out.get("prompt"):
+                gloss_free = f"{gloss_free} ({native_meaning})"
+            out["prompt"] = gloss_free
+        if native_meaning:
+            out["meaning"] = native_meaning
+        if isinstance(out.get("meaning_l10n"), dict):
+            out["meaning_l10n"] = {code: native_meaning} if native_meaning else None
+            if out["meaning_l10n"] is None:
+                out.pop("meaning_l10n")
+        # The English column of every table stays on the server: the served
+        # prompt and instruction are the learner's own.
+        for field in ("prompt", "instruction"):
+            table = out.get(f"{field}_l10n")
+            if isinstance(table, dict) and isinstance(table.get(code), str) and table[code].strip():
+                out[field] = table[code]
+        for field in ("goal_l10n", "prompt_l10n", "instruction_l10n"):
+            if isinstance(out.get(field), dict):
+                out[field] = {lang: text for lang, text in out[field].items() if lang != "en"}
+        if isinstance(out.get("label_l10n"), dict):
+            out["label_l10n"] = {code: out["label_l10n"].get(code)}
+        scene = out.get("scene")
+        if isinstance(scene, dict) and isinstance(scene.get("lines"), list):
+            out["scene"] = {
+                **scene,
+                "lines": [
+                    {k: v for k, v in line.items() if k != "en"} if isinstance(line, dict) else line
+                    for line in scene["lines"]
+                ],
+            }
+        coach = out.get("coach")
+        if isinstance(coach, dict) and isinstance(coach.get("family_title"), dict):
+            out["coach"] = {**coach, "family_title": {code: coach["family_title"].get(code)}}
     return out
 
 
@@ -2262,7 +2602,10 @@ def _cue_l10n(key: str, item: BankItem, *, scene: str | None = None) -> dict[str
         where = ""
         if scene is not None:
             where = scene if language == "en" else _SCENES_L10N.get(scene, {}).get(language, "")
-        out[language] = template.format(meaning=item.en, scene=where).strip()
+        meaning = item.en
+        if language == "de" and item.de and key in _CUES_DE_MEANING:
+            template, meaning = _CUES_DE_MEANING[key], item.de
+        out[language] = template.format(meaning=meaning, scene=where).strip()
     return out
 
 
@@ -2282,6 +2625,7 @@ def _item_id(unit: str, item: BankItem, mode: str) -> str:
 
 def _answer_key(item: BankItem) -> dict[str, Any]:
     return {
+        "bank_unit": item.unit,
         "target_span": item.target,
         "accepted_answers": list(item.accepted),
         "bank_frame": item.frame_id,
@@ -2347,7 +2691,8 @@ def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
         "choices": _scramble(choices, item.fingerprint),
         "correct_answer": item.target,
         "meaning": item.en,
-        **_goal("fill", item.en),
+        **_meaning_l10n(item),
+        **_goal("fill", item.en, item.de),
         **_answer_key(item),
     }
     payload["accepted_answers"] = [item.target]
@@ -2368,6 +2713,9 @@ def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str
         "correct_label": label,
         "correct_answer": label,
         "classify_kind": "judgement",
+        "label_l10n": JUDGEMENT_LABELS,
+        "meaning": item.en,
+        **_meaning_l10n(item),
         **_goal("judge"),
         **_answer_key(item),
     }
@@ -2381,6 +2729,7 @@ def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str
             "corrected_fr": item.sentence,
             "accepted_fr": list(item.accepted),
             "meaning": item.en,
+            **_meaning_l10n(item),
             "wrong_span": item.traps[0] if item.traps else "",
             "target_span": item.target,
         }
@@ -2404,7 +2753,8 @@ def pair_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
         "correct_label": item.sentence,
         "correct_answer": item.sentence,
         "classify_kind": "minimal_pair",
-        **_goal("pick", item.en),
+        **_meaning_l10n(item),
+        **_goal("pick", item.en, item.de),
         **_answer_key(item),
     }
     if lesson_external_id:
@@ -2456,7 +2806,8 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
         "prompt": _INSTRUCTIONS["forge.word_bank" if spares else "forge.word_bank_all"],
         "instruction_key": "forge.word_bank" if spares else "forge.word_bank_all",
         "meaning_cue": item.en,
-        **_goal("build", item.en),
+        **_meaning_l10n(item),
+        **_goal("build", item.en, item.de),
         "answer_tokens": answer_tokens,
         "tokens": chips,
         "correct_answer": item.sentence,
@@ -2498,7 +2849,8 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
             "wrong_span": wrong_span,
             "expected_answer": item.sentence,
             "meaning": item.en,
-            **_goal("repair", item.en),
+            **_meaning_l10n(item),
+            **_goal("repair", item.en, item.de),
             **_answer_key(item),
         },
     )
@@ -2533,7 +2885,8 @@ def output_item(
         "instruction_key": f"forge.{round_name}",
         "prompt": production_prompt(item),
         "prompt_l10n": _cue_l10n("say", item),
-        **_goal("say", item.en),
+        **_meaning_l10n(item),
+        **_goal("say", item.en, item.de),
         "example_answer": item.sentence,
         "requirements": [dict(requirement)],
         "min_words": max(2, min(words - 2, 5)),
@@ -2565,10 +2918,17 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         "instruction": _INSTRUCTIONS["forge.scene"],
         "instruction_key": "forge.scene",
         "prompt": f'{coach["name"]}: « {coach_line["fr"]} » ({coach_line["en"]}) Reply in French: "{scene["reply_en"]}"',
+        # QA-FORGE: the coach's line stays French; the ask is the learner's language.
+        "prompt_l10n": {
+            "en": f'{coach["name"]}: « {coach_line["fr"]} » ({coach_line["en"]}) Reply in French: "{scene["reply_en"]}"',
+            # (the ask itself is the instruction, shown as the cue under it)
+            "de": f'{coach["name"]}: « {coach_line["fr"]} »',
+            "fr": f'{coach["name"]} : « {coach_line["fr"]} »',
+        },
         "character": {"id": coach["id"], "name": coach["name"], "register": coach.get("register", "tu")},
         "coach": dict(coach),
         "scene": {"lines": scene["lines"]},
-        **_goal("reply", scene["reply_en"]),
+        **_goal("reply", scene["reply_en"], scene.get("reply_de")),
         "example_answer": reply,
         "requirements": [dict(requirement)],
         "min_words": max(2, min(words - 2, 5)),
@@ -2588,7 +2948,8 @@ def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any
             f'Include the idea "{item.en}" and add a reason or a detail of your own.'
         ),
         "prompt_l10n": _cue_l10n("message", item),
-        **_goal("message", item.en),
+        **_meaning_l10n(item),
+        **_goal("message", item.en, item.de),
         "requirements": [dict(requirement)],
         "min_words": 10,
         "max_words": 70,

@@ -354,3 +354,15 @@ test('a bank cue renders in the learner\'s language when the payload offers it',
   assert.match(page, /localizedCue\(item, 'instruction', cueLanguage\)/);
   assert.match(page, /localizedCue\(produce, 'prompt', cueLanguage\)/);
 });
+
+// QA-FORGE (2026-10-03): at phone width «La Forge» and «2 von 12» ran into each
+// other («La Forg2 von 12»). The count wraps under the name instead; neither
+// span can overflow into the other.
+test('the top bar count wraps under the name at phone width instead of overlapping it', () => {
+  const source = fs.readFileSync(path.join(WEB_ROOT, 'components/epreuve/Forge.tsx'), 'utf8');
+  const rule = source.match(/\.av2 \.forge-count \{([\s\S]*?)\}/)[1];
+  assert.match(rule, /flex-wrap: wrap/);
+  assert.doesNotMatch(rule, /white-space: nowrap/);
+  assert.match(source, /@media \(max-width: 480px\) \{\s*\.av2 \.forge-count \{ flex-direction: column;/);
+  assert.match(source, /\.av2 \.forge-count__n \{ flex: none; max-width: 100%;[^}]*text-overflow: ellipsis/);
+});

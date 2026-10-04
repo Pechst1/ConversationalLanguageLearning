@@ -1267,8 +1267,9 @@ def test_the_median_day_holds_six_graded_interactions(horizon: Horizon) -> None:
     for life in horizon.lives:
         graded = sorted(len(row.recall_formats) + 1 for row in life.played)
         assert graded[len(graded) // 2] >= 6, (life.label, Counter(graded))
-        # The scene-derived floor is actually dealt, not merely possible.
-        assert "who_said" in life.formats(), life.label
+        # QA-PRACTICE (owner, 2026-10-03): «Qui a dit ça ?» is plot memory, not
+        # French, and is never dealt; the days stay full without it.
+        assert "who_said" not in life.formats(), life.label
 
 
 def test_the_run_is_written_down(horizon: Horizon, capsys) -> None:

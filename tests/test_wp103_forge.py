@@ -15,6 +15,8 @@ The owner's test of La Forge (English-speaking A1 learner, 2026-09-29):
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from app.services import forge_grading as grading
@@ -250,7 +252,9 @@ def test_the_follow_up_key_stays_on_the_server(lila_item):
 def test_production_items_carry_no_pseudo_scene(lila_item):
     output = ib.output_item(lila_item, round_name="sentence", requirement={"label": "X"})
     assert output["prompt"] == 'Say in French: "Lila is looking for a big poster."'
-    assert output["prompt_l10n"]["de"] == "Sag auf Französisch: „Lila is looking for a big poster.“"
+    # QA-FORGE: a German learner never reads the English gloss; FORGE-DE: the
+    # translate step comes back with the German meaning.
+    assert output["prompt_l10n"]["de"] == "Sag auf Französisch: „Lila sucht ein großes Plakat.“"
     produce = ib.produce_block(lila_item, lila_item, requirement={"label": "X"})
     assert produce["prompt"].startswith("Write a short message in French")
     # A stored item written before WP-103 is served without its frame.
@@ -266,7 +270,13 @@ def test_production_items_carry_no_pseudo_scene(lila_item):
 def test_every_forge_drill_states_its_goal_in_the_learners_language(lila_item):
     build = ib.word_bank_item(lila_item)
     assert build["goal_native"] == 'Build: "Lila is looking for a big poster."'
-    assert ib.public_item(build, "de")["goal_native"] == "Bau den Satz: „Lila is looking for a big poster.“"
+    german = ib.public_item(build, "de")
+    assert "Lila is looking" not in json.dumps(german, ensure_ascii=False)
+    assert german["prompt"] == "Bau den Satz. Ein Wort brauchst du nicht."
+    # FORGE-DE: the meaning cue is the German meaning.
+    assert german["goal_native"] == "Bau den Satz: „Lila sucht ein großes Plakat.“"
+    assert german["meaning_cue"] == "Lila sucht ein großes Plakat."
+    assert ib.public_item(build, "fr")["meaning_cue"] is None
     fill = ib.fill_item(lila_item)
     assert fill["goal_native"] == 'Complete the sentence: "Lila is looking for a big poster."'
     repair = ib.transform_item(lila_item)
