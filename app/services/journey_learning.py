@@ -828,6 +828,9 @@ def select_learning_candidates(
             db, user=user, selected=selected, scenario=scenario, now=now,
             budget_seconds=budget_seconds,
         )
+        selected = _with_held_opportunities(
+            db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
+        )
     selected = _one_target_per_word(selected)
     if scenario.control_language == "fr" and user.native_language != "fr":
         # The catalogue's stored translation is English/German. French tasks
@@ -1141,6 +1144,178 @@ def _with_practice_units(
     return [*selected, *extra]
 
 
+#: WP-130 B — units a day offers a «Tenue» evidence opportunity, per kind, by
+#: rhythm budget. One reply carries one «Réemploi» besides the day's new unit
+#: (``journey_planner.MAX_REPLY_GRAMMAR_TARGETS``); the longer rhythms also
+#: have the coach's scene for a second. The items are priced and placed by the
+#: planner inside WP-128's budget like any Rappel item.
+HELD_OPPORTUNITY_ROOM: dict[int, int] = {300: 1, 600: 1, 1200: 2, 1800: 2}
+
+
+def held_opportunity_room(budget_seconds: int | None) -> int:
+    from app.services.journey_contracts import rhythm_caps
+
+    return HELD_OPPORTUNITY_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 1)
+
+
+def _with_held_opportunities(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """WP-130 B: the units owed a «Tenue» opportunity today, whatever their stability.
+
+    «Tenue» needs a second free use at least seven days after the first and a
+    spaced item at least fourteen days after the introduction
+    (``concept_life``). Neither used to be offered on time: the Rappel queue
+    only brings a unit back when its memory says so, and the reply only asked
+    for a unit past ten days of stability. Each owed unit
+    (:func:`concept_life.held_opportunity`) is tagged ``held_opportunity`` —
+    on its Rappel candidate when it is already due, else as a candidate of its
+    own — and :func:`_with_held_opportunity_brief` poses it. At most
+    :func:`held_opportunity_room` units per kind a day, rotated by the day, so
+    a unit missed today comes back within a few days and never crowds the
+    others out. Nothing is scheduled here: an opportunity offered and missed
+    leaves the unit exactly as owed as it was.
+    """
+
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.concept_life import (
+        OPPORTUNITY_FREE_USE,
+        OPPORTUNITY_SPACED,
+        held_opportunity,
+    )
+
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.held_at.is_(None),
+                    GrammarConcept.active.is_(True),
+                )
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - an opportunity is never worth the day
+        logger.warning("journey_held_opportunities_unavailable")
+        return selected
+    owed: dict[str, list[tuple[Any, GrammarConcept]]] = {
+        OPPORTUNITY_FREE_USE: [],
+        OPPORTUNITY_SPACED: [],
+    }
+    for progress, concept in rows:
+        kind = held_opportunity(progress, now=now)
+        if kind in owed:
+            owed[kind].append((progress, concept))
+    room = held_opportunity_room(budget_seconds)
+    rotation = now.date().toordinal()
+    chosen: dict[int, tuple[str, Any, GrammarConcept]] = {}
+    for kind, units in owed.items():
+        units.sort(key=lambda row: (row[0].introduced_at, row[1].id))
+        if not units:
+            continue
+        start = rotation % len(units)
+        for progress, concept in [*units[start:], *units[:start]][:room]:
+            chosen[concept.id] = (kind, progress, concept)
+    if not chosen:
+        return selected
+
+    out: list[LearningCandidate] = []
+    for candidate in selected:
+        concept_id = (candidate.metadata or {}).get("concept_id")
+        try:
+            key = int(concept_id if concept_id is not None else candidate.target.id)
+        except (TypeError, ValueError):
+            key = None
+        if candidate.target.kind is TargetKind.GRAMMAR and key in chosen:
+            kind, _progress, _concept = chosen.pop(key)
+            candidate = replace(
+                candidate, metadata={**dict(candidate.metadata or {}), "held_opportunity": kind}
+            )
+        out.append(candidate)
+    if not chosen:
+        return out
+
+    from app.services.chrome_language import user_chrome_language
+    from app.services.grammar_units import localized_titles
+
+    language = str(user_chrome_language(user))
+    for kind, progress, concept in chosen.values():
+        try:
+            titles = localized_titles(concept)
+        except Exception:  # noqa: BLE001 - a title is a label, never the day
+            titles = {}
+        out.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.GRAMMAR,
+                    id=str(concept.id),
+                    label_fr=titles.get("fr") or str(concept.name or ""),
+                    label_native=titles.get(language) or str(concept.name or "") or None,
+                    concept_title=True,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.GRAMMAR),
+                metadata={
+                    "held_opportunity": kind,
+                    "concept_id": concept.id,
+                    "stability": float(progress.stability or 0.0),
+                },
+            )
+        )
+    return out
+
+
+def _with_held_opportunity_brief(brief: dict[str, Any], kind: str | None) -> dict[str, Any]:
+    """WP-130 B: pose a unit's «Tenue» opportunity, whatever its stability.
+
+    * ``free_use`` — the unit is briefed as a strong unit (stability at least
+      :data:`grammar_items.REEMPLOI_STABILITY_DAYS`, the measured one kept as
+      ``stability_measured``): the reply asks for it («Réemploi») and the
+      Rappel slot poses the coach's two-line scene, never an item that would
+      show the form before the learner uses it.
+    * ``spaced`` — a spaced item: a strong unit keeps the transform Rappel
+      (as :func:`spaced_item_pending` does), a weaker one its own format.
+
+    The evidence keeps its own category: a reply or a scene with a hint or a
+    copied suggestion is assisted, and an item is an item.
+    """
+
+    from app.services import grammar_items
+    from app.services.concept_life import OPPORTUNITY_FREE_USE, OPPORTUNITY_SPACED
+
+    if kind not in {OPPORTUNITY_FREE_USE, OPPORTUNITY_SPACED}:
+        return brief
+    try:
+        stability = float(
+            brief.get("stability_measured")
+            if brief.get("stability_measured") is not None
+            else brief.get("stability") or 0.0
+        )
+    except (TypeError, ValueError):
+        stability = 0.0
+    out = {**brief, "held_opportunity": kind}
+    if kind == OPPORTUNITY_FREE_USE:
+        out.pop("spaced_item_pending", None)
+        out["stability_measured"] = stability
+        out["stability"] = max(stability, grammar_items.REEMPLOI_STABILITY_DAYS)
+    elif grammar_items.review_band(out.get("stability")) == "high":
+        out["stability_measured"] = stability
+        out["stability"] = round(grammar_items.REEMPLOI_STABILITY_DAYS - 0.1, 2)
+        out["spaced_item_pending"] = True
+    return out
+
+
 def _with_grammar_briefs(
     db: Session, *, user: User, candidates: list[LearningCandidate]
 ) -> list[LearningCandidate]:
@@ -1176,6 +1351,9 @@ def _with_grammar_briefs(
             out.append(candidate)
             continue
         brief = spaced_item_pending(db, user=user, brief=brief)
+        brief = _with_held_opportunity_brief(
+            brief, (candidate.metadata or {}).get("held_opportunity")
+        )
         brief = _with_coach_scene(brief, language=str(language))
         if concept is not None:
             # WP-129: the catalogue's partner units, for the B1+ contrast items.

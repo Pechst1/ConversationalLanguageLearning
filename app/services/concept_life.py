@@ -23,7 +23,7 @@ WP-L7 reads :func:`concept_stage`, :func:`held_concept_ids` and
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -264,6 +264,91 @@ def held_missing(progress: Any | None) -> list[dict[str, Any]]:
     return missing
 
 
+# ---------------------------------------------------------------------------
+# WP-130 B — timely evidence opportunities («Réemploi», spaced item)
+# ---------------------------------------------------------------------------
+#
+# «Tenue» above is unchanged. What changes is *when* the journey asks for the
+# evidence it needs: the second free use used to wait until the unit's
+# stability reached 10 days and a reply happened to ask for it again (median
+# hold lag 41 days). These helpers say which opportunity a unit is owed today,
+# from the same fields :func:`held_conditions` reads; stability plays no part.
+
+#: The opportunity that invites a free use (the reply asks for the unit, or a
+#: coach's two-line scene; never an item that shows the form first).
+OPPORTUNITY_FREE_USE = "free_use"
+#: The opportunity that poses a spaced item (a Rappel format).
+OPPORTUNITY_SPACED = "spaced"
+
+
+def free_use_opens_on(progress: Any) -> date | None:
+    """The first day a free use can move the unit towards «Tenue».
+
+    At least :data:`HELD_FREE_USE_GAP_DAYS` after the introduction (the
+    second free use's earliest day when the first came on the introduction
+    day), and that long after the first free use when it came later. ``None``
+    when no free use is owed, or the unit was never practised successfully.
+    """
+
+    introduced = _aware(getattr(progress, "introduced_at", None))
+    if introduced is None or getattr(progress, "held_at", None) is not None:
+        return None
+    free_use, _spaced = held_conditions(progress)
+    if free_use:
+        return None
+    first = _aware(getattr(progress, "free_use_first_at", None))
+    if first is None and int(getattr(progress, "reps", 0) or 0) <= 0:
+        # Not used successfully yet: the day's ordinary practice comes first.
+        return None
+    opens = introduced.date() + timedelta(days=HELD_FREE_USE_GAP_DAYS)
+    if first is not None:
+        opens = max(opens, first.date() + timedelta(days=HELD_FREE_USE_GAP_DAYS))
+    return opens
+
+
+def spaced_item_owed(progress: Any, *, now: datetime) -> bool:
+    """Is a spaced item owed, and would a success *now* count (≥ 14 days in)?
+
+    Compared on the clock, as :func:`note_concept_evidence` compares it, so an
+    item posed on day 14 before the hour of the introduction is not posed for
+    nothing: it opens the day after.
+    """
+
+    introduced = _aware(getattr(progress, "introduced_at", None))
+    if introduced is None or getattr(progress, "held_at", None) is not None:
+        return False
+    if getattr(progress, "spaced_success_at", None) is not None:
+        return False
+    now = _aware(now) or datetime.now(UTC)
+    return now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
+
+
+def held_opportunity(progress: Any | None, *, now: datetime) -> str | None:
+    """The «Tenue» evidence opportunity a unit is owed today, if any.
+
+    :data:`OPPORTUNITY_FREE_USE` once :func:`free_use_opens_on` has passed;
+    :data:`OPPORTUNITY_SPACED` once :func:`spaced_item_owed`. When both are
+    owed the day alternates them (a free use is never invited right after an
+    item that showed the form the same day). A missed or failed opportunity
+    writes nothing here, so the unit stays owed and is offered again.
+    """
+
+    if progress is None:
+        return None
+    now = _aware(now) or datetime.now(UTC)
+    today = now.date()
+    opens = free_use_opens_on(progress)
+    free_use = opens is not None and today >= opens
+    spaced = spaced_item_owed(progress, now=now)
+    if free_use and spaced:
+        return OPPORTUNITY_SPACED if today.toordinal() % 2 else OPPORTUNITY_FREE_USE
+    if free_use:
+        return OPPORTUNITY_FREE_USE
+    if spaced:
+        return OPPORTUNITY_SPACED
+    return None
+
+
 def held_concept_ids(db: Session, user_id: UUID) -> set[int]:
     """The units this learner holds (WP-L7's coverage numerator)."""
 
@@ -469,6 +554,8 @@ __all__ = [
     "MISSING_SECOND_FREE_USE",
     "MISSING_SPACED",
     "NEW_CONCEPTS_PER_WEEK",
+    "OPPORTUNITY_FREE_USE",
+    "OPPORTUNITY_SPACED",
     "STAGE_LABELS",
     "STAGE_HELD",
     "STAGE_INTRODUCED",
@@ -477,9 +564,11 @@ __all__ = [
     "VISIBLE_STAGES",
     "concept_brief",
     "concept_stage",
+    "free_use_opens_on",
     "held_concept_ids",
     "held_conditions",
     "held_missing",
+    "held_opportunity",
     "introduced_concept_ids",
     "introduction_due",
     "introduction_for_today",
@@ -489,6 +578,7 @@ __all__ = [
     "mark_introduced",
     "note_concept_evidence",
     "progress_stage",
+    "spaced_item_owed",
     "stage_counts",
     "stage_label",
     "unit_stage_counts",

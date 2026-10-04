@@ -659,6 +659,21 @@ def candidate_is_demonstrated(candidate: LearningCandidate) -> bool:
     return str(metadata.get("last_evidence_kind") or "") in DEMONSTRATED_EVIDENCE_KINDS
 
 
+def reemploi_order(entries: list[SelectedTarget]) -> list[SelectedTarget]:
+    """WP-130 B: the reply's «Réemploi» goes first to a unit owed a free use.
+
+    A unit whose second free use is owed (``held_opportunity == "free_use"``
+    on its brief, set by the learning adapter) leads; the other strong units
+    keep their order behind it. Stable, so nothing else moves.
+    """
+
+    def owed(entry: SelectedTarget) -> int:
+        brief = (entry.candidate.metadata or {}).get("grammar_brief")
+        return 0 if isinstance(brief, dict) and brief.get("held_opportunity") == "free_use" else 1
+
+    return sorted(entries, key=owed)
+
+
 def scenario_fit(target: TargetRef, affordances: list[str], scenario: ScenarioBrief) -> float:
     """How well this target suits the scene, in ``[0, 1]``.
 
@@ -4783,7 +4798,7 @@ def _plan_practice_day(
     # one the rule card and the hint show.
     reemploi_briefs = [
         (entry.candidate.metadata or {}).get("grammar_brief")
-        for entry in entries
+        for entry in reemploi_order(entries)
         if entry.target.kind is TargetKind.GRAMMAR
         and isinstance((entry.candidate.metadata or {}).get("grammar_brief"), dict)
         and ((entry.candidate.metadata or {}).get("grammar_brief") or {}).get("detectors")
@@ -4959,6 +4974,17 @@ def _plan_practice_day(
         respond_cost, items = attempt(turns)
         items = []
         notes.append("longer day: the new rule does not fit the rhythm; the day is the story and its rule")
+    if reemploi and not intro_reserve(turns):
+        # WP-130 B: the reply asks for a «Réemploi» only when it fits the day
+        # with the shape's items. A slow band composes the unit's sentence in
+        # every exchange (WP-128), which a ten-minute A1 day cannot hold: the
+        # opportunity then goes to the coach's two-line scene, priced as an item.
+        rule_now = practice_day_shape_rule(shape, budget_seconds)
+        spent = scene_cost + respond_cost + resolution_cost + forge_reserve + read_cost + desk_cost
+        if spent + sum(item.cost for item in items) > budget_seconds or len(items) < rule_now.min_recall:
+            reemploi = 0
+            respond_cost, items = attempt(turns)
+            notes.append("réemploi: the reply cannot hold the unit's sentence inside the budget")
     if (
         not forced_intro
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
@@ -5137,9 +5163,12 @@ def _plan_practice_day(
     # WP-L4 «Emploi» / «Réemploi»: the reply's grammar targets — the new unit
     # first, then a strong due unit asked for as free use (no item today).
     grammar_asked: list[TargetRef] = [intro_target] if intro_target is not None else []
-    for entry in entries:
+    # WP-130 B: a «Réemploi» is asked only when the reply was priced with it
+    # (WP-128 prices one unit's sentence: today's new unit's when there is one).
+    reemploi_asked = bool(reemploi) and intro_target is None
+    for entry in reemploi_order(entries):
         brief = (entry.candidate.metadata or {}).get("grammar_brief")
-        if len(grammar_asked) >= MAX_REPLY_GRAMMAR_TARGETS:
+        if len(grammar_asked) >= MAX_REPLY_GRAMMAR_TARGETS or not reemploi_asked:
             break
         if (
             entry.target.kind is TargetKind.GRAMMAR
@@ -5151,6 +5180,7 @@ def _plan_practice_day(
             grammar_asked.append(entry.target)
             if target_identity(entry.target) not in {target_identity(e.target) for e in used_targets}:
                 used_targets.append(entry)
+            break  # one priced «Réemploi» (WP-128 prices one unit's sentence)
     asked_ids = {target_identity(target) for target in grammar_asked}
     elicited = [
         *grammar_asked,
