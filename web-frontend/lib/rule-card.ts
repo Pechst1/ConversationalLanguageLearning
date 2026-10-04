@@ -321,6 +321,9 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
   xray: string;
   xrayHint: string;
   xrayMarks: string;
+  /** WP-129 (D7): a rule met earlier, seen again in the page just read. */
+  reviewEyebrow: string;
+  reviewDone: string;
 }> = {
   en: {
     eyebrow: "Today's rule",
@@ -350,6 +353,8 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     xray: 'The sentence, x-rayed',
     xrayHint: 'Tap a coloured part to see what it does.',
     xrayMarks: 'The marked parts',
+    reviewEyebrow: 'A rule you know, in today’s page',
+    reviewDone: 'Continue',
   },
   de: {
     eyebrow: 'Regel des Tages',
@@ -379,6 +384,8 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     xray: 'Der Satz unter der Lupe',
     xrayHint: 'Tippe auf einen farbigen Teil: Was macht er?',
     xrayMarks: 'Die markierten Teile',
+    reviewEyebrow: 'Eine bekannte Regel, auf der heutigen Seite',
+    reviewDone: 'Weiter',
   },
   fr: {
     eyebrow: 'La règle du jour',
@@ -408,6 +415,8 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     xray: 'La phrase aux rayons X',
     xrayHint: 'Touchez une partie colorée : à quoi sert-elle ?',
     xrayMarks: 'Les parties marquées',
+    reviewEyebrow: 'Une règle déjà vue, dans la page du jour',
+    reviewDone: 'Continuer',
   },
 };
 

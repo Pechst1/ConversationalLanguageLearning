@@ -824,6 +824,10 @@ def select_learning_candidates(
         selected = _with_grammar_rappel(
             db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
         )
+        selected = _with_practice_units(
+            db, user=user, selected=selected, scenario=scenario, now=now,
+            budget_seconds=budget_seconds,
+        )
     selected = _one_target_per_word(selected)
     if scenario.control_language == "fr" and user.native_language != "fr":
         # The catalogue's stored translation is English/German. French tasks
@@ -833,7 +837,49 @@ def select_learning_candidates(
                     for candidate in selected]
     else:
         selected = _glosses_in_language(db, selected, str(scenario.control_language))
-    return _with_grammar_briefs(db, user=user, candidates=selected)
+    selected = _with_grammar_briefs(db, user=user, candidates=selected)
+    return _with_level_fit(selected, scenario=scenario)
+
+
+def _with_level_fit(
+    candidates: list[LearningCandidate], *, scenario: ScenarioBrief
+) -> list[LearningCandidate]:
+    """WP-129: from B1, each grammar brief lists its sentences at the learner's
+    level (``level_ok_fr``, folded) — a catalogue sentence is written for its
+    unit's band, and the B1+ practice items (a contrast, a free sentence's
+    model, a repair) of an earlier unit stay at the learner's (the planner
+    reads no lexicon itself)."""
+
+    band = str(getattr(scenario, "level_band", "") or "").upper()[:2]
+    if band not in ADVANCED_PRACTICE_BANDS:
+        return candidates
+    from app.services import grammar_items
+    from app.services.practice_level import within_band
+
+    out: list[LearningCandidate] = []
+    for candidate in candidates:
+        brief = (candidate.metadata or {}).get("grammar_brief")
+        if candidate.target.kind is not TargetKind.GRAMMAR or not isinstance(brief, dict):
+            out.append(candidate)
+            continue
+        texts = [
+            *(brief.get("examples") or []),
+            *(pair.get(side) for pair in brief.get("contrast_pairs") or [] for side in ("right", "wrong")),
+        ]
+        ok = sorted(
+            {
+                grammar_items._fold(grammar_items.plain(text))
+                for text in texts
+                if text and within_band(grammar_items.plain(text), band)
+            }
+        )
+        out.append(
+            replace(
+                candidate,
+                metadata={**dict(candidate.metadata or {}), "grammar_brief": {**brief, "level_ok_fr": ok}},
+            )
+        )
+    return out
 
 
 def _one_target_per_word(candidates: list[LearningCandidate]) -> list[LearningCandidate]:
@@ -973,6 +1019,128 @@ def _with_grammar_rappel(
     return [*selected, *extra]
 
 
+#: WP-129 (owner decision 4) — introduced units a B1+ practice day may also
+#: practise in its free time (interleaved, contrasted with their partners), by
+#: rhythm budget, besides the due Rappel units.
+PRACTICE_UNIT_ROOM: dict[int, int] = {300: 2, 600: 5, 1200: 6, 1800: 8}
+ADVANCED_PRACTICE_BANDS = frozenset({"B1", "B2", "C1", "C2"})
+
+
+def _with_practice_units(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    scenario: ScenarioBrief,
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """WP-129: units the learner has *already been introduced to*, for a B1+ day.
+
+    Marked ``practice_unit``: the planner never makes them a reply obligation;
+    it poses them as mixed-unit practice after the ending (a contrast with a
+    partner unit, a repair, a free sentence) while the day has time. Only
+    units introduced before now (``concept_life``: first evidence or a rule
+    read) — practising a unit never introduces one. First the units whose
+    catalogue ``contrast_partners`` are introduced too, then the most recently
+    introduced; a held unit last. Read-only.
+    """
+
+    band = str(getattr(scenario, "level_band", "") or "").upper()[:2]
+    if band not in ADVANCED_PRACTICE_BANDS:
+        return selected
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.grammar_catalog import concept_syllabus
+    from app.services.journey_contracts import rhythm_caps
+
+    room = PRACTICE_UNIT_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 2)
+    present = {c.target.id for c in selected if c.target.kind is TargetKind.GRAMMAR}
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.introduced_at < now,
+                    GrammarConcept.active.is_(True),
+                )
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - practice units are never worth the day
+        logger.warning("journey_practice_units_unavailable")
+        return selected
+    introduced = {str(concept.external_id or ""): concept for _progress, concept in rows}
+
+    def partnered(concept: GrammarConcept) -> bool:
+        own = str(concept.external_id or "")
+        named = concept_syllabus(concept).get("contrast_partners") or []
+        if any(ref in introduced and ref != own for ref in named):
+            return True
+        return any(
+            own in (concept_syllabus(other).get("contrast_partners") or [])
+            for ref, other in introduced.items() if ref != own
+        )
+
+    def introduced_at(progress: Any) -> float:
+        value = progress.introduced_at
+        if value is None:
+            return 0.0
+        value = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return value.timestamp()
+
+    rows.sort(
+        key=lambda row: (
+            0 if partnered(row[1]) else 1,
+            1 if row[0].held_at is not None else 0,
+            -introduced_at(row[0]),
+            row[1].id,
+        )
+    )
+    from app.services.chrome_language import user_chrome_language
+    from app.services.grammar_units import localized_titles
+
+    language = str(user_chrome_language(user))
+
+    def titles(concept: GrammarConcept) -> dict[str, str]:
+        try:
+            return localized_titles(concept)
+        except Exception:  # noqa: BLE001 - a title is a label, never the day
+            return {}
+
+    extra: list[LearningCandidate] = []
+    for progress, concept in rows:
+        if len(extra) >= room:
+            break
+        if str(concept.id) in present:
+            continue
+        present.add(str(concept.id))
+        extra.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.GRAMMAR,
+                    id=str(concept.id),
+                    label_fr=titles(concept).get("fr") or str(concept.name or ""),
+                    label_native=titles(concept).get(language) or str(concept.name or "") or None,
+                    concept_title=True,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.GRAMMAR),
+                metadata={
+                    "practice_unit": True,
+                    "concept_id": concept.id,
+                    "stability": float(progress.stability or 0.0),
+                },
+            )
+        )
+    return [*selected, *extra]
+
+
 def _with_grammar_briefs(
     db: Session, *, user: User, candidates: list[LearningCandidate]
 ) -> list[LearningCandidate]:
@@ -1009,6 +1177,14 @@ def _with_grammar_briefs(
             continue
         brief = spaced_item_pending(db, user=user, brief=brief)
         brief = _with_coach_scene(brief, language=str(language))
+        if concept is not None:
+            # WP-129: the catalogue's partner units, for the B1+ contrast items.
+            from app.services.grammar_catalog import concept_syllabus
+
+            brief = {
+                **brief,
+                "contrast_partners": list(concept_syllabus(concept).get("contrast_partners") or []),
+            }
         out.append(
             replace(candidate, metadata={**dict(candidate.metadata or {}), "grammar_brief": brief})
         )
@@ -1669,6 +1845,35 @@ def match_pairs_target_correct(task: RecallTask, tile_ids: Sequence[str]) -> boo
     return False
 
 
+def _is_free_sentence(task: RecallTask) -> bool:
+    from app.services.grammar_items import FREE_SENTENCE_FORMAT
+
+    return (
+        task.task_type == "short_answer"
+        and task.evidence_format == FREE_SENTENCE_FORMAT
+        and task.target.kind is TargetKind.GRAMMAR
+    )
+
+
+def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+
+    from app.services import grammar_items, grammar_units
+
+    concept = None
+    try:
+        concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
+    except Exception:  # noqa: BLE001 - an unreadable unit grades nothing as met
+        logger.warning("journey_free_sentence_unit_unavailable")
+    if concept is None:
+        return False
+    brief = {
+        "detectors": grammar_units.regex_patterns(grammar_units.unit_detectors(concept)),
+        "noun_phrase": grammar_units.is_noun_phrase_unit(concept),
+    }
+    return grammar_items.free_sentence_uses_unit(brief, text)
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -1724,6 +1929,21 @@ def evaluate_recall(
         is_correct = match_pairs_target_correct(task, answer.tile_ids)
         learner_text = task.target.label_fr if is_correct else None
         opportunity = "tiles"
+    elif _is_free_sentence(task):
+        # WP-129: the learner's own sentence, graded by the unit's detector —
+        # never against the one model sentence (shown after a miss).
+        # The model sentence itself, typed with a forgiven slip («meme» for
+        # «même»), is the unit used too: the detector reads accents literally.
+        from app.services.answer_acceptance import judge
+
+        typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
+        is_correct = _free_sentence_uses_unit(db, task, answer.text) or bool(
+            typed_verdict is not None and typed_verdict.correct
+        )
+        if not (typed_verdict is not None and typed_verdict.correct):
+            typed_verdict = None
+        learner_text = answer.text
+        opportunity = "open_production"
     elif task.task_type in {"tiles", "word_bank", "unscramble"}:
         expected = [str(tile) for tile in task.correct_tile_order]
         submitted = [str(tile) for tile in answer.tile_ids]
@@ -1779,6 +1999,15 @@ def evaluate_recall(
         if correction is None and typed is not None and typed.note == "accent" and learner_text and expected:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
+            candidate = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
+            correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if correction is None and _is_free_sentence(task) and learner_text and expected:
+            # WP-129: a free sentence that did not use the unit is not a slip in
+            # one span: the learner sees a model sentence that does, whole.
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
                 corrected_fr=normalize_answer_text(expected),

@@ -21,7 +21,7 @@ import pytest
 from app.core import test_clock
 from tests import experience_walk as life
 from tests import learner_walk as walk
-from tests import walk_checks, walk_checks_wp125b, walk_checks_wp126, walk_checks_wp128, walk_checks_wp130a, walk_checks_wp131
+from tests import walk_checks, walk_checks_wp125b, walk_checks_wp126, walk_checks_wp128, walk_checks_wp129, walk_checks_wp130a, walk_checks_wp131
 from tests.test_learner_walk import (  # noqa: F401 - fixtures
     assembled_client,
     journey_enabled,
@@ -144,6 +144,8 @@ def test_a_month_of_a_whole_life(
     problems += walk_checks_wp128.check_life_wp128(record)
     # WP-130 A: the notebook and the level count the same units per state; no false «tenue».
     problems += walk_checks_wp130a.check_progress_labels_agree(record)
+    # WP-129: B1+ practice volume and mix; one sentence per item; D7 reviews a met unit.
+    problems += walk_checks_wp129.check_life_wp129(record)
     transcripts = [day["journey"] for day in record["days"]]
     problems += walk_checks.run_all(transcripts, db=db_session)
     assert not problems, "\n".join(problems[:60]) + (f"\n… {len(problems) - 60} more" if len(problems) > 60 else "")

@@ -34,7 +34,10 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from typing import Any
+from typing import (  # noqa: UP035 - grammar_items imports nothing else (test_grammar_items_stay_pure)
+    Any,
+    Callable,
+)
 
 from app.services.chrome_language import french_chrome
 from app.services.journey_contracts import (
@@ -641,8 +644,38 @@ def guided_items(
     language: ControlLanguage,
     meanings: dict[str, str] | None = None,
 ) -> list[RecallTask]:
-    """The introduction day's Essai: recognise → choose → build → transform."""
+    """The introduction day's Essai: recognise → choose → build → transform.
 
+    WP-129: never two items on one sentence (:func:`distinct_sentences`) — the
+    build used to rebuild the sentence the recognise item had just answered.
+    """
+
+    return distinct_sentences(
+        _guided_items(brief, sentences=sentences, language=language, meanings=meanings)
+    )
+
+
+def distinct_sentences(tasks: list[RecallTask]) -> list[RecallTask]:
+    """``tasks`` less any item whose sentence an earlier one already holds."""
+
+    seen: set[str] = set()
+    kept: list[RecallTask] = []
+    for task in tasks:
+        own = item_sentences(task)
+        if own & seen:
+            continue
+        seen |= own
+        kept.append(task)
+    return kept
+
+
+def _guided_items(
+    brief: dict[str, Any],
+    *,
+    sentences: list[str],
+    language: ControlLanguage,
+    meanings: dict[str, str] | None = None,
+) -> list[RecallTask]:
     items: list[RecallTask] = []
     recognise = recognise_item(brief, sentences=sentences, language=language)
     if french_chrome(brief.get("level")):
@@ -714,12 +747,18 @@ def review_item(
     language: ControlLanguage,
     day_key: str,
     meanings: dict[str, str] | None = None,
+    avoid: set[str] | None = None,
 ) -> RecallTask | None:
     """One Rappel item for a due unit, its format scaled by stability.
 
     ``None`` for a strong unit (it is asked for in the reply instead) or when
     no format can be posed. Which of the band's two formats comes first turns
     with the day, so a unit is not asked the same way twice running.
+
+    WP-129: ``avoid`` — folded sentences the day already prints
+    (:func:`item_sentences`). A format whose item would print one of them again
+    gives way to the next (Wave 1: two Rappels for two units on one sentence,
+    «Tu as une minute ?»). From B1 the unit's other ✗/✓ pairs are tried too.
     """
 
     band = review_band(brief.get("stability"))
@@ -727,7 +766,12 @@ def review_item(
         return None
     advanced = french_chrome(brief.get("level"))
     if advanced:
-        builders = [lambda: transform_item(brief, language=language, meanings=meanings, review=True)]
+        builders = [
+            (lambda pair=pair: transform_item(
+                {**brief, "contrast_pairs": [pair]}, language=language, meanings=meanings, review=True
+            ))
+            for pair in brief.get("contrast_pairs") or []
+        ]
     elif band == "low":
         builders = [
             lambda: choose_item(brief, language=language),
@@ -744,15 +788,216 @@ def review_item(
         lambda: choose_item(brief, language=language),
         lambda: recognise_item(brief, sentences=sentences, language=language, review=True),
     ]
+    avoid = avoid or set()
     for build in [*builders, *fallbacks]:
         task = build()
-        if task is not None:
+        if task is not None and not (item_sentences(task) & avoid):
             return task
     return None
 
 
+# ---------------------------------------------------------------------------
+# WP-129 — mixed-unit practice from B1: contrasts between partner units, and a
+# free sentence of the learner's own
+# ---------------------------------------------------------------------------
+
+#: The ``evidence_format`` of a free sentence (``app.core.srs.memory``: a
+#: ``sentence`` is production). Graded by the unit's detector on the learner's
+#: own words (``journey_learning.evaluate_recall``), never against one answer.
+FREE_SENTENCE_FORMAT = "sentence"
+#: A free sentence shorter than this is not a sentence that uses a rule.
+FREE_SENTENCE_MIN_WORDS = 4
+
+_CONTRAST: dict[str, str] = {
+    "en": "Which rule does this sentence use?",
+    "de": "Welche Regel steckt in diesem Satz?",
+    "fr": "Quelle règle cette phrase utilise-t-elle ?",
+}
+_FREE_SENTENCE: dict[str, str] = {
+    "en": "Write a sentence of your own that uses: {title}.",
+    "de": "Schreib einen eigenen Satz mit: {title}.",
+    "fr": "Écrivez une phrase à vous qui utilise : {title}.",
+}
+_FREE_SENTENCE_GOAL: dict[str, str] = {
+    "en": "Your own sentence, at least {n} words. Any topic.",
+    "de": "Ein eigener Satz, mindestens {n} Wörter. Thema frei.",
+    "fr": "Une phrase à vous, au moins {n} mots. Sujet libre.",
+}
+
+
+def item_sentences(task: RecallTask) -> set[str]:
+    """The French sentences an item is *about*, folded: the line it prints to
+    work on (``prompt_fr`` / ``source_fr``) and its answer (``solution_fr``).
+
+    A distractor card is not counted (a recognise item's other scene lines are
+    context, not the item's sentence), nor anything under three words: a word
+    or a unit's name is not a sentence two items could share.
+    """
+
+    out: set[str] = set()
+    for text in (task.prompt_fr, task.source_fr, task.solution_fr):
+        folded = _fold(plain(text))
+        if len(folded.split()) >= 3:
+            out.add(folded)
+    return out
+
+
+def _unit_title(brief: dict[str, Any], *, short: bool = False) -> str:
+    """The unit's French name; ``short`` keeps its head («Le plus-que-parfait :
+    le passé du passé» → «Le plus-que-parfait»)."""
+
+    title = str(brief.get("title_fr") or brief.get("title_native") or "").strip()
+    return title.split(" : ")[0].strip() if short else title
+
+
+def _discriminating_sentences(owner: dict[str, Any], other: dict[str, Any]) -> list[str]:
+    """Sentences that use ``owner``'s rule and that nobody could read as ``other``'s.
+
+    Both units need a detector: without one, «does not use the other rule» is a
+    guess, and a contrast item must have exactly one answer.
+    """
+
+    if not owner.get("detectors") or not other.get("detectors"):
+        return []
+    pool = [
+        *(owner.get("examples") or []),
+        *(pair.get("right") for pair in owner.get("contrast_pairs") or []),
+    ]
+    out: list[str] = []
+    for sentence in pool:
+        text = plain(sentence)
+        if not _usable(text) or _fold(text) in {_fold(item) for item in out}:
+            continue
+        if rule_span(owner, text) is None or mentions_rule(other, text):
+            continue
+        out.append(text)
+    return out
+
+
+def contrast_item(
+    brief: dict[str, Any],
+    partner: dict[str, Any],
+    *,
+    language: ControlLanguage,
+    day_key: str = "",
+    avoid: set[str] | None = None,
+    fits: Callable[[str], bool] | None = None,
+) -> RecallTask | None:
+    """«Which rule does this sentence use?» — two partner units, one sentence.
+
+    The catalogue pairs units a learner confuses (``contrast_partners``: the
+    passé composé and the plus-que-parfait, si + présent and si + imparfait).
+    Telling them apart in one sentence is the interleaved discrimination that
+    a block of one unit never asks for. The sentence uses exactly one of the
+    two (its detector finds it, the other's finds nothing); its unit is the
+    target. ``None`` when no such sentence exists or both titles read alike.
+    """
+
+    titles = (_unit_title(brief, short=True), _unit_title(partner, short=True))
+    short = bool(all(titles)) and _fold(titles[0]) != _fold(titles[1])
+    if not short:
+        titles = (_unit_title(brief), _unit_title(partner))
+    if not all(titles) or _fold(titles[0]) == _fold(titles[1]):
+        return None
+    avoid = avoid or set()
+    pairs = [(brief, partner), (partner, brief)]
+    pairs.sort(key=lambda pair: _digest("contrast", day_key, pair[0].get("concept_id")))
+    for owner, other in pairs:
+        sentences = [
+            text for text in _discriminating_sentences(owner, other)
+            if _fold(text) not in avoid and (fits is None or fits(text))
+        ]
+        if not sentences:
+            continue
+        sentences.sort(key=lambda text: _digest("contrast", day_key, text))
+        sentence = sentences[0]
+        target = grammar_target(owner)
+        options = [
+            {"id": "cls_" + _digest(unit.get("concept_id"), "contrast")[:8], "text_fr": title}
+            for unit, title in zip((brief, partner), titles, strict=True)
+        ]
+        options.sort(key=lambda option: _digest(day_key, "order", option["id"]))
+        correct = "cls_" + _digest(owner.get("concept_id"), "contrast")[:8]
+        return RecallTask(
+            task_type="classify",
+            instruction_native=_localized(_CONTRAST, language),
+            prompt_fr=sentence,
+            options=options,
+            target=target,
+            optional=False,
+            correct_option_id=correct,
+            accepted_answers=[sentence],
+            # The rule's one line would name the answer: no hint.
+            hint_native=None,
+            translation_native=None,
+            solution_fr=sentence,
+            estimated_seconds=0,
+        )
+    return None
+
+
+def free_sentence_item(
+    brief: dict[str, Any],
+    *,
+    language: ControlLanguage,
+    avoid: set[str] | None = None,
+    fits: Callable[[str], bool] | None = None,
+) -> RecallTask | None:
+    """«Write a sentence of your own that uses …» — free production of a unit.
+
+    Graded by the unit's detector on the learner's own sentence (at least
+    :data:`FREE_SENTENCE_MIN_WORDS` words), never against one model answer: the
+    model sentence (``solution_fr``) is shown only after a miss. Only a unit
+    with a regex detector can be graded so; ``None`` otherwise.
+    """
+
+    if not brief.get("detectors") or brief.get("llm_detector_only"):
+        return None
+    title = _unit_title(brief, short=True)
+    if not title:
+        return None
+    avoid = avoid or set()
+    models = [
+        text for text in form_sentences(brief, [])
+        if _fold(text) not in avoid and (fits is None or fits(text))
+    ]
+    if not models:
+        return None
+    model = models[0]
+    return RecallTask(
+        task_type="short_answer",
+        instruction_native=_localized(_FREE_SENTENCE, language).format(title=title),
+        prompt_fr=None,
+        options=[],
+        target=grammar_target(brief),
+        optional=False,
+        accepted_answers=[model],
+        hint_native=_hint(brief, language),
+        translation_native=None,
+        solution_fr=model,
+        estimated_seconds=0,
+        evidence_format=FREE_SENTENCE_FORMAT,
+        goal_native=_localized(_FREE_SENTENCE_GOAL, language).format(n=FREE_SENTENCE_MIN_WORDS),
+    )
+
+
+def free_sentence_uses_unit(brief: dict[str, Any], text: str | None) -> bool:
+    """Does the learner's sentence use the unit? (a trustworthy detector span)."""
+
+    words = [word for word in str(text or "").split() if any(char.isalpha() for char in word)]
+    if len(words) < FREE_SENTENCE_MIN_WORDS:
+        return False
+    return rule_span(brief, str(text)) is not None
+
+
 __all__ = [
     "FIXED_EXPRESSIONS",
+    "FREE_SENTENCE_FORMAT",
+    "FREE_SENTENCE_MIN_WORDS",
+    "contrast_item",
+    "free_sentence_item",
+    "free_sentence_uses_unit",
+    "item_sentences",
     "detector_span",
     "fold_apostrophes",
     "mentions_rule",
@@ -765,6 +1010,7 @@ __all__ = [
     "choose_item",
     "form_sentences",
     "grammar_target",
+    "distinct_sentences",
     "guided_items",
     "recognise_item",
     "review_band",
