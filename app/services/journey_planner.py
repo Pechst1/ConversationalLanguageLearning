@@ -863,6 +863,35 @@ def public_recall_target(target: TargetRef) -> dict[str, Any]:
     return public
 
 
+def _repairs_the_wording(learner: str, answer: str) -> bool:
+    """Is ``answer`` recognisably a correction of ``learner`` (shared material)?
+
+    A shared word of three letters or more, or a bigram overlap (Dice) of at least
+    0.35: «appartment»/«appartement», «Je veux»/«Je voudrais».
+    """
+
+    given, wanted = _fold(learner), _fold(answer)
+    if not given or not wanted:
+        return False
+    shared = {w for w in given.split() if len(w) >= 3} & {w for w in wanted.split() if len(w) >= 3}
+    if shared:
+        return True
+
+    def bigrams(text: str) -> list[str]:
+        return [text[i : i + 2] for i in range(len(text) - 1)]
+
+    left, right = bigrams(given), bigrams(wanted)
+    if not left or not right:
+        return False
+    pool = list(right)
+    common = 0
+    for gram in left:
+        if gram in pool:
+            pool.remove(gram)
+            common += 1
+    return 2 * common / (len(left) + len(right)) >= 0.35
+
+
 def build_recall_task(
     *,
     target: TargetRef,
@@ -912,6 +941,12 @@ def build_recall_task(
         if _fold(label_fr) in _fold(learner):
             # The wrong wording already contains the whole answer: showing it
             # would spoil the repair.
+            return None
+        if not _repairs_the_wording(learner, label_fr):
+            # EXPERIENCE-REVIEW 2026-10-04: «Schreib richtig, was du gesagt hast»
+            # over a whole letter, with «clé» as the answer (a word the letter did
+            # not use), or over «der Schlüssel» (a tapped card). A repair is only
+            # honest when the right answer is recognisably a fix of the wording.
             return None
         task_type: RecallTaskType = "tiles" if len(tokens) >= 2 else "short_answer"
         prompt_fr = learner
@@ -2935,8 +2970,14 @@ def _slot_formats(
     learner_band: str = "A1",
     recognition_used: int = 0,
     rung: str | None = None,
+    new_word: bool = False,
 ) -> list[str]:
     declared = PRACTICE_SLOT_FORMATS[slot]
+    if new_word and slot == "warmup":
+        # EXPERIENCE-REVIEW 2026-10-04: a beginner's first item ever was «Maskulin
+        # oder feminin? clé» — the gender of a word not met yet, a pure guess. Before
+        # the scene, a new word is only met by its meaning.
+        declared = tuple(task for task in declared if task != str(RecallFormat.CLASSIFY))
     if learner_band in {"B1", "B2", "C1", "C2"}:
         # One recognition warm-up at most. The rest asks the learner to produce.
         declared = ("transform", "short_answer")
@@ -3140,6 +3181,7 @@ def fill_practice_items(
                 learner_band=scenario.level_band,
                 recognition_used=1 if caps.budget_seconds == 300 else sum(item.task.task_type in {"choice", "classify", "match_pairs", "listen_tap", "who_said"} for item in items),
                 rung=_vocabulary_rung(entry, str(scenario.level_band or "A1")),
+                new_word=bool(entry.candidate.is_new) and entry.target.kind is TargetKind.VOCABULARY,
             ):
                 task = practice_task(
                     task_type,

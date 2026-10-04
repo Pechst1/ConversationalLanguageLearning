@@ -54,7 +54,11 @@ def production_day(monkeypatch, db_session, season_on):  # noqa: F811
     season_on.critic_refusals_left = 0
     season_on.spoil_once = False
     plain_draft = season_on._season_draft
-    monkeypatch.setattr(season_on, "_season_draft", lambda context: walk.weave_grammar(plain_draft(context), context))
+    monkeypatch.setattr(
+        season_on,
+        "_season_draft",
+        lambda context: walk.fit_level(walk.weave_grammar(plain_draft(context), context), context),
+    )
     yield season_on
     monkeypatch.setattr(settings, "ATELIER_GRAMMAR_CATALOG_VERSION", "v1")
     FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()

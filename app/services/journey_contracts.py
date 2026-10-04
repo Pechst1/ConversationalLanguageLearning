@@ -687,6 +687,13 @@ RECALL_GOALS: dict[str, dict[str, str]] = {
         "de": "Korrigiere den Satz: Ändere den Teil, der gegen die Regel von heute verstößt.",
         "fr": "Corrigez la phrase : changez la partie qui enfreint la règle du jour.",
     },
+    # EXPERIENCE-REVIEW 2026-10-04: a Rappel corrects a rule learnt on an earlier
+    # day; «the rule of today» sent the learner looking for the wrong rule.
+    "fix_rule_review": {
+        "en": "Correct the sentence: one part breaks a rule you have learnt.",
+        "de": "Korrigiere den Satz: Ein Teil verstößt gegen eine Regel, die du gelernt hast.",
+        "fr": "Corrigez la phrase : une partie enfreint une règle que vous avez apprise.",
+    },
     "repair_own": {
         "en": "Write what you said, correctly.",
         "de": "Schreib richtig, was du gesagt hast.",

@@ -348,9 +348,17 @@ def turn_example(turn: dict[str, Any] | None) -> str | None:
 
 
 def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
+    """The turn's hint: the *opening* of an example reply to finish, never the whole
+    reply — that is the «suggested response», one tap further (EXPERIENCE-REVIEW
+    2026-10-04: hint and suggestion were the same sentence, so the hint taught
+    nothing a learner could not copy)."""
+
     example = turn_example(turn)
     if not example:
         return None
+    words = example.split()
+    if len(words) >= 4:
+        example = " ".join(words[: max(2, len(words) // 2)]) + " …"
     return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{example}»"[:400]
 
 
@@ -846,12 +854,29 @@ def _cast_names(scenario) -> set[str]:
     return names
 
 
+def _named_turn(scenario, turn: dict[str, Any]) -> dict[str, Any]:
+    """The turn with its addressee's display name. A «choix» posed as a turn carries
+    ``to_name: None``; without a name the ask-again line read «lila_bonnet : Pardon ?»
+    (EXPERIENCE-REVIEW 2026-10-04, A1 day 27 of the walk)."""
+
+    if turn.get("to_name") or not turn.get("to"):
+        return turn
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    try:
+        season = load_season(str(season_ctx.get("id") or "s1"))
+    except Exception:  # noqa: BLE001 - a missing name never costs the turn
+        return turn
+    name = next((member.name for member in season.cast if member.id == turn.get("to")), None)
+    return {**turn, "to_name": name} if name else turn
+
+
 def _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False):
     from app.services.journey_contracts import ResponseEvaluation, TaskOutcome
     from app.services.season.page import translates
     from app.services.season.turns import ask_again_panel, french_please_panel, reaction_lines
     from app.services.story_lanes import margin_correction
 
+    turn = _named_turn(scenario, turn)
     if french_please:
         page = (scenario.story_context.get(SEASON_CONTEXT_KEY) or {}).get("page") or {}
         language = str(page.get("language") or "")

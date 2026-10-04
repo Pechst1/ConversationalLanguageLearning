@@ -116,12 +116,15 @@ def fold_all(value: object) -> str:
 
 #: Words whose accent-free spelling is another French word. An accent slip on one
 #: of these is a different word, so it is never forgiven.
+#: EXPERIENCE-REVIEW 2026-10-04: «ca» is not a word — it is how every German and
+#: English keyboard types «ça», so it is a spelling slip (named, not refused). The
+#: literary «çà» stays strict.
 ACCENT_HOMOGRAPHS: frozenset[str] = frozenset(
     {
         "a", "à", "ou", "où", "la", "là", "du", "dû", "sur", "sûr", "sure", "sûre",
         "des", "dès", "mur", "mûr", "mure", "mûre", "tache", "tâche", "pecher",
         "pêcher", "pécher", "jeune", "jeûne", "cote", "côte", "côté", "coté",
-        "roder", "rôder", "foret", "forêt", "mais", "maïs", "ca", "çà",
+        "roder", "rôder", "foret", "forêt", "mais", "maïs", "çà",
         "eut", "eût", "fut", "fût", "notre", "nôtre", "votre", "vôtre", "crue", "crûe",
         "age", "âge", "ai", "aï", "es", "ès", "interne", "interné", "marche", "marché",
         "peche", "pêche", "pèche", "prés", "près", "pres", "rue", "rué",
@@ -270,6 +273,11 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
     for word in (target_word, learner_word):
         for ending in ("ées", "és", "ée", "é"):
             if word.endswith(ending) and strip_accents(word[: -len(ending)]) + "er" in lemmas:
+                # EXPERIENCE-REVIEW 2026-10-04: strict only when the slip is *in* the
+                # «-é» ending; «diné» for «dîné» has the participle right.
+                other = learner_word if word is target_word else target_word
+                if other.endswith(ending):
+                    return False
                 return True
     return False
 

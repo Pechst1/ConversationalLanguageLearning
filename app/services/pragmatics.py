@@ -407,7 +407,15 @@ _LEADING_FILLERS: tuple[str, ...] = (
     "bonjour", "bonsoir", "salut", "coucou", "alors", "bon", "ok", "eh", "hein",
     "excusez", "excuse", "pardon", "et",
 )
-_BLUNT_WANT = re.compile(r"\bje\s+veux\b", re.IGNORECASE)
+#: Only a *request for something* («je veux un café», «je veux ça») is blunt. A wish
+#: or an intention («je veux comprendre qui elle était», «je veux que tu restes»)
+#: is ordinary French, and correcting it to «je voudrais» taught the wrong thing
+#: (EXPERIENCE-REVIEW 2026-10-04: an A1 learner telling Lila why they stay).
+_BLUNT_WANT = re.compile(
+    r"\bje\s+veux(?=\s+(?:(?:un|une|des|du|de\s+la|le|la|les|ça|ca|cela|ce|cet|cette|ces"
+    r"|deux|trois|quatre|cinq|plus|encore|pas\s+de)\b|de\s+l['’]|l['’]))",
+    re.IGNORECASE,
+)
 #: « je veux bien » is an acceptance, not a demand.
 _WANT_ACCEPTS = (" je veux bien ",)
 

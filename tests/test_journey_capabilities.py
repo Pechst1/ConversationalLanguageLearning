@@ -1138,10 +1138,14 @@ def test_a_slipped_register_explains_itself_rather_than_scolding(
     )
     assert line is not None and line.respected is False
     assert line.line_fr and "Margaux" in line.line_fr
-    # The explanation is the same sentence the live corrector would have used.
+    # The explanation is the same sentence the live corrector would have used —
+    # formatted, as `journey_conversation._meta_pragmatic_note` formats it
+    # (EXPERIENCE-REVIEW 2026-10-04: the raw «{counterpart} siezt dich. {reason}» was shown).
     from app.services.learner_copy import learner_text
 
-    assert line.reason_native == learner_text("pragmatics.register_use_vous", "de")
+    expected = " ".join(learner_text("pragmatics.register_use_vous", "de", counterpart="Margaux", reason="").split())
+    assert line.reason_native == expected
+    assert "{" not in line.reason_native
 
 
 def test_a_french_learner_is_not_shown_the_same_sentence_twice(

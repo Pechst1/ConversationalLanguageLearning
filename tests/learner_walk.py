@@ -78,6 +78,34 @@ def weave_grammar(draft: dict[str, Any], context: dict[str, Any]) -> dict[str, A
     return {**draft, "panels": panels}
 
 
+#: EXPERIENCE-REVIEW 2026-10-04: what a compliant director adds to a gap day's
+#: objective from B1 (``living_story._OBJECTIVE_MINIMUM_WORDS``: a move, not one
+#: sentence). Without it every B1+ gap day was refused as ``objective_too_thin``, the
+#: authored stand-in was served, and the B1/B2/C1 walks never left day 2 of the season.
+#: Each of the fake director's objectives (``test_living_story_longitudinal.OBJECTIVES``)
+#: as a B1+ move. Distinct words on purpose: the repeat guards compare objectives.
+B1_MOVES: dict[str, str] = {
+    "Offer your help for the exhibition.": "Offer your help for the exhibition, name the part you would take on, and settle when you could start.",
+    "Propose another time for the market morning.": "Propose another time for the market morning and defend it against the objection that Saturday suits everybody better.",
+    "Ask the price of the bike.": "Ask what the bike costs, bargain politely about its worn tyres, and agree on a fair sum before leaving.",
+    "Explain where the parcel went.": "Explain where the misdelivered parcel went, admit your part in the mix-up, and propose how to put things right.",
+    "Say whether you come on Friday.": "Say whether you will come to Friday's games night, justify your answer, and react to the pressure to change your mind.",
+    "Ask a neighbour about the flooded cellar.": "Question a neighbour about the flooded cellar, find out who is responsible, and suggest what everyone should do next.",
+    "Accept or decline the cat-sitting.": "Accept or decline looking after the cat this weekend, give a convincing reason, and offer an alternative arrangement.",
+    "Agree a time for the bins.": "Negotiate a time for taking down the bins, explain your constraints, and reach a compromise that the caretaker accepts.",
+    "Describe the lost dog.": "Describe the lost dog in detail, say where you last saw it, and convince someone sceptical to help you search.",
+}
+
+
+def fit_level(draft: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """What a compliant director does with the level's objective floor."""
+
+    if str(context.get("level") or "")[:2] not in {"B1", "B2", "C1", "C2"}:
+        return draft
+    objective = str(draft.get("objective_native") or "")
+    return {**draft, "objective_native": B1_MOVES.get(objective, objective)}
+
+
 def register(client: TestClient, persona: Persona) -> tuple[dict[str, str], str]:
     email = f"walk-{persona.key}-{uuid.uuid4().hex[:8]}@example.com"
     response = client.post(
@@ -109,11 +137,21 @@ def _smart_quotes(text: str) -> str:
 
 
 def _accent_slip(text: str) -> str:
-    """Drop the first accent that is not grammar (a learner on a German keyboard)."""
+    """Drop the first accent that is not grammar (a learner on a German keyboard).
+
+    A homograph's accent («dès»/«des», «où»/«ou») is grammar, not a slip
+    (``answer_acceptance.ACCENT_HOMOGRAPHS``): words carrying one are left alone."""
+
+    import re as _re
+
+    from app.services.answer_acceptance import ACCENT_HOMOGRAPHS
 
     for accented, plain in (("è", "e"), ("ê", "e"), ("ç", "c"), ("î", "i"), ("ô", "o"), ("û", "u")):
-        if accented in text:
-            return text.replace(accented, plain, 1)
+        for match in _re.finditer(rf"\w*{accented}\w*", text):
+            if match.group(0).casefold() in ACCENT_HOMOGRAPHS:
+                continue
+            start = match.start() + match.group(0).index(accented)
+            return text[:start] + plain + text[start + 1 :]
     return text
 
 
@@ -193,11 +231,17 @@ def play_day(
     quality: str,
     day: int,
     provider: Any | None = None,
+    answerer: Any | None = None,
 ) -> dict[str, Any]:
-    """Play one whole day and return its transcript (reading order)."""
+    """Play one whole day and return its transcript (reading order).
+
+    ``answerer`` (EXPERIENCE-REVIEW 2026-10-04) replaces the day's default
+    :class:`Answerer`; one with ``help_before_reply`` asks for help the way a
+    struggling learner taps the hint, and one with ``pick_card`` taps a «choix»
+    card instead of typing."""
 
     driver = support.Driver(client, headers, db=db)
-    answerer = Answerer(quality, random.Random(f"{persona.key}-{quality}-{day}"))
+    answerer = answerer or Answerer(quality, random.Random(f"{persona.key}-{quality}-{day}"))
     journey = driver.create()
     transcript: dict[str, Any] = {
         "persona": persona.key,
@@ -209,6 +253,13 @@ def play_day(
         "status": journey.get("status"),
         "day_shape": journey.get("day_shape"),
         "control_language": journey.get("control_language"),
+        "budget_seconds": journey.get("budget_seconds"),
+        "estimated_active_seconds": journey.get("estimated_active_seconds"),
+        "learner_level": journey.get("learner_level"),
+        "scenario": {
+            key: (journey.get("scenario") or {}).get(key)
+            for key in ("scenario_key", "title_fr", "level_band", "character_name")
+        },
         "events": [],
     }
     events: list[dict[str, Any]] = transcript["events"]
@@ -223,8 +274,10 @@ def play_day(
         if step is None:
             break
         kind = step["kind"]
-        event: dict[str, Any] = {"step": _public_step(step)}
+        event: dict[str, Any] = {"step": _public_step(step), "estimated_seconds": _estimated_seconds(db, step["id"])}
         events.append(event)
+        if kind == "scene":
+            event["page"] = _episode_panels(client, headers, journey["id"])
         if kind in ("scene", "resolution", "rule", "desk", "forge", "read"):
             driver.advance()
             continue
@@ -251,10 +304,29 @@ def play_day(
         replies = [reply for reply in turn.get("replies") or [] if reply.get("examples")]
         pick = replies[(day + reply_index) % len(replies)] if replies else None
         turn_examples = list(pick["examples"]) if pick else [GAP_REPLIES[(day + reply_index) % len(GAP_REPLIES)]]
+        helps = getattr(answerer, "help_before_reply", None)
+        for help_kind in (helps(step, asked_in_french) if helps else []):
+            if help_kind not in (step.get("prompt") or {}).get("help_available", []):
+                continue
+            got = driver.help(help_kind)
+            if got.status_code == 200:
+                body = got.json()
+                event.setdefault("help", []).append(
+                    {"kind": help_kind, "content_fr": body.get("content_fr"), "content_native": body.get("content_native")}
+                )
+                step = driver.current() or step
         text = answerer.reply(step, turn_examples, persona.native)
-        if asked_in_french:
+        cards = (step.get("prompt") or {}).get("choices") or []
+        picker = getattr(answerer, "pick_card", None)
+        if cards and picker is not None:
+            text = picker(cards, turn_examples)
+        elif asked_in_french:
             # QA-CLOSE: the scene asked for French; the poor learner tries, clumsily.
             text, asked_in_french = "je sais pas", False
+        if event.get("help") and hasattr(answerer, "after_help"):
+            text = answerer.after_help(event["help"], text)
+        if hasattr(answerer, "enrich_reply") and not cards:
+            text = answerer.enrich_reply(step, text, db)
         if provider is not None and pick is not None:
             provider.routes[text] = str(pick.get("id") or "")
         event["answer"] = {"input": {"mode": "text", "text": text}, "intent": quality}
@@ -291,8 +363,43 @@ def _result(body: dict[str, Any], step_id: str) -> dict[str, Any]:
         "reply_source": body.get("reply_source"),
         "next_turn": (body.get("next_turn") or {}).get("prompt"),
         "pending": body.get("pending"),
+        "slip_note_native": body.get("slip_note_native"),
         "step_after": {"status": step.get("status"), "prompt": step.get("prompt"), "feedback": step.get("feedback")},
     }
+
+
+def _estimated_seconds(db: Session, step_id: str) -> int | None:
+    """The planner's own estimate for this step (what the day's budget is made of)."""
+
+    row = db.get(DailyJourneyStep, uuid.UUID(step_id))
+    return int(row.estimated_seconds or 0) if row is not None else None
+
+
+def _episode_panels(client: TestClient, headers: dict[str, str], journey_id: str) -> list[dict[str, Any]]:
+    """The page the scene step draws (``StoryEpisodeStep`` reads the same route)."""
+
+    response = client.get("/api/v1/story-engine/episodes", headers=headers, params={"journey_id": journey_id})
+    if response.status_code != 200:
+        return []
+    episodes = response.json().get("episodes") or []
+    if not episodes:
+        return []
+    return [
+        {
+            "narration_fr": panel.get("narration_fr") or "",
+            "alt_native": panel.get("alt_native"),
+            "dialogue": [
+                {
+                    "character_id": line.get("character_id"),
+                    "character_name": line.get("character_name"),
+                    "text_fr": line.get("text_fr"),
+                    "text_native": line.get("text_native"),
+                }
+                for line in panel.get("dialogue") or []
+            ],
+        }
+        for panel in episodes[0].get("panels") or []
+    ]
 
 
 def private_task(db: Session, step_id: str) -> dict[str, Any]:

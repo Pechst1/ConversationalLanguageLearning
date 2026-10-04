@@ -44,7 +44,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -1317,6 +1317,18 @@ def _new_vocabulary_anchor(
         return None
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
     max_difficulty = LEVEL_BAND_DIFFICULTY.get((scenario.level_band or "A1").upper(), 3)
+    # EXPERIENCE-REVIEW 2026-10-04: «level-appropriate» had only a ceiling, and the
+    # scene's most frequent uncarded word is always a grammar word: the B2 and C1
+    # walks drilled «pas», «moi», «elle», «nous», «cinq», «vingt» as their day's new
+    # words. From B1 a new word is at most one level below the learner, and never a
+    # closed-class word (those are taught by the grammar units, not by cards).
+    min_difficulty = max(1, max_difficulty - 1) if max_difficulty >= 3 else 1
+    if max_difficulty >= 3:
+        from app.services.level_coverage import CLOSED_CLASS_WORDS
+
+        terms = {term for term in terms if term not in CLOSED_CLASS_WORDS}
+        if not terms:
+            return None
     words = (
         db.query(VocabularyWord)
         .filter(
@@ -1324,7 +1336,10 @@ def _new_vocabulary_anchor(
             VocabularyWord.normalized_word.in_(sorted(terms)),
             or_(
                 VocabularyWord.difficulty_level.is_(None),
-                VocabularyWord.difficulty_level <= max_difficulty,
+                and_(
+                    VocabularyWord.difficulty_level <= max_difficulty,
+                    VocabularyWord.difficulty_level >= min_difficulty,
+                ),
             ),
         )
         .order_by(
@@ -2228,6 +2243,11 @@ def _apply_vocabulary_credit(
             # WP-115e: the review log records the format (``reply`` for the reply).
             "task_type": observation.task_format or "reply",
         },
+        # EXPERIENCE-REVIEW 2026-10-04: a missed practice item lapses the word; only
+        # the learner's own French (the reply) opens a repair. A recall miss used to
+        # come back as «Schreib richtig, was du gesagt hast: clé» — a tapped card,
+        # or «euh je ne sais pas», posed as the learner's sentence.
+        record_erratum=(observation.task_format or "reply") == "reply",
     )
     return _CreditOutcome(True, result.to_dict())
 
@@ -2459,6 +2479,27 @@ def _credit_for(
             db, user=user, target=target, evidence_kind=evidence_kind, now=now
         )
     return _CreditOutcome(False, {"skipped": "unknown_target_kind"})
+
+
+def attempted_answer(learner_text: str | None, expected: str | None) -> bool:
+    """Was this an attempt at an answer, rather than a give-up?
+
+    A give-up is «je ne sais pas» and its kin, a bare «?», or a sentence in the
+    learner's own language: no French was tried, so there is nothing to repair.
+    Wrong French — even the wrong word — is an attempt.
+    """
+
+    import re as _re
+
+    from app.services.answer_acceptance import fold_all
+    from app.services.season.turns import reply_is_not_french
+
+    given = fold_all(learner_text)
+    if not given or not _re.search(r"[a-z]", given):
+        return False
+    if _re.search(r"\b(?:je\s+(?:ne\s+)?sais\s+pas|sais\s+pas|aucune\s+idee|keine\s+ahnung|weiss\s+(?:ich\s+)?nicht|i\s+don'?t\s+know|no\s+idea|idk)\b", given):
+        return False
+    return not reply_is_not_french(str(learner_text))
 
 
 def _record_correction_erratum(
@@ -2855,6 +2896,15 @@ def apply_learning_evidence(
         getattr(observation, "task_format", None) in IDENTITY_GRADED_FORMATS
         for observation in evaluation.observations
     )
+    # EXPERIENCE-REVIEW 2026-10-04: «euh je ne sais pas» for «appartement» is a word
+    # not yet retrieved, not French to repair: it came back two days later as
+    # «Schreib richtig, was du gesagt hast: euh je ne sais pas». A miss of a practice
+    # item opens a repair only when it was an attempt at the answer.
+    if correction is not None and learner_text and not rebuilt and any(
+        getattr(observation, "task_format", None) not in (None, "reply")
+        for observation in evaluation.observations
+    ):
+        rebuilt = not attempted_answer(learner_text, correction.corrected_fr)
     if correction is not None and not rebuilt and validate_correction(
         correction, learner_text if learner_text else correction.span_fr
     ):

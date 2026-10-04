@@ -42,6 +42,21 @@ PROVENANCE = "band_check"
 #: The credited card: settled, known now, first light check within these days.
 CREDIT_STABILITY_DAYS = 30.0
 VERIFY_WITHIN_DAYS = (10, 45)
+#: EXPERIENCE-REVIEW 2026-10-04: the light check's window by how far below the
+#: learner's own sub-band the credited one lies. A B2 learner credits about 2,800
+#: words; all of them checked within 10–45 days came back at ~80 a day, filled the
+#: drill (its 30 due a session) for weeks, and the throttle halved new words to 4.
+#: Words a learner proved in a band far below their own are trusted longer.
+VERIFY_WINDOWS: dict[int, tuple[int, int]] = {1: (20, 90), 2: (40, 180), 3: (90, 365)}
+
+
+def credit_schedule(distance: int) -> tuple[float, tuple[int, int]]:
+    """``(stability, (first, last) day of the light check)`` for a credited sub-band
+    ``distance`` sub-bands below the learner's own. The stability keeps the word
+    known (retrievability ≥ 0.85) until its check is due."""
+
+    window = VERIFY_WINDOWS.get(max(1, distance)) or VERIFY_WINDOWS[max(VERIFY_WINDOWS)]
+    return max(CREDIT_STABILITY_DAYS, window[1] / 1.5), window
 SUB_BANDS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2")
 
 
@@ -204,17 +219,22 @@ def credit(db: Session, user: Any, sub_band: str, *, exclude: set[str] = frozens
             .where(UserVocabularyProgress.user_id == user.id)
         )
     )
+    from app.services.lexical_coverage import _cefr_estimate
+
+    level, _source = _cefr_estimate(db, user)
+    distance = SUB_BANDS.index(_sub_band(level)) - SUB_BANDS.index(sub_band) if sub_band in SUB_BANDS else 1
+    stability, window = credit_schedule(distance)
     written = 0
     for word in rows:
         if word.normalized_word in have:
             continue
         rng = random.Random(f"{getattr(user, 'id', '')}:{word.id}")  # noqa: S311 - a seeded spread
-        due = now + timedelta(days=rng.randint(*VERIFY_WITHIN_DAYS))
+        due = now + timedelta(days=rng.randint(*window))
         db.add(
             UserVocabularyProgress(
                 user_id=user.id,
                 word_id=word.id,
-                stability=CREDIT_STABILITY_DAYS,
+                stability=stability,
                 difficulty=4.0,
                 reps=2,
                 lapses=0,
@@ -238,4 +258,4 @@ def credit(db: Session, user: Any, sub_band: str, *, exclude: set[str] = frozens
     return written
 
 
-__all__ = ["ITEMS", "PASS_SHARE", "PROVENANCE", "checkable", "credit", "credited_sub_bands", "sample", "submit"]
+__all__ = ["ITEMS", "PASS_SHARE", "PROVENANCE", "checkable", "credit", "credit_schedule", "credited_sub_bands", "sample", "submit"]

@@ -476,7 +476,17 @@ def build_journey_register_line(
         copy_key = _REGISTER_SLIP_COPY.get(
             str(item.register_expected or ""), "pragmatics.register_mixed"
         )
-        reason = learner_text(copy_key, language)
+        if item.character_native or copy_key == "pragmatics.register_mixed":
+            # EXPERIENCE-REVIEW 2026-10-04: the template was printed unformatted —
+            # a B2 learner read «{counterpart} vous vouvoie. {reason}».
+            reason = " ".join(
+                learner_text(
+                    copy_key, language, counterpart=item.character_native or "", reason=""
+                ).split()
+            )
+        else:
+            # No name recorded: the context line has a form that names nobody.
+            reason = _register_context_line(item, language=language)
     reason = (reason or "").strip() or None
     if reason and reason == line_fr:
         # French chrome plus the same sentence twice is not an explanation.

@@ -135,7 +135,8 @@ def test_the_prompt_names_no_catalogue_title(db_session: Session) -> None:
         assert task is not None
         assert "Gender and number" not in task.instruction_native
         assert brief["title_native"] not in task.instruction_native
-        assert task.instruction_native == grammar_items._RECOGNISE[language]
+        # EXPERIENCE-REVIEW 2026-10-04: up to A2 the item asks which sentence *uses* the rule.
+        assert task.instruction_native == grammar_items._RECOGNISE_USE[language]
         # The one-line rule stays behind «La règle», in the learner's language.
         assert task.hint_native == brief["rule_card"]["rule"].get(language, brief["rule_card"]["rule"]["en"])
 

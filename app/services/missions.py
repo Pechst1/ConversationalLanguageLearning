@@ -1342,12 +1342,35 @@ class MissionGenerator:
                 if len(ordered) >= limit:
                     return ordered
 
+        # EXPERIENCE-REVIEW 2026-10-04: the fallback was the catalogue's first units —
+        # a C1 learner's letter asked to «Placer une fois : Je suis, tu es». It is now
+        # the units the learner has met, latest first, then their own level's.
+        from app.db.models.grammar import UserGrammarProgress
+
+        met = (
+            self.db.query(GrammarConcept)
+            .join(UserGrammarProgress, UserGrammarProgress.concept_id == GrammarConcept.id)
+            .filter(
+                UserGrammarProgress.user_id == user.id,
+                GrammarConcept.active.is_(True),
+                ~GrammarConcept.id.in_(seen) if seen else True,
+            )
+            .order_by(UserGrammarProgress.last_review.desc().nullslast(), GrammarConcept.difficulty_order.desc())
+            .limit(max(0, limit - len(ordered)))
+            .all()
+        )
+        ordered.extend(met)
+        seen.update(concept.id for concept in met)
+        if len(ordered) >= limit:
+            return ordered[:limit]
+        level = _learner_level_code(self.db, user)
         fallback = (
             self.db.query(GrammarConcept)
             .filter(
                 GrammarConcept.active.is_(True),
                 GrammarConcept.external_id.isnot(None),
                 GrammarConcept.external_id != "",
+                GrammarConcept.level == level if level else True,
                 ~GrammarConcept.id.in_(seen) if seen else True,
             )
             .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
@@ -1854,6 +1877,13 @@ class MissionGenerator:
         if source == "story_born":
             context["character_name"] = _compact_text((value or {}).get("character_name"), max_length=80)
             context["summary_fr"] = _compact_text((value or {}).get("summary_fr"), max_length=240)
+            known = (value or {}).get("desired_outcome_i18n")
+            if isinstance(known, dict) and known.get("fr") == desired_outcome:
+                context["desired_outcome_i18n"] = {
+                    str(key): _compact_text(text, max_length=400)
+                    for key, text in known.items()
+                    if key in ("fr", "en", "de") and isinstance(text, str)
+                }
         return context
 
     def _customize_mission(
@@ -1908,7 +1938,9 @@ class MissionGenerator:
         objectives = [
             {
                 "id": "custom_real_life_outcome",
-                "label": f"Achieve: {outcome}",
+                # EXPERIENCE-REVIEW 2026-10-04: the label is French (it is read back in
+                # the correspondent's reply); «Achieve: …» leaked English into it.
+                "label": str(outcome).strip().rstrip("."),
                 "target_count": 1,
                 "kind": "pragmatics",
                 "required": True,
@@ -1982,6 +2014,9 @@ class MissionGenerator:
             "twist": messenger.get("twist") if generated else None,
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
         }
+        known = custom_context.get("desired_outcome_i18n")
+        if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
+            story_messenger["success_signal_i18n"] = dict(known)
         story_title = (title if generated and title else None) or f"Un mot de {name}"
         summary = str(custom_context.get("summary_fr") or "").strip()
         if summary and summary[-1] not in ".!?…":
@@ -1995,7 +2030,9 @@ class MissionGenerator:
         objectives = [
             {
                 "id": "custom_real_life_outcome",
-                "label": f"Achieve: {outcome}",
+                # EXPERIENCE-REVIEW 2026-10-04: the label is French (it is read back in
+                # the correspondent's reply); «Achieve: …» leaked English into it.
+                "label": str(outcome).strip().rstrip("."),
                 "target_count": 1,
                 "kind": "pragmatics",
                 "required": True,
@@ -3322,7 +3359,7 @@ class MissionCorrectionService:
             if used_target:
                 objectives_by_id[objective_id] = {
                     "id": objective_id,
-                    "label": f"Use {word} naturally",
+                    "label": f"Placer « {word} »",
                     "met": True,
                     "note": f"You used {word} in your response.",
                 }
@@ -3347,14 +3384,14 @@ class MissionCorrectionService:
 
             objectives_by_id[objective_id] = {
                 "id": objective_id,
-                "label": f"Use {word} naturally",
+                "label": f"Placer « {word} »",
                 "met": False,
                 "note": f"Try to work {word} into the mission naturally.",
             }
             missing_targets.append(
                 {
                     "external_id": f"VOCAB_{word_id}",
-                    "label": f"Use {word} naturally",
+                    "label": f"Placer « {word} »",
                     "detected_count": 0,
                     "target_count": 1,
                     "missing_count": 1,
@@ -3383,8 +3420,10 @@ class MissionCorrectionService:
                     "event_type": "produced_incorrect" if translation_hit else "missed_target",
                     "reason": "translation_instead_of_target" if translation_hit else "missing_target",
                     "learner_text": translation_hit or _compact_text(text, max_length=160),
-                    "explanation": "The mission target vocabulary was not produced in French.",
-                    "repair_hint": f"Add {word} naturally in one short French sentence.",
+                    # EXPERIENCE-REVIEW 2026-10-04: None, so vocabulary_credit writes
+                    # the why and the hint in the learner's language (they were English).
+                    "explanation": None,
+                    "repair_hint": None,
                 }
             )
             added_vocab_erratum = True
@@ -4168,6 +4207,7 @@ class MissionScheduler:
         # WP-64 — a story-born letter: a character who was in yesterday's scene
         # writes about it. The scenario is built from the stored event, never from
         # a model's memory of one, so the letter cannot invent a past.
+        story_context: dict[str, Any] = {}
         if story_letter and not _compact_text(custom_scenario):
             story_context = courrier.story_letter_context(story_letter)
             custom_scenario = story_context["scenario"]
@@ -4186,6 +4226,9 @@ class MissionScheduler:
             custom_context["source"] = "story_born"
             custom_context["character_name"] = story_letter.get("character_name")
             custom_context["summary_fr"] = story_letter.get("summary_fr")
+            # EXPERIENCE-REVIEW 2026-10-04: the objective's translations travel with it.
+            if story_context and desired_outcome == story_context.get("desired_outcome"):
+                custom_context["desired_outcome_i18n"] = story_context.get("desired_outcome_i18n")
         has_custom_context = bool(_compact_text(custom_scenario))
         serial_thread = self.db.get(SerialThread, serial_thread_id) if serial_thread_id else None
         if serial_thread and serial_thread.user_id != user.id:
@@ -5188,6 +5231,32 @@ class MissionScheduler:
         return "Je peux vous aider, mais il me manque un détail concret. Reformulez et dites-moi exactement ce qu'il faut faire."
 
 
+
+
+def _learner_level_code(db: Session, user: Any) -> str | None:
+    """The learner's CEFR level as the catalogue writes it («A1» … «C1»), or None."""
+
+    try:
+        from app.services.lexical_coverage import _cefr_estimate
+
+        level, _source = _cefr_estimate(db, user)
+    except Exception:  # noqa: BLE001 - a letter is never lost to a level read
+        return None
+    code = str(level or "").strip().upper()[:2]
+    return code if code in {"A1", "A2", "B1", "B2", "C1", "C2"} else None
+
+def _unassessed_acknowledgement(mission: Any) -> str:
+    """The correspondent's honest answer when nothing could assess the letter: it was
+    read, and nothing is claimed about it (EXPERIENCE-REVIEW 2026-10-04)."""
+
+    messenger = (getattr(mission, "prompt_payload", None) or {}).get("messenger") or {}
+    register = str(messenger.get("register") or "")
+    opening = str(messenger.get("opening_message") or "")
+    tu = "tu" in register.split() or "tu /" in register or opening.startswith(("Salut", "Coucou")) or " toi" in opening
+    if tu:
+        return "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
+    return "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -5340,16 +5409,32 @@ class MissionConversationService:
         user_turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
         branch_state = (branch or {}).get("state")
         all_met = bool(objective_progress) and all(bool(item.get("met")) for item in objective_progress)
+        # EXPERIENCE-REVIEW 2026-10-04: an objective nobody assessed (no corrector
+        # answered) is not missing. The fallback told a flawless C1 letter «il me
+        # manque encore ceci : Écrire un message qu'on pourrait vraiment envoyer».
+        assessed = [item for item in objective_progress or [] if item.get("assessed", True)]
+        if user_turns and objective_progress and not assessed and branch_state not in {"tone_mismatch"}:
+            return _unassessed_acknowledgement(mission)
         if user_turns:
             if branch_state == "tone_mismatch":
                 return "On ne se connaît pas encore. Reformulez plus poliment, s'il vous plaît, et je pourrai vous aider."
-            if objective_progress and not all_met:
-                missing = next((item for item in objective_progress if not item.get("met")), {})
+            # The correspondent asks for what the letter is *about*; a word or a rule
+            # to place («Placer « évidemment »») is the Courrier's note, not a reply.
+            asked = [
+                item for item in assessed
+                if not str(item.get("id") or "").startswith(("vocabulary_", "concept_"))
+            ]
+            if objective_progress and not asked:
+                return _unassessed_acknowledgement(mission) if not all_met else (
+                    "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible."
+                )
+            if asked and not all(bool(item.get("met")) for item in asked):
+                missing = next((item for item in asked if not item.get("met")), {})
                 label = _compact_text(missing.get("label"), max_length=120) or "un détail important"
                 return f"Je comprends l'idée, mais il me manque encore ceci : {label}. Ajoutez ce point et je pourrai avancer."
             if branch_state in {"needs_detail", "missing_next_step"}:
                 return "Je peux vous aider, mais il me manque un détail concret. Quel est le problème exact et que souhaitez-vous que je fasse ?"
-            if all_met or branch_state == "understood":
+            if all_met or (asked and all(bool(item.get("met")) for item in asked)) or branch_state == "understood":
                 if "heating" in f"{mission.title} {mission.brief} {(mission.prompt_payload or {}).get('messenger', {})}".lower():
                     return "Bien reçu. J'envoie quelqu'un demain matin entre 8 h et 10 h. Bonne installation."
                 return "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible."

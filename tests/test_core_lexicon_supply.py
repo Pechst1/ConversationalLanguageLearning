@@ -29,9 +29,13 @@ def _drop_core_rows(db_session):
 
     yield
     db_session.rollback()
-    core_ids = select(VocabularyWord.id).where(VocabularyWord.deck_name == CORE_DECK)
+    # «Mon deck» too: the imported card of `test_a_lemma_the_learner_already_has…`
+    # («pas») outlived the suite and became the next suites' scene word
+    # (test_journey_contract_parity, test_journey_end_to_end failed after this file).
+    decks = (CORE_DECK, "Mon deck")
+    core_ids = select(VocabularyWord.id).where(VocabularyWord.deck_name.in_(decks))
     db_session.execute(delete(UserVocabularyProgress).where(UserVocabularyProgress.word_id.in_(core_ids)))
-    db_session.execute(delete(VocabularyWord).where(VocabularyWord.deck_name == CORE_DECK))
+    db_session.execute(delete(VocabularyWord).where(VocabularyWord.deck_name.in_(decks)))
     db_session.commit()
 
 

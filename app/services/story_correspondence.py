@@ -1092,6 +1092,14 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
     return {
         "scenario": scenario,
         "desired_outcome": outcome,
+        # EXPERIENCE-REVIEW 2026-10-04: the objective as chrome. Without it a German
+        # A1 learner's letter day printed the French outcome as their task.
+        "desired_outcome_i18n": {
+            "fr": outcome,
+            "en": f"{name} knows what you think and what you plan to do next.",
+            # The app speaks to the learner with «du», whatever the letter's register.
+            "de": f"{name} weiß, was du davon hältst und was du als Nächstes vorhast.",
+        },
         "character_name": str(name),
         "relationship": str(candidate.get("character_id") or ""),
         # «vous» keeps the letter writer's own inference (``None``); «tu» is binding.

@@ -3134,6 +3134,20 @@ def _mid_sentence(options: str) -> str:
         head = head[:1].lower() + head[1:]
     return f"{head} {rest}".strip() if rest else head
 
+def _same_word_two_forms(left: str, right: str) -> bool:
+    """Two forms of one word («un»/«une», «veux»/«voudrais»), the only honest forced
+    choice. EXPERIENCE-REVIEW 2026-10-04 (the paid A2 read): «Pardon, on commence
+    maintenant ou quand ?» offered two different words, and «perdu ou perdu(e)» an
+    agreement nobody can judge without the learner's gender."""
+
+    from app.services.answer_acceptance import fold_all
+
+    if "(" in left + right or ")" in left + right:
+        return False
+    a, b = fold_all(left), fold_all(right)
+    return bool(a) and bool(b) and a[0] == b[0]
+
+
 def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> tuple[str, str]:
     """The character's line, and which move it is.
 
@@ -3155,7 +3169,7 @@ def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> 
             for index, (left, right) in enumerate(zip(wrong_tokens, correct_tokens, strict=True))
             if fold_for_comparison(left) != fold_for_comparison(right)
         ]
-        if len(differing) == 1:
+        if len(differing) == 1 and _same_word_two_forms(wrong_tokens[differing[0]], correct_tokens[differing[0]]):
             index = differing[0]
             first, second = sorted(
                 (wrong_tokens[index], correct_tokens[index]), key=lambda item: fold_for_comparison(item)

@@ -5000,10 +5000,10 @@ class DailyJourneyService:
             available = {
                 HelpKind.HINT: (None, response.hint_native),
                 HelpKind.TRANSLATION: (None, response.translation_native),
-                HelpKind.SUGGESTED_RESPONSE: (
-                    response.suggested_response_fr,
-                    response.translation_native,
-                ),
+                # EXPERIENCE-REVIEW 2026-10-04: the suggestion has no translation of
+                # its own; the character's line translated under it («Ma famille dit :
+                # fatiguée.» over «Warum ist Odile gegangen?») read as its meaning.
+                HelpKind.SUGGESTED_RESPONSE: (response.suggested_response_fr, None),
             }
         if help_kind not in available:
             raise HTTPException(

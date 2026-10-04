@@ -1031,6 +1031,39 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Benutze die Zielgrammatik sichtbar in deiner Antwort.",
         "fr": "Employez visiblement la grammaire visée dans votre réponse.",
     },
+    # -- app/services/vocabulary_credit.py: a word's repair, in the learner's language.
+    # EXPERIENCE-REVIEW 2026-10-04: these were English literals; a German learner read
+    # «The word appartement needs another repair in context.» in the day's items.
+    "vocabulary.erratum.missed.label": {
+        "en": "Use the word: {word}",
+        "de": "Benutze das Wort: {word}",
+        "fr": "Placez le mot : {word}",
+    },
+    "vocabulary.erratum.missed.why": {
+        "en": "The task asked for “{word}”, and your answer did not use it.",
+        "de": "Die Aufgabe wollte „{word}“, und deine Antwort benutzt es nicht.",
+        "fr": "La tâche demandait « {word} », et votre réponse ne l’emploie pas.",
+    },
+    "vocabulary.erratum.missed.hint": {
+        "en": "Use “{word}” ({meaning}) naturally in a sentence.",
+        "de": "Benutze „{word}“ ({meaning}) ganz natürlich in einem Satz.",
+        "fr": "Employez « {word} » ({meaning}) naturellement dans une phrase.",
+    },
+    "vocabulary.erratum.wrong.label": {
+        "en": "Word: {word}",
+        "de": "Wort: {word}",
+        "fr": "Mot : {word}",
+    },
+    "vocabulary.erratum.wrong.why": {
+        "en": "“{word}” was not quite right here. It comes back in a sentence.",
+        "de": "„{word}“ war hier noch nicht richtig. Es kommt in einem Satz wieder.",
+        "fr": "« {word} » n’était pas encore juste ici. Il reviendra dans une phrase.",
+    },
+    "vocabulary.erratum.wrong.hint": {
+        "en": "Use “{word}” for “{meaning}” in a new sentence.",
+        "de": "Benutze „{word}“ für „{meaning}“ in einem neuen Satz.",
+        "fr": "Employez « {word} » pour « {meaning} » dans une nouvelle phrase.",
+    },
     # -- app/services/pragmatics.py: WP-33 register and pragmatics ------------
     # Explicit meta-pragmatic instruction: the line names the rule *and* the
     # reason, because "instruction beats exposure" only holds when the learner

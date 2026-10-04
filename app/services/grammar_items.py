@@ -59,6 +59,25 @@ _RECOGNISE: dict[str, str] = {
     "de": "Welcher Satz folgt der Regel von heute?",
     "fr": "Quelle phrase suit la règle du jour ?",
 }
+#: EXPERIENCE-REVIEW 2026-10-04. Up to A2 the options are one use of the rule and
+#: sentences that do not use it — all of them correct French — so the question is
+#: which one *uses* it («folgt der Regel» read as «the others break it»). A Rappel
+#: asks about a rule learnt earlier, never «today's»; its goal line names the rule.
+_RECOGNISE_USE: dict[str, str] = {
+    "en": "Which sentence uses today's rule?",
+    "de": "In welchem Satz steckt die Regel von heute?",
+    "fr": "Dans quelle phrase trouvez-vous la règle du jour ?",
+}
+_RECOGNISE_USE_REVIEW: dict[str, str] = {
+    "en": "Which sentence uses this rule?",
+    "de": "In welchem Satz steckt diese Regel?",
+    "fr": "Dans quelle phrase trouvez-vous cette règle ?",
+}
+_RECOGNISE_REVIEW: dict[str, str] = {
+    "en": "Which sentence follows this rule?",
+    "de": "Welcher Satz folgt dieser Regel?",
+    "fr": "Quelle phrase suit cette règle ?",
+}
 _CHOOSE: dict[str, str] = {
     "en": "Which one is right?",
     "de": "Was ist richtig?",
@@ -377,6 +396,7 @@ def recognise_item(
     sentences: list[str],
     language: ControlLanguage,
     optional: bool = False,
+    review: bool = False,
 ) -> RecallTask | None:
     """«Which sentence follows today's rule?» — or ``None`` when it would be ambiguous.
 
@@ -420,9 +440,15 @@ def recognise_item(
     texts = [answer, *others[:2]]
     options = [{"id": "opt_" + _digest(target.id, "r", text)[:8], "text_fr": text} for text in texts]
     options.sort(key=lambda option: _digest(target.id, "order", option["text_fr"]))
+    contrast = french_chrome(brief.get("level"))
+    table = (
+        (_RECOGNISE_REVIEW if review else _RECOGNISE)
+        if contrast
+        else (_RECOGNISE_USE_REVIEW if review else _RECOGNISE_USE)
+    )
     return RecallTask(
         task_type="choice",
-        instruction_native=_localized(_RECOGNISE, language),
+        instruction_native=_localized(table, language),
         prompt_fr=None,
         options=options,
         target=target,
@@ -433,6 +459,7 @@ def recognise_item(
         translation_native=None,
         solution_fr=answer,
         estimated_seconds=0,
+        goal_native=_hint(brief, language) if review else None,
     )
 
 
@@ -575,6 +602,7 @@ def transform_item(
     prefer_second_pair: bool = False,
     optional: bool = False,
     meanings: dict[str, str] | None = None,
+    review: bool = False,
 ) -> RecallTask | None:
     pairs = list(brief.get("contrast_pairs") or [])
     if not pairs:
@@ -600,7 +628,7 @@ def transform_item(
         goal_native=(
             recall_goal("fix_meaning", language, meaning=meaning)
             if meaning
-            else recall_goal("fix_rule", language)
+            else recall_goal("fix_rule_review" if review else "fix_rule", language)
         ),
         source_fr=wrong,
     )
@@ -649,6 +677,20 @@ def guided_items(
     if build is not None:
         items.append(build)
     transform = transform_item(brief, language=language, prefer_second_pair=True, meanings=meanings)
+    # EXPERIENCE-REVIEW 2026-10-04 (A1 day 19): «Was ist richtig?» printed «Je voudrais
+    # un café, s'il vous plaît.» and the next repair asked for «Je voudrais un café.» —
+    # copying, not retrieval. The repair takes a pair whose answer was not just shown.
+    printed = [_fold(str(item.solution_fr or "")) for item in items]
+    if transform is not None and any(_fold(str(transform.solution_fr or "")) in shown for shown in printed):
+        transform = next(
+            (
+                task
+                for pair in brief.get("contrast_pairs") or []
+                if (task := transform_item({**brief, "contrast_pairs": [pair]}, language=language, meanings=meanings))
+                and not any(_fold(str(task.solution_fr or "")) in shown for shown in printed)
+            ),
+            None,
+        )
     if transform is not None:
         items.append(transform)
     return items
@@ -685,22 +727,22 @@ def review_item(
         return None
     advanced = french_chrome(brief.get("level"))
     if advanced:
-        builders = [lambda: transform_item(brief, language=language, meanings=meanings)]
+        builders = [lambda: transform_item(brief, language=language, meanings=meanings, review=True)]
     elif band == "low":
         builders = [
             lambda: choose_item(brief, language=language),
-            lambda: recognise_item(brief, sentences=sentences, language=language),
+            lambda: recognise_item(brief, sentences=sentences, language=language, review=True),
         ]
     else:
         builders = [
-            lambda: transform_item(brief, language=language, meanings=meanings),
+            lambda: transform_item(brief, language=language, meanings=meanings, review=True),
             lambda: build_item(brief, sentences=sentences, language=language, meanings=meanings),
         ]
     if int(_digest(brief.get("concept_id"), day_key)[:2], 16) % 2:
         builders.reverse()
     fallbacks = [] if advanced else [
         lambda: choose_item(brief, language=language),
-        lambda: recognise_item(brief, sentences=sentences, language=language),
+        lambda: recognise_item(brief, sentences=sentences, language=language, review=True),
     ]
     for build in [*builders, *fallbacks]:
         task = build()

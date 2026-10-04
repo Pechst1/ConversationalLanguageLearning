@@ -58,6 +58,10 @@ def _fake_strings() -> frozenset[str]:
         "La journée se termine.",
         "Vous avez parlé.",
     }
+    from tests.learner_walk import B1_MOVES
+
+    # learner_walk.fit_level: the walk director's B1+ objectives.
+    strings |= set(B1_MOVES.values())
     return frozenset(" ".join(text.split()) for text in strings)
 
 
@@ -191,6 +195,11 @@ def check_language(transcript: dict[str, Any]) -> list[str]:
                 lang = detect_language(text)
                 if lang is None:
                     continue
+                if key == "title_native" and ":" in text:
+                    # «Le plus, le moins: am meisten, am wenigsten» — the French form, then its gloss.
+                    lang = detect_language(text.split(":", 1)[1])
+                    if lang is None:
+                        continue
                 if lang == foreign:
                     problems.append(f"{_label(transcript, index, event)} {path}: {lang} text for a {native} learner: {text!r}")
                 elif key not in MEANING_KEYS and lang not in {chrome, native} and not _has_markers(text, chrome):
@@ -380,8 +389,10 @@ def item_words_above(text: str, cefr: str, *, slack: int = 1) -> list[str]:
     for raw in re.findall(r"[^\W\d_]+(?:['-][^\W\d_]+)*", str(text or "")):
         if raw[:1].isupper() and raw in cast_names():
             continue
-        token = fold_typography(raw).split("'")[-1]
-        band = bands.get(token)
+        whole = fold_typography(raw).casefold()
+        token = whole.split("'")[-1]
+        # «d'abord», «aujourd'hui» are words of their own, not «abord», «hui».
+        band = bands.get(whole, bands.get(token))
         # A participle («arrivé») is its verb's word, whatever its own adjective entry says.
         for ending, infinitive in (("ées", "er"), ("és", "er"), ("ée", "er"), ("é", "er")):
             if band is not None and token.endswith(ending):
@@ -467,7 +478,7 @@ def check_strings(transcript: dict[str, Any]) -> list[str]:
             for path, key, text in _iter_strings(shown):
                 if key in _MACHINE_FIELDS or key.endswith(("_id", "_url", "_key")):
                     continue
-                if _PLACEHOLDER.search(text):
+                if _PLACEHOLDER.search(text) and not _markup_or_word(path, text, transcript):
                     problems.append(f"{_label(transcript, index, event)} {path}: placeholder or plural slash: {text!r}")
                 if _MACHINE_KEY.match(text.strip()) and key not in {"mode", "register"}:
                     problems.append(f"{_label(transcript, index, event)} {path}: machine key shown: {text!r}")
@@ -485,6 +496,15 @@ def check_strings(transcript: dict[str, Any]) -> list[str]:
             if "___" in cloze and len(re.findall(r"\w+", cloze.replace("___", ""))) < 2:
                 problems.append(f"{_label(transcript, index, event)}: a gap with no sentence around it: {cloze!r}")
     return problems
+
+
+def _markup_or_word(path: str, text: str, transcript: dict[str, Any]) -> bool:
+    """Not a placeholder: a rule card's ``[x]`` markup («[votre] sac»), or «null»,
+    which is German for «zéro»."""
+
+    if "rule_card" in path:
+        return True
+    return text.strip().casefold() == "null" and str(transcript.get("native")) == "de"
 
 
 # ---------------------------------------------------------------------------
@@ -549,6 +569,71 @@ def check_grading(transcript: dict[str, Any]) -> list[str]:
     return problems
 
 
+# ---------------------------------------------------------------------------
+# 8. EXPERIENCE-REVIEW 2026-10-04: repairs, Rappel wording, corrections of wishes
+# ---------------------------------------------------------------------------
+
+#: What a learner types when they give up: no French was tried.
+GIVE_UP = re.compile(
+    r"\b(?:je\s+(?:ne\s+)?sais\s+pas|sais\s+pas|keine\s+ahnung|wei(?:ß|ss)\s+(?:ich\s+)?nicht|i\s+don'?t\s+know)\b",
+    re.IGNORECASE,
+)
+#: «today's rule» in the three chrome languages.
+TODAY = re.compile(r"\b(?:von heute|today's|du jour)\b", re.IGNORECASE)
+
+
+def check_repairs(transcript: dict[str, Any]) -> list[str]:
+    """«Write what you said, correctly» is asked only of the learner's own French —
+    never of a give-up or of a tapped card."""
+
+    problems: list[str] = []
+    for index, event in enumerate(transcript["events"]):
+        prompt = event["step"].get("prompt") or {}
+        target = prompt.get("target") or {}
+        if event["step"].get("kind") != "recall" or target.get("kind") != "error":
+            continue
+        shown = str(prompt.get("prompt_fr") or prompt.get("source_fr") or "")
+        if GIVE_UP.search(shown):
+            problems.append(f"{_label(transcript, index, event)}: asks to repair a give-up: {shown!r}")
+    return problems
+
+
+def check_rule_of_today(transcript: dict[str, Any]) -> list[str]:
+    """An item about a rule learnt on another day never calls it «today's rule»."""
+
+    problems: list[str] = []
+    today = {
+        str((event["step"].get("prompt") or {}).get("concept_id"))
+        for event in transcript["events"]
+        if event["step"].get("kind") == "rule"
+    }
+    for index, event in enumerate(transcript["events"]):
+        prompt = event["step"].get("prompt") or {}
+        target = prompt.get("target") or {}
+        if event["step"].get("kind") != "recall" or target.get("kind") != "grammar":
+            continue
+        if str(target.get("id")) in today:
+            continue
+        for key in ("instruction_native", "goal_native"):
+            if TODAY.search(str(prompt.get(key) or "")):
+                problems.append(f"{_label(transcript, index, event)}: a Rappel of another day's rule says «today»: {prompt.get(key)!r}")
+    return problems
+
+
+def check_wishes_are_not_corrected(transcript: dict[str, Any]) -> list[str]:
+    """«je veux» + an infinitive or «que» is a wish, never a blunt request to soften."""
+
+    problems: list[str] = []
+    for index, event in enumerate(transcript["events"]):
+        correction = (event.get("result") or {}).get("correction") or {}
+        if _fold(correction.get("corrected_fr")) != "je voudrais":
+            continue
+        said = str(((event.get("answer") or {}).get("input") or {}).get("text") or "")
+        if re.search(r"\bje\s+veux\s+(?:que\b|[a-zàâçéèêëîïôûùüÿœ]+(?:er|ir|re|oir)\b)", said, re.IGNORECASE):
+            problems.append(f"{_label(transcript, index, event)}: a wish corrected to «je voudrais»: {said!r}")
+    return problems
+
+
 CHECKS = (
     check_grading,
     check_language,
@@ -558,6 +643,9 @@ CHECKS = (
     check_feedback,
     check_strings,
     check_spoilers,
+    check_repairs,
+    check_rule_of_today,
+    check_wishes_are_not_corrected,
 )
 
 
@@ -582,3 +670,76 @@ def run_all(transcripts: list[dict[str, Any]], db: Any = None, *, include_known:
             problems.extend(check(transcript))
     return problems if include_known else [problem for problem in problems if not _known(problem)]
 
+
+
+# ---------------------------------------------------------------------------
+# EXPERIENCE-REVIEW 2026-10-04: invariants of a whole life (tests/test_experience_walk.py)
+# ---------------------------------------------------------------------------
+
+
+def check_life(record: dict[str, Any]) -> list[str]:
+    """A month of one learner: every surface answered, every day playable."""
+
+    problems: list[str] = []
+    who = f"{record['persona']} {record['quality']}"
+    for day in record["days"]:
+        label = f"{who} day {day['day']}"
+        journey = day.get("journey") or {}
+        if journey.get("error"):
+            problems.append(f"{label}: the day could not be played: {journey['error']}")
+        if (day.get("la_une") or {}).get("status_code"):
+            problems.append(f"{label}: La Une answered {day['la_une']['status_code']}")
+        if (day.get("courrier") or {}).get("status_code"):
+            problems.append(f"{label}: the Courrier answered {day['courrier']['status_code']}")
+        if (day.get("drill") or {}).get("status_code"):
+            problems.append(f"{label}: the drill answered {day['drill']['status_code']}")
+        due = (((day.get("drill") or {}).get("summary")) or {}).get("due_total") or 0
+        if due > MAX_DUE_BACKLOG:
+            problems.append(f"{label}: {due} words due at once — the drill's backlog crowds out new words")
+        for letter in (day.get("courrier") or {}).get("letters") or []:
+            correction = letter.get("correction") or {}
+            answer = str(letter.get("answer_back") or "")
+            if correction.get("verdict") == "unassessed" and "manque" in answer:
+                problems.append(f"{label}: an unassessed letter is told something is missing: {answer!r}")
+            if "Achieve:" in answer:
+                problems.append(f"{label}: English in a correspondent's reply: {answer!r}")
+            for objective in letter.get("objectives") or []:
+                unit_level = _unit_level(str(objective or ""))
+                level = _band(str((day.get("journey") or {}).get("learner_level") or record["true_level"]))
+                # Two levels below can be the learner's own mistake or a unit they met
+                # before placement; three is the catalogue's first units.
+                if unit_level and unit_level < level - 2:
+                    problems.append(f"{label}: a level-{level} learner's letter asks for {objective!r} (3+ levels below)")
+    return problems
+
+
+#: More words than this due at once means the drill cannot reach the day's new
+#: words (it takes 30 due a session): the band check's light checks flooded it.
+MAX_DUE_BACKLOG = 150
+
+
+@lru_cache(maxsize=1)
+def _unit_titles() -> dict[str, int]:
+    """French unit titles → their band number, from the v2 catalogue."""
+
+    import csv
+
+    path = ROOT / "templates/french_core_grammar_v2.tsv"
+    titles: dict[str, int] = {}
+    if not path.exists():
+        return titles
+    with path.open(encoding="utf-8") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            title = str(row.get("name_fr") or "").strip()
+            if title:
+                titles[title] = _band(str(row.get("cefr_level") or ""))
+    return titles
+
+
+def _unit_level(objective: str) -> int | None:
+    """The band of the unit a «Placer une fois : …» objective names, when known."""
+
+    if not objective.startswith("Placer une fois"):
+        return None
+    title = objective.split(":", 1)[-1].strip()
+    return _unit_titles().get(title)

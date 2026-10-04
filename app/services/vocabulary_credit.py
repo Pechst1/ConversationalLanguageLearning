@@ -90,8 +90,14 @@ class VocabularyCreditService:
         message: ConversationMessage | UUID | None = None,
         source_payload: dict[str, Any] | None = None,
         now: datetime | None = None,
+        record_erratum: bool = True,
     ) -> VocabularyCreditResult:
-        """Apply SRS credit and optionally create a linked vocabulary erratum."""
+        """Apply SRS credit and optionally create a linked vocabulary erratum.
+
+        ``record_erratum=False`` (EXPERIENCE-REVIEW 2026-10-04): the miss lapses
+        the card but opens no repair — for a practice item, whose wrong answer is
+        a tapped card, a tile order or «je ne sais pas», not the learner's French.
+        """
 
         if source_type == "atelier":
             from app.services.journey_learning import lock_learning_credit
@@ -139,7 +145,7 @@ class VocabularyCreditService:
                 target_id=str(word.id), now=now,
             )
         erratum_update: dict[str, Any] | None = None
-        if credit_kind in {"produced_incorrect", "missed_target"}:
+        if record_erratum and credit_kind in {"produced_incorrect", "missed_target"}:
             erratum_update = self._record_vocabulary_erratum(
                 user=user,
                 word=word,
@@ -224,17 +230,16 @@ class VocabularyCreditService:
     ) -> dict[str, Any] | None:
         learner = (learner_text or "").strip()
         corrected = (corrected_text or word.word or word.french_translation or "").strip()
+        from app.services.learner_copy import learner_text
+
         translation = word_gloss(word, user.native_language)
-        if credit_kind == "missed_target":
-            label = f"Use target word: {word.word}"
-            why = explanation or f"The task targeted {word.word}, but your answer did not use it."
-            hint = repair_hint or f"Add {word.word} naturally. Meaning: {translation or 'target vocabulary'}."
-            task_type = "vocabulary_missing_target"
-        else:
-            label = f"Vocabulary: {word.word}"
-            why = explanation or f"The word {word.word} needs another repair in context."
-            hint = repair_hint or f"Use {word.word} for {translation} in a fresh sentence."
-            task_type = "vocabulary_incorrect_use"
+        language = getattr(user, "native_language", None)
+        fields = {"word": word.word, "meaning": translation or word.word}
+        kind = "missed" if credit_kind == "missed_target" else "wrong"
+        label = learner_text(f"vocabulary.erratum.{kind}.label", language, **fields)
+        why = explanation or learner_text(f"vocabulary.erratum.{kind}.why", language, **fields)
+        hint = repair_hint or learner_text(f"vocabulary.erratum.{kind}.hint", language, **fields)
+        task_type = "vocabulary_missing_target" if kind == "missed" else "vocabulary_incorrect_use"
 
         session_id = session.id if hasattr(session, "id") else session
         message_id = message.id if hasattr(message, "id") else message

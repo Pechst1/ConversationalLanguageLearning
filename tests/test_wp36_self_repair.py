@@ -195,10 +195,12 @@ def test_the_question_is_ordered_alphabetically_so_its_shape_never_leaks_the_ans
 def test_a_whole_sentence_choice_reads_as_one_question(db_session):
     """Live read 2026-09-30: « Pardon, On commence maintenant ou quand ? ? »."""
 
+    # EXPERIENCE-REVIEW 2026-10-04: «quand» → «maintenant» is a change of content, not
+    # of form; a forced choice between two different words is no repair. It asks again.
     question, kind = jc.self_repair_question(
         wrong_fr="On commence quand ?", corrected_fr="On commence maintenant ?", register="tu"
     )
-    assert (question, kind) == ("Pardon, on commence maintenant ou quand ?", "choice")
+    assert kind == "repetition" and " ou " not in question
     question, _kind = jc.self_repair_question(
         wrong_fr="Marie est venu.", corrected_fr="Marie est venue.", register="tu"
     )

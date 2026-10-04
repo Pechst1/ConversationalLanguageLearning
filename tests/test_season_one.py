@@ -834,6 +834,13 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
     spend = _live_model(monkeypatch) if os.environ.get("SEASON_REPORT_LIVE") else None
     days = int(os.environ.get("SEASON_REPORT_DAYS", "10"))
     band = os.environ.get("SEASON_REPORT_BAND", "A2.1")
+    if spend is None and band[:2] in ("B1", "B2", "C1"):
+        # EXPERIENCE-REVIEW 2026-10-04: the fake director meets the B1+ objective floor,
+        # or every gap day is lost and the report never reaches T2.
+        from tests.learner_walk import fit_level
+
+        plain_draft = provider._season_draft
+        monkeypatch.setattr(provider, "_season_draft", lambda context: fit_level(plain_draft(context), context))
     email = f"s1-report-{uuid.uuid4()}@example.com"
     d = support.Driver(assembled_client, support.register(assembled_client, email, cefr=band), db=db_session)
     # SEASON_REPORT_START=N: the learner begins on season day N (season_jump), so a
