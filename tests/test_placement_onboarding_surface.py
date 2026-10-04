@@ -36,7 +36,11 @@ def test_home_offers_the_placement_only_when_the_server_says_so():
     assert "<PlacementOfferChip" in home
     assert "'/placement/offer'" in chip
     assert "body?.offer === true" in chip
-    assert "Faire le point sur votre niveau" in chip
+    # WP-126: the chip speaks the learner's language; its label lives in placement-copy.
+    assert "placementCopy(useLearnerLanguage())" in chip
+    copy = _source("lib/placement-copy.ts")
+    for label in ("Faire le point sur votre niveau", "Check your level", "Ihr Niveau prüfen"):
+        assert f"chip: '{label}'" in copy
 
 
 def test_the_placement_route_exists_and_is_not_public():
