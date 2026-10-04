@@ -3769,8 +3769,13 @@ def fill_advanced_practice(
 
     listed = [brief.get("level_ok_fr") for _entry, brief in pool if isinstance(brief.get("level_ok_fr"), list)]
     level_ok: set[str] | None = {str(text) for texts in listed for text in texts} if listed else None
-    # Units with an introduced partner first: the contrast is the point (§2.5).
-    pool.sort(key=lambda pair: 0 if partners_of(pair[1]) else 1)
+    # WP-130 B: a unit owed its second free use comes first, its free sentence
+    # first (the reply could not ask for it: this is the opportunity).
+    # Then units with an introduced partner: the contrast is the point (§2.5).
+    def owed(brief: dict[str, Any]) -> bool:
+        return brief.get("held_opportunity") == "free_use"
+
+    pool.sort(key=lambda pair: (0 if owed(pair[1]) else 1, 0 if partners_of(pair[1]) else 1))
     uses: dict[str, int] = {}
     formats_used: dict[str, set[str]] = {}
     for item in placed:
@@ -3796,6 +3801,8 @@ def fill_advanced_practice(
                 held |= grammar_items.item_sentences(item.task)
             start = offset + round_index + unit_index
             order = [ADVANCED_FORMATS[(start + k) % len(ADVANCED_FORMATS)] for k in range(len(ADVANCED_FORMATS))]
+            if owed(brief) and round_index == 0:
+                order = ["free", *(fmt for fmt in order if fmt != "free")]
             for fmt in order:
                 if fmt in formats_used.get(identity, set()):
                     continue

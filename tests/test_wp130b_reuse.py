@@ -25,6 +25,7 @@ the journey now *offers* that evidence on time:
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -469,3 +470,36 @@ def test_the_walk_check_is_quiet_on_a_sound_chain() -> None:
 )
 def test_the_walk_check_fires_on_a_bad_chain(bad: dict) -> None:
     assert check_held_evidence_chain(_life(**bad)), bad
+
+
+def test_at_b1_an_owed_unit_gets_its_free_sentence_first() -> None:
+    """From B1 the separate context is WP-129's free sentence: the owed unit's
+    comes first in the fill, before any item that would show it the form."""
+
+    from tests import test_wp129_practice as wp129
+
+    owed_id = 905
+    units = [
+        wp129.practice_unit(ext, cid) for ext, cid in wp129.B1_UNITS if cid != owed_id
+    ]
+    owed = wp129.practice_unit("FR2_B11_NARRATION", owed_id)
+    brief = journey_learning._with_held_opportunity_brief(
+        owed.metadata["grammar_brief"], concept_life.OPPORTUNITY_FREE_USE
+    )
+    owed = replace(owed, metadata={**owed.metadata, "grammar_brief": brief})
+    plan = planner.plan_journey(
+        scenario=wp129.engine_brief(level_band="B1", control_language="fr"),
+        candidates=[*wp129._words(), *units, owed],
+        budget_seconds=600,
+        practice=True,
+        dice=wp129.DICE,
+        day_shape=wp129.DayShape.STANDARD,
+    )
+    plan.validate()
+    assert plan.estimated_active_seconds <= plan.budget_seconds
+    mine = [
+        step for step in plan.steps
+        if step.kind is StepKind.RECALL and step.private_task.target.id == str(owed_id)
+    ]
+    assert mine, plan.rationale
+    assert mine[0].private_task.evidence_format == grammar_items.FREE_SENTENCE_FORMAT
