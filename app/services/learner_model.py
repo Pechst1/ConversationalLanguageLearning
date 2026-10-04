@@ -57,6 +57,7 @@ from app.services.cefr_progress import (
     DECLARED_LEVEL_EVIDENCE_ATTEMPTS,
     CEFRProgressService,
     declared_level_floor,
+    with_live_grammar,
 )
 from app.services.error_memory import (
     ERROR_STATE_MASTERED,
@@ -250,6 +251,8 @@ def _level_belief(db: Session, *, user: User) -> dict[str, Any]:
             # opening a page; `recompute(persist=False)` is the same arithmetic
             # with no write, which is what a read owes the learner.
             payload = service.recompute(user, persist=False)
+        # WP-130 A: the band's grammar counts read live, as the notebook reads them.
+        payload = with_live_grammar(db, user, payload)
     except Exception:  # pragma: no cover - a level must never 500 the dossier
         logger.exception("learner_model: the CEFR estimate could not be read")
         return {"available": False, "reason": "level_unavailable"}

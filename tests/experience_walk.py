@@ -504,11 +504,19 @@ def cahier(client: TestClient, headers: dict[str, str], *, full: bool) -> dict[s
             for key in ("estimate", "estimate_source", "declared_level", "level_label", "coverage", "forecast", "checkpoint", "next_can_do")
         }
     if full:
-        notebook = client.get("/api/v1/grammar/notebook", headers=headers)
+        # WP-130 A: the whole catalogue, with each unit's stage and the band it
+        # counts for in the level, so the notebook and the level can be compared.
+        notebook = client.get("/api/v1/grammar/notebook", params={"limit": 500}, headers=headers)
         if notebook.status_code == 200:
             items = notebook.json().get("items") if isinstance(notebook.json(), dict) else notebook.json()
             out["notebook"] = [
-                {key: item.get(key) for key in ("display_title", "level", "state_label", "mastery", "next_review", "due_errata_count")}
+                {
+                    key: item.get(key)
+                    for key in (
+                        "id", "display_title", "level", "level_band", "stage", "stage_label", "state_label",
+                        "mastery", "next_review", "due_errata_count", "held_missing",
+                    )
+                }
                 for item in (items or [])
             ]
         can_dos = client.get("/api/v1/can-dos", headers=headers)
