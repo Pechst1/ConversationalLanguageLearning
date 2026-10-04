@@ -796,6 +796,14 @@ def _coulisses_state(
     return status, scene_id, title, pov, name
 
 
+def _is_reprise(brief: Any) -> bool:
+    """WP-124a: is this brief a season reprise (re-read, never bound or settled)?"""
+
+    from app.services.season.reprise import is_reprise
+
+    return is_reprise(getattr(brief, "story_context", None))
+
+
 def _journey_story_context(journey: DailyJourney) -> dict[str, Any]:
     """The pinned brief's ``story_context`` (the engine scene's id and draft), or ``{}``."""
 
@@ -1703,7 +1711,7 @@ class DailyJourneyService:
                 }
             )
         offers: list[dict[str, Any]] = []
-        if brief.story_context and _coulisses_enabled():
+        if brief.story_context and not _is_reprise(brief) and _coulisses_enabled():
             offers.append(
                 {
                     "variant": "coulisses",
@@ -3183,7 +3191,9 @@ class DailyJourneyService:
         fallback: dict[str, Any] | None,
         first_day: bool = False,
     ) -> None:
-        story_brief = bool(result.story_context)
+        # WP-124a: a season reprise re-reads a settled page — never bound to the
+        # living story (no scene, no episode, no settlement).
+        story_brief = bool(result.story_context) and not _is_reprise(result)
         # WP-24 §5, wired by WP-28. The learner's ranked due errata are read
         # before the plan is built, merged in front of the day's candidates by
         # the planner, and the target the plan actually keeps becomes the
@@ -3529,8 +3539,22 @@ class DailyJourneyService:
         input_mode: InputMode,
         failure: _GenerationFailure,
     ) -> _GenerationFailure | None:
-        """Try the authored day; ``None`` when it is now the learner's day."""
+        """Try the authored day; ``None`` when it is now the learner's day.
 
+        WP-124a: a season life never gets the generic authored scenes (a stranger's
+        welcome, the «vous» of strangers). It re-reads its last season page, or —
+        with no page to re-read — keeps the honest «unavailable, retry» day.
+        """
+
+        on_season = run_best_effort(
+            self.db,
+            "daily_journey: season life check",
+            lambda: self._starts_on_season(user),
+            default=False,
+            log=logger,
+        )
+        if on_season:
+            return self._serve_season_reprise(user, journey, input_mode, failure)
         brief = self._authored_fallback_brief(user, journey, input_mode)
         if brief is None:
             logger.error(
@@ -3559,6 +3583,68 @@ class DailyJourneyService:
             journey.id,
             brief.scenario_key,
             brief.level_band,
+        )
+        return None
+
+    def _serve_season_reprise(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+    ) -> _GenerationFailure | None:
+        """WP-124a: a lost season day re-reads the last completed season page.
+
+        Served under the generation claim like any stand-in, so a reload or a
+        concurrent request reads the one persisted plan. It is a learner day, not
+        a season day: nothing is bound or settled, so the season does not move.
+        """
+
+        from app.services.season.reprise import REPRISE_FALLBACK_KIND, reprise_brief
+
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: season reprise",
+            lambda: reprise_brief(
+                self.db, user, input_mode=input_mode, reason=str(failure.reason)
+            ),
+            default=None,
+            log=logger,
+        )
+        if brief is None:
+            # No page to re-read (only a life that never completed T1 Day B, whose
+            # pages need no model): the honest dead end, never a stranger scene.
+            logger.error(
+                "daily_journey: season day lost (%s) and no season page to re-read",
+                failure.reason,
+            )
+            return failure
+        reprise = (brief.story_context.get("season") or {}).get("reprise") or {}
+        marker = {
+            "kind": REPRISE_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "page_key": str(reprise.get("key") or ""),
+            "page_source": str(reprise.get("source") or ""),
+            # Generation attempts are the journey's; this day is not a season day.
+            "generation_attempts": int(journey.generation_attempts or 0),
+            "season_day": False,
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: season day lost (%s); the reprise failed too (%s)",
+                failure.reason,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: season day lost (%s); journey %s re-reads %s",
+            failure.reason,
+            journey.id,
+            marker["page_key"],
         )
         return None
 
@@ -4730,6 +4816,10 @@ class DailyJourneyService:
         )
         if resolution is None:
             return
+        if _is_reprise(brief):
+            self._settle_reprise_resolution(resolution, brief, proposal)
+            self._attach_register_line(user, journey, resolution)
+            return
         if brief.story_context:
             from app.services.living_story import StoryUnavailable, settle_resolution
             try:
@@ -4808,6 +4898,31 @@ class DailyJourneyService:
             # duplicated lowercase fragment in Margaux's mouth. It reaches the
             # learner through the recap's story_outcome instead.
         private["resolution_settled"] = True
+        resolution.private_task = private
+
+    def _settle_reprise_resolution(
+        self,
+        resolution: DailyJourneyStep,
+        brief: ScenarioBrief,
+        proposal: StoryOutcomeProposal | None,
+    ) -> None:
+        """WP-124a: a reprise ends on the page's own ending and an honest summary.
+
+        Nothing is written to the story: no settlement, no flag, no consequence. A
+        repeat call (a reload, a concurrent finish) rewrites the same two lines.
+        """
+
+        outcome_key = "resolved" if proposal is not None else "open"
+        prompt = dict(resolution.public_prompt or {})
+        prompt["outcome_key"] = outcome_key
+        prompt["character_line_fr"] = brief.resolution_lines.get(outcome_key, "")
+        prompt["summary_native"] = brief.resolution_summaries.get(outcome_key, "")
+        # The page's ending is its caption: narration, said by nobody.
+        prompt["narrated"] = True
+        resolution.public_prompt = prompt
+        private = dict(resolution.private_task or {})
+        private["resolution_settled"] = True
+        private["story_outcome"] = None
         resolution.private_task = private
 
     def _attach_register_line(

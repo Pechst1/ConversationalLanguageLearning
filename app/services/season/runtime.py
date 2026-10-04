@@ -578,6 +578,9 @@ def tentpole_units(story_context: dict[str, Any] | None) -> list[str]:
 
 
 def is_tentpole(story_context: dict[str, Any] | None) -> bool:
+    """Is today's reply answered by an authored page? Also true of a WP-124a reprise,
+    which is a past page re-read (``season.reprise.is_reprise`` tells them apart)."""
+
     return ((story_context or {}).get(SEASON_CONTEXT_KEY) or {}).get("kind") == "tentpole"
 
 
@@ -700,6 +703,12 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
     turns: list[dict[str, Any]] = list(season_ctx.get("turns") or [])
     scene_id = str(scenario.story_context.get("scene_id") or "")
+    # WP-124a: a reprise re-reads a page on a day the model already failed — its
+    # replies are routed by the matcher alone, under the reprise's own cache key.
+    reprise = season_ctx.get("reprise") if isinstance(season_ctx.get("reprise"), dict) else None
+    if reprise is not None:
+        scene_id = scene_id or f"reprise:{reprise.get('token') or ''}"
+    use_model = reprise is None
     if answer.is_blank or not turns:
         return ResponseEvaluation(
             outcome=TaskOutcome.UNSCORED,
@@ -744,7 +753,9 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         return _ask_again_evaluation(
             db, user, scenario, task, answer, turn_index, assistance, history, turn, french_please=True
         )
-    choice = carded or classify(db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history)
+    choice = carded or classify(
+        db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model
+    )
     if (
         carded is None
         and not choice.clear
@@ -987,7 +998,9 @@ def settle(
     """The season state once a day's exchange is settled (idempotent per event)."""
 
     season_ctx = story_context.get(SEASON_CONTEXT_KEY) or {}
-    if not season_ctx.get("id"):
+    if not season_ctx.get("id") or season_ctx.get("reprise"):
+        # WP-124a: a reprise re-reads a settled page; it settles nothing again and
+        # is not a played season day.
         return live
     season = load_season(str(season_ctx["id"]))
     state = dict(live.get(SEASON_KEY) or {"id": season.id})
