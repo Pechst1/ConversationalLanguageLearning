@@ -462,3 +462,69 @@ def test_a_letter_is_not_written_more_than_one_band_above_the_learner():
     rotation = {"band": "A1", "completed_recent": set(), "canned_recent": set()}
     assert canned_letter_problem({"domain": "x", "level": "A2"}, rotation) is None
     assert canned_letter_problem({"domain": "x", "level": "B1"}, rotation) == "above_band"
+
+
+def _scene(db_session, thread: SerialThread, event_id: str, summary: str, witness: str = "romy_tremblay") -> None:
+    state = dict(thread.state)
+    live = dict(state[STATE_KEY])
+    live["events"] = [
+        *list(live.get("events") or []),
+        {
+            "id": event_id,
+            "scene_id": str(uuid4()),
+            "witnesses": [witness],
+            "summary_fr": summary,
+            "at": datetime.now(UTC).isoformat(),
+        },
+    ]
+    state[STATE_KEY] = live
+    thread.state = state
+    db_session.add(thread)
+
+
+def test_two_scenes_with_the_same_summary_make_one_letter_a_week(db_session, monkeypatch):
+    monkeypatch.setattr(courrier, "STORY_LETTER_PROBABILITY", 1.0)
+    user = _user(db_session, "A2")
+    thread = _season_thread(db_session, user)
+    _scene(db_session, thread, "scene:a", "Vous avez répondu à Romy.")
+    db_session.commit()
+    first = courrier.story_letter_candidate(db_session, user=user)
+    assert first and first["event_id"] == "scene:a"
+    courrier.note_story_letter(db_session, user=user, candidate=first, mission_id=uuid4())
+    db_session.commit()
+
+    _scene(db_session, thread, "scene:b", "Vous avez répondu à Romy.")
+    db_session.commit()
+    assert courrier.story_letter_candidate(db_session, user=user) is None
+
+    # A week later the same words may make a letter again.
+    state = dict(thread.state)
+    ledger = [dict(item) for item in state[courrier.CORRESPONDENCE_KEY]["story_born"]]
+    for item in ledger:
+        item["at"] = (datetime.now(UTC) - timedelta(days=8)).isoformat()
+        item["week"] = "2000-W01"
+    state[courrier.CORRESPONDENCE_KEY] = {**state[courrier.CORRESPONDENCE_KEY], "story_born": ledger}
+    thread.state = state
+    db_session.commit()
+    again = courrier.story_letter_candidate(db_session, user=user)
+    assert again and again["event_id"] == "scene:b"
+
+
+def test_a_story_letter_answered_this_week_is_not_written_again(db_session):
+    user = _user(db_session, "A2")
+    _season_thread(db_session, user)
+    candidate = {
+        "event_id": "scene:x",
+        "character_id": "romy_tremblay",
+        "character_name": "Romy",
+        "register": "vous",
+        "summary_fr": "Vous avez répondu à Romy.",
+        "source_quotes": [],
+        "week": courrier.iso_week_key(),
+    }
+    first = _letter(db_session, user, story_letter=candidate)
+    assert _fit(first)["source"] == "story_frame"
+    _complete(db_session, first)
+    with pytest.raises(NoCredibleLetter) as raised:
+        _letter(db_session, user, story_letter={**candidate, "event_id": "scene:y"})
+    assert raised.value.reason == "completed_recently"

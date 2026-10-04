@@ -73,6 +73,9 @@ STORY_LETTERS_PER_WEEK = 2
 #: How likely a fresh journey event is to make a character pick up a pen.
 STORY_LETTER_PROBABILITY = 0.5
 
+#: WP-125B: a story-born letter about the same thing (same summary) waits a week.
+STORY_LETTER_REPEAT_DAYS = 7
+
 #: Mood and trust deltas per outcome. Trust never falls for a clumsy letter —
 #: only silence and an actively cold exchange move the slow number.
 _MOOD_SHIFT: dict[str, tuple[int, int]] = {
@@ -536,6 +539,16 @@ def promises_in(text: str, *, limit: int = 2) -> list[dict[str, str]]:
     return found
 
 
+def _moment(value: Any) -> datetime | None:
+    try:
+        moment = datetime.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+    if moment is not None and moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return moment
+
+
 def _folded(value: str) -> str:
     folded = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9 ]+", " ", folded.lower())
@@ -982,6 +995,14 @@ def story_letter_candidate(
     if sum(1 for item in ledger if item.get("week") == week) >= STORY_LETTERS_PER_WEEK:
         return None
     used = {str(item.get("event_id")) for item in ledger}
+    # WP-125B: two scenes the ledger summarises in the same words («Vous avez
+    # répondu à Romy.») make the same letter. Not twice within a week.
+    horizon = now - timedelta(days=STORY_LETTER_REPEAT_DAYS)
+    recent_summaries = {
+        _folded(str(item.get("summary_fr") or ""))
+        for item in ledger
+        if item.get("summary_fr") and (_moment(item.get("at")) or now) >= horizon
+    }
     live = (thread.state or {}).get(STATE_KEY) or {}
     events = [
         item
@@ -990,6 +1011,7 @@ def story_letter_candidate(
         and item.get("scene_id")
         and item.get("id")
         and str(item["id"]) not in used
+        and _folded(_compact(item.get("summary_fr"), limit=240)) not in recent_summaries
     ]
     # Newest first, and each event rolls its own die: a scene that did not move
     # anybody to write is simply skipped, rather than blocking the two or three
@@ -1088,6 +1110,9 @@ def note_story_letter(db: Session, *, user: User, candidate: dict[str, Any], mis
             "character_id": str(candidate.get("character_id")),
             "week": str(candidate.get("week") or iso_week_key()),
             "mission_id": str(mission_id),
+            # WP-125B: what the letter was about, and when, for the repeat rule.
+            "summary_fr": str(candidate.get("summary_fr") or ""),
+            "at": datetime.now(UTC).isoformat(),
         }
     )
     courrier["story_born"] = ledger[-24:]

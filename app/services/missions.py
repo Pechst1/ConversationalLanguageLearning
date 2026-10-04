@@ -1640,6 +1640,9 @@ class MissionGenerator:
                 fit.update(source="story_frame", level=level, open_ended=open_ended, request_key=key)
                 if not letter_reaches(level, band, open_ended=open_ended):
                     fit["withheld"] = "below_band"
+            if rotation and key in rotation.get("completed_recent", ()):
+                # The same person about the same thing, answered this week.
+                fit["withheld"] = "completed_recently"
         elif custom_context:
             fit.update(source="custom", level=band, open_ended=True, request_key=None)
         elif generated:
