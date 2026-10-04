@@ -1,9 +1,10 @@
 /**
  * WP-25 — «Trouvons votre niveau», the five-minute placement.
  *
- * WP-75: never the first task. Sign-up lands in the day-1 scene; a learner who
- * did not start as «Nouveau» is offered this from Home after three completed
- * days (`/placement?from=offer`, when `GET /placement/offer` says so), and
+ * WP-75: never the first task. Sign-up lands in the day-1 scene; WP-126: a
+ * learner who did not start as «Nouveau» is offered this right after their
+ * first completed ending (`/placement?from=day-end`, on the day's reward screen,
+ * and quietly on Home `?from=offer`, when `GET /placement/offer` says so), and
  * anyone can re-run it from Réglages (`/placement?rerun=1`). Four to six French prompts, each drawn from the band
  * the previous answer earned; the server does the grading and the ladder, so
  * this screen is a thin renderer over one envelope — which is why it has one

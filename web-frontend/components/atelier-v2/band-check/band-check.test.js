@@ -3,13 +3,14 @@
 // SPEED-1 «Vérification du lexique»: the check's state logic and what the
 // screen says.
 //
-//   1. sequencing — uncredited sub-bands from the lowest upward; after a pass
-//      the next one up, after a miss the next one up offered «anyway»;
+//   1. sequencing (WP-127, top-down) — the highest uncredited band first; a
+//      pass stops the ladder, a miss steps down; a visit is two checks;
 //   2. answering — one tap records and advances; «je ne sais pas» is a real
 //      answer, sent as null, and never shown as a failure; undo; keyboard;
 //   3. scoring display — the result card's numbers and words, in en/de/fr;
 //   4. the copy tables are complete and fill the same placeholders;
-//   5. the entry points render only while an uncredited sub-band remains.
+//   5. the entry points render only while the ladder has a band to check now;
+//   6. stop and resume: a stopped run comes back on the same words (attempt id).
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -59,23 +60,25 @@ const ITEMS = [
 
 // --- sequencing ------------------------------------------------------------
 
-test('the uncredited sub-bands are offered from the lowest upward', () => {
-  assert.deepEqual(S.uncreditedBands(BANDS).map((row) => row.sub_band), ['A1.2', 'A2.1']);
-  assert.equal(S.nextBand(BANDS), 'A1.2');
-  assert.equal(S.nextBand(BANDS, 'A1.2'), 'A2.1');
-  assert.equal(S.nextBand(BANDS, 'A2.1'), null);
+test('top-down: the highest uncredited band is checked first', () => {
+  assert.deepEqual(S.uncreditedBands(BANDS).map((row) => row.sub_band), ['A2.1', 'A1.2']);
+  assert.equal(S.nextBand(BANDS), 'A2.1');
   assert.equal(S.hasUncreditedBand(BANDS), true);
   assert.equal(S.hasUncreditedBand(BANDS.map((row) => ({ ...row, credited: true }))), false);
   assert.equal(S.hasUncreditedBand([]), false);
   assert.equal(S.hasUncreditedBand(null), false);
 });
 
-test('a band just checked is never offered again straight away', () => {
-  const credited = S.markCredited(BANDS, 'A1.2');
-  assert.equal(credited.find((row) => row.sub_band === 'A1.2').credited, true);
-  assert.equal(S.nextBand(credited), 'A2.1');
-  // after a miss the band stays uncredited, but «next» still moves up
-  assert.equal(S.nextBand(BANDS, 'A1.2'), 'A2.1');
+test('a miss steps down one band; a pass stops the ladder', () => {
+  const missed = S.markMissed(BANDS, 'A2.1');
+  assert.equal(missed.find((row) => row.sub_band === 'A2.1').missed, true);
+  assert.equal(S.nextBand(missed), 'A1.2');
+  assert.equal(S.nextBand(BANDS, 'A2.1'), 'A1.2');
+  // A pass at A1.2 after the miss: nothing above the floor is left unmissed.
+  assert.equal(S.nextBand(S.markCredited(missed, 'A1.2')), null);
+  // A pass at the top stops everything below it.
+  assert.equal(S.nextBand(S.markCredited(BANDS, 'A2.1')), null);
+  assert.equal(S.MAX_CHECKS_PER_VISIT, 2);
 });
 
 // --- answering --------------------------------------------------------------
@@ -134,45 +137,59 @@ test('the keyboard: 1–4 choose, 0 / ? / n say «je ne sais pas», Backspace un
 
 // --- scoring display --------------------------------------------------------
 
-test('a pass names the credited words and offers the next band up', () => {
-  const summary = S.summarize(
-    { sub_band: 'A1.2', correct: 23, total: 24, passed: true, credited_words: 196, missed: ['lent'] },
-    BANDS,
-    0.9,
-  );
+const PASS = {
+  sub_band: 'A2.1', correct: 23, total: 24, passed: true, credited_words: 420, credited_sampled: 22,
+  credited_inferred: 398, inferred_bands: ['A1.2'], missed: ['lent'], pass_correct: 21,
+  ladder_status: 'done', next: null,
+};
+const MISS = {
+  sub_band: 'A2.1', correct: 17, total: 24, passed: false, credited_words: 0, credited_sampled: 0,
+  credited_inferred: 0, inferred_bands: [], missed: Array(7).fill('x'), pass_correct: 21,
+  ladder_status: 'open', next: 'A1.2',
+};
+
+test('a pass separates what was recognised on the check from what was inferred, and stops', () => {
+  const summary = S.summarize(PASS, BANDS);
   assert.deepEqual(summary, {
     tone: 'passed',
-    subBand: 'A1.2',
+    subBand: 'A2.1',
     correct: 23,
     total: 24,
-    needed: 22,
-    credited: 196,
+    needed: 21,
+    credited: 420,
+    sampled: 22,
+    inferred: 398,
+    inferredBands: ['A1.2'],
     missed: 1,
-    next: 'A2.1',
+    next: null,
+    ladder: 'done',
+    resumeBand: null,
   });
 });
 
-test('a miss credits nothing, says how many were needed, and still offers the next band', () => {
-  const summary = S.summarize(
-    { sub_band: 'A1.2', correct: 17, total: 24, passed: false, credited_words: 0, missed: Array(7).fill('x') },
-    BANDS,
-    0.9,
-  );
+test('a miss credits nothing, says how many were needed, and steps down', () => {
+  const summary = S.summarize(MISS, BANDS);
   assert.equal(summary.tone, 'failed');
   assert.equal(summary.credited, 0);
-  assert.equal(summary.needed, 22);
-  assert.equal(summary.next, 'A2.1');
+  assert.equal(summary.inferred, 0);
+  assert.equal(summary.needed, 21);
+  assert.equal(summary.next, 'A1.2');
+  assert.equal(summary.ladder, 'open');
+  assert.equal(S.neededToPass(24), 21);
   assert.equal(S.neededToPass(24, 0.9), 22);
-  assert.equal(S.neededToPass(10, 0.9), 9);
-  assert.equal(S.neededToPass(20, 0.9), 18);
 });
 
-test('the top band of the learner\'s range offers no next check', () => {
-  const summary = S.summarize(
-    { sub_band: 'A2.1', correct: 24, total: 24, passed: true, credited_words: 3, missed: [] },
-    BANDS,
-  );
+test('the second miss of a visit pauses the ladder: no third check, a band to resume with', () => {
+  const summary = S.summarize({ ...MISS, sub_band: 'A1.2', ladder_status: 'paused', next: null, resume_band: 'A1.1' }, BANDS);
   assert.equal(summary.next, null);
+  assert.equal(summary.ladder, 'paused');
+  assert.equal(summary.resumeBand, 'A1.1');
+});
+
+test('an older server without a ladder: the same rule, computed here', () => {
+  const legacy = { sub_band: 'A2.1', correct: 17, total: 24, passed: false, credited_words: 0, missed: ['x'] };
+  assert.equal(S.summarize(legacy, BANDS, 0.9).next, 'A1.2');
+  assert.equal(S.summarize({ ...legacy, passed: true, correct: 24 }, BANDS, 0.9).next, null);
 });
 
 test('the passed headline: plural, singular, and nothing new to card', () => {
@@ -204,7 +221,7 @@ test('the three tables are complete, non-empty, and fill the same placeholders',
 test('no copy shames «je ne sais pas» or calls a miss a failure', () => {
   for (const language of ['en', 'de', 'fr']) {
     const text = Object.values(bandCheckCopy(language)).join(' ').toLowerCase();
-    for (const word of ['fail', 'wrong', 'oops', 'échec', 'raté', 'falsch', 'leider']) {
+    for (const word of ['fail', 'wrong', 'oops', 'échec', 'raté', 'falsch', 'leider', 'c1+']) {
       assert.ok(!text.includes(word), `${language}: ${word}`);
     }
   }
@@ -244,46 +261,91 @@ test('a question shows the French word, four meanings in the learner\'s language
   assert.ok(!html.includes('data-state="correct"') && !html.includes('data-state="wrong"'));
 });
 
-test('the result card says the score honestly, in the learner\'s language', () => {
-  const passed = S.summarize(
-    { sub_band: 'A1.2', correct: 23, total: 24, passed: true, credited_words: 196, missed: ['lent'] },
-    BANDS,
-  );
-  const html = view({ phase: 'result', summary: passed }, 'de');
-  assert.ok(html.includes('196 Wörter schon bekannt'));
-  assert.ok(html.includes('kurzen Kontrolle'));
+test('the result card says the score honestly, and inferred credit as inferred', () => {
+  const html = view({ phase: 'result', summary: S.summarize(PASS, BANDS) }, 'de');
+  // Mostly inferred: the headline names the level, not a count of «known» words.
+  assert.ok(html.includes('Niveau A2.1 bestätigt'));
+  assert.ok(!html.includes('420 Wörter schon bekannt'));
+  assert.ok(html.includes('22 im Check erkannt, 398 aus dem Ergebnis abgeleitet.'));
+  assert.ok(html.includes('data-credit="inferred"'));
+  assert.ok(html.includes('A2.1 · A1.2'));
   assert.ok(html.includes('23 von 24 erkannt.'));
-  assert.ok(html.includes('A2.1 prüfen'));
+  // A pass stops the ladder: no next check is offered.
+  assert.ok(!html.includes('prüfen</span>'));
 
-  const failed = S.summarize(
-    { sub_band: 'A1.2', correct: 17, total: 24, passed: false, credited_words: 0, missed: Array(7).fill('x') },
-    BANDS,
-  );
-  const fhtml = view({ phase: 'result', summary: failed }, 'en', 'placement');
+  const fhtml = view({ phase: 'result', summary: S.summarize(MISS, BANDS) }, 'en', 'placement');
   assert.ok(fhtml.includes('17 of 24 recognised'));
-  assert.ok(fhtml.includes('it needed 22'));
+  assert.ok(fhtml.includes('it needed 21'));
   assert.ok(fhtml.includes('normal flow'));
-  assert.ok(fhtml.includes('Check A2.1 anyway'));
-  assert.ok(fhtml.includes('Continue'));
+  assert.ok(fhtml.includes('One level down: A1.2.'));
+  assert.ok(fhtml.includes('Check A1.2'));
+  assert.ok(fhtml.includes('Stop here'));
   // one primary per state
   assert.equal((fhtml.match(/av2-btn--primary/g) || []).length, 1);
 });
 
-test('the intro names the item count, the pass share and the levels left', () => {
-  const html = view({ phase: 'intro', run: S.startRun('A1.2', ITEMS, 0.9), bands: BANDS }, 'fr');
-  assert.ok(html.includes('3 mots du niveau A1.2'));
-  assert.ok(html.includes('90 %'));
-  assert.ok(html.includes('Niveaux à vérifier'));
+test('a paused visit says so and offers no third check', () => {
+  const summary = S.summarize({ ...MISS, sub_band: 'A1.2', ladder_status: 'paused', next: null, resume_band: 'A1.1' }, BANDS);
+  const html = view({ phase: 'result', summary }, 'fr');
+  assert.ok(html.includes('Reprenez avec A1.1 un autre jour'));
+  assert.ok(!html.includes('Vérifier A1.1'));
+  const screen = view({ phase: 'paused', band: 'A1.1' }, 'en');
+  assert.ok(screen.includes('That’s enough for today'));
+  assert.ok(screen.includes('Carry on with A1.1 another day'));
 });
 
-test('the entry renders only while an uncredited sub-band remains', () => {
-  const html = renderToStaticMarkup(h(BandCheckEntryView, { origin: 'lexique', language: 'en', bands: BANDS }));
-  assert.ok(html.includes('Check my vocabulary (2 min per level)'));
-  assert.ok(html.includes('A1.2 · A2.1'));
+test('the intro names the item count, the candidate threshold, the top-down rule and the levels', () => {
+  const run = { ...S.startRun('A2.1', ITEMS, 21 / 24, 'A2.1:0:abc'), passCorrect: 3 };
+  const bands = [...S.markMissed(BANDS, 'B1.1')];
+  const html = view({ phase: 'intro', run, bands: [{ sub_band: 'A1.1', words: 180, credited: true, credit_kind: 'inferred' }, ...bands] }, 'fr');
+  assert.ok(html.includes('3 mots du niveau A2.1'));
+  assert.ok(html.includes('Il faut en reconnaître 3 sur 3'));
+  assert.ok(html.includes('à l’essai'));
+  assert.ok(html.includes('le niveau le plus haut sous le vôtre'));
+  assert.ok(html.includes('Niveaux à vérifier'));
+  assert.ok(html.includes('déduit'));
+});
+
+test('a question can always be stopped', () => {
+  const html = view({ phase: 'question', run: S.startRun('A1.2', ITEMS) }, 'de');
+  assert.ok(html.includes('Hier aufhören'));
+});
+
+test('the entry renders only while the ladder has a band to check now', () => {
+  const open = { status: 'open', next: 'A2.1' };
+  const html = renderToStaticMarkup(h(BandCheckEntryView, { origin: 'lexique', language: 'en', bands: BANDS, ladder: open }));
+  assert.ok(html.includes('Check my vocabulary (2 min)'));
+  assert.ok(html.includes('Start with A2.1'));
   assert.ok(html.includes('href="/vocabulary/verification?from=lexique"'));
-  const none = renderToStaticMarkup(
-    h(BandCheckEntryView, { origin: 'placement', language: 'en', bands: BANDS.map((row) => ({ ...row, credited: true })) }),
+  const resumed = renderToStaticMarkup(
+    h(BandCheckEntryView, { origin: 'lexique', language: 'en', bands: S.markMissed(BANDS, 'A2.1'), ladder: { status: 'open', next: 'A1.2' } }),
   );
-  assert.equal(none, '');
+  assert.ok(resumed.includes('Your check picks up at A1.2.'));
+  for (const status of ['paused', 'done', 'none']) {
+    const quiet = renderToStaticMarkup(
+      h(BandCheckEntryView, { origin: 'placement', language: 'en', bands: BANDS, ladder: { status, next: null } }),
+    );
+    assert.equal(quiet, '', status);
+  }
   assert.equal(bandCheckHref('placement', 'A2.1'), '/vocabulary/verification?from=placement&band=A2.1');
+});
+
+// --- stop and resume ---------------------------------------------------------
+
+test('a stopped run resumes on the same attempt with its answers, never on another', () => {
+  let run = S.startRun('A1.2', ITEMS, 21 / 24, 'A1.2:0:abc');
+  run = S.answer(S.answer(run, 1), null);
+  const saved = S.savedRunOf(run);
+  assert.deepEqual(saved, { attemptId: 'A1.2:0:abc', answers: { fenêtre: 1, oublier: null } });
+  const back = S.resumeRun(S.startRun('A1.2', ITEMS, 21 / 24, 'A1.2:0:abc'), saved);
+  assert.equal(back.index, 2);
+  assert.equal(S.currentItem(back).id, 'lent');
+  // Another attempt (new words, new key) starts clean.
+  const other = S.resumeRun(S.startRun('A1.2', ITEMS, 21 / 24, 'A1.2:1:def'), saved);
+  assert.equal(other.index, 0);
+  // A corrupted saved answer stops the restore there.
+  const bad = S.resumeRun(S.startRun('A1.2', ITEMS, 21 / 24, 'A1.2:0:abc'), { attemptId: 'A1.2:0:abc', answers: { fenêtre: 9 } });
+  assert.equal(bad.index, 0);
+  assert.equal(S.savedRunOf(S.startRun('A1.2', ITEMS)), null);
+  assert.equal(S.savedRunKey('A1.2:0:abc'), 'atelier.band-check.A1.2:0:abc');
 });

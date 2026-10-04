@@ -14,6 +14,13 @@
  * keyboard does the same (1–4, 0, Backspace). Nothing is marked right or wrong
  * during the run: the server holds the key, and the result card says the score
  * once, honestly.
+ *
+ * WP-127: the flow follows the server's top-down ladder — the highest band below
+ * the learner's first; a pass stops it, a miss steps down; at most two checks a
+ * visit («Assez pour aujourd’hui» after that, resumed another day). «M’arrêter
+ * ici» is always there; a stopped run keeps its answers under its `attempt_id`
+ * and resumes on the same words. The result says what was recognised on the
+ * check and what was only inferred from it, separately.
  */
 
 import React from 'react';
@@ -42,15 +49,17 @@ import {
   currentItem,
   isComplete,
   keyToChoice,
-  markCredited,
-  nextBand,
   progressOf,
+  resumeRun,
+  savedRunKey,
+  savedRunOf,
   startRun,
   summarize,
   undo,
   type BandCheckChoice,
   type BandCheckRun,
   type BandCheckSummary,
+  type SavedRun,
 } from './band-check-state';
 
 export type BandCheckOrigin = 'placement' | 'lexique';
@@ -59,6 +68,8 @@ export type BandCheckViewState =
   | { phase: 'loading' }
   | { phase: 'error' }
   | { phase: 'none' }
+  /** WP-127: this visit's two checks are spent; `band` is where the next one starts. */
+  | { phase: 'paused'; band: string | null }
   | { phase: 'intro'; run: BandCheckRun; bands: BandCheckSubBand[] }
   | { phase: 'question'; run: BandCheckRun; sending?: boolean; failed?: boolean }
   | { phase: 'result'; summary: BandCheckSummary };
@@ -75,6 +86,8 @@ export type BandCheckViewProps = {
   onRetryOpen: () => void;
   onCheckBand: (subBand: string) => void;
   onLeave: () => void;
+  /** WP-127: «M’arrêter ici» mid-run (defaults to `onLeave`); the answers are kept. */
+  onStop?: () => void;
   /** The gallery draws several screens on one page: no global key handler there. */
   keyboard?: boolean;
 };
@@ -111,6 +124,7 @@ export function BandCheckView({
   onRetryOpen,
   onCheckBand,
   onLeave,
+  onStop,
   keyboard = true,
 }: BandCheckViewProps) {
   const copy = bandCheckCopy(language);
@@ -179,6 +193,24 @@ export function BandCheckView({
     );
   }
 
+  if (state.phase === 'paused') {
+    return (
+      <Frame
+        language={language}
+        copy={copy}
+        foot={
+          <Action tone="primary" onClick={onLeave} iconAfter={<ArrowRightIcon size={14} />}>
+            {backLabel}
+          </Action>
+        }
+      >
+        <span className="av2-label">{copy.screen_aria}</span>
+        <h1 className="av2-headline av2-headline--screen">{copy.paused_title}</h1>
+        <p className="bc-lead">{bandCheckFill(copy.paused_lead, { band: state.band ?? '' })}</p>
+      </Frame>
+    );
+  }
+
   if (state.phase === 'intro') {
     const { run, bands } = state;
     return (
@@ -208,8 +240,12 @@ export function BandCheckView({
           {bandCheckFill(copy.intro_lead, { n: run.items.length, band: run.subBand })}
         </p>
         <Surface tone="outline">
+          <p className="bc-fine">{copy.intro_top_down}</p>
           <p className="bc-fine">
-            {bandCheckFill(copy.intro_fine, { pct: Math.round(run.passShare * 100) })}
+            {bandCheckFill(copy.intro_fine, {
+              needed: run.passCorrect ?? Math.ceil(run.items.length * run.passShare - 1e-9),
+              n: run.items.length,
+            })}
           </p>
         </Surface>
         {bands.length > 1 && (
@@ -224,7 +260,13 @@ export function BandCheckView({
                   aria-current={row.sub_band === run.subBand ? 'step' : undefined}
                 >
                   <span>{row.sub_band}</span>
-                  {row.credited && <span className="bc-bands__mark">{copy.credited_mark}</span>}
+                  {row.credited ? (
+                    <span className="bc-bands__mark">
+                      {row.credit_kind === 'inferred' ? copy.inferred_mark : copy.credited_mark}
+                    </span>
+                  ) : row.missed ? (
+                    <span className="bc-bands__mark">{copy.missed_mark}</span>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -279,6 +321,9 @@ export function BandCheckView({
               {copy.dont_know}
             </Action>
             <p className="bc-keys" aria-hidden="true">{copy.keys_hint}</p>
+            <button type="button" className="av2-btn av2-btn--quiet bc-stop" onClick={onStop ?? onLeave}>
+              {copy.stop_here}
+            </button>
           </>
         ) : state.failed ? (
           <>
@@ -297,64 +342,79 @@ export function BandCheckView({
   // ---- the result card ---------------------------------------------------
   const { summary } = state;
   const passed = summary.tone === 'passed';
+  const down = !passed && summary.next ? summary.next : null;
   return (
     <Frame
       language={language}
       copy={copy}
       foot={
-        passed && summary.next ? (
+        down ? (
           <>
             <Action
               tone="primary"
               pending={pending}
               pendingLabel={copy.opening}
-              onClick={() => onCheckBand(summary.next as string)}
+              onClick={() => onCheckBand(down)}
               iconAfter={<ArrowRightIcon size={14} />}
             >
-              {bandCheckFill(copy.next_band, { band: summary.next })}
+              {bandCheckFill(copy.next_band, { band: down })}
             </Action>
             <button type="button" className="av2-btn av2-btn--quiet" onClick={onLeave}>
-              {backLabel}
+              {copy.stop_here}
             </button>
           </>
         ) : (
-          <>
-            <Action tone="primary" onClick={onLeave} iconAfter={<ArrowRightIcon size={14} />}>
-              {backLabel}
-            </Action>
-            {!passed && summary.next && (
-              <button
-                type="button"
-                className="av2-btn av2-btn--quiet"
-                onClick={() => onCheckBand(summary.next as string)}
-              >
-                {bandCheckFill(copy.next_anyway, { band: summary.next })}
-              </button>
-            )}
-          </>
+          <Action tone="primary" onClick={onLeave} iconAfter={<ArrowRightIcon size={14} />}>
+            {backLabel}
+          </Action>
         )
       }
     >
       <span className="av2-label">{bandCheckFill(copy.kicker, { band: summary.subBand })}</span>
       <h1 className="av2-headline av2-headline--screen">
         {passed
-          ? passedTitle(copy, summary.credited, summary.subBand)
+          ? summary.inferred > 0
+            ? // WP-127: most of these words were inferred, not recognised — the
+              // headline names the level confirmed, never a count of «known» words.
+              bandCheckFill(copy.passed_none_title, { band: summary.subBand })
+            : passedTitle(copy, summary.credited, summary.subBand)
           : bandCheckFill(copy.failed_title, { correct: summary.correct, total: summary.total })}
       </h1>
       {passed ? (
         <>
-          <p className="bc-lead">{summary.credited > 0 ? copy.passed_lead : copy.passed_none_lead}</p>
+          <p className="bc-lead">
+            {summary.credited <= 0
+              ? copy.passed_none_lead
+              : summary.inferred > 0
+                ? bandCheckFill(copy.passed_split, { sampled: summary.sampled, inferred: summary.inferred })
+                : copy.passed_lead}
+          </p>
           <Surface tone="outline">
             <p className="bc-fine">
               {bandCheckFill(copy.score_line, { correct: summary.correct, total: summary.total })}
               {summary.missed > 0 ? ` ${copy.passed_missed_note}` : ''}
             </p>
+            {summary.inferred > 0 && (
+              <p className="bc-fine" data-credit="inferred">
+                {bandCheckFill(copy.inferred_note, {
+                  bands: [summary.subBand, ...summary.inferredBands].join(' · '),
+                })}
+              </p>
+            )}
           </Surface>
         </>
       ) : (
-        <p className="bc-lead">
-          {bandCheckFill(copy.failed_lead, { band: summary.subBand, needed: summary.needed })}
-        </p>
+        <>
+          <p className="bc-lead">
+            {bandCheckFill(copy.failed_lead, { band: summary.subBand, needed: summary.needed })}
+          </p>
+          {down && <p className="bc-fine">{bandCheckFill(copy.next_down_lead, { band: down })}</p>}
+          {summary.ladder === 'paused' && (
+            <Surface tone="outline">
+              <p className="bc-fine">{bandCheckFill(copy.paused_lead, { band: summary.resumeBand ?? '' })}</p>
+            </Surface>
+          )}
+        </>
       )}
     </Frame>
   );
@@ -366,6 +426,35 @@ export function BandCheckView({
 
 /** A second tap inside this window is the same finger landing twice. */
 const TAP_GUARD_MS = 160;
+
+function loadSaved(attemptId: string | null | undefined): SavedRun | null {
+  if (!attemptId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(savedRunKey(attemptId));
+    return raw ? (JSON.parse(raw) as SavedRun) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeSaved(run: BandCheckRun | null, attemptId?: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (run) {
+      const saved = savedRunOf(run);
+      if (saved) window.localStorage.setItem(savedRunKey(saved.attemptId), JSON.stringify(saved));
+    } else if (attemptId) {
+      window.localStorage.removeItem(savedRunKey(attemptId));
+    }
+  } catch {
+    // A convenience: a check that cannot be kept simply starts from its first word.
+  }
+}
+
+function isVisitFull(error: unknown): boolean {
+  const response = (error as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+  return response?.status === 409 && response?.data?.detail === 'visit_full';
+}
 
 export function BandCheckFlow({
   origin,
@@ -388,9 +477,15 @@ export function BandCheckFlow({
     setPending(true);
     if (!direct) setState({ phase: 'loading' });
     try {
-      const bands = bandsRef.current ?? (await api.getBandChecks());
-      bandsRef.current = bands;
-      const wanted = band && bands.some((row) => row.sub_band === band && !row.credited) ? band : nextBand(bands);
+      // WP-127: the server's ladder says where the check stands and what is next.
+      const ladder = await api.getBandCheckLadder();
+      bandsRef.current = ladder.bands;
+      if (ladder.status === 'paused') {
+        setState({ phase: 'paused', band: ladder.resume_band ?? null });
+        return;
+      }
+      const wanted =
+        band && ladder.bands.some((row) => row.sub_band === band && !row.credited) ? band : ladder.next ?? null;
       if (!wanted) {
         setState({ phase: 'none' });
         return;
@@ -400,11 +495,15 @@ export function BandCheckFlow({
         setState({ phase: 'none' });
         return;
       }
-      const run = startRun(start.sub_band, start.items, start.pass_share);
+      const fresh = startRun(start.sub_band, start.items, start.pass_share, start.attempt_id ?? null);
+      const run = resumeRun(
+        start.pass_correct != null ? { ...fresh, passCorrect: start.pass_correct } : fresh,
+        loadSaved(start.attempt_id),
+      );
       sentRef.current = null;
-      setState(direct ? { phase: 'question', run } : { phase: 'intro', run, bands });
-    } catch {
-      setState({ phase: 'error' });
+      setState(direct || run.index > 0 ? { phase: 'question', run } : { phase: 'intro', run, bands: ladder.bands });
+    } catch (error) {
+      setState(isVisitFull(error) ? { phase: 'paused', band: band ?? null } : { phase: 'error' });
     } finally {
       setPending(false);
     }
@@ -418,16 +517,22 @@ export function BandCheckFlow({
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
   }, [state.phase]);
 
+  // A stopped check keeps its answers under its attempt id, so it resumes on the
+  // same words (WP-127). Written on every answer; cleared once it is graded.
+  React.useEffect(() => {
+    if (state.phase === 'question' && !state.sending) storeSaved(state.run);
+  }, [state]);
+
   const submit = React.useCallback(async (run: BandCheckRun) => {
     setPending(true);
     setState({ phase: 'question', run, sending: true });
     try {
-      const result = await api.submitBandCheck(run.subBand, answersPayload(run));
-      if (result.passed && bandsRef.current) bandsRef.current = markCredited(bandsRef.current, run.subBand);
+      const result = await api.submitBandCheck(run.subBand, answersPayload(run), run.attemptId);
+      storeSaved(null, run.attemptId);
       setState({ phase: 'result', summary: summarize(result, bandsRef.current, run.passShare) });
-    } catch {
+    } catch (error) {
       sentRef.current = null;
-      setState({ phase: 'question', run, failed: true });
+      setState(isVisitFull(error) ? { phase: 'paused', band: run.subBand } : { phase: 'question', run, failed: true });
     } finally {
       setPending(false);
     }
@@ -456,7 +561,7 @@ export function BandCheckFlow({
   React.useEffect(() => {
     if (state.phase !== 'question' || state.sending || state.failed) return;
     if (!isComplete(state.run)) return;
-    const key = `${state.run.subBand}:${JSON.stringify(state.run.answers)}`;
+    const key = `${state.run.attemptId ?? state.run.subBand}:${JSON.stringify(state.run.answers)}`;
     if (sentRef.current === key) return;
     sentRef.current = key;
     void submit(state.run);
@@ -479,6 +584,7 @@ export function BandCheckFlow({
       onRetryOpen={() => void open(initialBand, false)}
       onCheckBand={(band) => void open(band, true)}
       onLeave={onLeave}
+      onStop={onLeave}
     />
   );
 }
@@ -528,6 +634,9 @@ function BandCheckStyles() {
         line-height: 1.45;
         color: var(--av2-ink-2);
       }
+      .av2 .bc-fine + .bc-fine {
+        margin-top: 8px;
+      }
       .av2 .bc-fine {
         margin: 0;
         font-size: var(--av2-t-label);
@@ -553,6 +662,9 @@ function BandCheckStyles() {
       }
       .av2 .bc-dontknow {
         width: 100%;
+      }
+      .av2 .bc-stop {
+        align-self: center;
       }
       .av2 .bc-keys {
         margin: 0;

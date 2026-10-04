@@ -8,7 +8,8 @@
  *
  * On success the learner is signed in with what they just typed and lands in
  * today's scene (`/atelier?start=today`), never on the placement: «Nouveau»
- * skips it entirely, and the placement is offered after day three instead.
+ * skips it entirely, and the others are offered it right after their first
+ * completed ending (WP-126). Five starting points, A1 → C1.
  */
 
 import React from 'react';
@@ -16,12 +17,12 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Action, BottomSheet } from '@/components/atelier-v2/ui';
 import {
+  AuthChoices,
   AuthEyebrow,
   AuthField,
   AuthFootLink,
   AuthNotice,
   AuthScreen,
-  AuthSegments,
   AuthSpacer,
 } from '@/components/auth/AuthShell';
 import { LegalDocumentView } from '@/components/legal/LegalDocumentView';
@@ -39,6 +40,7 @@ import {
   SIGNUP_NAV,
   STARTING_POINTS,
   afterSignUpDestination,
+  startingPointLabel,
   buildRegisterPayload,
   validateSignUp,
   type SignUpErrors,
@@ -210,14 +212,17 @@ export default function SignUpPage() {
             autoComplete="given-name"
           />
 
-          <AuthSegments
+          {/* WP-126: five starting points, A1 → C1, in plain words with the
+              CEFR band beside them — a column of rows, so the longer answers
+              wrap at 375 px instead of squeezing into a segmented bar. */}
+          <AuthChoices
             legend={copy.level_question}
-            value={startingPoint ?? ''}
+            value={startingPoint}
             onSelect={(next) => {
               setStartingPoint(next as StartingPoint);
               setErrors((current) => ({ ...current, startingPoint: undefined }));
             }}
-            options={STARTING_POINTS.map((point) => ({ value: point, label: copy.levels[point] }))}
+            options={STARTING_POINTS.map((point) => ({ value: point, label: startingPointLabel(copy, point) }))}
           />
           {errors.startingPoint && <AuthNotice>{errorText('startingPoint')}</AuthNotice>}
 

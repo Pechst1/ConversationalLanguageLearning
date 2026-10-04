@@ -52,6 +52,18 @@ export type PlacementCopy = {
   result_lead: string;
   evidence_summary: string;
   dimensions: Record<'range' | 'accuracy' | 'coherence' | 'task', string>;
+  // WP-126: the offer at the end of the day (after the first completed ending)
+  day_end_kicker: string;
+  day_end_title: string;
+  day_end_title_resume: string;
+  day_end_lead: string;
+  day_end_fine: string;
+  day_end_begin: string;
+  day_end_resume: string;
+  day_end_skip: string;
+  day_end_skipped: string;
+  /** Home's quiet chip (`PlacementOfferChip`). */
+  chip: string;
 };
 
 const FR: PlacementCopy = {
@@ -98,6 +110,16 @@ const FR: PlacementCopy = {
     coherence: 'Cohérence du propos',
     task: 'Réponse à la consigne',
   },
+  day_end_kicker: 'Bilan de niveau',
+  day_end_title: 'Et si l’on vérifiait votre niveau ?',
+  day_end_title_resume: 'Votre bilan est resté ouvert',
+  day_end_lead: '4 à 6 questions, environ cinq minutes. Les prochaines journées se règlent sur le résultat.',
+  day_end_fine: 'Ce n’est pas obligatoire : sans bilan, votre niveau suit vos scènes.',
+  day_end_begin: 'Faire le bilan',
+  day_end_resume: 'Reprendre le bilan',
+  day_end_skip: 'Pas maintenant',
+  day_end_skipped: 'C’est noté. Le bilan reste disponible dans les Réglages.',
+  chip: 'Faire le point sur votre niveau',
 };
 
 const EN: PlacementCopy = {
@@ -144,6 +166,16 @@ const EN: PlacementCopy = {
     coherence: 'Coherence',
     task: 'Answering the task',
   },
+  day_end_kicker: 'Level check',
+  day_end_title: 'Shall we check your level?',
+  day_end_title_resume: 'Your level check is still open',
+  day_end_lead: '4 to 6 questions, about five minutes. The next days adjust to the result.',
+  day_end_fine: 'It is optional: without it, your level follows your scenes.',
+  day_end_begin: 'Take the level check',
+  day_end_resume: 'Resume the level check',
+  day_end_skip: 'Not now',
+  day_end_skipped: 'Noted. The level check stays available in Réglages.',
+  chip: 'Check your level',
 };
 
 const DE: PlacementCopy = {
@@ -190,6 +222,16 @@ const DE: PlacementCopy = {
     coherence: 'Zusammenhang',
     task: 'Erfüllung der Aufgabe',
   },
+  day_end_kicker: 'Einstufung',
+  day_end_title: 'Sollen wir Ihr Niveau prüfen?',
+  day_end_title_resume: 'Ihre Einstufung ist noch offen',
+  day_end_lead: '4 bis 6 Fragen, etwa fünf Minuten. Die nächsten Tage richten sich nach dem Ergebnis.',
+  day_end_fine: 'Sie ist freiwillig: Ohne Einstufung folgt Ihr Niveau Ihren Szenen.',
+  day_end_begin: 'Einstufung machen',
+  day_end_resume: 'Einstufung fortsetzen',
+  day_end_skip: 'Jetzt nicht',
+  day_end_skipped: 'Notiert. Die Einstufung bleibt in den Réglages verfügbar.',
+  chip: 'Ihr Niveau prüfen',
 };
 
 const TABLES: Record<ControlLanguage, PlacementCopy> = { en: EN, de: DE, fr: FR };

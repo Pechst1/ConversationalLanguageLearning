@@ -61,17 +61,45 @@ class BandCheckSubBand(BaseModel):
     sub_band: str
     words: int
     credited: bool
+    #: WP-127: ``sampled`` (a pass on this band) or ``inferred`` (from a pass above).
+    credit_kind: str | None = None
+    #: WP-127: the latest check of this band did not pass (ladder only).
+    missed: bool = False
+
+
+class BandCheckLadder(BaseModel):
+    """WP-127: the top-down check — where it stands and what to check next."""
+
+    policy_version: str
+    #: open / paused (this visit's checks are spent) / done / none
+    status: str
+    next: str | None = None
+    resume_band: str | None = None
+    visit_checks_used: int
+    visit_checks_left: int
+    max_checks_per_visit: int
+    items_per_check: int
+    pass_correct: int
+    #: Highest first.
+    bands: list[BandCheckSubBand]
 
 
 class BandCheckStart(BaseModel):
     sub_band: str
     items: list[BandCheckItem]
     pass_share: float
+    #: WP-127: correct answers a pass needs (a documented candidate).
+    pass_correct: int | None = None
+    #: WP-127: this check's persistent identity; send it back with the answers.
+    attempt_id: str | None = None
+    policy_version: str | None = None
 
 
 class BandCheckSubmit(BaseModel):
     #: item id → the chosen option's index, or null for «je ne sais pas».
     answers: dict[str, int | None] = Field(default_factory=dict)
+    #: WP-127: the ``attempt_id`` the check was opened with (older clients omit it).
+    attempt_id: str | None = Field(default=None, max_length=64)
 
 
 class BandCheckResult(BaseModel):
@@ -81,6 +109,20 @@ class BandCheckResult(BaseModel):
     passed: bool
     credited_words: int
     missed: list[str]
+    #: WP-127: words on the check and answered right.
+    credited_sampled: int = 0
+    #: WP-127: words credited by inference — the pass's unsampled words and lower bands.
+    credited_inferred: int = 0
+    inferred_bands: list[str] = Field(default_factory=list)
+    pass_correct: int | None = None
+    attempt_id: str | None = None
+    policy_version: str | None = None
+    #: A replayed submit: the stored result, nothing credited twice.
+    replayed: bool = False
+    #: The ladder after this check: the next band down, or why there is none.
+    next: str | None = None
+    ladder_status: str | None = None
+    resume_band: str | None = None
 
 
 @router.get("/band-check", response_model=list[BandCheckSubBand])
@@ -95,20 +137,35 @@ def list_band_checks(
     return band_check.checkable(db, current_user)
 
 
+@router.get("/band-check/ladder", response_model=BandCheckLadder)
+def band_check_ladder(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """WP-127: the top-down check — the next band to check, or why there is none."""
+
+    from app.services import band_check
+
+    return band_check.ladder(db, current_user)
+
+
 @router.get("/band-check/{sub_band}", response_model=BandCheckStart)
 def start_band_check(
     sub_band: str,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> dict[str, Any]:
-    """Today's check for one sub-band: meaning choices, no answer key."""
+    """This attempt's check for one sub-band: meaning choices, no answer key."""
 
     from app.services import band_check
 
     allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
     if sub_band not in allowed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
-    return {"sub_band": sub_band, "items": band_check.sample(current_user, sub_band), "pass_share": band_check.PASS_SHARE}
+    try:
+        return band_check.start(db, current_user, sub_band)
+    except band_check.VisitFull:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="visit_full") from None
 
 
 @router.post("/band-check/{sub_band}", response_model=BandCheckResult)
@@ -118,14 +175,19 @@ def submit_band_check(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> dict[str, Any]:
-    """Grade the check; a pass gives the sub-band's words settled, known cards."""
+    """Grade the check; a pass credits the band (sampled) and the bands below (inferred)."""
 
     from app.services import band_check
 
     allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
     if sub_band not in allowed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
-    result = band_check.submit(db, current_user, sub_band, payload.answers)
+    try:
+        result = band_check.submit(db, current_user, sub_band, payload.answers, attempt=payload.attempt_id)
+    except band_check.VisitFull:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="visit_full") from None
+    except band_check.StaleAttempt:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="stale_attempt") from None
     db.commit()
     return result
 

@@ -467,28 +467,50 @@ def opening_band(user: User | None, evidence: dict[str, Any] | None = None) -> s
 
 
 # ---------------------------------------------------------------------------
-# WP-75 — placement is offered after the learner's own days, never at sign-up
+# WP-75 / WP-126 — when the placement is offered
 # ---------------------------------------------------------------------------
 
-#: Completed days before placement is offered at all.
-PLACEMENT_OFFER_MIN_DAYS = 3
+#: WP-126 (2026-10-04, owner decision 2): the placement is offered right after the
+#: learner's first completed ending, not after three days. Day one is served at the
+#: learner's own declaration; the placement then corrects it from day two on.
+PLACEMENT_OFFER_MIN_DAYS = 1
 #: How many of the learner's latest completed days the evidence reads.
 JOURNEY_EVIDENCE_WINDOW = 5
-#: Unaided, fully met replies within that window that say "above this band".
+#: WP-126: distinct completed days, within that window, on which the learner met
+#: a reply's objective unaided at a band *strictly above* their current one. Only
+#: this lets the app offer a placement to a learner who declared «Nouveau».
 JOURNEY_EVIDENCE_MET_UNAIDED = 3
 #: A declaration at or below this floor is «Nouveau» (``starting_point="new"``).
 NEW_LEARNER_FLOOR = "A1.1"
+#: Explicit band order: never a string comparison («B1» >= «A2» happens to sort,
+#: «C1» vs «c1» or «» does not).
+BAND_ORDER: tuple[str, ...] = ("A1", "A2", "B1", "B2", "C1", "C2")
+#: Placement rows after which the app stops offering on its own. A declined offer
+#: is never repeated daily; a grader outage («unassessed») is not re-offered every
+#: morning either. Réglages («Refaire le point») stays open for all of them.
+OFFER_SETTLED_STATUSES: tuple[str, ...] = ("complete", "skipped", "unassessed")
+
+
+def band_rank(band: str | None) -> int:
+    """Position of a coarse band («A2», or «A2.1») in :data:`BAND_ORDER`; -1 if unknown."""
+
+    coarse = str(band or "").strip().upper()[:2]
+    return BAND_ORDER.index(coarse) if coarse in BAND_ORDER else -1
 
 
 def journey_placement_evidence(db: Session, user: User) -> dict[str, Any]:
     """What the learner's completed days say about their band. Reads, never writes.
 
     Deliberately simple and honest: a day's reply either met its objective with
-    no help recorded by the server, or it did not. ``above_band`` needs
-    :data:`JOURNEY_EVIDENCE_MET_UNAIDED` such replies among the latest
-    :data:`JOURNEY_EVIDENCE_WINDOW` days, each at (or above) the band the
-    learner is currently estimated at — a learner meeting A1 objectives with no
-    help has outgrown A1 as far as the days can tell.
+    no help recorded by the server, or it did not. ``above_band`` needs such a
+    reply on :data:`JOURNEY_EVIDENCE_MET_UNAIDED` *distinct* days among the latest
+    :data:`JOURNEY_EVIDENCE_WINDOW`, each on a day served at a band **strictly
+    above** the one the learner is currently estimated at.
+
+    WP-126 (F-2): this used to count replies at the learner's *own* band
+    (``band >= current``, a string comparison), so an A1 beginner who did their
+    A1 days well was offered a nine-minute placement that answered «A1.1». Own-band
+    success is what a day is for; it is not evidence of being above that band.
     """
 
     from app.db.models.daily_journey import DailyJourney
@@ -501,53 +523,117 @@ def journey_placement_evidence(db: Session, user: User) -> dict[str, Any]:
     total = int(completed.count())
     recent = completed.limit(JOURNEY_EVIDENCE_WINDOW).all()
     current_band = str(getattr(user, "cefr_estimate", "") or declared_level_floor(user) or "A1.1")[:2].upper()
+    current_rank = max(0, band_rank(current_band))
     met_unaided = 0
+    qualifying_days: set[str] = set()
     met_bands: list[str] = []
     for journey in recent:
         band = str(journey.level_band or "").upper()[:2]
+        if band_rank(band) <= current_rank:
+            continue
         for step in journey.steps or []:
             if str(step.kind) != "respond":
                 continue
             result = (step.private_task or {}).get("result") or {}
             if result.get("outcome") != "met" or result.get("assistance_level") not in (None, "none"):
                 continue
-            if band and band >= current_band:
-                met_unaided += 1
-                met_bands.append(band)
+            met_unaided += 1
+            met_bands.append(band)
+            qualifying_days.add(str(journey.local_date or journey.id))
     return {
         "completed_days": total,
         "window": len(recent),
+        "current_band": current_band,
         "met_unaided": met_unaided,
-        "band": min(met_bands) if met_bands else None,
-        "above_band": met_unaided >= JOURNEY_EVIDENCE_MET_UNAIDED,
+        "qualifying_days": len(qualifying_days),
+        "band": min(met_bands, key=band_rank) if met_bands else None,
+        "above_band": len(qualifying_days) >= JOURNEY_EVIDENCE_MET_UNAIDED,
     }
 
 
-def placement_offer(db: Session, user: User) -> bool:
-    """Should the app offer the placement now?
+def placement_offer_state(db: Session, user: User) -> dict[str, Any]:
+    """Should the app offer the placement now, and as what?
 
-    Only after :data:`PLACEMENT_OFFER_MIN_DAYS` completed days, only to a
-    learner who has neither taken nor declined one, and only when it can tell
-    them something: they declared more than «Nouveau», or their days suggest
-    they are above the band they are working at. Never at sign-up.
+    * ``offer``  — show the offer (the day's ending, Home's quiet chip);
+    * ``resume`` — a placement is open: the offer is «Reprendre», not «Commencer»;
+    * ``reason`` — why (``declared`` / ``journey_evidence`` / ``resume``), or why
+      not (``too_early`` / ``settled`` / ``beginner``), for tests and the pilot.
+
+    Offered only after :data:`PLACEMENT_OFFER_MIN_DAYS` completed day(s), only to a
+    learner who has neither taken nor declined one, and only when it can tell them
+    something: they declared more than «Nouveau», or their days say they are above
+    the band they are working at. Never at sign-up. A placement the learner opened
+    themselves (Réglages) is offered for resuming whatever they declared.
     """
 
+    service = PlacementService(db)
+    if service.active_session(user) is not None:
+        return {"offer": True, "resume": True, "reason": "resume"}
     evidence = journey_placement_evidence(db, user)
     if evidence["completed_days"] < PLACEMENT_OFFER_MIN_DAYS:
-        return False
-    decided = (
+        return {"offer": False, "resume": False, "reason": "too_early"}
+    settled = (
         db.query(PlacementSession.id)
         .filter(
             PlacementSession.user_id == user.id,
-            PlacementSession.status.in_(("complete", "skipped")),
+            PlacementSession.status.in_(OFFER_SETTLED_STATUSES),
         )
         .first()
     )
-    if decided is not None:
-        return False
+    if settled is not None:
+        return {"offer": False, "resume": False, "reason": "settled"}
     declared = declared_level_floor(user) or NEW_LEARNER_FLOOR
-    declared_new = level_index(declared) <= level_index(NEW_LEARNER_FLOOR)
-    return (not declared_new) or bool(evidence["above_band"])
+    if level_index(declared) > level_index(NEW_LEARNER_FLOOR):
+        return {"offer": True, "resume": False, "reason": "declared"}
+    if evidence["above_band"]:
+        return {"offer": True, "resume": False, "reason": "journey_evidence"}
+    return {"offer": False, "resume": False, "reason": "beginner"}
+
+
+def placement_offer(db: Session, user: User) -> bool:
+    """Should the app offer the placement now? (:func:`placement_offer_state`)."""
+
+    return bool(placement_offer_state(db, user)["offer"])
+
+
+def reconcile_after_placement(db: Session, user: User) -> int:
+    """WP-126: plans made at the old band never reach the learner after a placement.
+
+    The day in progress is never rewritten: a journey that already exists keeps the
+    band it was planned at. What the placement does reconcile is the work prepared
+    *ahead* — prefetched scenes (WP-26) whose cache key carries the old band. They
+    would be discarded at the next consume anyway; closing them out now bills their
+    spend and makes sure none is served. Returns how many were closed. Never raises.
+    """
+
+    try:
+        from app.services import journey_latency
+        from app.services.journey_contracts import InputMode
+
+        keys = {journey_latency.scene_cache_key(db, user, input_mode=mode) for mode in InputMode}
+        keys.discard(None)
+        if not keys:
+            return 0
+        closed = 0
+        for row in journey_latency._live_prefetch_rows(db, user, cache_key=None):
+            payload = row.payload or {}
+            if str(payload.get("cache_key") or row.entity_id or "") in keys:
+                continue
+            journey_latency._mark(
+                db,
+                row,
+                journey_latency.PREFETCH_DISCARDED_EVENT,
+                reason="placement",
+                cost_usd=journey_latency._usage_cost(payload),
+            )
+            closed += 1
+        if closed:
+            db.commit()
+        return closed
+    except Exception:  # pragma: no cover - a cache sweep never fails a placement
+        logger.warning("placement: prefetch reconcile failed")
+        db.rollback()
+        return 0
 
 
 def next_band(
@@ -1146,6 +1232,10 @@ __all__ = [
     "normalize_grading",
     "opening_band",
     "placement_offer",
+    "placement_offer_state",
+    "reconcile_after_placement",
+    "band_rank",
+    "BAND_ORDER",
     "prompt_for_session",
     "record_placement_cost",
     "should_continue",

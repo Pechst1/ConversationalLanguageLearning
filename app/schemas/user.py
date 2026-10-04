@@ -104,17 +104,33 @@ class UserBase(BaseModel):
     show_grammar_explanations: bool = True
 
 
-#: WP-75. The one onboarding question left on sign-up: «Nouveau / Quelques
-#: bases / À l'aise». It is a declaration, not a measurement, so it only ever
-#: sets the *declared* level (``proficiency_level``) and the honest floor of
-#: the estimate; a placement or the learner's own journeys move it from there.
-StartingPoint = Literal["new", "some", "comfortable"]
-STARTING_POINT_LEVELS: dict[str, str] = {"new": "A1", "some": "A2", "comfortable": "B1"}
+#: WP-75. The one onboarding question left on sign-up: «Votre français ?». It is
+#: a declaration, not a measurement, so it only ever sets the *declared* level
+#: (``proficiency_level``) and the honest floor of the estimate
+#: (``estimate_source: declared``); a placement (``estimate_source: placement``)
+#: or the learner's own journeys move it from there.
+#:
+#: WP-126 (2026-10-04): five plain-language starting points covering A1 → C1, so a
+#: B2 or C1 learner's day one is served at their own band instead of B1.1. The
+#: three WP-75 values keep their meaning, so an older client's payload is read
+#: exactly as before; ``confident`` (B2) and ``advanced`` (C1) are the new rungs.
+#: The scale ends at C1 (C1.2), never an ambiguous «C1+».
+StartingPoint = Literal["new", "some", "comfortable", "confident", "advanced"]
+STARTING_POINTS: tuple[str, ...] = ("new", "some", "comfortable", "confident", "advanced")
+STARTING_POINT_LEVELS: dict[str, str] = {
+    "new": "A1",
+    "some": "A2",
+    "comfortable": "B1",
+    "confident": "B2",
+    "advanced": "C1",
+}
 #: The estimate a declaration starts at: the floor of the declared band.
 STARTING_POINT_ESTIMATES: dict[str, tuple[str, str]] = {
     "new": ("A1.1", "A1.2"),
     "some": ("A2.1", "A2.2"),
     "comfortable": ("B1.1", "B1.2"),
+    "confident": ("B2.1", "B2.2"),
+    "advanced": ("C1.1", "C1.2"),
 }
 
 
@@ -144,7 +160,7 @@ class UserCreate(UserBase):
 
     @model_validator(mode="after")
     def _apply_starting_point(self) -> UserCreate:
-        """«Nouveau / Quelques bases / À l'aise» → A1 / A2 / B1.
+        """The five starting points → A1 / A2 / B1 / B2 / C1 (WP-126).
 
         Only when the client did not state a level itself: an explicit
         ``proficiency_level`` (every pre-WP-75 client) wins, and so does an

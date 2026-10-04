@@ -44,8 +44,10 @@ from tests import test_journey_end_to_end as support
 # Who plays
 # ---------------------------------------------------------------------------
 
-#: What each persona ticks at sign-up («Votre français ?»: new / some / comfortable).
-STARTING_POINT = {"A1": "new", "A2": "some", "B1": "comfortable", "B2": "comfortable", "C1": "comfortable"}
+#: What each persona ticks at sign-up («Votre français ?»). WP-126: five starting
+#: points, so every persona declares its true band (B2 and C1 used to tick
+#: «comfortable» and live their first days at B1.1).
+STARTING_POINT = {"A1": "new", "A2": "some", "B1": "comfortable", "B2": "confident", "C1": "advanced"}
 LIFE_QUALITIES: tuple[str, ...] = ("strong", "average", "struggling")
 LIFE_DAYS = 30
 
@@ -274,27 +276,34 @@ def take_placement(client: TestClient, headers: dict[str, str], monkeypatch: Any
 
 
 def take_band_checks(client: TestClient, db: Session, headers: dict[str, str], email: str, *, quality: str, rng: random.Random) -> list[dict[str, Any]]:
-    """Every offered sub-band not yet credited, answered at the quality's accuracy."""
+    """One visit of the top-down vocabulary check (WP-127), as the screen drives it.
+
+    The ladder says which sub-band to check; the learner answers at the quality's
+    accuracy and follows it down after a miss, until it stops (a pass), pauses (the
+    visit's two checks are spent) or runs out."""
 
     from app.db.models.user import User
     from app.services import band_check
 
-    offered = client.get("/api/v1/vocabulary/band-check", headers=headers)
-    if offered.status_code != 200:
-        return [{"status_code": offered.status_code}]
     user = db.query(User).filter(User.email == email).one()
     results: list[dict[str, Any]] = []
     accuracy = {"strong": 0.97, "average": 0.92, "struggling": 0.78}[quality]
-    for row in offered.json():
-        if row.get("credited"):
-            continue
-        band = row["sub_band"]
+    for _ in range(band_check.MAX_CHECKS_PER_VISIT + 1):
+        ladder = client.get("/api/v1/vocabulary/band-check/ladder", headers=headers)
+        if ladder.status_code != 200:
+            results.append({"status_code": ladder.status_code})
+            break
+        band = ladder.json().get("next")
+        if not band:
+            break
         start = client.get(f"/api/v1/vocabulary/band-check/{band}", headers=headers)
         if start.status_code != 200:
             results.append({"sub_band": band, "status_code": start.status_code})
-            continue
-        key = {item["id"]: item["answer"] for item in band_check._items(user, band)}
-        items = start.json().get("items") or []
+            break
+        body = start.json()
+        attempt = band_check.next_attempt(db, user, band)
+        key = {item["id"]: item["answer"] for item in band_check._items(user, band, attempt=attempt)}
+        items = body.get("items") or []
         answers = {}
         for item in items:
             right = key.get(item["id"])
@@ -304,17 +313,26 @@ def take_band_checks(client: TestClient, db: Session, headers: dict[str, str], e
                 answers[item["id"]] = right
             else:
                 answers[item["id"]] = (right + 1) % max(1, len(item.get("options") or [1]))
-        submitted = client.post(f"/api/v1/vocabulary/band-check/{band}", headers=headers, json={"answers": answers})
-        body = submitted.json() if submitted.status_code == 200 else {}
+        submitted = client.post(
+            f"/api/v1/vocabulary/band-check/{band}",
+            headers=headers,
+            json={"answers": answers, "attempt_id": body.get("attempt_id")},
+        )
+        result = submitted.json() if submitted.status_code == 200 else {}
         results.append(
             {
                 "sub_band": band,
                 "items": [{"fr": item.get("fr"), "options": item.get("options")} for item in items[:3]],
                 "item_count": len(items),
-                "correct": body.get("correct"),
-                "total": body.get("total"),
-                "passed": body.get("passed"),
-                "credited_words": body.get("credited_words"),
+                "attempt_id": body.get("attempt_id"),
+                "correct": result.get("correct"),
+                "total": result.get("total"),
+                "passed": result.get("passed"),
+                "credited_words": result.get("credited_words"),
+                "credited_sampled": result.get("credited_sampled"),
+                "credited_inferred": result.get("credited_inferred"),
+                "ladder_status": result.get("ladder_status"),
+                "status_code": None if submitted.status_code == 200 else submitted.status_code,
             }
         )
     return results

@@ -54,12 +54,15 @@ def test_only_sub_bands_below_the_learners_own_are_offered(db_session):
     assert band_check.checkable(db_session, _user(db_session, "A1.1")) == []
 
 
-def test_items_are_meaning_choices_without_the_key_and_stable_for_the_day(db_session):
+def test_items_are_meaning_choices_without_the_key_and_stable_for_the_attempt(db_session):
     user = _user(db_session, "A2.1")
     first = band_check.sample(user, "A1.1", now=NOW)
     assert len(first) == band_check.ITEMS
     assert all(len(item["options"]) == 4 and "answer" not in item for item in first)
     assert first == band_check.sample(user, "A1.1", now=NOW)
+    # WP-127: keyed by the attempt, not the day — midnight changes nothing.
+    assert first == band_check.sample(user, "A1.1", now=NOW.replace(day=NOW.day + 1))
+    assert first != band_check.sample(user, "A1.1", attempt=1)
 
 
 def test_a_pass_credits_the_band_except_the_missed_words(db_session):
@@ -73,6 +76,10 @@ def test_a_pass_credits_the_band_except_the_missed_words(db_session):
     assert len(known & band_words("A1.1")) >= 0.8 * len(band_words("A1.1"))
     assert not set(result["missed"]) & known
     assert "A1.1" in band_check.credited_sub_bands(db_session, user)
+    # WP-127: the sampled, right words are sampled recognition; the rest inferred.
+    assert result["credited_sampled"] == 22
+    assert result["credited_inferred"] == result["credited_words"] - 22
+    assert band_check.credit_kinds(db_session, user)["A1.1"] == "sampled"
 
 
 def test_a_fail_credits_nothing(db_session):
