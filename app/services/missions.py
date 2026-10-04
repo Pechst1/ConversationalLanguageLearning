@@ -95,6 +95,8 @@ LETTER_BANDS: tuple[str, ...] = ("A1", "A2", "B1", "B2", "C1")
 #: an open invitation (the learner's own account, any length) two.
 CLOSED_LETTER_REACH = 1
 OPEN_LETTER_REACH = 2
+#: And how far above the learner a letter may be written: one band of stretch.
+LETTER_STRETCH = 1
 #: A completed request is not asked again within this many days (unless as a follow-up).
 COMPLETED_REQUEST_DAYS = 7
 #: A canned letter's exact text is not reprinted within this many days.
@@ -148,6 +150,8 @@ def canned_letter_problem(
     domain = str(item.get("domain") or "")
     if not letter_reaches(item.get("level"), rotation.get("band"), open_ended=bool(item.get("open_ended"))):
         return "below_band"
+    if letter_band_index(item.get("level")) > letter_band_index(rotation.get("band")) + LETTER_STRETCH:
+        return "above_band"
     if rotation.get("season_active") and not item.get("season_safe", True):
         return "off_story"
     if not follow_up and domain in rotation.get("completed_recent", ()):

@@ -454,3 +454,11 @@ def test_a_one_off_letter_is_never_reprinted(db_session):
     rotation = {"band": "A1", "completed_recent": set(), "canned_recent": set(), "canned_ever": {"transport"}}
     assert canned_letter_problem(item, rotation) == "sent_once"
     assert canned_letter_problem(CANNED["transport"], rotation) is None
+
+
+def test_a_letter_is_not_written_more_than_one_band_above_the_learner():
+    from app.services.missions import canned_letter_problem
+
+    rotation = {"band": "A1", "completed_recent": set(), "canned_recent": set()}
+    assert canned_letter_problem({"domain": "x", "level": "A2"}, rotation) is None
+    assert canned_letter_problem({"domain": "x", "level": "B1"}, rotation) == "above_band"
