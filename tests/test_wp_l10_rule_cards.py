@@ -61,7 +61,9 @@ def test_markup_is_balanced_and_patterns_are_drawable():
                 assert row["shape"] in SHAPES, (external_id, row)
                 strings.append(row["fr"])
         else:
-            assert pattern["kind"] == "table" and len(pattern["rows"]) == 6, external_id
+            # Six persons, or eight where il/elle and ils/elles differ (agreement),
+            # or four for a paradigm that is not a person table (passive, gérondif).
+            assert pattern["kind"] == "table" and 4 <= len(pattern["rows"]) <= 8, external_id
             strings.extend(row["fr"] for row in pattern["rows"])
             assert pattern["note"]["en"] and pattern["note"]["de"], external_id
         for text in strings:

@@ -49,11 +49,13 @@ from app.services.level_coverage import (
 )
 
 #: §2.2 — what each rhythm plans to introduce: (new words a day, new units a week).
+#: 2026-10-03: the rhythm's own daily word quota and weekly unit quota
+#: (vocabulary_pace.RHYTHM_NEW_WORDS, concept_life.NEW_CONCEPTS_PER_WEEK).
 PRIOR_INTAKE: dict[Rhythm, tuple[float, float]] = {
-    "leger": (2.0, 1.0),
-    "regulier": (4.0, 2.0),
-    "soutenu": (8.0, 3.0),
-    "intensif": (12.0, 4.0),
+    "leger": (5.0, 2.0),
+    "regulier": (10.0, 4.0),
+    "soutenu": (18.0, 6.0),
+    "intensif": (30.0, 8.0),
 }
 #: The planning retention before anything is measured (§2.2 keeps review
 #: accuracy ≥ 80 % with the throttle; 0.9 is the scheduler's own target).

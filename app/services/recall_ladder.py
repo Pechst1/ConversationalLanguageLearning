@@ -32,6 +32,8 @@ THRESHOLDS: dict[str, tuple[float, float, float]] = {
     "A1": (5.0, 14.0, 30.0),
     "A2": (3.0, 10.0, 30.0),
     "B1": (1.0, 7.0, 21.0),
+    "B2": (1.0, 5.0, 14.0),
+    "C1": (1.0, 4.0, 10.0),
 }
 
 
@@ -39,7 +41,7 @@ def _band(level: str | None) -> str:
     code = str(level or "").strip().upper()[:2]
     if code in THRESHOLDS:
         return code
-    return "B1" if code in {"B2", "C1", "C2"} else "A2"
+    return "C1" if code == "C2" else "A2"
 
 
 def blank_word(sentence: str, word: str) -> str | None:

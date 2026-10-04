@@ -178,7 +178,7 @@ function proficiencyLevels(copy: SettingsCopy) {
     ];
 }
 
-const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2'];
+const cefrSublevels = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2', 'C1.1', 'C1.2'];
 
 function languageOptions(copy: SettingsCopy) {
     return [

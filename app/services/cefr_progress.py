@@ -42,7 +42,9 @@ logger = logging.getLogger(__name__)
 CEFR_PROGRESS_VERSION = "cefr-progress-v2"
 #: The payload version written before the coverage rule (release-day compat).
 LEGACY_PROGRESS_VERSIONS = frozenset({"cefr-progress-v1"})
-CEFR_LEVELS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2")
+CEFR_LEVELS = (
+    "A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2",
+)
 
 #: WP-L7: the performance half of the old thresholds. It no longer promotes
 #: anyone; once there is enough in-app evidence it decides how much of a
@@ -57,6 +59,8 @@ PERFORMANCE_GATES: dict[str, dict[str, float]] = {
     "B1.2": {"avg_score": 3.2, "max_error_rate": 0.26},
     "B2.1": {"avg_score": 3.3, "max_error_rate": 0.22},
     "B2.2": {"avg_score": 3.4, "max_error_rate": 0.18},
+    "C1.1": {"avg_score": 3.5, "max_error_rate": 0.14},
+    "C1.2": {"avg_score": 3.6, "max_error_rate": 0.11},
 }
 
 
@@ -105,14 +109,14 @@ def next_cefr_level(level: str | None) -> str | None:
 
 
 # The coarse level a learner picks at signup, mapped onto the internal half-step
-# scale. C1/C2 clamp to the top of the scale this service models.
+# scale. C2 clamps to the top of the scale this service models (C1.2).
 DECLARED_LEVEL_FLOOR: dict[str, str] = {
     "A1": "A1.1",
     "A2": "A2.1",
     "B1": "B1.1",
     "B2": "B2.1",
-    "C1": "B2.2",
-    "C2": "B2.2",
+    "C1": "C1.1",
+    "C2": "C1.2",
     "BEGINNER": "A1.1",
     "INTERMEDIATE": "B1.1",
     "ADVANCED": "B2.1",

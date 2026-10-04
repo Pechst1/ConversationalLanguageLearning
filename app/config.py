@@ -766,14 +766,15 @@ class Settings(BaseSettings):
 
     # ---- WP-L2: the syllabus ---------------------------------------------------
     ATELIER_GRAMMAR_CATALOG_VERSION: str = Field(
-        "v1",
+        "v2",
         description=(
             "WP-L2: which curated French grammar catalogue is seeded and served. "
-            "'v1' = templates/french_core_grammar_v1.tsv (54 coarse concepts, the "
-            "current product). 'v2' = templates/french_core_grammar_v2.tsv "
-            "(fr-core-v2: ~150 units A1–B2 with sub-bands, prerequisites and "
-            "localized rules); switching seeds v2, archives v1 and copies each "
-            "learner's v1 progress onto the v2 unit that replaces it."
+            "'v2' (default since the 2026-10-03 content program, D3) = "
+            "templates/french_core_grammar_v2.tsv (fr-core-v2: 206 reviewed units "
+            "A1.1–C1.2 with sub-bands, prerequisites, localized rules and authored "
+            "rule cards); switching seeds v2, archives v1 and copies each learner's "
+            "v1 progress onto the v2 unit that replaces it. 'v1' = "
+            "templates/french_core_grammar_v1.tsv (54 coarse concepts, the old product)."
         ),
     )
 

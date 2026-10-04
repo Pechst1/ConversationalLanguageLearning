@@ -192,7 +192,8 @@ def test_band_words_are_the_sub_bands_lemmas_without_closed_class_words():
     assert "bonjour" in words
     assert "le" not in words and "je" not in words and "dans" not in words
     assert 250 < len(words) < 384  # the lexicon's A1.1 minus its closed-class words
-    assert level_coverage.band_words("B2.1") == frozenset()  # the lexicon stops at B1
+    # Lexicon v3 (2026-10-03) runs through C1: a B2 band has words of its own.
+    assert len(level_coverage.band_words("B2.1")) > 500
 
 
 def test_held_is_wp_l4_tenue_whatever_the_stability(db_session, isolated_catalog):

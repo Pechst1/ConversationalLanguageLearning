@@ -306,7 +306,7 @@ def test_the_carnet_and_homes_next_can_do(client, db_session: Session) -> None:
     body = carnet.json()
     assert body["current_band"] == "A1.1"
     assert [band["band"] for band in body["bands"]][:2] == ["A1.1", "A1.2"]
-    assert sum(len(band["can_dos"]) for band in body["bands"]) == 58
+    assert sum(len(band["can_dos"]) for band in body["bands"]) == 72  # + 14 C1 can-dos (2026-10-03)
     greet = body["bands"][0]["can_dos"][0]
     assert greet["id"] == "CD_A11_GREET" and greet["title_native"] == "jemanden begrüßen und sich vorstellen"
     assert greet["stamped_at"] and greet["source"] == "scene" and greet["character_id"] == "margaux"

@@ -95,11 +95,12 @@ def test_prior_ranges_shrink_as_the_rhythm_grows(db_session):
         rhythm: forecast.rhythm_prior(rhythm)["range_days"] for rhythm in ("leger", "regulier", "soutenu", "intensif")
     }
     assert ranges["leger"][0] > ranges["regulier"][0] > ranges["soutenu"][0] >= ranges["intensif"][0]
-    # §2.3: Régulier ≈ 5–6 months for A1, Léger ≈ 10 — the ranges straddle them.
+    # 2026-10-03 quotas (owner: faster than Duolingo): Régulier ≈ 3–4 months
+    # for A1, Léger ≈ 4–5 — the ranges straddle them.
     regulier = forecast.rhythm_prior("regulier")
-    assert 3.0 <= regulier["range_months"][0] <= 6.0 <= regulier["range_months"][1] + 1.0
+    assert 2.0 <= regulier["range_months"][0] <= 3.5 <= regulier["range_months"][1]
     leger = forecast.rhythm_prior("leger")
-    assert leger["range_months"][0] <= 10.0 <= leger["range_months"][1]
+    assert leger["range_months"][0] <= 4.5 <= leger["range_months"][1]
     assert regulier["target"] == "A1" and regulier["kind"] == "estimate"
 
 
@@ -229,7 +230,7 @@ def test_a_regulier_learner_at_85_percent_reaches_a12_as_the_forecast_said():
         "app.services.grammar_catalog.active_catalog_version", return_value="fr-core-v2"
     ):
         units = forecast.static_band_unit_count("A1.1")
-    assert units == 18
+    assert units == 20  # A1.1 gained noun plurals and «on» = nous (2026-10-03 review)
     actual: list[int] = []
     predicted: list[float] = []
     for seed in range(7):
@@ -248,9 +249,10 @@ def test_a_regulier_learner_at_85_percent_reaches_a12_as_the_forecast_said():
     actual_median = statistics.median(actual)
     predicted_median = statistics.median(predicted)
     assert abs(predicted_median - actual_median) <= 0.2 * actual_median, (actual, predicted)
-    # Plausible: about four to five and a half months for the first sub-band at
-    # ten minutes a day (WP-L4's «Tenue» takes a unit ~6 weeks on a clean run).
-    assert 100 <= actual_median <= 170
+    # Plausible: about two and a half to four months for the first sub-band at
+    # ten minutes a day with the 2026-10-03 quotas (WP-L4's «Tenue» still takes
+    # a unit two weeks or more, so it cannot collapse further).
+    assert 70 <= actual_median <= 130
     # And the measured range brackets what happened for most learners.
     inside = sum(1 for got, said in zip(actual, predicted, strict=True) if 0.8 * said <= got <= 1.3 * said)
     assert inside >= 5

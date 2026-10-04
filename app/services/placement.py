@@ -56,10 +56,13 @@ PLACEMENT_VERSION = "placement-v1"
 #: ``scripts/pilot_digest.py``, exactly as ``atelier_correction`` is.
 PLACEMENT_EVENT_TYPE = "placement_grading"
 
-#: The ladder the placement walks. It stops at B2.1: nothing in the prompt bank
-#: can tell B2.1 from B2.2 in one paragraph, and claiming otherwise would be the
-#: same dishonesty this package exists to remove.
-PLACEMENT_BANDS: tuple[str, ...] = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1")
+#: The ladder the placement walks. Within B2 and C1 it keeps one rung per band:
+#: nothing in the prompt bank can tell B2.1 from B2.2 (or C1.1 from C1.2) in one
+#: paragraph, and claiming otherwise would be the same dishonesty this package
+#: exists to remove. C1.1 is a separate rung (2026-10-03, A1 → C1 scope): the
+#: control of register, nuance and complex subordination is visible in one
+#: paragraph where B2's argument alone is not.
+PLACEMENT_BANDS: tuple[str, ...] = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "C1.1")
 
 #: Four turns is the floor for an estimate, six the ceiling for the five-minute
 #: promise (≈40 s of reading and writing per turn).
@@ -230,6 +233,21 @@ PROMPT_VARIANTS: dict[str, tuple[PlacementPrompt, ...]] = {
         _rung("B2.1", "f", "Le vote devrait-il être obligatoire ? Défendez une position en discutant un contre-argument sérieux.",
               "argue a position while conceding a counter-argument, abstract register", "Nommez l’objection avant d’y répondre."),
     ),
+    # Weigh a complex question with nuance, in a controlled formal register.
+    "C1.1": (
+        _rung("C1.1", "a", "Le télétravail a-t-il transformé notre rapport au travail pour le meilleur ? Rédigez un paragraphe nuancé, comme pour une tribune dans un journal.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+        _rung("C1.1", "b", "Une ville devrait-elle protéger ses commerces de quartier face aux grandes enseignes ? Pesez les arguments dans un registre soutenu.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+        _rung("C1.1", "c", "Peut-on encore se passer des réseaux sociaux quand on veut participer à la vie publique ? Exposez une position nuancée, concessions comprises.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+        _rung("C1.1", "d", "Faut-il rendre obligatoire l’apprentissage d’une deuxième langue étrangère dès l’école primaire ? Argumentez comme dans une lettre à un responsable politique.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+        _rung("C1.1", "e", "Un musée doit-il restituer les œuvres acquises dans un contexte contesté ? Présentez les enjeux et prenez position avec nuance.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+        _rung("C1.1", "f", "La gratuité des transports publics serait-elle une mesure juste ou une fausse bonne idée ? Rédigez un paragraphe argumenté et nuancé.",
+              "weigh a complex question with nuance, concession and hypothesis in a controlled formal register", "Nuancez, et soignez le registre."),
+    ),
 }
 
 #: 2026-09-24 — the hint under the field is the app's own words, not the test:
@@ -266,6 +284,10 @@ HINT_TRANSLATIONS: dict[str, dict[str, str]] = {
         "de": "Entschuldigen Sie sich, dann schlagen Sie eine Uhrzeit vor.",
     },
     "Le temps du passé est attendu ici.": {"en": "The past tense is expected here.", "de": "Hier wird die Vergangenheit erwartet."},
+    "Nuancez, et soignez le registre.": {
+        "en": "Add nuance, and mind the register.",
+        "de": "Differenzieren Sie, und achten Sie auf das Register.",
+    },
     "Nommez l’objection avant d’y répondre.": {
         "en": "Name the objection before you answer it.",
         "de": "Nennen Sie den Einwand, bevor Sie darauf antworten.",

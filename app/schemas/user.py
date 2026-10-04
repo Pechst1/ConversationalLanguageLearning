@@ -372,7 +372,7 @@ class UserSettingsUpdate(BaseModel):
     native_language: str | None = Field(default=None, max_length=10)
     target_language: str | None = Field(default=None, max_length=10)
     proficiency_level: ProficiencyLevel | None = None
-    cefr_target_level: str | None = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
+    cefr_target_level: str | None = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2|C1\.1|C1\.2)$")
     interests: str | None = Field(default=None, max_length=500)
     learning_motivation: str | None = Field(default=None, max_length=80)
     speaking_comfort: Literal["warming_up", "ready", "confident"] | None = None

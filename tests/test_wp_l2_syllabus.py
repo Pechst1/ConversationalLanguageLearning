@@ -45,7 +45,9 @@ CAN_DOS_PATH = ROOT / "app" / "data" / "syllabus" / "fr_core_can_dos_v2.json"
 LEXICON_PATH = ROOT / "app" / "data" / "lexical" / "fr_core_lexicon.json"
 
 #: WP-L2's targets (≈): A1 30, A2 35, B1 40, B2 45.
-BAND_TARGETS = {"A1": 30, "A2": 35, "B1": 40, "B2": 45}
+#: 2026-10-03 content program: the reviewed catalogue gained the A1–B1 topics
+#: the audit found missing and a C1 band (C1.1 / C1.2).
+BAND_TARGETS = {"A1": 36, "A2": 36, "B1": 41, "B2": 45, "C1": 40}
 
 #: Words the rule may not use at A1–A2 (due diligence §3, problem 2).
 A1_A2_JARGON = re.compile(
@@ -68,7 +70,10 @@ def _order(sub_band: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-def test_default_catalogue_is_still_v1() -> None:
+def test_the_product_default_is_the_reviewed_v2_catalogue() -> None:
+    # D3 (content program 2026-10-03): v2 is the product default; the suite
+    # still pins v1 through the environment (tests/conftest.py).
+    assert type(settings).model_fields["ATELIER_GRAMMAR_CATALOG_VERSION"].default == "v2"
     assert settings.ATELIER_GRAMMAR_CATALOG_VERSION == "v1"
     assert active_catalog_version() == FRENCH_CORE_CATALOG_VERSION
 
@@ -77,7 +82,7 @@ def test_v2_catalogue_loads_about_150_units_in_every_sub_band() -> None:
     rows = _v2_rows()
     ids = [row["external_id"] for row in rows]
     assert len(ids) == len(set(ids))
-    assert 140 <= len(rows) <= 165
+    assert 160 <= len(rows) <= 220
     per_band = Counter(row["level"] for row in rows)
     for band, target in BAND_TARGETS.items():
         assert abs(per_band[band] - target) <= 6, (band, per_band[band])
@@ -93,7 +98,8 @@ def test_every_unit_has_sub_band_names_rules_and_detector_in_three_languages() -
         unit = row["external_id"]
         assert syllabus["sub_band"] in SUB_BANDS, unit
         assert row["level"] == syllabus["sub_band"][:2], unit
-        assert syllabus["review_status"] == "draft", unit
+        # Every unit was reviewed by the 2026-10-03 content program.
+        assert syllabus["review_status"] == "reviewed", unit
         names = syllabus["names"]
         rules = syllabus["rule_short"]
         for locale in ("en", "de", "fr"):
@@ -458,11 +464,15 @@ def _lexicon() -> dict:
     return json.loads(LEXICON_PATH.read_text(encoding="utf-8"))
 
 
+LEXICON_SUB_BANDS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2")
+
+
 def test_lexicon_reaches_b1_with_sub_bands() -> None:
     lemmas = _lexicon()["lemmas"]
     assert len(lemmas) >= 2400
     per_sub_band = Counter(entry["sub_band"] for entry in lemmas.values())
-    assert set(per_sub_band) == {"A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2"}
+    # fr-core-lexicon-v3 (L-1, 2026-10-03) runs A1.1 → C1.2.
+    assert set(per_sub_band) == set(LEXICON_SUB_BANDS)
     for lemma, entry in lemmas.items():
         assert entry["sub_band"].startswith(entry["band"]), lemma
     assert sum(count for band, count in per_sub_band.items() if band.startswith("A1")) >= 600
@@ -472,8 +482,10 @@ def test_can_dos_cover_every_sub_band_with_known_units_and_words() -> None:
     doc = json.loads(CAN_DOS_PATH.read_text(encoding="utf-8"))
     assert doc["catalog_version"] == FRENCH_CORE_CATALOG_V2_VERSION
     units = {row["external_id"]: row["syllabus"]["sub_band"] for row in _v2_rows()}
-    lemmas = _lexicon()["lemmas"]
-    lexicon_bands = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2")
+    lexicon = _lexicon()
+    # v3 moved d'accord / d'ailleurs to the multiword `expressions` map.
+    lemmas = {**lexicon.get("expressions", {}), **lexicon["lemmas"]}
+    lexicon_bands = LEXICON_SUB_BANDS
     ids: set[str] = set()
     assert set(doc["sub_bands"]) == set(SUB_BANDS)
     for sub_band, tasks in doc["sub_bands"].items():

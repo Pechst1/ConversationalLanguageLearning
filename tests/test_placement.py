@@ -178,9 +178,10 @@ def test_the_opening_rung_sits_one_below_the_declaration(db_session):
     """Failing the first question is a bad first minute; the ladder climbs fast."""
     assert opening_band(_user(db_session, declared="B1")) == "A2.2"
     assert opening_band(_user(db_session, declared="A1")) == "A1.2"
-    # C1/C2 clamp to B2.2 on the internal scale; one rung below is the top
-    # of the placement ladder, which is as high as this prompt bank can measure.
-    assert opening_band(_user(db_session, declared="C2")) == "B2.1"
+    # C1 opens one rung below (B2.1); C2 clamps to C1.2 on the internal scale,
+    # and one rung below is the top of the placement ladder (C1.1).
+    assert opening_band(_user(db_session, declared="C1")) == "B2.1"
+    assert opening_band(_user(db_session, declared="C2")) == "C1.1"
     assert opening_band(None) == "A1.2"
 
 

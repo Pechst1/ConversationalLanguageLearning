@@ -1,0 +1,297 @@
+{
+  "C1.1": [
+    {
+      "id": "CD_C11_ESSAY",
+      "title_fr": "rédiger un essai argumenté et nuancé",
+      "title_en": "write a nuanced argumentative essay",
+      "title_de": "einen differenzierten argumentativen Essay schreiben",
+      "units": [
+        "FR2_C11_CERTES_MAIS",
+        "FR2_C11_LOIN_DE",
+        "FR2_C11_POUR_AUTANT",
+        "FR2_C11_SI_ADJ_QUE",
+        "FR2_C11_QUE_SUBJ_INITIAL"
+      ],
+      "words": [
+        "essai",
+        "thèse",
+        "argument",
+        "certes",
+        "néanmoins",
+        "enjeu",
+        "nuancer",
+        "réfuter"
+      ]
+    },
+    {
+      "id": "CD_C11_SYNTHESIS",
+      "title_fr": "faire la synthèse de plusieurs documents",
+      "title_en": "synthesise several documents",
+      "title_de": "mehrere Dokumente zu einer Synthese zusammenfassen",
+      "units": [
+        "FR2_C11_ANAPHORA_CE_DERNIER",
+        "FR2_C11_INFINITIVE_FOR_QUE",
+        "FR2_C11_RELATIVE_CHAINS",
+        "FR2_C11_CONCORDANCE_INDIC"
+      ],
+      "words": [
+        "synthèse",
+        "document",
+        "auteur",
+        "résumer",
+        "souligner",
+        "constat",
+        "problématique"
+      ]
+    },
+    {
+      "id": "CD_C11_TESTIMONY",
+      "title_fr": "témoigner d'un événement avec précision",
+      "title_en": "give a precise account of an event as a witness",
+      "title_de": "als Zeuge ein Ereignis genau schildern",
+      "units": [
+        "FR2_C11_PERCEPTION_INFINITIVE",
+        "FR2_C11_PERIPHRASES",
+        "FR2_C11_ABSOLUTE_PARTICIPLE",
+        "FR2_C11_UNE_FOIS_SITOT",
+        "FR2_C11_CONCORDANCE_INDIC"
+      ],
+      "words": [
+        "témoin",
+        "témoignage",
+        "témoigner",
+        "récit",
+        "souvenir",
+        "évoquer"
+      ]
+    },
+    {
+      "id": "CD_C11_DEBATE",
+      "title_fr": "défendre une position dans un débat contradictoire",
+      "title_en": "hold your ground in a heated debate",
+      "title_de": "in einer kontroversen Debatte eine Position verteidigen",
+      "units": [
+        "FR2_C11_QUAND_BIEN_MEME",
+        "FR2_C11_AVOIR_BEAU",
+        "FR2_C11_QUITTE_A",
+        "FR2_C11_CLEFT_ADVANCED",
+        "FR2_C11_SOUS_PRETEXTE_NON_QUE"
+      ],
+      "words": [
+        "débat",
+        "débattre",
+        "interlocuteur",
+        "objection",
+        "contredire",
+        "convaincre",
+        "compromis"
+      ]
+    },
+    {
+      "id": "CD_C11_COMPLAINT",
+      "title_fr": "écrire une lettre de réclamation argumentée",
+      "title_en": "write a reasoned letter of complaint",
+      "title_de": "einen begründeten Beschwerdebrief schreiben",
+      "units": [
+        "FR2_C11_IMPERSONAL_LOGICAL_SUBJECT",
+        "FR2_C11_CONCORDANCE_SUBJ",
+        "FR2_C11_SOUS_PRETEXTE_NON_QUE",
+        "FR2_C11_QUEL_QUE_SOIT"
+      ],
+      "words": [
+        "réclamation",
+        "plainte",
+        "remboursement",
+        "délai",
+        "exiger",
+        "dédommagement",
+        "indemnisation"
+      ]
+    },
+    {
+      "id": "CD_C11_RULES",
+      "title_fr": "formuler des principes et des règles générales",
+      "title_en": "state general principles and rules",
+      "title_de": "allgemeine Grundsätze und Regeln formulieren",
+      "units": [
+        "FR2_C11_QUI_QUE_QUOI_QUE",
+        "FR2_C11_QUEL_QUE_SOIT",
+        "FR2_C11_IMPERSONAL_FORMAL"
+      ],
+      "words": [
+        "autrui",
+        "consensus",
+        "démarche",
+        "administration",
+        "justifier",
+        "formule"
+      ]
+    },
+    {
+      "id": "CD_C11_EXPOSE",
+      "title_fr": "présenter un exposé structuré devant un auditoire",
+      "title_en": "give a structured presentation to an audience",
+      "title_de": "vor Publikum ein gegliedertes Referat halten",
+      "units": [
+        "FR2_C11_CLEFT_ADVANCED",
+        "FR2_C11_CAUSE_NUANCED",
+        "FR2_C11_IMPERSONAL_FORMAL",
+        "FR2_C11_ANAPHORA_CE_DERNIER"
+      ],
+      "words": [
+        "exposé",
+        "exposer",
+        "auditoire",
+        "aborder",
+        "développer",
+        "illustrer"
+      ]
+    }
+  ],
+  "C1.2": [
+    {
+      "id": "CD_C12_REPORT",
+      "title_fr": "rédiger un compte rendu fidèle et clair",
+      "title_en": "write a faithful, clear report of a meeting",
+      "title_de": "ein genaues, klares Protokoll schreiben",
+      "units": [
+        "FR2_C12_REFORMULATION",
+        "FR2_C12_ANAPHORA_RESUMPTIVE",
+        "FR2_C12_RELATIVE_EXPLICATIVE",
+        "FR2_C11_CONCORDANCE_INDIC"
+      ],
+      "words": [
+        "rapport",
+        "séance",
+        "procès-verbal",
+        "constat",
+        "rédiger",
+        "mentionner"
+      ]
+    },
+    {
+      "id": "CD_C12_REGISTER",
+      "title_fr": "reformuler un message dans un autre registre",
+      "title_en": "rewrite a message in another register",
+      "title_de": "eine Nachricht in ein anderes Register umformulieren",
+      "units": [
+        "FR2_C12_REGISTER_NE_DROP",
+        "FR2_C12_REGISTER_PRONOUNS",
+        "FR2_C12_REGISTER_QUESTIONS",
+        "FR2_C12_REGISTER_LEXICON"
+      ],
+      "words": [
+        "registre",
+        "familier",
+        "courant",
+        "formel",
+        "interlocuteur",
+        "formule"
+      ]
+    },
+    {
+      "id": "CD_C12_FORMAL_CLAIM",
+      "title_fr": "faire valoir ses droits dans un courrier formel",
+      "title_en": "assert your rights in a formal letter",
+      "title_de": "in einem förmlichen Schreiben seine Rechte geltend machen",
+      "units": [
+        "FR2_C12_A_DEFAUT_DE",
+        "FR2_C12_ELLIPSIS_SI_BESOIN",
+        "FR2_C12_NE_LITERARY_ALONE",
+        "FR2_C12_ANAPHORA_RESUMPTIVE"
+      ],
+      "words": [
+        "requête",
+        "préjudice",
+        "recours",
+        "litige",
+        "solliciter",
+        "dossier",
+        "imputer"
+      ]
+    },
+    {
+      "id": "CD_C12_HYPOTHESES",
+      "title_fr": "examiner des hypothèses et leurs conséquences",
+      "title_en": "weigh hypotheses and their consequences",
+      "title_de": "Hypothesen und ihre Folgen abwägen",
+      "units": [
+        "FR2_C12_HYPOTHESIS_NO_SI",
+        "FR2_C12_SI_TANT_EST_QUE",
+        "FR2_C12_SI_CEST_QUE",
+        "FR2_C12_SANS_QUE_NEG"
+      ],
+      "words": [
+        "hypothèse",
+        "éventualité",
+        "envisager",
+        "supposer",
+        "scénario",
+        "anticiper"
+      ]
+    },
+    {
+      "id": "CD_C12_LITERATURE",
+      "title_fr": "lire et commenter un texte littéraire",
+      "title_en": "read and comment on a literary text",
+      "title_de": "einen literarischen Text lesen und kommentieren",
+      "units": [
+        "FR2_C12_PASSE_ANTERIEUR",
+        "FR2_C12_NARRATION_LITERARY",
+        "FR2_C12_SUBJ_IMPARFAIT",
+        "FR2_C12_SUBJ_PLUS_QUE_PARFAIT",
+        "FR2_C12_NEG_LITERARY"
+      ],
+      "words": [
+        "récit",
+        "narrateur",
+        "intrigue",
+        "personnage",
+        "dénouement",
+        "ironie",
+        "interprétation"
+      ]
+    },
+    {
+      "id": "CD_C12_PRESS_REVIEW",
+      "title_fr": "présenter une revue de presse",
+      "title_en": "present a press review",
+      "title_de": "eine Presseschau vorstellen",
+      "units": [
+        "FR2_C12_NOMINAL_SENTENCES",
+        "FR2_C12_ANAPHORA_RESUMPTIVE",
+        "FR2_C12_HYPOTHESIS_NO_SI",
+        "FR2_C12_REFORMULATION"
+      ],
+      "words": [
+        "manchette",
+        "dépêche",
+        "rubrique",
+        "actualité",
+        "article",
+        "titre"
+      ]
+    },
+    {
+      "id": "CD_C12_REVISE",
+      "title_fr": "relire et corriger un texte soutenu",
+      "title_en": "proofread and correct a formal text",
+      "title_de": "einen Text in gehobener Sprache Korrektur lesen",
+      "units": [
+        "FR2_C12_PP_AGREEMENT_INFINITIVE",
+        "FR2_C12_RELATIVE_EXPLICATIVE",
+        "FR2_C12_SANS_QUE_NEG",
+        "FR2_C12_NE_LITERARY_ALONE",
+        "FR2_C12_NEG_LITERARY"
+      ],
+      "words": [
+        "cohérence",
+        "lecteur",
+        "rédiger",
+        "occurrence",
+        "nullement",
+        "guère"
+      ]
+    }
+  ]
+}

@@ -12,10 +12,12 @@ validator and the planner can both import this module:
   Band fit is a soft score against the French 5000 deck's rank where the
   catalogue knows the lemma.
 * **The floor.** A day whose due queue is thin still has the scene. The builders
-  below pose three quick items from it — rebuild a character's line
-  (``unscramble``), «Qui a dit ça ?» (``who_said``: a line and the cast's faces)
-  and a cloze on a lexicon word in its own sentence (a ``choice``). All three are
+  below pose quick items from it — rebuild a character's line (``unscramble``)
+  and a cloze on a lexicon word in its own sentence (a ``choice``). Both are
   graded by identity, so WP-76's hashed answer key colours them on the device.
+  «Qui a dit ça ?» (``who_said``) is no longer posed (QA-PRACTICE, owner
+  2026-10-03: it tests the plot, not French); its builder stays so a journey
+  planned before keeps rendering and grading.
 """
 from __future__ import annotations
 
@@ -30,7 +32,7 @@ LEXICON_MIN = 3
 LEXICON_MAX = 5
 #: The highest French 5000 rank that still sits comfortably inside a band. A
 #: soft score only: a scene about a flooded cellar may teach «inonder».
-BAND_RANK_CEILING = {"A1": 1000, "A2": 2000, "B1": 3500, "B2": 5000}
+BAND_RANK_CEILING = {"A1": 1000, "A2": 2000, "B1": 3500, "B2": 5000, "C1": 8000}
 #: A character line rebuilt as tiles is a quick item only while it is short.
 LINE_UNSCRAMBLE_WORDS = (3, 8)
 NOUN_TAGS = frozenset({"noun", "nom", "n"})
@@ -193,6 +195,16 @@ LINE_UNSCRAMBLE_INSTRUCTION = {
     "de": "Bring den Satz von {name} wieder in die richtige Reihenfolge.",
     "fr": "Remettez dans l'ordre la réplique de {name}.",
 }
+#: EXERCISE-QA: a nameless rebuild, for a line whose speaker the world does not name
+#: (a walk-on «clerk_2» must never reach the learner as a name).
+SCENE_UNSCRAMBLE_INSTRUCTION = {
+    "en": "Put the line from the scene back in order.",
+    "de": "Bring den Satz aus der Szene wieder in die richtige Reihenfolge.",
+    "fr": "Remettez dans l'ordre la phrase de la scène.",
+}
+#: EXERCISE-QA: a gap needs a sentence around it. «La ___» or «___.» is a guess, not
+#: a word recalled in context.
+CLOZE_MIN_CONTEXT_WORDS = 2
 BLANK = "___"
 
 
@@ -241,7 +253,9 @@ def line_meanings(scenario: Any) -> dict[str, str]:
     native = str(draft.get("translation_native") or "").strip()
     if opening and native:
         meanings.setdefault(opening, native)
-    return meanings
+    # A «translation» that is the French itself (an authored page falls back to
+    # the line when it has none) is no translation: show none rather than it.
+    return {text: native for text, native in meanings.items() if fold(native) != fold(text)}
 
 
 def meaning_of(meanings: dict[str, str], text: str) -> str | None:
@@ -252,6 +266,13 @@ def meaning_of(meanings: dict[str, str], text: str) -> str | None:
         if fold(french).strip(" .!?…«»\"") == wanted:
             return native
     return None
+
+
+def named(name: str | None) -> bool:
+    """Is this a name a learner can read (not empty, not a machine id like «clerk_2»)?"""
+
+    text = str(name or "").strip()
+    return bool(text) and "_" not in text and not any(char.isdigit() for char in text)
 
 
 def short_name(name: str) -> str:
@@ -383,6 +404,8 @@ def build_cloze_task(
     prompt = _blanked(sentence, surface)
     if not prompt or BLANK not in prompt:
         return None
+    if len(re.findall(r"[^\W\d_]+", prompt.replace(BLANK, " "))) < CLOZE_MIN_CONTEXT_WORDS:
+        return None
     words = [surface]
     for other in distractors:
         other = " ".join(str(other or "").split())
@@ -422,11 +445,28 @@ def build_cloze_task(
     )
 
 
+def tile_words(text: str) -> list[str]:
+    """A sentence cut into tiles: one word per tile, quotation marks dropped, and
+    French spaced punctuation («?», «!», «:», «;») kept on the word before it —
+    a tile that is only «?» is a puzzle about typography (QA-PRACTICE)."""
+
+    tiles: list[str] = []
+    for raw in str(text or "").split():
+        token = raw.strip("«»“”\"„")
+        if not token:
+            continue
+        if tiles and not any(char.isalnum() for char in token):
+            tiles[-1] = f"{tiles[-1]} {token}"
+            continue
+        tiles.append(token)
+    return tiles
+
+
 def build_line_unscramble_task(
     *,
     target: Any,
     line: SceneLine,
-    speaker_name: str,
+    speaker_name: str | None,
     optional: bool,
     control_language: Any,
     meaning: str | None = None,
@@ -436,8 +476,7 @@ def build_line_unscramble_task(
 
     from app.services.journey_contracts import RecallTask, recall_goal
 
-    tokens = [token.strip("«»“”\"„") for token in line.text_fr.split()]
-    tokens = [token for token in tokens if token]
+    tokens = tile_words(line.text_fr)
     low, high = LINE_UNSCRAMBLE_WORDS
     if not low <= len(tokens) <= high:
         return None
@@ -452,6 +491,22 @@ def build_line_unscramble_task(
     if [tile["id"] for tile in shown] == order:
         shown = shown[1:] + shown[:1]
     sentence = " ".join(tokens)
+    if not named(speaker_name):
+        if not meaning:
+            return None
+        return RecallTask(
+            task_type="unscramble",
+            instruction_native=_localized(SCENE_UNSCRAMBLE_INSTRUCTION, control_language),
+            prompt_fr=None,
+            options=shown,
+            target=target,
+            optional=optional,
+            correct_tile_order=order,
+            accepted_answers=[sentence],
+            solution_fr=sentence,
+            estimated_seconds=0,
+            goal_native=recall_goal("rebuild_scene", control_language, meaning=meaning),
+        )
     return RecallTask(
         task_type="unscramble",
         instruction_native=_localized(LINE_UNSCRAMBLE_INSTRUCTION, control_language).format(
@@ -496,9 +551,12 @@ def floor_tasks(
     ``targets`` are ``(TargetRef, candidate metadata)`` pairs. Each item is
     tied to a word of today that appears in the line it is built from, so the
     evidence it earns lands on a real catalogue row. Lines that would say the
-    reply before the learner writes it are not used. Interleaved — a
-    «Qui a dit ça ?», a cloze, a rebuilt line, then round again — so a floor
-    is a mix and not three grids of tiles.
+    reply before the learner writes it are not used. Interleaved — a cloze, a
+    rebuilt line, then round again — so a floor is a mix and not grids of tiles.
+
+    QA-PRACTICE (owner, 2026-10-03, «was bringt eine solche Aufgabe?»): no
+    «Qui a dit ça ?» — naming who said a line is plot memory, not French. The
+    slot it held is filled by the planner's language items.
     """
 
     from app.services.journey_content import line_spoils_reply
@@ -506,11 +564,6 @@ def floor_tasks(
     language = getattr(scenario, "control_language", "en")
     names = cast_names(scenario)
     lines = [line for line in scene_lines(scenario) if not line_spoils_reply(line.text_fr, expected_reply)]
-    # «Qui a dit ça ?» offers faces the learner can know: the people of this scene,
-    # and the main cast — never a minor character they have not met yet.
-    speakers = {line.character_id for line in scene_lines(scenario)}
-    minors = minor_ids(scenario)
-    faces = {cid: name for cid, name in names.items() if cid in speakers or cid not in minors}
     lexicon = lexicon_of(scenario)
     draft = draft_of(scenario)
     glossed = [t for t, _m in targets if getattr(t, "label_native", None)]
@@ -523,22 +576,16 @@ def floor_tasks(
                     return target, surface
         return None
 
-    who: list[tuple[Any, Any]] = []
     rebuilt: list[tuple[Any, Any]] = []
     for line in lines:
         found = owner(line.text_fr)
         if found is None:
             continue
         target, _surface = found
-        task = build_who_said_task(
-            target=target, line=line, names=faces, optional=True, control_language=language
-        )
-        if task is not None:
-            who.append((target, task))
         task = build_line_unscramble_task(
             target=target,
             line=line,
-            speaker_name=names.get(line.character_id, line.character_id),
+            speaker_name=names.get(line.character_id),
             optional=True,
             control_language=language,
             meaning=meaning_of(meanings, line.text_fr),
@@ -555,7 +602,12 @@ def floor_tasks(
             continue
         target, _surface = found
         others = [str(item.get("surface_fr") or "") for item in lexicon if item is not entry]
-        others += [str(getattr(t, "label_fr", "")) for t in glossed if t is not target]
+        # Every card in the blank's shape: an article only when the blank has one.
+        bare_blank = not _ARTICLE.match(str(entry.get("surface_fr") or ""))
+        others += [
+            _ARTICLE.sub("", label) if bare_blank else label
+            for label in (str(getattr(t, "label_fr", "")) for t in glossed if t is not target)
+        ]
         task = build_cloze_task(
             target=target,
             surface=str(entry.get("surface_fr")),
@@ -568,8 +620,8 @@ def floor_tasks(
         if task is not None:
             clozes.append((target, task))
     ordered: list[tuple[Any, Any]] = []
-    for index in range(max(len(who), len(clozes), len(rebuilt), 0)):
-        for bucket in (who, clozes, rebuilt):
+    for index in range(max(len(clozes), len(rebuilt), 0)):
+        for bucket in (clozes, rebuilt):
             if index < len(bucket):
                 ordered.append(bucket[index])
     return ordered
@@ -586,6 +638,7 @@ __all__ = [
     "line_meanings",
     "meaning_of",
     "build_who_said_task",
+    "tile_words",
     "cast_names",
     "contains_surface",
     "draft_of",

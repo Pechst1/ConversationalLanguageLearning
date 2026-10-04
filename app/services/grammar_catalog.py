@@ -5,7 +5,7 @@ Two curated catalogues exist (WP-L2):
 * ``french_core_grammar_v1`` — ``templates/french_core_grammar_v1.tsv``, 54 coarse concepts.
   The live product; the default.
 * ``fr-core-v2`` — ``templates/french_core_grammar_v2.tsv``, about 150 teachable units A1–B2,
-  each tagged to a sub-band (A1.1 … B2.2) with prerequisites, contrast partners, a detector spec
+  each tagged to a sub-band (A1.1 … C1.2) with prerequisites, contrast partners, a detector spec
   and a one-sentence rule in en / de / fr.
 
 ``settings.ATELIER_GRAMMAR_CATALOG_VERSION`` ("v1" or "v2") picks the one that is seeded and
@@ -51,7 +51,9 @@ CATALOG_SETTING_ALIASES: dict[str, str] = {
 }
 V1_TO_V2_MAPPING_FILE = "french_core_grammar_v1_to_v2.tsv"
 
-SUB_BANDS: tuple[str, ...] = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2")
+SUB_BANDS: tuple[str, ...] = (
+    "A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2",
+)
 RULE_LOCALES: tuple[str, ...] = ("en", "de", "fr")
 
 # Legacy rows spell the language every which way ("fr", "French", "Français").

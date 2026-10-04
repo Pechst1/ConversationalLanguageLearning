@@ -17,16 +17,28 @@ from pathlib import Path
 from typing import Any
 
 RULE_CARDS_PATH = Path(__file__).resolve().parents[1] / "data" / "grammar_rule_cards.json"
+#: 2026-10-03 content program: one reviewed card per fr-core-v2 unit, per band
+#: (``fr2_A1.json`` … ``fr2_C1.json``). Same schema plus ``how``, ``examples``,
+#: ``traps`` and ``contrast_with``; a v2 id never collides with a v1 one.
+RULE_CARDS_V2_DIR = Path(__file__).resolve().parents[1] / "data" / "rule_cards"
+
+
+def _read_cards(path: Path) -> dict[str, dict[str, Any]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    cards = payload.get("cards") if isinstance(payload, dict) else None
+    return {str(k): v for k, v in cards.items() if isinstance(v, dict)} if isinstance(cards, dict) else {}
 
 
 @lru_cache(maxsize=1)
 def _cards() -> dict[str, dict[str, Any]]:
-    try:
-        payload = json.loads(RULE_CARDS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    cards = payload.get("cards") if isinstance(payload, dict) else None
-    return cards if isinstance(cards, dict) else {}
+    cards = _read_cards(RULE_CARDS_PATH)
+    if RULE_CARDS_V2_DIR.is_dir():
+        for path in sorted(RULE_CARDS_V2_DIR.glob("fr2_*.json")):
+            cards.update(_read_cards(path))
+    return cards
 
 
 def rule_card_for(external_id: str | None) -> dict[str, Any] | None:
