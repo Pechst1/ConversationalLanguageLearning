@@ -166,6 +166,7 @@ def test_a_month_of_a_whole_life(
     problems += walk_checks_wp130a.check_progress_labels_agree(record)
     # WP-129: B1+ practice volume and mix; one sentence per item; D7 reviews a met unit.
     problems += walk_checks_wp129.check_life_wp129(record)
+    problems += __import__("tests.walk_checks_wp130b", fromlist=["x"]).check_held_evidence_chain(record)  # WP-130 B: held units earned «Tenue»
     transcripts = [day["journey"] for day in record["days"]]
     problems += walk_checks.run_all(transcripts, db=db_session)
     assert not problems, "\n".join(problems[:60]) + (f"\n… {len(problems) - 60} more" if len(problems) > 60 else "")
