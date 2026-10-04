@@ -34,7 +34,10 @@ import {
 } from '@/components/cahiers/CahierV2';
 import { cahierCopy, countLabel, fill, type CahierCopy } from '@/components/cahiers/cahier-copy';
 import GrammarMap from '@/components/cahiers/GrammarMap';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { XraySentence } from '@/components/atelier-v2/rule/XraySentence';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { cardExamples, plainText, usableCard, usableXray } from '@/lib/rule-card';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 import { forgeCopy } from '@/lib/forge-copy';
 
@@ -84,7 +87,32 @@ function lowerFirst(value: string) {
   return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
 }
 
-const GRAMMAR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+// The scale runs A1.1 … C1.2 (content program D4: C2 is out of scope).
+const GRAMMAR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
+const SUB_BANDS = ['A1.1', 'A1.2', 'A2.1', 'A2.2', 'B1.1', 'B1.2', 'B2.1', 'B2.2', 'C1.1', 'C1.2'];
+
+/* F-1: the register grouped by sub-band (v2: the unit's own; v1: its level),
+   lowest first; within a band the server's teaching order is kept. */
+type ConceptGroup = { band: string; concepts: GrammarNotebookItem[] };
+function groupBySubBand(concepts: GrammarNotebookItem[]): ConceptGroup[] {
+  const groups: ConceptGroup[] = [];
+  concepts.forEach((concept) => {
+    const band = String(concept.sub_band || concept.level || '').trim() || '—';
+    const group = groups.find((item) => item.band === band);
+    if (group) group.concepts.push(concept);
+    else groups.push({ band, concepts: [concept] });
+  });
+  const rank = (band: string) => {
+    const exact = SUB_BANDS.indexOf(band);
+    if (exact >= 0) return exact * 2;
+    const level = SUB_BANDS.findIndex((item) => item.startsWith(band));
+    return level >= 0 ? level * 2 + 1 : SUB_BANDS.length * 2;
+  };
+  return groups
+    .map((group, index) => ({ group, index }))
+    .sort((a, b) => rank(a.group.band) - rank(b.group.band) || a.index - b.index)
+    .map(({ group }) => group);
+}
 
 type GrammarNotebookSurfaceProps = {
   embedded?: boolean;
@@ -155,15 +183,23 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       if (selectedId !== queryConceptId) setSelectedId(queryConceptId);
       return;
     }
+    // F-1: «Compare with» links name the partner by catalogue id (`?unit=FR2_…`).
+    const queryUnit = firstQueryValue(router.query.unit);
+    const unit = queryUnit ? concepts.find((concept) => concept.external_id === queryUnit) : undefined;
+    if (unit) {
+      if (selectedId !== unit.id) setSelectedId(unit.id);
+      return;
+    }
     if (selectedId !== null && !concepts.some((concept) => concept.id === selectedId)) {
       setSelectedId(null);
     }
-  }, [concepts, router.query.concept, router.query.review, selectedId]);
+  }, [concepts, router.query.concept, router.query.review, router.query.unit, selectedId]);
 
   function selectConcept(conceptId: number) {
     setSelectedId(conceptId);
     const nextQuery: Record<string, string | string[] | undefined> = { ...router.query, concept: String(conceptId) };
     delete nextQuery.review;
+    delete nextQuery.unit;
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true, scroll: false });
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
   }
@@ -173,6 +209,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     const nextQuery: Record<string, string | string[] | undefined> = { ...router.query };
     delete nextQuery.concept;
     delete nextQuery.review;
+    delete nextQuery.unit;
     router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true, scroll: false });
   }
 
@@ -234,6 +271,11 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     () => (dueOnly ? concepts.filter((c) => (c.due_errata_count || 0) > 0) : concepts),
     [concepts, dueOnly],
   );
+  const shownGroups = useMemo(() => groupBySubBand(shownConcepts), [shownConcepts]);
+  const orderedConcepts = useMemo(
+    () => groupBySubBand(concepts).reduce<GrammarNotebookItem[]>((all, group) => all.concat(group.concepts), []),
+    [concepts],
+  );
   const filtersActive = level !== 'all' || activeSearch.length > 0 || dueOnly;
 
   const chips: CahierChip[] = [
@@ -248,7 +290,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     else { setLevel(GRAMMAR_LEVELS.includes(id) ? id : 'all'); setDueOnly(false); }
   }
 
-  const selectedIndex = selected ? concepts.findIndex((c) => c.id === selected.id) : -1;
+  const selectedIndex = selected ? orderedConcepts.findIndex((c) => c.id === selected.id) : -1;
   const liveText = isLoading
     ? t.grammar.live_loading
     : [
@@ -276,8 +318,12 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
           <span className="av2-sr" role="status">{t.grammar.loading}</span>
         </div>
       ) : shownConcepts.length ? (
-        <div className="nb-list" role="list" aria-label={t.grammar.index_label}>
-          {shownConcepts.map((concept) => {
+        <div className="nb-list" aria-label={t.grammar.index_label}>
+          {shownGroups.map((group) => (
+          <div className="nb-band" key={group.band} role="group" aria-label={group.band}>
+          {shownGroups.length > 1 && <p className="nb-band__label" aria-hidden="true">{group.band}</p>}
+          <div className="nb-band__rows" role="list">
+          {group.concepts.map((concept) => {
             const mastery = Math.round(concept.mastery || 0);
             const due = (concept.due_errata_count || 0) > 0;
             const errata = due ? concept.due_errata_count : concept.recent_errata_count;
@@ -308,6 +354,9 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
               </div>
             );
           })}
+          </div>
+          </div>
+          ))}
         </div>
       ) : filtersActive ? (
         <StateBlock
@@ -362,7 +411,12 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
     </div>
   );
 
-  const pageContent = selectedId ? ficheView : indexView;
+  const pageContent = (
+    <>
+      <GrammarUnitStyles />
+      {selectedId ? ficheView : indexView}
+    </>
+  );
 
   if (embedded) {
     return pageContent;
@@ -382,6 +436,26 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       </AtelierV2Root>
       <PhoneProductNav active="notebook" placement="embedded" />
     </>
+  );
+}
+
+/* F-1: the register's sub-band heads and the unit page's card. Tokens only. */
+function GrammarUnitStyles() {
+  return (
+    <style jsx global>{`
+      .av2 .nb-band { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+      .av2 .nb-band + .nb-band { margin-top: 10px; }
+      .av2 .nb-band__label {
+        margin: 0;
+        font-size: var(--av2-t-meta);
+        font-weight: 700;
+        color: var(--av2-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .av2 .nb-band__rows { display: flex; flex-direction: column; gap: 8px; }
+      .av2 .nb-unit-card { min-width: 0; }
+      .av2 .nb-unit-card > .rc[data-variant='inline'] { padding: 16px; }
+    `}</style>
   );
 }
 
@@ -430,10 +504,22 @@ function GrammarFiche({
 }) {
   const blueprint = concept.atelier_blueprint || {};
   const pedagogy = (blueprint.pedagogy || {}) as Record<string, any>;
-  const rule = concept.core_rule || pedagogy.core_rule || '';
-  const examples = (concept.anchor_examples?.length ? concept.anchor_examples : arrayFrom(pedagogy.micro_examples || pedagogy.anchor_examples)).slice(0, 3);
-  const traps = concept.main_traps?.length ? concept.main_traps : arrayFrom(pedagogy.main_traps);
-  const pattern = pedagogy.pattern || '';
+  // F-1: the authored card is the unit's explanation. When there is one it
+  // replaces the catalogue's English rule, motif and traps (the card has its
+  // own, reviewed, in the learner's language); the anchors stay, minus the
+  // sentences the card already shows.
+  const cardLanguage = useChromeLanguage(concept.level);
+  const card = usableCard(concept.rule_card) ? concept.rule_card : null;
+  const xray = usableXray(concept.xray) ? concept.xray : null;
+  const cardSentences = card
+    ? [card.example.fr, ...cardExamples(card).map((item) => item.fr)].map((value) => plainText(value).trim().toLowerCase())
+    : [];
+  const rule = card ? '' : concept.core_rule || pedagogy.core_rule || '';
+  const examples = (concept.anchor_examples?.length ? concept.anchor_examples : arrayFrom(pedagogy.micro_examples || pedagogy.anchor_examples))
+    .filter((example) => cardSentences.indexOf(plainText(example).trim().toLowerCase()) < 0)
+    .slice(0, 3);
+  const traps = card?.traps?.length ? [] : concept.main_traps?.length ? concept.main_traps : arrayFrom(pedagogy.main_traps);
+  const pattern = card?.pattern ? '' : pedagogy.pattern || '';
   const dueErrata = concept.due_errata || [];
   const recentErrata = concept.recent_errata || [];
   const mastery = Math.round(concept.mastery || 0);
@@ -484,6 +570,18 @@ function GrammarFiche({
           {nextReview && <span className="av2-label">{fill(t.grammar.next_review, { date: nextReview })}</span>}
         </div>
       </header>
+
+      {card && (
+        <section className="nb-unit-card" aria-label={t.grammar.sec_rule}>
+          <RuleCard card={card} language={cardLanguage} variant="inline" defaultOpen />
+        </section>
+      )}
+
+      {xray && (
+        <Surface as="section" className="nb-sec nb-xray">
+          <XraySentence xray={xray} language={cardLanguage} />
+        </Surface>
+      )}
 
       {rule && (
         <Surface as="section" className="nb-sec" aria-label={t.grammar.sec_rule}>

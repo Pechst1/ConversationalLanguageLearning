@@ -8,9 +8,17 @@
  * pair; «Why?» opens the longer note. `intro` is the card as its own screen
  * before a rule's first exercise; `inline` sits above an exercise, whose prompt
  * is then the screen's one headline, so the example is set in the body face.
+ *
+ * F-1 (content program 2026-10-03): the first view stays what it was — the
+ * example (with a small colour key the first few times), the rule, the
+ * pattern, one ✗/✓ pair. A v2+ card's depth sits behind «More / Mehr /
+ * Pourquoi ?»: the why, «How to build it» as numbered steps, more marked
+ * examples (translations on demand), the traps as ✗ → ✓ with the why, and
+ * «Compare with» links to the partner units by title. A v1 card has none of
+ * these and draws exactly as before.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
@@ -19,6 +27,12 @@ import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import apiService from '@/services/api';
 import {
   RULE_CARD_COPY,
+  cardExamples,
+  cardHasDepth,
+  cardPartners,
+  cardTraps,
+  howSteps,
+  markupTones,
   parseMarked,
   pick,
   plainText,
@@ -95,6 +109,83 @@ function useSpeech(text: string) {
   return { busy, play };
 }
 
+/* The colour key is shown the first few times a learner meets a card, then the
+   colours speak for themselves. Read before paint on the client (no flash);
+   storage that throws (private mode) leaves the key on. */
+const KEY_SEEN = 'av2.rule-card.key-seen';
+const KEY_SHOWS = 3;
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+function useColourKey(enabled: boolean): boolean {
+  const [visible, setVisible] = useState(true);
+  const counted = useRef(false);
+  useIsoLayoutEffect(() => {
+    if (!enabled || counted.current) return;
+    counted.current = true;
+    try {
+      const seen = Number(window.localStorage.getItem(KEY_SEEN) || '0') || 0;
+      if (seen >= KEY_SHOWS) setVisible(false);
+      else window.localStorage.setItem(KEY_SEEN, String(seen + 1));
+    } catch {
+      // No storage: the key stays, which is the safe side.
+    }
+  }, [enabled]);
+  return enabled && visible;
+}
+
+function ColourKey({ tones, copy }: { tones: { mark: boolean; silent: boolean }; copy: (typeof RULE_CARD_COPY)['en'] }) {
+  return (
+    <p className="rc-key" aria-label={copy.keyLabel}>
+      {tones.mark && (
+        <span className="rc-key__item">
+          <span className="rc-mark">{copy.keyRed}</span> = {copy.keyRedMeans}
+        </span>
+      )}
+      {tones.mark && tones.silent && <span aria-hidden="true"> · </span>}
+      {tones.silent && (
+        <span className="rc-key__item">
+          <span className="rc-silent">{copy.keyGrey}</span> = {copy.keyGreyMeans}
+        </span>
+      )}
+    </p>
+  );
+}
+
+function WrongRight({
+  wrong,
+  right,
+  copy,
+}: {
+  wrong: string;
+  right: string;
+  copy: (typeof RULE_CARD_COPY)['en'];
+}) {
+  return (
+    <>
+      <p className="rc-contrast__line" data-tone="wrong">
+        <span className="rc-contrast__badge" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2 2l6 6M8 2L2 8" />
+          </svg>
+        </span>
+        <span className="av2-sr">{copy.wrong}</span>
+        <s>{plainText(wrong)}</s>
+      </p>
+      <p className="rc-contrast__line" data-tone="right">
+        <span className="rc-contrast__badge" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 6.5l2.6 2.5L10 3.5" />
+          </svg>
+        </span>
+        <span className="av2-sr">{copy.right}</span>
+        <span>
+          <Marked value={right} />
+        </span>
+      </p>
+    </>
+  );
+}
+
 export type RuleCardProps = {
   card: RuleCardData;
   language: ControlLanguage;
@@ -119,6 +210,8 @@ export type RuleCardProps = {
   sceneVoice?: LineVoice | null;
   /** «Écouter Margaux», in the learner's language. */
   sceneListenLabel?: string;
+  /** F-1: open the expansion from the start (the Cahier's unit page). */
+  defaultOpen?: boolean;
 };
 
 function SceneAnchor({
@@ -178,10 +271,12 @@ export function RuleCard({
   sceneAnchor = null,
   sceneVoice = null,
   sceneListenLabel,
+  defaultOpen = false,
 }: RuleCardProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
   const [showTranslation, setShowTranslation] = useState(false);
-  const [showWhy, setShowWhy] = useState(false);
+  const [showWhy, setShowWhy] = useState(defaultOpen);
+  const [showExampleTranslations, setShowExampleTranslations] = useState(false);
   const exampleText = plainText(card.example.fr);
   const speech = useSpeech(exampleText);
   const translation = pick(card.example.tr, language);
@@ -195,6 +290,20 @@ export function RuleCard({
       : null;
   const speakerMood: PortraitMood = coach && speakerId === coach.id ? coachMood : 'neutral';
   const pattern = card.pattern;
+  // F-1: the v2+ depth, each part optional.
+  const deep = cardHasDepth(card, language);
+  const steps = howSteps(card, language);
+  const examples = cardExamples(card);
+  const traps = cardTraps(card);
+  const partners = cardPartners(card, language);
+  const examplesTranslated = examples.some((item) => pick(item.tr, language));
+  const tones = markupTones([
+    sceneAnchor?.fr,
+    card.example.fr,
+    card.contrast?.right,
+    ...(pattern?.kind === 'rows' || pattern?.kind === 'table' ? pattern.rows.map((row) => row.fr) : []),
+  ]);
+  const showKey = useColourKey(tones.mark || tones.silent);
 
   return (
     <section className="rc" data-variant={variant} aria-label={copy.eyebrow}>
@@ -238,6 +347,8 @@ export function RuleCard({
           <Marked value={card.example.fr} />
         </p>
       )}
+
+      {showKey && <ColourKey tones={tones} copy={copy} />}
 
       {translation && (
         <div className="rc-translate">
@@ -287,30 +398,11 @@ export function RuleCard({
 
       {card.contrast && (
         <div className="rc-contrast" lang="fr">
-          <p className="rc-contrast__line" data-tone="wrong">
-            <span className="rc-contrast__badge" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M2 2l6 6M8 2L2 8" />
-              </svg>
-            </span>
-            <span className="av2-sr">{copy.wrong}</span>
-            <s>{plainText(card.contrast.wrong)}</s>
-          </p>
-          <p className="rc-contrast__line" data-tone="right">
-            <span className="rc-contrast__badge" aria-hidden="true">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 6.5l2.6 2.5L10 3.5" />
-              </svg>
-            </span>
-            <span className="av2-sr">{copy.right}</span>
-            <span>
-              <Marked value={card.contrast.right} />
-            </span>
-          </p>
+          <WrongRight wrong={card.contrast.wrong} right={card.contrast.right} copy={copy} />
         </div>
       )}
 
-      {(more || conceptId != null) && (
+      {(more || conceptId != null || deep) && (
         <div className="rc-why">
           <button
             type="button"
@@ -318,12 +410,12 @@ export function RuleCard({
             aria-expanded={showWhy}
             onClick={() => setShowWhy((value) => !value)}
           >
-            {copy.why}
+            {deep ? copy.more : copy.why}
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d={showWhy ? 'M2.5 7.5 6 4l3.5 3.5' : 'M2.5 4.5 6 8l3.5-3.5'} />
             </svg>
           </button>
-          {showWhy && (
+          {showWhy && !deep && (
             <p className="rc-more">
               {more}{' '}
               {conceptId != null && (
@@ -332,6 +424,97 @@ export function RuleCard({
                 </Link>
               )}
             </p>
+          )}
+          {showWhy && deep && (
+            <div className="rc-deep">
+              {more && <p className="rc-more">{more}</p>}
+
+              {steps.length > 0 && (
+                <div className="rc-sec">
+                  <p className="rc-sec__t">{copy.how}</p>
+                  <ol className="rc-steps">
+                    {steps.map((step, index) => (
+                      <li key={index} className="rc-step">
+                        <span className="rc-step__n" aria-hidden="true">{index + 1}</span>
+                        <span className="rc-step__text">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {examples.length > 0 && (
+                <div className="rc-sec">
+                  <div className="rc-sec__head">
+                    <p className="rc-sec__t">{copy.examples}</p>
+                    {examplesTranslated && (
+                      <button
+                        type="button"
+                        className="rc-link"
+                        aria-expanded={showExampleTranslations}
+                        onClick={() => setShowExampleTranslations((value) => !value)}
+                      >
+                        {showExampleTranslations ? copy.hideTranslations : copy.showTranslations}
+                      </button>
+                    )}
+                  </div>
+                  <ul className="rc-examples">
+                    {examples.map((item, index) => {
+                      const tr = pick(item.tr, language);
+                      return (
+                        <li key={index} className="rc-ex">
+                          <span className="rc-ex__fr" lang="fr">
+                            <Marked value={item.fr} />
+                          </span>
+                          {showExampleTranslations && tr && <span className="rc-ex__tr">{tr}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {traps.length > 0 && (
+                <div className="rc-sec">
+                  <p className="rc-sec__t">{copy.traps}</p>
+                  <ul className="rc-traps">
+                    {traps.map((trap, index) => {
+                      const why = pick(trap.why, language);
+                      return (
+                        <li key={index} className="rc-trap">
+                          <div className="rc-contrast" lang="fr">
+                            <WrongRight wrong={trap.wrong} right={trap.right} copy={copy} />
+                          </div>
+                          {why && <p className="rc-trap__why">{why}</p>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {partners.length > 0 && (
+                <div className="rc-sec">
+                  <p className="rc-sec__t">{copy.compare}</p>
+                  <ul className="rc-partners">
+                    {partners.map((partner) => (
+                      <li key={partner.id}>
+                        <Link className="rc-partner" href={partner.href}>
+                          <span className="rc-partner__title" lang="fr">{partner.title}</span>
+                          {partner.note && <span className="rc-partner__note">{partner.note}</span>}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {conceptId != null && (
+                <Link className="rc-cahier" href={`/grammar?concept=${conceptId}`}>
+                  {copy.cahier}
+                </Link>
+              )}
+            </div>
           )}
         </div>
       )}

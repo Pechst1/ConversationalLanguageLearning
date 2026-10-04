@@ -137,6 +137,13 @@ def contrast_pairs(concept: Any) -> list[dict[str, str]]:
     contrast = card.get("contrast") if isinstance(card, dict) else None
     if isinstance(contrast, dict):
         add(str(contrast.get("wrong") or ""), str(contrast.get("right") or ""))
+    # EXERCISE-QA: the reviewed card's traps are ✗/✓ pairs too. The B1 units carry
+    # one ✗ → ✓ in ``main_traps`` (the rest is prose), so without these a B1 unit
+    # had one pair, its Essai one transform, and the introduction was refused every
+    # day: a B1 learner never met a Règle step.
+    for trap in (card.get("traps") if isinstance(card, dict) else None) or []:
+        if isinstance(trap, dict):
+            add(str(trap.get("wrong") or ""), str(trap.get("right") or ""))
     trap_sources = [str(getattr(concept, "main_traps", "") or "")]
     if not concept_syllabus(concept):
         trap_sources.extend(str(row.get("main_traps") or "") for row in _v2_rows_for(concept))
@@ -253,7 +260,10 @@ def rule_card(concept: Any) -> dict[str, Any] | None:
 
     authored = rule_card_for(getattr(concept, "external_id", None))
     if authored:
-        return authored
+        # «Compare with» names its partner units, here as on the Cahier's card.
+        from app.services.grammar_map import card_with_partner_titles
+
+        return card_with_partner_titles(authored)
     return built_rule_card(concept)
 
 
@@ -264,6 +274,19 @@ def french_rule(concept: Any) -> str | None:
     if own:
         return str(own)
     rules = [str((row.get("syllabus") or {}).get("rule_short", {}).get("fr") or "").strip()
+             for row in _v2_rows_for(concept)]
+    return " ".join(dict.fromkeys(rule for rule in rules if rule)) or None
+
+
+def native_rule(concept: Any, language: str) -> str | None:
+    """QA-FORGE: the authored rule in ``language`` (``de``/``fr``/``en``): the card's,
+    else the mapped v2 units' ``rule_short``. ``None`` when nothing is authored."""
+
+    card = rule_card(concept) or {}
+    own = (card.get("rule") or {}).get(language)
+    if own:
+        return str(own)
+    rules = [str((row.get("syllabus") or {}).get("rule_short", {}).get(language) or "").strip()
              for row in _v2_rows_for(concept)]
     return " ".join(dict.fromkeys(rule for rule in rules if rule)) or None
 

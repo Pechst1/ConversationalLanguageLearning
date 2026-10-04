@@ -501,6 +501,22 @@ class RuleCardContrast(_RuleCardModel):
     right: str
 
 
+class RuleCardTrap(_RuleCardModel):
+    """A real learner mistake, its fix and why (content program 2026-10-03)."""
+
+    wrong: str
+    right: str
+    why: dict[str, str] | None = None
+
+
+class RuleCardLink(_RuleCardModel):
+    """A partner unit to compare with, by id, with its note and (when known) titles."""
+
+    id: str
+    note: dict[str, str] | None = None
+    title: dict[str, str] | None = None
+
+
 class RuleCardPayload(_RuleCardModel):
     """The card, every authored language at once; the client picks the learner's."""
 
@@ -510,6 +526,12 @@ class RuleCardPayload(_RuleCardModel):
     pattern: RuleCardPattern | None = None
     contrast: RuleCardContrast | None = None
     more: dict[str, str] | None = None
+    #: 2026-10-03 reviewed cards: how to build it (numbered steps, ``\n``), more
+    #: examples, the real traps and the partner units to compare with.
+    how: dict[str, str] | None = None
+    examples: list[RuleCardExample] | None = None
+    traps: list[RuleCardTrap] | None = None
+    contrast_with: list[RuleCardLink] | None = None
     #: The headline is a line of today's scene, not the catalogue's example.
     from_scene: bool | None = None
 
@@ -1090,6 +1112,9 @@ class AttemptResult(JourneyModel):
     next_turn: NextTurn | None = None
     #: ``True`` means grading is retryable; the outcome is then ``unscored``.
     pending: bool = False
+    #: QA-CLOSE: a forgiven slip on a hit, named in one line in the learner's
+    #: language («Richtig — kleiner Tippfehler: «appartement»»). Never a correction.
+    slip_note_native: str | None = None
     journey: JourneySnapshot
 
 

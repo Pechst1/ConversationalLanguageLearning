@@ -31,7 +31,13 @@ from app.services.achievement_service import AchievementService
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import serialize_error_memory
 from app.services.grammar import GrammarService, personal_note
-from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
+from app.services.grammar_catalog import (
+    FrenchCoreGrammarCatalog,
+    active_catalog_version,
+    concept_sub_band,
+)
+from app.services.grammar_map import card_with_partner_titles, unit_xray
+from app.services.rule_cards import rule_card_for
 
 router = APIRouter(prefix="/grammar", tags=["grammar"])
 grammar_notebook_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
@@ -138,6 +144,8 @@ class GrammarNotebookItemRead(BaseModel):
     motif: dict[str, Any] = Field(default_factory=dict)
     blueprint_status: str | None = None
     blueprint_quality: dict[str, Any] = Field(default_factory=dict)
+    # F-1: the v2 sub-band («A2.1»), so the index can group A1.1 … C1.2; None for v1 rows.
+    sub_band: str | None = None
 
 
 class GrammarNotebookDetailRead(GrammarNotebookItemRead):
@@ -153,6 +161,10 @@ class GrammarNotebookDetailRead(GrammarNotebookItemRead):
     due_errata: list[dict[str, Any]] = Field(default_factory=list)
     recent_errata: list[dict[str, Any]] = Field(default_factory=list)
     personal_notes: str | None = None
+    # F-1: the unit page shows the full authored card (all learner languages,
+    # «Compare with» partners titled) and the x-ray sentence with its marks.
+    rule_card: dict[str, Any] | None = None
+    xray: dict[str, Any] | None = None
 
 
 class GrammarNotebookNotesRequest(BaseModel):
@@ -388,6 +400,7 @@ def _notebook_item_payload(
         "motif": blueprint.get("visual_motif") or {},
         "blueprint_status": blueprint.get("blueprint_status") or "approved",
         "blueprint_quality": blueprint.get("blueprint_quality") or {},
+        "sub_band": concept_sub_band(concept) or None,
     }
 
 
@@ -491,6 +504,8 @@ def _notebook_detail_payload(
         due_errata=due_errata,
         recent_errata=recent_errata,
         personal_notes=personal_note(progress.notes) if progress else None,
+        rule_card=card_with_partner_titles(rule_card_for(concept.external_id)),
+        xray=unit_xray(concept),
     )
 
 

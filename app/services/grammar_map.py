@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -96,6 +97,91 @@ def _bands(concepts: list[GrammarConcept], *, v2: bool) -> list[tuple[str, list[
     return out
 
 
+# ---------------------------------------------------------------------------
+# F-1 (content program 2026-10-03): what the unit page needs beside the card.
+# ---------------------------------------------------------------------------
+
+
+def unit_xray(concept: Any) -> dict[str, Any] | None:
+    """The unit's x-ray sentence, ``{sentence, marks: [{token, role, explanation}]}``.
+
+    Read from the catalogue seed the concept was stored with
+    (``source_refs.blueprint_seed.sentence_xray``). A token may be
+    discontinuous (``ne...que``); the client finds its pieces in the sentence.
+    ``None`` when the unit has no sentence or no mark.
+    """
+
+    refs = getattr(concept, "source_refs", None) or {}
+    seed = refs.get("blueprint_seed") if isinstance(refs, dict) else None
+    xray = seed.get("sentence_xray") if isinstance(seed, dict) else None
+    if not isinstance(xray, dict):
+        return None
+    sentence = str(xray.get("sentence") or "").strip()
+    marks = [
+        {
+            "token": str(mark.get("token") or "").strip(),
+            "role": str(mark.get("role") or "").strip(),
+            "explanation": str(mark.get("explanation") or "").strip(),
+        }
+        for mark in xray.get("marks") or []
+        if isinstance(mark, dict) and str(mark.get("token") or "").strip()
+    ]
+    if not sentence or not marks:
+        return None
+    return {"sentence": sentence, "marks": marks}
+
+
+@lru_cache(maxsize=2)
+def _v2_titles(mtime_ns: int) -> dict[str, dict[str, str]]:
+    from app.services.grammar_catalog import FRENCH_CORE_CATALOG_V2_VERSION, catalog_rows
+
+    titles: dict[str, dict[str, str]] = {}
+    for row in catalog_rows(FRENCH_CORE_CATALOG_V2_VERSION):
+        names = {"en": row.get("name"), "de": row.get("title_de"), "fr": row.get("title_fr")}
+        clean = {locale: str(name).strip() for locale, name in names.items() if str(name or "").strip()}
+        if clean:
+            titles[str(row["external_id"])] = clean
+    return titles
+
+
+def unit_titles() -> dict[str, dict[str, str]]:
+    """Every v2 unit's title per locale (``{external_id: {en, de, fr}}``), from the catalogue."""
+
+    from app.services.grammar_catalog import FRENCH_CORE_CATALOG_V2_VERSION, catalog_path
+
+    path = catalog_path(FRENCH_CORE_CATALOG_V2_VERSION)
+    if not path.exists():
+        return {}
+    return _v2_titles(path.stat().st_mtime_ns)
+
+
+def card_with_partner_titles(
+    card: dict[str, Any] | None, titles: dict[str, dict[str, str]] | None = None
+) -> dict[str, Any] | None:
+    """The card with each ``contrast_with`` partner's ``title`` ({en, de, fr}) filled in.
+
+    Additive: a partner the catalogue does not know keeps no title, and the
+    client leaves it out. A card without partners comes back unchanged.
+    """
+
+    if not isinstance(card, dict):
+        return card
+    partners = card.get("contrast_with")
+    if not isinstance(partners, list) or not partners:
+        return card
+    titles = unit_titles() if titles is None else titles
+    enriched: list[dict[str, Any]] = []
+    for partner in partners:
+        if not isinstance(partner, dict) or not str(partner.get("id") or "").strip():
+            continue
+        entry = dict(partner)
+        title = titles.get(str(partner["id"]).strip())
+        if title and not entry.get("title"):
+            entry["title"] = dict(title)
+        enriched.append(entry)
+    return {**card, "contrast_with": enriched}
+
+
 def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict[str, Any]:
     from app.services.atelier import fr_localizations_by_concept_id
     from app.services.eclair import eclair_enabled, eclair_pairs
@@ -119,6 +205,7 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
     }
     fr = fr_localizations_by_concept_id(db, [concept.id for concept in concepts])
     counts = dict.fromkeys(MAP_STAGES, 0)
+    titles = unit_titles()
     bands: list[dict[str, Any]] = []
     for band, rows in _bands(concepts, v2=v2):
         rules = []
@@ -143,7 +230,8 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
                     "next_due": next_due.isoformat() if next_due else None,
                     "due": bool(stage != STAGE_GHOST and next_due is not None and next_due <= now),
                     "tested_out": bool(row is not None and row.tested_out_at is not None),
-                    "rule_card": rule_card_for(concept.external_id),
+                    # F-1: the partners of «Compare with» carry their titles.
+                    "rule_card": card_with_partner_titles(rule_card_for(concept.external_id), titles),
                     # WP-S5 fills the coach; the page falls back to the card's speaker.
                     "coach": None,
                 }
@@ -163,6 +251,7 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
 
 __all__ = [
     "MAP_STAGES",
+    "card_with_partner_titles",
     "PROFICIENT_RUNG",
     "STAGE_GHOST",
     "STAGE_HELD",
@@ -170,4 +259,6 @@ __all__ = [
     "STAGE_PROFICIENT",
     "grammar_map",
     "map_stage",
+    "unit_titles",
+    "unit_xray",
 ]
