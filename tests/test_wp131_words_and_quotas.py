@@ -618,6 +618,11 @@ def test_met_words_then_story_words_then_the_list() -> None:
         NewWord(word_id=4, lemma="liste2"),
     ]
     assert [w.word_id for w in order_new_words(words, 4)] == [3, 2, 1, 4]
+    # Story words take at most half a batch: the list keeps advancing.
+    many = [NewWord(word_id=10 + i, lemma=f"s{i}", season=True) for i in range(8)] + [
+        NewWord(word_id=100 + i, lemma=f"l{i}") for i in range(8)
+    ]
+    assert sum(w.season for w in order_new_words(many, 8)) == 4
     assert order_new_words(words, 0) == []
 
 
@@ -640,6 +645,8 @@ def test_the_drill_spreads_the_a1_numbers_over_real_catalogue_rows(db_session: S
     for words in shown:
         flags = [walk_checks_wp131.is_numeral(word) for word in words]
         assert len(words) == 8 and longest_numeral_run(flags) <= 1 and sum(flags) <= 2, words
+    # Spread, not skipped: the list's numbers still arrive in the first week.
+    assert any(walk_checks_wp131.is_numeral(word) for words in shown for word in words), shown
 
 
 def test_story_words_never_pull_the_next_sub_band_forward(db_session: Session) -> None:

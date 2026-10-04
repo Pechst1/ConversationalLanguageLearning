@@ -11,7 +11,8 @@ batch (one drill session's new words):
 
 1. **met first** — a word a story scene taught the learner (unchanged);
 2. **scene relevance** — a word the season's lines use at the learner's level
-   (``season_lexicon.season_words``): it will be read in context;
+   (``season_lexicon.season_words``): it will be read in context. At most half
+   a batch, so the list itself keeps advancing (its numbers, its themes);
 3. **diversity** — at most one numeral in four words, never two numerals in a
    row and never one opening the batch; corpus words that the story does not use
    at most half the batch and never more than two in a row, while curated or
@@ -54,6 +55,12 @@ def max_corpus(limit: int) -> int:
     return max(1, math.ceil(limit / 2))
 
 
+def max_story(limit: int) -> int:
+    """Story words pulled ahead of the list: at most half a batch (rounded up)."""
+
+    return max(1, math.ceil(limit / 2))
+
+
 #: Never more than this many story-less corpus words in a row.
 CORPUS_RUN = 2
 
@@ -81,6 +88,7 @@ def order_new_words(candidates: Sequence[NewWord], limit: int) -> list[NewWord]:
     )
     numerals_cap = max_numerals(limit)
     corpus_cap = max_corpus(limit)
+    story_cap = max_story(limit)
     batch: list[NewWord] = []
 
     def bare_corpus(word: NewWord) -> bool:
@@ -91,6 +99,9 @@ def order_new_words(candidates: Sequence[NewWord], limit: int) -> list[NewWord]:
             if not batch or batch[-1].numeral:
                 return False
             if sum(1 for w in batch if w.numeral) >= numerals_cap:
+                return False
+        if strict_corpus and word.season and not word.met:
+            if sum(1 for w in batch if w.season and not w.met) >= story_cap:
                 return False
         if strict_corpus and bare_corpus(word):
             if sum(1 for w in batch if bare_corpus(w)) >= corpus_cap:
@@ -128,5 +139,6 @@ __all__ = [
     "longest_numeral_run",
     "max_corpus",
     "max_numerals",
+    "max_story",
     "order_new_words",
 ]
