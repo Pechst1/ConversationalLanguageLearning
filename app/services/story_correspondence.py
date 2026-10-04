@@ -450,7 +450,11 @@ def outcome_from_objectives(
     progress_by_id = progress_by_id or {}
     if not had_submission:
         return "missed"
-    scored = [item for item in objectives if item.get("required")] or objectives
+    # WP-125A (owner decision 6): a suggested word is never part of the
+    # communicative verdict. Using it does not lift a letter, leaving it out does
+    # not lower one — so two otherwise equal letters get the same word here.
+    communicative = [item for item in objectives if not _is_vocabulary_objective(item)]
+    scored = [item for item in objectives if item.get("required")] or communicative or objectives
     if not scored:
         return "partial"
     # WP-74 — the grader was down: nothing was measured, so the letter moves the
@@ -462,14 +466,29 @@ def outcome_from_objectives(
     met = sum(1 for item in scored if progress_by_id.get(str(item.get("id")), {}).get("met"))
     if met >= len(scored):
         return "kept"
+    # A grader that judged the situation *partly* handled says so on the row
+    # (the journey's ``partially_met``); that is partial in its own right, not
+    # something a placed suggested word has to rescue (WP-125A).
+    if any(progress_by_id.get(str(item.get("id")), {}).get("partly") for item in scored):
+        return "partial"
     optional_met = any(
         progress_by_id.get(str(item.get("id")), {}).get("met")
-        for item in objectives
+        for item in communicative
         if not item.get("required")
     )
     if met or optional_met:
         return "partial"
     return "missed"
+
+
+def _is_vocabulary_objective(objective: dict[str, Any]) -> bool:
+    """A «Placer « mot »» objective: an optional suggestion, never a requirement."""
+
+    if objective.get("required"):
+        return False
+    return str(objective.get("kind") or "") == "vocabulary" or str(objective.get("id") or "").startswith(
+        "vocabulary_"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1450,14 +1469,20 @@ def objective_progress_from_journey(
             met = met_required
         else:
             met = _objective_was_produced(item, produced)
-        rows.append(
-            {
-                "id": str(item["id"]),
-                "label": item.get("label"),
-                "met": bool(met),
-                "note": note if met else no_answer,
-            }
-        )
+        row = {
+            "id": str(item["id"]),
+            "label": item.get("label"),
+            "met": bool(met),
+            "note": note if met else no_answer,
+        }
+        if item.get("required") and str(outcome) == "partially_met":
+            row["partly"] = True
+        if not met and _is_vocabulary_objective(item):
+            # WP-125A: a suggested word the reply did not use is unobserved, not
+            # unanswered — said neutrally, and nothing follows from it.
+            row["observed"] = False
+            row["note"] = learner_note_with("mission.vocabulary_unused", language, word=_objective_word(item))
+        rows.append(row)
     return rows
 
 
@@ -1469,6 +1494,20 @@ def _objective_was_produced(objective: dict[str, Any], produced: set[str]) -> bo
         if value not in (None, "") and f"{kind}:{value}" in produced:
             return True
     return False
+
+
+def _objective_word(objective: dict[str, Any]) -> str:
+    """The word a «Placer « mot » naturellement» objective names."""
+
+    label = str(objective.get("label") or "")
+    match = re.search(r"«\s*(.+?)\s*»", label)
+    return match.group(1) if match else str(objective.get("word") or label)
+
+
+def learner_note_with(key: str, language: Any = None, **fields: Any) -> str:
+    from app.services.learner_copy import learner_text
+
+    return learner_text(key, language, **fields)
 
 
 def learner_note(key: str, language: Any = None) -> str:

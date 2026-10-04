@@ -544,7 +544,9 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     assert duplicate_turn.json()["correction"]["persistence"]["saved_count"] >= 2
 
 
-def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
+def test_mission_unused_target_vocabulary_is_an_unobserved_opportunity(client: TestClient, db_session, monkeypatch):
+    """WP-125A (owner decision 6): a suggested word the letter did not use opens
+    no erratum and charges no lapse; it is recorded as unobserved."""
     monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
     token = _token(client)
     user = _user_from_token(db_session, token)
@@ -587,21 +589,17 @@ def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestCl
     assert submit.status_code == 200
     correction = submit.json()["correction"]
     assert any(
-        event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+        event["word_id"] == target_word.id and event["event_type"] == "unused_target"
         for event in correction["vocabulary_events"]
     )
-    assert any(
-        item["linked_word_id"] == target_word.id and item["error_category"] == "vocabulary"
-        for item in correction["errata"]
-    )
-    assert any(item["linked_word_id"] == target_word.id for item in submit.json()["errata"])
+    assert not any(item.get("linked_word_id") == target_word.id for item in correction["errata"])
+    assert not any(item.get("linked_word_id") == target_word.id for item in submit.json()["errata"])
     progress = (
         db_session.query(UserVocabularyProgress)
         .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == target_word.id)
-        .one()
+        .one_or_none()
     )
-    assert progress.state == "relearning"
-    assert progress.phase == "relearn"
+    assert progress is None or progress.state != "relearning"
 
     complete = client.post(
         f"/api/v1/missions/{mission_id}/complete",
@@ -609,7 +607,8 @@ def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestCl
     )
 
     assert complete.status_code == 200
-    assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] >= 1
+    assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] == 0
+    assert complete.json()["recap"]["vocabulary_credit"]["unobserved"] >= 1
 
 
 def test_mission_correction_catches_obvious_vous_avet_when_llm_accepts(db_session):
@@ -1219,9 +1218,11 @@ def test_mission_only_scores_the_vocabulary_the_page_prints(db_session):
         user=user, mission=mission, text="Bonjour, je vous confirme le rendez-vous de demain matin.", mode="chat"
     )
 
-    scored = {item["external_id"] for item in correction["missing_targets"]}
-    assert f"VOCAB_{shown.id}" in scored
-    assert f"VOCAB_{hidden.id}" not in scored
+    # WP-125A: an unused word is an unobserved opportunity, not a missing target.
+    assert not any(str(item["external_id"]).startswith("VOCAB_") for item in correction["missing_targets"])
+    scored = {item["word_id"] for item in correction["unused_targets"]}
+    assert shown.id in scored
+    assert hidden.id not in scored
     assert all(event["word_id"] != hidden.id for event in correction["vocabulary_events"])
 
 
@@ -1249,7 +1250,7 @@ def test_mission_flags_an_unused_target_word_once_per_mission(client: TestClient
     def _missed(response):
         return [
             event for event in response.json()["correction"]["vocabulary_events"]
-            if event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+            if event["word_id"] == target_word.id and event["event_type"] == "unused_target"
         ]
 
     first = client.post(
@@ -1296,8 +1297,8 @@ def test_mission_persistence_separates_repairs_from_vocabulary_credit(client: Te
     )
 
     persistence = response.json()["correction"]["persistence"]
-    # The unused target word is credited but is not a repair the card shows.
-    assert persistence["saved_count"] >= 1
+    # WP-125A: the unused target word is neither a repair nor a saved erratum.
+    assert persistence["saved_count"] == 0
     assert persistence["repair_count"] == 0
 
 

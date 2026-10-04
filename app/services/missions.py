@@ -43,7 +43,12 @@ from app.services.news_service import NewsService
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
-from app.services.vocabulary_credit import VocabularyCreditService
+from app.services.vocabulary_credit import (
+    LETTER_OMISSION_POLICY,
+    UNUSED_TARGET_EVENT,
+    UNUSED_TARGET_EVENT_TYPES,
+    VocabularyCreditService,
+)
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
@@ -2780,7 +2785,9 @@ class MissionCorrectionService:
             "deterministic_rule_count": len(deterministic_errata),
             "near_realtime": near_realtime,
         }
-        correction = self._apply_vocabulary_feedback(mission=mission, text=text, correction=correction)
+        correction = self._apply_vocabulary_feedback(
+            mission=mission, text=text, correction=correction, language=language
+        )
         correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
@@ -3321,12 +3328,43 @@ class MissionCorrectionService:
         mission: RealWorldMission,
         text: str,
         correction: dict[str, Any],
+        language: Any = None,
     ) -> dict[str, Any]:
+        """Merge the printed target words into the correction.
+
+        WP-125A (owner decision 6, 2026-10-04): a suggested word the learner did
+        not use is an *unobserved learning opportunity*. It opens no erratum,
+        lowers no verdict, adds no ``missing_targets`` row, charges no lapse and
+        leaves the word's schedule alone. It is recorded once per mission as an
+        ``unused_target`` event so the dossier can say so, neutrally, and so an
+        audit can tell it apart from the pre-WP-125A ``missed_target`` rows.
+        What still counts is genuinely wrong use — the learner reached for the
+        word's meaning in another language instead of the French word.
+        """
         vocabulary = self._shown_vocabulary_items(mission)
+        # A provider (or an older payload) may still name an unused word as a
+        # missing target or an erratum; neither is a language error.
+        correction = {
+            **correction,
+            "missing_targets": [
+                item
+                for item in correction.get("missing_targets") or []
+                if not (isinstance(item, dict) and str(item.get("external_id") or "").startswith("VOCAB_"))
+            ],
+            "errata": [
+                item
+                for item in correction.get("errata") or []
+                if not (isinstance(item, dict) and str(item.get("task_error_type") or "") == "vocabulary_missing_target")
+            ],
+        }
         if not vocabulary:
             correction.setdefault("vocabulary_events", [])
+            correction.setdefault("unused_targets", [])
             return correction
-        already_missed = self._already_missed_word_ids(mission)
+        if language is None:
+            language = self._mission_native_language(mission)
+        already_flagged = self._already_flagged_word_ids(mission, UNUSED_TARGET_EVENT_TYPES)
+        already_wrong = self._already_flagged_word_ids(mission, {"produced_incorrect"})
 
         merged = {**correction}
         objective_progress = list(merged.get("objective_progress") or [])
@@ -3336,6 +3374,7 @@ class MissionCorrectionService:
             if isinstance(item, dict) and item.get("id")
         }
         missing_targets = list(merged.get("missing_targets") or [])
+        unused_targets = list(merged.get("unused_targets") or [])
         errata = list(merged.get("errata") or [])
         vocabulary_links = list(merged.get("vocabulary_links") or [])
         vocabulary_events = list(merged.get("vocabulary_events") or [])
@@ -3361,7 +3400,8 @@ class MissionCorrectionService:
                     "id": objective_id,
                     "label": f"Placer « {word} »",
                     "met": True,
-                    "note": f"You used {word} in your response.",
+                    "observed": True,
+                    "note": learner_text("mission.vocabulary_used", language, word=word),
                 }
                 vocabulary_links.append(
                     {
@@ -3382,51 +3422,77 @@ class MissionCorrectionService:
                 )
                 continue
 
-            objectives_by_id[objective_id] = {
-                "id": objective_id,
-                "label": f"Placer « {word} »",
-                "met": False,
-                "note": f"Try to work {word} into the mission naturally.",
-            }
-            missing_targets.append(
-                {
-                    "external_id": f"VOCAB_{word_id}",
+            if translation_hit and normalized_text:
+                # Genuinely wrong use: the meaning, written instead of the word.
+                objectives_by_id[objective_id] = {
+                    "id": objective_id,
                     "label": f"Placer « {word} »",
-                    "detected_count": 0,
-                    "target_count": 1,
-                    "missing_count": 1,
+                    "met": False,
+                    "observed": True,
+                    "note": learner_text(
+                        "mission.vocabulary_translation_why", language, word=word, meaning=translation_hit
+                    ),
                 }
-            )
-            if (
-                added_vocab_erratum
-                or int(word_id) in existing_vocab_error_ids
-                or int(word_id) in already_missed
-                or not normalized_text
-            ):
-                # One nudge per word per mission. Charging a "missed target" on
-                # every turn punished a four-turn conversation four times over
-                # for the same unused word and inflated the repair counters.
-                continue
-            errata.append(
-                self._target_vocabulary_erratum(
-                    item=item,
-                    learner_text=translation_hit or "",
-                    reason="translation_instead_of_target" if translation_hit else "missing_target",
+                if (
+                    added_vocab_erratum
+                    or int(word_id) in existing_vocab_error_ids
+                    or int(word_id) in already_wrong
+                ):
+                    # One nudge per word per mission: a four-turn conversation
+                    # must not be charged four times for the same word.
+                    continue
+                errata.append(
+                    self._target_vocabulary_erratum(
+                        item=item,
+                        learner_text=translation_hit,
+                        reason="translation_instead_of_target",
+                        language=language,
+                    )
                 )
-            )
+                vocabulary_events.append(
+                    {
+                        "word_id": word_id,
+                        "event_type": "produced_incorrect",
+                        "reason": "translation_instead_of_target",
+                        "learner_text": translation_hit,
+                        # None, so vocabulary_credit writes the why and the hint
+                        # in the learner's language (EXPERIENCE-REVIEW 2026-10-04).
+                        "explanation": None,
+                        "repair_hint": None,
+                    }
+                )
+                added_vocab_erratum = True
+                continue
+
+            # Not used: unobserved, not missed. The objective stays unmet (it was
+            # not done) but says so neutrally, and nothing else follows from it.
+            previous = objectives_by_id.get(objective_id) or {}
+            if not previous.get("met"):
+                objectives_by_id[objective_id] = {
+                    "id": objective_id,
+                    "label": f"Placer « {word} »",
+                    "met": False,
+                    "observed": False,
+                    "note": learner_text("mission.vocabulary_unused", language, word=word),
+                }
+            if not normalized_text:
+                continue
+            unused_targets.append({"word_id": word_id, "word": word})
+            if int(word_id) in already_flagged or any(
+                isinstance(event, dict)
+                and event.get("word_id") == word_id
+                and str(event.get("event_type") or "") in UNUSED_TARGET_EVENT_TYPES
+                for event in vocabulary_events
+            ):
+                continue
             vocabulary_events.append(
                 {
                     "word_id": word_id,
-                    "event_type": "produced_incorrect" if translation_hit else "missed_target",
-                    "reason": "translation_instead_of_target" if translation_hit else "missing_target",
-                    "learner_text": translation_hit or _compact_text(text, max_length=160),
-                    # EXPERIENCE-REVIEW 2026-10-04: None, so vocabulary_credit writes
-                    # the why and the hint in the learner's language (they were English).
-                    "explanation": None,
-                    "repair_hint": None,
+                    "event_type": UNUSED_TARGET_EVENT,
+                    "reason": "suggested_word_not_used",
+                    "policy": LETTER_OMISSION_POLICY,
                 }
             )
-            added_vocab_erratum = True
 
         if objectives_by_id:
             seen_ids: set[str] = set()
@@ -3442,10 +3508,13 @@ class MissionCorrectionService:
                 if item_id not in seen_ids:
                     merged_progress.append(item)
             merged["objective_progress"] = merged_progress
+        # Only a genuinely wrong use of a word can lower an accepted letter.
         if added_vocab_erratum and merged.get("verdict") == "accepted":
             merged["verdict"] = "partial"
             merged["score_0_4"] = min(float(merged.get("score_0_4") or 3), 3)
         merged["missing_targets"] = missing_targets[:8]
+        merged["unused_targets"] = unused_targets
+        merged["letter_omission_policy"] = LETTER_OMISSION_POLICY
         merged["errata"] = errata
         merged["vocabulary_links"] = vocabulary_links
         merged["vocabulary_events"] = vocabulary_events
@@ -3471,26 +3540,22 @@ class MissionCorrectionService:
         allowed = set(shown_ids)
         return [item for item in items if int(item.get("word_id") or 0) in allowed]
 
-    def _already_missed_word_ids(self, mission: RealWorldMission) -> set[int]:
-        """Words this mission has already flagged as unused, in an earlier turn."""
-        missed: set[int] = set()
-        for turn in mission.turns or []:
-            for event in (turn.correction_payload or {}).get("vocabulary_events") or []:
+    def _already_flagged_word_ids(self, mission: RealWorldMission, event_types: set[str] | frozenset[str]) -> set[int]:
+        """Words this mission already recorded an event of these types for, in an earlier turn."""
+        flagged: set[int] = set()
+        payloads = [
+            *[turn.correction_payload or {} for turn in mission.turns or []],
+            *[attempt.correction_payload or {} for attempt in mission.attempts or []],
+        ]
+        for payload in payloads:
+            for event in payload.get("vocabulary_events") or []:
                 if not isinstance(event, dict):
                     continue
-                if str(event.get("event_type") or "") not in {"missed_target", "produced_incorrect"}:
+                if str(event.get("event_type") or "") not in event_types:
                     continue
                 for word_id in _dedupe_ints([event.get("word_id")]):
-                    missed.add(word_id)
-        for attempt in mission.attempts or []:
-            for event in (attempt.correction_payload or {}).get("vocabulary_events") or []:
-                if not isinstance(event, dict):
-                    continue
-                if str(event.get("event_type") or "") not in {"missed_target", "produced_incorrect"}:
-                    continue
-                for word_id in _dedupe_ints([event.get("word_id")]):
-                    missed.add(word_id)
-        return missed
+                    flagged.add(word_id)
+        return flagged
 
     def _mission_native_language(self, mission: RealWorldMission) -> str:
         """The language this mission's learner reads glosses in."""
@@ -3572,27 +3637,28 @@ class MissionCorrectionService:
         item: dict[str, Any],
         learner_text: str,
         reason: str,
+        language: Any = None,
     ) -> dict[str, Any]:
-        word = str(item.get("word") or "target word").strip()
+        """The one vocabulary erratum a letter can still carry: a wrong use.
+
+        WP-125A: an unused word never reaches here (it is an unobserved
+        opportunity, not an error). The prose follows the learner's language.
+        """
+        from app.services.learner_copy import learner_text as copy_text
+
+        word = str(item.get("word") or "").strip()
         translation = str(item.get("translation") or "").strip()
-        example = str(item.get("example_sentence") or "").strip()
-        if reason == "translation_instead_of_target":
-            why = f"You reached for the meaning of {word}, but the mission target is the French word itself."
-            repair = f"Use {word} in a natural French sentence instead of writing the translation."
-        else:
-            why = f"This mission asked you to try the target word {word}, but it did not appear in your response."
-            repair = f"Add one short sentence that uses {word} naturally."
-        if example:
-            repair = f"{repair} Pattern to borrow: {example}"
+        meaning = learner_text or translation or word
         return {
-            "display_label": f"Use target word: {word}",
+            "display_label": copy_text("vocabulary.erratum.wrong.label", language, word=word),
             "learner_text": learner_text,
             "corrected_target": word,
-            "why_wrong": why,
-            "repair_hint": repair,
+            "why_wrong": copy_text("mission.vocabulary_translation_why", language, word=word, meaning=meaning),
+            "repair_hint": copy_text("mission.vocabulary_translation_hint", language, word=word),
             "severity": 2,
             "recurring": True,
-            "task_error_type": "vocabulary_missing_target" if reason == "missing_target" else "vocabulary_incorrect_use",
+            "task_error_type": "vocabulary_incorrect_use",
+            "reason": reason,
             "external_id": f"VOCAB_{item.get('word_id')}",
             "error_category": "vocabulary",
             "linked_word_id": item.get("word_id"),
@@ -3796,6 +3862,9 @@ class MissionDebriefService:
                 "met": bool(progress_by_id.get(str(item.get("id")), {}).get("met")),
                 # WP-74 — False when no grader ever looked at this objective.
                 "assessed": progress_by_id.get(str(item.get("id")), {}).get("assessed") is not False,
+                # WP-125A — False for a suggested word the learner did not use:
+                # an opportunity nobody observed, not a shortfall.
+                "observed": progress_by_id.get(str(item.get("id")), {}).get("observed") is not False,
                 "note": progress_by_id.get(str(item.get("id")), {}).get("note"),
             }
             for item in objectives
@@ -4976,6 +5045,7 @@ class MissionScheduler:
                 "produced_correct": 0,
                 "produced_incorrect": 0,
                 "missed_target": 0,
+                "unobserved": 0,
                 "errata_created": 0,
             }
 
@@ -4991,6 +5061,7 @@ class MissionScheduler:
             "produced_correct": 0,
             "produced_incorrect": 0,
             "missed_target": 0,
+            "unobserved": 0,
             "errata_created": 0,
         }
         explicit_event_ids: set[int] = set()
@@ -5043,8 +5114,12 @@ class MissionScheduler:
             return "produced_correct"
         if normalized in {"produced_incorrect", "used_incorrectly", "incorrect", "incorrect_production"}:
             return "produced_incorrect"
+        if normalized in UNUSED_TARGET_EVENT_TYPES:
+            return "unobserved"
         if normalized in {"missed_target", "missing_target", "avoided_target"}:
-            return "missed_target"
+            # WP-125A: a letter has no failed-recall event; an omission recorded
+            # before the policy changed is counted as what it was — unobserved.
+            return "unobserved"
         if normalized in {"recognized", "translated", "recognition", "context_translation"}:
             return "recognized"
         return "seen_context"
