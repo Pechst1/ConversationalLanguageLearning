@@ -3654,10 +3654,15 @@ def _advanced_task(
     avoid: set[str],
     level: str | None = None,
 ) -> RecallTask | None:
+    from app.services.practice_level import within_band
+
+    def fits(text: str) -> bool:
+        return within_band(text, level)
+
     if fmt == "contrast":
         for partner in partners:
             task = grammar_items.contrast_item(
-                brief, partner, language=language, day_key=day_key, avoid=avoid, level=level
+                brief, partner, language=language, day_key=day_key, avoid=avoid, fits=fits
             )
             if task is not None:
                 return task
@@ -3672,12 +3677,12 @@ def _advanced_task(
             if (
                 task is not None
                 and not (grammar_items.item_sentences(task) & avoid)
-                and grammar_items.within_band(task.solution_fr, level)
+                and fits(str(task.solution_fr or ""))
             ):
                 return task
         return None
     if fmt == "free":
-        return grammar_items.free_sentence_item(brief, language=language, avoid=avoid, level=level)
+        return grammar_items.free_sentence_item(brief, language=language, avoid=avoid, fits=fits)
     return None
 
 
