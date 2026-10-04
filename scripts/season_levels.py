@@ -14,6 +14,11 @@ script checks every variant against its band:
   excepted: they get an easy-read version, not a short one);
 * **coverage** — which lines still lack a1 / b2 / c1, and which turns lack
   level examples (``--todo``);
+* **glossed past chunks** (WP-132A, owner decision 7) — an A1 line may tell Odile's
+  past with one of three glossed chunks («elle est partie», «c'était», «elle savait»,
+  :data:`A1_PAST_CHUNKS`). The grammar detectors read the chunk as the present form
+  A1 already allows; the words still count one by one in the coverage, the chunk
+  takes the line's one word outside the list, and the chunks are reported apart;
 * **translations** (QA-STORY 2026-10-03) — an a1 variant that differs from the A2
   line carries ``a1_native`` {en, de}; every turn/solve has a plain task
   (``tasks.json``) and every turn an «ask again» line (or ``null``).
@@ -59,10 +64,31 @@ MAX_WORDS = {"A1": 10, "A2": 14}
 FLOOR = 0.95
 #: Long diegetic text (letters, documents) is read, not heard: no length cap.
 LONG_TEXT_WORDS = 30
+#: WP-132A (owner decision 7): the glossed past chunks an A1 line may carry, so that
+#: Odile's departure and death never read as happening now. Narrow on purpose: a
+#: subject of «elle» or «Odile» (or the impersonal «c'était»), nothing else. The
+#: detectors read each as the present form A1 already allows (the rest of the line
+#: stays fully checked); the coverage counts its words one by one, never as one token.
+A1_PAST_CHUNKS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    ("elle est partie", re.compile(r"\b(elle|Odile) est partie\b", re.IGNORECASE), r"\1 part"),
+    ("c'était", re.compile(r"\b([cC])['’]était\b"), r"\1'est"),
+    ("elle savait", re.compile(r"\b(elle|Odile) (ne )?savait\b", re.IGNORECASE), r"\1 \2sait"),
+)
 #: The languages an A1 line and an «ask again» line are translated into.
 NATIVE_LANGUAGES = ("en", "de")
 #: The languages a plain task is written in.
 TASK_LANGUAGES = ("en", "de", "fr")
+
+
+def mask_a1_past_chunks(text: str) -> tuple[str, list[str]]:
+    """``(text the A1 detectors read, chunks used)`` — each glossed past chunk
+    rewritten to its present form; see :data:`A1_PAST_CHUNKS`."""
+
+    used: list[str] = []
+    for name, pattern, present in A1_PAST_CHUNKS:
+        text, count = pattern.subn(present, text)
+        used += [name] * count
+    return text, used
 
 
 def _known(band: str, names: frozenset[str]) -> KnownWordSet:
@@ -128,6 +154,7 @@ def main() -> int:
     problems: list[str] = []
     todo: dict[str, int] = defaultdict(int)
     totals: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+    chunked: dict[tuple[str, str], list[str]] = defaultdict(list)
 
     for file_id in files:
         raw = json.loads((season_dir / f"{file_id}.json").read_text(encoding="utf-8"))
@@ -155,13 +182,21 @@ def main() -> int:
                 totals[(file_id, field)][0] += result.known_words
                 totals[(file_id, field)][1] += result.running_words
                 unknown = [word.lemma for word in result.unknown]
+                detected, chunks = mask_a1_past_chunks(text) if band == "A1" else (text, [])
+                if chunks:
+                    # WP-132A: one glossed chunk per line, and it is the line's one new thing.
+                    chunked[(file_id, field)].append(key)
+                    if len(set(chunks)) > 1:
+                        problems.append(f"{file_id} {field} {key}: more than one glossed past chunk {sorted(set(chunks))} — {text}")
+                    if len(unknown) + 1 > BUDGET[band]:
+                        problems.append(f"{file_id} {field} {key}: a glossed past chunk takes the line's word outside the {band} list, and {unknown} is outside too — {text}")
                 if len(unknown) > BUDGET[band]:
                     problems.append(f"{file_id} {field} {key}: outside {band} list: {unknown} — {text}")
                 words = len(text.split())
                 if band in MAX_WORDS and MAX_WORDS[band] < words < LONG_TEXT_WORDS:
                     problems.append(f"{file_id} {field} {key}: {words} words (≤ {MAX_WORDS[band]}) — {text}")
                 for unit, detector in above.get(band, []):
-                    if detector_matches(detector, text):
+                    if detector_matches(detector, detected):
                         problems.append(f"{file_id} {field} {key}: {unit} is above {band} — {text}")
         for slot, _owner, _field in iter_example_slots(file_id, raw):
             if slot not in levels["examples"]:
@@ -210,6 +245,11 @@ def main() -> int:
         print(f"  {file_id:7} {field}: {share:6.1%} of {running}{flag}")
         if share < FLOOR:
             problems.append(f"{file_id} {field}: {share:.1%} known (floor 95 %)")
+    if chunked:
+        # WP-132A: reported apart from the coverage above, which counts their words one by one.
+        print("glossed A1 past chunks (lines):")
+        for (file_id, field), keys in sorted(chunked.items()):
+            print(f"  {file_id:7} {field}: {len(keys)} — {', '.join(keys)}")
     if args.todo:
         print("still to write:")
         for slot, count in sorted(todo.items()):
