@@ -409,7 +409,9 @@ def test_the_review_check_needs_a_unit_introduced_earlier() -> None:
     rule = _event("rule", concept_id=5)
     review = _event("rule", concept_id=5, review=True)
     early = _record([[rule], [_event("resolution"), review]])
-    new = _record([[_event("resolution"), _event("rule", concept_id=6, review=True)]])
+    new = _record([[_event("resolution"), _event("rule", concept_id=6, review=True)], [_event("rule", concept_id=6)]])
+    placed = _record([[_event("resolution"), _event("rule", concept_id=7, review=True)]])
+    assert not walk_checks_wp129.check_page_review_is_a_met_unit(placed)
     assert not walk_checks_wp129.check_page_review_is_a_met_unit(early)
     assert walk_checks_wp129.check_page_review_is_a_met_unit(new)
 

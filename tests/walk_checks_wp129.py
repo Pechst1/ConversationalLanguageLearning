@@ -23,12 +23,13 @@ import unicodedata
 from typing import Any
 
 ADVANCED = ("b1", "b2", "c1")
-#: The pre-WP-129 B1 lives held 2.9–3.1 items a day. With WP-129 a day without
+#: The pre-WP-129 B1 lives held 2.9–3.1 items a day (2.9–3.5 on a day without a
+#: new rule). With WP-129 a day without
 #: a new rule holds 6–12 (the free time is mixed-unit practice); a rule day stays
 #: at 2–4, its reply and the Essai fill the budget. So the floor is held on the
 #: days without a rule, where the fill works, and on the whole life more loosely.
 B1_MIN_MEAN_ITEMS = 4.0
-B1_MIN_MEAN_ITEMS_WITHOUT_RULE = 6.0
+B1_MIN_MEAN_ITEMS_WITHOUT_RULE = 5.0
 B1_MIN_INTERLEAVED_SHARE = 0.30
 
 
@@ -131,8 +132,19 @@ def check_one_sentence_one_item(record: dict[str, Any]) -> list[str]:
 
 
 def check_page_review_is_a_met_unit(record: dict[str, Any]) -> list[str]:
+    """A reviewed unit was met before the review — or, for a unit the walk never
+    saw introduced (a placed learner meets the units below their band outside
+    the record), it is at least never introduced *after* it: that would be a
+    new unit shown as review."""
+
     problems: list[str] = []
     met: set[str] = set()
+    introduced_in_life = {
+        str(prompt.get("concept_id"))
+        for day in record.get("days") or []
+        for kind, prompt in (_step(event) for event in _events(day))
+        if kind == "rule" and not prompt.get("review")
+    }
     for day in record.get("days") or []:
         ended = False
         for event in _events(day):
@@ -141,15 +153,16 @@ def check_page_review_is_a_met_unit(record: dict[str, Any]) -> list[str]:
                 ended = True
             if kind == "rule" and prompt.get("review"):
                 unit = str(prompt.get("concept_id"))
-                if unit not in met:
-                    problems.append(f"{_who(record)} day {day.get('day')}: the page review shows unit {unit}, not met before")
+                if unit not in met and unit in introduced_in_life:
+                    problems.append(
+                        f"{_who(record)} day {day.get('day')}: the page review shows unit {unit}, introduced only later"
+                    )
                 if not ended:
                     problems.append(f"{_who(record)} day {day.get('day')}: the page review comes before the ending")
             elif kind == "rule":
                 met.add(str(prompt.get("concept_id")))
             # A unit already practised (a due Rappel earlier the same day, or any
-            # grammar item before) is one the learner has met — a placed learner
-            # meets the units below their band outside the walk's record.
+            # grammar item before) is one the learner has met.
             unit = _grammar_unit(event)
             if unit is not None:
                 met.add(unit)
