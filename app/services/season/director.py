@@ -174,6 +174,33 @@ def _must_not(gap: Gap, season: Season, flags: dict[str, Any]) -> list[Forbidden
     return [row for row in [*season.global_must_not, *gap.must_not] if not (row.unless and holds(row.unless, flags))]
 
 
+#: T-2: how a generated day is built at each band. The scene guard enforces the
+#: words (lexicon v3, A1 → C1); this tells the director the size and texture.
+LEVEL_SHAPES: dict[str, dict[str, Any]] = {
+    "A1": {"panels": "3-4", "exchanges": "1-2", "max_words_per_line": 8,
+           "texture": "present tense, futur proche and fixed chunks; one idea per line; "
+                      "the learner's turn can be answered in 3-6 words"},
+    "A2": {"panels": "4-5", "exchanges": "2", "max_words_per_line": 12,
+           "texture": "passé composé and imparfait in short lines; everyday words"},
+    "B1": {"panels": "4-6", "exchanges": "2-3", "max_words_per_line": 16,
+           "texture": "narration across tenses, opinions with reasons, simple hypotheses"},
+    "B2": {"panels": "4-6", "exchanges": "2-3", "max_words_per_line": 22,
+           "texture": "nuance and concession, the subjunctive where it is natural, "
+                      "implicit feelings the learner must read between the lines"},
+    "C1": {"panels": "5-6", "exchanges": "3", "max_words_per_line": 28,
+           "texture": "register shifts between characters (familier ↔ soutenu), idioms, "
+                      "irony and understatement; the learner argues and persuades"},
+}
+
+
+def level_shape(band: str | None) -> dict[str, Any]:
+    """The band's page shape (A1 … C1; C2 reads as C1, anything unreadable as A2)."""
+
+    code = str(band or "A2")[:2].upper()
+    code = "C1" if code == "C2" else code
+    return {"band": code if code in LEVEL_SHAPES else "A2", **LEVEL_SHAPES.get(code, LEVEL_SHAPES["A2"])}
+
+
 def gap_brief(
     season: Season,
     pos: Position,
@@ -181,6 +208,7 @@ def gap_brief(
     flags: dict[str, Any],
     state: dict | None,
     seed: str,
+    band: str | None = None,
 ) -> dict[str, Any] | None:
     """What the director reads on a generated day (``context["season_script"]``)."""
 
@@ -219,10 +247,13 @@ def gap_brief(
         "season": {
             "id": season.id,
             "title_fr": season.title_fr,
-            "question_fr": season.question.a2,
+            "question_fr": season.question.text(band or "A2"),
             "day": pos.season_day,
             "of": season.total_days,
         },
+        # T-2 (2026-10-03): the page's shape follows the learner's band; the
+        # season's question and the tentpoles already read at that level.
+        "level": level_shape(band),
         "gap": {
             "id": gap.id,
             "title_fr": gap.title_fr,

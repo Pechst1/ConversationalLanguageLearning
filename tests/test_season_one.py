@@ -257,12 +257,19 @@ def test_conditions_read_flags_bands_and_paths():
 def test_t1_day_a_at_a1_reads_the_a2_lines_with_translations_and_at_b1_the_b1_lines():
     season = load_season("s1")
     flags = effective_flags(season, {}, seed="x")
-    a1 = resolve_day(season, "t1", "a", flags=flags, band="A1", language="en")
+    a1 = resolve_day(season, "t1", "a", flags=flags, band="A2", language="en")
     b1 = resolve_day(season, "t1", "a", flags=flags, band="B1", language="en")
     first_a1 = a1["movements"][0]["lines"][0]
     first_b1 = b1["movements"][0]["lines"][0]
     assert first_a1["text_fr"] == "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé."
     assert first_a1["text_native"].startswith("Paris. 11 November")
+    # T-2 (2026-10-03): an A1 learner reads the line's A1 version (levels_*.json)
+    # where one is written — with that version's own translation (QA-STORY), never
+    # the A2 line's.
+    easy = resolve_day(season, "t1", "a", flags=flags, band="A1", language="en")["movements"][0]["lines"][0]
+    assert easy["text_fr"] and easy["text_fr"] != first_a1["text_fr"]
+    assert easy["text_native"] and easy["text_native"] != first_a1["text_native"]
+    assert "suitcase" in easy["text_native"]
     assert first_b1["text_fr"].startswith("Paris, un 11 novembre sous la pluie.")
     assert first_b1["text_native"] is None
     projection = project(a1)

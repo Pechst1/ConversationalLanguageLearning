@@ -122,6 +122,11 @@ test('speaker identity resolves to a world-bible accent key', () => {
   assert.equal(readerCharacterKey('Augustin'), 'gus');
   assert.equal(readerCharacterKey('quelqu’un'), '');
   assert.equal(shortSpeakerName('Romane « Romy » Tremblay'), 'Romy');
+  // QA-STORY 2026-10-03: Camille shares the landlord's surname, never his label.
+  assert.equal(shortSpeakerName('Camille Marchand'), 'Camille');
+  assert.equal(shortSpeakerName('M. Marchand'), 'M. Marchand');
+  assert.equal(shortSpeakerName('Monsieur Marchand'), 'M. Marchand');
+  assert.equal(shortSpeakerName('Augustin « Gus » de Roncourt'), 'Gus');
   const lines = panelLines(SCENE.panels[0]);
   assert.equal(lines.length, 1);
   assert.equal(lines[0].character, 'romy');

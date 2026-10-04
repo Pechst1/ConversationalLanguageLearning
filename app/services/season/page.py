@@ -32,6 +32,7 @@ from app.services.season.format import (
     Solve,
     Tentpole,
     Turn,
+    examples_at,
 )
 
 #: Languages whose A1/A2 learners get «Traduire la case».
@@ -61,7 +62,13 @@ class _Ctx:
         if say is None:
             return None
         text = say.text(self.band, neutral=self.neutral)
-        native = say.native_for(self.language) if translates(self.band, self.language) else None
+        # QA-STORY 2026-10-03: the translation of exactly this French — an A1
+        # variant carries its own; it never borrows the A2 line's.
+        native = (
+            say.native_served(self.band, self.language, neutral=self.neutral)
+            if translates(self.band, self.language)
+            else None
+        )
         return {"text_fr": text, "text_native": native}
 
 
@@ -108,7 +115,7 @@ def _reply(reply: Reply, ctx: _Ctx) -> dict[str, Any] | None:
         "id": reply.id,
         "label": reply.label,
         "means": reply.means,
-        "examples": list(reply.examples),
+        "examples": examples_at(reply.examples, reply.examples_by_level, ctx.band),
         "clumsy": reply.clumsy,
         "path": reply.path,
         "repeat_once": reply.repeat_once,
@@ -133,8 +140,31 @@ def _option(option: Option, ctx: _Ctx) -> dict[str, Any] | None:
     }
 
 
-def _task(task: dict[str, str], language: str) -> str | None:
-    return task.get(language) or task.get("en") or None
+def _task(task: dict[str, str], language: str, plain: dict[str, str] | None = None) -> str | None:
+    """The task the learner reads: the plain one-sentence overlay (QA-STORY) first,
+    the bible's own wording when no plain one is written."""
+
+    for source in (plain or {}, task):
+        text = source.get(language) or source.get("en")
+        if text:
+            return text
+    return None
+
+
+def _ask_again(ask: dict[str, str] | None, ctx: _Ctx) -> dict[str, Any] | None:
+    """QA-STORY: the addressee's «ask again» line, at the learner's language:
+    ``{text_fr, text_native, named_fr, named_native}`` (``named_*`` carry a
+    ``{name}`` slot for a learner who only gave their name)."""
+
+    if not ask or not ask.get("fr"):
+        return None
+    native = translates(ctx.band, ctx.language)
+    return {
+        "text_fr": ask["fr"],
+        "text_native": ask.get(ctx.language) if native else None,
+        "named_fr": ask.get("fr_named") or None,
+        "named_native": ask.get(f"{ctx.language}_named") if native else None,
+    }
 
 
 def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, Any]]:
@@ -164,8 +194,9 @@ def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, An
                 "to": movement.to,
                 "to_name": ctx.names.get(movement.to),
                 "panel": panel,
-                "task_native": _task(movement.task, ctx.language),
+                "task_native": _task(movement.task, ctx.language, movement.task_plain),
                 "listens_for": movement.listens_for,
+                "ask_again": _ask_again(movement.ask_again, ctx),
                 "replies": replies,
                 "fallback": fallback,
                 "gate": movement.gate,
@@ -185,8 +216,9 @@ def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, An
                 "id": movement.id,
                 "mechanic": movement.mechanic,
                 "to": movement.to,
+                "to_name": ctx.names.get(movement.to) if movement.to else None,
                 "prompt": ctx.say(movement.prompt),
-                "task_native": _task(movement.task, ctx.language),
+                "task_native": _task(movement.task, ctx.language, movement.task_plain),
                 "visual": movement.visual or None,
                 "document": ctx.say(movement.document),
                 "options": options,
@@ -194,7 +226,9 @@ def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, An
                 "nudge": _panels(movement.nudge, ctx),
                 "objections": [ctx.say(item) for item in movement.objections],
                 "lands_means": movement.lands_means or None,
-                "lands_examples": list(movement.lands_examples),
+                "lands_examples": examples_at(
+                    movement.lands_examples, movement.lands_examples_by_level, ctx.band
+                ),
                 "lands": _panels(movement.lands, ctx),
                 "fails": _panels(movement.fails, ctx),
                 "give_up": ctx.say(movement.give_up),
@@ -375,8 +409,12 @@ def posed_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
     return convince_as_turn(solve) if solve.get("mechanic") in CONVINCE_MECHANICS else solve_as_turn(solve)
 
 
-def _said_by(who: str | None, say: dict[str, Any] | None) -> dict[str, Any]:
-    return {"who": who or "caption", "kind": "speech" if who else "caption", "mood": "neutral", "direction": None, **(say or {})}
+def _said_by(who: str | None, say: dict[str, Any] | None, name: str | None = None) -> dict[str, Any]:
+    line = {"who": who or "caption", "kind": "speech" if who else "caption", "mood": "neutral", "direction": None}
+    if who:
+        # The speaker's display name, never the cast id («augustin_de_roncourt»).
+        line["name"] = name
+    return {**line, **(say or {})}
 
 
 def convince_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
@@ -389,14 +427,15 @@ def convince_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
     objections = list(solve.get("objections") or [])
     prompt = solve.get("prompt") or {}
     objection_panels = [
-        {"kind": "panel", "id": f"{solve['id']}.objection{n + 1}", "lines": [_said_by(to, say)]} for n, say in enumerate(objections)
+        {"kind": "panel", "id": f"{solve['id']}.objection{n + 1}", "lines": [_said_by(to, say, solve.get("to_name"))]}
+        for n, say in enumerate(objections)
     ]
     give_up = solve.get("give_up") or {}
     return {
         "kind": "turn",
         "id": solve["id"],
         "to": to or "lila_bonnet",
-        "to_name": None,
+        "to_name": solve.get("to_name"),
         "panel": {
             "kind": "panel",
             "id": f"{solve['id']}.prompt",

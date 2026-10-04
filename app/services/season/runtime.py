@@ -20,12 +20,14 @@ story a learner is in the middle of.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import replace as dc_replace
 from datetime import date
+from functools import lru_cache
 from typing import Any
 
 from app.config import settings
@@ -63,6 +65,7 @@ from app.services.season.turns import (
     match_reply,
     reaction_native,
     reaction_text,
+    reply_is_not_french,
 )
 from app.services.season.world import location_name_fr, plate_for
 
@@ -181,7 +184,12 @@ def context_block(today: Today | None) -> dict[str, Any] | None:
     }
     if today.pos.is_gap:
         block["brief"] = gap_brief(
-            today.season, today.pos, flags=today.flags, state=today.state, seed=today.seed
+            today.season,
+            today.pos,
+            flags=today.flags,
+            state=today.state,
+            seed=today.seed,
+            band=today.band,
         )
     return block
 
@@ -329,6 +337,23 @@ def _engine_panel(panel: dict[str, Any], *, language: str) -> dict[str, Any]:
 _EXAMPLE_LEAD = {"en": "For example:", "de": "Zum Beispiel:", "fr": "Par exemple :"}
 
 
+def turn_example(turn: dict[str, Any] | None) -> str | None:
+    """A turn's example reply for the hint: a polished one first, else any."""
+
+    replies = (turn or {}).get("replies") or []
+    return next(
+        (reply["examples"][0] for reply in replies if reply.get("examples") and not reply.get("clumsy")),
+        next((reply["examples"][0] for reply in replies if reply.get("examples")), None),
+    )
+
+
+def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
+    example = turn_example(turn)
+    if not example:
+        return None
+    return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{example}»"[:400]
+
+
 def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
     """The page as a scene draft the engine can publish (``AuthoredSceneDraft``)."""
 
@@ -343,10 +368,7 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
     opening_fr = " ".join(str(line.get("text_fr")) for line in opening).strip() or page["title_fr"]
     opening_native = " ".join(str(line.get("text_native") or "") for line in opening).strip()
     replies = (first or {}).get("replies") or []
-    example = next(
-        (reply["examples"][0] for reply in replies if reply.get("examples") and not reply.get("clumsy")),
-        next((reply["examples"][0] for reply in replies if reply.get("examples")), opening_fr),
-    )
+    example = turn_example(first) or opening_fr
     captions = [
         line for panel in scene for line in panel.get("lines") or [] if line.get("kind") == "caption"
     ]
@@ -379,7 +401,7 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         "novelty_key": f"{today.season.id}:{today.pos.key}",
         "chapter": {
             "title_fr": page["tentpole_title_fr"][:100],
-            "dramatic_question": today.season.question.a2[:300],
+            "dramatic_question": today.season.question.text(today.band)[:300],
             "possible_developments": hooks,
         },
         "beat": "setup" if today.pos.tentpole_day == "a" else "resolution",
@@ -390,11 +412,12 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         "panels": panels,
         "opening_line_fr": opening_fr[:320],
         "suggested_response_fr": str(example)[:400],
-        "hint_native": f"{_EXAMPLE_LEAD.get(today.language, _EXAMPLE_LEAD['en'])} «{example}»"[:400],
+        "hint_native": (hint_for(first, today.language) or f"{_EXAMPLE_LEAD.get(today.language, _EXAMPLE_LEAD['en'])} «{example}»")[:400],
         "translation_native": (opening_native or opening_fr)[:400],
         "capability_key": None,
         "lexicon": _lexicon(page, today.language, text),
-        "can_do_id": None,
+        # T-1 (2026-10-03): the syllabus can-do this authored day practises.
+        "can_do_id": tentpole_annotation(today.season.id, today.pos.key).get("can_do"),
         "_ending": ending,
     }
 
@@ -441,6 +464,9 @@ def tentpole_brief(today: Today, context: dict[str, Any]):
         "tail": page_tail(page),
         "panel_images": panel_images(page, scene_panels),
         "seed": today.seed,
+        # T-1: the grammar units this page uses — the Règle step reviews one of
+        # them instead of introducing a unit the authored page never says.
+        "units": list(tentpole_annotation(today.season.id, today.pos.key).get("units") or []),
     }
     # One exchange per authored turn, plus one when a reply may ask the turn again
     # («Tu dis ça vite. Encore une fois ?»).
@@ -501,6 +527,46 @@ def payload_for_scene(story_context: dict[str, Any]) -> dict[str, Any]:
     if season_ctx.get("checklist"):
         payload["season"]["checklist"] = season_ctx["checklist"]
     return payload
+
+
+@lru_cache(maxsize=8)
+def _season_units(season_id: str) -> dict[str, Any]:
+    from app.services.season.format import SEASON_ROOT
+
+    path = SEASON_ROOT / season_id / "units.json"
+    try:
+        return dict(json.loads(path.read_text(encoding="utf-8")).get("days") or {})
+    except (OSError, ValueError):
+        return {}
+
+
+def season_script_finished(live: dict | None) -> bool:
+    """True once a life on a scripted season has played its last tentpole."""
+
+    state = (live or {}).get(SEASON_KEY)
+    if not isinstance(state, dict) or not state.get("id"):
+        return False
+    try:
+        season = load_season(str(state["id"]))
+    except Exception:  # noqa: BLE001 - an unreadable season is not a finished one
+        return False
+    return position(season, state, today=None).finished
+
+
+def tentpole_annotation(season_id: str, key: str) -> dict[str, Any]:
+    """``{"units": [...], "can_do": id|None}`` for a tentpole day (``t1.a`` → ``t1a``),
+    from ``scripts/season_units.py``; ``{}`` when the season has none."""
+
+    return dict(_season_units(season_id).get(str(key).replace(".", ""), {}))
+
+
+def tentpole_units(story_context: dict[str, Any] | None) -> list[str]:
+    """The grammar units today's tentpole page uses ([] on any other day)."""
+
+    season_ctx = (story_context or {}).get(SEASON_CONTEXT_KEY) or {}
+    if season_ctx.get("kind") != "tentpole":
+        return []
+    return [str(unit) for unit in season_ctx.get("units") or []]
 
 
 def is_tentpole(story_context: dict[str, Any] | None) -> bool:
@@ -569,6 +635,9 @@ def classify(db, user, *, scene_id: str, turn: dict[str, Any], text: str, histor
             reply_id=str(reply.get("id")),
             expresses=(reply.get("path") or "none") if turn.get("gate") else "none",
             confidence=round(min(1.0, score), 3),
+            # QA-STORY: below the threshold no route was expressed — the fallback is
+            # where the scene goes, not what the learner said.
+            clear=score >= MATCH_THRESHOLD,
         )
     _ROUTE_CACHE[key] = choice
     while len(_ROUTE_CACHE) > _ROUTE_CACHE_LIMIT:
@@ -632,21 +701,54 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             pending=True,
             failure_reason="empty_answer" if answer.is_blank else "season_turn_missing",
         )
-    # Replay the conversation so far (cached readings) to know which turn this is.
+    # Replay the conversation so far to know which turn this is: the route each
+    # exchange took is kept with it (QA-STORY); older exchanges are re-read.
     routed: list[tuple[str, dict[str, Any]]] = []
+    asked: set[str] = set()
     for exchange in history or []:
-        learner = str((exchange or {}).get("learner") or "")
-        if not learner.strip() or (exchange or {}).get("free"):
+        exchange = exchange or {}
+        learner = str(exchange.get("learner") or "")
+        route = exchange.get("route") if isinstance(exchange.get("route"), dict) else {}
+        if exchange.get("free"):
+            if route.get("reply") == ASK_AGAIN:
+                asked.add(str(route.get("turn")))
+            continue
+        if not learner.strip():
             continue
         index, _ = _walk(turns, routed)
         if index >= len(turns):
             break
+        kept = route.get("turn") == turns[index].get("id") and any(
+            row.get("id") == route.get("reply") for row in turns[index].get("replies") or []
+        )
+        if kept:
+            routed.append((learner, reply_by_id(turns[index], str(route.get("reply")))))
+            continue
         choice = card_choice(turns[index], learner) or classify(db, user, scene_id=scene_id, turn=turns[index], text=learner, use_model=False)
         routed.append((learner, reply_by_id(turns[index], choice.reply_id)))
     index, answered = _walk(turns, routed)
     index = min(index, len(turns) - 1)
     turn = turns[index]
-    choice = card_choice(turn, answer.text) or classify(db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history)
+    carded = card_choice(turn, answer.text)
+    if carded is None and reply_is_not_french(answer.text):
+        # QA-CLOSE: a reply in German or English is never routed to a branch; the
+        # addressee asks for it in French, in character, and the turn is still owed.
+        return _ask_again_evaluation(
+            db, user, scenario, task, answer, turn_index, assistance, history, turn, french_please=True
+        )
+    choice = carded or classify(db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history)
+    if (
+        carded is None
+        and not choice.clear
+        and not turn.get("from_solve")
+        and str(turn.get("id")) not in asked
+        and turn.get("ask_again")
+    ):
+        # QA-STORY: the reply said none of what the turn is about (a name alone, a
+        # greeting, another subject). The addressee asks once for the missing part;
+        # nothing is assumed, nothing is spent. A second unclear reply takes the
+        # turn's fallback.
+        return _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistance, history, turn)
     reply = reply_by_id(turn, choice.reply_id)
     again = bool(reply.get("repeat_once") and answered.get(index, 0) >= 1)
     beats = list(reply.get("again") or []) if again and reply.get("again") else list(reply.get("beats") or [])
@@ -681,7 +783,9 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # WP-113: when the next question is «Le choix», its cards go with the reply.
     upcoming_turn = turns[next_index] if not closing and next_index < len(turns) and next_index != index else None
     next_choices = choice_cards(upcoming_turn) if upcoming_turn else []
-    next_task = str(upcoming_turn.get("task_native") or "") if upcoming_turn and upcoming_turn.get("from_solve") else ""
+    # QA-STORY: every next question brings its own task line (it was only a posed
+    # solve's, so turn 2 was asked under turn 1's task).
+    next_task = str(upcoming_turn.get("task_native") or "") if upcoming_turn else ""
     proposal = None
     if closing:
         proposal = _closing_proposal(
@@ -715,6 +819,64 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         reply_lines=spoken_lines_out,
         next_choices=next_choices,
         next_task_native=next_task or None,
+        next_hint_native=hint_for(upcoming_turn, (season_ctx.get("page") or {}).get("language")) if upcoming_turn else None,
+        next_suggested_fr=turn_example(upcoming_turn) if upcoming_turn else None,
+        next_translation_native=" ".join(
+            str(line.get("text_native") or "")
+            for line in ((upcoming_turn or {}).get("panel") or {}).get("lines") or []
+            if line.get("text_native")
+        ).strip() or None,
+        route={"turn": str(turn.get("id")), "reply": str(reply.get("id"))},
+    )
+
+
+#: The route an «ask again» exchange records: no reply of the turn was expressed.
+ASK_AGAIN = "__ask_again__"
+
+
+def _cast_names(scenario) -> set[str]:
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    names: set[str] = {"Odile", "Margaux", "Lila", "Marin", "Gus", "Augustin", "Romy", "Camille", "Marchand"}
+    try:
+        season = load_season(str(season_ctx.get("id") or "s1"))
+        for member in season.cast:
+            names.update(part for part in member.name.replace("«", " ").replace("»", " ").split() if part[:1].isupper())
+    except Exception:  # noqa: BLE001 - a name filter never costs a turn
+        pass
+    return names
+
+
+def _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False):
+    from app.services.journey_contracts import ResponseEvaluation, TaskOutcome
+    from app.services.season.page import translates
+    from app.services.season.turns import ask_again_panel, french_please_panel, reaction_lines
+    from app.services.story_lanes import margin_correction
+
+    if french_please:
+        page = (scenario.story_context.get(SEASON_CONTEXT_KEY) or {}).get("page") or {}
+        language = str(page.get("language") or "")
+        panel = french_please_panel(turn, native=language if translates(page.get("band"), language) else None)
+    else:
+        panel = ask_again_panel(turn, answer.text, not_names=_cast_names(scenario))
+    addressee = str(scenario.character_id)
+    beats = [panel] if panel else []
+    correction = margin_correction(
+        db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+    )
+    return ResponseEvaluation(
+        outcome=TaskOutcome.PARTIALLY_MET,
+        assistance=assistance,
+        observations=[],
+        character_reply_fr=reaction_text(beats, addressee=addressee) or "…",
+        correction=correction,
+        needs_repair=True,
+        # Free: the question is still owed, so the exchange it took is given back.
+        turn_consumed=False,
+        failure_reason="reply_source:authored_season",
+        reply_lines=reaction_lines(beats, addressee=addressee),
+        next_choices=[],
+        next_task_native=str(turn.get("task_native") or "") or None,
+        route={"turn": str(turn.get("id")), "reply": ASK_AGAIN},
     )
 
 

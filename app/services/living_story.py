@@ -3679,6 +3679,13 @@ def season_stage_after_chapter(
     if chapter.get("interlude"):
         # The rollover itself decides what follows; see `roll_over_season`.
         return "running"
+    from app.services.season.runtime import season_script_finished
+
+    if season_script_finished(live):
+        # D8 (content program 2026-10-03): a scripted season's finale is its last
+        # tentpole (T8). Once it is played the next chapter is the interlude —
+        # never forty unbriefed chapters in a world with no arcs.
+        return "interlude"
     if (
         season_completion(world_arcs, arc_progress) >= SEASON_COMPLETE_RATIO
         or int(live.get("season_chapters") or 0) >= SEASON_MAX_CHAPTERS
@@ -3799,7 +3806,14 @@ def roll_over_season(
         live["season_stage"] = "interlude"
         return False
     service = SerialThreadService(db)
-    following = service._load_next_season_world_bible(current_world=world, next_season=season + 1)
+    # D8: a scripted season (s1) is not followed by the old serial's authored
+    # season 2 — its Berlin arc is the one s1 already resolved. The written, then
+    # the reprise season continue from what this life left open, in s1's world.
+    following = (
+        None
+        if world.get("season_script")
+        else service._load_next_season_world_bible(current_world=world, next_season=season + 1)
+    )
     source = "authored"
     if not following and settings.ATELIER_SEASON_WRITER_ENABLED:
         written = season_writer.draft_next_season(
@@ -6489,6 +6503,10 @@ def mots_a_placer(db: Session, user: User, context: dict, *, limit: int = MOTS_C
                 and " " not in lemma
                 and "'" not in lemma
                 and fold(lemma) not in excluded
+                # Lexicon v3: compound numerals are not vocabulary to place, and
+                # a colloquial or vulgar word is never offered unasked.
+                and not entry.get("numeral")
+                and entry.get("register") != "familier"
                 # An inflected form the list also carries («tous» → «tout») is not a word.
                 and lexicon.forms.get(lemma, lemma) == lemma
             )

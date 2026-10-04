@@ -159,6 +159,11 @@ services:
         value: "A1,A2"
       - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
         value: "0.25"
+      # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
+      # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
+      # the generated serial (D6).
+      - key: ATELIER_SEASON_SCRIPT
+        value: "s1"
       # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
       # dashboard to switch panel art on.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
@@ -307,6 +312,11 @@ services:
         value: "A1,A2"
       - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
         value: "0.25"
+      # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
+      # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
+      # the generated serial (D6).
+      - key: ATELIER_SEASON_SCRIPT
+        value: "s1"
       # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
       # dashboard to switch panel art on.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE

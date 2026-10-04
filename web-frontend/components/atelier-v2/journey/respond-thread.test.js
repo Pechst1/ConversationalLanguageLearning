@@ -431,13 +431,13 @@ test('a continuing turn: no band, no frown, the field reopens; a closing one is 
   );
   assert.equal(band, '', 'no band, no «Continue», no smile on next_turn');
 
-  // The closing turn: the verdict mood on the face, the field gone, the band once.
+  // The closing turn: the field gone; a story reply's face never reacts to a verdict (QA-STORY).
   const closeHtml = renderToStaticMarkup(
     h(steps.RespondStepView, props(turnOneOfThree({ turn_index: 2 }), graded(result(), 'correct'), {
       draft: { get: (key) => (key === 'step-respond:2' ? 'Au comptoir, merci.' : ''), set() {} },
     })),
   );
-  assert.match(closeHtml, /class="av2-speech" data-mood="happy"/);
+  assert.match(closeHtml, /class="av2-speech" data-mood="neutral"/);
   assert.ok(!closeHtml.includes('<textarea'));
   assert.ok(closeHtml.includes('Au comptoir, merci.'), 'the learner’s last line stays on the page');
 });
@@ -561,4 +561,37 @@ test('a many-voiced reply is one bubble per speaker, each with who says it', () 
   ]);
   assert.equal(replies[2].latest, true, 'the last speaker is the headline');
   assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
+});
+
+
+// ===========================================================================
+// QA-STORY 2026-10-03 — a story reply is never «Correct»
+// ===========================================================================
+
+test('a story reply gets no verdict word and no smile, only its margin correction', () => {
+  const state = require('./journey-state.ts');
+  assert.equal(state.showsVerdict('respond'), false);
+  assert.equal(state.showsVerdict('recall'), true);
+  const view = (res, verdict, stepKind) =>
+    renderToStaticMarkup(
+      h(steps.JourneyFeedbackView, {
+        feedback: graded(res, verdict),
+        copy: DE,
+        onContinue() {},
+        onRetry() {},
+        onDismiss() {},
+        speaker: { id: 'augustin_de_roncourt', name: 'Augustin « Gus » de Roncourt' },
+        stepKind,
+      }),
+    );
+  const story = view(result(), 'correct', 'respond');
+  assert.ok(!story.includes(DE.correct), 'no «Richtig» under a story reply');
+  assert.ok(!story.includes('lächelt dich an'), 'no smile from someone who may not be speaking');
+  assert.ok(story.includes('data-state="story"'));
+  assert.ok(story.includes(DE.action_continue || 'Weiter') || story.includes('<button'), 'the way on stays');
+  const slip = view(result({ correction: SLIP }), 'wrong', 'respond');
+  assert.ok(slip.includes('un café noir'), 'the margin correction is still shown');
+  assert.ok(!slip.includes(DE.wrong));
+  // A drill keeps its verdict.
+  assert.ok(view(result(), 'correct', 'recall').includes(DE.correct));
 });

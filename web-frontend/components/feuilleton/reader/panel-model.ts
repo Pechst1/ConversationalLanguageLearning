@@ -193,12 +193,22 @@ export function shortSpeakerName(value: unknown): string {
   const nickname = raw.match(/[«"“']\s*([^»"”']+?)\s*[»"”']/);
   if (nickname) return nickname[1].trim();
   const cleaned = raw.replace(/\s+/g, ' ');
+  // Whole words, first names first: «Camille Marchand» is Camille, never the
+  // landlord whose surname she shares (QA-STORY 2026-10-03).
   const known: Array<[string, string]> = [
+    ['camille', 'Camille'], ['odile', 'Odile'],
     ['romane', 'Romy'], ['romy', 'Romy'], ['marin', 'Marin'], ['lila', 'Lila'],
     ['augustin', 'Gus'], ['gus', 'Gus'], ['margaux', 'Margaux'], ['marchand', 'M. Marchand'],
   ];
-  const lowered = cleaned.toLowerCase();
-  const match = known.find(([needle]) => lowered.includes(needle));
+  const words = new Set(
+    cleaned
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean),
+  );
+  const match = known.find(([needle]) => words.has(needle));
   if (match) return match[1];
   return cleaned.split(' ')[0];
 }

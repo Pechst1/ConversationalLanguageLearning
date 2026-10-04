@@ -132,7 +132,7 @@ const graded = (verdict) => ({
   replySource: 'unknown',
 });
 
-test('the character line sits in the bubble beside their face, which swaps with the verdict', () => {
+test('the character line sits in the bubble beside their face, which never reacts to a verdict', () => {
   const idle = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep())));
   assert.match(idle, /class="av2-speech" data-mood="neutral"/);
   assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, vous prenez quoi\u202f\?<\/h2>/);
@@ -140,11 +140,13 @@ test('the character line sits in the bubble beside their face, which swaps with 
   assert.ok(idle.includes('data-size="md"'), 'the speaker is the md portrait');
   assert.equal(idle.split('.webp').length - 1, 1, 'one face for the speaker, not a byline disc too');
 
+  // QA-STORY 2026-10-03: a story reply is routed on meaning, never graded — the
+  // face stays as the scene drew it, whatever the server's outcome.
   const right = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep(), graded('correct'))));
-  assert.match(right, /class="av2-speech" data-mood="happy"/);
-  assert.ok(right.includes('marin_leveque/portrait-happy.webp'));
+  assert.match(right, /class="av2-speech" data-mood="neutral"/);
+  assert.ok(!right.includes('portrait-happy'));
   const wrong = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep(), graded('wrong'))));
-  assert.ok(wrong.includes('marin_leveque/portrait-cross.webp'));
+  assert.ok(!wrong.includes('portrait-cross'));
 
   const stranger = renderToStaticMarkup(
     h(steps.RespondStepView, respondProps(respondStep({ character_id: 'clerk', character_name: 'Clerk' }))),

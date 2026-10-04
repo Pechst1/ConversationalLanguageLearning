@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -44,6 +45,10 @@ class ReplyChoice(BaseModel):
     #: A value the turn asks for, in the learner's own words (e.g. their usual order).
     value: str | None = Field(default=None, max_length=120)
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    #: QA-STORY 2026-10-03: ``False`` when the reply clearly expresses none of the
+    #: routes (only a name, a greeting, something off the question). The scene then
+    #: asks again once — it never assumes what the learner did not say.
+    clear: bool = True
 
 
 CLASSIFIER = """You read ONE learner reply in a French graphic-novel serial and say which
@@ -53,7 +58,11 @@ another language, or misspelt. Read what they MEAN, never how well they say it �
 clumsy but sincere reply belongs to the reply it means, exactly like a polished one.
 replies lists the authored replies, each with what it means and example wordings.
 Choose reply_id from replies[].id. When the learner's meaning fits none of them,
-choose the fallback id. If the turn is one of Lila's gates (gate is not null), set
+choose the fallback id AND set clear to false: a reply that only gives a name, only
+greets, answers a different question, or leaves out what every reply is about is NOT
+clear — never read into it content the learner did not say (a name is not «I am
+family», «bonjour» is not «yes»). clear is true whenever the reply expresses one of
+the replies, however clumsily. If the turn is one of Lila's gates (gate is not null), set
 expresses from what the learner expresses toward Lila: romance when they say they
 stay or want because of HER (tenderness, «je te veux ici», a confession, however
 clumsy), friendship when they name the alliance, the mystery, the flat, a joke, or
@@ -103,6 +112,149 @@ def match_reply(turn: dict[str, Any], learner_text: str) -> tuple[str, float]:
     if best_score < MATCH_THRESHOLD:
         return str(turn.get("fallback") or best), best_score
     return best, best_score
+
+
+_NAME = re.compile(
+    r"(?:je m['’ ]?appelle|moi,?\s*c['’]est|mon (?:pr[ée])?nom(?:,)?\s*(?:est|c['’]est)|je suis)\s+([A-ZÀ-Ý][\w'’-]{1,30})",
+    re.IGNORECASE,
+)
+
+
+def learner_name(text: str, *, not_names: set[str] | None = None) -> str | None:
+    """The first name a learner gives («Je m'appelle Vincent» → «Vincent»), or ``None``.
+    Only a capitalised word counts (so «je suis la famille» names nobody), and never a
+    name of the story's own cast."""
+
+    for match in _NAME.finditer(str(text or "")):
+        name = match.group(1).strip("'’-")
+        if not name[:1].isupper():
+            continue
+        if fold(name).strip() in {fold(n).strip() for n in (not_names or set())}:
+            continue
+        return name
+    return None
+
+
+def ask_again_panel(turn: dict[str, Any], learner_text: str, *, not_names: set[str] | None = None) -> dict[str, Any] | None:
+    """QA-STORY: the addressee asks again for what the turn wants — with the learner's
+    own name when that is all they gave — or ``None`` when the turn has no such line."""
+
+    ask = turn.get("ask_again") or {}
+    if not ask.get("text_fr"):
+        return None
+    name = learner_name(learner_text, not_names=not_names)
+    text_fr, text_native = ask["text_fr"], ask.get("text_native")
+    if name and ask.get("named_fr") and "{name}" in ask["named_fr"]:
+        text_fr = ask["named_fr"].replace("{name}", name)
+        named_native = ask.get("named_native")
+        text_native = named_native.replace("{name}", name) if named_native and "{name}" in named_native else None
+    who = str(turn.get("to") or "")
+    return {
+        "kind": "panel",
+        "id": f"{turn.get('id')}.ask_again",
+        "visual": None,
+        "lines": [
+            {
+                "who": who,
+                "name": turn.get("to_name"),
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": None,
+                "text_fr": text_fr,
+                "text_native": text_native,
+            }
+        ],
+    }
+
+
+#: QA-CLOSE 2026-10-03: common German and English function words. A word that is
+#: also French («die» no, «hier»/«an»/«du» yes) is dropped against the lexicon.
+_FOREIGN_WORDS: dict[str, frozenset[str]] = {
+    "de": frozenset(
+        "ich bin bist ist sind nicht kein keine weiß weiss wir ihr sie er es das der die den dem "
+        "und oder aber auch noch schon nur sehr gut ja nein nichts mein meine dein deine habe hast "
+        "hat haben wie warum wo wann wer was weil dass wenn mit von zu zum zur für auf ein eine einen "
+        "möchte will kann muss gehe komme heute morgen jetzt hier".split()
+    ),
+    "en": frozenset(
+        "i i'm im am is are was were not don't dont do does know the a an and or but yes no my "
+        "your you he she it we they this that what why where when who because with from to of for "
+        "on in have has want can will would here today tomorrow now very good sorry".split()
+    ),
+}
+_REPLY_WORD = re.compile(r"[a-zäöüßàâçéèêëîïôûùœ']+")
+
+
+@lru_cache(maxsize=1)
+def _french_words() -> frozenset[str]:
+    from app.services.lexical_coverage import load_lexicon
+
+    lexicon = load_lexicon()
+    return frozenset({*lexicon.lemmas, *lexicon.forms, *lexicon.elisions})
+
+
+@lru_cache(maxsize=1)
+def _foreign_words() -> frozenset[str]:
+    french = _french_words()
+    return frozenset(word for words in _FOREIGN_WORDS.values() for word in words if word not in french)
+
+
+def reply_is_not_french(text: str) -> bool:
+    """QA-CLOSE: the reply is written in German or English, not (clumsy) French.
+
+    Cheap and conservative: French lexicon coverage against common German/English
+    function words. A mixed reply that still carries French («je suis Vincent, ich
+    wohne hier») is French enough to be read; only a reply whose foreign function
+    words clearly outnumber its French is refused a route.
+    """
+
+    words = [word.strip("'") for word in _REPLY_WORD.findall(str(text or "").casefold().replace("’", "'"))]
+    words = [word for word in words if word]
+    if not words:
+        return False
+    foreign_set, french_set = _foreign_words(), _french_words()
+    foreign = sum(1 for word in words if word in foreign_set)
+    french = sum(
+        1
+        for word in words
+        if word not in foreign_set and (word in french_set or word.split("'")[-1] in french_set)
+    )
+    if foreign == 0:
+        return False
+    if len(words) <= 2:
+        return french == 0
+    return foreign >= 2 and foreign >= 2 * french
+
+
+#: The addressee's line for a reply in another language: in character, in French,
+#: neither «tu» nor «vous» (every character can say it), inviting clumsy French.
+FRENCH_PLEASE: dict[str, str] = {
+    "fr": "Pardon ? Je ne comprends pas… Et en français ? Même avec des fautes, ça ira.",
+    "en": "Sorry? I don't understand… And in French? Even with mistakes, that's fine.",
+    "de": "Wie bitte? Ich verstehe nicht … Und auf Französisch? Auch mit Fehlern, das geht schon.",
+}
+
+
+def french_please_panel(turn: dict[str, Any], *, native: str | None = None) -> dict[str, Any]:
+    """QA-CLOSE: the addressee asks, in French, for the reply in French. ``native`` is
+    the learner's language when the page translates (A1–A2), else ``None``."""
+
+    return {
+        "kind": "panel",
+        "id": f"{turn.get('id')}.en_francais",
+        "visual": None,
+        "lines": [
+            {
+                "who": str(turn.get("to") or ""),
+                "name": turn.get("to_name"),
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": None,
+                "text_fr": FRENCH_PLEASE["fr"],
+                "text_native": FRENCH_PLEASE.get(str(native or "")) if native and native != "fr" else None,
+            }
+        ],
+    }
 
 
 def classifier_payload(turn: dict[str, Any], learner_text: str, history: list[dict] | None = None) -> dict:

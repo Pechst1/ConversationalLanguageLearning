@@ -137,7 +137,7 @@ from app.services.journey_latency import (
     server_wait_ms_since_last_event,
     take_prefetched_scene,
 )
-from app.services.journey_learning import record_daily_practice_streak
+from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.seals import edition_no_for, mastery_today_for
 from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
@@ -3197,7 +3197,7 @@ class DailyJourneyService:
         # errata queue is holding. No provider call, no second content source.
         dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
         decision = choose_day_shape(dice)
-        from app.services.season.runtime import is_tentpole
+        from app.services.season.runtime import is_tentpole, tentpole_units
 
         if is_tentpole(result.story_context):
             # WP-111: a tentpole's reply IS the authored page — never a letter day,
@@ -3214,8 +3214,16 @@ class DailyJourneyService:
                 )
             else:
                 candidates = self._select_candidates(user, fresh, result)
-            introduction = None if first_day else self._introduction_for_today(user, result)
-            forge = None if first_day else self._forge_for_today(user, introduction)
+            # T-1 (content program 2026-10-03, D7): a tentpole page is served as
+            # written, so a tentpole day introduces no new unit (the quota offers
+            # it again tomorrow); its rule review is a unit the page uses.
+            story_units = tentpole_units(result.story_context)
+            introduction = (
+                None
+                if first_day or is_tentpole(result.story_context)
+                else self._introduction_for_today(user, result)
+            )
+            forge = None if first_day else self._forge_for_today(user, introduction, story_units)
             # WP-93 «Lecture»: Soutenu and Intensif buy a second page.
             reading = None if first_day else self._reading_for_today(user, fresh, result)
             # WP-121/122 «Le bureau»: at most one Revue desk on an ordinary day.
@@ -3885,7 +3893,9 @@ class DailyJourneyService:
             log=logger,
         )
 
-    def _forge_for_today(self, user: User, introduction: Any) -> dict[str, Any] | None:
+    def _forge_for_today(
+        self, user: User, introduction: Any, story_units: list[str] | None = None
+    ) -> dict[str, Any] | None:
         """WP-S4: the folded forge's planner input, or None.
 
         Only Soutenu and Intensif fold La Forge into the day (owner decision
@@ -3918,7 +3928,14 @@ class DailyJourneyService:
         anchor = run_best_effort(
             self.db,
             "daily_journey: forge anchor",
-            lambda: forge_picker.forge_anchor_brief(self.db, user, now=_utcnow()),
+            lambda: forge_picker.forge_anchor_brief(
+                self.db,
+                user,
+                now=_utcnow(),
+                preferred_concept_id=forge_picker.story_review_concept_id(
+                    self.db, user, story_units or []
+                ),
+            ),
             default=None,
             log=logger,
         )
@@ -4260,10 +4277,13 @@ class DailyJourneyService:
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
             assistance_level=assistance,
-            correction=self._public_correction(evaluation.correction, answer.text),
+            # QA-PRACTICE: a tile answer is checked against the words placed —
+            # `answer.text` is empty for it, which used to drop the correction.
+            correction=self._public_correction(evaluation.correction, recall_learner_text(task, answer)),
             character_reply_fr=None,
             next_turn=None,
             pending=False,
+            slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
 
@@ -4317,6 +4337,8 @@ class DailyJourneyService:
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
+                # QA-STORY: the season route this exchange took (replayed, never re-read).
+                **({"route": dict(evaluation.route)} if getattr(evaluation, "route", None) else {}),
             }
         )
         private["turns"] = history
@@ -4340,6 +4362,17 @@ class DailyJourneyService:
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
+                # QA-STORY: the hint belongs to the question now asked, not the first one.
+                response_task = dict(private.get("response_task") or {})
+                if evaluation.next_hint_native:
+                    response_task["hint_native"] = evaluation.next_hint_native
+                if evaluation.next_suggested_fr:
+                    response_task["suggested_response_fr"] = evaluation.next_suggested_fr
+                if getattr(evaluation, "next_translation_native", None):
+                    response_task["translation_native"] = evaluation.next_translation_native
+                private["response_task"] = response_task
+                step.private_task = private
             if history[-1].get("free"):
                 # The exchange the nudge did not use is still owed: one more token.
                 prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1

@@ -329,6 +329,16 @@ export function verdictTitleKey(
 }
 
 /**
+ * QA-STORY 2026-10-03: whether a graded step says «Correct» / «Wrong» at all. A
+ * story reply (the respond step) is routed on what the learner meant and never
+ * graded: no verdict word, no tick, no «… smiles at you» — the scene's own lines
+ * are the answer, and a slip is the margin correction alone.
+ */
+export function showsVerdict(stepKind: string | null | undefined): boolean {
+  return stepKind !== 'respond';
+}
+
+/**
  * `AttemptResult.reply_source` was ratified additively as contract revision 2 on
  * 2026-09-05. It is read structurally rather than off the type, because a server
  * built before that revision omits the field entirely — that case must resolve to

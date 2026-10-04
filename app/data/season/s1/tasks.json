@@ -1,0 +1,458 @@
+{
+  "_doc": "QA-STORY 2026-10-03: per turn/solve ('<file>:<id>'): the plain one-sentence task (en/de/fr) served instead of the bible's wording, and the addressee's «ask again» line when a reply expresses none of the routes (null: any reply is an answer). Checked by scripts/season_levels.py.",
+  "tasks": {
+    "t1:a.turn1": {
+      "en": "Say who you are and why you are here.",
+      "de": "Sag, wer du bist und warum du hier bist.",
+      "fr": "Dites qui vous êtes et pourquoi vous êtes là."
+    },
+    "t1:a.turn2": {
+      "en": "Tell Margaux whether you will go up to the flat tonight, and what you plan to do.",
+      "de": "Sag Margaux, ob du heute Abend in die Wohnung hochgehst und was du vorhast.",
+      "fr": "Dites à Margaux si vous montez à l'appartement ce soir, et ce que vous voulez faire."
+    },
+    "t1:b.camille": {
+      "en": "Ask Camille how they are related to M. Marchand.",
+      "de": "Frag Camille, wie Camille mit Herrn Marchand verwandt ist.",
+      "fr": "Demandez à Camille quel est son lien avec M. Marchand."
+    },
+    "t1:b.turn1": {
+      "en": "Tell Camille whether you will sell, and whether it is really simpler for everyone.",
+      "de": "Sag Camille, ob du verkaufst und ob es wirklich für alle einfacher ist.",
+      "fr": "Dites à Camille si vous allez vendre, et si c'est vraiment plus simple pour tout le monde."
+    },
+    "t1:b.letter": {
+      "en": "Choose who reads the notary's letter.",
+      "de": "Wähle, wer den Brief vom Notar liest.",
+      "fr": "Choisissez qui lit la lettre du notaire."
+    },
+    "t2:a.enquete": {
+      "en": "Tap a calendar entry that shows she did not plan to leave.",
+      "de": "Tippe auf einen Eintrag im Kalender, der zeigt, dass sie nicht vorhatte zu gehen.",
+      "fr": "Touchez une note du calendrier qui montre qu'elle ne voulait pas partir."
+    },
+    "t2:a.turn1": {
+      "en": "Say what you know about why Odile left, even if it is very little.",
+      "de": "Sag, was du darüber weißt, warum Odile gegangen ist, auch wenn es wenig ist.",
+      "fr": "Dites ce que vous savez sur le départ d'Odile, même si c'est peu."
+    },
+    "t2:a.turn2": {
+      "en": "Say what you would do with the photo: show it to Gus, keep it, or give it back to him one day.",
+      "de": "Sag, was du mit dem Foto machen würdest: es Gus zeigen, es behalten oder es ihm eines Tages zurückgeben.",
+      "fr": "Dites ce que vous feriez de la photo : la montrer à Gus, la garder ou la lui rendre un jour."
+    },
+    "t2:b.turn1": {
+      "en": "Tell Camille what you want to keep from the flat.",
+      "de": "Sag Camille, was du aus der Wohnung behalten möchtest.",
+      "fr": "Dites à Camille ce que vous voulez garder de l'appartement."
+    },
+    "t2:b.turn2": {
+      "en": "Tell Lila how long you are staying, and why, in your own words.",
+      "de": "Sag Lila mit deinen eigenen Worten, wie lange du bleibst und warum.",
+      "fr": "Dites à Lila combien de temps vous restez, et pourquoi, avec vos mots."
+    },
+    "t2:b.key": {
+      "en": "Decide whether to give Lila a copy of the key.",
+      "de": "Entscheide, ob du Lila einen Zweitschlüssel gibst.",
+      "fr": "Décidez si vous donnez un double de la clé à Lila."
+    },
+    "t3:a.turn1": {
+      "en": "Tell Gus if you promise not to sell to Solvel.",
+      "de": "Sag Gus, ob du versprichst, nicht an Solvel zu verkaufen.",
+      "fr": "Dites à Gus si vous promettez de ne pas vendre à Solvel."
+    },
+    "t3:b.turn1": {
+      "en": "Tell Marin if you will sell the flat to the co-op and say so at the party.",
+      "de": "Sag Marin, ob du die Wohnung an die Genossenschaft verkaufst und das auf der Feier sagst.",
+      "fr": "Dites à Marin si vous vendez l'appartement à la coop et si vous le dites à la fête."
+    },
+    "t3:b.convaincre": {
+      "en": "Convince Gus to invite M. Marchand to the party.",
+      "de": "Überzeuge Gus, Herrn Marchand zur Feier einzuladen.",
+      "fr": "Convainquez Gus d'inviter M. Marchand à la fête."
+    },
+    "t3:b.turn2": {
+      "en": "Tell Lila if Odile's photos can go on the wall at the party.",
+      "de": "Sag Lila, ob Odiles Fotos auf der Feier an die Wand dürfen.",
+      "fr": "Dites à Lila si les photos d'Odile peuvent aller au mur pour la fête."
+    },
+    "t4:a.enquete": {
+      "en": "Show where the fire started: downstairs or upstairs.",
+      "de": "Zeig, wo das Feuer angefangen hat: unten oder oben.",
+      "fr": "Montrez où le feu a commencé : en bas ou en haut."
+    },
+    "t4:b.turn1": {
+      "en": "Tell Gus if you knew, and say something about your grandmother or to Margaux.",
+      "de": "Sag Gus, ob du es gewusst hast, und sag etwas über deine Großmutter oder zu Margaux.",
+      "fr": "Dites à Gus si vous saviez, et dites quelque chose sur votre grand-mère ou à Margaux."
+    },
+    "t4:b.turn2": {
+      "en": "Tell Margaux if you are angry with her and what you think of what she did.",
+      "de": "Sag Margaux, ob du ihr böse bist und was du davon hältst, was sie getan hat.",
+      "fr": "Dites à Margaux si vous êtes en colère contre elle et ce que vous pensez de ce qu'elle a fait."
+    },
+    "t4:b.turn3m": {
+      "en": "Tell M. Marchand if Odile talked about him: the truth, a kind lie, or both.",
+      "de": "Sag Herrn Marchand, ob Odile von ihm gesprochen hat: die Wahrheit, eine nette Lüge oder beides.",
+      "fr": "Dites à M. Marchand si Odile parlait de lui : la vérité, un gentil mensonge, ou les deux."
+    },
+    "t4:b.turn3r": {
+      "en": "Tell Romy if she should forget what she filmed.",
+      "de": "Sag Romy, ob sie vergessen soll, was sie gefilmt hat.",
+      "fr": "Dites à Romy si elle doit oublier ce qu'elle a filmé."
+    },
+    "t4:b.choix": {
+      "en": "Choose what happens to the burnt photo.",
+      "de": "Wähle, was mit dem verbrannten Foto passiert.",
+      "fr": "Choisissez ce que vous faites de la photo brûlée."
+    },
+    "t5:va.a.turn1": {
+      "en": "Tell Lila honestly what you feel about her leaving for Berlin.",
+      "de": "Sag Lila ehrlich, was du fühlst, wenn sie nach Berlin geht.",
+      "fr": "Dites à Lila, honnêtement, ce que vous ressentez : elle part à Berlin."
+    },
+    "t5:va.b.turn2": {
+      "en": "Lila has not painted your face yet: tell her what you think.",
+      "de": "Lila hat dein Gesicht noch nicht gemalt: Sag ihr, was du dazu meinst.",
+      "fr": "Lila n'a pas encore peint votre visage : dites-lui ce que vous en pensez."
+    },
+    "t5:va.b.choix": {
+      "en": "Choose: do you go with Lila to tell Marin tonight?",
+      "de": "Wähle: Gehst du heute Abend mit Lila zu Marin, um es ihm zu sagen?",
+      "fr": "Choisissez : vous allez avec Lila parler à Marin ce soir, ou non ?"
+    },
+    "t5:vb.a.dechiffrer": {
+      "en": "Read Lila's card and say what kind of message it is.",
+      "de": "Lies Lilas Karte und sag, was für eine Nachricht das ist.",
+      "fr": "Lisez la carte de Lila et dites quel message c'est."
+    },
+    "t5:vb.b.turn1": {
+      "en": "Tell Lila how it feels to find out like this, and what you want now.",
+      "de": "Sag Lila, wie es dir geht, es so zu erfahren, und was du jetzt willst.",
+      "fr": "Dites à Lila ce que ça vous fait de l'apprendre comme ça, et ce que vous voulez maintenant."
+    },
+    "t5:vb.b.turn2": {
+      "en": "Tell Lila whether you think people here hold each other back.",
+      "de": "Sag Lila, ob du findest, dass man sich hier gegenseitig zurückhält.",
+      "fr": "Dites à Lila si, pour vous, ici, on se retient."
+    },
+    "t5:vb.b.choix": {
+      "en": "Choose: do you go with Lila to tell Marin tomorrow morning?",
+      "de": "Wähle: Gehst du morgen früh mit Lila zu Marin, um es ihm zu sagen?",
+      "fr": "Choisissez : vous allez avec Lila parler à Marin demain matin, ou non ?"
+    },
+    "t5:vn.a.dechiffrer": {
+      "en": "Read Lila's card and say what kind of message it is.",
+      "de": "Lies Lilas Karte und sag, was für eine Nachricht das ist.",
+      "fr": "Lisez la carte de Lila et dites quel message c'est."
+    },
+    "t5:vn.b.turn1": {
+      "en": "Tell Lila how it feels to find out like this, and what you want now.",
+      "de": "Sag Lila, wie es dir geht, es so zu erfahren, und was du jetzt willst.",
+      "fr": "Dites à Lila ce que ça vous fait de l'apprendre comme ça, et ce que vous voulez maintenant."
+    },
+    "t5:vn.b.turn2": {
+      "en": "Tell Lila whether you think people here hold each other back.",
+      "de": "Sag Lila, ob du findest, dass man sich hier gegenseitig zurückhält.",
+      "fr": "Dites à Lila si, pour vous, ici, on se retient."
+    },
+    "t5:vn.b.choix": {
+      "en": "Choose: do you go with Lila to tell Marin tomorrow morning?",
+      "de": "Wähle: Gehst du morgen früh mit Lila zu Marin, um es ihm zu sagen?",
+      "fr": "Choisissez : vous allez avec Lila parler à Marin demain matin, ou non ?"
+    },
+    "t6:a.turn1": {
+      "en": "Tell M. Marchand honestly what you know about why Odile left.",
+      "de": "Sag Herrn Marchand ehrlich, was du darüber weißt, warum Odile gegangen ist.",
+      "fr": "Dites honnêtement à M. Marchand ce que vous savez : pourquoi Odile est partie."
+    },
+    "t6:a.turn2": {
+      "en": "Tell Camille whether everything can be kept, and give a reason.",
+      "de": "Sag Camille, ob man alles behalten kann, und nenne einen Grund.",
+      "fr": "Dites à Camille si on peut tout garder, et pourquoi."
+    },
+    "t6:a.dechiffrer1": {
+      "en": "Read the notebook pages and find why Odile did not answer M. Marchand.",
+      "de": "Lies die Notizbuchseiten und finde heraus, warum Odile Herrn Marchand nicht geantwortet hat.",
+      "fr": "Lisez les pages du cahier : pourquoi Odile ne répond pas à M. Marchand ?"
+    },
+    "t6:a.dechiffrer2": {
+      "en": "Read the second page and find who Odile says is responsible for the lie.",
+      "de": "Lies die zweite Seite und finde heraus, wer laut Odile für die Lüge verantwortlich ist.",
+      "fr": "Lisez la deuxième page : pour Odile, qui est responsable du mensonge ?"
+    },
+    "t6:b.turn1": {
+      "en": "Tell Margaux and Romy what you will do with Odile's pages, and why.",
+      "de": "Sag Margaux und Romy, was du mit Odiles Seiten machst, und warum.",
+      "fr": "Dites à Margaux et à Romy ce que vous faites des pages d'Odile, et pourquoi."
+    },
+    "t6:b.choix": {
+      "en": "Choose who reads Odile's pages first.",
+      "de": "Wähle, wer Odiles Seiten zuerst liest.",
+      "fr": "Choisissez qui lit les pages d'Odile en premier."
+    },
+    "t6:b.turn2": {
+      "en": "Tell Romy whether to delete the memory card or keep it.",
+      "de": "Sag Romy, ob sie die Speicherkarte löschen oder behalten soll.",
+      "fr": "Dites à Romy si elle efface la carte mémoire ou si elle la garde."
+    },
+    "t7:a.convaincre.lease": {
+      "en": "Convince Margaux to sign the lease.",
+      "de": "Überzeuge Margaux, den Mietvertrag zu unterschreiben.",
+      "fr": "Convainquez Margaux de signer le bail."
+    },
+    "t7:a.convaincre.coop": {
+      "en": "Convince Gus to join the co-op.",
+      "de": "Überzeuge Gus, bei der Genossenschaft mitzumachen.",
+      "fr": "Convainquez Gus d'entrer dans la coopérative."
+    },
+    "t7:a.convaincre.last_service": {
+      "en": "Convince Gus to let Margaux decide.",
+      "de": "Überzeuge Gus, Margaux selbst entscheiden zu lassen.",
+      "fr": "Convainquez Gus de laisser Margaux décider."
+    },
+    "t7:a.turn1": {
+      "en": "Tell Lila what you want to say to her at midnight.",
+      "de": "Sag Lila um Mitternacht, was du ihr sagen willst.",
+      "fr": "Dites à Lila ce que vous voulez lui dire à minuit."
+    },
+    "t7:a.turn2": {
+      "en": "Add a fourth promise to Lila's three.",
+      "de": "Füge Lilas drei Versprechen ein viertes hinzu.",
+      "fr": "Ajoutez une quatrième promesse aux trois de Lila."
+    },
+    "t7:b.turn1": {
+      "en": "Tell Margaux what you want for her, for the café and for the flat.",
+      "de": "Sag Margaux, was du für sie, für das Café und für die Wohnung willst.",
+      "fr": "Dites à Margaux ce que vous voulez pour elle, pour le café et pour l'appartement."
+    },
+    "t7:b.choix": {
+      "en": "Decide what happens to Odile's flat.",
+      "de": "Entscheide, was mit Odiles Wohnung passiert.",
+      "fr": "Décidez ce que devient l'appartement d'Odile."
+    },
+    "t8:e1.a.turn1": {
+      "en": "Tell Marchand whether you are staying and what Odile's flat is to you now.",
+      "de": "Sag Marchand, ob du bleibst und was Odiles Wohnung jetzt für dich ist.",
+      "fr": "Dites à Marchand si vous restez et ce qu'est l'appartement d'Odile pour vous maintenant."
+    },
+    "t8:e2.a.turn1": {
+      "en": "Tell Gus where his place is in the new café.",
+      "de": "Sag Gus, wo sein Platz im neuen Café ist.",
+      "fr": "Dites à Gus où est sa place dans le nouveau café."
+    },
+    "t8:e3.a.turn1": {
+      "en": "Say your last words in Le Mistral to Margaux.",
+      "de": "Sag Margaux deine letzten Worte im Mistral.",
+      "fr": "Dites à Margaux vos derniers mots au Mistral."
+    },
+    "t8:letter.read": {
+      "en": "Read Odile's letter and choose what she is asking you to do.",
+      "de": "Lies Odiles Brief und wähle, worum sie dich bittet.",
+      "fr": "Lisez la lettre d'Odile et choisissez ce qu'elle vous demande."
+    },
+    "t8:platform.turn": {
+      "en": "Say your last words to Lila before the train leaves.",
+      "de": "Sag Lila deine letzten Worte, bevor der Zug abfährt.",
+      "fr": "Dites vos derniers mots à Lila avant le départ du train."
+    },
+    "t8:camille.turn": {
+      "en": "Answer Camille in your own words.",
+      "de": "Antworte Camille mit deinen eigenen Worten.",
+      "fr": "Répondez à Camille avec vos mots."
+    }
+  },
+  "ask_again": {
+    "t1:a.turn1": {
+      "fr": "Pardon ? Votre nom ? Et pourquoi ici ?",
+      "en": "Sorry? Your name? And why are you here?",
+      "de": "Wie bitte? Ihr Name? Und warum sind Sie hier?",
+      "fr_named": "{name} ? Enchanté ! Et pourquoi ici ?",
+      "en_named": "{name}? Delighted! And why are you here?",
+      "de_named": "{name}? Sehr erfreut! Und warum sind Sie hier?"
+    },
+    "t1:a.turn2": {
+      "fr": "Alors ? Tu montes ce soir, ou pas ?",
+      "en": "So? Are you going up tonight or not?",
+      "de": "Und? Gehst du heute Abend hoch oder nicht?",
+      "fr_named": "{name}. Tu montes ce soir ? Oui ou non ?",
+      "en_named": "{name}. Are you going up tonight? Yes or no?",
+      "de_named": "{name}. Gehst du heute Abend hoch? Ja oder nein?"
+    },
+    "t1:b.turn1": {
+      "fr": "Pardon ? Vous allez vendre, oui ou non ?",
+      "en": "Sorry? Are you going to sell, yes or no?",
+      "de": "Wie bitte? Verkaufen Sie, ja oder nein?",
+      "fr_named": "{name}, d'accord. Mais vous vendez, oui ou non ?",
+      "en_named": "{name}, all right. But are you selling, yes or no?",
+      "de_named": "{name}, gut. Aber verkaufen Sie, ja oder nein?"
+    },
+    "t2:a.turn1": {
+      "fr": "Et toi ? Pourquoi Odile part, à ton avis ?",
+      "en": "And you? Why did Odile leave, do you think?",
+      "de": "Und du? Warum ist Odile gegangen, was meinst du?",
+      "fr_named": "{name}, oui. Mais pourquoi Odile part ?",
+      "en_named": "{name}, yes. But why did Odile leave?",
+      "de_named": "{name}, ja. Aber warum ist Odile gegangen?"
+    },
+    "t2:a.turn2": {
+      "fr": "Alors ? La photo, on montre ça à Gus ?",
+      "en": "So? The photo: do we show it to Gus?",
+      "de": "Und? Das Foto: Zeigen wir es Gus?",
+      "fr_named": "{name}, oui. Et la photo ? Pour Gus ?",
+      "en_named": "{name}, yes. And the photo? For Gus?",
+      "de_named": "{name}, ja. Und das Foto? Für Gus?"
+    },
+    "t2:b.turn1": {
+      "fr": "Pardon ? Qu'est-ce que vous gardez, ici ?",
+      "en": "Sorry? What are you keeping here?",
+      "de": "Wie bitte? Was behalten Sie hier?",
+      "fr_named": "{name}, d'accord. Qu'est-ce que vous gardez ?",
+      "en_named": "{name}, all right. What are you keeping?",
+      "de_named": "{name}, gut. Was behalten Sie?"
+    },
+    "t2:b.turn2": {
+      "fr": "Je demande : combien de temps tu restes ?",
+      "en": "I'm asking: how long are you staying?",
+      "de": "Ich frage: Wie lange bleibst du?",
+      "fr_named": "{name}, je sais ! Combien de temps tu restes ?",
+      "en_named": "{name}, I know! How long are you staying?",
+      "de_named": "{name}, ich weiß! Wie lange bleibst du?"
+    },
+    "t3:a.turn1": {
+      "fr": "Alors ? Tu promets, oui ou non ?",
+      "en": "Well? Do you promise, yes or no?",
+      "de": "Also? Versprichst du es, ja oder nein?",
+      "fr_named": "{name}, tu promets ? Oui ou non ?",
+      "en_named": "{name}, do you promise? Yes or no?",
+      "de_named": "{name}, versprichst du es? Ja oder nein?"
+    },
+    "t3:b.turn1": {
+      "fr": "Alors… L'appartement pour la coop, oui ou non ?",
+      "en": "So… The flat for the co-op, yes or no?",
+      "de": "Also … Die Wohnung für die Genossenschaft, ja oder nein?",
+      "fr_named": "{name}… Et l'appartement ? Pour la coop ?",
+      "en_named": "{name}… And the flat? For the co-op?",
+      "de_named": "{name} … Und die Wohnung? Für die Genossenschaft?"
+    },
+    "t3:b.turn2": {
+      "fr": "Les photos d'Odile au mur ? Oui ou non ?",
+      "en": "Odile's photos on the wall? Yes or no?",
+      "de": "Odiles Fotos an der Wand? Ja oder nein?",
+      "fr_named": "{name}, d'accord. Et les photos d'Odile au mur ?",
+      "en_named": "{name}, okay. And Odile's photos on the wall?",
+      "de_named": "{name}, okay. Und Odiles Fotos an der Wand?"
+    },
+    "t4:b.turn1": {
+      "fr": "Réponds ! Tu sais ça, oui ou non ?",
+      "en": "Answer! Did you know, yes or no?",
+      "de": "Antworte! Hast du es gewusst, ja oder nein?",
+      "fr_named": "{name}, réponds ! Tu sais ça, oui ou non ?",
+      "en_named": "{name}, answer! Did you know, yes or no?",
+      "de_named": "{name}, antworte! Hast du es gewusst, ja oder nein?"
+    },
+    "t4:b.turn2": {
+      "fr": "Alors ? Tu es en colère contre moi ?",
+      "en": "Well? Are you angry with me?",
+      "de": "Also? Bist du mir böse?",
+      "fr_named": "{name}. Tu es en colère contre moi ?",
+      "en_named": "{name}. Are you angry with me?",
+      "de_named": "{name}. Bist du mir böse?"
+    },
+    "t4:b.turn3m": {
+      "fr": "Pardon… Et moi ? Elle dit mon nom, là-bas ?",
+      "en": "Sorry… And me? Does she say my name, over there?",
+      "de": "Verzeihung … Und ich? Sagt sie dort meinen Namen?",
+      "fr_named": "Merci, {name}. Mais elle dit mon nom ?",
+      "en_named": "Thank you, {name}. But does she say my name?",
+      "de_named": "Danke, {name}. Aber sagt sie meinen Namen?"
+    },
+    "t4:b.turn3r": {
+      "fr": "Alors ? J'oublie ça, oui ou non ?",
+      "en": "So? Shall I forget this, yes or no?",
+      "de": "Also? Soll ich das vergessen, ja oder nein?",
+      "fr_named": "{name} ? J'oublie ça, oui ou non ?",
+      "en_named": "{name}? Shall I forget this, yes or no?",
+      "de_named": "{name}? Soll ich das vergessen, ja oder nein?"
+    },
+    "t5:va.a.turn1": {
+      "fr": "Je pars à Berlin. Et pour toi, c'est comment ?",
+      "en": "I'm going to Berlin. And for you, how is it?",
+      "de": "Ich gehe nach Berlin. Und wie ist das für dich?"
+    },
+    "t5:va.b.turn2": {
+      "fr": "Et mon tableau ? Ton visage, je fais comment ?",
+      "en": "And my painting? Your face, how do I do it?",
+      "de": "Und mein Bild? Dein Gesicht, wie mache ich das?"
+    },
+    "t5:vb.b.turn1": {
+      "fr": "Berlin, tu sais. Et toi, qu'est-ce que tu veux ?",
+      "en": "You know about Berlin. And you, what do you want?",
+      "de": "Von Berlin weißt du. Und du, was willst du?"
+    },
+    "t5:vb.b.turn2": {
+      "fr": "On se retient, ici. Oui ou non ?",
+      "en": "We hold back, here. Yes or no?",
+      "de": "Wir halten uns hier zurück. Ja oder nein?"
+    },
+    "t5:vn.b.turn1": {
+      "fr": "Berlin, tu sais. Et toi, qu'est-ce que tu veux ?",
+      "en": "You know about Berlin. And you, what do you want?",
+      "de": "Von Berlin weißt du. Und du, was willst du?"
+    },
+    "t5:vn.b.turn2": {
+      "fr": "On se retient, ici. Oui ou non ?",
+      "en": "We hold back, here. Yes or no?",
+      "de": "Wir halten uns hier zurück. Ja oder nein?"
+    },
+    "t6:a.turn1": {
+      "fr": "Pourquoi elle part ? Vous savez, ou non ?",
+      "en": "Why did she leave? Do you know, or not?",
+      "de": "Warum ist sie gegangen? Wissen Sie es, oder nicht?"
+    },
+    "t6:a.turn2": {
+      "fr": "Tout garder, oui ou non ? Et pourquoi ?",
+      "en": "Keep everything, yes or no? And why?",
+      "de": "Alles behalten, ja oder nein? Und warum?"
+    },
+    "t6:b.turn1": {
+      "fr": "Et le cahier ? Qu'est-ce que tu fais avec ?",
+      "en": "And the notebook? What are you doing with it?",
+      "de": "Und das Notizbuch? Was machst du damit?"
+    },
+    "t6:b.turn2": {
+      "fr": "Et la carte ? Je fais quoi, moi ?",
+      "en": "And the card? What do I do?",
+      "de": "Und die Karte? Was mache ich damit?"
+    },
+    "t7:a.turn1": null,
+    "t7:a.turn2": null,
+    "t7:b.turn1": {
+      "fr": "Qu'est-ce que tu veux, pour le café, pour moi ?",
+      "en": "What do you want, for the café, for me?",
+      "de": "Was willst du, für das Café, für mich?",
+      "fr_named": "{name}, je sais. Mais qu'est-ce que tu veux, toi ?",
+      "en_named": "{name}, I know. But what do you want?",
+      "de_named": "{name}, ich weiß. Aber was willst du?"
+    },
+    "t8:e1.a.turn1": {
+      "fr": "Pardon ? Vous restez ici, oui ou non ?",
+      "en": "Sorry? Are you staying here, yes or no?",
+      "de": "Wie bitte? Bleiben Sie hier, ja oder nein?",
+      "fr_named": "{name}, oui. Mais vous restez ici ?",
+      "en_named": "{name}, yes. But are you staying here?",
+      "de_named": "{name}, ja. Aber bleiben Sie hier?"
+    },
+    "t8:e2.a.turn1": {
+      "fr": "Pardon ? Où est ma place ? Dis !",
+      "en": "Pardon? Where is my place? Tell me!",
+      "de": "Wie bitte? Wo ist mein Platz? Sag schon!",
+      "fr_named": "{name}, je sais ! Mais où est ma place ?",
+      "en_named": "{name}, I know! But where is my place?",
+      "de_named": "{name}, ich weiß! Aber wo ist mein Platz?"
+    },
+    "t8:e3.a.turn1": null,
+    "t8:platform.turn": null,
+    "t8:camille.turn": null
+  }
+}

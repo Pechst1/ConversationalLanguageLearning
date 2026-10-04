@@ -506,6 +506,7 @@ export function JourneySession({
                 onRetry={actions.retryLastAnswer}
                 onDismiss={actions.clearFeedback}
                 speaker={speaker}
+                stepKind={step?.kind ?? null}
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary

@@ -13,6 +13,8 @@ One season is a folder, ``app/data/season/<id>/``:
 Text is written at A2, with B1 only where it differs (the bible's rule). A1 and
 A2 learners who read another language get ``native`` translations of the A2 line
 («Traduire la case»). A date-bound line may carry a ``neutral`` wording (S-12).
+Since 2026-10-03 a line may also carry ``a1`` / ``b2`` / ``c1`` level variants
+(:data:`LEVEL_PREFERENCE`), so the season reads at the learner's own level.
 
 Everything here is pure: loading and validating never touches a database or a
 model. ``load_season`` is cached; a malformed file fails loudly at load time,
@@ -53,32 +55,130 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+#: 2026-10-03 (content program, T-2): which written level each learner band
+#: reads, nearest first. The bible's A2 line (and its B1 line where it wrote
+#: one) stays canonical; ``a1``, ``b2`` and ``c1`` are level variants derived
+#: from it offline and validated against the band's words and grammar
+#: (``scripts/season_levels.py``). A band never reads a line written above it.
+LEVEL_PREFERENCE: dict[str, tuple[str, ...]] = {
+    "A1": ("a1", "a2"),
+    "A2": ("a2",),
+    "B1": ("b1", "a2"),
+    "B2": ("b2", "b1", "a2"),
+    "C1": ("c1", "b2", "b1", "a2"),
+    "C2": ("c1", "b2", "b1", "a2"),
+}
+LEVEL_FIELDS = ("a1", "a2", "b1", "b2", "c1")
+
+
+def examples_at(canonical: list[str], by_level: dict[str, list[str]], band: str | None) -> list[str]:
+    """A band's own example replies first (nearest written level), then the bible's."""
+
+    own: list[str] = []
+    for field in written_levels(band):
+        own = list(by_level.get(field) or [])
+        if own:
+            break
+    return list(dict.fromkeys([*own, *canonical]))
+
+
+def written_levels(band: str | None) -> tuple[str, ...]:
+    """The level fields a band reads, nearest first (unreadable bands read as A1)."""
+
+    return LEVEL_PREFERENCE.get(str(band or "")[:2].upper(), LEVEL_PREFERENCE["A1"])
+
+
+def _same(a: str | None, b: str | None) -> bool:
+    return " ".join(str(a or "").split()) == " ".join(str(b or "").split())
+
+
+def _native_at(owner: Any, field: str, language: str | None) -> str | None:
+    """The translation of ``owner``'s ``field`` text: the A2 line's ``native`` for the
+    A2 line (or an A1 variant that says the same), ``native_a1`` for an A1 variant.
+    Above A2 nobody is translated, so other fields have none."""
+
+    lang = str(language or "")
+    if field == "a1" and not _same(getattr(owner, "a1", None), owner.a2):
+        return (owner.native_a1 or {}).get(lang) or None
+    if field in ("a1", "a2"):
+        return (owner.native or {}).get(lang) or None
+    return None
+
+
 class Wording(_Model):
-    """A2 wording with an optional B1 one (a date-free alternative, S-12)."""
+    """A2 wording with optional other levels (a date-free alternative, S-12)."""
 
     a2: str = Field(min_length=1)
+    a1: str | None = None
     b1: str | None = None
+    b2: str | None = None
+    c1: str | None = None
+    #: Fingerprint of the a2/b1 text the variants were written from (stale check).
+    level_src: str | None = None
+    #: The A2 wording / the A1 variant in the learner's own language (en, de).
+    native: dict[str, str] = Field(default_factory=dict)
+    native_a1: dict[str, str] = Field(default_factory=dict)
+
+    def served(self, band: str) -> tuple[str, str]:
+        """``(text, field)``: the wording a band reads and which level it is."""
+
+        for field in written_levels(band):
+            value = getattr(self, field, None)
+            if value:
+                return value, field
+        return self.a2, "a2"
+
+    def text(self, band: str) -> str:
+        return self.served(band)[0]
+
+    def native_at(self, field: str, language: str | None) -> str | None:
+        return _native_at(self, field, language)
 
 
 class Say(_Model):
     """One piece of French the learner reads, at the bands the bible writes."""
 
     a2: str = Field(min_length=1)
+    a1: str | None = None
     b1: str | None = None
+    b2: str | None = None
+    c1: str | None = None
+    #: Fingerprint of the a2/b1 text the variants were written from (stale check).
+    level_src: str | None = None
     #: The A2 line in the learner's own language, for A1/A2 learners (en, de).
     native: dict[str, str] = Field(default_factory=dict)
+    #: QA-STORY 2026-10-03: the A1 variant in the learner's own language. An A1
+    #: line is not the A2 line, so it never borrows the A2 line's translation.
+    native_a1: dict[str, str] = Field(default_factory=dict)
     #: S-12: the wording for a learner whose calendar is not the story's (a
     #: Christmas or New Year's Eve line away from those dates).
     neutral: Wording | None = None
 
+    def served(self, band: str, *, neutral: bool = False) -> tuple[str, str, Say | Wording]:
+        """``(text, field, owner)``: what a band reads, at which written level, and
+        whether it is the line itself or its neutral wording."""
+
+        if neutral and self.neutral:
+            text, field = self.neutral.served(band)
+            return text, field, self.neutral
+        for field in written_levels(band):
+            value = getattr(self, field, None)
+            if value:
+                return value, field, self
+        return self.a2, "a2", self
+
     def text(self, band: str, *, neutral: bool = False) -> str:
-        source: Say | Wording = self.neutral if (neutral and self.neutral) else self
-        if str(band or "")[:2].upper() in B1_BANDS and source.b1:
-            return source.b1
-        return source.a2
+        return self.served(band, neutral=neutral)[0]
 
     def native_for(self, language: str | None) -> str | None:
         return self.native.get(str(language or "")) or None
+
+    def native_served(self, band: str, language: str | None, *, neutral: bool = False) -> str | None:
+        """The translation of exactly the French served at ``band`` — never another
+        level's: an A1 variant reads its own ``native_a1``, or nothing."""
+
+        _text, field, owner = self.served(band, neutral=neutral)
+        return _native_at(owner, field, language)
 
 
 class SetsIf(_Model):
@@ -147,6 +247,10 @@ class Reply(_Model):
     label: str = Field(min_length=1)
     means: str = Field(min_length=1)
     examples: list[str] = Field(default_factory=list)
+    #: Level variants of the examples (``a1``/``b2``/``c1``, T-2): what a learner at
+    #: that band would plausibly say. They come first for that band and add to
+    #: the routing examples; they never replace the bible's.
+    examples_by_level: dict[str, list[str]] = Field(default_factory=dict)
     clumsy: bool = False
     beats: list[Panel] = Field(default_factory=list)
     sets: dict[str, Any] = Field(default_factory=dict)
@@ -169,6 +273,11 @@ class Turn(_Model):
     panel: Panel
     #: What the learner must want to say, in their language (never a grammar target).
     task: dict[str, str]
+    #: QA-STORY: the same task in one plain sentence (en/de/fr) — what is served.
+    task_plain: dict[str, str] = Field(default_factory=dict)
+    #: QA-STORY: what the addressee says, once, when a reply clearly expresses none
+    #: of the routes: ``{fr, en, de, fr_named?, en_named?, de_named?}``.
+    ask_again: dict[str, str] | None = None
     listens_for: str = Field(min_length=1)
     replies: list[Reply] = Field(min_length=1)
     fallback: str
@@ -222,6 +331,7 @@ class Solve(_Model):
     mechanic: Literal["enquete", "choix", "dechiffrer", "convaincre", "balloon_choice"]
     prompt: Say
     task: dict[str, str] = Field(default_factory=dict)
+    task_plain: dict[str, str] = Field(default_factory=dict)
     #: Who is being persuaded (convaincre) or who poses the question.
     to: str | None = None
     #: What fills the screen: the photo, the calendar, the card, the letter.
@@ -238,6 +348,7 @@ class Solve(_Model):
     objections: list[Say] = Field(default_factory=list)
     lands_means: str = ""
     lands_examples: list[str] = Field(default_factory=list)
+    lands_examples_by_level: dict[str, list[str]] = Field(default_factory=dict)
     lands: list[Panel] = Field(default_factory=list)
     fails: list[Panel] = Field(default_factory=list)
     give_up: Say | None = None
@@ -639,14 +750,20 @@ def load_season(season_id: str, *, root: Path | None = None) -> Season:
     folder = (root or SEASON_ROOT) / season_id
     if not folder.is_dir():
         raise SeasonFormatError(f"no season folder {folder}")
-    season = Season.model_validate(_read(folder / "season.json"))
+    from app.services.season.levels import apply_levels, apply_tasks, read_levels, read_tasks
+
+    levels = read_levels(folder)
+    tasks = read_tasks(folder)
+    season = Season.model_validate(apply_levels(_read(folder / "season.json"), levels, file_id="season"))
     tentpoles: dict[str, Tentpole] = {}
     for segment in season.segments:
         if segment.kind != "tentpole":
             continue
         path = folder / f"{segment.id}.json"
         if path.is_file():
-            tentpoles[segment.id] = Tentpole.model_validate(_read(path))
+            tentpoles[segment.id] = Tentpole.model_validate(
+                apply_tasks(apply_levels(_read(path), levels, file_id=segment.id), tasks, file_id=segment.id)
+            )
     gaps_path = folder / "gaps.json"
     gaps_file = _read(gaps_path) if gaps_path.is_file() else {}
     gaps = {row["id"]: Gap.model_validate(row) for row in gaps_file.get("gaps") or []}
