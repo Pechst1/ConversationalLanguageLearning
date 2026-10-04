@@ -325,7 +325,12 @@ def test_a_reprint_is_not_a_follow_up(db_session):
     assert raised.value.chain_id == chain["chain_id"]
 
 
-def test_an_affair_that_cannot_go_on_ends_and_frees_the_courrier(db_session):
+def test_an_affair_that_cannot_go_on_ends_and_frees_the_courrier(db_session, monkeypatch):
+    monkeypatch.setattr(
+        missions_module,
+        "REAL_WORLD_MISSION_DOMAINS",
+        tuple({key: value for key, value in item.items() if key != "follow_ups"} for item in REAL_WORLD_MISSION_DOMAINS),
+    )
     user = _user(db_session, "A2")
     thread = _season_thread(db_session, user)
     first = _letter(db_session, user)
