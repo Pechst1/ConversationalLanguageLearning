@@ -3228,9 +3228,13 @@ class DailyJourneyService:
             # written, so a tentpole day introduces no new unit (the quota offers
             # it again tomorrow); its rule review is a unit the page uses.
             story_units = tentpole_units(result.story_context)
+            # WP-124a: a reprise re-reads a page but is an ordinary practice day. It
+            # introduces the day's unit like any other day; skipping it would hand
+            # tomorrow's director the very same plan, and a deterministic guard
+            # failure would then repeat every day (the 2026-10-04 A1 walk lost 28 days).
             introduction = (
                 None
-                if first_day or is_tentpole(result.story_context)
+                if first_day or (is_tentpole(result.story_context) and not _is_reprise(result))
                 else self._introduction_for_today(user, result)
             )
             forge = None if first_day else self._forge_for_today(user, introduction, story_units)

@@ -49,7 +49,7 @@ from tests import test_journey_end_to_end as support
 #: «comfortable» and live their first days at B1.1).
 STARTING_POINT = {"A1": "new", "A2": "some", "B1": "comfortable", "B2": "confident", "C1": "advanced"}
 LIFE_QUALITIES: tuple[str, ...] = ("strong", "average", "struggling")
-LIFE_DAYS = 30
+LIFE_DAYS = int(__import__("os").environ.get("LIFE_DAYS", "30"))
 
 
 def band_number(cefr: str | None) -> int:

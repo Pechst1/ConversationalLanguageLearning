@@ -131,10 +131,11 @@ def test_a_lost_gap_day_rereads_the_last_page_and_moves_nothing(
     provider = production_day
     headers, email = walk.register(assembled_client, A1_DE)
     user = _user(db_session, email)
-    _play(assembled_client, db_session, headers, A1_DE, 1, provider)
+    first = _play(assembled_client, db_session, headers, A1_DE, 1, provider)
     clock.advance(days=1)
-    _play(assembled_client, db_session, headers, A1_DE, 2, provider, CardPicker("gus"))
+    second = _play(assembled_client, db_session, headers, A1_DE, 2, provider, CardPicker("gus"))
     clock.advance(days=1)
+    met_before = walk_checks.names_met(first) | walk_checks.names_met(second)
     before = _live(db_session, user.id)
     assert [row["key"] for row in before["season_script"]["played"]] == ["t1.a", "t1.b"]
     assert before["season_script"]["flags"].get("s1.letter_trusted_to") == "gus"
@@ -167,7 +168,9 @@ def test_a_lost_gap_day_rereads_the_last_page_and_moves_nothing(
     if not SCHEMA_CARRIES_TRANSLATIONS:
         problems = [p for p in problems if "without its translation" not in p]
     assert problems == []
-    # The day reads clean by every walk check the walk runs on any day.
+    # The day reads clean by every walk check the walk runs on any day (with the
+    # names met on days 1–2, as a life walk carries them forward).
+    transcript["names_met_before"] = sorted(met_before)
     assert walk_checks.run_all([transcript]) == []
 
     # Nothing moved: the season's day count, its flags and signals, the story.
@@ -468,3 +471,31 @@ def test_the_walk_check_is_quiet_on_an_honest_reprise():
     # A B1 reprise is not held to the A1 translation rule; a tentpole day is not a lost day.
     assert check_lost_day_stays_in_season(_transcript(f"{REPRISE_SCENARIO_PREFIX}t1.a", lines=[{"character_id": "lila_bonnet", "text_fr": "Tu restes ?"}], cefr="B1.1")) == []
     assert check_lost_day_stays_in_season(_transcript("story_x", lines=[{"character_id": "lila_bonnet", "text_fr": "Tu viens ?"}])) == []
+
+
+def test_lost_days_keep_introducing_the_days_unit_so_the_plan_moves_on(
+    assembled_client, db_session, journey_enabled, clock, production_day, monkeypatch  # noqa: F811
+):
+    """Integration finding, 2026-10-04: a reprise was treated as a tentpole page and
+    introduced no unit, so the next day's grammar plan was the same one, and a
+    director refused on that unit was refused again every day. The 15-life walk's
+    A1 learners re-read T1 B for 28 days with no rule at all. A reprise is a practice
+    day: it introduces the day's unit, and two lost days introduce two different ones."""
+
+    provider = production_day
+    headers, email = walk.register(assembled_client, A1_DE)
+    _play(assembled_client, db_session, headers, A1_DE, 1, provider)
+    clock.advance(days=1)
+    _play(assembled_client, db_session, headers, A1_DE, 2, provider, CardPicker("gus"))
+    clock.advance(days=1)
+    rules: list[str] = []
+    with monkeypatch.context() as failing:
+        _director_fails(provider, failing)
+        for day in (3, 4):
+            transcript = _play(assembled_client, db_session, headers, A1_DE, day, provider)
+            assert transcript["scenario"]["scenario_key"] == f"{REPRISE_SCENARIO_PREFIX}t1.b"
+            rule = [e["step"] for e in transcript["events"] if e["step"]["kind"] == "rule"]
+            assert rule, f"day {day}: the reprise introduces the day's unit"
+            rules.append(json.dumps(rule[0].get("prompt") or {}, sort_keys=True, ensure_ascii=False))
+            clock.advance(days=1)
+    assert rules[0] != rules[1], "the second lost day introduces the next unit, not the same one"
