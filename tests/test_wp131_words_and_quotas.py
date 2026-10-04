@@ -485,6 +485,14 @@ def test_a_scene_word_is_never_practised_in_a_line_that_names_a_character(db_ses
     assert season_lexicon.scene_entries(db_session, user=user, scenario=named) == []
     plain = _tentpole_scenario("c1", f"Voici le mot {new['surface_fr']}.")
     assert [e["lemma"] for e in season_lexicon.scene_entries(db_session, user=user, scenario=plain)] == [new["lemma"]]
+    # The planner may cut its item from any line printing the word: one named
+    # line anywhere in the scene keeps the word out.
+    both = _tentpole_scenario("c1", f"Voici le mot {new['surface_fr']}. Augustin, encore {new['surface_fr']} !")
+    both.story_context["draft"]["panels"].append(
+        {"narration_fr": f"Voici le mot {new['surface_fr']}.", "dialogue": []}
+    )
+    both.story_context["draft"]["panels"][0]["dialogue"][0]["text_fr"] = f"Augustin, encore le {new['surface_fr']} !"
+    assert season_lexicon.scene_entries(db_session, user=user, scenario=both) == []
 
 
 def test_season_words_never_reach_above_the_level() -> None:

@@ -419,9 +419,17 @@ def scene_entries(
         sentence = _sentence_with(text, surface)
         return not any(token.key in names for token in tokenize(sentence))
 
+    def named_anywhere(surface: str) -> bool:
+        # The planner may cut its item from *any* line that prints the word, so
+        # one named line is enough to keep the word out of the day's practice.
+        return any(
+            contains_surface(text, surface) and not practisable(text, surface) for text in texts.values()
+        )
+
     printed = [
         (anchor, ref)
         for anchor in anchors
+        if not named_anywhere(anchor.get("surface_fr") or "")
         for ref in [next((ref for ref, text in texts.items() if practisable(text, anchor.get("surface_fr") or "")), None)]
         if ref is not None
     ]
