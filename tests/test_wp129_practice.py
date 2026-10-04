@@ -424,7 +424,12 @@ def test_the_practice_check_reports_thin_or_blocked_b1_days() -> None:
 
 
 def test_a_free_sentence_is_met_by_any_use_and_a_miss_shows_a_model() -> None:
-    from app.services.journey_contracts import AssistanceLevel, AttemptAnswer, InputMode, TaskOutcome
+    from app.services.journey_contracts import (
+        AssistanceLevel,
+        AttemptAnswer,
+        InputMode,
+        TaskOutcome,
+    )
 
     unit = brief("FR2_B11_PLUS_QUE_PARFAIT", 1)
     task = grammar_items.free_sentence_item(unit, language="fr")
@@ -447,3 +452,19 @@ def test_a_free_sentence_is_met_by_any_use_and_a_miss_shows_a_model() -> None:
     miss = grade("Je mange une pomme verte.")
     assert miss.outcome is TaskOutcome.NOT_YET
     assert miss.correction is not None and miss.correction.corrected_fr
+
+
+def test_b1_practice_sentences_stay_at_the_learners_level() -> None:
+    # The walk's B1 learner was asked to sort «Si tu as le temps, passe me voir au
+    # bureau.» — a catalogue sentence with a word above B1.
+    unit = {
+        **brief("FR2_A21_PC_AVOIR", 3),
+        "examples": ["Si tu as le temps, passe me voir au bureau.", "Si elle vient demain, je serai content."],
+    }
+    candidate = replace(practice_unit("FR2_A21_PC_AVOIR", 3), metadata={"practice_unit": True, "grammar_brief": unit})
+    fitted = journey_learning._with_level_fit([candidate], scenario=engine_brief(level_band="B1"))
+    ok = fitted[0].metadata["grammar_brief"]["level_ok_fr"]
+    assert grammar_items._fold("Si elle vient demain, je serai content.") in ok
+    assert grammar_items._fold("Si tu as le temps, passe me voir au bureau.") not in ok
+    # Below B1 nothing is listed: the fill does not run there.
+    assert journey_learning._with_level_fit([candidate], scenario=engine_brief(level_band="A2")) == [candidate]

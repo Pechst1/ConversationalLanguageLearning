@@ -3652,12 +3652,12 @@ def _advanced_task(
     language: ControlLanguage,
     day_key: str,
     avoid: set[str],
-    level: str | None = None,
+    level_ok: set[str] | None = None,
 ) -> RecallTask | None:
-    from app.services.practice_level import within_band
-
     def fits(text: str) -> bool:
-        return within_band(text, level)
+        # WP-129: the learning adapter lists each unit's sentences at the
+        # learner's level (``level_ok_fr``); without the list, all of them.
+        return level_ok is None or grammar_items._fold(grammar_items.plain(text)) in level_ok
 
     if fmt == "contrast":
         for partner in partners:
@@ -3752,6 +3752,8 @@ def fill_advanced_practice(
         ]
         return named
 
+    listed = [brief.get("level_ok_fr") for _entry, brief in pool if isinstance(brief.get("level_ok_fr"), list)]
+    level_ok: set[str] | None = {str(text) for texts in listed for text in texts} if listed else None
     # Units with an introduced partner first: the contrast is the point (§2.5).
     pool.sort(key=lambda pair: 0 if partners_of(pair[1]) else 1)
     uses: dict[str, int] = {}
@@ -3784,7 +3786,7 @@ def fill_advanced_practice(
                     continue
                 task = _advanced_task(
                     fmt, brief, partners=partners_of(brief), language=language, day_key=day_key,
-                    avoid=held, level=scenario.level_band,
+                    avoid=held, level_ok=level_ok,
                 )
                 if task is None or not shape_allows_format(shape, task.task_type):
                     continue

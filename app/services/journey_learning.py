@@ -837,7 +837,49 @@ def select_learning_candidates(
                     for candidate in selected]
     else:
         selected = _glosses_in_language(db, selected, str(scenario.control_language))
-    return _with_grammar_briefs(db, user=user, candidates=selected)
+    selected = _with_grammar_briefs(db, user=user, candidates=selected)
+    return _with_level_fit(selected, scenario=scenario)
+
+
+def _with_level_fit(
+    candidates: list[LearningCandidate], *, scenario: ScenarioBrief
+) -> list[LearningCandidate]:
+    """WP-129: from B1, each grammar brief lists its sentences at the learner's
+    level (``level_ok_fr``, folded) — a catalogue sentence is written for its
+    unit's band, and the B1+ practice items (a contrast, a free sentence's
+    model, a repair) of an earlier unit stay at the learner's (the planner
+    reads no lexicon itself)."""
+
+    band = str(getattr(scenario, "level_band", "") or "").upper()[:2]
+    if band not in ADVANCED_PRACTICE_BANDS:
+        return candidates
+    from app.services import grammar_items
+    from app.services.practice_level import within_band
+
+    out: list[LearningCandidate] = []
+    for candidate in candidates:
+        brief = (candidate.metadata or {}).get("grammar_brief")
+        if candidate.target.kind is not TargetKind.GRAMMAR or not isinstance(brief, dict):
+            out.append(candidate)
+            continue
+        texts = [
+            *(brief.get("examples") or []),
+            *(pair.get(side) for pair in brief.get("contrast_pairs") or [] for side in ("right", "wrong")),
+        ]
+        ok = sorted(
+            {
+                grammar_items._fold(grammar_items.plain(text))
+                for text in texts
+                if text and within_band(grammar_items.plain(text), band)
+            }
+        )
+        out.append(
+            replace(
+                candidate,
+                metadata={**dict(candidate.metadata or {}), "grammar_brief": {**brief, "level_ok_fr": ok}},
+            )
+        )
+    return out
 
 
 def _one_target_per_word(candidates: list[LearningCandidate]) -> list[LearningCandidate]:
