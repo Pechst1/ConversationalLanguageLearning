@@ -53,6 +53,22 @@ def shifted_clock():
     del dt
 
 
+def _to_local_noon(offset_days: int):
+    """How far to move ``real now + offset_days`` to noon of the walk's day: the real
+    local date plus ``offset_days`` calendar days, in the learner's zone."""
+
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    from tests.test_journey_end_to_end import TZ
+
+    zone = ZoneInfo(TZ)
+    now = dt.datetime.now(dt.UTC)
+    walk_date = now.astimezone(zone).date() + dt.timedelta(days=offset_days)
+    noon = dt.datetime.combine(walk_date, dt.time(12), tzinfo=zone)
+    return noon - (now + dt.timedelta(days=offset_days))
+
+
 def live(client, db, monkeypatch, persona, quality, provider, *, days: int = life.LIFE_DAYS) -> dict:
     headers, email = life.register_as_onboarding(client, persona)
     record: dict = {"persona": persona.key, "native": persona.native, "true_level": persona.cefr, "quality": quality, "days": []}
@@ -63,6 +79,10 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
     for day in range(1, days + 1):
         test_clock.install()
         test_clock.set_offset_days(day - 1)
+        # Every walk day is lived at local noon: a whole-day offset from a real "now"
+        # near midnight crossed a daylight-saving change (2026-10-25) into the day
+        # before, and the walk found that day already completed.
+        test_clock._offset += _to_local_noon(day - 1)
         rng = random.Random(f"life-{persona.key}-{quality}-{day}")
         today: dict = {"day": day}
         today["la_une"] = life.la_une(client, headers)
