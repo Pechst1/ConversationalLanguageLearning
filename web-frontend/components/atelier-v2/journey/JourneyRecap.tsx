@@ -27,6 +27,7 @@ import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
 import { archiveCopy, faFill } from '@/components/feuilleton/archive/archive-copy';
 import { marginNotes } from '@/components/feuilleton/archive/archive-model';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { PlacementDayEndOffer } from '@/components/onboarding/PlacementDayEndOffer';
 import { castName, epreuveRecapView } from '@/lib/can-dos';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { frenchQuote, frenchSpacing } from '@/lib/french-typography';
@@ -316,6 +317,11 @@ export function JourneyRecap({
       )}
 
       {pushOptIn}
+
+      {/* WP-126: the placement, offered right after a completed ending (from the
+          first one on) to a learner who declared more than «Nouveau». Renders
+          nothing unless `GET /placement/offer` says so; never after an early stop. */}
+      <PlacementDayEndOffer language={language} partial={partial} />
 
       <div className="av2-recap__actions">
         {onExit && (
