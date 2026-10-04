@@ -7263,6 +7263,35 @@ export interface components {
             /** Words */
             words?: components["schemas"]["DailyWordEntry"][];
         };
+        /**
+         * DayTimeEstimate
+         * @description WP-128 — the one estimate every surface shows: Home, the entry, the plan, the ending.
+         *
+         *     ``core_seconds`` is the recommended core path — the story and its practice —
+         *     which the selected rhythm (``budget_seconds``) budgets. ``basis`` says where
+         *     it comes from: ``plan`` (today's planned day) or ``forecast`` (before the
+         *     day is planned: the learner's recent planned cores, else the rhythm's prior).
+         *     ``longer_day``: the story alone does not fit the rhythm; it is planned
+         *     whole, never cut, and said before the learner starts.
+         */
+        DayTimeEstimate: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "plan" | "forecast";
+            /** Budget Seconds */
+            budget_seconds: number;
+            /** Core Seconds */
+            core_seconds: number;
+            /** Extensions */
+            extensions: components["schemas"]["TimeExtension"][];
+            /**
+             * Longer Day
+             * @default false
+             */
+            longer_day: boolean;
+        };
         /** DebriefRequest */
         DebriefRequest: {
             /**
@@ -8903,6 +8932,8 @@ export interface components {
             epreuve_line_fr: string | null;
             /** Epreuve Result */
             epreuve_result: ("passed" | "failed") | null;
+            /** Estimated Core Seconds */
+            estimated_core_seconds: number | null;
             forecast_line: components["schemas"]["RecapForecastLine"] | null;
             keepsake: components["schemas"]["RecapKeepsake"] | null;
             /** Level */
@@ -9000,6 +9031,7 @@ export interface components {
             /** Steps */
             steps: (components["schemas"]["SceneStep"] | components["schemas"]["RecallStep"] | components["schemas"]["RespondStep"] | components["schemas"]["ResolutionStep"] | components["schemas"]["RuleStep"] | components["schemas"]["ForgeStep"] | components["schemas"]["ReadStep"] | components["schemas"]["DeskStep"])[];
             streak: components["schemas"]["StreakView"] | null;
+            time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
             timezone: string;
         };
@@ -12947,6 +12979,30 @@ export interface components {
             /** Tile Ids */
             tile_ids?: string[];
         };
+        /**
+         * TimeExtension
+         * @description WP-128 — one optional extension of the day, with its own estimate.
+         *
+         *     ``words`` (the drill), ``letter`` (one Courrier reply), ``forge`` (La Forge's
+         *     block), ``reading`` (the «Lecture») and ``desk`` (a Revue desk). None of them
+         *     is part of the core the rhythm budgets, and none is a completion requirement.
+         *     ``in_day``: planned inside today's journey (Soutenu/Intensif's folded forge
+         *     and «Lecture», a desk); otherwise an activity of its own, offered beside it.
+         */
+        TimeExtension: {
+            /**
+             * In Day
+             * @default false
+             */
+            in_day: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "words" | "letter" | "forge" | "reading" | "desk";
+            /** Seconds */
+            seconds: number;
+        };
         /** TodayEnvelope */
         TodayEnvelope: {
             absence: components["schemas"]["AbsenceView"] | null;
@@ -12994,6 +13050,7 @@ export interface components {
             practice_href: string;
             season_premiere: components["schemas"]["SeasonPremiereView"] | null;
             streak: components["schemas"]["StreakView"] | null;
+            time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
             timezone: string;
         };

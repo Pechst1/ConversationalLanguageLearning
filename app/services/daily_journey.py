@@ -56,6 +56,7 @@ from app.schemas.daily_journey import (
     CapabilityEvidence,
     CapabilityProgress,
     CapabilitySummary,
+    DayTimeEstimate,
     ForgeEntry,
     HelpResult,
     JourneyAdvanceRequest,
@@ -664,6 +665,71 @@ def _shape_name(value: Any) -> str | None:
     return text or None
 
 
+def _plan_time_budget(plan: Any) -> dict[str, Any]:
+    """WP-128: what ``plan_selection["time_budget"]`` stores for a plan."""
+
+    core = getattr(plan, "core_seconds", None)
+    extensions = getattr(plan, "extension_seconds", None)
+    return {
+        "budget_seconds": int(getattr(plan, "budget_seconds", 0) or 0),
+        "core_seconds": int(core() if callable(core) else plan.estimated_active_seconds),
+        "longer_day": bool(getattr(plan, "longer_day", False)),
+        "extensions": {
+            str(kind): int(seconds)
+            for kind, seconds in ((extensions() if callable(extensions) else {}) or {}).items()
+        },
+    }
+
+
+def _stored_time_budget(journey: DailyJourney) -> dict[str, Any] | None:
+    """WP-128: the stored time budget, or ``None`` for a plan from before it."""
+
+    selection = journey.plan_selection if isinstance(journey.plan_selection, dict) else {}
+    stored = selection.get("time_budget")
+    if isinstance(stored, dict) and isinstance(stored.get("core_seconds"), int):
+        return stored
+    return None
+
+
+def _stored_core_seconds(journey: DailyJourney) -> int | None:
+    """WP-128: the day's core estimate — stored, else (an older plan) the whole
+    plan's, which had no extension the core could leave out; ``None`` unplanned."""
+
+    stored = _stored_time_budget(journey)
+    if stored is not None:
+        return int(stored["core_seconds"])
+    estimate = int(journey.estimated_active_seconds or 0)
+    return estimate if estimate > 0 else None
+
+
+def _time_estimate_view(journey: DailyJourney) -> dict[str, Any] | None:
+    """WP-128: the plan's own estimate — its core and in-day extensions."""
+
+    core = _stored_core_seconds(journey)
+    if core is None:
+        return None
+    stored = _stored_time_budget(journey) or {}
+    return {
+        "budget_seconds": int(journey.budget_seconds or stored.get("budget_seconds") or 0),
+        "core_seconds": core,
+        "basis": "plan",
+        "longer_day": bool(stored.get("longer_day")),
+        "extensions": [
+            {"kind": kind, "seconds": int(seconds), "in_day": True}
+            for kind, seconds in (stored.get("extensions") or {}).items()
+            if kind in ("reading", "forge", "desk") and int(seconds or 0) > 0
+        ],
+    }
+
+
+def _due_word_count(db: Session, user: User) -> int:
+    """WP-128: the word drill's waiting cards, for its own estimate."""
+
+    from app.services.progress import ProgressService
+
+    return int(ProgressService(db).count_due_reviews(user.id) or 0)
+
+
 def _stored_day_shape(journey: DailyJourney) -> DayShape:
     """The shape a persisted plan was built with.
 
@@ -923,6 +989,9 @@ class DailyJourneyService:
         #: WP-26: did *this* service instance serve the draft from a prefetched
         #: scene? ``None`` means no draft was generated on this instance at all.
         self.draft_prefetch_hit: bool | None = None
+        #: WP-128: the offered story alone is longer than the rhythm (set by
+        #: ``_available_descriptor`` on the same read).
+        self._offer_longer_day = False
 
     # ------------------------------------------------------------------
     # Reads
@@ -954,6 +1023,7 @@ class DailyJourneyService:
             available = self._available_descriptor(user)
 
         forge_anchor = self._forge_anchor_id(user)
+        forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
         # WP-99: what Home can say honestly — the absence, a premiere, an interlude.
         from app.services.journey_absence import story_frame_fields
 
@@ -964,24 +1034,73 @@ class DailyJourneyService:
             missed_days=int(streak_fields.get("missed_days") or 0),
             journey=journey,
         )
+        snapshot = self.snapshot(journey) if journey else None
         return TodayEnvelope(
             learner_level=learner_level_band(user),
             enabled=enabled,
             control_language=control_language,
             local_date=today,
             timezone=timezone_name,
-            journey=self.snapshot(journey) if journey else None,
+            journey=snapshot,
             available=available,
             legacy_resume=self._legacy_resume(user),
             # WP-S4: one forge-picker read serves both entries.
             practice_href=self._practice_href(user, anchor=forge_anchor),
-            forge=self._forge_entry(user, anchor=forge_anchor) if enabled else None,
+            forge=forge_entry,
+            # WP-128: the one estimate Home shows, and each extension's own.
+            time_estimate=(
+                self._today_time_estimate(user, snapshot, available, forge_entry)
+                if enabled
+                else None
+            ),
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
             headline=self._headline(user, journey, today) if enabled else None,
             **streak_fields,
             **frame,
         )
+
+    def _today_time_estimate(
+        self,
+        user: User,
+        snapshot: JourneySnapshot | None,
+        available: ScenarioDescriptor | None,
+        forge: ForgeEntry | None,
+    ) -> DayTimeEstimate | None:
+        """WP-128: today's core — the plan's once planned, else the forecast the
+        offer card prints — and every optional extension with its own minutes:
+        the drill's waiting cards, one letter, La Forge after the day."""
+
+        from app.services.journey_planner import letter_seconds, word_drill_seconds
+
+        if snapshot is not None and snapshot.time_estimate is not None:
+            estimate = snapshot.time_estimate.model_dump()
+        elif available is not None:
+            estimate = {
+                "budget_seconds": budget_seconds_for(user),
+                "core_seconds": int(available.estimated_seconds),
+                "basis": "forecast",
+                "longer_day": bool(self._offer_longer_day),
+                "extensions": [],
+            }
+        else:
+            return None
+        band = learner_level_band(user) or (available.level_band if available else None)
+        due = run_best_effort(
+            self.db,
+            "daily_journey: due words for the estimate",
+            lambda: _due_word_count(self.db, user),
+            default=0,
+            log=logger,
+        )
+        extensions = list(estimate.get("extensions") or [])
+        if word_drill_seconds(due) > 0:
+            extensions.append({"kind": "words", "seconds": word_drill_seconds(due)})
+        extensions.append({"kind": "letter", "seconds": letter_seconds(band)})
+        if forge is not None and not forge.folded and forge.budget_seconds:
+            extensions.append({"kind": "forge", "seconds": int(forge.budget_seconds)})
+        estimate["extensions"] = extensions
+        return DayTimeEstimate.model_validate(estimate)
 
     def _headline(self, user: User, journey: DailyJourney | None, today) -> dict | None:
         """WP-109: today's episode, headlined — read-only, never costs Home."""
@@ -2139,6 +2258,8 @@ class DailyJourneyService:
                 **self._epreuve_snapshot_fields(journey),
                 # WP-99: «Pendant votre absence», «Nouvelle saison», the interlude.
                 **self._story_frame_fields(journey, int(streak_fields.get("missed_days") or 0)),
+                # WP-128: the plan's core estimate and its in-day extensions.
+                "time_estimate": _time_estimate_view(journey),
             }
         )
 
@@ -2553,6 +2674,24 @@ class DailyJourneyService:
         # learner's recent planned days, else the planner's prior — never the
         # rhythm's budget when the plan comes in under it.
         descriptor["estimated_seconds"] = self._expected_day_seconds(user)
+        # WP-128: an offer whose page is already known (the authored first day,
+        # a catalogue scene) is priced as the story alone; a story longer than
+        # the rhythm is said before Start, never discovered after it.
+        self._offer_longer_day = False
+        if isinstance(result, ScenarioBrief):
+            from app.services.journey_planner import story_alone_seconds
+
+            story = run_best_effort(
+                self.db,
+                "daily_journey: the offer's story estimate",
+                lambda: story_alone_seconds(result),
+                default=0,
+                log=logger,
+            )
+            budget = budget_seconds_for(user)
+            if story > budget:
+                self._offer_longer_day = True
+                descriptor["estimated_seconds"] = story
         # WP-94: the special edition is announced before Start.
         descriptor.update(self._offered_epreuve(user))
         return ScenarioDescriptor.model_validate(descriptor)
@@ -2600,13 +2739,16 @@ class DailyJourneyService:
         from app.services.journey_planner import EXPECTED_DAY_SAMPLE, expected_day_seconds
 
         budget = budget_seconds_for(user)
+        # WP-128: the forecast is of the *core* — the recent planned days' core
+        # estimates (the whole plan's for a day planned before WP-128) — and a
+        # flagged longer day is not an ordinary day to forecast from.
         recent = run_best_effort(
             self.db,
             "daily_journey: recent planned minutes",
             lambda: [
-                int(value)
-                for value in self.db.scalars(
-                    select(DailyJourney.estimated_active_seconds)
+                core
+                for journey in self.db.scalars(
+                    select(DailyJourney)
                     .where(
                         DailyJourney.user_id == user.id,
                         DailyJourney.budget_seconds == budget,
@@ -2615,7 +2757,8 @@ class DailyJourneyService:
                     .order_by(DailyJourney.local_date.desc())
                     .limit(EXPECTED_DAY_SAMPLE)
                 )
-                if value
+                if not (_stored_time_budget(journey) or {}).get("longer_day")
+                and (core := _stored_core_seconds(journey))
             ],
             default=[],
             log=logger,
@@ -4278,6 +4421,10 @@ class DailyJourneyService:
             "shape_reason": str(getattr(plan, "shape_reason", "") or ""),
             # WP-78. Telemetry: a practice day, and what it poses.
             "practice": bool(getattr(plan, "practice", False)),
+            # WP-128. The one estimate every surface shows, stored with the plan
+            # that earned it: the core the rhythm budgets, its in-day
+            # extensions, and whether the story alone is a longer day.
+            "time_budget": _plan_time_budget(plan),
         }
         if fallback:
             # WP-69. The story engine could not write this day and an authored
@@ -5282,6 +5429,8 @@ class DailyJourneyService:
             # WP-02 does not measure active time; a fabricated number would be
             # worse than an honest null (CONTRACTS §9).
             active_seconds=self._measure_active_seconds(journey),
+            # WP-128: the core the day was planned at, beside the measured time.
+            estimated_core_seconds=_stored_core_seconds(journey),
             # WP-79: streak-free reward facts (the streak rides on the
             # snapshot): words, the character's mood, the keepsake, the
             # teaser and a level move — each read, none invented.

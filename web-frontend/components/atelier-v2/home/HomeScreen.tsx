@@ -141,6 +141,11 @@ export type HomeEntry = {
 export type HomeChip = {
   id: string;
   label: string;
+  /**
+   * WP-128: the activity's own estimate («≈ 4 min»), beside its label. An
+   * extension of the day, never part of the day's minutes.
+   */
+  meta?: string | null;
   href: string;
   /** The shape beside the word — reward (words), story (a letter). */
   shape?: 'reward' | 'story' | 'action';
@@ -443,6 +448,7 @@ export function HomeScreen({
               <>
                 <ShapeToken kind={chip.shape ?? 'reward'} size="sm" />
                 <span>{chip.label}</span>
+                {chip.meta ? <span className="av2-chip__meta">{chip.meta}</span> : null}
               </>
             );
             return chip.onSelect ? (

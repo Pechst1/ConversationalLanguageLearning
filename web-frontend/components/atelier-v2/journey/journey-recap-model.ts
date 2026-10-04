@@ -33,6 +33,7 @@ import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
 
 import { formatDuration } from './journey-state';
+import { measuredBesidePlanned } from './time-estimate';
 import { fill, recapChrome, recapStatusCopy } from './recap-copy';
 import { recapTeaserOf } from './season-return-model';
 
@@ -105,7 +106,9 @@ export function recapWords(recap: JourneyRecap | null | undefined): RecapWord[] 
 function sceneValue(recap: JourneyRecap, journey: JourneySnapshot, language: ControlLanguage): string | null {
   const chrome = recapChrome(language);
   const minutes = formatDuration(recap.active_seconds, language);
-  if (minutes) return minutes;
+  // WP-128: the measured minutes beside the core the day was planned at — the
+  // number Home and the plan showed — so the learner sees both, never a verdict.
+  if (minutes) return measuredBesidePlanned(minutes, recap.estimated_core_seconds, language);
   const done =
     typeof recap.steps_done === 'number'
       ? recap.steps_done

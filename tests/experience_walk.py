@@ -190,6 +190,23 @@ def la_une(client: TestClient, headers: dict[str, str]) -> dict[str, Any]:
         "learner_level": body.get("learner_level"),
         # Régulier and Léger get La Forge as an after-day chip (WP-S4).
         "forge": body.get("forge"),
+        # WP-128: the one estimate Home shows (core + each extension's own).
+        "time_estimate": body.get("time_estimate"),
+    }
+
+
+def day_time_estimate(client: TestClient, headers: dict[str, str]) -> dict[str, Any]:
+    """WP-128: after the day — the plan's estimate as the journey and Home carry it."""
+
+    response = client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": support.TZ})
+    if response.status_code != 200:
+        return {"status_code": response.status_code}
+    body = response.json()
+    plan = (body.get("journey") or {}).get("time_estimate") or {}
+    return {
+        **plan,
+        "home": body.get("time_estimate"),
+        "recap_core_seconds": (((body.get("journey") or {}).get("recap")) or {}).get("estimated_core_seconds"),
     }
 
 
@@ -787,6 +804,7 @@ __all__ = [
     "Timer",
     "cahier",
     "courrier",
+    "day_time_estimate",
     "drill",
     "la_une",
     "register_as_onboarding",

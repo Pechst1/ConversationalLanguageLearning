@@ -813,6 +813,9 @@ class JourneyRecap(JourneyModel):
     story_outcome: StoryOutcome | None = None
     #: Measured active seconds. ``None`` when the runtime was not measurable.
     active_seconds: int | None = None
+    #: WP-128. The core estimate the day was planned at — the same number Home
+    #: and the plan showed — so the ending can set the measured minutes beside it.
+    estimated_core_seconds: int | None = None
     # WP-79. All additive and defaulted: a recap persisted before WP-79 reads
     # with none of them, and the client derives nothing it was not sent.
     #: Steps the learner completed (not skipped) — the honest count shown
@@ -931,6 +934,39 @@ class MasteryToday(JourneyModel):
     tested_out_concept_ids: list[int] = Field(default_factory=list)
 
 
+class TimeExtension(JourneyModel):
+    """WP-128 — one optional extension of the day, with its own estimate.
+
+    ``words`` (the drill), ``letter`` (one Courrier reply), ``forge`` (La Forge's
+    block), ``reading`` (the «Lecture») and ``desk`` (a Revue desk). None of them
+    is part of the core the rhythm budgets, and none is a completion requirement.
+    ``in_day``: planned inside today's journey (Soutenu/Intensif's folded forge
+    and «Lecture», a desk); otherwise an activity of its own, offered beside it.
+    """
+
+    kind: Literal["words", "letter", "forge", "reading", "desk"]
+    seconds: int
+    in_day: bool = False
+
+
+class DayTimeEstimate(JourneyModel):
+    """WP-128 — the one estimate every surface shows: Home, the entry, the plan, the ending.
+
+    ``core_seconds`` is the recommended core path — the story and its practice —
+    which the selected rhythm (``budget_seconds``) budgets. ``basis`` says where
+    it comes from: ``plan`` (today's planned day) or ``forecast`` (before the
+    day is planned: the learner's recent planned cores, else the rhythm's prior).
+    ``longer_day``: the story alone does not fit the rhythm; it is planned
+    whole, never cut, and said before the learner starts.
+    """
+
+    budget_seconds: int
+    core_seconds: int
+    basis: Literal["plan", "forecast"]
+    longer_day: bool = False
+    extensions: list[TimeExtension] = Field(default_factory=list)
+
+
 class JourneySnapshot(JourneyModel):
     #: Current learner estimate, independent of the persisted scene's band.
     learner_level: str | None = None
@@ -979,6 +1015,9 @@ class JourneySnapshot(JourneyModel):
     season_premiere: SeasonPremiereView | None = None
     #: WP-99. Set while the story is between seasons.
     interlude: InterludeView | None = None
+    #: WP-128. The day's core estimate and its in-day extensions, from the plan.
+    #: ``None`` for a journey not yet planned.
+    time_estimate: DayTimeEstimate | None = None
 
 
 class LegacyResume(JourneyModel):
@@ -1087,6 +1126,10 @@ class TodayEnvelope(JourneyModel):
     interlude: InterludeView | None = None
     #: WP-109. Today's episode, headlined (``None`` once it is over, or with no story).
     headline: EpisodeHeadline | None = None
+    #: WP-128. The one estimate Home shows: today's core (the plan's once the
+    #: day is planned, else the forecast ``available.estimated_seconds`` says)
+    #: and each optional extension with its own minutes.
+    time_estimate: DayTimeEstimate | None = None
 
 
 # ---------------------------------------------------------------------------
