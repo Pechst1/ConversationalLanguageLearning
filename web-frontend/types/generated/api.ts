@@ -11726,6 +11726,8 @@ export interface components {
          * @description One panel of an authored scene's page (2026-09-25).
          */
         ScenePanel: {
+            /** Alt Native */
+            alt_native: string | null;
             /** Dialogue */
             dialogue: components["schemas"]["ScenePanelLine"][];
             /** Id */
@@ -11754,8 +11756,12 @@ export interface components {
             character_id: string;
             /** Character Name */
             character_name: string | null;
+            /** Mood */
+            mood: string | null;
             /** Text Fr */
             text_fr: string;
+            /** Text Native */
+            text_native: string | null;
         };
         /** ScenePrompt */
         ScenePrompt: {

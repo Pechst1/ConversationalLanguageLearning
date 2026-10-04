@@ -155,6 +155,11 @@ class ScenePanelLine(JourneyModel):
     character_id: str
     character_name: str | None = None
     text_fr: str
+    #: WP-124a: the line in the learner's language (A1–A2, English and German
+    #: learners), as a story-engine episode's line carries it (WP-90).
+    text_native: str | None = None
+    #: WP-124a: the speaker's face for this line (WP-90's moods).
+    mood: str | None = None
 
 
 class ScenePanel(JourneyModel):
@@ -168,6 +173,8 @@ class ScenePanel(JourneyModel):
     image_status: Literal["panel_art", "setting_reference", "unavailable"] = "unavailable"
     #: WP-116: the scene's location plate, under the drawn cast.
     plate_url: str | None = None
+    #: WP-124a: what the picture shows, in the learner's language (WP-90).
+    alt_native: str | None = None
 
 
 class MarginNote(JourneyModel):

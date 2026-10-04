@@ -634,6 +634,9 @@ def check_wishes_are_not_corrected(transcript: dict[str, Any]) -> list[str]:
     return problems
 
 
+# Wave 1 package checks live in their own modules (tests/walk_checks_wp*.py).
+from tests.walk_checks_wp124a import check_lost_day_stays_in_season  # noqa: E402
+
 CHECKS = (
     check_grading,
     check_language,
@@ -646,6 +649,7 @@ CHECKS = (
     check_repairs,
     check_rule_of_today,
     check_wishes_are_not_corrected,
+    check_lost_day_stays_in_season,
 )
 
 
