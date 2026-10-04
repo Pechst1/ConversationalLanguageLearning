@@ -421,3 +421,29 @@ def test_the_practice_check_reports_thin_or_blocked_b1_days() -> None:
     assert walk_checks_wp129.check_b1_practice(_record([thin] * 10))
     # Below B1 the volume check does not apply.
     assert not walk_checks_wp129.check_b1_practice(_record([thin] * 10, persona="a1-de-fresh"))
+
+
+def test_a_free_sentence_is_met_by_any_use_and_a_miss_shows_a_model() -> None:
+    from app.services.journey_contracts import AssistanceLevel, AttemptAnswer, InputMode, TaskOutcome
+
+    unit = brief("FR2_B11_PLUS_QUE_PARFAIT", 1)
+    task = grammar_items.free_sentence_item(unit, language="fr")
+    assert task is not None
+    external = unit["external_id"]
+    db = SimpleNamespace(get=lambda _cls, _id: concept(external, 1))
+    user = SimpleNamespace(native_language="de", ui_language="de")
+
+    def grade(text: str):
+        return journey_learning.evaluate_recall(
+            db, user=user, task=task, answer=AttemptAnswer(mode=InputMode.TEXT, text=text),
+            assistance=AssistanceLevel.NONE,
+        )
+
+    # The model sentence typed with a forgiven accent slip is still the unit used
+    # (the walk's C1 learner: «Quand bien meme tu aurais raison, …»).
+    assert task.solution_fr == "Quand Léa est arrivée, ses amis étaient déjà partis."
+    slipped = grade("Quand Lea est arrivée, ses amis étaient déjà partis.")
+    assert slipped.outcome is TaskOutcome.MET
+    miss = grade("Je mange une pomme verte.")
+    assert miss.outcome is TaskOutcome.NOT_YET
+    assert miss.correction is not None and miss.correction.corrected_fr

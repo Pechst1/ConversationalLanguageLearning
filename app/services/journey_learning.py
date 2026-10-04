@@ -1890,7 +1890,16 @@ def evaluate_recall(
     elif _is_free_sentence(task):
         # WP-129: the learner's own sentence, graded by the unit's detector —
         # never against the one model sentence (shown after a miss).
-        is_correct = _free_sentence_uses_unit(db, task, answer.text)
+        # The model sentence itself, typed with a forgiven slip («meme» for
+        # «même»), is the unit used too: the detector reads accents literally.
+        from app.services.answer_acceptance import judge
+
+        typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
+        is_correct = _free_sentence_uses_unit(db, task, answer.text) or bool(
+            typed_verdict is not None and typed_verdict.correct
+        )
+        if not (typed_verdict is not None and typed_verdict.correct):
+            typed_verdict = None
         learner_text = answer.text
         opportunity = "open_production"
     elif task.task_type in {"tiles", "word_bank", "unscramble"}:
@@ -1948,6 +1957,15 @@ def evaluate_recall(
         if correction is None and typed is not None and typed.note == "accent" and learner_text and expected:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
+            candidate = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
+            correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if correction is None and _is_free_sentence(task) and learner_text and expected:
+            # WP-129: a free sentence that did not use the unit is not a slip in
+            # one span: the learner sees a model sentence that does, whole.
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
                 corrected_fr=normalize_answer_text(expected),
