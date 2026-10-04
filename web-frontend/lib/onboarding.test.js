@@ -23,8 +23,11 @@ const { detectOnboardingLanguage, onboardingLanguageOf } = require('./onboarding
 const {
   AFTER_SIGNUP_DESTINATION,
   SIGNUP_COPY,
+  STARTING_POINTS,
+  STARTING_POINT_CEFR,
   afterSignUpDestination,
   buildRegisterPayload,
+  startingPointLabel,
   validateSignUp,
 } = require('./onboarding-signup.ts');
 const { CAST_WITH_PORTRAITS, PORTRAIT_MOODS, portraitSrc, portraitInitial } = require('./onboarding-portraits.ts');
@@ -152,9 +155,36 @@ test('validation: email, 8 characters, 72 bytes, and the one question', () => {
   }
 });
 
-test('the question is «Votre français ?» with three answers', () => {
+test('the question is «Votre français ?» with five answers, A1 to C1 (WP-126)', () => {
   assert.equal(SIGNUP_COPY.fr.level_question, 'Votre français ?');
-  assert.deepEqual(SIGNUP_COPY.fr.levels, { new: 'Nouveau', some: 'Quelques bases', comfortable: 'À l’aise' });
+  assert.deepEqual(STARTING_POINTS, ['new', 'some', 'comfortable', 'confident', 'advanced']);
+  assert.deepEqual(Object.values(STARTING_POINT_CEFR), ['A1', 'A2', 'B1', 'B2', 'C1']);
+  // The scale ends at C1: never an ambiguous «C1+».
+  assert.ok(!Object.values(STARTING_POINT_CEFR).some((band) => band.includes('+')));
+  for (const language of LANGUAGES) {
+    const copy = SIGNUP_COPY[language];
+    assert.deepEqual(Object.keys(copy.levels).sort(), [...STARTING_POINTS].sort(), language);
+    const labels = STARTING_POINTS.map((point) => startingPointLabel(copy, point));
+    assert.equal(new Set(labels).size, 5, `${language}: five distinct answers`);
+    // Plain words first, the CEFR band beside them.
+    assert.equal(startingPointLabel(copy, 'advanced'), `${copy.levels.advanced} · C1`);
+    for (const point of STARTING_POINTS) assert.ok(!/[A-C][12]/.test(copy.levels[point]), `${language}.${point} is plain words`);
+  }
+  // The legacy three keep their French wording.
+  assert.equal(SIGNUP_COPY.fr.levels.new, 'Nouveau');
+  assert.equal(SIGNUP_COPY.fr.levels.some, 'Quelques bases');
+});
+
+test('every starting point goes out as itself; an older three-value client still works', () => {
+  for (const startingPoint of STARTING_POINTS) {
+    const payload = buildRegisterPayload({
+      email: 'a@b.fr', password: 'motdepasse', firstName: '', startingPoint, language: 'en',
+    });
+    assert.equal(payload.starting_point, startingPoint);
+  }
+  const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'auth', 'signup.tsx'), 'utf8');
+  assert.ok(page.includes('STARTING_POINTS.map((point)'), 'the page lists every starting point');
+  assert.ok(page.includes('startingPointLabel(copy, point)'), 'with its CEFR label');
 });
 
 // --- redirect target -------------------------------------------------------

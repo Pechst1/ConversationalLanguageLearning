@@ -8,14 +8,33 @@
  *
  * After the account exists the learner is signed in and lands in today's
  * scene, `/atelier?start=today`, never on the placement: «Nouveau» skips it
- * entirely, and the others are offered it after day three (`/placement/offer`).
+ * entirely, and the others are offered it right after their first completed
+ * ending (WP-126, `/placement/offer`).
+ *
+ * WP-126: five plain-language starting points, A1 → C1, each with its CEFR
+ * label beside the plain words. The scale ends at C1 (never «C1+»). An older
+ * client's three values (`new` / `some` / `comfortable`) mean what they meant.
  */
 
 import type { OnboardingLanguage } from './onboarding-locale';
 
-export type StartingPoint = 'new' | 'some' | 'comfortable';
+export type StartingPoint = 'new' | 'some' | 'comfortable' | 'confident' | 'advanced';
 
-export const STARTING_POINTS: StartingPoint[] = ['new', 'some', 'comfortable'];
+export const STARTING_POINTS: StartingPoint[] = ['new', 'some', 'comfortable', 'confident', 'advanced'];
+
+/** The band each answer declares — shown as a quiet label, sent as `starting_point`. */
+export const STARTING_POINT_CEFR: Record<StartingPoint, string> = {
+  new: 'A1',
+  some: 'A2',
+  comfortable: 'B1',
+  confident: 'B2',
+  advanced: 'C1',
+};
+
+/** «Plain words · A2»: the CEFR label is optional context, never the question. */
+export function startingPointLabel(copy: SignUpCopy, point: StartingPoint): string {
+  return `${copy.levels[point]} · ${STARTING_POINT_CEFR[point]}`;
+}
 
 /** Where a learner lands after sign-up, unless a deep link brought them. */
 export const AFTER_SIGNUP_DESTINATION = '/atelier?start=today';
@@ -123,7 +142,13 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     first_name: 'First name',
     optional: 'optional',
     level_question: 'Your French?',
-    levels: { new: 'New', some: 'Some basics', comfortable: 'Comfortable' },
+    levels: {
+      new: 'New to French',
+      some: 'I know some basics',
+      comfortable: 'I get by day to day',
+      confident: 'I talk about most things with ease',
+      advanced: 'I read and argue with nuance',
+    },
     language: 'App language',
     created_sign_in: 'Account created. Sign in to open your first scene.',
     failed: 'Something went wrong. Please try again.',
@@ -146,7 +171,13 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     first_name: 'Vorname',
     optional: 'optional',
     level_question: 'Ihr Französisch?',
-    levels: { new: 'Neu', some: 'Grundkenntnisse', comfortable: 'Sicher' },
+    levels: {
+      new: 'Neu im Französischen',
+      some: 'Ich habe Grundkenntnisse',
+      comfortable: 'Ich komme im Alltag zurecht',
+      confident: 'Ich spreche über fast alles mühelos',
+      advanced: 'Ich lese und argumentiere differenziert',
+    },
     language: 'App-Sprache',
     created_sign_in: 'Konto erstellt. Melden Sie sich an, um Ihre erste Szene zu öffnen.',
     failed: 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
@@ -169,7 +200,13 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     first_name: 'Prénom',
     optional: 'facultatif',
     level_question: 'Votre français ?',
-    levels: { new: 'Nouveau', some: 'Quelques bases', comfortable: 'À l’aise' },
+    levels: {
+      new: 'Nouveau',
+      some: 'Quelques bases',
+      comfortable: 'À l’aise au quotidien',
+      confident: 'À l’aise sur presque tout',
+      advanced: 'Je lis et j’argumente avec nuance',
+    },
     language: 'Langue de l’app',
     created_sign_in: 'Compte créé. Connectez-vous pour ouvrir votre première scène.',
     failed: 'Une erreur est survenue. Réessayez.',

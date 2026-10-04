@@ -1,8 +1,9 @@
 /**
  * SPEED-1 — the way into «Vérification du lexique».
  *
- * Shown only while `GET /vocabulary/band-check` lists at least one uncredited
- * sub-band below the learner's level; otherwise it renders nothing (and it
+ * WP-127: shown only while the top-down ladder (`GET /vocabulary/band-check/ladder`)
+ * has a band to check now — not when it is done, and not when this visit's two
+ * checks are spent (no nag); otherwise it renders nothing (and it
  * renders nothing while it asks, so a screen never jumps for a learner who has
  * nothing to check). One calm, secondary action — the host screen keeps its own
  * single primary.
@@ -15,11 +16,11 @@ import React from 'react';
 import Link from 'next/link';
 
 import { Surface } from '@/components/atelier-v2/ui';
-import api, { type BandCheckSubBand } from '@/services/api';
+import api, { type BandCheckLadder, type BandCheckSubBand } from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { bandCheckCopy, bandCheckFill } from './band-check-copy';
-import { uncreditedBands } from './band-check-state';
+import { nextBand } from './band-check-state';
 import type { BandCheckOrigin } from './BandCheck';
 
 export const BAND_CHECK_ROUTE = '/vocabulary/verification';
@@ -35,18 +36,22 @@ export function BandCheckEntryView({
   origin,
   language,
   bands,
+  ladder,
 }: {
   origin: BandCheckOrigin;
   language: ControlLanguage;
+  /** Without a ladder (an older server, the gallery), the same rule is computed here. */
   bands: BandCheckSubBand[];
+  ladder?: Pick<BandCheckLadder, 'status' | 'next'> | null;
 }) {
-  const open = uncreditedBands(bands);
-  if (open.length === 0) return null;
+  const next = ladder ? (ladder.status === 'open' ? ladder.next ?? null : null) : nextBand(bands);
+  if (!next) return null;
   const copy = bandCheckCopy(language);
+  const resumed = bands.some((row) => row.missed);
   const lead =
     origin === 'placement'
       ? copy.entry_lead_placement
-      : bandCheckFill(copy.entry_lead_lexique, { bands: open.map((row) => row.sub_band).join(' · ') });
+      : bandCheckFill(resumed ? copy.entry_lead_resume : copy.entry_lead_lexique, { band: next });
   return (
     <Surface tone="outline" className="bc-entry">
       <p className="bc-entry__lead">{lead}</p>
@@ -71,25 +76,25 @@ export function BandCheckEntryView({
 }
 
 export function BandCheckEntry({ origin, language }: { origin: BandCheckOrigin; language: ControlLanguage }) {
-  const [bands, setBands] = React.useState<BandCheckSubBand[] | null>(null);
+  const [ladder, setLadder] = React.useState<BandCheckLadder | null>(null);
   React.useEffect(() => {
     let alive = true;
     api
-      .getBandChecks()
-      .then((list) => {
-        if (alive) setBands(Array.isArray(list) ? list : []);
+      .getBandCheckLadder()
+      .then((body) => {
+        if (alive) setLadder(body ?? null);
       })
       .catch(() => {
-        // An entry point is an offer: when the list cannot be read, it is
+        // An entry point is an offer: when the ladder cannot be read, it is
         // simply not shown.
-        if (alive) setBands([]);
+        if (alive) setLadder(null);
       });
     return () => {
       alive = false;
     };
   }, []);
-  if (!bands) return null;
-  return <BandCheckEntryView origin={origin} language={language} bands={bands} />;
+  if (!ladder) return null;
+  return <BandCheckEntryView origin={origin} language={language} bands={ladder.bands} ladder={ladder} />;
 }
 
 export default BandCheckEntry;

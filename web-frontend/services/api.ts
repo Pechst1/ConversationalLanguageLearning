@@ -874,6 +874,10 @@ export type BandCheckSubBand = components['schemas']['BandCheckSubBand'];
 export type BandCheckItem = components['schemas']['BandCheckItem'];
 export type BandCheckStart = components['schemas']['BandCheckStart'];
 export type BandCheckResult = components['schemas']['BandCheckResult'];
+/** WP-127: the top-down check — where it stands and the next band to check. */
+export type BandCheckLadder = components['schemas']['BandCheckLadder'];
+/** WP-126: whether to offer the placement now (from the first completed ending on). */
+export type PlacementOffer = components['schemas']['PlacementOffer'];
 /** item id → the chosen option's index, or null for «je ne sais pas». */
 export type BandCheckAnswers = Record<string, number | null>;
 
@@ -2413,18 +2417,30 @@ class ApiService {
   }
 
   /* SPEED-1 — a two-minute check that credits a whole sub-band below the
-     learner's level. The sample is seeded per day server-side, so a re-fetch
-     the same day is the same check; the POST is graded against that sample. */
+     learner's level. WP-127: the sample is the attempt's (`attempt_id`), never
+     the day's, so a reload or midnight is the same check; the POST carries the
+     id back and a replay returns the stored result. */
   async getBandChecks(): Promise<BandCheckSubBand[]> {
     return this.atelierGet<BandCheckSubBand[]>('/vocabulary/band-check');
+  }
+
+  async getBandCheckLadder(): Promise<BandCheckLadder> {
+    return this.atelierGet<BandCheckLadder>('/vocabulary/band-check/ladder');
   }
 
   async startBandCheck(subBand: string): Promise<BandCheckStart> {
     return this.atelierGet<BandCheckStart>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`);
   }
 
-  async submitBandCheck(subBand: string, answers: BandCheckAnswers): Promise<BandCheckResult> {
-    return this.atelierPost<BandCheckResult>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`, { answers });
+  async submitBandCheck(
+    subBand: string,
+    answers: BandCheckAnswers,
+    attemptId?: string | null,
+  ): Promise<BandCheckResult> {
+    return this.atelierPost<BandCheckResult>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`, {
+      answers,
+      ...(attemptId ? { attempt_id: attemptId } : {}),
+    });
   }
 
   async getWordsOfTheDay(): Promise<DailyWordSlate> {
@@ -3299,6 +3315,11 @@ class ApiService {
 
   async skipPlacement(): Promise<PlacementEnvelope> {
     return this.atelierPost<PlacementEnvelope>('/placement/skip');
+  }
+
+  /** WP-126: the offer the day's ending shows (`resume` when one is open). */
+  async getPlacementOffer(): Promise<PlacementOffer> {
+    return this.atelierGet<PlacementOffer>('/placement/offer');
   }
 
   /* ---- WP-30 «Le journal de bord» ---------------------------------------

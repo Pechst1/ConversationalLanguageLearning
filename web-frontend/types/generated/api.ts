@@ -2522,9 +2522,10 @@ export interface paths {
         };
         /**
          * Read Offer
-         * @description True after three completed days, before any placement was taken or
-         *     declined, and only when it can tell the learner something (they declared
-         *     more than «Nouveau», or their days say they are above their band).
+         * @description WP-126: true from the first completed ending on, before any placement was
+         *     taken or declined, and only when it can tell the learner something (they
+         *     declared more than «Nouveau», or their days say they are *above* their band).
+         *     An open placement is offered for resuming.
          */
         get: operations["read_offer_api_v1_placement_offer_get"];
         put?: never;
@@ -4668,15 +4669,35 @@ export interface paths {
         };
         /**
          * Start Band Check
-         * @description Today's check for one sub-band: meaning choices, no answer key.
+         * @description This attempt's check for one sub-band: meaning choices, no answer key.
          */
         get: operations["start_band_check_api_v1_vocabulary_band_check__sub_band__get"];
         put?: never;
         /**
          * Submit Band Check
-         * @description Grade the check; a pass gives the sub-band's words settled, known cards.
+         * @description Grade the check; a pass credits the band (sampled) and the bands below (inferred).
          */
         post: operations["submit_band_check_api_v1_vocabulary_band_check__sub_band__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vocabulary/band-check/ladder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Band Check Ladder
+         * @description WP-127: the top-down check — the next band to check, or why there is none.
+         */
+        get: operations["band_check_ladder_api_v1_vocabulary_band_check_ladder_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6099,16 +6120,71 @@ export interface components {
             /** Options */
             options: string[];
         };
+        /**
+         * BandCheckLadder
+         * @description WP-127: the top-down check — where it stands and what to check next.
+         */
+        BandCheckLadder: {
+            /** Bands */
+            bands: components["schemas"]["BandCheckSubBand"][];
+            /** Items Per Check */
+            items_per_check: number;
+            /** Max Checks Per Visit */
+            max_checks_per_visit: number;
+            /** Next */
+            next?: string | null;
+            /** Pass Correct */
+            pass_correct: number;
+            /** Policy Version */
+            policy_version: string;
+            /** Resume Band */
+            resume_band?: string | null;
+            /** Status */
+            status: string;
+            /** Visit Checks Left */
+            visit_checks_left: number;
+            /** Visit Checks Used */
+            visit_checks_used: number;
+        };
         /** BandCheckResult */
         BandCheckResult: {
+            /** Attempt Id */
+            attempt_id?: string | null;
             /** Correct */
             correct: number;
+            /**
+             * Credited Inferred
+             * @default 0
+             */
+            credited_inferred?: number;
+            /**
+             * Credited Sampled
+             * @default 0
+             */
+            credited_sampled?: number;
             /** Credited Words */
             credited_words: number;
+            /** Inferred Bands */
+            inferred_bands?: string[];
+            /** Ladder Status */
+            ladder_status?: string | null;
             /** Missed */
             missed: string[];
+            /** Next */
+            next?: string | null;
+            /** Pass Correct */
+            pass_correct?: number | null;
             /** Passed */
             passed: boolean;
+            /** Policy Version */
+            policy_version?: string | null;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed?: boolean;
+            /** Resume Band */
+            resume_band?: string | null;
             /** Sub Band */
             sub_band: string;
             /** Total */
@@ -6116,17 +6192,30 @@ export interface components {
         };
         /** BandCheckStart */
         BandCheckStart: {
+            /** Attempt Id */
+            attempt_id?: string | null;
             /** Items */
             items: components["schemas"]["BandCheckItem"][];
+            /** Pass Correct */
+            pass_correct?: number | null;
             /** Pass Share */
             pass_share: number;
+            /** Policy Version */
+            policy_version?: string | null;
             /** Sub Band */
             sub_band: string;
         };
         /** BandCheckSubBand */
         BandCheckSubBand: {
+            /** Credit Kind */
+            credit_kind?: string | null;
             /** Credited */
             credited: boolean;
+            /**
+             * Missed
+             * @default false
+             */
+            missed?: boolean;
             /** Sub Band */
             sub_band: string;
             /** Words */
@@ -6138,6 +6227,8 @@ export interface components {
             answers?: {
                 [key: string]: number | null;
             };
+            /** Attempt Id */
+            attempt_id?: string | null;
         };
         /** Body_import_anki_cards_api_v1_anki_import_post */
         Body_import_anki_cards_api_v1_anki_import_post: {
@@ -9714,11 +9805,18 @@ export interface components {
         };
         /**
          * PlacementOffer
-         * @description WP-75: whether to offer the placement now. Never true at sign-up.
+         * @description WP-75 / WP-126: whether to offer the placement now. Never true at sign-up.
          */
         PlacementOffer: {
             /** Offer */
             offer: boolean;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Resume
+             * @default false
+             */
+            resume?: boolean;
         };
         /**
          * PlacementPromptView
@@ -13147,7 +13245,7 @@ export interface components {
              */
             speaking_comfort?: string;
             /** Starting Point */
-            starting_point?: ("new" | "some" | "comfortable") | null;
+            starting_point?: ("new" | "some" | "comfortable" | "confident" | "advanced") | null;
             /**
              * Streak Notifications
              * @default true
@@ -21983,6 +22081,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    band_check_ladder_api_v1_vocabulary_band_check_ladder_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandCheckLadder"];
                 };
             };
         };
