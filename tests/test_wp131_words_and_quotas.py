@@ -150,15 +150,40 @@ def _learner(db: Session, *, minutes: int = 10, quota: int | None = None) -> Use
 _CREATED: list[int] = []
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _leave_the_catalogue_as_found(db_engine):
+    """A request in this module may sync the core list into the shared database;
+    later suites order their words without it, so it leaves with the module."""
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.services.core_lexicon import CORE_DECK
+
+    db = sessionmaker(bind=db_engine)()
+    had_core = db.query(VocabularyWord.id).filter(VocabularyWord.deck_name == CORE_DECK).first() is not None
+    db.close()
+    yield
+    if had_core:
+        return
+    db = sessionmaker(bind=db_engine)()
+    core = db.query(VocabularyWord.id).filter(VocabularyWord.deck_name == CORE_DECK).subquery()
+    progress = db.query(UserVocabularyProgress.id).filter(UserVocabularyProgress.word_id.in_(core)).subquery()
+    db.query(ReviewLog).filter(ReviewLog.progress_id.in_(progress)).delete(synchronize_session=False)
+    db.query(UserVocabularyProgress).filter(UserVocabularyProgress.word_id.in_(core)).delete(synchronize_session=False)
+    db.query(VocabularyWord).filter(VocabularyWord.deck_name == CORE_DECK).delete(synchronize_session=False)
+    db.commit()
+    db.close()
+
+
 @pytest.fixture(autouse=True)
 def _forget_test_words(db_session: Session):
     """The suite shares one database: the cards this module makes (rank 1, Anki
     cards) would otherwise be every later learner's first new words."""
 
     yield
+    db_session.rollback()
     if not _CREATED:
         return
-    db_session.rollback()
     progress_ids = [
         row.id for row in db_session.query(UserVocabularyProgress).filter(UserVocabularyProgress.word_id.in_(_CREATED))
     ]
