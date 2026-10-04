@@ -21,7 +21,7 @@ import pytest
 from app.core import test_clock
 from tests import experience_walk as life
 from tests import learner_walk as walk
-from tests import walk_checks, walk_checks_wp126
+from tests import walk_checks, walk_checks_wp126, walk_checks_wp128
 from tests.test_learner_walk import (  # noqa: F401 - fixtures
     assembled_client,
     journey_enabled,
@@ -75,6 +75,8 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
             client, db, headers, persona=persona, quality=quality, day=day, provider=provider, answerer=answerer
         )
         transcript["names_met_before"] = sorted(met)
+        # WP-128: the plan's core estimate as Home, the plan and the ending carry it.
+        today["time_budget"] = life.day_time_estimate(client, headers)
         # WP-126: the end-of-day transition — the offer surfaces right after the
         # ending (from the first one on). WP-127: one bounded visit of the
         # top-down check after the placement, resumed on later days if it paused.
@@ -134,6 +136,8 @@ def test_a_month_of_a_whole_life(
     problems = walk_checks.check_life(record)
     # WP-126/127: ≤ 48 check items a visit; no own-band offer to «Nouveau»; B2/C1 day one at its band.
     problems += walk_checks_wp126.check_life_wp126(record)
+    # WP-128: a core day within 20 % of its rhythm unless flagged longer; one core number.
+    problems += walk_checks_wp128.check_life_wp128(record)
     transcripts = [day["journey"] for day in record["days"]]
     problems += walk_checks.run_all(transcripts, db=db_session)
     assert not problems, "\n".join(problems[:60]) + (f"\n… {len(problems) - 60} more" if len(problems) > 60 else "")
