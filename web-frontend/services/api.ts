@@ -835,6 +835,9 @@ export interface VocabularyDueContext {
   topic_compatible_words: VocabularyRecommendationItem[];
   linked_words: VocabularyRecommendationItem[];
   algorithm: string;
+  /** WP-131: new words the day's allowance still holds after this deck; the
+   *  drill offers them as «Encore N mots». `null` on a review-only deck. */
+  new_words_left_today?: number | null;
 }
 
 export interface DailyWordEntry {

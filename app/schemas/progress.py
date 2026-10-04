@@ -275,6 +275,11 @@ class VocabularyDueContextResponse(BaseModel):
     topic_compatible_words: list[VocabularyRecommendationItem]
     linked_words: list[VocabularyRecommendationItem]
     algorithm: str = "fsrs_retrievability_v1"
+    #: WP-131: new words the day's allowance still holds after this deck (the
+    #: rhythm's quota, throttled, minus today's introductions and the journey's
+    #: share). The drill offers them as an explicit «Encore N mots» continuation.
+    #: ``None`` when not read (a review-only «Encore» deck, a demo account).
+    new_words_left_today: int | None = None
 
 
 class VocabularyMasteryMapCell(BaseModel):

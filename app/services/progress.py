@@ -643,7 +643,7 @@ class ProgressService:
         excluded_new = set(used_word_ids) | set(exclude_new_word_ids or ())
         if excluded_new:
             new_stmt = new_stmt.where(VocabularyWord.id.notin_(excluded_new))
-        new_stmt = new_stmt.order_by(
+        base_order = (
             # An imported deck is the learner's own choice of curriculum; the
             # core list fills in after it, and is the whole supply without one.
             case((met_word, 0), else_=1).asc(),
@@ -651,20 +651,15 @@ class ProgressService:
             VocabularyWord.frequency_rank.asc().nullslast(),
             VocabularyWord.difficulty_level.asc().nullslast(),
             func.lower(VocabularyWord.word).asc(),
-        ).limit(max(new_limit * 3, new_limit))
-
-        # The same lemma can sit in an imported deck and in the core list; it is
-        # introduced once.
-        new_words: list[VocabularyWord] = []
-        new_lemmas: set[str] = set()
-        for word in self.db.scalars(new_stmt):
-            key = (word.normalized_word or word.word or "").strip().lower()
-            if key in new_lemmas:
-                continue
-            new_lemmas.add(key)
-            new_words.append(word)
-            if len(new_words) >= new_limit:
-                break
+        )
+        new_words = self._ordered_new_words(
+            user=user,
+            new_stmt=new_stmt,
+            base_order=base_order,
+            new_limit=new_limit,
+            core_word=core_word,
+            met_in_story=met_in_story,
+        ) if new_limit > 0 else []
         selected_new = [
             self._serialize_vocabulary_recommendation(
                 word=word,
@@ -688,6 +683,107 @@ class ProgressService:
             "items": items,
             "algorithm": "fsrs_retrievability_v1",
         }
+
+    def _ordered_new_words(
+        self,
+        *,
+        user: User,
+        new_stmt: Any,
+        base_order: tuple[Any, ...],
+        new_limit: int,
+        core_word: Any,
+        met_in_story: Any,
+    ) -> list[VocabularyWord]:
+        """WP-131: one batch of new words — the list's order, plus scene relevance
+        and basic diversity (:func:`app.services.word_order.order_new_words`).
+
+        Three deterministic reads: a window of the list in its own order, the
+        season's words at the learner's level, and the curated (not corpus) words
+        that can stand between corpus words. The same lemma in an imported deck
+        and in the core list is introduced once.
+        """
+
+        from sqlalchemy import Text, cast
+
+        from app.services.core_lexicon import CORE_DECK, CORPUS_TAG, SUB_BANDS, band_level
+        from app.services.journey_content import learner_level_band
+        from app.services.season_lexicon import season_words
+        from app.services.word_order import NewWord, order_new_words
+
+        window = max(new_limit * 6, 48)
+        rows: list[VocabularyWord] = list(self.db.scalars(new_stmt.order_by(*base_order).limit(window)))
+        corpus_word = cast(VocabularyWord.topic_tags, Text).like(f"%{CORPUS_TAG}%")
+        # The other two streams stay inside the sub-band the list has reached: the
+        # level gate counts a sub-band's own words, so the story may reorder the
+        # sub-band but never pull the next one forward (the A1 walk lost a third
+        # of its A1.1 coverage when it did).
+        sub_band = next(
+            (
+                tag
+                for word in rows
+                if word.deck_name == CORE_DECK
+                for tag in (word.topic_tags or [])
+                if tag in SUB_BANDS
+            ),
+            None,
+        )
+        same_sub_band = (
+            # «A1.1» is no substring of any other tag; no quotes, so the pattern
+            # reads the same on SQLite's JSON text and PostgreSQL's array text.
+            cast(VocabularyWord.topic_tags, Text).like(f"%{sub_band}%") if sub_band else None
+        )
+        story = sorted(season_words(learner_level_band(user)))
+        if story and same_sub_band is not None:
+            rows += list(
+                self.db.scalars(
+                    new_stmt.where(
+                        core_word,
+                        VocabularyWord.normalized_word.in_(story),
+                        same_sub_band,
+                        # The story's words never pull the drill above the learner's band.
+                        VocabularyWord.difficulty_level <= band_level(learner_level_band(user)),
+                    )
+                    .order_by(*base_order)
+                    .limit(new_limit * 2)
+                )
+            )
+        if same_sub_band is not None:
+            rows += list(
+                self.db.scalars(
+                    new_stmt.where(core_word, not_(corpus_word), same_sub_band)
+                    .order_by(*base_order)
+                    .limit(new_limit * 2)
+                )
+            )
+        ids = [int(word.id) for word in rows]
+        met_ids = {
+            int(value)
+            for value in self.db.scalars(
+                select(VocabularyWord.id).where(VocabularyWord.id.in_(ids), VocabularyWord.id.in_(met_in_story))
+            )
+        } if ids else set()
+        story_lemmas = set(story)
+        by_id: dict[int, VocabularyWord] = {}
+        candidates: list[NewWord] = []
+        lemmas: set[str] = set()
+        for word in rows:
+            key = (word.normalized_word or word.word or "").strip().lower()
+            if int(word.id) in by_id or key in lemmas:
+                continue
+            lemmas.add(key)
+            by_id[int(word.id)] = word
+            tags = [str(tag) for tag in (word.topic_tags or [])]
+            candidates.append(
+                NewWord(
+                    word_id=int(word.id),
+                    lemma=key,
+                    numeral=str(word.part_of_speech or "") == "number",
+                    met=int(word.id) in met_ids,
+                    season=word.deck_name == CORE_DECK and key in story_lemmas,
+                    corpus=CORPUS_TAG in tags,
+                )
+            )
+        return [by_id[item.word_id] for item in order_new_words(candidates, new_limit)]
 
     def _serialize_vocabulary_word_for_context(
         self,
@@ -860,6 +956,9 @@ class ProgressService:
         ][:fragile_limit]
         new_words = [with_reason(item) for item in recommendations["items"] if item["bucket"] == "new"][:new_limit]
         used_word_ids = {item["word_id"] for item in due_words + fragile_words + new_words}
+        # WP-131: a word today's journey reserved is introduced by the journey —
+        # never by the drill, not even as a «linked» or «topic» card.
+        used_word_ids |= {int(word_id) for word_id in exclude_new_word_ids or ()}
 
         linked_words = self._linked_vocabulary(
             user=user,

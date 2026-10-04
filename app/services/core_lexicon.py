@@ -36,6 +36,13 @@ from app.services.lexical_coverage import BAND_ORDER, LEXICON_PATH, fold, load_l
 
 CORE_DECK = "Lexique de base"
 CORE_TAG = "core_lexicon"
+#: WP-131: a lemma the list took from a frequency corpus (``source: anki_rank``,
+#: most of B2–C1: «sénateur», «islamiste», «bombardement») rather than from a
+#: curated theme. The drill interleaves these with curated and story words
+#: instead of introducing them in uncontextualised blocks (app/services/word_order).
+CORPUS_TAG = "core_corpus"
+#: Bumped when the row fields change shape, so deployed catalogues re-sync once.
+FIELDS_VERSION = "f2"
 LANGUAGE = "fr"
 
 _lock = threading.Lock()
@@ -57,7 +64,7 @@ def _marker(mtime_ns: int) -> str:
         digest = hashlib.sha256(LEXICON_PATH.read_bytes()).hexdigest()[:8]
     except OSError:  # pragma: no cover
         digest = "missing"
-    return f"core:{load_lexicon().version}:{digest}"[:50]
+    return f"core:{load_lexicon().version}:{digest}:{FIELDS_VERSION}"[:50]
 
 
 def band_level(band: str | None) -> int:
@@ -99,6 +106,8 @@ def _fields(lemma: str, entry: dict[str, Any], marker: str, position: int) -> di
     tags = [CORE_TAG, str(entry.get("band") or ""), str(entry.get("sub_band") or "")]
     if entry.get("register"):
         tags.append(f"register:{entry['register']}")
+    if entry.get("source") == "anki_rank":
+        tags.append(CORPUS_TAG)
     return {
         "word": lemma,
         "normalized_word": fold(lemma),
@@ -180,6 +189,7 @@ def ensure_core_lexicon(db: Session) -> None:
 __all__ = [
     "CORE_DECK",
     "CORE_TAG",
+    "CORPUS_TAG",
     "band_level",
     "core_marker",
     "ensure_core_lexicon",

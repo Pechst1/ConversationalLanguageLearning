@@ -100,15 +100,56 @@ const SECONDS_PER_CARD = 20;
 // one filled rule with the identical count and accessible value.
 const MAX_SEGMENTS = 12;
 
+// WP-131 (owner decision 9): one session introduces at most this many new words
+// (`vocabulary_pace.DRILL_SESSION_NEW_WORDS`); the server clamps it to what the
+// day's allowance leaves after the journey and the throttle.
+const SESSION_NEW_WORDS = 8;
+
 // Direction is resolved server-side from the learner's stored preference.
 const reviewQueueParams = {
   limit: 50,
   due_limit: 30,
   fragile_limit: 12,
-  new_limit: 8,
+  new_limit: SESSION_NEW_WORDS,
   topic_limit: 8,
   linked_limit: 8,
 } as const;
+
+// WP-131: «Encore N mots» — the rest of the day's allowance (Soutenu 18,
+// Intensif 30) as an explicit, bounded continuation: at most one session's new
+// words, plus whatever came due meanwhile; no fragile, topic or linked padding.
+function moreWordsParams(n: number) {
+  const words = Math.max(0, Math.min(SESSION_NEW_WORDS, Math.floor(n)));
+  return {
+    limit: words + 30,
+    due_limit: 30,
+    fragile_limit: 0,
+    new_limit: words,
+    topic_limit: 0,
+    linked_limit: 0,
+  } as const;
+}
+
+// The continuation's words, in the deck's chrome language (the learner's up to
+// A2, French from B1).
+const MORE_WORDS_COPY: Record<'one' | 'many', Record<string, { label: string; note: string }>> = {
+  one: {
+    fr: { label: 'Encore 1 mot', note: 'Votre rythme prévoit encore 1 mot nouveau aujourd’hui.' },
+    en: { label: '1 more word', note: 'Your rhythm still has 1 new word for today.' },
+    de: { label: 'Noch 1 Wort', note: 'Dein Rhythmus sieht heute noch 1 neues Wort vor.' },
+  },
+  many: {
+    fr: { label: 'Encore {n} mots', note: 'Votre rythme prévoit encore {n} mots nouveaux aujourd’hui.' },
+    en: { label: '{n} more words', note: 'Your rhythm still has {n} new words for today.' },
+    de: { label: 'Noch {n} Wörter', note: 'Dein Rhythmus sieht heute noch {n} neue Wörter vor.' },
+  },
+};
+
+function moreWordsCopy(language: string, n: number) {
+  const table = MORE_WORDS_COPY[n === 1 ? 'one' : 'many'];
+  const copy = table[language] || table.fr;
+  return { label: fill(copy.label, { n }), note: fill(copy.note, { n }) };
+}
 
 // WP-L6 «Encore 5 minutes» (after the day's Seal): reviews only — no new
 // words — and a deck of about five minutes at the deck's own pace. It never
@@ -421,6 +462,7 @@ function VocabularyReviewContinuation({
   onRefresh,
   onReturn,
   returning,
+  more,
 }: {
   lastItem: VocabularyRecommendationItem | null;
   lastRating: number | null;
@@ -428,6 +470,8 @@ function VocabularyReviewContinuation({
   onRefresh: () => void;
   onReturn: () => void;
   returning: boolean;
+  /** WP-131: the day's allowance still holds new words — «Encore N mots». */
+  more?: { label: string; note: string; onSelect: () => void } | null;
 }) {
   const t = useLexCopy();
   const wordId = lastItem?.word_id || null;
@@ -444,6 +488,7 @@ function VocabularyReviewContinuation({
         {(word || ratingCopy) && (
           <p className="av2-body av2-body--lg">{[word, ratingCopy].filter(Boolean).join(' · ')}</p>
         )}
+        {more && <p className="av2-body">{more.note}</p>}
         <div className="lx-done__actions">
           {/* the one tactile 3D press on the empty deck */}
           <Action tone="done" pending={returning} pendingLabel={t.returning} onClick={onReturn}>
@@ -451,6 +496,9 @@ function VocabularyReviewContinuation({
             La Une
           </Action>
           <div className="lx-done__quiet">
+            {more && (
+              <Action tone="quiet" inline onClick={more.onSelect}>{more.label}</Action>
+            )}
             <Action tone="quiet" inline onClick={onRefresh}>{t.refresh}</Action>
             {wordId && (
               <Link className="av2-btn av2-btn--quiet av2-btn--inline" href={`/vocabulary?word=${wordId}`}>
@@ -507,12 +555,17 @@ export default function VocabularyReviewPage() {
   const activeWordIdRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const loadQueue = useCallback(async () => {
+  const loadQueue = useCallback(async (moreWords?: number) => {
     setLoading(!visibleCacheRef.current);
     setLoadError(null);
     try {
+      const params = isEncore()
+        ? encoreQueueParams
+        : moreWords
+          ? moreWordsParams(moreWords)
+          : reviewQueueParams;
       const [next, slate] = await Promise.all([
-        apiService.getVocabularyDueContext(isEncore() ? encoreQueueParams : reviewQueueParams),
+        apiService.getVocabularyDueContext(params),
         apiService.getWordsOfTheDay().catch(() => null),
       ]);
       setWordSlate(slate);
@@ -607,6 +660,16 @@ export default function VocabularyReviewPage() {
     const list = `${parts.slice(0, -1).join(', ')} ${t.and_word} ${parts[parts.length - 1]}`;
     return fill(t.composition, { list });
   }, [remainingSummary, t]);
+
+  // WP-131: the day's allowance still holds new words after this deck. Offered
+  // once the deck is done, never in «Encore 5 minutes» (review only), and at most
+  // one session's worth at a time; the server stays the judge of the room.
+  const moreWords = useMemo(() => {
+    const left = Number(context?.new_words_left_today || 0);
+    if (isEncore() || !Number.isFinite(left) || left <= 0) return null;
+    const n = Math.min(SESSION_NEW_WORDS, Math.floor(left));
+    return { ...moreWordsCopy(language, n), onSelect: () => void loadQueue(n) };
+  }, [context, language, loadQueue]);
 
   useEffect(() => {
     if (current) {
@@ -998,9 +1061,10 @@ export default function VocabularyReviewPage() {
                 lastItem={lastReviewedItem}
                 lastRating={lastRating}
                 slate={wordSlate}
-                onRefresh={loadQueue}
+                onRefresh={() => void loadQueue()}
                 onReturn={returnToAtelier}
                 returning={returning}
+                more={moreWords}
               />
             )}
 
