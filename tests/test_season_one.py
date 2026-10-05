@@ -926,13 +926,23 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
         if (scene.source_snapshot or {}).get("journey_id") != journey_id:
             # The director lost the day: the authored café scene stood in, and the
             # season did not move (tomorrow retries the same season day).
-            lines.append(f"## Jour {day} — jour perdu : scène d'auteur «{brief.get('scenario_key')}» (la saison n'avance pas)")
+            key = str(brief.get("scenario_key") or "")
+            if key.startswith("season_reprise"):
+                # WP-124a: the day re-read the last season page; the season did not move.
+                lines.append(f"## Jour {day} — jour perdu : relecture de «{key.split(':', 1)[-1]}» (la saison n'avance pas)")
+            else:
+                lines.append(f"## Jour {day} — jour perdu : scène d'auteur «{key}» (la saison n'avance pas)")
             lines.append("")
             for turn in _respond_turns(db_session, journey_id):
                 lines += [f"**Toi** — «{turn.get('learner')}»", f"**Réponse** — «{turn.get('character')}»", ""]
         elif payload.get("season_page"):
             page = payload["season_page"]
-            lines.append(f"## Jour {day} — T{page['number']} · {page['tentpole_title_fr']} · jour {page['day'].upper()} · {page['story_date_fr']}")
+            # A WP-124b bridge page has no day letter and an epilogue page (WP-132B)
+            # is not a T-number: the report says what the page is, never crashes on it.
+            key = str(page.get("key") or "")
+            label = "pont" if key.startswith("bridge") or page.get("day") is None else f"jour {str(page['day']).upper()}"
+            kind = "Épilogue" if key.startswith("e") else f"T{page.get('number')}"
+            lines.append(f"## Jour {day} — {kind} · {page.get('tentpole_title_fr')} · {label} · {page.get('story_date_fr')}")
             lines.append("")
             lines.extend(render_tentpole_day(page, payload.get("season_routing") or []))
         else:
@@ -949,13 +959,13 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
                 render_generated_day(draft, _respond_turns(db_session, journey_id), resolution.get("prompt") or {}, names=names)
             )
         clock.advance(days=1)
+        # Written after every day: a run stopped by its cap or a crash keeps its days.
+        Path(os.environ["SEASON_REPORT"]).write_text("\n".join(lines), encoding="utf-8")
     state = _season_state(db_session, user_id)
     if spend is not None:
         lines += ["---", "", f"**Coût du passage :** US${spend['usd']:.4f} en {spend['calls']} appels (plafond US${spend['cap']:.2f}).", ""]
     lines += ["---", "", "**Drapeaux après ces jours** (jamais montrés à l'apprenant) :", "", "```json",
               json.dumps(state.get("flags") or {}, ensure_ascii=False, indent=1), "```", ""]
-    from pathlib import Path
-
     Path(os.environ["SEASON_REPORT"]).write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -1103,6 +1113,10 @@ def _live_model(monkeypatch) -> dict:
         result = original(self, *args, **kwargs)
         spend["usd"] += float(getattr(result, "cost", 0.0) or 0.0)
         spend["calls"] += 1
+        # Written after every call: a run that crashes still says what it spent.
+        ledger = os.environ.get("SEASON_REPORT_SPEND")
+        if ledger:
+            Path(ledger).write_text(json.dumps(spend), encoding="utf-8")
         return result
 
     monkeypatch.setattr(llm_service.LLMService, "generate_chat_completion", guarded)
