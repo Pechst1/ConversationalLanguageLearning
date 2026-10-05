@@ -64,6 +64,25 @@ def test_wp133a_live_read(assembled_client, db_session, journey_enabled, clock, 
         return gap
 
     monkeypatch.setattr(engine, "grammar_weave_gap", recorded_gap)
+    # Free dry runs only: WP133A_DRY_FAIL="3,4" loses those season days on the fake
+    # director, so the recovery (reprise, bridge) path is read before money is spent.
+    dry_fail = {int(day) for day in os.environ.get("WP133A_DRY_FAIL", "").split(",") if day.strip()}
+    if dry_fail and not os.environ.get("SEASON_REPORT_LIVE"):
+        plain = season_on._season_draft
+        calls = {"day": 0}
+
+        def failing(context):
+            day = int((((context.get("season_script") or {}).get("brief") or {}).get("season") or {}).get("day") or 0)
+            if day in dry_fail:
+                raise engine.StoryUnavailable("dry_run_forced")
+            return plain(context)
+
+        monkeypatch.setattr(season_on, "_season_draft", failing)
+        del calls
+    out = Path(os.environ["WP133A_OUT"])
+    out.mkdir(parents=True, exist_ok=True)
+    band = os.environ.get("SEASON_REPORT_BAND", "A2.1")
+    os.environ.setdefault("SEASON_REPORT_SPEND", str(out / f"{band}.spend.json"))
     caplog.set_level(logging.WARNING)
     try:
         season_suite.test_write_the_first_days_for_the_owner(
@@ -72,15 +91,17 @@ def test_wp133a_live_read(assembled_client, db_session, journey_enabled, clock, 
         outcome = "complete"
     except season_suite.SpendCapReached as exc:
         outcome = f"stopped: {exc}"
+    except Exception as exc:  # noqa: BLE001 - a paid run keeps what it learned
+        outcome = f"crashed: {type(exc).__name__}: {exc}"
     failures = [
         record.getMessage()
         for record in caplog.records
-        if "story engine failed" in record.getMessage() or "critic" in record.getMessage().lower()
+        if any(mark in record.getMessage() for mark in ("story engine failed", "season day lost", "re-reads", "recovery"))
+        or "critic" in record.getMessage().lower()
     ]
-    out = Path(os.environ["WP133A_OUT"])
-    out.mkdir(parents=True, exist_ok=True)
-    band = os.environ.get("SEASON_REPORT_BAND", "A2.1")
+    spent = Path(os.environ["SEASON_REPORT_SPEND"])
+    spend = json.loads(spent.read_text(encoding="utf-8")) if spent.is_file() else None
     (out / f"{band}.json").write_text(
-        json.dumps({"band": band, "outcome": outcome, "weaves": weaves, "failures": failures}, ensure_ascii=False, indent=1),
+        json.dumps({"band": band, "outcome": outcome, "spend": spend, "weaves": weaves, "failures": failures}, ensure_ascii=False, indent=1),
         encoding="utf-8",
     )
