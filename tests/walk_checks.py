@@ -262,7 +262,9 @@ def check_translations(transcript: dict[str, Any]) -> list[str]:
                 problems.append(f"{label}: the translation is the French itself: {french!r}")
             for name in names:
                 in_fr = re.search(rf"\b{re.escape(name)}\b", french) is not None
-                in_tr = re.search(rf"\b{re.escape(name)}\b", meaning) is not None
+                # A German possessive («Odiles Notizbuch») or an English one («Odile's»)
+                # still names the character.
+                in_tr = re.search(rf"\b{re.escape(name)}(?:s|'s|’s)?\b", meaning) is not None
                 if in_fr != in_tr:
                     problems.append(f"{label}: «{name}» is in only one of {french!r} / {meaning!r}")
             if sorted(_DIGITS.findall(french)) != sorted(_DIGITS.findall(meaning)):

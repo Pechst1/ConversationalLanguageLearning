@@ -264,32 +264,32 @@
     "bridges:g1.romy.turn": {
       "en": "Tell Romy who you are, and what you think of Solvel if you like.",
       "de": "Sag Romy, wer du bist, und wenn du magst, was du von Solvel hältst.",
-      "fr": "Dis à Romy qui tu es, et ce que tu penses de Solvel si tu veux."
+      "fr": "Dites à Romy qui vous êtes, et ce que vous pensez de Solvel si vous voulez."
     },
     "bridges:g1.billet.turn": {
       "en": "Tell the agent why you are staying longer.",
       "de": "Sag der Mitarbeiterin, warum du länger bleibst.",
-      "fr": "Dis à l'employée pourquoi tu restes plus longtemps."
+      "fr": "Dites à l'employée pourquoi vous restez plus longtemps."
     },
     "bridges:g2.diner.turn": {
       "en": "Say something to Lila that saves the evening.",
       "de": "Sag Lila etwas, das den Abend rettet.",
-      "fr": "Dis à Lila quelque chose qui sauve la soirée."
+      "fr": "Dites à Lila quelque chose qui sauve la soirée."
     },
     "bridges:g3.toit.turn": {
       "en": "Talk to M. Marchand politely, and get off the roof.",
       "de": "Sprich höflich mit M. Marchand und komm vom Dach herunter.",
-      "fr": "Parle poliment à M. Marchand, et descends du toit."
+      "fr": "Parlez poliment à M. Marchand, et descendez du toit."
     },
     "bridges:g4.dispute.turn": {
       "en": "Say sorry to Lila, your way.",
       "de": "Entschuldige dich bei Lila, auf deine Art.",
-      "fr": "Excuse-toi auprès de Lila, à ta façon."
+      "fr": "Excusez-vous auprès de Lila, à votre façon."
     },
     "bridges:g1.order": {
       "en": "Choose your usual order.",
       "de": "Wähle deine übliche Bestellung.",
-      "fr": "Choisis ta commande habituelle."
+      "fr": "Choisissez votre commande habituelle."
     },
     "epilogue:ep1.a.g.turn": {
       "en": "Tell Margaux what you will do with the painting.",
