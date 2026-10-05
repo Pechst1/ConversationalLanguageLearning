@@ -155,7 +155,11 @@ def test_the_a1_guard_rejects_geste_commercial(db_session) -> None:
 def test_every_authored_letter_is_a1(db_session) -> None:
     user = _a1_learner(db_session)
     known = lc.known_word_set(db_session, user=user)
+    # WP-125B: the A1-safe fallback is every letter an A1 learner can be sent
+    # (written at A1 or A2); the B1–C1 letters go only to learners at their band.
     for domain in REAL_WORLD_MISSION_DOMAINS:
+        if domain.get("level") not in ("A1", "A2"):
+            continue
         fields = {
             "contact_name": domain["contact_name"],
             "opening_message": domain["opening_message"],

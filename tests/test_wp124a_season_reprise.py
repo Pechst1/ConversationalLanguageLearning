@@ -482,6 +482,11 @@ def test_lost_days_keep_introducing_the_days_unit_so_the_plan_moves_on(
     A1 learners re-read T1 B for 28 days with no rule at all. A reprise is a practice
     day: it introduces the day's unit, and two lost days introduce two different ones."""
 
+    from app.services.season import bridges as season_bridges
+
+    # WP-124b: with the bridges applied, the second lost day of g1 is its bridge (an
+    # authored season day); this test pins two reprises, so it runs without them.
+    monkeypatch.setattr(season_bridges, "load_bridges", lambda season_id, **_: {})
     provider = production_day
     headers, email = walk.register(assembled_client, A1_DE)
     _play(assembled_client, db_session, headers, A1_DE, 1, provider)

@@ -260,6 +260,86 @@
       "en": "Answer Camille in your own words.",
       "de": "Antworte Camille mit deinen eigenen Worten.",
       "fr": "Répondez à Camille avec vos mots."
+    },
+    "bridges:g1.romy.turn": {
+      "en": "Tell Romy who you are, and what you think of Solvel if you like.",
+      "de": "Sag Romy, wer du bist, und wenn du magst, was du von Solvel hältst.",
+      "fr": "Dis à Romy qui tu es, et ce que tu penses de Solvel si tu veux."
+    },
+    "bridges:g1.billet.turn": {
+      "en": "Tell the agent why you are staying longer.",
+      "de": "Sag der Mitarbeiterin, warum du länger bleibst.",
+      "fr": "Dis à l'employée pourquoi tu restes plus longtemps."
+    },
+    "bridges:g2.diner.turn": {
+      "en": "Say something to Lila that saves the evening.",
+      "de": "Sag Lila etwas, das den Abend rettet.",
+      "fr": "Dis à Lila quelque chose qui sauve la soirée."
+    },
+    "bridges:g3.toit.turn": {
+      "en": "Talk to M. Marchand politely, and get off the roof.",
+      "de": "Sprich höflich mit M. Marchand und komm vom Dach herunter.",
+      "fr": "Parle poliment à M. Marchand, et descends du toit."
+    },
+    "bridges:g4.dispute.turn": {
+      "en": "Say sorry to Lila, your way.",
+      "de": "Entschuldige dich bei Lila, auf deine Art.",
+      "fr": "Excuse-toi auprès de Lila, à ta façon."
+    },
+    "bridges:g1.order": {
+      "en": "Choose your usual order.",
+      "de": "Wähle deine übliche Bestellung.",
+      "fr": "Choisis ta commande habituelle."
+    },
+    "epilogue:ep1.a.g.turn": {
+      "en": "Tell Margaux what you will do with the painting.",
+      "de": "Sag Margaux, was du mit dem Bild machst.",
+      "fr": "Dites à Margaux ce que vous allez faire du tableau."
+    },
+    "epilogue:ep1.a.p.turn": {
+      "en": "Ask Gus about the painting.",
+      "de": "Frag Gus nach dem Bild.",
+      "fr": "Demandez à Gus où est le tableau."
+    },
+    "epilogue:ep1.a.l.turn": {
+      "en": "Tell Marin what you will do now.",
+      "de": "Sag Marin, was du jetzt tust.",
+      "fr": "Dites à Marin ce que vous allez faire maintenant."
+    },
+    "epilogue:ep1.b.turn": {
+      "en": "Write back to Lila.",
+      "de": "Schreib Lila zurück.",
+      "fr": "Répondez à Lila."
+    },
+    "epilogue:ep2.a.g.turn": {
+      "en": "Tell Mme Diallo who you are looking for.",
+      "de": "Sag Mme Diallo, wen du suchst.",
+      "fr": "Dites à Mme Diallo qui vous cherchez."
+    },
+    "epilogue:ep2.a.p.turn": {
+      "en": "Ask Gus again about the painting.",
+      "de": "Frag Gus noch einmal nach dem Bild.",
+      "fr": "Redemandez à Gus où est le tableau."
+    },
+    "epilogue:ep2.a.l.turn": {
+      "en": "Tell Marin what you do now.",
+      "de": "Sag Marin, was du jetzt tust.",
+      "fr": "Dites à Marin ce que vous faites maintenant."
+    },
+    "epilogue:ep2.b.turn": {
+      "en": "Tell Camille what you will do with the letter.",
+      "de": "Sag Camille, was du mit dem Brief machst.",
+      "fr": "Dites à Camille ce que vous allez faire de la lettre."
+    },
+    "epilogue:ep3.a.turn": {
+      "en": "Tell Romy what these weeks were really about for you.",
+      "de": "Sag Romy, worum es in diesen Wochen für dich wirklich ging.",
+      "fr": "Dites à Romy ce que ces semaines ont vraiment été pour vous."
+    },
+    "epilogue:ep3.b.turn": {
+      "en": "Tell Lila whether you are staying or leaving.",
+      "de": "Sag Lila, ob du bleibst oder fährst.",
+      "fr": "Dites à Lila si vous restez ou si vous partez."
     }
   },
   "ask_again": {
@@ -453,6 +533,100 @@
     },
     "t8:e3.a.turn1": null,
     "t8:platform.turn": null,
-    "t8:camille.turn": null
+    "t8:camille.turn": null,
+    "bridges:g1.romy.turn": {
+      "fr": "Oui ? Et Odile, c'est qui pour toi ?",
+      "en": "Yes? And who is Odile to you?",
+      "de": "Ja? Und wer ist Odile für dich?",
+      "fr_named": "{name} ? Et Odile, c'est qui pour toi ?",
+      "en_named": "{name}? And who is Odile to you?",
+      "de_named": "{name}? Und wer ist Odile für dich?"
+    },
+    "bridges:g1.billet.turn": {
+      "fr": "Pardon ? Pourquoi vous restez ?",
+      "en": "Sorry? Why are you staying?",
+      "de": "Wie bitte? Warum bleiben Sie?"
+    },
+    "bridges:g2.diner.turn": {
+      "fr": "Allez, dis un mot !",
+      "en": "Come on, say a word!",
+      "de": "Los, sag ein Wort!"
+    },
+    "bridges:g3.toit.turn": {
+      "fr": "Pourquoi vous êtes ici, sur mon toit ?",
+      "en": "Why are you here, on my roof?",
+      "de": "Warum sind Sie hier, auf meinem Dach?"
+    },
+    "bridges:g4.dispute.turn": {
+      "fr": "Alors ? Je t'écoute.",
+      "en": "So? I'm listening.",
+      "de": "Also? Ich höre."
+    },
+    "epilogue:ep1.a.g.turn": {
+      "fr": "Pardon ? Le tableau, qu'est-ce que tu fais ?",
+      "en": "Sorry? The painting, what are you doing?",
+      "de": "Wie bitte? Das Bild, was machst du?",
+      "fr_named": "{name}, oui. Mais le tableau ?",
+      "en_named": "{name}, yes. But the painting?",
+      "de_named": "{name}, ja. Aber das Bild?"
+    },
+    "epilogue:ep1.a.p.turn": {
+      "fr": "Pardon ? Qu'est-ce que tu veux ?",
+      "en": "Sorry? What do you want?",
+      "de": "Wie bitte? Was willst du?",
+      "fr_named": "{name}, oui. Mais qu'est-ce que tu veux ?",
+      "en_named": "{name}, yes. But what do you want?",
+      "de_named": "{name}, ja. Aber was willst du?"
+    },
+    "epilogue:ep1.a.l.turn": {
+      "fr": "Pardon ? Et maintenant, qu'est-ce que tu fais ?",
+      "en": "Sorry? And now, what are you doing?",
+      "de": "Wie bitte? Und jetzt, was machst du?",
+      "fr_named": "{name}, oui. Mais maintenant ?",
+      "en_named": "{name}, yes. But now?",
+      "de_named": "{name}, ja. Aber jetzt?"
+    },
+    "epilogue:ep1.b.turn": null,
+    "epilogue:ep2.a.g.turn": {
+      "fr": "Pardon ? Qui est-ce que vous cherchez ?",
+      "en": "Sorry? Who are you looking for?",
+      "de": "Wie bitte? Wen suchen Sie?",
+      "fr_named": "{name} ? Bonjour. Mais qui est-ce que vous cherchez ?",
+      "en_named": "{name}? Hello. But who are you looking for?",
+      "de_named": "{name}? Guten Tag. Aber wen suchen Sie?"
+    },
+    "epilogue:ep2.a.p.turn": {
+      "fr": "Pardon ? Qu'est-ce que tu veux ? Dis !",
+      "en": "Sorry? What do you want? Say it!",
+      "de": "Wie bitte? Was willst du? Sag schon!",
+      "fr_named": "{name}, oui, oui. Mais quoi ?",
+      "en_named": "{name}, yes, yes. But what?",
+      "de_named": "{name}, ja, ja. Aber was?"
+    },
+    "epilogue:ep2.a.l.turn": {
+      "fr": "Pardon ? Et maintenant, qu'est-ce qu'on fait ?",
+      "en": "Sorry? And now, what do we do?",
+      "de": "Wie bitte? Und jetzt, was machen wir?",
+      "fr_named": "{name}, oui. Mais qu'est-ce qu'on fait ?",
+      "en_named": "{name}, yes. But what do we do?",
+      "de_named": "{name}, ja. Aber was machen wir?"
+    },
+    "epilogue:ep2.b.turn": {
+      "fr": "Pardon ? Qu'est-ce que vous allez faire ?",
+      "en": "Sorry? What are you going to do?",
+      "de": "Wie bitte? Was werden Sie tun?",
+      "fr_named": "{name}, je sais. Mais qu'est-ce que vous allez faire ?",
+      "en_named": "{name}, I know. But what are you going to do?",
+      "de_named": "{name}, ich weiß. Aber was werden Sie tun?"
+    },
+    "epilogue:ep3.a.turn": null,
+    "epilogue:ep3.b.turn": {
+      "fr": "Pardon ? Tu restes, ou tu pars ?",
+      "en": "Sorry? Are you staying, or leaving?",
+      "de": "Wie bitte? Bleibst du, oder fährst du?",
+      "fr_named": "{name}, oui ! Mais tu restes ?",
+      "en_named": "{name}, yes! But are you staying?",
+      "de_named": "{name}, ja! Aber bleibst du?"
+    }
   }
 }

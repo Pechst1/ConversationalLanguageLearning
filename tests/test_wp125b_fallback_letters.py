@@ -551,3 +551,66 @@ def test_a_story_letter_answered_this_week_is_not_written_again(db_session):
     with pytest.raises(NoCredibleLetter) as raised:
         _letter(db_session, user, story_letter={**candidate, "event_id": "scene:y"})
     assert raised.value.reason == "completed_recently"
+
+
+# ---------------------------------------------------------------------------
+# WP-125B proposal (owner-approved letter text)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("level", ["A1", "A2", "B1", "B2", "C1"])
+def test_every_band_has_a_month_of_credible_letters_on_a_season(db_session, level):
+    from app.services.missions import canned_letter_problem
+
+    rotation = {"band": level, "season_active": True, "completed_recent": set(), "canned_recent": set()}
+    credible = [item["domain"] for item in REAL_WORLD_MISSION_DOMAINS if canned_letter_problem(item, rotation) is None]
+    # Four weekly letters a month, never reprinted within 28 days.
+    assert len(credible) >= 4, (level, credible)
+
+
+def test_every_proposed_follow_up_names_the_earlier_exchange():
+    from app.services.missions import follow_ups_of
+
+    for item in REAL_WORLD_MISSION_DOMAINS:
+        for follow_up in follow_ups_of(item):
+            opening = follow_up["opening_message"].lower()
+            assert "merci pour votre" in opening or "bien reçu" in opening, item["domain"]
+            assert follow_up["opening_message"] != item["opening_message"]
+            assert follow_up.get("brief") and follow_up["brief"] != item["brief"]
+
+
+def test_a_c1_learner_gets_c1_story_frames_and_letters(db_session):
+    from app.services.missions import story_frame_for
+
+    level, frame = story_frame_for("C1")
+    assert level == "C1" and "{name}" in frame["vous"] and "{name}" in frame["tu"]
+    user = _user(db_session, "C1")
+    mission = _letter(db_session, user)
+    fit = _fit(mission)
+    assert fit["source"] == "canned" and letter_band_index(fit["level"]) >= letter_band_index("B1")
+
+
+def test_a_letters_subject_is_never_above_the_learners_reach_even_with_the_model(db_session):
+    """Integration finding (2026-10-05, with the approved B1–C1 letters): when the model
+    was available the subject was drawn from the whole catalogue, so an A1 learner could
+    be dealt «Le conseil de quartier»; when the model's draft was then refused twice, the
+    authored B1 text itself was printed. The reach filter applies whatever the model."""
+
+    generator = missions_module.MissionGenerator(db_session)
+    for band, ceiling in (("A1", "A2"), ("A2", "B1"), ("B1", "B2")):
+        for index in range(60):
+            variety = generator._choose_variety(
+                active_category=None,
+                recent_variety=[],
+                fuel_source="catalogue",
+                seed=("reach", band, index),
+                rotation={"band": band, "model_available": True},
+            )
+            domain = next(
+                item for item in missions_module.REAL_WORLD_MISSION_DOMAINS if item["domain"] == variety["domain"]
+            )
+            assert missions_module.letter_band_index(domain.get("level")) <= missions_module.letter_band_index(ceiling), (
+                band,
+                domain["domain"],
+                domain.get("level"),
+            )

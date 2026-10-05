@@ -1,0 +1,495 @@
+{
+ "_about": "WP-124b bridges: level variants (a1 with its translations, b2, c1). PROPOSAL.",
+ "lines": {
+  "4df960ced288": {
+   "a1": "Au Mistral, quelques jours après.",
+   "a1_native": {
+    "en": "At Le Mistral, a few days after.",
+    "de": "Im Mistral, ein paar Tage danach."
+   },
+   "b2": "Au Mistral, quelques jours ont passé.",
+   "c1": "Au Mistral. Quelques jours ont filé."
+  },
+  "255cb8dd479c": {
+   "a1": "Solvel achète des cafés ici. Tu as une info ?",
+   "a1_native": {
+    "en": "Solvel is buying cafés here. Do you have any info?",
+    "de": "Solvel kauft hier Cafés. Hast du eine Info?"
+   },
+   "b2": "Solvel rachète les cafés du quartier les uns après les autres. Tu en sais quelque chose ?",
+   "c1": "Solvel fait main basse sur les cafés du quartier. Tu aurais quelque chose à me dire ?"
+  },
+  "98b44a764b28": {
+   "a1": "Moi ? Rien.",
+   "a1_native": {
+    "en": "Me? Nothing.",
+    "de": "Ich? Nichts."
+   },
+   "b2": "Je n'ai rien entendu.",
+   "c1": "J'ai rien entendu."
+  },
+  "8f282a8314a6": {
+   "a1": "Et toi ? Tu es la famille d'Odile ?",
+   "a1_native": {
+    "en": "And you? Are you Odile's family?",
+    "de": "Und du? Bist du die Familie von Odile?"
+   },
+   "b2": "Et toi, alors ? C'est toi, le fameux héritage d'Odile ?",
+   "c1": "Et toi, tiens ! Ce serait donc toi, le fameux héritage d'Odile ?"
+  },
+  "b2adf9c23819": {
+   "a1": "Sa famille. Super. Je reviens te voir.",
+   "a1_native": {
+    "en": "Her family. Great. I'll come back to see you.",
+    "de": "Ihre Familie. Super. Ich komme wieder zu dir."
+   },
+   "b2": "De la famille ! Parfait. Tu feras une excellente source.",
+   "c1": "De la famille, rien que ça. Toi, tu vas devenir ma source préférée."
+  },
+  "05e333259bc7": {
+   "a1": "Non ? Tu parles comme Margaux !",
+   "a1_native": {
+    "en": "No? You talk like Margaux!",
+    "de": "Nein? Du redest wie Margaux!"
+   },
+   "b2": "« Pas de commentaire. » Trois jours ici et tu parles déjà comme Margaux.",
+   "c1": "« Pas de commentaire. » Trois jours au Mistral, et tu parles déjà comme Margaux : c'est-à-dire le moins possible."
+  },
+  "284c4b24959f": {
+   "a1": "Cette année, Solvel achète trois cafés ici.",
+   "a1_native": {
+    "en": "This year, Solvel is buying three cafés here.",
+    "de": "Dieses Jahr kauft Solvel hier drei Cafés."
+   },
+   "b2": "Trois cafés rachetés dans le quartier depuis janvier. Tous par Solvel.",
+   "c1": "Trois cafés du quartier rachetés depuis janvier, et toujours le même acquéreur : Solvel."
+  },
+  "bc9babd2b172": {
+   "a1": "Encore un matin au Mistral.",
+   "b2": "Troisième matin au Mistral.",
+   "c1": "Au troisième matin."
+  },
+  "c1e1199e4a9c": {
+   "a1": "Ici, le café dit beaucoup sur vous.",
+   "a1_native": {
+    "en": "Here, the coffee says a lot about you.",
+    "de": "Hier sagt der Kaffee viel über Sie."
+   },
+   "b2": "Prudence. Ce que vous commandez ici dira qui vous êtes.",
+   "c1": "Prudence, je vous prie. Ici, dis-moi ce que tu bois, je te dirai qui tu es — pardon, vous."
+  },
+  "5f7087eb84ba": {
+   "a1": "La même chose ?",
+   "b2": "La même chose ?",
+   "c1": "La même chose ?"
+  },
+  "95cd8dbf0773": {
+   "a1": "D'accord. Demain, la même chose.",
+   "a1_native": {
+    "en": "All right. Tomorrow, the same.",
+    "de": "In Ordnung. Morgen das Gleiche."
+   },
+   "b2": "Un crème. C'est noté.",
+   "c1": "Un crème. Retenu."
+  },
+  "b29faacbc3d0": {
+   "a1": "Ah ! Très bien, très bien.",
+   "a1_native": {
+    "en": "Ah! Very good, very good.",
+    "de": "Ah! Sehr gut, sehr gut."
+   },
+   "b2": "Un noisette ! Voilà une personne qui sait ce qu'elle veut.",
+   "c1": "Un noisette ! La précision faite boisson."
+  },
+  "e34df2bc46c7": {
+   "a1": "Un thé ? Ici ? Oh là là.",
+   "a1_native": {
+    "en": "A tea? Here? Oh dear.",
+    "de": "Einen Tee? Hier? Oje."
+   },
+   "b2": "Un thé, au Mistral ? Quel courage.",
+   "c1": "Un thé, au Mistral ? Voilà qui frise l'insolence."
+  },
+  "d01abde12734": {
+   "a1": "Un chocolat. Comme Lila.",
+   "b2": "Un chocolat. Comme Lila.",
+   "c1": "Un chocolat. Tiens, comme Lila."
+  },
+  "78a97b85408d": {
+   "a1": "Voilà : maintenant, vous êtes d'ici.",
+   "a1_native": {
+    "en": "There: now you're from here.",
+    "de": "So: Jetzt sind Sie von hier."
+   },
+   "b2": "C'est officiel : vous faites partie des meubles, désormais.",
+   "c1": "C'est officiel : vous voilà désormais du quartier, et ce n'est pas une plaisanterie."
+  },
+  "2e5d6902d39b": {
+   "a1": "Le jour après. Ton billet : mercredi.",
+   "a1_native": {
+    "en": "The day after. Your ticket: Wednesday.",
+    "de": "Am Tag danach. Dein Ticket: Mittwoch."
+   },
+   "b2": "Le lendemain. Ton billet de retour est toujours pour mercredi.",
+   "c1": "Le lendemain. Ton billet de retour indique toujours mercredi."
+  },
+  "633e27cdc4f1": {
+   "a1": "Tu appelles. Moi, je t'aide. Enfin… je pense.",
+   "a1_native": {
+    "en": "You call. I help you. Well… I think.",
+    "de": "Du rufst an. Ich helfe dir. Na ja… glaube ich."
+   },
+   "b2": "Tu appelles, et moi je te coache. Enfin… je fais de mon mieux.",
+   "c1": "Tu appelles, je te souffle les répliques. Enfin… à ma façon."
+  },
+  "404ab905e7ad": {
+   "a1": "Bonjour. Vous changez votre billet ? Pourquoi ?",
+   "a1_native": {
+    "en": "Hello. You're changing your ticket? Why?",
+    "de": "Guten Tag. Sie ändern Ihr Ticket? Warum?"
+   },
+   "b2": "Service clients, bonjour. Vous souhaitez modifier votre billet ? Puis-je savoir pourquoi ?",
+   "c1": "Service clients, bonjour. Vous souhaitez modifier votre réservation ? Pour quel motif, je vous prie ?"
+  },
+  "5ab25e7028a8": {
+   "a1": "C'est vrai, ça. J'adore.",
+   "a1_native": {
+    "en": "That's true, that. I love it.",
+    "de": "Das ist wahr. Ich liebe es."
+   },
+   "b2": "Beaucoup trop honnête. J'adore.",
+   "c1": "D'une honnêteté désarmante. J'adore."
+  },
+  "a9c6bd84c1a6": {
+   "a1": "C'est triste. Mais ça marche.",
+   "a1_native": {
+    "en": "It's sad. But it works.",
+    "de": "Das ist traurig. Aber es klappt."
+   },
+   "b2": "Ennuyeux à mourir. Mais efficace.",
+   "c1": "Soporifique. Mais redoutablement efficace."
+  },
+  "f8fa3284b5a0": {
+   "a1": "Donne ! Une grand-mère, un appartement, des croissants.",
+   "a1_native": {
+    "en": "Give it! A grandmother, a flat, croissants.",
+    "de": "Gib her! Eine Großmutter, eine Wohnung, Croissants."
+   },
+   "b2": "Donne-moi ça ! Il y a une grand-mère, un appartement et une quantité déraisonnable de croissants.",
+   "c1": "Passe-moi ça ! Alors : une grand-mère, un appartement, et une consommation de croissants franchement préoccupante."
+  },
+  "db5678613e71": {
+   "a1": "Bien. Mercredi 2 décembre.",
+   "a1_native": {
+    "en": "Good. Wednesday 2 December.",
+    "de": "Gut. Mittwoch, 2. Dezember."
+   },
+   "b2": "Parfait. Ce sera donc mercredi 2 décembre.",
+   "c1": "Entendu. Je vous mets sur le mercredi 2 décembre."
+  },
+  "b2f24a60ef9b": {
+   "a1": "Le billet change. Toi aussi, un peu.",
+   "a1_native": {
+    "en": "The ticket changes. You too, a little.",
+    "de": "Das Ticket ändert sich. Du auch, ein bisschen."
+   },
+   "b2": "Le billet change de date. Et quelque chose change en toi aussi.",
+   "c1": "Le billet change de date. Et, l'air de rien, toi aussi."
+  },
+  "389af59f7d89": {
+   "a1": "En haut, l'appartement attend. À suivre…",
+   "a1_native": {
+    "en": "Upstairs, the flat is waiting. To be continued…",
+    "de": "Oben wartet die Wohnung. Fortsetzung folgt…"
+   },
+   "b2": "Au premier, l'appartement attend toujours. À suivre…",
+   "c1": "Au premier, l'appartement attend, porte close. À suivre…"
+  },
+  "506e45fbb498": {
+   "a1": "Le soir. La cuisine d'Odile. Lila, toi, une omelette.",
+   "a1_native": {
+    "en": "Evening. Odile's kitchen. Lila, you, an omelette.",
+    "de": "Abend. Die Küche von Odile. Lila, du, ein Omelett."
+   },
+   "b2": "Un soir, dans la cuisine d'Odile : Lila, toi, et une omelette improvisée.",
+   "c1": "Un soir, dans la cuisine d'Odile : Lila, toi, et une omelette de fortune."
+  },
+  "12b3456f8e70": {
+   "a1": "La cuisine est noire. Ça sonne fort !",
+   "a1_native": {
+    "en": "The kitchen is black. Something rings loudly!",
+    "de": "Die Küche ist schwarz. Es klingelt laut!"
+   },
+   "b2": "De la fumée. Puis l'alarme, stridente.",
+   "c1": "De la fumée. Puis l'alarme, qui hurle."
+  },
+  "85bf165b6654": {
+   "a1": "Bon. Pas de dîner. Dis un mot !",
+   "a1_native": {
+    "en": "Well. No dinner. Say a word!",
+    "de": "Na gut. Kein Abendessen. Sag ein Wort!"
+   },
+   "b2": "Bon. Le dîner est officiellement raté. Dis quelque chose, vite, avant que je pleure de rire.",
+   "c1": "Bon. Le dîner est un désastre officiel. Dis quelque chose, vite, avant que je meure de rire."
+  },
+  "c6842ac4ac91": {
+   "a1": "… Moi aussi.",
+   "b2": "… Moi aussi.",
+   "c1": "… Moi aussi."
+  },
+  "bd3f4ac302e3": {
+   "a1": "Pour Marin ? Oui ! C'est un dîner d'artiste.",
+   "a1_native": {
+    "en": "For Marin? Yes! It's an artist's dinner.",
+    "de": "Für Marin? Ja! Das ist ein Künstleressen."
+   },
+   "b2": "Exprès, évidemment. Une performance artistique.",
+   "c1": "Exprès, cela va de soi. Une performance, une installation."
+  },
+  "99513b9bbce3": {
+   "a1": "Oui. Bon appétit !",
+   "a1_native": {
+    "en": "Yes. Enjoy your meal!",
+    "de": "Ja. Guten Appetit!"
+   },
+   "b2": "C'est ça. Bon appétit, l'héritage.",
+   "c1": "Voilà. Bon appétit, l'héritage."
+  },
+  "e3c91f79de81": {
+   "a1": "Plus jamais d'omelette. Jamais !",
+   "a1_native": {
+    "en": "No omelette ever again. Never!",
+    "de": "Nie wieder Omelett. Niemals!"
+   },
+   "b2": "Règle numéro un : ne refais jamais, jamais l'omelette.",
+   "c1": "Règle numéro un, gravée dans le marbre : ne refais jamais l'omelette."
+  },
+  "095e82ae978f": {
+   "a1": "Jeudi, deux amis ont une question. À suivre…",
+   "a1_native": {
+    "en": "On Thursday, two friends have a question. To be continued…",
+    "de": "Am Donnerstag haben zwei Freunde eine Frage. Fortsetzung folgt…"
+   },
+   "b2": "Jeudi, deux personnes vont te demander quelque chose. À suivre…",
+   "c1": "Jeudi, deux personnes auront chacune une faveur à te demander. À suivre…"
+  },
+  "e5bb3e60c463": {
+   "a1": "La nuit. Lila et toi, sur le toit.",
+   "a1_native": {
+    "en": "Night. Lila and you, on the roof.",
+    "de": "Nacht. Lila und du, auf dem Dach."
+   },
+   "b2": "Une nuit, Lila t'entraîne sur le toit par la lucarne du cinquième.",
+   "c1": "Une nuit, Lila te fait passer par la lucarne du cinquième, direction le toit."
+  },
+  "f097aeae0a70": {
+   "a1": "Regarde. Le canal, la nuit. C'est beau.",
+   "a1_native": {
+    "en": "Look. The canal, at night. It's beautiful.",
+    "de": "Schau. Der Kanal, nachts. Das ist schön."
+   },
+   "b2": "Regarde. Le canal vu d'en haut. Ici, personne ne vient jamais.",
+   "c1": "Regarde-moi ça. Le canal, vu d'en haut. Personne ne monte jamais jusqu'ici."
+  },
+  "0dab97ca5670": {
+   "a1": "Vous ! Ici ! C'est mon toit.",
+   "a1_native": {
+    "en": "You! Here! This is my roof.",
+    "de": "Sie! Hier! Das ist mein Dach."
+   },
+   "b2": "La succession Ferrand n'a rien à faire sur mon toit.",
+   "c1": "La succession Ferrand n'a rien à faire sur mon toit."
+  },
+  "e3b339694111": {
+   "a1": "Bien. Descendez. Pas vite.",
+   "a1_native": {
+    "en": "Good. Come down. Not fast.",
+    "de": "Gut. Kommen Sie herunter. Nicht schnell."
+   },
+   "b2": "Hm. Poli, c'est déjà ça. Descendez. Lentement.",
+   "c1": "Hm. La politesse, au moins, est sauve. Descendez. Lentement."
+  },
+  "7cc8f8bc4535": {
+   "a1": "La vue ? La vue est à moi aussi.",
+   "a1_native": {
+    "en": "The view? The view is mine too.",
+    "de": "Die Aussicht? Die gehört auch mir."
+   },
+   "b2": "La vue. Évidemment. Sachez qu'elle m'appartient aussi.",
+   "c1": "La vue. Mais naturellement. Sachez qu'elle figure, elle aussi, au cadastre."
+  },
+  "3907591e0a3e": {
+   "a1": "Bonne nuit. En bas !",
+   "a1_native": {
+    "en": "Good night. Downstairs!",
+    "de": "Gute Nacht. Nach unten!"
+   },
+   "b2": "Bonne nuit, en effet. En bas.",
+   "c1": "Excellente nuit, en effet. En bas."
+  },
+  "a157d76433cf": {
+   "a1": "Marchand, toi et moi, la nuit. Quelle histoire !",
+   "a1_native": {
+    "en": "Marchand, you and me, at night. What a story!",
+    "de": "Marchand, du und ich, in der Nacht. Was für eine Geschichte!"
+   },
+   "b2": "Il nous a vus, tous les deux. Demain, je raconte ça à tout le quartier.",
+   "c1": "Il nous a pris la main dans le sac, tous les deux. Demain, le quartier entier sera au courant."
+  },
+  "1e29c6d7ac63": {
+   "a1": "Samedi, le Mistral a vingt-cinq ans. À suivre…",
+   "b2": "Samedi, le Mistral fête ses vingt-cinq ans. À suivre…",
+   "c1": "Samedi, le Mistral fête ses vingt-cinq ans. À suivre…"
+  },
+  "8224ab27396d": {
+   "a1": "Le matin, au canal.",
+   "a1_native": {
+    "en": "Morning, at the canal.",
+    "de": "Morgen, am Kanal."
+   },
+   "b2": "Un matin, au bord du canal.",
+   "c1": "Un matin, sur les quais du canal."
+  },
+  "2de55a0d41fd": {
+   "a1": "Ici, il y a trop de secrets.",
+   "a1_native": {
+    "en": "There are too many secrets here.",
+    "de": "Hier gibt es zu viele Geheimnisse."
+   },
+   "b2": "Encore un secret. Ici, tout le monde cache tout à tout le monde. Même toi.",
+   "c1": "Encore un secret. Ici, chacun cache tout à tout le monde. Toi compris."
+  },
+  "dc5ee09de3ec": {
+   "a1": "C'est ma faute, la photo ? Tu penses ça ?",
+   "a1_native": {
+    "en": "Is the photo my fault? Is that what you think?",
+    "de": "Ist das Foto meine Schuld? Denkst du das?"
+   },
+   "b2": "C'est ma faute, c'est ça ? À cause de la photo au mur, l'assureur appelle Margaux. Vas-y, dis-le.",
+   "c1": "Tu me tiens pour responsable, c'est ça ? La photo au mur, l'assureur de Margaux au téléphone… Vas-y, dis-le."
+  },
+  "3ce91c79cc79": {
+   "a1": "Plus un mot. Pas ce soir.",
+   "a1_native": {
+    "en": "Not one more word. Not tonight.",
+    "de": "Kein Wort mehr. Nicht heute Abend."
+   },
+   "b2": "Plus un mot. Jusqu'au lendemain.",
+   "c1": "Plus un mot. Pas avant le lendemain."
+  },
+  "9a04c0c979dc": {
+   "a1": "… Bon. Qui commence ?",
+   "b2": "… Bon. Qui commence ?",
+   "c1": "… Bon. Lequel de nous deux commence ?"
+  },
+  "027309f4f537": {
+   "a1": "… Pas moi. D'accord.",
+   "b2": "… Pas moi. D'accord.",
+   "c1": "… Pas moi. Entendu."
+  },
+  "09f2428a94f6": {
+   "a1": "Une équipe. Deux cafés. Pardon aussi.",
+   "a1_native": {
+    "en": "A team. Two coffees. Sorry too.",
+    "de": "Ein Team. Zwei Kaffees. Entschuldige auch."
+   },
+   "b2": "Une équipe. Avec deux cafés, en plus. Pardon aussi.",
+   "c1": "Une équipe. Avec deux cafés, qui plus est. Pardon aussi."
+  },
+  "e5f5c6d7905f": {
+   "a1": "Pardon aussi. Ton café est froid.",
+   "a1_native": {
+    "en": "Sorry too. Your coffee is cold.",
+    "de": "Entschuldige auch. Dein Kaffee ist kalt."
+   },
+   "b2": "Pardon aussi. Ton café refroidit.",
+   "c1": "Pardon aussi. Ton café est en train de refroidir."
+  },
+  "87078adc4bb3": {
+   "a1": "Un jour difficile. Puis, deux cafés.",
+   "a1_native": {
+    "en": "A hard day. Then, two coffees.",
+    "de": "Ein schwerer Tag. Dann zwei Kaffees."
+   },
+   "b2": "Une dispute. Et le lendemain, deux cafés.",
+   "c1": "Une dispute. Et, le lendemain, deux cafés."
+  },
+  "32bc9f98c84d": {
+   "a1": "Dimanche, Lila a une lettre. À suivre…",
+   "a1_native": {
+    "en": "On Sunday, Lila has a letter. To be continued…",
+    "de": "Am Sonntag hat Lila einen Brief. Fortsetzung folgt…"
+   },
+   "b2": "Dimanche, une lettre attend au fond du sac de Lila. À suivre…",
+   "c1": "Dimanche, une enveloppe dort au fond du sac de Lila. À suivre…"
+  }
+ },
+ "examples": {
+  "bridges:g1.romy.turn:open": {
+   "a1": [
+    "Oui, Odile est ma grand-mère.",
+    "Je suis la famille d'Odile."
+   ],
+   "b2": [
+    "Oui, Odile était ma grand-mère. Solvel, je m'en méfie."
+   ],
+   "c1": [
+    "C'est moi, oui. Et Solvel ne m'inspire aucune confiance."
+   ]
+  },
+  "bridges:g1.romy.turn:guarded": {
+   "a1": [
+    "Non. Pas de journalistes.",
+    "Je ne parle pas."
+   ]
+  },
+  "bridges:g1.billet.turn:honest": {
+   "a1": [
+    "J'aime le quartier.",
+    "J'aime les gens ici."
+   ]
+  },
+  "bridges:g1.billet.turn:practical": {
+   "a1": [
+    "Pour le notaire.",
+    "Pour l'appartement."
+   ]
+  },
+  "bridges:g2.diner.turn:tendresse": {
+   "a1": [
+    "Le meilleur dîner raté de ma vie.",
+    "J'aime dîner avec toi."
+   ]
+  },
+  "bridges:g2.diner.turn:complice": {
+   "a1": [
+    "On dit à Marin : c'est exprès.",
+    "Une pizza ?"
+   ]
+  },
+  "bridges:g3.toit.turn:poli": {
+   "a1": [
+    "Pardon, monsieur.",
+    "Excusez-nous. On descend."
+   ]
+  },
+  "bridges:g3.toit.turn:excuse": {
+   "a1": [
+    "On regarde le canal.",
+    "Pour la vue."
+   ]
+  },
+  "bridges:g4.dispute.turn:pas_toi": {
+   "a1": [
+    "Pas avec toi.",
+    "Je ne veux pas, pas avec toi."
+   ]
+  },
+  "bridges:g4.dispute.turn:equipe": {
+   "a1": [
+    "On est une équipe.",
+    "Toi et moi, une équipe."
+   ]
+  }
+ }
+}

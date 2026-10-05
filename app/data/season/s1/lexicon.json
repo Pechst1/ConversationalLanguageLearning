@@ -1,9 +1,3827 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "b697a134e1e9",
+ "source": "2ec5376426fa",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
+  "e1.a@garder": {
+   "b1": [
+    {
+     "lemma": "touche",
+     "surface_fr": "touche",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "key (on keyboard); touch",
+      "de": "die Taste; der Hauch, die Note"
+     },
+     "sentence_fr": "Règle numéro un : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "plaque",
+     "surface_fr": "plaque",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "plate, sheet; (number) plate",
+      "de": "die Platte; das Schild, das Nummernschild"
+     },
+     "sentence_fr": "Règle numéro un : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "règle",
+     "surface_fr": "Règle",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "rule; ruler",
+      "de": "die Regel; das Lineal"
+     },
+     "sentence_fr": "Règle numéro un : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Le tableau.",
+     "role": "new"
+    },
+    {
+     "lemma": "lumière",
+     "surface_fr": "lumière",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "light",
+      "de": "das Licht"
+     },
+     "sentence_fr": "En haut, la lumière est juste.",
+     "role": "new"
+    },
+    {
+     "lemma": "juste",
+     "surface_fr": "juste",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "fair; right; tight",
+      "de": "gerecht; richtig; knapp"
+     },
+     "sentence_fr": "En haut, la lumière est juste.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "numéro",
+     "surface_fr": "numéro",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "number",
+      "de": "die Nummer"
+     },
+     "sentence_fr": "Règle numéro un : on ne touche pas à la plaque.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "chose",
+     "surface_fr": "chose",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "thing",
+      "de": "die Sache, das Ding"
+     },
+     "sentence_fr": "La même chose ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "alors",
+     "surface_fr": "Alors",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "so, then",
+      "de": "also, dann"
+     },
+     "sentence_fr": "Alors.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "faire",
+     "surface_fr": "fais",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to do, to make",
+      "de": "machen, tun"
+     },
+     "sentence_fr": "Tu en fais quoi ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "haut",
+     "surface_fr": "haut",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "high, tall",
+      "de": "hoch"
+     },
+     "sentence_fr": "En haut, la lumière est juste.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aujourd'hui",
+     "surface_fr": "hui",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "today",
+      "de": "heute"
+     },
+     "sentence_fr": "Pas aujourd'hui.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "âgé",
+     "surface_fr": "âgé",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "old, elderly",
+      "de": "alt, betagt"
+     },
+     "sentence_fr": "Quelqu'un de très âgé, maintenant.",
+     "role": "new"
+    },
+    {
+     "lemma": "méthode",
+     "surface_fr": "Méthode",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "method",
+      "de": "die Methode"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "touche",
+     "surface_fr": "touche",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "key (on keyboard); touch",
+      "de": "die Taste; der Hauch, die Note"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "plaque",
+     "surface_fr": "plaque",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "plate, sheet; (number) plate",
+      "de": "die Platte; das Schild, das Nummernschild"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+     "role": "new"
+    },
+    {
+     "lemma": "règle",
+     "surface_fr": "Règle",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "rule; ruler",
+      "de": "die Regel; das Lineal"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "numéro",
+     "surface_fr": "numéro",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "number",
+      "de": "die Nummer"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "chose",
+     "surface_fr": "chose",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "thing",
+      "de": "die Sache, das Ding"
+     },
+     "sentence_fr": "La même chose ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "alors",
+     "surface_fr": "Alors",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "so, then",
+      "de": "also, dann"
+     },
+     "sentence_fr": "Alors.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Le tableau.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "compter",
+     "surface_fr": "comptes",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to count; to intend",
+      "de": "zählen; vorhaben"
+     },
+     "sentence_fr": "Qu'est-ce que tu comptes en faire ?",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "âgé",
+     "surface_fr": "âgé",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "old, elderly",
+      "de": "alt, betagt"
+     },
+     "sentence_fr": "Quelqu'un de très âgé, à présent.",
+     "role": "new"
+    },
+    {
+     "lemma": "règle",
+     "surface_fr": "Règle",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "rule; ruler",
+      "de": "die Regel; das Lineal"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "numéro",
+     "surface_fr": "numéro",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "number",
+      "de": "die Nummer"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "méthode",
+     "surface_fr": "Méthode",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "method",
+      "de": "die Methode"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "plaque",
+     "surface_fr": "plaque",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "plate, sheet; (number) plate",
+      "de": "die Platte; das Schild, das Nummernschild"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "touche",
+     "surface_fr": "touche",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "key (on keyboard); touch",
+      "de": "die Taste; der Hauch, die Note"
+     },
+     "sentence_fr": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "chose",
+     "surface_fr": "chose",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "thing",
+      "de": "die Sache, das Ding"
+     },
+     "sentence_fr": "La même chose ?",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e1.a@partager": {
+   "b1": [
+    {
+     "lemma": "atelier",
+     "surface_fr": "Atelier",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "workshop; studio",
+      "de": "die Werkstatt; das Atelier"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "new"
+    },
+    {
+     "lemma": "peinture",
+     "surface_fr": "peinture",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "painting; paint",
+      "de": "die Malerei; die Farbe"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "new"
+    },
+    {
+     "lemma": "peindre",
+     "surface_fr": "peignent",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to paint",
+      "de": "malen, streichen"
+     },
+     "sentence_fr": "Ils peignent les murs.",
+     "role": "new"
+    },
+    {
+     "lemma": "mur",
+     "surface_fr": "murs",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "wall",
+      "de": "die Wand, die Mauer"
+     },
+     "sentence_fr": "Ils peignent les murs.",
+     "role": "new"
+    },
+    {
+     "lemma": "policier",
+     "surface_fr": "policier",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "police officer",
+      "de": "der Polizist"
+     },
+     "sentence_fr": "Tu me regardes comme un policier.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Quel tableau ?",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "regarder",
+     "surface_fr": "regardes",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to look at, watch",
+      "de": "anschauen, ansehen"
+     },
+     "sentence_fr": "Tu me regardes comme un policier.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "idée",
+     "surface_fr": "idée",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "idea",
+      "de": "die Idee"
+     },
+     "sentence_fr": "Aucune idée.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "mère",
+     "surface_fr": "mère",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "mother",
+      "de": "die Mutter"
+     },
+     "sentence_fr": "Ma mère connaît tout le monde.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "connaître",
+     "surface_fr": "connaît",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to know (be familiar with)",
+      "de": "kennen"
+     },
+     "sentence_fr": "Ma mère connaît tout le monde.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "monde",
+     "surface_fr": "monde",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "world; people",
+      "de": "die Welt; die Leute (Pl.)"
+     },
+     "sentence_fr": "Ma mère connaît tout le monde.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "problème",
+     "surface_fr": "problème",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "problem",
+      "de": "das Problem"
+     },
+     "sentence_fr": "C'est son problème.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "atelier",
+     "surface_fr": "Atelier",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "workshop; studio",
+      "de": "die Werkstatt; das Atelier"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "peinture",
+     "surface_fr": "peinture",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "painting; paint",
+      "de": "die Malerei; die Farbe"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "mur",
+     "surface_fr": "murs",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "wall",
+      "de": "die Wand, die Mauer"
+     },
+     "sentence_fr": "Ils repeignent les murs.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "policier",
+     "surface_fr": "policier",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "police officer",
+      "de": "der Polizist"
+     },
+     "sentence_fr": "Tu me dévisages comme un policier.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Quel tableau ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "idée",
+     "surface_fr": "idée",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "idea",
+      "de": "die Idee"
+     },
+     "sentence_fr": "Aucune idée.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "dévisager",
+     "surface_fr": "dévisages",
+     "band": "C1",
+     "sub_band": "C1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to stare at",
+      "de": "anstarren, mustern"
+     },
+     "sentence_fr": "Tu me dévisages comme un commissaire.",
+     "role": "new"
+    },
+    {
+     "lemma": "commissaire",
+     "surface_fr": "commissaire",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": null,
+     "gloss": {
+      "en": "commissioner; superintendent (police)",
+      "de": "der Kommissar, die Kommissarin"
+     },
+     "sentence_fr": "Tu me dévisages comme un commissaire.",
+     "role": "new"
+    },
+    {
+     "lemma": "inculpé",
+     "surface_fr": "inculpé",
+     "band": "B2",
+     "sub_band": "B2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "accused, charged person",
+      "de": "der Beschuldigte"
+     },
+     "sentence_fr": "Je suis inculpé de quoi ?",
+     "role": "new"
+    },
+    {
+     "lemma": "moindre",
+     "surface_fr": "moindre",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "lesser, smaller; (le ~) the slightest",
+      "de": "geringer; der/die/das geringste"
+     },
+     "sentence_fr": "Pas la moindre idée.",
+     "role": "new"
+    },
+    {
+     "lemma": "atelier",
+     "surface_fr": "Atelier",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "workshop; studio",
+      "de": "die Werkstatt; das Atelier"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "peinture",
+     "surface_fr": "peinture",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "painting; paint",
+      "de": "die Malerei; die Farbe"
+     },
+     "sentence_fr": "Atelier peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "moyenne",
+     "surface_fr": "Moyenne",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "average",
+      "de": "der Durchschnitt"
+     },
+     "sentence_fr": "Moyenne d'âge : six ans.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "âge",
+     "surface_fr": "âge",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "age",
+      "de": "das Alter"
+     },
+     "sentence_fr": "Moyenne d'âge : six ans.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "mur",
+     "surface_fr": "murs",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "wall",
+      "de": "die Wand, die Mauer"
+     },
+     "sentence_fr": "Ils repeignent les murs.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Quel tableau ?",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e1.a@laisser_partir": {
+   "b1": [
+    {
+     "lemma": "soupe",
+     "surface_fr": "soupe",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "soup",
+      "de": "die Suppe"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "new"
+    },
+    {
+     "lemma": "arrêter",
+     "surface_fr": "Arrête",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to stop; to arrest",
+      "de": "aufhören, anhalten; verhaften"
+     },
+     "sentence_fr": "Arrête.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "bon",
+     "surface_fr": "Bon",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "good",
+      "de": "gut"
+     },
+     "sentence_fr": "Bon.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vouloir",
+     "surface_fr": "veut",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to want",
+      "de": "wollen, mögen"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "café",
+     "surface_fr": "café",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "coffee; café",
+      "de": "der Kaffee; das Café"
+     },
+     "sentence_fr": "Le café est fermé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "fermé",
+     "surface_fr": "fermé",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "closed, shut",
+      "de": "geschlossen, zu"
+     },
+     "sentence_fr": "Le café est fermé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "partie",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "Lila est partie.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "faire",
+     "surface_fr": "fais",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to do, to make",
+      "de": "machen, tun"
+     },
+     "sentence_fr": "Et toi, tu fais quoi ?",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "C'est un signe, ça.",
+     "role": "new"
+    },
+    {
+     "lemma": "bon",
+     "surface_fr": "Bon",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "good",
+      "de": "gut"
+     },
+     "sentence_fr": "Bon.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vouloir",
+     "surface_fr": "veut",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to want",
+      "de": "wollen, mögen"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "soupe",
+     "surface_fr": "soupe",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "soup",
+      "de": "die Suppe"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "café",
+     "surface_fr": "café",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "coffee; café",
+      "de": "der Kaffee; das Café"
+     },
+     "sentence_fr": "Le café a fermé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "fermé",
+     "surface_fr": "fermé",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "closed, shut",
+      "de": "geschlossen, zu"
+     },
+     "sentence_fr": "Le café a fermé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "partie",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "Lila est partie.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "Si ça, ce n'est pas un signe…",
+     "role": "new"
+    },
+    {
+     "lemma": "bon",
+     "surface_fr": "Bon",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "good",
+      "de": "gut"
+     },
+     "sentence_fr": "Bon.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vouloir",
+     "surface_fr": "veut",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to want",
+      "de": "wollen, mögen"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "soupe",
+     "surface_fr": "soupe",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "soup",
+      "de": "die Suppe"
+     },
+     "sentence_fr": "Qui veut une soupe ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "café",
+     "surface_fr": "café",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "coffee; café",
+      "de": "der Kaffee; das Café"
+     },
+     "sentence_fr": "Le café a fermé, Lila est partie…",
+     "role": "foundational"
+    },
+    {
+     "lemma": "fermé",
+     "surface_fr": "fermé",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "closed, shut",
+      "de": "geschlossen, zu"
+     },
+     "sentence_fr": "Le café a fermé, Lila est partie…",
+     "role": "foundational"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "partie",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "Le café a fermé, Lila est partie…",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e1.b": {
+   "b1": [
+    {
+     "lemma": "escalier",
+     "surface_fr": "escalier",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "stairs, staircase",
+      "de": "die Treppe"
+     },
+     "sentence_fr": "L'escalier, toujours le même.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Le tableau ?",
+     "role": "new"
+    },
+    {
+     "lemma": "raconter",
+     "surface_fr": "Raconte",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to tell",
+      "de": "erzählen"
+     },
+     "sentence_fr": "Raconte.",
+     "role": "new"
+    },
+    {
+     "lemma": "lumière",
+     "surface_fr": "lumière",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "light",
+      "de": "das Licht"
+     },
+     "sentence_fr": "La lumière est fausse.",
+     "role": "new"
+    },
+    {
+     "lemma": "faux",
+     "surface_fr": "fausse",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "false, wrong; fake",
+      "de": "falsch; gefälscht"
+     },
+     "sentence_fr": "La lumière est fausse.",
+     "role": "new"
+    },
+    {
+     "lemma": "faute",
+     "surface_fr": "fautes",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "mistake; fault",
+      "de": "der Fehler; die Schuld"
+     },
+     "sentence_fr": "Il y a quatre fautes.",
+     "role": "new"
+    },
+    {
+     "lemma": "mètre",
+     "surface_fr": "mètres",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "metre",
+      "de": "der Meter"
+     },
+     "sentence_fr": "C'est à deux cents mètres.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "bus",
+     "surface_fr": "bus",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "bus",
+      "de": "der Bus"
+     },
+     "sentence_fr": "Le bus 46.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "croissant",
+     "surface_fr": "croissants",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "croissant",
+      "de": "das Croissant, das Hörnchen"
+     },
+     "sentence_fr": "Deux croissants.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "toujours",
+     "surface_fr": "toujours",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "always; still",
+      "de": "immer; immer noch"
+     },
+     "sentence_fr": "L'escalier, toujours le même.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "page",
+     "surface_fr": "Page",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "page",
+      "de": "die Seite"
+     },
+     "sentence_fr": "Page trois.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vouloir",
+     "surface_fr": "veulent",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to want",
+      "de": "wollen, mögen"
+     },
+     "sentence_fr": "Et ils veulent une suite.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "suite",
+     "surface_fr": "suite",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "continuation, sequel (tout de ~: at once)",
+      "de": "die Fortsetzung, die Folge"
+     },
+     "sentence_fr": "Et ils veulent une suite.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "garde",
+     "surface_fr": "garde",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": null,
+     "gloss": {
+      "en": "guard (person); custody, guarding",
+      "de": "der Wächter; die Wache, die Obhut"
+     },
+     "sentence_fr": "Gus garde le tableau.",
+     "role": "new"
+    },
+    {
+     "lemma": "bus",
+     "surface_fr": "bus",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "bus",
+      "de": "der Bus"
+     },
+     "sentence_fr": "Le bus 46.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "croissant",
+     "surface_fr": "croissants",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "croissant",
+      "de": "das Croissant, das Hörnchen"
+     },
+     "sentence_fr": "Deux croissants.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "escalier",
+     "surface_fr": "escalier",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "stairs, staircase",
+      "de": "die Treppe"
+     },
+     "sentence_fr": "Et l'escalier, toujours aussi raide.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "toujours",
+     "surface_fr": "toujours",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "always; still",
+      "de": "immer; immer noch"
+     },
+     "sentence_fr": "Et l'escalier, toujours aussi raide.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aussi",
+     "surface_fr": "aussi",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "also, too; as (… as)",
+      "de": "auch; so (… wie)"
+     },
+     "sentence_fr": "Et l'escalier, toujours aussi raide.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "page",
+     "surface_fr": "Page",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "page",
+      "de": "die Seite"
+     },
+     "sentence_fr": "Page trois.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "garde",
+     "surface_fr": "garde",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": null,
+     "gloss": {
+      "en": "guard (person); custody, guarding",
+      "de": "der Wächter; die Wache, die Obhut"
+     },
+     "sentence_fr": "Gus garde le tableau.",
+     "role": "new"
+    },
+    {
+     "lemma": "bus",
+     "surface_fr": "bus",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "bus",
+      "de": "der Bus"
+     },
+     "sentence_fr": "Le bus 46, deux croissants, et cet escalier qui n'a pas rajeuni.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "croissant",
+     "surface_fr": "croissants",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "croissant",
+      "de": "das Croissant, das Hörnchen"
+     },
+     "sentence_fr": "Le bus 46, deux croissants, et cet escalier qui n'a pas rajeuni.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "escalier",
+     "surface_fr": "escalier",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "stairs, staircase",
+      "de": "die Treppe"
+     },
+     "sentence_fr": "Le bus 46, deux croissants, et cet escalier qui n'a pas rajeuni.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "page",
+     "surface_fr": "Page",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "page",
+      "de": "die Seite"
+     },
+     "sentence_fr": "Page trois.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "complètement",
+     "surface_fr": "complètement",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "completely",
+      "de": "völlig, ganz"
+     },
+     "sentence_fr": "Je capote complètement.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "grand",
+     "surface_fr": "grande",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "big, tall; great",
+      "de": "groß"
+     },
+     "sentence_fr": "Elle est grande.",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e2.a@garder": {
+   "b1": [
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "new"
+    },
+    {
+     "lemma": "voler",
+     "surface_fr": "volé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to fly; to steal",
+      "de": "fliegen; stehlen"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "new"
+    },
+    {
+     "lemma": "peinture",
+     "surface_fr": "peinture",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "painting; paint",
+      "de": "die Malerei; die Farbe"
+     },
+     "sentence_fr": "Au troisième, la porte est pleine de peinture.",
+     "role": "new"
+    },
+    {
+     "lemma": "ferme",
+     "surface_fr": "ferme",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "firm",
+      "de": "fest, entschlossen"
+     },
+     "sentence_fr": "Au troisième, quelqu'un ferme la fenêtre.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "chercher",
+     "surface_fr": "cherchez",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to look for, to fetch",
+      "de": "suchen; holen"
+     },
+     "sentence_fr": "Vous cherchez qui ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "porte",
+     "surface_fr": "porte",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "door",
+      "de": "die Tür"
+     },
+     "sentence_fr": "Au troisième, la porte est pleine de peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "plein",
+     "surface_fr": "pleine",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "full",
+      "de": "voll"
+     },
+     "sentence_fr": "Au troisième, la porte est pleine de peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "nom",
+     "surface_fr": "nom",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "name; noun",
+      "de": "der Name; das Nomen"
+     },
+     "sentence_fr": "Ce n'est pas un nom, ça.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "lettre",
+     "surface_fr": "lettre",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "letter",
+      "de": "der Brief; der Buchstabe"
+     },
+     "sentence_fr": "C'est une lettre.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "grand-mère",
+     "surface_fr": "grand-mère",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "grandmother",
+      "de": "die Großmutter, die Oma"
+     },
+     "sentence_fr": "Votre grand-mère ?",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "voler",
+     "surface_fr": "volé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to fly; to steal",
+      "de": "fliegen; stehlen"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "chercher",
+     "surface_fr": "cherchez",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to look for, to fetch",
+      "de": "suchen; holen"
+     },
+     "sentence_fr": "Qui est-ce que vous cherchez ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "porte",
+     "surface_fr": "porte",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "door",
+      "de": "die Tür"
+     },
+     "sentence_fr": "Au troisième, il y a une porte couverte de peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "couvrir",
+     "surface_fr": "couverte",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to cover",
+      "de": "bedecken, zudecken"
+     },
+     "sentence_fr": "Au troisième, il y a une porte couverte de peinture.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "peinture",
+     "surface_fr": "peinture",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "painting; paint",
+      "de": "die Malerei; die Farbe"
+     },
+     "sentence_fr": "Au troisième, il y a une porte couverte de peinture.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "refermer",
+     "surface_fr": "referme",
+     "band": "C1",
+     "sub_band": "C1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to close (again), shut",
+      "de": "wieder schließen, zumachen"
+     },
+     "sentence_fr": "Au troisième, une main referme la fenêtre.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "voler",
+     "surface_fr": "volé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to fly; to steal",
+      "de": "fliegen; stehlen"
+     },
+     "sentence_fr": "C'est un tableau volé, ça ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "pouvoir",
+     "surface_fr": "pouvez",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "can, to be able to",
+      "de": "können, dürfen"
+     },
+     "sentence_fr": "Vous pouvez me le dire.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "dire",
+     "surface_fr": "dire",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to say, to tell",
+      "de": "sagen"
+     },
+     "sentence_fr": "Vous pouvez me le dire.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "chercher",
+     "surface_fr": "cherchez",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to look for, to fetch",
+      "de": "suchen; holen"
+     },
+     "sentence_fr": "Vous cherchez qui ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "porte",
+     "surface_fr": "porte",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "door",
+      "de": "die Tür"
+     },
+     "sentence_fr": "Au troisième, il y a une porte toute barbouillée de peinture.",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e2.a@partager": {
+   "b1": [
+    {
+     "lemma": "demande",
+     "surface_fr": "demande",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "request; application; demand",
+      "de": "die Bitte; der Antrag; die Nachfrage"
+     },
+     "sentence_fr": "Ne demande rien.",
+     "role": "new"
+    },
+    {
+     "lemma": "point",
+     "surface_fr": "Point",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "point; full stop",
+      "de": "der Punkt"
+     },
+     "sentence_fr": "Point numéro un : le tableau du Mistral.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Point numéro un : le tableau du Mistral.",
+     "role": "new"
+    },
+    {
+     "lemma": "servir",
+     "surface_fr": "servi",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to serve; to be used for",
+      "de": "servieren, bedienen; dienen"
+     },
+     "sentence_fr": "Ma mère a servi ici.",
+     "role": "new"
+    },
+    {
+     "lemma": "adresse",
+     "surface_fr": "adresse",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "address",
+      "de": "die Adresse, die Anschrift"
+     },
+     "sentence_fr": "Mais il a une adresse.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "numéro",
+     "surface_fr": "numéro",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "number",
+      "de": "die Nummer"
+     },
+     "sentence_fr": "Point numéro un : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "savoir",
+     "surface_fr": "sait",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to know (a fact), know how to",
+      "de": "wissen; können"
+     },
+     "sentence_fr": "Qui sait où il est ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "rien",
+     "surface_fr": "rien",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "nothing",
+      "de": "nichts"
+     },
+     "sentence_fr": "J'ai rien entendu.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "entendre",
+     "surface_fr": "entendu",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to hear",
+      "de": "hören"
+     },
+     "sentence_fr": "J'ai rien entendu.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "monde",
+     "surface_fr": "monde",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "world; people",
+      "de": "die Welt; die Leute (Pl.)"
+     },
+     "sentence_fr": "Pourquoi tout le monde me regarde ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "regarder",
+     "surface_fr": "regarde",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to look at, watch",
+      "de": "anschauen, ansehen"
+     },
+     "sentence_fr": "Pourquoi tout le monde me regarde ?",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "demande",
+     "surface_fr": "demande",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "request; application; demand",
+      "de": "die Bitte; der Antrag; die Nachfrage"
+     },
+     "sentence_fr": "Et ne me demande rien.",
+     "role": "new"
+    },
+    {
+     "lemma": "premier",
+     "surface_fr": "Premier",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "first",
+      "de": "erste(r, s)"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "point",
+     "surface_fr": "point",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "point; full stop",
+      "de": "der Punkt"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "ordre",
+     "surface_fr": "ordre",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "order",
+      "de": "die Ordnung; der Befehl; die Reihenfolge"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "jour",
+     "surface_fr": "jour",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "day",
+      "de": "der Tag"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "savoir",
+     "surface_fr": "sait",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to know (a fact), know how to",
+      "de": "wissen; können"
+     },
+     "sentence_fr": "Quelqu'un sait où il est ?",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "ruer",
+     "surface_fr": "Rue",
+     "band": "C1",
+     "sub_band": "C1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to kick (horse); (se ~) to rush",
+      "de": "ausschlagen; sich stürzen"
+     },
+     "sentence_fr": "Rue de Lancry.",
+     "role": "new"
+    },
+    {
+     "lemma": "moindre",
+     "surface_fr": "moindre",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "lesser, smaller; (le ~) the slightest",
+      "de": "geringer; der/die/das geringste"
+     },
+     "sentence_fr": "Je n'ai pas le moindre tableau.",
+     "role": "new"
+    },
+    {
+     "lemma": "premier",
+     "surface_fr": "Premier",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "first",
+      "de": "erste(r, s)"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "point",
+     "surface_fr": "point",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "point; full stop",
+      "de": "der Punkt"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "ordre",
+     "surface_fr": "ordre",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "order",
+      "de": "die Ordnung; der Befehl; die Reihenfolge"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "jour",
+     "surface_fr": "jour",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "day",
+      "de": "der Tag"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Premier point à l'ordre du jour : le tableau du Mistral.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "piste",
+     "surface_fr": "piste",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "track, trail; runway; ski run",
+      "de": "die Spur, die Fährte; die Landebahn; die Piste"
+     },
+     "sentence_fr": "Quelqu'un a-t-il une piste ?",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e2.a@laisser_partir": {
+   "b1": [
+    {
+     "lemma": "demande",
+     "surface_fr": "demande",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "request; application; demand",
+      "de": "die Bitte; der Antrag; die Nachfrage"
+     },
+     "sentence_fr": "Je ne demande pas les noms.",
+     "role": "new"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Et le tableau ?",
+     "role": "new"
+    },
+    {
+     "lemma": "vendre",
+     "surface_fr": "Vendu",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to sell",
+      "de": "verkaufen"
+     },
+     "sentence_fr": "Vendu.",
+     "role": "new"
+    },
+    {
+     "lemma": "ailleurs",
+     "surface_fr": "ailleurs",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "elsewhere (d'~: besides)",
+      "de": "woanders (d'~: übrigens)"
+     },
+     "sentence_fr": "Il est ailleurs.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "chaise",
+     "surface_fr": "chaises",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "chair",
+      "de": "der Stuhl"
+     },
+     "sentence_fr": "Les chaises du Mistral ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "euro",
+     "surface_fr": "euros",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "euro",
+      "de": "der Euro"
+     },
+     "sentence_fr": "Vingt euros.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "samedi",
+     "surface_fr": "Samedi",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Saturday",
+      "de": "der Samstag"
+     },
+     "sentence_fr": "Samedi matin.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "matin",
+     "surface_fr": "matin",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "morning",
+      "de": "der Morgen, der Vormittag"
+     },
+     "sentence_fr": "Samedi matin.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vieux",
+     "surface_fr": "vieux",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "old",
+      "de": "alt"
+     },
+     "sentence_fr": "À un vieux monsieur.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "monsieur",
+     "surface_fr": "monsieur",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Mr, sir; gentleman",
+      "de": "der Herr"
+     },
+     "sentence_fr": "À un vieux monsieur.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "C'est un signe.",
+     "role": "new"
+    },
+    {
+     "lemma": "demande",
+     "surface_fr": "demande",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "request; application; demand",
+      "de": "die Bitte; der Antrag; die Nachfrage"
+     },
+     "sentence_fr": "Je ne demande jamais les noms.",
+     "role": "new"
+    },
+    {
+     "lemma": "chaise",
+     "surface_fr": "chaises",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "chair",
+      "de": "der Stuhl"
+     },
+     "sentence_fr": "Les chaises du Mistral ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "euro",
+     "surface_fr": "euros",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "euro",
+      "de": "der Euro"
+     },
+     "sentence_fr": "Vingt euros pièce.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "pièce",
+     "surface_fr": "pièce",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "room; coin; piece; play",
+      "de": "das Zimmer; die Münze; das Stück"
+     },
+     "sentence_fr": "Vingt euros pièce.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Et le tableau ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vendre",
+     "surface_fr": "Vendu",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to sell",
+      "de": "verkaufen"
+     },
+     "sentence_fr": "Vendu.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "samedi",
+     "surface_fr": "Samedi",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Saturday",
+      "de": "der Samstag"
+     },
+     "sentence_fr": "Samedi matin, à un vieux monsieur.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "Si ce n'est pas un signe…",
+     "role": "new"
+    },
+    {
+     "lemma": "longuement",
+     "surface_fr": "longuement",
+     "band": "B2",
+     "sub_band": "B2.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "at length, for a long time",
+      "de": "ausführlich, lange"
+     },
+     "sentence_fr": "Il a longuement regardé le dos du tableau.",
+     "role": "new"
+    },
+    {
+     "lemma": "chaise",
+     "surface_fr": "chaises",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "chair",
+      "de": "der Stuhl"
+     },
+     "sentence_fr": "Les chaises du Mistral ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "euro",
+     "surface_fr": "euros",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "euro",
+      "de": "der Euro"
+     },
+     "sentence_fr": "Vingt euros pièce.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "pièce",
+     "surface_fr": "pièce",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "room; coin; piece; play",
+      "de": "das Zimmer; die Münze; das Stück"
+     },
+     "sentence_fr": "Vingt euros pièce.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "tableau",
+     "surface_fr": "tableau",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "painting; board; table",
+      "de": "das Gemälde; die Tafel; die Tabelle"
+     },
+     "sentence_fr": "Et le tableau ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "Parti",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "Parti.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "samedi",
+     "surface_fr": "Samedi",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Saturday",
+      "de": "der Samstag"
+     },
+     "sentence_fr": "Samedi matin, à un vieux monsieur.",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e2.b": {
+   "b1": [
+    {
+     "lemma": "confus",
+     "surface_fr": "confus",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "confused; unclear; embarrassed",
+      "de": "verwirrt; unklar; verlegen"
+     },
+     "sentence_fr": "C'est confus.",
+     "role": "new"
+    },
+    {
+     "lemma": "recommander",
+     "surface_fr": "recommandé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to recommend",
+      "de": "empfehlen"
+     },
+     "sentence_fr": "Il écrit en recommandé.",
+     "role": "new"
+    },
+    {
+     "lemma": "chemin",
+     "surface_fr": "chemin",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "path, way",
+      "de": "der Weg"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin, par la rue de Lancry.",
+     "role": "new"
+    },
+    {
+     "lemma": "plan",
+     "surface_fr": "plan",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "map; plan",
+      "de": "der Stadtplan; der Plan"
+     },
+     "sentence_fr": "Sans plan ?",
+     "role": "new"
+    },
+    {
+     "lemma": "dispute",
+     "surface_fr": "dispute",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "argument, quarrel",
+      "de": "der Streit"
+     },
+     "sentence_fr": "À la prochaine dispute.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "part",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "grand-père",
+     "surface_fr": "grand-père",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "grandfather",
+      "de": "der Großvater, der Opa"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "écrire",
+     "surface_fr": "écrit",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to write",
+      "de": "schreiben"
+     },
+     "sentence_fr": "Il écrit en recommandé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "dimanche",
+     "surface_fr": "dimanche",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Sunday",
+      "de": "der Sonntag"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin, par la rue de Lancry.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "prendre",
+     "surface_fr": "prenait",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to take",
+      "de": "nehmen"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin, par la rue de Lancry.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "toujours",
+     "surface_fr": "toujours",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "always; still",
+      "de": "immer; immer noch"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin, par la rue de Lancry.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "confus",
+     "surface_fr": "confus",
+     "band": "B1",
+     "sub_band": "B1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "confused; unclear; embarrassed",
+      "de": "verwirrt; unklar; verlegen"
+     },
+     "sentence_fr": "C'est confus.",
+     "role": "new"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "part",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "grand-père",
+     "surface_fr": "grand-père",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "grandfather",
+      "de": "der Großvater, der Opa"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "écrire",
+     "surface_fr": "écrit",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to write",
+      "de": "schreiben"
+     },
+     "sentence_fr": "Il écrit en recommandé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "recommander",
+     "surface_fr": "recommandé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to recommend",
+      "de": "empfehlen"
+     },
+     "sentence_fr": "Il écrit en recommandé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "dimanche",
+     "surface_fr": "dimanche",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Sunday",
+      "de": "der Sonntag"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin : par la rue de Lancry.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "prendre",
+     "surface_fr": "prenait",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to take",
+      "de": "nehmen"
+     },
+     "sentence_fr": "Le dimanche, Odile prenait toujours le même chemin : par la rue de Lancry.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "invariablement",
+     "surface_fr": "invariablement",
+     "band": "C1",
+     "sub_band": "C1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "invariably",
+      "de": "unweigerlich, stets"
+     },
+     "sentence_fr": "Le dimanche, Odile empruntait invariablement le même chemin : la rue de Lancry.",
+     "role": "new"
+    },
+    {
+     "lemma": "limpide",
+     "surface_fr": "limpide",
+     "band": "C1",
+     "sub_band": "C1.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "limpid, crystal-clear",
+      "de": "klar, glasklar"
+     },
+     "sentence_fr": "Et pourtant, c'est limpide.",
+     "role": "new"
+    },
+    {
+     "lemma": "accusé",
+     "surface_fr": "accusé",
+     "band": "B2",
+     "sub_band": "B2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "defendant, accused",
+      "de": "der Angeklagte"
+     },
+     "sentence_fr": "Il écrit en recommandé avec accusé de réception.",
+     "role": "new"
+    },
+    {
+     "lemma": "moindre",
+     "surface_fr": "moindre",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "lesser, smaller; (le ~) the slightest",
+      "de": "geringer; der/die/das geringste"
+     },
+     "sentence_fr": "Sans le moindre plan ?",
+     "role": "new"
+    },
+    {
+     "lemma": "partir",
+     "surface_fr": "part",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to leave, go away",
+      "de": "abfahren, weggehen"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "grand-père",
+     "surface_fr": "grand-père",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "grandfather",
+      "de": "der Großvater, der Opa"
+     },
+     "sentence_fr": "De la part de mon grand-père.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "écrire",
+     "surface_fr": "écrit",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to write",
+      "de": "schreiben"
+     },
+     "sentence_fr": "Il écrit en recommandé avec accusé de réception.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "recommander",
+     "surface_fr": "recommandé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to recommend",
+      "de": "empfehlen"
+     },
+     "sentence_fr": "Il écrit en recommandé avec accusé de réception.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "réception",
+     "surface_fr": "réception",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "reception; receipt",
+      "de": "der Empfang; der Erhalt"
+     },
+     "sentence_fr": "Il écrit en recommandé avec accusé de réception.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "dimanche",
+     "surface_fr": "dimanche",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "Sunday",
+      "de": "der Sonntag"
+     },
+     "sentence_fr": "Le dimanche, Odile empruntait invariablement le même chemin : la rue de Lancry.",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e3.a": {
+   "b1": [
+    {
+     "lemma": "changer",
+     "surface_fr": "changé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to change",
+      "de": "ändern, wechseln"
+     },
+     "sentence_fr": "Et rien n'a changé.",
+     "role": "new"
+    },
+    {
+     "lemma": "pardonner",
+     "surface_fr": "pardonne",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to forgive",
+      "de": "verzeihen, vergeben"
+     },
+     "sentence_fr": "Je te pardonne.",
+     "role": "new"
+    },
+    {
+     "lemma": "château",
+     "surface_fr": "château",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "castle; palace",
+      "de": "die Burg, das Schloss"
+     },
+     "sentence_fr": "Bienvenue au château.",
+     "role": "new"
+    },
+    {
+     "lemma": "époque",
+     "surface_fr": "époque",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "time, period, era",
+      "de": "die Zeit, die Epoche"
+     },
+     "sentence_fr": "La banquette est d'époque.",
+     "role": "new"
+    },
+    {
+     "lemma": "article",
+     "surface_fr": "article",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "article",
+      "de": "der Artikel"
+     },
+     "sentence_fr": "Pas pour un article.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "semaine",
+     "surface_fr": "semaine",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "week",
+      "de": "die Woche"
+     },
+     "sentence_fr": "Une semaine !",
+     "role": "foundational"
+    },
+    {
+     "lemma": "rien",
+     "surface_fr": "rien",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "nothing",
+      "de": "nichts"
+     },
+     "sentence_fr": "Et rien n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "coûter",
+     "surface_fr": "coûté",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to cost",
+      "de": "kosten"
+     },
+     "sentence_fr": "Tu m'as coûté une banquette.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "peu",
+     "surface_fr": "peu",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "little, not much",
+      "de": "wenig"
+     },
+     "sentence_fr": "Un peu.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aussi",
+     "surface_fr": "aussi",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "also, too; as (… as)",
+      "de": "auch; so (… wie)"
+     },
+     "sentence_fr": "Moi aussi.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "vrai",
+     "surface_fr": "vraie",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "true, real",
+      "de": "wahr, echt"
+     },
+     "sentence_fr": "C'est quoi, la vraie histoire ?",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "semaine",
+     "surface_fr": "semaine",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "week",
+      "de": "die Woche"
+     },
+     "sentence_fr": "Une semaine !",
+     "role": "foundational"
+    },
+    {
+     "lemma": "rien",
+     "surface_fr": "rien",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "nothing",
+      "de": "nichts"
+     },
+     "sentence_fr": "Et rien n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "changer",
+     "surface_fr": "changé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to change",
+      "de": "ändern, wechseln"
+     },
+     "sentence_fr": "Et rien n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "magnifique",
+     "surface_fr": "magnifique",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "adjective",
+     "gender": null,
+     "gloss": {
+      "en": "magnificent, beautiful",
+      "de": "herrlich, wunderschön"
+     },
+     "sentence_fr": "C'est magnifique.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "coûter",
+     "surface_fr": "coûté",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to cost",
+      "de": "kosten"
+     },
+     "sentence_fr": "Tu m'as coûté une banquette.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "pardonner",
+     "surface_fr": "pardonne",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to forgive",
+      "de": "verzeihen, vergeben"
+     },
+     "sentence_fr": "Je te pardonne.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "semaine",
+     "surface_fr": "semaine",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "noun",
+     "gender": "f",
+     "gloss": {
+      "en": "week",
+      "de": "die Woche"
+     },
+     "sentence_fr": "Une semaine !",
+     "role": "foundational"
+    },
+    {
+     "lemma": "rien",
+     "surface_fr": "rien",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "nothing",
+      "de": "nichts"
+     },
+     "sentence_fr": "Et rien, absolument rien, n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "absolument",
+     "surface_fr": "absolument",
+     "band": "B1",
+     "sub_band": "B1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "absolutely",
+      "de": "absolut, unbedingt"
+     },
+     "sentence_fr": "Et rien, absolument rien, n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "changer",
+     "surface_fr": "changé",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to change",
+      "de": "ändern, wechseln"
+     },
+     "sentence_fr": "Et rien, absolument rien, n'a changé.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "coûter",
+     "surface_fr": "coûté",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to cost",
+      "de": "kosten"
+     },
+     "sentence_fr": "Tu m'as coûté une banquette.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "pardonner",
+     "surface_fr": "pardonne",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to forgive",
+      "de": "verzeihen, vergeben"
+     },
+     "sentence_fr": "Je te pardonne.",
+     "role": "foundational"
+    }
+   ]
+  },
+  "e3.b": {
+   "b1": [
+    {
+     "lemma": "retour",
+     "surface_fr": "retour",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "return",
+      "de": "die Rückkehr; die Rückfahrt"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "new"
+    },
+    {
+     "lemma": "garder",
+     "surface_fr": "garder",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to keep; to look after",
+      "de": "behalten; aufpassen auf"
+     },
+     "sentence_fr": "Quelqu'un doit garder le quartier.",
+     "role": "new"
+    },
+    {
+     "lemma": "allumer",
+     "surface_fr": "allumée",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to switch on, light",
+      "de": "einschalten, anzünden"
+     },
+     "sentence_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+     "role": "new"
+    },
+    {
+     "lemma": "suivre",
+     "surface_fr": "suivre",
+     "band": "A2",
+     "sub_band": "A2.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to follow",
+      "de": "folgen"
+     },
+     "sentence_fr": "À suivre…",
+     "role": "new"
+    },
+    {
+     "lemma": "billet",
+     "surface_fr": "billet",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "ticket; banknote",
+      "de": "die Fahrkarte, das Ticket; der Geldschein"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aujourd'hui",
+     "surface_fr": "hui",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "today",
+      "de": "heute"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "prendre",
+     "surface_fr": "prends",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to take",
+      "de": "nehmen"
+     },
+     "sentence_fr": "Tu le prends ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "bien",
+     "surface_fr": "Bien",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "well; very",
+      "de": "gut; sehr"
+     },
+     "sentence_fr": "Bien.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "devoir",
+     "surface_fr": "doit",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "must, to have to; to owe",
+      "de": "müssen, sollen; schulden"
+     },
+     "sentence_fr": "Quelqu'un doit garder le quartier.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "quartier",
+     "surface_fr": "quartier",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "neighbourhood, district",
+      "de": "das Viertel, der Stadtteil"
+     },
+     "sentence_fr": "Quelqu'un doit garder le quartier.",
+     "role": "foundational"
+    }
+   ],
+   "b2": [
+    {
+     "lemma": "rappel",
+     "surface_fr": "Rappel",
+     "band": "B2",
+     "sub_band": "B2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "reminder; recall; booster",
+      "de": "die Erinnerung, die Mahnung; die Auffrischung"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "new"
+    },
+    {
+     "lemma": "garde",
+     "surface_fr": "garde",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": null,
+     "gloss": {
+      "en": "guard (person); custody, guarding",
+      "de": "der Wächter; die Wache, die Obhut"
+     },
+     "sentence_fr": "Il faut bien que quelqu'un garde le quartier.",
+     "role": "new"
+    },
+    {
+     "lemma": "billet",
+     "surface_fr": "billet",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "ticket; banknote",
+      "de": "die Fahrkarte, das Ticket; der Geldschein"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "retour",
+     "surface_fr": "retour",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "return",
+      "de": "die Rückkehr; die Rückfahrt"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aujourd'hui",
+     "surface_fr": "hui",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "today",
+      "de": "heute"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "prendre",
+     "surface_fr": "prends",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to take",
+      "de": "nehmen"
+     },
+     "sentence_fr": "Tu le prends ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "bien",
+     "surface_fr": "Bien",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "well; very",
+      "de": "gut; sehr"
+     },
+     "sentence_fr": "Bien.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "falloir",
+     "surface_fr": "faut",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to be necessary (il faut: one must)",
+      "de": "nötig sein (il faut: man muss)"
+     },
+     "sentence_fr": "Il faut bien que quelqu'un garde le quartier.",
+     "role": "foundational"
+    }
+   ],
+   "c1": [
+    {
+     "lemma": "ruer",
+     "surface_fr": "Rue",
+     "band": "C1",
+     "sub_band": "C1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to kick (horse); (se ~) to rush",
+      "de": "ausschlagen; sich stürzen"
+     },
+     "sentence_fr": "Rue de Lancry, au troisième, une fenêtre veille encore.",
+     "role": "new"
+    },
+    {
+     "lemma": "rappel",
+     "surface_fr": "Rappel",
+     "band": "B2",
+     "sub_band": "B2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "reminder; recall; booster",
+      "de": "die Erinnerung, die Mahnung; die Auffrischung"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "new"
+    },
+    {
+     "lemma": "billet",
+     "surface_fr": "billet",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "ticket; banknote",
+      "de": "die Fahrkarte, das Ticket; der Geldschein"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "retour",
+     "surface_fr": "retour",
+     "band": "A2",
+     "sub_band": "A2.2",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "return",
+      "de": "die Rückkehr; die Rückfahrt"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "aujourd'hui",
+     "surface_fr": "hui",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "today",
+      "de": "heute"
+     },
+     "sentence_fr": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+     "role": "foundational"
+    },
+    {
+     "lemma": "bien",
+     "surface_fr": "bien",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "adverb",
+     "gender": null,
+     "gloss": {
+      "en": "well; very",
+      "de": "gut; sehr"
+     },
+     "sentence_fr": "C'est bien aujourd'hui, ton billet ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "prendre",
+     "surface_fr": "prends",
+     "band": "A1",
+     "sub_band": "A1.1",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to take",
+      "de": "nehmen"
+     },
+     "sentence_fr": "Tu le prends ?",
+     "role": "foundational"
+    },
+    {
+     "lemma": "falloir",
+     "surface_fr": "fallait",
+     "band": "A1",
+     "sub_band": "A1.2",
+     "part_of_speech": "verb",
+     "gender": null,
+     "gloss": {
+      "en": "to be necessary (il faut: one must)",
+      "de": "nötig sein (il faut: man muss)"
+     },
+     "sentence_fr": "Il fallait bien que quelqu'un veille sur le quartier.",
+     "role": "foundational"
+    }
+   ]
+  },
   "t1.a": {
    "b1": [
     {
@@ -13221,6 +17039,7 @@
    "chocolat",
    "choisir",
    "chose",
+   "clair",
    "classe",
    "client",
    "clé",
@@ -13228,8 +17047,10 @@
    "comprendre",
    "couleur",
    "croire",
+   "croissant",
    "cuisine",
    "cœur",
+   "d'abord",
    "demain",
    "demander",
    "demi",
@@ -13250,10 +17071,12 @@
    "dîner",
    "eau",
    "encore",
+   "enfant",
    "enfin",
    "ensemble",
    "essayer",
    "euro",
+   "facile",
    "faire",
    "falloir",
    "famille",
@@ -13296,6 +17119,7 @@
    "lire",
    "loin",
    "long",
+   "longtemps",
    "lundi",
    "là-bas",
    "madame",
@@ -13335,6 +17159,7 @@
    "oublier",
    "ouvrir",
    "page",
+   "papa",
    "parc",
    "parler",
    "partir",
@@ -13348,6 +17173,7 @@
    "phrase",
    "place",
    "plaire",
+   "plein",
    "pleurer",
    "pleuvoir",
    "plus",
@@ -13427,8 +17253,10 @@
    "adorer",
    "adresse",
    "aide",
+   "ailleurs",
    "aimer",
    "aller",
+   "allumer",
    "alors",
    "ami",
    "amie",
@@ -13440,6 +17268,8 @@
    "architecte",
    "argent",
    "arriver",
+   "arrêter",
+   "article",
    "ascenseur",
    "asseoir",
    "assez",
@@ -13475,8 +17305,10 @@
    "cas",
    "certain",
    "chaise",
+   "changer",
    "chaussure",
    "chaîne",
+   "chemin",
    "cher",
    "chercher",
    "chiffre",
@@ -13484,6 +17316,7 @@
    "choisir",
    "chose",
    "château",
+   "clair",
    "classe",
    "client",
    "clé",
@@ -13499,7 +17332,9 @@
    "connaître",
    "couleur",
    "courageux",
+   "coûter",
    "croire",
+   "croissant",
    "crème",
    "cuisine",
    "d'abord",
@@ -13518,6 +17353,7 @@
    "différent",
    "dimanche",
    "dire",
+   "dispute",
    "disputer",
    "donner",
    "dormir",
@@ -13541,6 +17377,7 @@
    "euro",
    "exactement",
    "excuser",
+   "facile",
    "faible",
    "faire",
    "falloir",
@@ -13566,6 +17403,7 @@
    "fête",
    "gagner",
    "garder",
+   "gens",
    "gentil",
    "grand",
    "grand-mère",
@@ -13581,6 +17419,7 @@
    "honnête",
    "honte",
    "ici",
+   "idée",
    "immeuble",
    "impossible",
    "intérieur",
@@ -13648,8 +17487,10 @@
    "mètre",
    "métier",
    "métro",
+   "nom",
    "novembre",
    "nuit",
+   "numéro",
    "offrir",
    "omelette",
    "orange",
@@ -13658,6 +17499,8 @@
    "oublier",
    "ouvrir",
    "page",
+   "papa",
+   "pardonner",
    "parfait",
    "parler",
    "partager",
@@ -13666,6 +17509,7 @@
    "pause",
    "payer",
    "peindre",
+   "peinture",
    "penser",
    "perdre",
    "petit",
@@ -13680,10 +17524,13 @@
    "place",
    "plaire",
    "plan",
+   "plein",
    "pleurer",
    "pleuvoir",
    "plus",
+   "point",
    "poisson",
+   "policier",
    "pomme",
    "pompier",
    "porte",
@@ -13706,9 +17553,11 @@
    "quartier",
    "question",
    "quitter",
+   "raconter",
    "raison",
    "ranger",
    "recette",
+   "recommander",
    "regarder",
    "rejoindre",
    "remettre",
@@ -13719,6 +17568,8 @@
    "retour",
    "revenir",
    "rien",
+   "rue",
+   "règle",
    "récemment",
    "répondre",
    "réponse",
@@ -13743,6 +17594,7 @@
    "sourire",
    "souvenir",
    "spécial",
+   "suite",
    "suivre",
    "super",
    "surprise",
@@ -13776,6 +17628,7 @@
    "vite",
    "vivre",
    "voir",
+   "voler",
    "vouloir",
    "vrai",
    "vraiment",
@@ -13783,6 +17636,7 @@
    "école",
    "écrire",
    "électrique",
+   "époque",
    "étage",
    "éteindre"
   ],
@@ -13793,8 +17647,10 @@
    "administration",
    "adorer",
    "adresse",
+   "ailleurs",
    "aimer",
    "aller",
+   "allumer",
    "alors",
    "ami",
    "amie",
@@ -13810,6 +17666,8 @@
    "argent",
    "argument",
    "arriver",
+   "arrêter",
+   "article",
    "ascenseur",
    "asseoir",
    "assez",
@@ -13855,8 +17713,10 @@
    "catastrophe",
    "certain",
    "chaise",
+   "changer",
    "chaussure",
    "chaîne",
+   "chemin",
    "cher",
    "chercher",
    "chiffre",
@@ -13864,6 +17724,7 @@
    "choisir",
    "chose",
    "château",
+   "clair",
    "classe",
    "client",
    "clé",
@@ -13876,13 +17737,16 @@
    "conduire",
    "confiance",
    "confirmer",
+   "confus",
    "connaître",
    "conseil",
    "convaincre",
    "couleur",
    "courage",
    "courageux",
+   "coûter",
    "croire",
+   "croissant",
    "crème",
    "cuisine",
    "d'abord",
@@ -13902,6 +17766,7 @@
    "différent",
    "dimanche",
    "dire",
+   "dispute",
    "disputer",
    "donner",
    "dormir",
@@ -13911,6 +17776,7 @@
    "douter",
    "drap",
    "droit",
+   "début",
    "décembre",
    "décider",
    "défaut",
@@ -13930,6 +17796,7 @@
    "euro",
    "exactement",
    "excuser",
+   "facile",
    "faible",
    "faire",
    "falloir",
@@ -13980,6 +17847,7 @@
    "hésiter",
    "ici",
    "idiot",
+   "idée",
    "imaginer",
    "immeuble",
    "impliquer",
@@ -14058,9 +17926,11 @@
    "mémoire",
    "métier",
    "métro",
+   "nom",
    "noter",
    "novembre",
    "nuit",
+   "numéro",
    "offrir",
    "omelette",
    "orange",
@@ -14069,6 +17939,8 @@
    "ouvrir",
    "page",
    "paix",
+   "papa",
+   "pardonner",
    "pareil",
    "parfait",
    "parler",
@@ -14080,6 +17952,7 @@
    "payer",
    "peindre",
    "peintre",
+   "peinture",
    "penser",
    "perdre",
    "petit",
@@ -14096,10 +17969,15 @@
    "plaire",
    "plaisir",
    "plan",
+   "plaque",
+   "plein",
    "pleurer",
+   "pleuvoir",
    "pluie",
    "plus",
+   "point",
    "poisson",
+   "policier",
    "pomme",
    "pompier",
    "porte",
@@ -14140,6 +18018,7 @@
    "rapport",
    "rater",
    "recette",
+   "recommander",
    "refuser",
    "regarder",
    "rejoindre",
@@ -14157,6 +18036,8 @@
    "ridicule",
    "rien",
    "rouler",
+   "rue",
+   "règle",
    "réclamer",
    "rédaction",
    "réflexe",
@@ -14186,6 +18067,7 @@
    "sourire",
    "souvenir",
    "suffire",
+   "suite",
    "suivre",
    "surprise",
    "surtout",
@@ -14226,6 +18108,7 @@
    "vite",
    "vivre",
    "voir",
+   "voler",
    "vouloir",
    "vrai",
    "vraiment",
@@ -14234,6 +18117,7 @@
    "écrire",
    "électrique",
    "élégant",
+   "époque",
    "étage",
    "éteindre",
    "évidemment",
@@ -14250,6 +18134,7 @@
    "adresse",
    "agir",
    "aide",
+   "ailleurs",
    "aimer",
    "aller",
    "allumer",
@@ -14269,6 +18154,8 @@
    "argent",
    "argument",
    "arriver",
+   "arrêter",
+   "article",
    "ascenseur",
    "asseoir",
    "assez",
@@ -14288,6 +18175,7 @@
    "banque",
    "bar",
    "bas",
+   "beau",
    "beaucoup",
    "besoin",
    "bien",
@@ -14302,6 +18190,7 @@
    "bourse",
    "bref",
    "bureau",
+   "bus",
    "bête",
    "cacher",
    "café",
@@ -14318,9 +18207,11 @@
    "certain",
    "chaise",
    "change",
+   "changer",
    "charge",
    "chaussure",
    "chaîne",
+   "chemin",
    "cher",
    "chercher",
    "chocolat",
@@ -14328,6 +18219,7 @@
    "choix",
    "chose",
    "château",
+   "clair",
    "client",
    "cloche",
    "clé",
@@ -14343,6 +18235,7 @@
    "confiance",
    "confier",
    "confirmer",
+   "confus",
    "connaître",
    "conseil",
    "convaincre",
@@ -14354,11 +18247,15 @@
    "courant",
    "cours",
    "court",
+   "couvrir",
+   "coûter",
    "croire",
+   "croissant",
    "crème",
    "cuisine",
    "cœur",
    "d'abord",
+   "dedans",
    "demain",
    "demande",
    "demander",
@@ -14376,6 +18273,7 @@
    "dimanche",
    "dire",
    "discret",
+   "dispute",
    "disputer",
    "dissimuler",
    "distance",
@@ -14387,6 +18285,7 @@
    "douter",
    "drap",
    "droit",
+   "début",
    "décembre",
    "décider",
    "décoller",
@@ -14416,6 +18315,7 @@
    "excuser",
    "exiger",
    "exposer",
+   "facile",
    "faible",
    "faire",
    "falloir",
@@ -14475,6 +18375,7 @@
    "hésiter",
    "ici",
    "idiot",
+   "idée",
    "ignorer",
    "imaginer",
    "immeuble",
@@ -14522,6 +18423,7 @@
    "maison",
    "mal",
    "maman",
+   "manger",
    "manque",
    "marcher",
    "marché",
@@ -14558,14 +18460,17 @@
    "mère",
    "mètre",
    "mémoire",
+   "méthode",
    "métier",
    "métro",
    "nettement",
+   "nom",
    "nombre",
    "notaire",
    "noter",
    "novembre",
    "nuit",
+   "numéro",
    "occuper",
    "offrir",
    "omelette",
@@ -14576,6 +18481,8 @@
    "ouvrir",
    "page",
    "paix",
+   "papa",
+   "pardonner",
    "pareil",
    "parfait",
    "parfaitement",
@@ -14591,6 +18498,7 @@
    "peindre",
    "peine",
    "peintre",
+   "peinture",
    "penser",
    "perdre",
    "petit",
@@ -14608,12 +18516,16 @@
    "plaire",
    "plaisir",
    "plan",
+   "plaque",
    "plein",
    "pleurer",
+   "pleuvoir",
    "pluie",
    "plus",
    "plutôt",
+   "point",
    "poisson",
+   "policier",
    "pomme",
    "pompier",
    "porte",
@@ -14661,11 +18573,13 @@
    "raconter",
    "raison",
    "ranger",
+   "rappel",
    "rappeler",
    "rapport",
    "rater",
    "recette",
    "recherche",
+   "recommander",
    "recommencer",
    "refaire",
    "refuser",
@@ -14686,6 +18600,7 @@
    "revenir",
    "ridicule",
    "rien",
+   "rue",
    "règle",
    "rédaction",
    "réfléchir",
@@ -14772,15 +18687,18 @@
    "vite",
    "vivre",
    "voir",
+   "voler",
    "vouloir",
    "vrai",
    "vraiment",
    "vérité",
+   "âgé",
    "âme",
    "école",
    "écrire",
    "électrique",
    "élégant",
+   "époque",
    "étage",
    "éteindre",
    "évidemment",
@@ -14789,12 +18707,14 @@
   "c1": [
    "abreuver",
    "absence",
+   "absolument",
    "abuser",
    "acceptation",
    "accepter",
    "accompagner",
    "accord",
    "accrocher",
+   "accusé",
    "adorer",
    "adresse",
    "advenir",
@@ -14822,6 +18742,7 @@
    "argument",
    "arracher",
    "arriver",
+   "arrêter",
    "ascenseur",
    "assemblée",
    "asseoir",
@@ -14860,10 +18781,12 @@
    "bougie",
    "boulanger",
    "bourse",
+   "bout",
    "boîte",
    "bras",
    "bref",
    "bureau",
+   "bus",
    "bête",
    "c'est-à-dire",
    "cacher",
@@ -14890,6 +18813,7 @@
    "charité",
    "chaud",
    "chaîne",
+   "chemin",
    "cher",
    "chercher",
    "chiffre",
@@ -14904,9 +18828,11 @@
    "coin",
    "coller",
    "commencer",
+   "commissaire",
    "commun",
    "complet",
    "compliqué",
+   "complètement",
    "comprendre",
    "compte",
    "compter",
@@ -14916,6 +18842,7 @@
    "confiance",
    "confier",
    "confirmer",
+   "confus",
    "congé",
    "connaissance",
    "connaître",
@@ -14931,9 +18858,11 @@
    "courrier",
    "cours",
    "court",
+   "coûter",
    "crier",
    "croire",
    "croiser",
+   "croissant",
    "croisé",
    "crème",
    "cuisine",
@@ -14956,12 +18885,14 @@
    "dire",
    "discret",
    "disposer",
+   "dispute",
    "divin",
    "dommage",
    "donner",
    "dormir",
    "dos",
    "double",
+   "doucement",
    "douter",
    "drap",
    "droit",
@@ -14977,11 +18908,15 @@
    "déjà",
    "départ",
    "déplacer",
+   "désaccord",
    "désormais",
+   "détail",
+   "dévisager",
    "dîner",
    "eau",
    "effacer",
    "effet",
+   "emprunter",
    "empêcher",
    "enchaîner",
    "encore",
@@ -15049,12 +18984,12 @@
    "gens",
    "gentil",
    "gorge",
+   "grand",
    "grand-mère",
    "grand-père",
    "grave",
    "génial",
    "général",
-   "habitude",
    "haut",
    "heure",
    "histoire",
@@ -15075,6 +19010,7 @@
    "inchangé",
    "inclure",
    "incomber",
+   "inculpé",
    "indulgence",
    "infiniment",
    "informer",
@@ -15083,6 +19019,7 @@
    "instant",
    "intention",
    "intérieur",
+   "invariablement",
    "inverser",
    "invitation",
    "invité",
@@ -15109,10 +19046,12 @@
    "libre",
    "limite",
    "limiter",
+   "limpide",
    "lire",
    "liste",
    "loin",
    "long",
+   "longuement",
    "lot",
    "loyer",
    "lumière",
@@ -15121,6 +19060,7 @@
    "là-dessus",
    "lâche",
    "lâcher",
+   "lèvre",
    "léger",
    "léguer",
    "madame",
@@ -15152,6 +19092,7 @@
    "minuit",
    "minute",
    "miracle",
+   "moindre",
    "moins",
    "mois",
    "moitié",
@@ -15164,12 +19105,14 @@
    "montrer",
    "moquer",
    "mot",
+   "moyenne",
    "mur",
    "musée",
    "mystère",
    "mère",
    "mètre",
    "mémoire",
+   "méthode",
    "métier",
    "métro",
    "naturellement",
@@ -15183,6 +19126,7 @@
    "noyer",
    "nuancer",
    "nuit",
+   "numéro",
    "officiel",
    "offrir",
    "omelette",
@@ -15195,6 +19139,10 @@
    "page",
    "paix",
    "pan",
+   "papa",
+   "papier",
+   "paraître",
+   "pardonner",
    "pareil",
    "parfait",
    "parfum",
@@ -15211,6 +19159,7 @@
    "peau",
    "peindre",
    "peine",
+   "peinture",
    "penchant",
    "penser",
    "perdre",
@@ -15225,6 +19174,7 @@
    "photo",
    "phrase",
    "pile",
+   "piste",
    "pièce",
    "placard",
    "place",
@@ -15232,11 +19182,14 @@
    "plaisir",
    "plan",
    "plancher",
+   "plaque",
    "plein",
    "pleurer",
+   "pleuvoir",
    "plus",
    "poche",
    "poil",
+   "point",
    "poisson",
    "pomme",
    "pompe",
@@ -15269,6 +19222,7 @@
    "précisément",
    "présager",
    "présence",
+   "présent",
    "prévoir",
    "prêt",
    "publier",
@@ -15286,12 +19240,15 @@
    "raison",
    "rallier",
    "ranger",
+   "rappel",
    "rappeler",
    "rapport",
    "rater",
    "recette",
+   "recommander",
    "recommencer",
    "refaire",
+   "refermer",
    "refuser",
    "regard",
    "regarder",
@@ -15310,15 +19267,18 @@
    "retour",
    "retourner",
    "retraite",
+   "retrouver",
    "revenir",
    "rideau",
    "ridicule",
    "rien",
    "rouler",
    "route",
+   "rue",
    "ruer",
    "règle",
    "récemment",
+   "réception",
    "réclamer",
    "rédaction",
    "réflexe",
@@ -15409,6 +19369,7 @@
    "tête",
    "tôt",
    "valise",
+   "veille",
    "vendre",
    "venir",
    "vente",
@@ -15424,10 +19385,13 @@
    "vivre",
    "vocation",
    "voir",
+   "voler",
    "vouloir",
    "vrai",
    "vraiment",
    "vérité",
+   "âge",
+   "âgé",
    "âme",
    "échapper",
    "échéance",
@@ -15435,6 +19399,7 @@
    "écrire",
    "électrique",
    "émissaire",
+   "époque",
    "épouvantable",
    "étage",
    "éteindre",

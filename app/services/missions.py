@@ -293,6 +293,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Quelqu'un peut venir le matin, pas après midi.",
         "ambient_cues": ["un appartement froid", "on dit « vous »", "un rendez-vous"],
         "quick_replies": ["Bonjour Monsieur, le radiateur...", "Est-ce que quelqu'un peut venir...", "Je suis là le matin..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, merci pour votre message sur le radiateur. Le technicien peut venir mardi à dix heures. Vous êtes là, ou je laisse la clé à la gardienne ?",
+                "brief": "Le technicien peut venir mardi. Dites si vous êtes là, ou qui peut ouvrir.",
+            }
+        ],
     },
     {
         "domain": "neighbours",
@@ -314,6 +321,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Elle n'est pas contente, mais il y a un petit sourire sous son mot.",
         "ambient_cues": ["des murs fins", "le même escalier", "rester amis"],
         "quick_replies": ["Bonsoir Madame, je suis désolé...", "Ce soir, je vais faire moins de bruit...", "Merci pour votre mot..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonsoir, merci pour votre petit mot d'hier. C'est plus calme maintenant. Samedi, je fais un gâteau : vous voulez passer prendre un café ?",
+                "brief": "Madame Vidal vous remercie et vous invite. Répondez à son invitation.",
+            }
+        ],
     },
     {
         "domain": "deliveries_admin",
@@ -335,6 +349,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Sur la photo, la porte est bleue. Votre porte est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, merci pour votre réponse. Nous avons maintenant votre adresse. Le paquet arrive demain matin. Comment est-ce qu'on entre dans votre immeuble ?",
+                "brief": "Le paquet arrive demain. Dites comment on entre chez vous.",
+            }
+        ],
     },
     {
         "domain": "health",
@@ -379,6 +400,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Il y a un autre train, mais il part d'une autre gare.",
         "ambient_cues": ["le tableau des départs", "des gens derrière vous", "une question d'argent"],
         "quick_replies": ["Je dois arriver aujourd'hui...", "Le prochain train part à quelle heure ?", "Et pour mon argent..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, j'ai bien reçu votre réponse. Il y a un train demain matin, à huit heures. Vous voulez une place près de la fenêtre ?",
+                "brief": "Il y a un train demain matin. Dites quelle place vous voulez.",
+            }
+        ],
     },
     {
         "domain": "social_plans",
@@ -446,6 +474,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Pour eux, c'est « un petit problème ». C'est le troisième jour.",
         "ambient_cues": ["internet sur le téléphone", "le troisième jour", "poli mais clair"],
         "quick_replies": ["Bonjour, je n'ai pas internet depuis...", "Ça fait trois jours...", "Qu'est-ce que vous pouvez faire pour moi ?"],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, merci pour votre message. Un technicien vient chez vous jeudi entre 14 h et 18 h. Pour les trois jours sans internet, nous vous offrons un mois. C'est bon pour vous ?",
+                "brief": "Un technicien vient jeudi. Dites si l'heure va, et si vous acceptez le mois offert.",
+            }
+        ],
     },
     {
         "domain": "shopping",
@@ -467,6 +502,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Il reste un seul article à votre taille, jusqu'à ce soir.",
         "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, merci pour votre réponse. Nous avons la bonne taille. Vous préférez l'échange par la poste ou à la boutique ?",
+                "brief": "La boutique a votre taille. Choisissez : par la poste ou à la boutique.",
+            }
+        ],
     },
     {
         "domain": "bureaucracy",
@@ -488,6 +530,13 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Le papier est bon, mais l'adresse n'est pas la même.",
         "ambient_cues": ["un formulaire", "des mots difficiles", "une chose qui manque"],
         "quick_replies": ["Bonjour Madame, Monsieur...", "Qu'est-ce qu'il faut ?", "J'habite..."],
+        # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
+        "follow_ups": [
+            {
+                "opening_message": "Bonjour, merci pour votre message. Avec votre adresse, le dossier est presque complet. Il faut encore un papier avec votre adresse, par exemple une facture. Vous pouvez l'envoyer par e-mail ?",
+                "brief": "Il manque un dernier papier. Dites quel papier vous pouvez envoyer, et quand.",
+            }
+        ],
     },
     {
         "domain": "everyday_warmth",
@@ -511,6 +560,250 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "twist": "Chez Luc, le chat a déjà sa chaise préférée.",
         "ambient_cues": ["un mot dans l'escalier", "un voisin sympa", "un petit pardon"],
         "quick_replies": ["Oh non, désolé !", "Je vais fermer ma porte...", "Merci pour ton mot..."],
+    },
+    # --- WP-125B proposal: letters at B1, B2 and C1 (owner approval) ---
+    {
+        "domain": "return_ticket",
+        "level": "B1",
+        # The end of a stay: a one-off moment, never reprinted.
+        "once": True,
+        "label": "Le billet retour",
+        "categories": {"transport_travel", "time_calendar"},
+        "title": "Votre train retour est supprimé",
+        "contact_name": "Service voyageurs",
+        "contact_role": "service clients des trains",
+        "contact_initials": "SV",
+        "channel": "email",
+        "channel_label": "E-mail",
+        "tone": "polite_practical",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Un e-mail le matin, entre deux cafés",
+        "opening_message": (
+            "Bonjour, en raison d'une grève, votre train retour de dimanche est supprimé. Nous pouvons "
+            "vous proposer un départ samedi soir ou lundi matin, sans frais, ou bien le remboursement de "
+            "votre billet. Merci de nous indiquer votre choix avant vendredi midi ; si aucune de ces "
+            "solutions ne vous convient, expliquez-nous ce qui vous poserait problème."
+        ),
+        "brief": "Votre train retour est supprimé. Choisissez une solution, ou expliquez ce qui ne vous convient pas.",
+        "success_signal": "The service knows which option you take, or what you need instead.",
+        "twist": "Le lundi matin, le train part à 6 h 04.",
+        "ambient_cues": ["un billet retour", "une grève", "trois solutions"],
+        "quick_replies": ["Je préférerais partir...", "Le samedi soir ne me convient pas, parce que...", "Est-ce que je pourrais plutôt..."],
+    },
+    {
+        "domain": "lost_property",
+        "level": "B1",
+        "label": "Objets trouvés",
+        "categories": {"places_infrastructure", "clothing", "communication"},
+        "title": "Un sac aux objets trouvés",
+        "contact_name": "Objets trouvés",
+        "contact_role": "service des objets trouvés du métro",
+        "contact_initials": "OT",
+        "channel": "email",
+        "channel_label": "E-mail",
+        "tone": "calm_specific",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Un e-mail inattendu, avec un numéro de dossier",
+        "opening_message": (
+            "Bonjour, un sac de sport a été déposé chez nous hier soir, avec dans la poche intérieure une "
+            "carte à votre nom. Avant de vous le rendre, nous devons vérifier qu'il vous appartient : "
+            "pourriez-vous nous décrire le sac et ce qu'il contient, et nous dire quand vous pourriez "
+            "passer le chercher ?"
+        ),
+        "brief": "On a retrouvé un sac avec votre nom. Décrivez-le et proposez un moment pour passer.",
+        "success_signal": "The office can check the bag is yours and knows when you will come.",
+        "twist": "Le bureau ferme à 17 h, et il est fermé le samedi.",
+        "ambient_cues": ["un sac retrouvé", "une description précise", "des horaires d'ouverture"],
+        "quick_replies": ["C'est un sac... avec...", "À l'intérieur, il y a...", "Je pourrais passer..."],
+    },
+    {
+        "domain": "quartier_council",
+        "level": "B1",
+        "open_ended": True,
+        "label": "Le quartier",
+        "categories": {"society_politics", "places_infrastructure", "people_relationships"},
+        "title": "Le conseil de quartier vous écrit",
+        "contact_name": "Conseil de quartier",
+        "contact_role": "conseil de quartier du canal",
+        "contact_initials": "CQ",
+        "channel": "email",
+        "channel_label": "E-mail",
+        "tone": "warm_civic",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Un e-mail glissé entre deux publicités",
+        "opening_message": (
+            "Bonjour, le conseil de quartier prépare une réunion sur la vie autour du canal, et nous "
+            "aimerions entendre aussi les personnes qui viennent d'arriver. Qu'est-ce qui vous a plu dans "
+            "le quartier, et qu'est-ce qui vous a manqué ou étonné ? Quelques lignes suffisent."
+        ),
+        "brief": "Le conseil de quartier veut votre avis. Racontez ce qui vous plaît ici, et ce qui vous manque.",
+        "success_signal": "The council has one thing you like and one thing you miss in the area.",
+        "twist": "La réunion a lieu jeudi soir, dans la cour d'une école.",
+        "ambient_cues": ["le canal", "une réunion de quartier", "quelques lignes"],
+        "quick_replies": ["Ce qui me plaît ici, c'est...", "Ce qui me manque, c'est...", "Ce qui m'a étonné, c'est..."],
+    },
+    {
+        "domain": "short_let_stay",
+        "level": "B2",
+        # The end of this stay: a one-off moment, never reprinted.
+        "once": True,
+        "label": "Le studio",
+        "categories": {"home_objects", "time_calendar", "work_money"},
+        "title": "Rester ou partir samedi",
+        "contact_name": "Hélène",
+        "contact_role": "votre hôte pour le studio",
+        "contact_initials": "HE",
+        "channel": "booking_message",
+        "channel_label": "Messagerie de location",
+        "tone": "polite_firm",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Un message de votre hôte, un soir de semaine",
+        "opening_message": (
+            "Bonjour, j'espère que le studio vous convient, malgré ce radiateur capricieux. Votre "
+            "réservation se termine samedi. J'ai une demande pour la semaine suivante, mais si vous "
+            "envisagez de rester plus longtemps, je préférerais vous donner la priorité. Pourriez-vous me "
+            "dire d'ici jeudi ce que vous comptez faire, quitte à me donner une réponse provisoire ?"
+        ),
+        "brief": "Votre hôte doit savoir si vous restez. Expliquez vos projets, même s'ils ne sont pas encore décidés.",
+        "success_signal": "Hélène knows whether you leave on Saturday or want to stay, and what it depends on.",
+        "twist": "Pour une semaine de plus, elle peut faire un prix, mais pas changer le radiateur.",
+        "ambient_cues": ["une réservation qui se termine", "une décision pas encore prise", "une réponse provisoire"],
+        "quick_replies": ["Merci de me donner la priorité...", "Tout dépend de...", "Pourriez-vous me garder le studio jusqu'à..."],
+    },
+    {
+        "domain": "building_works",
+        "level": "B2",
+        "label": "L'immeuble",
+        "categories": {"home_objects", "places_infrastructure", "communication"},
+        "title": "Travaux de ravalement",
+        "contact_name": "Le syndic",
+        "contact_role": "syndic de l'immeuble",
+        "contact_initials": "SY",
+        "channel": "formal_email",
+        "channel_label": "E-mail officiel",
+        "tone": "formal_precise",
+        "register": "vous / administrative formal",
+        "scene_anchor": "Un avis officiel, aussi affiché dans le hall",
+        "opening_message": (
+            "Madame, Monsieur, des travaux de ravalement de la façade commenceront lundi et dureront trois "
+            "semaines. Un échafaudage sera installé devant les fenêtres côté rue, et les ouvriers devront "
+            "accéder ponctuellement aux balcons. Nous vous remercions de nous indiquer vos disponibilités "
+            "pour une visite, ainsi que toute contrainte particulière dont nous devrions tenir compte."
+        ),
+        "brief": "Des travaux commencent dans l'immeuble. Donnez vos disponibilités et signalez ce qui vous gêne.",
+        "success_signal": "The managing agent has your availability for a visit and knows your constraint.",
+        "twist": "Les travaux commencent à 7 h 30, même le samedi.",
+        "ambient_cues": ["un échafaudage", "trois semaines de bruit", "un ton administratif"],
+        "quick_replies": ["Madame, Monsieur, je serai disponible...", "Je tiens toutefois à vous signaler que...", "Serait-il possible de..."],
+    },
+    {
+        "domain": "gazette_debate",
+        "level": "B2",
+        "open_ended": True,
+        "label": "La gazette",
+        "categories": {"society_politics", "communication", "arts_leisure"},
+        "title": "Des quais sans voitures ?",
+        "contact_name": "La Gazette du canal",
+        "contact_role": "journal de quartier",
+        "contact_initials": "GC",
+        "channel": "email",
+        "channel_label": "E-mail",
+        "tone": "lively_curious",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Un e-mail de la petite gazette distribuée au marché",
+        "opening_message": (
+            "Bonjour, notre prochain numéro porte sur une question qui divise le quartier : faut-il fermer "
+            "les quais aux voitures tous les dimanches ? Les commerçants craignent de perdre des clients, "
+            "les familles réclament de l'espace. Accepteriez-vous de nous écrire quelques lignes pour notre "
+            "courrier des lecteurs, avec votre point de vue et ce qui le justifie ?"
+        ),
+        "brief": "Un journal de quartier vous demande votre avis sur les quais sans voitures. Donnez votre position et vos arguments.",
+        "success_signal": "The editor has your position and at least one reason for it.",
+        "twist": "Le numéro sort samedi ; il leur faut le texte jeudi.",
+        "ambient_cues": ["un débat de quartier", "des commerçants inquiets", "le courrier des lecteurs"],
+        "quick_replies": ["À mon avis...", "Je comprends l'inquiétude des commerçants, mais...", "Ce qui me paraît décisif, c'est..."],
+    },
+    {
+        "domain": "parcel_dispute",
+        "level": "C1",
+        "label": "La réclamation",
+        "categories": {"communication", "technology_media", "work_money"},
+        "title": "Le transporteur conteste",
+        "contact_name": "Service réclamations",
+        "contact_role": "service réclamations du magasin en ligne",
+        "contact_initials": "SR",
+        "channel": "formal_email",
+        "channel_label": "E-mail officiel",
+        "tone": "formal_precise",
+        "register": "vous / administrative formal",
+        "scene_anchor": "Une réponse type, signée d'un simple prénom",
+        "opening_message": (
+            "Madame, Monsieur, le transporteur nous indique que votre colis a été remis en main propre "
+            "mardi à 14 h 12, signature à l'appui. Nous ne pouvons donc pas, en l'état, procéder à un "
+            "remboursement. Si vous contestez cette livraison, il vous appartient de nous exposer "
+            "précisément les faits ; nous ouvrirons alors une enquête auprès du transporteur, dont les "
+            "conclusions nous parviennent généralement sous quinze jours."
+        ),
+        "brief": "Le transporteur affirme vous avoir remis le colis. Contestez-le avec précision et dites ce que vous attendez.",
+        "success_signal": "The service has a precise account of what happened and knows what you ask for.",
+        "twist": "La signature sur le bon de livraison ne ressemble pas du tout à la vôtre.",
+        "ambient_cues": ["une réponse type", "une signature qui n'est pas la vôtre", "quinze jours d'attente"],
+        "quick_replies": ["Je conteste formellement cette livraison :", "Ce jour-là, à cette heure-là...", "Je vous saurais gré de..."],
+    },
+    {
+        "domain": "round_table",
+        "level": "C1",
+        "open_ended": True,
+        "label": "La table ronde",
+        "categories": {"society_politics", "work_money", "people_relationships"},
+        "title": "Une table ronde jeudi",
+        "contact_name": "Vivre le canal",
+        "contact_role": "association de quartier",
+        "contact_initials": "VC",
+        "channel": "email",
+        "channel_label": "E-mail",
+        "tone": "warm_civic",
+        "register": "vous / polite neutral",
+        "scene_anchor": "Une invitation, envoyée à toute la liste du marché",
+        "opening_message": (
+            "Bonjour, notre association organise jeudi une table ronde sur ce que deviennent les commerces "
+            "de quartier quand les loyers flambent et que des investisseurs rachètent les murs. Le regard "
+            "de quelqu'un qui découvre le quartier nous serait précieux : accepteriez-vous d'intervenir "
+            "cinq minutes, ou, à défaut, de nous envoyer quelques lignes que nous lirions en ouverture ?"
+        ),
+        "brief": "Une association vous invite à parler des commerces de quartier. Dites si vous intervenez, et donnez votre regard.",
+        "success_signal": "The association knows whether you will speak and has your view in a few lines.",
+        "twist": "Une librairie du quai a fermé la semaine dernière.",
+        "ambient_cues": ["des loyers qui flambent", "une table ronde", "un regard neuf"],
+        "quick_replies": ["Je vous remercie de votre invitation ;", "Ce qui frappe, quand on arrive, c'est...", "Il me semble que..."],
+    },
+    {
+        "domain": "public_consultation",
+        "level": "C1",
+        "open_ended": True,
+        "label": "La consultation",
+        "categories": {"society_politics", "nature_weather", "places_infrastructure"},
+        "title": "Consultation sur les berges",
+        "contact_name": "Mairie d'arrondissement",
+        "contact_role": "service de la démocratie locale",
+        "contact_initials": "MA",
+        "channel": "formal_email",
+        "channel_label": "E-mail officiel",
+        "tone": "formal_precise",
+        "register": "vous / administrative formal",
+        "scene_anchor": "Un e-mail officiel, une pièce jointe de quarante pages",
+        "opening_message": (
+            "Madame, Monsieur, dans le cadre de la consultation sur la végétalisation des berges du canal, "
+            "la mairie d'arrondissement recueille l'avis des habitants, y compris de ceux qui ne résident "
+            "ici que depuis peu. Le projet prévoit de supprimer une partie des places de stationnement au "
+            "profit de plantations et de bancs. Quels effets en attendez-vous sur la vie du quartier, et "
+            "quelles réserves éventuelles souhaiteriez-vous formuler ?"
+        ),
+        "brief": "La mairie consulte les habitants sur les berges du canal. Donnez un avis nuancé, avec vos réserves.",
+        "success_signal": "The town hall has your view of the project's effects and any reservation.",
+        "twist": "La consultation ferme dimanche à minuit.",
+        "ambient_cues": ["une consultation publique", "des places de stationnement", "un avis nuancé"],
+        "quick_replies": ["Le projet me paraît...", "J'émettrais toutefois une réserve :", "Encore faudrait-il que..."],
     },
 )
 
@@ -635,6 +928,22 @@ STORY_FRAMES: dict[str, dict[str, Any]] = {
         "vous": "Bonjour, c'est {name}. Je pense encore à notre dernière rencontre. Et vous, qu'en pensez-vous ?",
         "tu": "Salut, c'est {name}. Je pense encore à notre dernière rencontre. Et toi, tu en penses quoi ?",
     },
+    # WP-125B proposal: richer frames for B1 and up (owner approval).
+    "B1": {
+        "open_ended": True,
+        "vous": "Bonjour, c'est {name}. Je repense à ce qui s'est passé l'autre jour, et j'aimerais savoir ce que vous en avez pensé. Qu'est-ce que vous comptez faire, maintenant ?",
+        "tu": "Salut, c'est {name}. Je repense à ce qui s'est passé l'autre jour. Toi, tu en as pensé quoi ? Et tu comptes faire quoi, maintenant ?",
+    },
+    "B2": {
+        "open_ended": True,
+        "vous": "Bonjour, c'est {name}. Je n'arrête pas de repenser à notre dernière conversation ; j'ai l'impression qu'on ne s'est pas tout dit. Avec un peu de recul, comment voyez-vous les choses ?",
+        "tu": "Salut, c'est {name}. Je n'arrête pas de repenser à la dernière fois ; j'ai l'impression qu'on ne s'est pas tout dit. Avec le recul, tu vois ça comment ?",
+    },
+    "C1": {
+        "open_ended": True,
+        "vous": "Bonjour, c'est {name}. Certains moments ne prennent leur sens qu'après coup, et notre dernière rencontre en fait partie. Qu'en retenez-vous, avec le recul, et qu'avez-vous envie d'en faire ?",
+        "tu": "Salut, c'est {name}. Il y a des moments qui ne prennent leur sens qu'après coup, et la dernière fois en fait partie. Toi, qu'est-ce que tu en retiens, et qu'est-ce que tu as envie d'en faire ?",
+    },
 }
 
 
@@ -709,6 +1018,16 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
     "bureaucracy": ["State what you need", "Confirm the missing document or detail"],
     "everyday_warmth": ["Reply warmly to their note", "Say one concrete next step"],
     "cast_first_letter": ["Answer their question", "Say one concrete next step"],
+    # WP-125B proposal letters.
+    "return_ticket": ["Choose one of the options or say none fits", "Give the constraint that decides it"],
+    "lost_property": ["Describe the bag and one thing inside", "Say when you can come"],
+    "quartier_council": ["Say one thing you like in the area", "Say one thing you miss or would change"],
+    "short_let_stay": ["Say whether you leave or want to stay", "Explain what the decision depends on"],
+    "building_works": ["Give a time when the workers can come in", "Name one constraint and ask for an arrangement"],
+    "gazette_debate": ["Take a position", "Give a reason and answer the other side"],
+    "parcel_dispute": ["State precisely why the delivery is disputed", "Say what you expect and by when"],
+    "round_table": ["Accept or decline, with a reason", "Give your view of what the area risks losing"],
+    "public_consultation": ["Say what the project would change", "Formulate one reservation or condition"],
 }
 
 
@@ -764,6 +1083,43 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     "Luc smiles instead of feeling annoyed and knows what you will do.": {
         "fr": "Luc sourit et sait ce que vous allez faire.",
         "de": "Luc lächelt, statt sich zu ärgern, und weiß, was Sie tun werden.",
+    },
+    # WP-125B proposal letters.
+    "The service knows which option you take, or what you need instead.": {
+        "fr": "Le service sait quelle solution vous choisissez, ou ce qu'il vous faut.",
+        "de": "Der Kundendienst weiß, welche Lösung Sie wählen oder was Sie stattdessen brauchen.",
+    },
+    "The office can check the bag is yours and knows when you will come.": {
+        "fr": "Le service peut vérifier que le sac est à vous et sait quand vous passez.",
+        "de": "Das Fundbüro kann prüfen, dass die Tasche Ihnen gehört, und weiß, wann Sie vorbeikommen.",
+    },
+    "The council has one thing you like and one thing you miss in the area.": {
+        "fr": "Le conseil sait ce qui vous plaît et ce qui vous manque dans le quartier.",
+        "de": "Der Quartiersrat weiß, was Ihnen im Viertel gefällt und was Ihnen fehlt.",
+    },
+    "Hélène knows whether you leave on Saturday or want to stay, and what it depends on.": {
+        "fr": "Hélène sait si vous partez samedi ou si vous voulez rester, et de quoi cela dépend.",
+        "de": "Hélène weiß, ob Sie am Samstag abreisen oder bleiben möchten und wovon das abhängt.",
+    },
+    "The managing agent has your availability for a visit and knows your constraint.": {
+        "fr": "Le syndic connaît vos disponibilités et ce qui vous gêne.",
+        "de": "Die Hausverwaltung kennt Ihre Verfügbarkeit für einen Besuch und weiß, was Sie einschränkt.",
+    },
+    "The editor has your position and at least one reason for it.": {
+        "fr": "Le journal connaît votre position et au moins une raison.",
+        "de": "Die Redaktion kennt Ihre Position und mindestens einen Grund dafür.",
+    },
+    "The service has a precise account of what happened and knows what you ask for.": {
+        "fr": "Le service dispose d'un récit précis des faits et sait ce que vous demandez.",
+        "de": "Der Kundendienst hat eine genaue Darstellung des Geschehens und weiß, was Sie verlangen.",
+    },
+    "The association knows whether you will speak and has your view in a few lines.": {
+        "fr": "L'association sait si vous intervenez et connaît votre regard en quelques lignes.",
+        "de": "Der Verein weiß, ob Sie sprechen, und kennt Ihre Sicht in ein paar Zeilen.",
+    },
+    "The town hall has your view of the project's effects and any reservation.": {
+        "fr": "La mairie connaît votre avis sur les effets du projet et vos éventuelles réserves.",
+        "de": "Das Bezirksamt kennt Ihre Einschätzung der Folgen des Projekts und Ihre Vorbehalte.",
     },
     "They know what to do next.": {
         "fr": "L'autre personne sait ce qu'il faut faire après.",
@@ -1339,6 +1695,9 @@ class MissionGenerator:
         """
         mission_type = mission_type if mission_type in MISSION_TEMPLATES else "message"
         authored_letter = authored_letter if isinstance(authored_letter, dict) else None
+        # A caller without a rotation still has a learner: the letter's subject is
+        # never chosen above their reach (the B1–C1 letters, WP-125B proposal).
+        rotation = rotation or {"band": self._letter_band(user)}
         custom_context = self._custom_context(custom_context)
         stakes_level = self._stakes_level(stakes_level, cadence=cadence)
         active_category = normalize_category(active_category) if active_category else None
@@ -2060,6 +2419,9 @@ class MissionGenerator:
             for keep in (
                 lambda item: str(item.get("domain")) not in rotation.get("completed_recent", ()),
                 lambda item: not rotation.get("season_active") or item.get("season_safe", True),
+                # Never a letter above the learner's reach, model or not: when the
+                # model's draft is refused twice, the authored text itself is printed.
+                lambda item: letter_band_index(item.get("level")) <= letter_band_index(rotation.get("band")) + LETTER_STRETCH,
                 lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
             ):
                 catalogue = [item for item in catalogue if keep(item)] or catalogue

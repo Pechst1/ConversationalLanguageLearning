@@ -610,8 +610,13 @@ def test_an_all_down_season_reaches_its_ending_with_prerequisites_and_choices_in
     assert len(reprises) == 7, "one re-read per gap"
     assert days.count(RECOVERY_FALLBACK_KIND) == 7, "one recovery per gap: 4 bridges, 3 tentpole jumps"
     tentpoles = [row["key"] for row in state["played"] if row["kind"] == "tentpole"]
-    assert tentpoles == [f"t{n}.{x}" for n in range(1, 9) for x in ("a", "b")]
-    assert len(days) == 16 + 7 + 4, f"{len(days)} days to the finale"
+    # With the owner-approved WP-132B epilogue, T8's pages are followed by its own
+    # pages (e1.a …); the season itself is T1–T8, in order, none skipped.
+    season_pages = [key for key in tentpoles if key.startswith("t")]
+    assert season_pages == [f"t{n}.{x}" for n in range(1, 9) for x in ("a", "b")]
+    assert all(key.startswith("e") for key in tentpoles[len(season_pages):]), tentpoles
+    epilogue_days = len(tentpoles) - len(season_pages)
+    assert len(days) == 16 + 7 + 4 + epilogue_days, f"{len(days)} days to the finale (+{epilogue_days} epilogue)"
     for gap in _season().gaps.values():
         assert missing_required(_season(), state, gap.id) == [], f"{gap.id} skipped a required moment"
     assert {row["gap"] for row in state[SHORTENED_KEY]} == {f"g{n}" for n in range(1, 8)}
