@@ -90,6 +90,22 @@ def played_log(state: dict | None) -> list[dict]:
     return [row for row in (state or {}).get("played") or [] if isinstance(row, dict)]
 
 
+#: WP-124b: ``state[SHORTENED_KEY]`` — the gaps the recovery closed early, one row
+#: each (``{gap, played_days, nominal_days, via, moments_bridged, date, event_id}``).
+SHORTENED_KEY = "shortened"
+
+
+def shortened_gaps(state: dict | None) -> dict[str, dict]:
+    """The gaps a recovery closed early (WP-124b), by id: such a gap is over —
+    its next day is the following tentpole, whatever its nominal length said."""
+
+    return {
+        str(row.get("gap")): row
+        for row in (state or {}).get(SHORTENED_KEY) or []
+        if isinstance(row, dict) and row.get("gap")
+    }
+
+
 def _played_in(log: list[dict], segment_id: str) -> int:
     return sum(1 for row in log if row.get("segment") == segment_id)
 
@@ -100,6 +116,7 @@ def position(season: Season, state: dict | None, *, today: date | None) -> Posit
     log = played_log(state)
     season_day = len(log) + 1
     segments = season.segments
+    closed = shortened_gaps(state)
     for index, segment in enumerate(segments):
         done = _played_in(log, segment.id)
         if segment.kind == "tentpole":
@@ -111,6 +128,12 @@ def position(season: Season, state: dict | None, *, today: date | None) -> Posit
         if entered_next:
             # The gap is over; whatever it ran to is its length.
             continue
+        if segment.id in closed:
+            # WP-124b: a recovery bridged this gap; it ran to what was played (no
+            # weekend flex: the tentpole comes next, on whatever day that is).
+            if following is None:
+                continue
+            return Position(season.id, following, index + 1, 1, season_day)
         nominal = segment.days
         weekday = today.weekday() if isinstance(today, date) else None
         if (
@@ -136,8 +159,16 @@ def position(season: Season, state: dict | None, *, today: date | None) -> Posit
     return Position(season.id, None, len(segments), 0, season_day, finished=True)
 
 
-def record_played(state: dict | None, pos: Position, *, date_iso: str | None, event_id: str) -> dict:
-    """The season state once the day at ``pos`` has been played. Idempotent per event."""
+def record_played(
+    state: dict | None,
+    pos: Position,
+    *,
+    date_iso: str | None,
+    event_id: str,
+    extra: dict[str, Any] | None = None,
+) -> dict:
+    """The season state once the day at ``pos`` has been played. Idempotent per event.
+    ``extra`` annotates the row (WP-124b: a bridge or a recovered tentpole says so)."""
 
     state = dict(state or {})
     log = played_log(state)
@@ -155,6 +186,7 @@ def record_played(state: dict | None, pos: Position, *, date_iso: str | None, ev
             "flex": pos.flex,
             "date": date_iso,
             "event_id": event_id,
+            **(extra or {}),
         }
     )
     state["played"] = log
