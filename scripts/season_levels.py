@@ -45,6 +45,7 @@ from app.services.lexical_coverage import (  # noqa: E402
     load_lexicon,
     text_coverage,
 )
+from app.services.season.epilogue import EPILOGUE_FILE_ID  # noqa: E402
 from app.services.season.levels import (  # noqa: E402
     iter_example_slots,
     iter_says,
@@ -135,7 +136,7 @@ def _detectors_above(band: str) -> list[tuple[str, dict]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--season", default="s1")
-    parser.add_argument("--file", help="only this tentpole file (t1 … t8, season)")
+    parser.add_argument("--file", help="only this tentpole file (t1 … t8, season, epilogue)")
     parser.add_argument("--todo", action="store_true", help="list lines still lacking variants")
     parser.add_argument("--strict", action="store_true", help="exit 1 on any problem")
     args = parser.parse_args()
@@ -149,6 +150,10 @@ def main() -> int:
     above = {band: _detectors_above(band) for band in ("A1", "A2", "B1", "B2")}
 
     files = ["season", *sorted(p.stem for p in season_dir.glob("t[0-9].json"))]
+    # WP-132B: the epilogue week after the finale (``epilogue.json``) is checked like a
+    # tentpole file: its variants, examples and plain tasks are keyed ``epilogue:…``.
+    if (season_dir / f"{EPILOGUE_FILE_ID}.json").is_file():
+        files.append(EPILOGUE_FILE_ID)
     if args.file:
         files = [args.file]
     problems: list[str] = []
