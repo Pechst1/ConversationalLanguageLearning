@@ -71,12 +71,21 @@ REPO = SEASON_ROOT.parents[2]
 # ---------------------------------------------------------------------------
 
 
+def _epilogue_keys() -> list[str]:
+    """WP-132B: the authored epilogue week's day keys (``e1.a`` …), [] without one."""
+
+    from app.services.season.epilogue import epilogue_ids
+
+    return [f"{segment}.{day}" for segment in epilogue_ids(load_season("s1")) for day in ("a", "b")]
+
+
 def test_season_one_loads_whole_and_holds_together():
     season = load_season("s1")
-    assert season.total_days == 59
-    assert sum(1 for seg in season.segments if seg.kind == "tentpole") == 8
+    epilogue = _epilogue_keys()
+    assert season.total_days == 59 + len(epilogue)
+    assert sum(1 for seg in season.segments if seg.kind == "tentpole") == 8 + len(epilogue) // 2
     assert sum(seg.days for seg in season.segments if seg.kind == "gap") == 43
-    assert set(season.tentpoles) == set(BIBLES)
+    assert set(season.tentpoles) == set(BIBLES) | {key.split(".")[0] for key in epilogue}
     assert set(season.gaps) == {f"g{n}" for n in range(1, 8)}
 
 
@@ -143,8 +152,9 @@ def _play_calendar(start: date, *, skip_every: int = 0) -> list[dict]:
 def test_the_season_is_59_days_give_or_take_a_weekend_and_tentpoles_are_two_days(start):
     log = _play_calendar(start)
     tentpole_days = [row for row in log if row["kind"] == "tentpole"]
-    assert len(tentpole_days) == 16
-    assert 59 - 7 <= len(log) <= 59 + 7
+    epilogue = len(_epilogue_keys())
+    assert len(tentpole_days) == 16 + epilogue
+    assert 59 + epilogue - 7 <= len(log) <= 59 + epilogue + 7
     for index, row in enumerate(log):
         if row["kind"] == "tentpole" and row["day_in_segment"] == 1:
             follow = log[index + 1]
@@ -184,7 +194,7 @@ def test_a_gap_whose_last_day_is_a_weekend_day_ends_early():
 
 def test_a_skipped_real_day_is_not_a_story_day():
     log = _play_calendar(date(2026, 11, 11), skip_every=3)
-    assert sum(1 for row in log if row["kind"] == "tentpole") == 16
+    assert sum(1 for row in log if row["kind"] == "tentpole") == 16 + len(_epilogue_keys())
     days = [row["season_day"] for row in log]
     assert days == list(range(1, len(days) + 1)), "the season counts the learner's days, not the calendar's"
 
@@ -576,9 +586,9 @@ def test_a_whole_season_plays_its_tentpoles_on_their_days(assembled_client, db_s
             break
     keys = [row["key"] for row in days]
     tentpoles = [row for row in days if row["kind"] == "tentpole"]
-    assert len(tentpoles) == 16, " ".join(str(k) for k in keys)
+    assert len(tentpoles) == 16 + len(_epilogue_keys()), " ".join(str(k) for k in keys)
     assert all(row["director_calls"] == 0 and row["page"] for row in tentpoles), "a tentpole is served as written"
-    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")]
+    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")] + _epilogue_keys()
     gaps = [row for row in days if row["kind"] == "gap"]
     assert 43 - 7 <= len(gaps) <= 43 + 7
     assert all(row["director_calls"] >= 1 for row in gaps)
@@ -639,7 +649,7 @@ def test_a_whole_season_with_le_papier_once_a_week_on_gap_days(assembled_client,
         ).finished:
             break
     tentpoles = [row for row in days if row["kind"] == "tentpole"]
-    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")]
+    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")] + _epilogue_keys()
     assert all(row["page"] and row["shape"] != "revue" for row in tentpoles), "a tentpole is never a Papier day"
     papier = [row for row in days if row["shape"] == "revue"]
     assert papier and all(row["kind"] == "gap" for row in papier)
@@ -650,7 +660,10 @@ def test_a_whole_season_with_le_papier_once_a_week_on_gap_days(assembled_client,
     for week, rows in weeks.items():
         dealt = [row for row in rows if row["shape"] == "revue"]
         assert len(dealt) <= 1, f"{week}: {len(dealt)} Papier days"
-        if len(rows) == 7 and any(row["kind"] == "gap" for row in rows):
+        # The Papier is dealt on or after a seeded weekday (Monday … Friday), never on
+        # an authored day: a full week owes one when a gap day falls on a Friday or
+        # later (WP-132B: the finale and the epilogue are eight authored days in a row).
+        if len(rows) == 7 and any(row["kind"] == "gap" and row["date"].weekday() >= 4 for row in rows):
             assert len(dealt) == 1, f"{week}: a full week with gap days and no Papier day"
     gaps = [row for row in days if row["kind"] == "gap"]
     assert 43 - 7 <= len(gaps) <= 43 + 7

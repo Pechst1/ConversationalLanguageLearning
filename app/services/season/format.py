@@ -775,6 +775,10 @@ def load_season(season_id: str, *, root: Path | None = None) -> Season:
             "global_must_not": [Forbidden.model_validate(row) for row in gaps_file.get("global_must_not") or []],
         }
     )
+    # WP-132B: the authored epilogue week after the finale, when the season has a whole one.
+    from app.services.season.epilogue import attach_epilogue
+
+    season = attach_epilogue(season, folder, levels=levels, tasks=tasks)
     problems = validate_season(season)
     if problems:
         raise SeasonFormatError(f"season {season_id}: " + "; ".join(problems[:12]))

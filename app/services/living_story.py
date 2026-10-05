@@ -6931,6 +6931,14 @@ def generate_scene(
             if authored is not None:
                 return authored
             logger.error("living_story: tentpole %s could not be served", season_today.pos.key)
+        if season_today is not None and season_today.pos.finished:
+            # WP-132B: a season that ends without an epilogue ends on one authored
+            # archive day (no model call); then the continuation.
+            from app.services.season.epilogue import season_end_brief
+
+            authored = season_end_brief(season_today, context)
+            if authored is not None:
+                return authored
         errata = due_errata(db, user)
         # Director-only (WP-24 §5, the quality half of the mistake loop). Added
         # here rather than inside ``story_context`` so the actor's turn payload,

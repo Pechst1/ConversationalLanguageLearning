@@ -31,8 +31,9 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
-from app.services.season.clock import SEASON_KEY, Position, position, record_played
+from app.services.season.clock import SEASON_KEY, Position, record_played
 from app.services.season.director import gap_brief
+from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
 from app.services.season.flags import (
     add_signal,
     apply_sets,
@@ -157,7 +158,7 @@ def today_for(live: dict | None, *, user: Any, seed: str, now: Any = None) -> To
     state = dict((live or {}).get(SEASON_KEY) or {"id": season_id})
     state.setdefault("id", season_id)
     local = learner_date(user, now)
-    pos = position(season, state, today=local)
+    pos = position_for(season, state, today=local)
     return Today(
         season=season,
         pos=pos,
@@ -191,6 +192,8 @@ def context_block(today: Today | None) -> dict[str, Any] | None:
             seed=today.seed,
             band=today.band,
         )
+    # WP-132B: after the finale, what this life's ending leaves the continuation.
+    block.update(context_extra(today))
     return block
 
 
@@ -592,7 +595,7 @@ def season_script_finished(live: dict | None) -> bool:
         season = load_season(str(state["id"]))
     except Exception:  # noqa: BLE001 - an unreadable season is not a finished one
         return False
-    return position(season, state, today=None).finished
+    return season_finished(season, state)
 
 
 def tentpole_annotation(season_id: str, key: str) -> dict[str, Any]:
@@ -1058,6 +1061,9 @@ def settle(
         state = record_played(state, pos, date_iso=date_iso, event_id=event_id, extra=extra)
     live = dict(live)
     live[SEASON_KEY] = state
+    # WP-132B: the archive day or the epilogue's last page closes the season; a
+    # finished season's ending is carried into the life the continuation reads.
+    live = after_settle(live, season_ctx, date_iso=date_iso, event_id=event_id)
     if relationships is not None:
         _apply_registers(season, state, relationships)
     return live
