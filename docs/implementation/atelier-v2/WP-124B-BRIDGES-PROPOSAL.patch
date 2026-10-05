@@ -1,0 +1,2068 @@
+diff --git a/app/data/season/s1/tasks.json b/app/data/season/s1/tasks.json
+index 3d6475d..791d3d5 100644
+--- a/app/data/season/s1/tasks.json
++++ b/app/data/season/s1/tasks.json
+@@ -260,6 +260,36 @@
+       "en": "Answer Camille in your own words.",
+       "de": "Antworte Camille mit deinen eigenen Worten.",
+       "fr": "Répondez à Camille avec vos mots."
++    },
++    "bridges:g1.romy.turn": {
++      "en": "Tell Romy who you are, and what you think of Solvel if you like.",
++      "de": "Sag Romy, wer du bist, und wenn du magst, was du von Solvel hältst.",
++      "fr": "Dis à Romy qui tu es, et ce que tu penses de Solvel si tu veux."
++    },
++    "bridges:g1.billet.turn": {
++      "en": "Tell the agent why you are staying longer.",
++      "de": "Sag der Mitarbeiterin, warum du länger bleibst.",
++      "fr": "Dis à l'employée pourquoi tu restes plus longtemps."
++    },
++    "bridges:g2.diner.turn": {
++      "en": "Say something to Lila that saves the evening.",
++      "de": "Sag Lila etwas, das den Abend rettet.",
++      "fr": "Dis à Lila quelque chose qui sauve la soirée."
++    },
++    "bridges:g3.toit.turn": {
++      "en": "Talk to M. Marchand politely, and get off the roof.",
++      "de": "Sprich höflich mit M. Marchand und komm vom Dach herunter.",
++      "fr": "Parle poliment à M. Marchand, et descends du toit."
++    },
++    "bridges:g4.dispute.turn": {
++      "en": "Say sorry to Lila, your way.",
++      "de": "Entschuldige dich bei Lila, auf deine Art.",
++      "fr": "Excuse-toi auprès de Lila, à ta façon."
++    },
++    "bridges:g1.order": {
++      "en": "Choose your usual order.",
++      "de": "Wähle deine übliche Bestellung.",
++      "fr": "Choisis ta commande habituelle."
+     }
+   },
+   "ask_again": {
+@@ -453,6 +483,34 @@
+     },
+     "t8:e3.a.turn1": null,
+     "t8:platform.turn": null,
+-    "t8:camille.turn": null
++    "t8:camille.turn": null,
++    "bridges:g1.romy.turn": {
++      "fr": "Oui ? Et Odile, c'est qui pour toi ?",
++      "en": "Yes? And who is Odile to you?",
++      "de": "Ja? Und wer ist Odile für dich?",
++      "fr_named": "{name} ? Et Odile, c'est qui pour toi ?",
++      "en_named": "{name}? And who is Odile to you?",
++      "de_named": "{name}? Und wer ist Odile für dich?"
++    },
++    "bridges:g1.billet.turn": {
++      "fr": "Pardon ? Pourquoi vous restez ?",
++      "en": "Sorry? Why are you staying?",
++      "de": "Wie bitte? Warum bleiben Sie?"
++    },
++    "bridges:g2.diner.turn": {
++      "fr": "Allez, dis un mot !",
++      "en": "Come on, say a word!",
++      "de": "Los, sag ein Wort!"
++    },
++    "bridges:g3.toit.turn": {
++      "fr": "Pourquoi vous êtes ici, sur mon toit ?",
++      "en": "Why are you here, on my roof?",
++      "de": "Warum sind Sie hier, auf meinem Dach?"
++    },
++    "bridges:g4.dispute.turn": {
++      "fr": "Alors ? Je t'écoute.",
++      "en": "So? I'm listening.",
++      "de": "Also? Ich höre."
++    }
+   }
+ }
+diff --git a/tests/test_wp124a_season_reprise.py b/tests/test_wp124a_season_reprise.py
+index 9ae2816..df8a438 100644
+--- a/tests/test_wp124a_season_reprise.py
++++ b/tests/test_wp124a_season_reprise.py
+@@ -482,6 +482,11 @@ def test_lost_days_keep_introducing_the_days_unit_so_the_plan_moves_on(
+     A1 learners re-read T1 B for 28 days with no rule at all. A reprise is a practice
+     day: it introduces the day's unit, and two lost days introduce two different ones."""
+ 
++    from app.services.season import bridges as season_bridges
++
++    # WP-124b: with the bridges applied, the second lost day of g1 is its bridge (an
++    # authored season day); this test pins two reprises, so it runs without them.
++    monkeypatch.setattr(season_bridges, "load_bridges", lambda season_id, **_: {})
+     provider = production_day
+     headers, email = walk.register(assembled_client, A1_DE)
+     _play(assembled_client, db_session, headers, A1_DE, 1, provider)
+diff --git a/app/data/season/s1/bridges.json b/app/data/season/s1/bridges.json
+new file mode 100644
+index 0000000..704acd7
+--- /dev/null
++++ b/app/data/season/s1/bridges.json
+@@ -0,0 +1,1468 @@
++{
++ "_about": "WP-124b bridges (PROPOSAL, owner approval required). When a gap's generated days keep failing, the season serves the gap's bridge: the gap's required moments still owed, as one authored page, then the next tentpole. New story text outside the bible: see docs/implementation/atelier-v2/WP-124B-BRIDGES-PROPOSAL.md.",
++ "deviation": {
++  "decision": "EXPERIENCE-REVIEW 2026-10-04, owner decision 1(b): two lost days in a row play the next tentpole day; WP-124b makes it a recovery with prerequisites, and these bridges supply the required moments a skip would drop.",
++  "approved": "pending"
++ },
++ "bridges": [
++  {
++   "gap": "g1",
++   "title_fr": "La première semaine",
++   "story_date_fr": "13–17 nov.",
++   "location_id": "le_mistral",
++   "minutes": 6,
++   "can_do": {
++    "en": "Say who you are and why you are staying, and order your usual.",
++    "de": "Sagen, wer du bist und warum du bleibst, und deine übliche Bestellung aufgeben.",
++    "fr": "Dire qui tu es et pourquoi tu restes, et commander ta boisson habituelle."
++   },
++   "moments": [
++    {
++     "premise": "romy_enquete",
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g1.romy.p1",
++       "visual": "Le Mistral in the morning. A young woman with a phone held out like a microphone leans on the zinc; Margaux dries a glass and does not look at her.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Quelques jours après, au Mistral.",
++          "native": {
++           "en": "A few days later, at Le Mistral.",
++           "de": "Ein paar Tage später, im Mistral."
++          }
++         }
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "romy_tremblay",
++        "margaux_barman"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g1.romy.p2",
++       "visual": "",
++       "lines": [
++        {
++         "who": "romy_tremblay",
++         "say": {
++          "a2": "Solvel achète des cafés dans le quartier. Tu sais quelque chose ?",
++          "native": {
++           "en": "Solvel is buying cafés in the neighbourhood. Do you know anything?",
++           "de": "Solvel kauft Cafés im Viertel. Weißt du etwas?"
++          }
++         }
++        },
++        {
++         "who": "margaux_barman",
++         "say": {
++          "a2": "J'ai rien entendu.",
++          "native": {
++           "en": "I didn't hear anything.",
++           "de": "Ich habe nichts gehört."
++          }
++         },
++         "mood": "cross"
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "romy_tremblay",
++        "margaux_barman"
++       ]
++      },
++      {
++       "kind": "turn",
++       "id": "g1.romy.turn",
++       "to": "romy_tremblay",
++       "panel": {
++        "kind": "panel",
++        "id": "g1.romy.p3",
++        "visual": "Romy turns the phone toward Toi. Margaux, behind her, rolls her eyes.",
++        "lines": [
++         {
++          "who": "romy_tremblay",
++          "say": {
++           "a2": "Et toi ? C'est toi, l'héritage d'Odile ?",
++           "native": {
++            "en": "And you? You're Odile's inheritance?",
++            "de": "Und du? Du bist also das Erbe von Odile?"
++           }
++          },
++          "mood": "happy"
++         }
++        ],
++        "location_id": "le_mistral",
++        "in_frame": [
++         "romy_tremblay",
++         "toi"
++        ],
++        "balloon": true
++       },
++       "task": {
++        "en": "Tell Romy who you are and what you think of Solvel, as much or as little as you want.",
++        "de": "Sag Romy, wer du bist und was du von Solvel hältst, so viel oder so wenig du willst.",
++        "fr": "Dis à Romy qui tu es et ce que tu penses de Solvel, autant ou aussi peu que tu veux."
++       },
++       "listens_for": "Who the learner says they are to Odile, and whether they talk to a journalist at all. Any sincere reply.",
++       "replies": [
++        {
++         "id": "open",
++         "label": "Talks",
++         "means": "The learner says who they are to Odile, or gives an opinion on Solvel.",
++         "examples": [
++          "Oui. Odile, c'est ma grand-mère.",
++          "Je suis la famille d'Odile. Solvel, je ne sais pas."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.romy.open.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "romy_tremblay",
++             "say": {
++              "a2": "Sa famille. Parfait. Tu me plais, comme source.",
++              "native": {
++               "en": "Her family. Perfect. I like you, as a source.",
++               "de": "Ihre Familie. Perfekt. Du gefällst mir, als Quelle."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "guarded",
++         "label": "No comment",
++         "means": "The learner deflects, or will not talk to a journalist.",
++         "examples": [
++          "Pas de commentaire.",
++          "Je ne parle pas aux journalistes."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.romy.guarded.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "romy_tremblay",
++             "say": {
++              "a2": "« Pas de commentaire. » Tu parles déjà comme Margaux.",
++              "native": {
++               "en": "\"No comment.\" You already talk like Margaux.",
++               "de": "\"Kein Kommentar.\" Du redest schon wie Margaux."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ]
++        }
++       ],
++       "fallback": "guarded",
++       "after": [
++        {
++         "kind": "panel",
++         "id": "g1.romy.after",
++         "visual": "Romy writes «3» on a paper napkin and slides it toward Toi.",
++         "lines": [
++          {
++           "who": "romy_tremblay",
++           "say": {
++            "a2": "Trois cafés dans le quartier cette année. Tous pour Solvel.",
++            "native": {
++             "en": "Three cafés in the neighbourhood this year. All of them to Solvel.",
++             "de": "Drei Cafés im Viertel dieses Jahr. Alle an Solvel."
++            }
++           }
++          }
++         ],
++         "location_id": "le_mistral",
++         "in_frame": [
++          "romy_tremblay",
++          "toi"
++         ]
++        }
++       ]
++      }
++     ]
++    },
++    {
++     "premise": "la_meme_chose",
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g1.order.p1",
++       "visual": "Le Mistral, early. Gus at the end of the zinc with his croissant; Margaux, a cup in her hand, already looking at Toi.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Encore un matin au Mistral.",
++          "native": {
++           "en": "Another morning at Le Mistral.",
++           "de": "Noch ein Morgen im Mistral."
++          }
++         }
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "margaux_barman",
++        "augustin_de_roncourt"
++       ],
++       "silence": true
++      },
++      {
++       "kind": "panel",
++       "id": "g1.order.p2",
++       "visual": "",
++       "lines": [
++        {
++         "who": "augustin_de_roncourt",
++         "say": {
++          "a2": "Attention. Ici, votre café dit beaucoup sur vous.",
++          "native": {
++           "en": "Careful. Here, your coffee says a lot about you.",
++           "de": "Vorsicht. Hier sagt Ihr Kaffee viel über Sie."
++          }
++         }
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "augustin_de_roncourt",
++        "toi"
++       ]
++      },
++      {
++       "kind": "solve",
++       "id": "g1.order",
++       "mechanic": "choix",
++       "to": "margaux_barman",
++       "prompt": {
++        "a2": "La même chose ?",
++        "native": {
++         "en": "The same?",
++         "de": "Das Gleiche?"
++        }
++       },
++       "task": {
++        "en": "Choose your usual order. Margaux will remember it.",
++        "de": "Wähle deine übliche Bestellung. Margaux wird sie sich merken.",
++        "fr": "Choisis ta commande habituelle. Margaux s'en souviendra."
++       },
++       "flag": "user.usual_order",
++       "options": [
++        {
++         "id": "creme",
++         "label": {
++          "a2": "Un café crème",
++          "native": {
++           "en": "A café crème",
++           "de": "Einen Café crème"
++          }
++         },
++         "sets": {
++          "user.usual_order": "un café crème"
++         },
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.order.creme.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "margaux_barman",
++             "say": {
++              "a2": "Un crème. C'est noté.",
++              "native": {
++               "en": "A crème. Noted.",
++               "de": "Ein Crème. Gemerkt."
++              }
++             }
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "noisette",
++         "label": {
++          "a2": "Un noisette",
++          "native": {
++           "en": "A noisette",
++           "de": "Einen Noisette"
++          }
++         },
++         "sets": {
++          "user.usual_order": "un noisette"
++         },
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.order.noisette.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "augustin_de_roncourt",
++             "say": {
++              "a2": "Un noisette ! Une personne précise.",
++              "native": {
++               "en": "A noisette! A precise person.",
++               "de": "Einen Noisette! Ein genauer Mensch."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "the",
++         "label": {
++          "a2": "Un thé",
++          "native": {
++           "en": "A tea",
++           "de": "Einen Tee"
++          }
++         },
++         "sets": {
++          "user.usual_order": "un thé"
++         },
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.order.the.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "augustin_de_roncourt",
++             "say": {
++              "a2": "Un thé, au Mistral. Quel courage.",
++              "native": {
++               "en": "A tea, at Le Mistral. What courage.",
++               "de": "Einen Tee, im Mistral. Was für ein Mut."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "chocolat",
++         "label": {
++          "a2": "Un chocolat chaud",
++          "native": {
++           "en": "A hot chocolate",
++           "de": "Eine heiße Schokolade"
++          }
++         },
++         "sets": {
++          "user.usual_order": "un chocolat chaud"
++         },
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.order.chocolat.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "margaux_barman",
++             "say": {
++              "a2": "Un chocolat. Comme Lila.",
++              "native": {
++               "en": "A hot chocolate. Like Lila.",
++               "de": "Eine Schokolade. Wie Lila."
++              }
++             }
++            }
++           ]
++          }
++         ]
++        }
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g1.order.p3",
++       "visual": "Gus raises his cup to the room. Nobody laughs. Margaux puts the cup down in front of Toi without asking anything.",
++       "lines": [
++        {
++         "who": "augustin_de_roncourt",
++         "say": {
++          "a2": "C'est officiel : vous êtes d'ici, maintenant.",
++          "native": {
++           "en": "It's official: you're from here now.",
++           "de": "Es ist offiziell: Sie sind jetzt von hier."
++          }
++         },
++         "mood": "moved"
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "augustin_de_roncourt",
++        "margaux_barman",
++        "toi"
++       ]
++      }
++     ]
++    },
++    {
++     "premise": "le_billet",
++     "fixed": [
++      {
++       "flag": "user.return_ticket",
++       "value": "mercredi 2 décembre",
++       "because": "The return ticket has moved to 2 December (user.return_ticket)."
++      }
++     ],
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g1.billet.p1",
++       "visual": "The booth of Le Mistral. A phone on the table, on speaker. Lila sits too close, a pencil behind her ear.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Le lendemain. Ton billet de retour est pour mercredi.",
++          "native": {
++           "en": "The next day. Your return ticket is for Wednesday.",
++           "de": "Am nächsten Tag. Dein Rückflug ist am Mittwoch."
++          }
++         }
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g1.billet.p2",
++       "visual": "",
++       "lines": [
++        {
++         "who": "lila_bonnet",
++         "say": {
++          "a2": "Tu appelles, moi je t'aide. Enfin… j'essaie.",
++          "native": {
++           "en": "You call, I help. Well… I try.",
++           "de": "Du rufst an, ich helfe. Na ja… ich versuch's."
++          }
++         },
++         "mood": "happy"
++        }
++       ],
++       "location_id": "le_mistral",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "turn",
++       "id": "g1.billet.turn",
++       "to": "clerk",
++       "panel": {
++        "kind": "panel",
++        "id": "g1.billet.p3",
++        "visual": "Close on the phone's screen: «Service clients». Lila mimes a big sad face.",
++        "lines": [
++         {
++          "who": "clerk",
++          "say": {
++           "a2": "Bonjour, service clients. Vous voulez changer votre billet ? Pour quelle raison ?",
++           "native": {
++            "en": "Hello, customer service. You want to change your ticket? For what reason?",
++            "de": "Guten Tag, Kundenservice. Sie möchten Ihr Ticket ändern? Aus welchem Grund?"
++           }
++          }
++         }
++        ],
++        "location_id": "le_mistral",
++        "in_frame": [
++         "lila_bonnet",
++         "toi"
++        ],
++        "balloon": true
++       },
++       "task": {
++        "en": "Explain to the agent why you are staying. You decide how honest you are.",
++        "de": "Erkläre der Mitarbeiterin, warum du bleibst. Du entscheidest, wie ehrlich du bist.",
++        "fr": "Explique à l'employée pourquoi tu restes. Tu décides à quel point tu es honnête."
++       },
++       "listens_for": "Why the learner says they are staying: a personal reason (the people, the place) or a practical one (the notary, the flat). Any reason moves the ticket.",
++       "replies": [
++        {
++         "id": "honest",
++         "label": "Personal",
++         "means": "A personal reason: the people, the café, the neighbourhood, wanting to stay.",
++         "examples": [
++          "Je reste parce que j'aime le quartier.",
++          "Il y a des gens ici. Je veux rester."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.billet.honest.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Trop honnête. J'adore.",
++              "native": {
++               "en": "Too honest. I love it.",
++               "de": "Zu ehrlich. Ich liebe es."
++              }
++             },
++             "mood": "happy",
++             "direction": "a whisper"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "practical",
++         "label": "Practical",
++         "means": "A practical reason: the notary, the papers, the flat.",
++         "examples": [
++          "Pour le notaire. Les papiers prennent du temps.",
++          "Pour l'appartement de ma grand-mère."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.billet.practical.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Ennuyeux. Mais ça marche.",
++              "native": {
++               "en": "Boring. But it works.",
++               "de": "Langweilig. Aber es funktioniert."
++              }
++             },
++             "direction": "a whisper"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "vague",
++         "label": "Vague",
++         "means": "No clear reason, or anything else.",
++         "examples": [
++          "C'est compliqué.",
++          "Je ne sais pas."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g1.billet.vague.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Donne ! Il y a une grand-mère, un appartement et beaucoup de croissants.",
++              "native": {
++               "en": "Give it here! There's a grandmother, a flat and a lot of croissants.",
++               "de": "Gib her! Es gibt eine Großmutter, eine Wohnung und viele Croissants."
++              }
++             },
++             "mood": "happy",
++             "direction": "grabbing the phone"
++            }
++           ]
++          }
++         ]
++        }
++       ],
++       "fallback": "vague",
++       "after": [
++        {
++         "kind": "panel",
++         "id": "g1.billet.after",
++         "visual": "",
++         "lines": [
++          {
++           "who": "clerk",
++           "say": {
++            "a2": "Très bien. Mercredi 2 décembre, alors.",
++            "native": {
++             "en": "Very well. Wednesday 2 December, then.",
++             "de": "Sehr gut. Also Mittwoch, der 2. Dezember."
++            }
++           }
++          },
++          {
++           "who": "caption",
++           "say": {
++            "a2": "Le billet change. Et toi aussi, un peu.",
++            "native": {
++             "en": "The ticket changes. And so do you, a little.",
++             "de": "Das Ticket ändert sich. Und du auch, ein bisschen."
++            }
++           }
++          }
++         ],
++         "location_id": "le_mistral",
++         "in_frame": [
++          "lila_bonnet",
++          "toi"
++         ]
++        }
++       ]
++      }
++     ]
++    }
++   ],
++   "hook": {
++    "kind": "hook",
++    "id": "g1.hook",
++    "role": "a_suivre",
++    "panel": {
++     "kind": "panel",
++     "id": "g1.hook.p",
++     "visual": "The stairwell from below: the first-floor door, closed, a strip of light under it from the landing lamp.",
++     "lines": [
++      {
++       "who": "caption",
++       "say": {
++        "a2": "En haut, l'appartement attend toujours. À suivre…",
++        "native": {
++         "en": "Upstairs, the flat is still waiting. To be continued…",
++         "de": "Oben wartet die Wohnung noch immer. Fortsetzung folgt…"
++        }
++       }
++      }
++     ],
++     "location_id": "stairwell",
++     "silence": true
++    }
++   }
++  },
++  {
++   "gap": "g2",
++   "title_fr": "L'appartement s'ouvre",
++   "story_date_fr": "20–25 nov.",
++   "location_id": "odile_flat",
++   "minutes": 5,
++   "can_do": {
++    "en": "Say something warm or funny to a friend when things go wrong.",
++    "de": "Einer Freundin etwas Warmes oder Lustiges sagen, wenn etwas schiefgeht.",
++    "fr": "Dire quelque chose de tendre ou de drôle à une amie quand tout rate."
++   },
++   "moments": [
++    {
++     "premise": "le_diner_rate",
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g2.diner.p1",
++       "visual": "Odile's small kitchen. Lila breaks eggs with too much confidence; Toi holds the pan. A bottle of wine, two mismatched glasses.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Un soir, dans la cuisine d'Odile. Lila, toi et une omelette.",
++          "native": {
++           "en": "One evening, in Odile's kitchen. Lila, you and an omelette.",
++           "de": "Eines Abends, in der Küche von Odile. Lila, du und ein Omelett."
++          }
++         }
++        }
++       ],
++       "location_id": "odile_flat",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g2.diner.p2",
++       "visual": "Black smoke from the pan; the smoke alarm on the ceiling, drawn as a scream. Lila waves a tea towel at it.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "La fumée. Puis l'alarme.",
++          "native": {
++           "en": "Smoke. Then the alarm.",
++           "de": "Rauch. Dann der Alarm."
++          }
++         }
++        }
++       ],
++       "location_id": "odile_flat",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ],
++       "silence": true
++      },
++      {
++       "kind": "panel",
++       "id": "g2.diner.p3",
++       "visual": "Margaux in the kitchen doorway, out of breath, the café's fire extinguisher raised. She looks at the burnt omelette. She lowers the extinguisher and goes back down the stairs without a word.",
++       "lines": [],
++       "location_id": "odile_flat",
++       "in_frame": [
++        "margaux_barman"
++       ],
++       "silence": true,
++       "note": "Bible gap 2: the reader watches Margaux react too fast to smoke from this kitchen; nobody on the page remarks on it."
++      },
++      {
++       "kind": "turn",
++       "id": "g2.diner.turn",
++       "to": "lila_bonnet",
++       "panel": {
++        "kind": "panel",
++        "id": "g2.diner.p4",
++        "visual": "Lila on the kitchen floor, back against the oven, laughing. The smoke thins above her.",
++        "lines": [
++         {
++          "who": "lila_bonnet",
++          "say": {
++           "a2": "Bon. Pas de dîner. Dis quelque chose, vite.",
++           "native": {
++            "en": "Well. No dinner. Say something, quick.",
++            "de": "Na gut. Kein Abendessen. Sag was, schnell."
++           }
++          },
++          "mood": "happy",
++          "direction": "sitting on the floor, laughing too hard to stand"
++         }
++        ],
++        "location_id": "odile_flat",
++        "in_frame": [
++         "lila_bonnet",
++         "toi"
++        ],
++        "balloon": true
++       },
++       "task": {
++        "en": "Say the line that saves the evening, however you like. This is a path gate: what you express is read, never how well you say it.",
++        "de": "Sag den Satz, der den Abend rettet, wie du magst. Das ist ein Weichenpunkt: Gelesen wird, was du ausdrückst, nie, wie gut du es sagst.",
++        "fr": "Dis la phrase qui sauve la soirée, comme tu veux. C'est un point de bascule : ce qu'on lit, c'est ce que tu exprimes, jamais la qualité de ta phrase."
++       },
++       "listens_for": "What the learner expresses about the evening, never how well they say it. Path gate 2 (bible §7): tenderness toward her leans romance; complicity, a joke between accomplices, leans friendship; a halting reply that expresses neither leaves the path where it is.",
++       "replies": [
++        {
++         "id": "tendresse",
++         "label": "Tenderness",
++         "means": "Tenderness toward her: the evening with her was good, whatever happened to the dinner.",
++         "examples": [
++          "C'est le meilleur dîner raté de ma vie.",
++          "J'aime bien dîner avec toi."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g2.diner.tendresse.r1",
++           "visual": "Lila stops laughing. She looks at Toi a second too long.",
++           "lines": [],
++           "location_id": "odile_flat",
++           "in_frame": [
++            "lila_bonnet",
++            "toi"
++           ],
++           "silence": true
++          },
++          {
++           "kind": "panel",
++           "id": "g2.diner.tendresse.r2",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "… Moi aussi.",
++              "native": {
++               "en": "… Me too.",
++               "de": "… Ich auch."
++              }
++             },
++             "mood": "moved"
++            }
++           ]
++          }
++         ],
++         "path": "romance"
++        },
++        {
++         "id": "complice",
++         "label": "Complicity",
++         "means": "Complicity: a joke between accomplices, a plan, the two of them against the world.",
++         "examples": [
++          "On dit à Marin que c'était exprès.",
++          "On commande une pizza ?"
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g2.diner.complice.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Exprès, bien sûr. C'est de l'art.",
++              "native": {
++               "en": "On purpose, of course. It's art.",
++               "de": "Absichtlich, natürlich. Das ist Kunst."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ],
++         "path": "friendship"
++        },
++        {
++         "id": "neutre",
++         "label": "Neither",
++         "means": "A neutral remark, a halting reply that expresses neither tenderness nor complicity.",
++         "examples": [
++          "Oups.",
++          "Bon appétit."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g2.diner.neutre.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Oui. Bon appétit, l'héritage.",
++              "native": {
++               "en": "Yes. Enjoy your meal, l'héritage.",
++               "de": "Ja. Guten Appetit, l'héritage."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ]
++        }
++       ],
++       "fallback": "neutre",
++       "gate": 2,
++       "after": [
++        {
++         "kind": "panel",
++         "id": "g2.diner.after",
++         "visual": "Lila writes «NE REFAIS JAMAIS L'OMELETTE» on the fridge's whiteboard.",
++         "lines": [
++          {
++           "who": "lila_bonnet",
++           "say": {
++            "a2": "Règle numéro un : ne refais jamais l'omelette.",
++            "native": {
++             "en": "Rule number one: never make the omelette again.",
++             "de": "Regel Nummer eins: Mach nie wieder das Omelett."
++            }
++           },
++           "mood": "happy"
++          }
++         ],
++         "location_id": "odile_flat",
++         "in_frame": [
++          "lila_bonnet",
++          "toi"
++         ]
++        }
++       ]
++      }
++     ]
++    }
++   ],
++   "hook": {
++    "kind": "hook",
++    "id": "g2.hook",
++    "role": "a_suivre",
++    "panel": {
++     "kind": "panel",
++     "id": "g2.hook.p",
++     "visual": "Le Mistral at closing time: Gus and Marin at two different tables, each writing something on a card, each hiding it from the other.",
++     "lines": [
++      {
++       "who": "caption",
++       "say": {
++        "a2": "Jeudi, deux personnes ont quelque chose à te demander. À suivre…",
++        "native": {
++         "en": "On Thursday, two people have something to ask you. To be continued…",
++         "de": "Am Donnerstag wollen zwei Leute dich etwas fragen. Fortsetzung folgt…"
++        }
++       }
++      }
++     ],
++     "location_id": "le_mistral",
++     "silence": true
++    }
++   }
++  },
++  {
++   "gap": "g3",
++   "title_fr": "Avant la fête",
++   "story_date_fr": "28 nov. – 4 déc.",
++   "location_id": "toit",
++   "minutes": 5,
++   "can_do": {
++    "en": "Apologise politely to someone in authority, with vous.",
++    "de": "Sich höflich mit «vous» bei einer Respektsperson entschuldigen.",
++    "fr": "S'excuser poliment, avec « vous », auprès de quelqu'un d'important."
++   },
++   "moments": [
++    {
++     "premise": "sur_le_toit",
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g3.toit.p1",
++       "visual": "The fifth-floor skylight, open. Lila already outside on the zinc roof, holding out her hand.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Une nuit, Lila t'emmène sur le toit.",
++          "native": {
++           "en": "One night, Lila takes you up on the roof.",
++           "de": "Eines Nachts nimmt Lila dich mit aufs Dach."
++          }
++         }
++        }
++       ],
++       "location_id": "toit",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g3.toit.p2",
++       "visual": "The canal at night from the roof: the locks, the lit footbridges, a barge.",
++       "lines": [
++        {
++         "who": "lila_bonnet",
++         "say": {
++          "a2": "Regarde. Le canal, d'en haut. Personne ne vient ici.",
++          "native": {
++           "en": "Look. The canal, from above. Nobody comes up here.",
++           "de": "Schau. Der Kanal, von oben. Niemand kommt hier hoch."
++          }
++         }
++        }
++       ],
++       "location_id": "toit",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g3.toit.p3",
++       "visual": "A torch beam finds them. Behind it, in a dressing gown and a hat, M. Marchand.",
++       "lines": [],
++       "location_id": "toit",
++       "in_frame": [
++        "landlord_marchand",
++        "lila_bonnet",
++        "toi"
++       ],
++       "silence": true
++      },
++      {
++       "kind": "turn",
++       "id": "g3.toit.turn",
++       "to": "landlord_marchand",
++       "panel": {
++        "kind": "panel",
++        "id": "g3.toit.p4",
++        "visual": "Marchand's face in the torchlight. Lila, behind Toi, bites her sleeve not to laugh.",
++        "lines": [
++         {
++          "who": "landlord_marchand",
++          "say": {
++           "a2": "La succession Ferrand n'a rien à faire sur mon toit.",
++           "native": {
++            "en": "The Ferrand estate has no business on my roof.",
++            "de": "Der Nachlass Ferrand hat auf meinem Dach nichts zu suchen."
++           }
++          },
++          "mood": "cross"
++         }
++        ],
++        "location_id": "toit",
++        "in_frame": [
++         "landlord_marchand",
++         "toi"
++        ],
++        "balloon": true
++       },
++       "task": {
++        "en": "Talk your way down, politely, to M. Marchand. Use your best «vous».",
++        "de": "Rede dich höflich bei M. Marchand heraus. Mit deinem besten «vous».",
++        "fr": "Sors-toi de là poliment, avec M. Marchand. Ton plus beau « vous »."
++       },
++       "listens_for": "What the learner says to M. Marchand: a polite apology, an excuse, or something cheeky. Any reply gets them down.",
++       "replies": [
++        {
++         "id": "poli",
++         "label": "Polite",
++         "means": "A polite apology or promise to come down, in vous.",
++         "examples": [
++          "Pardon, monsieur. Nous descendons tout de suite.",
++          "Excusez-nous, monsieur Marchand."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g3.toit.poli.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "landlord_marchand",
++             "say": {
++              "a2": "Hm. Poli, au moins. Descendez. Lentement.",
++              "native": {
++               "en": "Hm. Polite, at least. Come down. Slowly.",
++               "de": "Hm. Wenigstens höflich. Kommen Sie herunter. Langsam."
++              }
++             }
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "excuse",
++         "label": "An excuse",
++         "means": "An excuse or explanation: the view, the canal, a mistake.",
++         "examples": [
++          "On regardait le canal, c'est tout.",
++          "Nous voulions voir la vue."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g3.toit.excuse.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "landlord_marchand",
++             "say": {
++              "a2": "La vue. Bien sûr. Mais la vue aussi est à moi.",
++              "native": {
++               "en": "The view. Of course. But the view is mine too.",
++               "de": "Die Aussicht. Natürlich. Aber die Aussicht gehört auch mir."
++              }
++             },
++             "mood": "cross"
++            }
++           ]
++          }
++         ]
++        },
++        {
++         "id": "insolent",
++         "label": "Cheeky",
++         "means": "Something cheeky, or anything else.",
++         "examples": [
++          "Bonsoir ! Belle nuit, non ?"
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g3.toit.insolent.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "landlord_marchand",
++             "say": {
++              "a2": "Bonne nuit, oui. En bas.",
++              "native": {
++               "en": "Good night, yes. Downstairs.",
++               "de": "Gute Nacht, ja. Nach unten."
++              }
++             },
++             "mood": "cross"
++            }
++           ]
++          }
++         ]
++        }
++       ],
++       "fallback": "insolent",
++       "after": [
++        {
++         "kind": "panel",
++         "id": "g3.toit.after",
++         "visual": "The stairs, going down: Lila doubled over, Toi a step behind; above, the torch still on.",
++         "lines": [
++          {
++           "who": "lila_bonnet",
++           "say": {
++            "a2": "Et voilà. Demain, tout le quartier connaît l'histoire.",
++            "native": {
++             "en": "There you go. Tomorrow, the whole neighbourhood knows the story.",
++             "de": "Na also. Morgen kennt das ganze Viertel die Geschichte."
++            }
++           },
++           "mood": "happy",
++           "direction": "giggling on the stairs"
++          }
++         ],
++         "location_id": "stairwell",
++         "in_frame": [
++          "lila_bonnet",
++          "toi"
++         ]
++        }
++       ]
++      }
++     ]
++    }
++   ],
++   "hook": {
++    "kind": "hook",
++    "id": "g3.hook",
++    "role": "a_suivre",
++    "panel": {
++     "kind": "panel",
++     "id": "g3.hook.p",
++     "visual": "Lila's banner, rolled up on the zinc: «25».",
++     "lines": [
++      {
++       "who": "caption",
++       "say": {
++        "a2": "Samedi, le Mistral a vingt-cinq ans. À suivre…",
++        "native": {
++         "en": "On Saturday, Le Mistral turns twenty-five. To be continued…",
++         "de": "Am Samstag wird das Mistral fünfundzwanzig. Fortsetzung folgt…"
++        }
++       }
++      }
++     ],
++     "location_id": "le_mistral",
++     "silence": true
++    }
++   }
++  },
++  {
++   "gap": "g4",
++   "title_fr": "Le quartier sait",
++   "story_date_fr": "7–12 déc.",
++   "location_id": "quai_de_valmy",
++   "minutes": 5,
++   "can_do": {
++    "en": "Make up after an argument, in your own words.",
++    "de": "Sich nach einem Streit mit eigenen Worten versöhnen.",
++    "fr": "Se réconcilier après une dispute, avec tes propres mots."
++   },
++   "moments": [
++    {
++     "premise": "la_dispute",
++     "movements": [
++      {
++       "kind": "panel",
++       "id": "g4.dispute.p1",
++       "visual": "The quai de Valmy, grey morning. Lila walks fast, hands in her pockets; Toi a step behind.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Un matin, au bord du canal.",
++          "native": {
++           "en": "One morning, by the canal.",
++           "de": "Eines Morgens, am Kanal."
++          }
++         }
++        }
++       ],
++       "location_id": "quai_de_valmy",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ]
++      },
++      {
++       "kind": "panel",
++       "id": "g4.dispute.p2m",
++       "visual": "",
++       "lines": [
++        {
++         "who": "lila_bonnet",
++         "say": {
++          "a2": "Encore un secret. Ici, tout le monde cache tout. Même toi.",
++          "native": {
++           "en": "Another secret. Here everyone hides everything. Even you.",
++           "de": "Noch ein Geheimnis. Hier verheimlicht jeder alles. Sogar du."
++          }
++         },
++         "mood": "cross"
++        }
++       ],
++       "location_id": "quai_de_valmy",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ],
++       "when": {
++        "s1.fire_photo": "margaux"
++       }
++      },
++      {
++       "kind": "panel",
++       "id": "g4.dispute.p2w",
++       "visual": "",
++       "lines": [
++        {
++         "who": "lila_bonnet",
++         "say": {
++          "a2": "C'est ma faute ? La photo est au mur, l'assurance appelle. Dis-le.",
++          "native": {
++           "en": "It's my fault? The photo is on the wall, the insurance is calling. Say it.",
++           "de": "Ist es meine Schuld? Das Foto hängt an der Wand, die Versicherung ruft an. Sag es."
++          }
++         },
++         "mood": "cross"
++        }
++       ],
++       "location_id": "quai_de_valmy",
++       "in_frame": [
++        "lila_bonnet",
++        "toi"
++       ],
++       "when": {
++        "s1.fire_photo": "wall"
++       }
++      },
++      {
++       "kind": "panel",
++       "id": "g4.dispute.p3",
++       "visual": "Two figures walking away from each other along the canal, in opposite directions.",
++       "lines": [
++        {
++         "who": "caption",
++         "say": {
++          "a2": "Plus un mot. Pas avant le lendemain.",
++          "native": {
++           "en": "Not another word. Not before the next day.",
++           "de": "Kein Wort mehr. Nicht vor dem nächsten Tag."
++          }
++         }
++        }
++       ],
++       "location_id": "quai_de_valmy",
++       "silence": true
++      },
++      {
++       "kind": "turn",
++       "id": "g4.dispute.turn",
++       "to": "lila_bonnet",
++       "panel": {
++        "kind": "panel",
++        "id": "g4.dispute.p4",
++        "visual": "The next morning. Lila at the door of Le Mistral with two paper cups of coffee, not quite looking at Toi.",
++        "lines": [
++         {
++          "who": "lila_bonnet",
++          "say": {
++           "a2": "… Bon. Qui commence ?",
++           "native": {
++            "en": "… Well. Who goes first?",
++            "de": "… Na gut. Wer fängt an?"
++           }
++          },
++          "direction": "at the door, two coffees in her hands"
++         }
++        ],
++        "location_id": "le_mistral",
++        "in_frame": [
++         "lila_bonnet",
++         "toi"
++        ],
++        "balloon": true
++       },
++       "task": {
++        "en": "Apologise, your way. This is a path gate: what you express is read, never how well you say it.",
++        "de": "Entschuldige dich, auf deine Art. Das ist ein Weichenpunkt: Gelesen wird, was du ausdrückst, nie, wie gut du es sagst.",
++        "fr": "Excuse-toi, à ta façon. C'est un point de bascule : ce qu'on lit, c'est ce que tu exprimes, jamais la qualité de ta phrase."
++       },
++       "listens_for": "What the learner expresses in the apology, never how well they say it. Path gate 3 (bible §7): naming what she means to them leans romance; naming the alliance, the team, leans friendship; a plain apology that names neither leaves the path where it is.",
++       "replies": [
++        {
++         "id": "pas_toi",
++         "label": "What she means",
++         "means": "Naming what she means to the learner: not her, not a fight with her.",
++         "examples": [
++          "Je ne veux pas me disputer avec toi. Pas toi.",
++          "Avec toi, non. Pas avec toi."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g4.dispute.pas_toi.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "… Pas moi. D'accord.",
++              "native": {
++               "en": "… Not me. All right.",
++               "de": "… Nicht ich. In Ordnung."
++              }
++             },
++             "mood": "moved"
++            }
++           ]
++          }
++         ],
++         "path": "romance"
++        },
++        {
++         "id": "equipe",
++         "label": "The team",
++         "means": "Naming the alliance: they are a team, accomplices.",
++         "examples": [
++          "On est une équipe. Pardon.",
++          "Toi et moi, on est ensemble là-dedans."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g4.dispute.equipe.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Une équipe. Avec deux cafés. Pardon aussi.",
++              "native": {
++               "en": "A team. With two coffees. Sorry too.",
++               "de": "Ein Team. Mit zwei Kaffees. Entschuldige auch."
++              }
++             },
++             "mood": "happy"
++            }
++           ]
++          }
++         ],
++         "path": "friendship"
++        },
++        {
++         "id": "pardon",
++         "label": "Sorry",
++         "means": "A plain apology that names neither, or anything else.",
++         "examples": [
++          "Pardon.",
++          "Excuse-moi."
++         ],
++         "beats": [
++          {
++           "kind": "panel",
++           "id": "g4.dispute.pardon.r1",
++           "visual": "",
++           "lines": [
++            {
++             "who": "lila_bonnet",
++             "say": {
++              "a2": "Pardon aussi. Ton café refroidit.",
++              "native": {
++               "en": "Sorry too. Your coffee's getting cold.",
++               "de": "Entschuldige auch. Dein Kaffee wird kalt."
++              }
++             }
++            }
++           ]
++          }
++         ]
++        }
++       ],
++       "fallback": "pardon",
++       "gate": 3,
++       "after": [
++        {
++         "kind": "panel",
++         "id": "g4.dispute.after",
++         "visual": "Two paper cups side by side on the café's window ledge.",
++         "lines": [
++          {
++           "who": "caption",
++           "say": {
++            "a2": "Une dispute. Et le lendemain, deux cafés.",
++            "native": {
++             "en": "An argument. And the next day, two coffees.",
++             "de": "Ein Streit. Und am nächsten Tag zwei Kaffees."
++            }
++           }
++          }
++         ],
++         "location_id": "le_mistral",
++         "silence": true
++        }
++       ]
++      }
++     ]
++    }
++   ],
++   "hook": {
++    "kind": "hook",
++    "id": "g4.hook",
++    "role": "a_suivre",
++    "panel": {
++     "kind": "panel",
++     "id": "g4.hook.p",
++     "visual": "Lila's canvas bag on a chair; the corner of an envelope sticks out.",
++     "lines": [
++      {
++       "who": "caption",
++       "say": {
++        "a2": "Dimanche, Lila a une lettre dans son sac. À suivre…",
++        "native": {
++         "en": "On Sunday, Lila has a letter in her bag. To be continued…",
++         "de": "Am Sonntag hat Lila einen Brief in der Tasche. Fortsetzung folgt…"
++        }
++       }
++      }
++     ],
++     "location_id": "le_mistral",
++     "silence": true
++    }
++   }
++  }
++ ]
++}
+diff --git a/app/data/season/s1/levels_bridges.json b/app/data/season/s1/levels_bridges.json
+new file mode 100644
+index 0000000..b352efe
+--- /dev/null
++++ b/app/data/season/s1/levels_bridges.json
+@@ -0,0 +1,495 @@
++{
++ "_about": "WP-124b bridges: level variants (a1 with its translations, b2, c1). PROPOSAL.",
++ "lines": {
++  "4df960ced288": {
++   "a1": "Au Mistral, quelques jours après.",
++   "a1_native": {
++    "en": "At Le Mistral, a few days after.",
++    "de": "Im Mistral, ein paar Tage danach."
++   },
++   "b2": "Au Mistral, quelques jours ont passé.",
++   "c1": "Au Mistral. Quelques jours ont filé."
++  },
++  "255cb8dd479c": {
++   "a1": "Solvel achète des cafés ici. Tu as une info ?",
++   "a1_native": {
++    "en": "Solvel is buying cafés here. Do you have any info?",
++    "de": "Solvel kauft hier Cafés. Hast du eine Info?"
++   },
++   "b2": "Solvel rachète les cafés du quartier les uns après les autres. Tu en sais quelque chose ?",
++   "c1": "Solvel fait main basse sur les cafés du quartier. Tu aurais quelque chose à me dire ?"
++  },
++  "98b44a764b28": {
++   "a1": "Moi ? Rien.",
++   "a1_native": {
++    "en": "Me? Nothing.",
++    "de": "Ich? Nichts."
++   },
++   "b2": "Je n'ai rien entendu.",
++   "c1": "J'ai rien entendu."
++  },
++  "8f282a8314a6": {
++   "a1": "Et toi ? Tu es la famille d'Odile ?",
++   "a1_native": {
++    "en": "And you? Are you Odile's family?",
++    "de": "Und du? Bist du die Familie von Odile?"
++   },
++   "b2": "Et toi, alors ? C'est toi, le fameux héritage d'Odile ?",
++   "c1": "Et toi, tiens ! Ce serait donc toi, le fameux héritage d'Odile ?"
++  },
++  "b2adf9c23819": {
++   "a1": "Sa famille. Super. Je reviens te voir.",
++   "a1_native": {
++    "en": "Her family. Great. I'll come back to see you.",
++    "de": "Ihre Familie. Super. Ich komme wieder zu dir."
++   },
++   "b2": "De la famille ! Parfait. Tu feras une excellente source.",
++   "c1": "De la famille, rien que ça. Toi, tu vas devenir ma source préférée."
++  },
++  "05e333259bc7": {
++   "a1": "Non ? Tu parles comme Margaux !",
++   "a1_native": {
++    "en": "No? You talk like Margaux!",
++    "de": "Nein? Du redest wie Margaux!"
++   },
++   "b2": "« Pas de commentaire. » Trois jours ici et tu parles déjà comme Margaux.",
++   "c1": "« Pas de commentaire. » Trois jours au Mistral, et tu parles déjà comme Margaux : c'est-à-dire le moins possible."
++  },
++  "284c4b24959f": {
++   "a1": "Cette année, Solvel achète trois cafés ici.",
++   "a1_native": {
++    "en": "This year, Solvel is buying three cafés here.",
++    "de": "Dieses Jahr kauft Solvel hier drei Cafés."
++   },
++   "b2": "Trois cafés rachetés dans le quartier depuis janvier. Tous par Solvel.",
++   "c1": "Trois cafés du quartier rachetés depuis janvier, et toujours le même acquéreur : Solvel."
++  },
++  "bc9babd2b172": {
++   "a1": "Encore un matin au Mistral.",
++   "b2": "Troisième matin au Mistral.",
++   "c1": "Au troisième matin."
++  },
++  "c1e1199e4a9c": {
++   "a1": "Ici, le café dit beaucoup sur vous.",
++   "a1_native": {
++    "en": "Here, the coffee says a lot about you.",
++    "de": "Hier sagt der Kaffee viel über Sie."
++   },
++   "b2": "Prudence. Ce que vous commandez ici dira qui vous êtes.",
++   "c1": "Prudence, je vous prie. Ici, dis-moi ce que tu bois, je te dirai qui tu es — pardon, vous."
++  },
++  "5f7087eb84ba": {
++   "a1": "La même chose ?",
++   "b2": "La même chose ?",
++   "c1": "La même chose ?"
++  },
++  "95cd8dbf0773": {
++   "a1": "D'accord. Demain, la même chose.",
++   "a1_native": {
++    "en": "All right. Tomorrow, the same.",
++    "de": "In Ordnung. Morgen das Gleiche."
++   },
++   "b2": "Un crème. C'est noté.",
++   "c1": "Un crème. Retenu."
++  },
++  "b29faacbc3d0": {
++   "a1": "Ah ! Très bien, très bien.",
++   "a1_native": {
++    "en": "Ah! Very good, very good.",
++    "de": "Ah! Sehr gut, sehr gut."
++   },
++   "b2": "Un noisette ! Voilà une personne qui sait ce qu'elle veut.",
++   "c1": "Un noisette ! La précision faite boisson."
++  },
++  "e34df2bc46c7": {
++   "a1": "Un thé ? Ici ? Oh là là.",
++   "a1_native": {
++    "en": "A tea? Here? Oh dear.",
++    "de": "Einen Tee? Hier? Oje."
++   },
++   "b2": "Un thé, au Mistral ? Quel courage.",
++   "c1": "Un thé, au Mistral ? Voilà qui frise l'insolence."
++  },
++  "d01abde12734": {
++   "a1": "Un chocolat. Comme Lila.",
++   "b2": "Un chocolat. Comme Lila.",
++   "c1": "Un chocolat. Tiens, comme Lila."
++  },
++  "78a97b85408d": {
++   "a1": "Voilà : maintenant, vous êtes d'ici.",
++   "a1_native": {
++    "en": "There: now you're from here.",
++    "de": "So: Jetzt sind Sie von hier."
++   },
++   "b2": "C'est officiel : vous faites partie des meubles, désormais.",
++   "c1": "C'est officiel : vous voilà désormais du quartier, et ce n'est pas une plaisanterie."
++  },
++  "2e5d6902d39b": {
++   "a1": "Le jour après. Ton billet : mercredi.",
++   "a1_native": {
++    "en": "The day after. Your ticket: Wednesday.",
++    "de": "Am Tag danach. Dein Ticket: Mittwoch."
++   },
++   "b2": "Le lendemain. Ton billet de retour est toujours pour mercredi.",
++   "c1": "Le lendemain. Ton billet de retour indique toujours mercredi."
++  },
++  "633e27cdc4f1": {
++   "a1": "Tu appelles. Moi, je t'aide. Enfin… je pense.",
++   "a1_native": {
++    "en": "You call. I help you. Well… I think.",
++    "de": "Du rufst an. Ich helfe dir. Na ja… glaube ich."
++   },
++   "b2": "Tu appelles, et moi je te coache. Enfin… je fais de mon mieux.",
++   "c1": "Tu appelles, je te souffle les répliques. Enfin… à ma façon."
++  },
++  "404ab905e7ad": {
++   "a1": "Bonjour. Vous changez votre billet ? Pourquoi ?",
++   "a1_native": {
++    "en": "Hello. You're changing your ticket? Why?",
++    "de": "Guten Tag. Sie ändern Ihr Ticket? Warum?"
++   },
++   "b2": "Service clients, bonjour. Vous souhaitez modifier votre billet ? Puis-je savoir pourquoi ?",
++   "c1": "Service clients, bonjour. Vous souhaitez modifier votre réservation ? Pour quel motif, je vous prie ?"
++  },
++  "5ab25e7028a8": {
++   "a1": "C'est vrai, ça. J'adore.",
++   "a1_native": {
++    "en": "That's true, that. I love it.",
++    "de": "Das ist wahr. Ich liebe es."
++   },
++   "b2": "Beaucoup trop honnête. J'adore.",
++   "c1": "D'une honnêteté désarmante. J'adore."
++  },
++  "a9c6bd84c1a6": {
++   "a1": "C'est triste. Mais ça marche.",
++   "a1_native": {
++    "en": "It's sad. But it works.",
++    "de": "Das ist traurig. Aber es klappt."
++   },
++   "b2": "Ennuyeux à mourir. Mais efficace.",
++   "c1": "Soporifique. Mais redoutablement efficace."
++  },
++  "f8fa3284b5a0": {
++   "a1": "Donne ! Une grand-mère, un appartement, des croissants.",
++   "a1_native": {
++    "en": "Give it! A grandmother, a flat, croissants.",
++    "de": "Gib her! Eine Großmutter, eine Wohnung, Croissants."
++   },
++   "b2": "Donne-moi ça ! Il y a une grand-mère, un appartement et une quantité déraisonnable de croissants.",
++   "c1": "Passe-moi ça ! Alors : une grand-mère, un appartement, et une consommation de croissants franchement préoccupante."
++  },
++  "db5678613e71": {
++   "a1": "Bien. Mercredi 2 décembre.",
++   "a1_native": {
++    "en": "Good. Wednesday 2 December.",
++    "de": "Gut. Mittwoch, 2. Dezember."
++   },
++   "b2": "Parfait. Ce sera donc mercredi 2 décembre.",
++   "c1": "Entendu. Je vous mets sur le mercredi 2 décembre."
++  },
++  "b2f24a60ef9b": {
++   "a1": "Le billet change. Toi aussi, un peu.",
++   "a1_native": {
++    "en": "The ticket changes. You too, a little.",
++    "de": "Das Ticket ändert sich. Du auch, ein bisschen."
++   },
++   "b2": "Le billet change de date. Et quelque chose change en toi aussi.",
++   "c1": "Le billet change de date. Et, l'air de rien, toi aussi."
++  },
++  "389af59f7d89": {
++   "a1": "En haut, l'appartement attend. À suivre…",
++   "a1_native": {
++    "en": "Upstairs, the flat is waiting. To be continued…",
++    "de": "Oben wartet die Wohnung. Fortsetzung folgt…"
++   },
++   "b2": "Au premier, l'appartement attend toujours. À suivre…",
++   "c1": "Au premier, l'appartement attend, porte close. À suivre…"
++  },
++  "506e45fbb498": {
++   "a1": "Le soir. La cuisine d'Odile. Lila, toi, une omelette.",
++   "a1_native": {
++    "en": "Evening. Odile's kitchen. Lila, you, an omelette.",
++    "de": "Abend. Die Küche von Odile. Lila, du, ein Omelett."
++   },
++   "b2": "Un soir, dans la cuisine d'Odile : Lila, toi, et une omelette improvisée.",
++   "c1": "Un soir, dans la cuisine d'Odile : Lila, toi, et une omelette de fortune."
++  },
++  "12b3456f8e70": {
++   "a1": "La cuisine est noire. Ça sonne fort !",
++   "a1_native": {
++    "en": "The kitchen is black. Something rings loudly!",
++    "de": "Die Küche ist schwarz. Es klingelt laut!"
++   },
++   "b2": "De la fumée. Puis l'alarme, stridente.",
++   "c1": "De la fumée. Puis l'alarme, qui hurle."
++  },
++  "85bf165b6654": {
++   "a1": "Bon. Pas de dîner. Dis un mot !",
++   "a1_native": {
++    "en": "Well. No dinner. Say a word!",
++    "de": "Na gut. Kein Abendessen. Sag ein Wort!"
++   },
++   "b2": "Bon. Le dîner est officiellement raté. Dis quelque chose, vite, avant que je pleure de rire.",
++   "c1": "Bon. Le dîner est un désastre officiel. Dis quelque chose, vite, avant que je meure de rire."
++  },
++  "c6842ac4ac91": {
++   "a1": "… Moi aussi.",
++   "b2": "… Moi aussi.",
++   "c1": "… Moi aussi."
++  },
++  "bd3f4ac302e3": {
++   "a1": "Pour Marin ? Oui ! C'est un dîner d'artiste.",
++   "a1_native": {
++    "en": "For Marin? Yes! It's an artist's dinner.",
++    "de": "Für Marin? Ja! Das ist ein Künstleressen."
++   },
++   "b2": "Exprès, évidemment. Une performance artistique.",
++   "c1": "Exprès, cela va de soi. Une performance, une installation."
++  },
++  "99513b9bbce3": {
++   "a1": "Oui. Bon appétit !",
++   "a1_native": {
++    "en": "Yes. Enjoy your meal!",
++    "de": "Ja. Guten Appetit!"
++   },
++   "b2": "C'est ça. Bon appétit, l'héritage.",
++   "c1": "Voilà. Bon appétit, l'héritage."
++  },
++  "e3c91f79de81": {
++   "a1": "Plus jamais d'omelette. Jamais !",
++   "a1_native": {
++    "en": "No omelette ever again. Never!",
++    "de": "Nie wieder Omelett. Niemals!"
++   },
++   "b2": "Règle numéro un : ne refais jamais, jamais l'omelette.",
++   "c1": "Règle numéro un, gravée dans le marbre : ne refais jamais l'omelette."
++  },
++  "095e82ae978f": {
++   "a1": "Jeudi, deux amis ont une question. À suivre…",
++   "a1_native": {
++    "en": "On Thursday, two friends have a question. To be continued…",
++    "de": "Am Donnerstag haben zwei Freunde eine Frage. Fortsetzung folgt…"
++   },
++   "b2": "Jeudi, deux personnes vont te demander quelque chose. À suivre…",
++   "c1": "Jeudi, deux personnes auront chacune une faveur à te demander. À suivre…"
++  },
++  "e5bb3e60c463": {
++   "a1": "La nuit. Lila et toi, sur le toit.",
++   "a1_native": {
++    "en": "Night. Lila and you, on the roof.",
++    "de": "Nacht. Lila und du, auf dem Dach."
++   },
++   "b2": "Une nuit, Lila t'entraîne sur le toit par la lucarne du cinquième.",
++   "c1": "Une nuit, Lila te fait passer par la lucarne du cinquième, direction le toit."
++  },
++  "f097aeae0a70": {
++   "a1": "Regarde. Le canal, la nuit. C'est beau.",
++   "a1_native": {
++    "en": "Look. The canal, at night. It's beautiful.",
++    "de": "Schau. Der Kanal, nachts. Das ist schön."
++   },
++   "b2": "Regarde. Le canal vu d'en haut. Ici, personne ne vient jamais.",
++   "c1": "Regarde-moi ça. Le canal, vu d'en haut. Personne ne monte jamais jusqu'ici."
++  },
++  "0dab97ca5670": {
++   "a1": "Vous ! Ici ! C'est mon toit.",
++   "a1_native": {
++    "en": "You! Here! This is my roof.",
++    "de": "Sie! Hier! Das ist mein Dach."
++   },
++   "b2": "La succession Ferrand n'a rien à faire sur mon toit.",
++   "c1": "La succession Ferrand n'a rien à faire sur mon toit."
++  },
++  "e3b339694111": {
++   "a1": "Bien. Descendez. Pas vite.",
++   "a1_native": {
++    "en": "Good. Come down. Not fast.",
++    "de": "Gut. Kommen Sie herunter. Nicht schnell."
++   },
++   "b2": "Hm. Poli, c'est déjà ça. Descendez. Lentement.",
++   "c1": "Hm. La politesse, au moins, est sauve. Descendez. Lentement."
++  },
++  "7cc8f8bc4535": {
++   "a1": "La vue ? La vue est à moi aussi.",
++   "a1_native": {
++    "en": "The view? The view is mine too.",
++    "de": "Die Aussicht? Die gehört auch mir."
++   },
++   "b2": "La vue. Évidemment. Sachez qu'elle m'appartient aussi.",
++   "c1": "La vue. Mais naturellement. Sachez qu'elle figure, elle aussi, au cadastre."
++  },
++  "3907591e0a3e": {
++   "a1": "Bonne nuit. En bas !",
++   "a1_native": {
++    "en": "Good night. Downstairs!",
++    "de": "Gute Nacht. Nach unten!"
++   },
++   "b2": "Bonne nuit, en effet. En bas.",
++   "c1": "Excellente nuit, en effet. En bas."
++  },
++  "a157d76433cf": {
++   "a1": "Marchand, toi et moi, la nuit. Quelle histoire !",
++   "a1_native": {
++    "en": "Marchand, you and me, at night. What a story!",
++    "de": "Marchand, du und ich, in der Nacht. Was für eine Geschichte!"
++   },
++   "b2": "Il nous a vus, tous les deux. Demain, je raconte ça à tout le quartier.",
++   "c1": "Il nous a pris la main dans le sac, tous les deux. Demain, le quartier entier sera au courant."
++  },
++  "1e29c6d7ac63": {
++   "a1": "Samedi, le Mistral a vingt-cinq ans. À suivre…",
++   "b2": "Samedi, le Mistral fête ses vingt-cinq ans. À suivre…",
++   "c1": "Samedi, le Mistral fête ses vingt-cinq ans. À suivre…"
++  },
++  "8224ab27396d": {
++   "a1": "Le matin, au canal.",
++   "a1_native": {
++    "en": "Morning, at the canal.",
++    "de": "Morgen, am Kanal."
++   },
++   "b2": "Un matin, au bord du canal.",
++   "c1": "Un matin, sur les quais du canal."
++  },
++  "2de55a0d41fd": {
++   "a1": "Ici, il y a trop de secrets.",
++   "a1_native": {
++    "en": "There are too many secrets here.",
++    "de": "Hier gibt es zu viele Geheimnisse."
++   },
++   "b2": "Encore un secret. Ici, tout le monde cache tout à tout le monde. Même toi.",
++   "c1": "Encore un secret. Ici, chacun cache tout à tout le monde. Toi compris."
++  },
++  "dc5ee09de3ec": {
++   "a1": "C'est ma faute, la photo ? Tu penses ça ?",
++   "a1_native": {
++    "en": "Is the photo my fault? Is that what you think?",
++    "de": "Ist das Foto meine Schuld? Denkst du das?"
++   },
++   "b2": "C'est ma faute, c'est ça ? À cause de la photo au mur, l'assureur appelle Margaux. Vas-y, dis-le.",
++   "c1": "Tu me tiens pour responsable, c'est ça ? La photo au mur, l'assureur de Margaux au téléphone… Vas-y, dis-le."
++  },
++  "3ce91c79cc79": {
++   "a1": "Plus un mot. Pas ce soir.",
++   "a1_native": {
++    "en": "Not one more word. Not tonight.",
++    "de": "Kein Wort mehr. Nicht heute Abend."
++   },
++   "b2": "Plus un mot. Jusqu'au lendemain.",
++   "c1": "Plus un mot. Pas avant le lendemain."
++  },
++  "9a04c0c979dc": {
++   "a1": "… Bon. Qui commence ?",
++   "b2": "… Bon. Qui commence ?",
++   "c1": "… Bon. Lequel de nous deux commence ?"
++  },
++  "027309f4f537": {
++   "a1": "… Pas moi. D'accord.",
++   "b2": "… Pas moi. D'accord.",
++   "c1": "… Pas moi. Entendu."
++  },
++  "09f2428a94f6": {
++   "a1": "Une équipe. Deux cafés. Pardon aussi.",
++   "a1_native": {
++    "en": "A team. Two coffees. Sorry too.",
++    "de": "Ein Team. Zwei Kaffees. Entschuldige auch."
++   },
++   "b2": "Une équipe. Avec deux cafés, en plus. Pardon aussi.",
++   "c1": "Une équipe. Avec deux cafés, qui plus est. Pardon aussi."
++  },
++  "e5f5c6d7905f": {
++   "a1": "Pardon aussi. Ton café est froid.",
++   "a1_native": {
++    "en": "Sorry too. Your coffee is cold.",
++    "de": "Entschuldige auch. Dein Kaffee ist kalt."
++   },
++   "b2": "Pardon aussi. Ton café refroidit.",
++   "c1": "Pardon aussi. Ton café est en train de refroidir."
++  },
++  "87078adc4bb3": {
++   "a1": "Un jour difficile. Puis, deux cafés.",
++   "a1_native": {
++    "en": "A hard day. Then, two coffees.",
++    "de": "Ein schwerer Tag. Dann zwei Kaffees."
++   },
++   "b2": "Une dispute. Et le lendemain, deux cafés.",
++   "c1": "Une dispute. Et, le lendemain, deux cafés."
++  },
++  "32bc9f98c84d": {
++   "a1": "Dimanche, Lila a une lettre. À suivre…",
++   "a1_native": {
++    "en": "On Sunday, Lila has a letter. To be continued…",
++    "de": "Am Sonntag hat Lila einen Brief. Fortsetzung folgt…"
++   },
++   "b2": "Dimanche, une lettre attend au fond du sac de Lila. À suivre…",
++   "c1": "Dimanche, une enveloppe dort au fond du sac de Lila. À suivre…"
++  }
++ },
++ "examples": {
++  "bridges:g1.romy.turn:open": {
++   "a1": [
++    "Oui, Odile est ma grand-mère.",
++    "Je suis la famille d'Odile."
++   ],
++   "b2": [
++    "Oui, Odile était ma grand-mère. Solvel, je m'en méfie."
++   ],
++   "c1": [
++    "C'est moi, oui. Et Solvel ne m'inspire aucune confiance."
++   ]
++  },
++  "bridges:g1.romy.turn:guarded": {
++   "a1": [
++    "Non. Pas de journalistes.",
++    "Je ne parle pas."
++   ]
++  },
++  "bridges:g1.billet.turn:honest": {
++   "a1": [
++    "J'aime le quartier.",
++    "J'aime les gens ici."
++   ]
++  },
++  "bridges:g1.billet.turn:practical": {
++   "a1": [
++    "Pour le notaire.",
++    "Pour l'appartement."
++   ]
++  },
++  "bridges:g2.diner.turn:tendresse": {
++   "a1": [
++    "Le meilleur dîner raté de ma vie.",
++    "J'aime dîner avec toi."
++   ]
++  },
++  "bridges:g2.diner.turn:complice": {
++   "a1": [
++    "On dit à Marin : c'est exprès.",
++    "Une pizza ?"
++   ]
++  },
++  "bridges:g3.toit.turn:poli": {
++   "a1": [
++    "Pardon, monsieur.",
++    "Excusez-nous. On descend."
++   ]
++  },
++  "bridges:g3.toit.turn:excuse": {
++   "a1": [
++    "On regarde le canal.",
++    "Pour la vue."
++   ]
++  },
++  "bridges:g4.dispute.turn:pas_toi": {
++   "a1": [
++    "Pas avec toi.",
++    "Je ne veux pas, pas avec toi."
++   ]
++  },
++  "bridges:g4.dispute.turn:equipe": {
++   "a1": [
++    "On est une équipe.",
++    "Toi et moi, une équipe."
++   ]
++  }
++ }
++}

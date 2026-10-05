@@ -1,13 +1,20 @@
 #!/usr/bin/env python
 """Check a season's tentpole files against the format and against the bible (WP-111).
 
-    venv/bin/python scripts/season_check.py            # every tentpole file present
+    venv/bin/python scripts/season_check.py            # every tentpole file present (and the bridges)
     venv/bin/python scripts/season_check.py t4 t5      # just these
     venv/bin/python scripts/season_check.py epilogue   # the epilogue week (WP-132B)
+    venv/bin/python scripts/season_check.py bridges    # just the WP-124b bridges
 
 For each tentpole: the file must parse as the season format, every cross-reference
 (speakers, flags, locations, conditions) must resolve, and every French line of the
 bible (``docs/story/season-1/0N-*.md``) must be carried verbatim, up to typography.
+
+WP-124b: the bridges (``bridges.json``, when the season has one) are new text outside
+the bible. They must keep the bridge rules (``app.services.season.bridges``: only the
+gap's required moments, no fabricated choice, no forbidden reveal), every gap that
+holds a required moment must have one, and the file must carry its **deviation
+record** (``deviation.decision``: the owner decision it stands on), which is printed.
 Exit code 1 on any problem. No database, no model, no network.
 """
 
@@ -98,10 +105,41 @@ def check_epilogue(season_id: str) -> list[str]:
     return problems
 
 
+def check_bridges(season_id: str) -> tuple[list[str], str | None]:
+    """WP-124b: ``(problems, the deviation record line)``; ``([], None)`` with no bridges."""
+
+    from app.services.season.bridges import BRIDGES_FILE, read_bridges_file, validate_bridges
+    from app.services.season.format import load_season
+
+    if not (SEASON_ROOT / season_id / BRIDGES_FILE).is_file():
+        return [], None
+    try:
+        parsed = read_bridges_file(season_id)
+        season = load_season(season_id)
+    except (ValueError, SeasonFormatError) as exc:
+        return [f"bridges: does not parse: {exc}"], None
+    problems = validate_bridges(season, parsed.bridges if parsed else [], locations=season_location_ids())
+    bridged = {bridge.gap for bridge in (parsed.bridges if parsed else [])}
+    for gap in season.gaps.values():
+        if gap.required and gap.id not in bridged:
+            problems.append(f"bridges: gap {gap.id} holds required moments and has no bridge (it would keep the reprise)")
+    record = dict(parsed.deviation if parsed else {})
+    if not str(record.get("decision") or "").strip():
+        problems.append("bridges: new text outside the bible without a deviation record (deviation.decision)")
+    moments = sum(len(bridge.moments) for bridge in (parsed.bridges if parsed else []))
+    note = (
+        f"deviation recorded — {len(bridged)} bridge(s), {moments} moment(s), new text outside the bible: "
+        f"{record.get('decision') or '—'} (approved: {record.get('approved') or '—'})"
+    )
+    return problems, note
+
+
 def main() -> int:
     wanted = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
     season_id = "s1"
-    ids = wanted or [tid for tid in BIBLES if (SEASON_ROOT / season_id / f"{tid}.json").is_file()]
+    ids = [tid for tid in wanted if tid != "bridges"] if wanted else [
+        tid for tid in BIBLES if (SEASON_ROOT / season_id / f"{tid}.json").is_file()
+    ]
     if not wanted and (SEASON_ROOT / season_id / "epilogue.json").is_file():
         ids.append(EPILOGUE_ID)
     failures = 0
@@ -110,6 +148,15 @@ def main() -> int:
         print(f"{tid}: {'ok' if not problems else f'{len(problems)} problem(s)'}")
         for problem in problems:
             print(f"  - {problem}")
+        failures += len(problems)
+    if not wanted or "bridges" in wanted:
+        problems, note = check_bridges(season_id)
+        if note is not None or problems:
+            print(f"bridges: {'ok' if not problems else f'{len(problems)} problem(s)'}")
+            if note:
+                print(f"  {note}")
+            for problem in problems:
+                print(f"  - {problem}")
         failures += len(problems)
     return 1 if failures else 0
 

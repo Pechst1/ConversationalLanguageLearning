@@ -448,6 +448,9 @@ def routes_the_story(turn: dict[str, Any]) -> bool:
 
     if turn.get("from_solve") in ("choix", "convaincre") or turn.get("gate") or turn.get("choice"):
         return True
+    if turn.get("moment"):
+        # WP-124b: a bridge's turn stages one of the gap's required moments.
+        return True
     if turn.get("value_flag") or turn.get("sets_if"):
         return True
     return any(
@@ -456,12 +459,22 @@ def routes_the_story(turn: dict[str, Any]) -> bool:
     )
 
 
-def tentpole_brief(today: Today, context: dict[str, Any]):
-    """Today's authored page as the brief the journey plans and binds. No model call."""
+def tentpole_brief(
+    today: Today,
+    context: dict[str, Any],
+    *,
+    page: dict[str, Any] | None = None,
+    season_extra: dict[str, Any] | None = None,
+):
+    """Today's authored page as the brief the journey plans and binds. No model call.
+
+    WP-124b: the recovery serves the next tentpole (``today.pos`` moved to it) or a
+    bridge (``page`` given, a gap position) through here; ``season_extra`` marks the
+    served day (``recovery`` / ``bridge``) so :func:`settle` records it honestly."""
 
     from app.services import living_story as engine
 
-    page = page_for(today)
+    page = page if page is not None else page_for(today)
     if page is None:
         return None
     turns = projected_turns(page)
@@ -490,6 +503,7 @@ def tentpole_brief(today: Today, context: dict[str, Any]):
         # T-1: the grammar units this page uses — the Règle step reviews one of
         # them instead of introducing a unit the authored page never says.
         "units": list(tentpole_annotation(today.season.id, today.pos.key).get("units") or []),
+        **(season_extra or {}),
     }
     # One exchange per authored turn, plus one when a reply may ask the turn again
     # («Tu dis ça vite. Encore une fois ?»).
@@ -1029,12 +1043,19 @@ def settle(
         return live
     pos = _position_of(season, season_ctx.get("position") or {})
     seed = str(season_ctx.get("seed") or "")
+    extra: dict[str, Any] | None = None
     if season_ctx.get("kind") == "tentpole":
         state = _settle_tentpole(season, state, season_ctx, details, event_id=event_id, day=day_index, seed=seed)
     else:
         state = _settle_gap(season, state, season_ctx, details, event_id=event_id, day=day_index)
+    # WP-124b: a bridge stages the gap's missing moments (and may close the gap); a
+    # tentpole served by the recovery closes the gap it cut short. Both say so.
+    if isinstance(season_ctx.get("bridge"), dict):
+        state, extra = _settle_bridge(season, state, season_ctx, details, event_id=event_id, day=day_index, date_iso=date_iso)
+    elif isinstance(season_ctx.get("recovery"), dict):
+        state, extra = _settle_recovered_tentpole(season, state, season_ctx, event_id=event_id, date_iso=date_iso)
     if pos is not None:
-        state = record_played(state, pos, date_iso=date_iso, event_id=event_id)
+        state = record_played(state, pos, date_iso=date_iso, event_id=event_id, extra=extra)
     live = dict(live)
     live[SEASON_KEY] = state
     if relationships is not None:
@@ -1167,6 +1188,92 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     if gate and signal:
         state = add_signal(state, gate=gate, signal=signal, source=f"{event_id}:gap", day=day)
     return state
+
+
+def _shorten(state: dict, row: dict[str, Any]) -> dict:
+    """Record a gap the recovery closed early (once per gap)."""
+
+    from app.services.season.clock import SHORTENED_KEY
+
+    rows = [item for item in state.get(SHORTENED_KEY) or [] if isinstance(item, dict)]
+    if not any(item.get("gap") == row.get("gap") for item in rows):
+        rows.append(row)
+    state[SHORTENED_KEY] = rows
+    return state
+
+
+def _settle_bridge(
+    season: Season, state: dict, season_ctx: dict, details: dict, *, event_id: str, day: int, date_iso: str | None
+) -> tuple[dict, dict[str, Any]]:
+    """WP-124b: the bridge's moments the learner played are staged (their turns
+    answered); each staged moment's fixed fact is applied. When nothing the gap
+    requires is still owed, the gap is closed: tomorrow is the next tentpole."""
+
+    from app.services.season.director import used_premises
+
+    bridge = season_ctx.get("bridge") or {}
+    gap = season.gaps.get(str(bridge.get("gap")))
+    if gap is None:
+        return state, {"bridge": True}
+    answered = {str(row.get("turn_id")) for row in details.get("season_turns") or [] if isinstance(row, dict)}
+    rows = [row for row in state.get("premises") or [] if isinstance(row, dict)]
+    staged: list[str] = []
+    for moment in bridge.get("moments") or []:
+        premise = str(moment.get("premise") or "")
+        if not premise or not answered & {str(turn) for turn in moment.get("turns") or []}:
+            continue  # the learner never reached it: still owed
+        staged.append(premise)
+        if not any(row.get("gap") == gap.id and row.get("premise") == premise for row in rows):
+            rows.append({"gap": gap.id, "premise": premise, "day": int(day), "event_id": event_id, "bridge": True})
+        state = apply_sets(season, state, moment.get("fixed") or {}, source=f"{gap.id}/bridge/{premise}")
+    state["premises"] = rows
+    state.pop("obstacle", None)
+    owed = [need.premise for need in gap.required if need.premise not in used_premises(state, gap.id)]
+    if not owed:
+        played = sum(1 for row in state.get("played") or [] if isinstance(row, dict) and row.get("segment") == gap.id)
+        segment = next((seg for seg in season.segments if seg.id == gap.id), None)
+        state = _shorten(
+            state,
+            {
+                "gap": gap.id,
+                # This bridge day is one of the gap's played days.
+                "played_days": played + 1,
+                "nominal_days": segment.days if segment else None,
+                "via": "bridge",
+                "moments_bridged": staged,
+                "reason": str((season_ctx.get("recovery") or {}).get("reason") or "")[:120],
+                "date": date_iso,
+                "event_id": event_id,
+            },
+        )
+    return state, {"bridge": True, "moments": staged, "recovery": "bridge"}
+
+
+def _settle_recovered_tentpole(
+    season: Season, state: dict, season_ctx: dict, *, event_id: str, date_iso: str | None
+) -> tuple[dict, dict[str, Any]]:
+    """WP-124b: a tentpole Day A served after repeated failures cuts its gap short."""
+
+    recovery = season_ctx.get("recovery") or {}
+    gap_id = str(recovery.get("gap") or "")
+    segment = next((seg for seg in season.segments if seg.id == gap_id), None)
+    if segment is None or segment.kind != "gap":
+        return state, {"recovery": "tentpole"}
+    played = sum(1 for row in state.get("played") or [] if isinstance(row, dict) and row.get("segment") == gap_id)
+    state = _shorten(
+        state,
+        {
+            "gap": gap_id,
+            "played_days": played,
+            "nominal_days": segment.days,
+            "via": "tentpole",
+            "moments_bridged": [],
+            "reason": str(recovery.get("reason") or "")[:120],
+            "date": date_iso,
+            "event_id": event_id,
+        },
+    )
+    return state, {"recovery": "tentpole", "after_gap": gap_id}
 
 
 def _apply_registers(season: Season, state: dict, relationships: dict[str, Any]) -> None:

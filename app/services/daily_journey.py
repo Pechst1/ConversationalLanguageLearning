@@ -3771,10 +3771,25 @@ class DailyJourneyService:
         Served under the generation claim like any stand-in, so a reload or a
         concurrent request reads the one persisted plan. It is a learner day, not
         a season day: nothing is bound or settled, so the season does not move.
+
+        WP-124b: the next lost day in a row of the same gap is the authored
+        continuation instead (``season.recovery``): the next tentpole when its
+        prerequisites hold, else the gap's bridge — a season day, bound and settled.
         """
 
         from app.services.season.reprise import REPRISE_FALLBACK_KIND, reprise_brief
 
+        decision = run_best_effort(
+            self.db,
+            "daily_journey: season recovery decision",
+            lambda: self._season_recovery_decision(user, journey),
+            default=None,
+            log=logger,
+        )
+        if decision is not None and decision.kind in ("tentpole", "bridge"):
+            recovered = self._serve_season_recovery(user, journey, input_mode, failure, decision)
+            if recovered is None:
+                return None
         brief = run_best_effort(
             self.db,
             "daily_journey: season reprise",
@@ -3803,6 +3818,10 @@ class DailyJourneyService:
             # Generation attempts are the journey's; this day is not a season day.
             "generation_attempts": int(journey.generation_attempts or 0),
             "season_day": False,
+            # WP-124b: the gap the run of lost days is in, and this day's place in it.
+            "gap": decision.gap if decision is not None else None,
+            "failure": decision.failure if decision is not None else None,
+            "recovery": decision.reason if decision is not None else None,
             "at": _utcnow().isoformat(),
         }
         rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
@@ -3817,6 +3836,76 @@ class DailyJourneyService:
             "daily_journey: season day lost (%s); journey %s re-reads %s",
             failure.reason,
             journey.id,
+            marker["page_key"],
+        )
+        return None
+
+    def _season_recovery_decision(self, user: User, journey: DailyJourney):
+        """WP-124b: what today's lost day becomes (``None`` off a season)."""
+
+        from app.services.season.recovery import decide_today
+
+        decision, _today = decide_today(self.db, user, journey)
+        return decision
+
+    def _serve_season_recovery(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+        decision: Any,
+    ) -> _GenerationFailure | None:
+        """WP-124b: serve the next tentpole or the gap's bridge; ``None`` when it is
+        now the learner's day, else the failure (the caller re-reads instead)."""
+
+        from app.services.season.recovery import RECOVERY_FALLBACK_KIND, recovery_brief
+
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: season recovery",
+            lambda: recovery_brief(self.db, user, decision),
+            default=None,
+            log=logger,
+        )
+        if brief is None:
+            logger.error(
+                "daily_journey: season day lost (%s); the %s recovery could not be built",
+                failure.reason,
+                decision.kind,
+            )
+            return failure
+        marker = {
+            "kind": RECOVERY_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "recovery": decision.kind,
+            "gap": decision.gap,
+            "failure": decision.failure,
+            "page_key": decision.position.key if decision.position else "",
+            "moments": list(decision.missing) if decision.kind == "bridge" else [],
+            "generation_attempts": int(journey.generation_attempts or 0),
+            # A season day: bound, settled, and the gap it cuts short is recorded.
+            "season_day": True,
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: season day lost (%s); the %s recovery failed too (%s)",
+                failure.reason,
+                decision.kind,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: season day lost (%s, %s in a row in %s); journey %s serves the %s %s",
+            failure.reason,
+            decision.failure,
+            decision.gap,
+            journey.id,
+            decision.kind,
             marker["page_key"],
         )
         return None
