@@ -21,13 +21,27 @@ import pytest
 from app.core import test_clock
 from tests import experience_walk as life
 from tests import learner_walk as walk
-from tests import walk_checks, walk_checks_wp125b, walk_checks_wp126, walk_checks_wp128, walk_checks_wp129, walk_checks_wp130a, walk_checks_wp130b, walk_checks_wp131
+from tests import (
+    walk_checks,
+    walk_checks_wp124b,
+    walk_checks_wp125b,
+    walk_checks_wp126,
+    walk_checks_wp128,
+    walk_checks_wp129,
+    walk_checks_wp130a,
+    walk_checks_wp130b,
+    walk_checks_wp131,
+)
 from tests.test_learner_walk import (  # noqa: F401 - fixtures
     assembled_client,
     journey_enabled,
     production_day,
 )
 from tests.test_season_one import season_on  # noqa: F401 - fixture
+
+#: WP-124b: a forced outage — the share of days whose generated scene is lost
+#: (deterministic per life; 1 = every generated day). Off unless set.
+WALK_FAIL_RATE = float(os.environ.get("WALK_FAIL_RATE") or 0)
 
 
 @pytest.fixture
@@ -76,6 +90,10 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
     met: set[str] = set()
     placed = False
     ladder_open = True
+    # WP-124b: the forced outage's lost days (none unless WALK_FAIL_RATE is set).
+    down = life.outage_days(persona.key, quality, days, WALK_FAIL_RATE)
+    if down:
+        record["outage"] = {"rate": WALK_FAIL_RATE, "days": sorted(down)}
     for day in range(1, days + 1):
         test_clock.install()
         test_clock.set_offset_days(day - 1)
@@ -91,10 +109,15 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
         offer = client.get("/api/v1/placement/offer", headers=headers)
         today["placement_offered_at_start"] = bool(offer.status_code == 200 and offer.json().get("offer"))
         answerer = life.LifeAnswerer(quality, rng, native=persona.native)
-        transcript = walk.play_day(
-            client, db, headers, persona=persona, quality=quality, day=day, provider=provider, answerer=answerer
-        )
+        with monkeypatch.context() as outage:
+            if day in down:
+                life.director_down(provider, outage)
+            transcript = walk.play_day(
+                client, db, headers, persona=persona, quality=quality, day=day, provider=provider, answerer=answerer
+            )
         transcript["names_met_before"] = sorted(met)
+        # WP-124b: the season cursor after the day (the walk check reads it).
+        today["season"] = life.season_cursor(db, email)
         # WP-128: the plan's core estimate as Home, the plan and the ending carry it.
         today["time_budget"] = life.day_time_estimate(client, headers)
         # WP-126: the end-of-day transition — the offer surfaces right after the
@@ -168,6 +191,9 @@ def test_a_month_of_a_whole_life(
     problems += walk_checks_wp129.check_life_wp129(record)
     # WP-130 B: every held unit earned «Tenue» with unassisted, spaced evidence.
     problems += walk_checks_wp130b.check_held_evidence_chain(record)
+    if WALK_FAIL_RATE:
+        # WP-124b: under a forced outage, lost days never stall the season.
+        problems += walk_checks_wp124b.check_life_wp124b(record)
     transcripts = [day["journey"] for day in record["days"]]
     problems += walk_checks.run_all(transcripts, db=db_session)
     assert not problems, "\n".join(problems[:60]) + (f"\n… {len(problems) - 60} more" if len(problems) > 60 else "")

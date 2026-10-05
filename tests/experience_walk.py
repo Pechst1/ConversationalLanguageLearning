@@ -563,6 +563,60 @@ def grammar_life(db: Session, email: str) -> list[dict[str, Any]]:
     ]
 
 
+def season_cursor(db: Session, email: str) -> dict[str, Any]:
+    """WP-124b: where the learner's season stands after the day (``{}`` off a season):
+    how many season days were played, the last one, and the gaps cut short."""
+
+    from app.db.models.user import User
+    from app.services import living_story as engine
+    from app.services.season.clock import SEASON_KEY, played_log, shortened_gaps
+
+    user = db.query(User).filter(User.email == email).one()
+    thread = engine._active_thread(db, user)
+    if thread is not None:
+        db.refresh(thread)
+    state = (((thread.state or {}) if thread else {}).get(engine.STATE_KEY) or {}).get(SEASON_KEY) or {}
+    if not isinstance(state, dict) or not state.get("id"):
+        return {}
+    log = played_log(state)
+    return {
+        "id": state["id"],
+        "played": len(log),
+        "last": log[-1].get("key") if log else None,
+        "shortened": sorted(shortened_gaps(state)),
+        "premises": len(state.get("premises") or []),
+    }
+
+
+def outage_days(persona_key: str, quality: str, days: int, rate: float) -> set[int]:
+    """WP-124b: the days a forced outage loses (deterministic per life). ``rate`` ≥ 1
+    loses every generated day; 0 none. Read from ``WALK_FAIL_RATE`` by the life walk."""
+
+    if rate <= 0:
+        return set()
+    return {
+        day
+        for day in range(1, days + 1)
+        if rate >= 1 or random.Random(f"outage-{persona_key}-{quality}-{day}").random() < rate
+    }
+
+
+def director_down(provider: Any, monkeypatch: Any) -> None:
+    """Every scene draft refused for the rest of ``monkeypatch``'s context (the
+    WP-124a test's forced failure: a guard refuses the draft)."""
+
+    from app.services import living_story as engine
+
+    original = provider.generate_chat_completion
+
+    def refused(messages, **kwargs):
+        if json.loads(messages[0]["content"])["output_schema"]["title"] == "SceneDraft":
+            raise engine.StoryUnavailable("walk outage: forced")
+        return original(messages, **kwargs)
+
+    monkeypatch.setattr(provider, "generate_chat_completion", refused)
+
+
 # ---------------------------------------------------------------------------
 # Time: what a minute of each step costs this learner
 # ---------------------------------------------------------------------------
@@ -818,9 +872,12 @@ __all__ = [
     "cahier",
     "courrier",
     "day_time_estimate",
+    "director_down",
     "drill",
     "la_une",
+    "outage_days",
     "register_as_onboarding",
+    "season_cursor",
     "take_band_checks",
     "take_placement",
     "time_drill",
