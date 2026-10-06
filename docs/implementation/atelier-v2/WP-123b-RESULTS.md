@@ -45,7 +45,7 @@ The walk records the séance and times it on the journey's clock (`time_forge`).
 - no English reaches a German learner;
 - a give-up is never graded correct.
 
-**The run.** `WALK_FORGE=1`, all 15 lives: **15 failed**, in 29 min 54 s. The first 10 minutes overlapped another 5-life run. The failures, counted over the records offline:
+**The run.** `WALK_FORGE=1`, all 15 lives: **15 failed**. I ran it twice. The second run was alone and took **33 min 51 s**, against about 18 min for the default walk. It reproduced every finding below: the same six demotions and the same day-30 levels within noise. The failures, counted over the records offline:
 
 | Problem | Lives | Owner |
 |---|---|---|
@@ -328,10 +328,10 @@ venv/bin/python -m scripts.audit_experience_review_rows --apply --backup prod-re
 |---|---|
 | `pytest tests/test_wp123b_clock_defaults.py tests/test_wp123b_workload_sim.py tests/test_wp123b_audit_rows.py tests/test_walk_checks_wp123b.py` | 4 + 9 + 5 + 8 = 26 passed |
 | default life walk, 15 lives (`-k average`, then `-k "strong or struggling"`) | 5 passed (10 min 30 s) + 10 passed (10 min 51 s), run concurrently with other work |
-| `WALK_FORGE=1` life walk, 15 lives | 15 failed on the defects in §1.1 (29 min 54 s; the default walk is ~18 min alone) |
+| `WALK_FORGE=1` life walk, 15 lives (twice) | 15 failed on the defects in §1.1; 33 min 51 s alone, against the default walk's ~18 min. The atelier's background pre-generation logs 6,157 harmless failures: it opens the app's real `SessionLocal` (`localhost:5432`), not the test database, a test-isolation item for E-2 |
 | `WALK_FAIL_RATE=1 … -k b1-en-average` | 1 passed (59 s) |
 | `python -m scripts.simulate_workload_365` | 4 scenarios × 15 lives × 365 days in about 10 s |
-| full backend suite | see the final report |
+| full backend suite | 6,494 passed, 29 skipped, 12 failed in 20 min 7 s. 9 are the baseline (wp69 ×5, revue_relecture, wp96 ×2, wp74). wp78 and wp91 depend on test order and pass alone (as in Wave 2). `test_wp131…season_lexicon_file_is_current` fails on the base's bible and lexicon hash: the lexicon needs `scripts/build_season_lexicon.py` after Wave 3's bible edits. None of the 12 touches this package's files |
 
 ## 5. Patches outside the lease (for the orchestrator)
 - **[`WP-123b-forecast-credit.patch`](WP-123b-forecast-credit.patch).** It adds a provenance filter to `app/services/level_forecast.measured_intake`, so the check's credited cards are neither intake nor retention, plus its test `tests/test_wp123b_forecast_credit.py`. I proved it in this worktree: the new test passes with the patch and fails without it, and `test_wp_l8_forecast` and `test_wp_l8_seal_forecast` still pass. Then I reverted it.
