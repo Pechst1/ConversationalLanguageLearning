@@ -1,0 +1,96 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.26165399999999994,
+  "calls": 73,
+  "cap": 0.6
+ },
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Une tradition pas trop cuite",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "La même chose ?",
+   "uses": 4,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+   "title": "Romy pose la question",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "Le matin au zinc — complication",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "La promesse au zinc",
+   "uses": 2,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Une proposition au zinc",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Le premier matin — clôture",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "La décision au zinc",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Le carnet d'Odile",
+   "uses": 5,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Le plan d'Odile",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.5 twice; accepted and logged (Respect the learner's earlier choice about the flat (s1.flat_decision = \"sell\"): don't present a page that asks the learner to commit to staying in a way that contradicts that flag; instead allow an answer that fits selling or explain the tension.; Show the open_obstacle visibly and someone dealing )",
+  "living_story: story critic refused g2.1 twice; accepted and logged (Add a turn that actually changes something on the page (a spoken yes or no, or a visible small action) so the episode contains a real value turn.; Ensure the day ends with a visible, meaningful change (Marin starting a spreadsheet, tucking the page away, or a first tu) so the episode isn't a null da)"
+ ]
+}

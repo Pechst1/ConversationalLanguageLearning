@@ -1,0 +1,16 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.15674399999999997,
+  "calls": 35,
+  "cap": 0.4
+ },
+ "weaves": [],
+ "failures": [
+  "daily_journey: season day lost (wrong_beat); journey 6bf42157-7a17-4d3c-bb05-efb0c7416196 re-reads t4.b",
+  "daily_journey: season day lost (wrong_beat, 2 in a row in g4); journey 77c7ef28-0144-4879-aba7-057afcac62e3 serves the bridge g4.1",
+  "daily_journey: season day lost (objective_too_thin); journey 79dc3826-6fc3-4aaa-aad2-26e90ad0fe00 re-reads t5.b",
+  "daily_journey: season day lost (chapter_not_advanced, 2 in a row in g5); journey ef55b157-ef22-43ba-9bf9-6c33e8715a52 serves the tentpole t6.a"
+ ]
+}
