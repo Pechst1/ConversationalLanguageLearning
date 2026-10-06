@@ -45,7 +45,6 @@ cryptography==46.0.3
 cymem==2.0.13
 defusedxml==0.7.1
 dnspython==2.8.0
-ebooklib==0.20
 ecdsa==0.19.1
 email-validator==2.3.0
 fastapi==0.121.2
@@ -67,7 +66,6 @@ jmespath==1.1.0
 joblib==1.5.3
 kombu==5.5.4
 loguru==0.7.3
-lxml==6.1.3
 mako==1.3.10
 markdown-it-py==4.2.0
 markupsafe==3.0.3
@@ -93,7 +91,7 @@ pydantic==2.12.4
 pydantic-core==2.41.5
 pydantic-settings==2.12.0
 pygments==2.19.2
-pymupdf==1.28.2
+pypdf==6.19.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-jose==3.5.0

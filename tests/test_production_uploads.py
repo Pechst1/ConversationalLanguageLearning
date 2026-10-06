@@ -82,3 +82,36 @@ def test_epub_expansion_is_limited_before_optional_parser_imports():
         archive.writestr("huge.html", b"a" * 40_000_001)
     with pytest.raises(ValueError, match="unpacked size"):
         BookParserService(None)._extract_epub_text(content.getvalue())
+
+
+def test_epub_text_follows_the_spine_without_an_agpl_parser():
+    content = BytesIO()
+    with ZipFile(content, "w", ZIP_DEFLATED) as archive:
+        archive.writestr("mimetype", "application/epub+zip")
+        archive.writestr(
+            "META-INF/container.xml",
+            '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+            '<rootfile full-path="OEBPS/content.opf"/></rootfiles></container>',
+        )
+        archive.writestr(
+            "OEBPS/content.opf",
+            '<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+            '<item id="b" href="text/b.xhtml"/><item id="a" href="text/a.xhtml"/>'
+            '</manifest><spine><itemref idref="a"/><itemref idref="b"/></spine></package>',
+        )
+        archive.writestr("OEBPS/text/a.xhtml", "<html><body><p>Chapitre un.</p></body></html>")
+        archive.writestr("OEBPS/text/b.xhtml", "<html><body><p>Chapitre deux.</p></body></html>")
+    text = BookParserService(None)._extract_epub_text(content.getvalue())
+    assert text.index("Chapitre un.") < text.index("Chapitre deux.")
+
+
+def test_pdf_text_uses_pypdf_and_rejects_a_broken_file():
+    from pypdf import PdfWriter
+
+    content = BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.write(content)
+    assert BookParserService(None)._extract_pdf_text(content.getvalue()) == ""
+    with pytest.raises(ValueError, match="Invalid PDF"):
+        BookParserService(None)._extract_pdf_text(b"not a pdf")
