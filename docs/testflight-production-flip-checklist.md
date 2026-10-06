@@ -10,14 +10,22 @@ below is the repeatable release contract for `com.pixellab.feuilleton`.
 - Keep `AUTO_CREATE_USERS_ON_LOGIN=false`.
 - Keep `PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=false`.
 - Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM_EMAIL`, credentials, and TLS.
-- Point `PASSWORD_RESET_BASE_URL` at the publicly reachable reset page and complete
-  one end-to-end reset from the emailed link.
+- Complete one end-to-end reset with the emailed six-digit code. Leave
+  `PASSWORD_RESET_BASE_URL` unset until a public web reset page exists; once it
+  is set, also complete one reset from the emailed link.
+- Set `ATELIER_DAILY_JOURNEY_COHORT` (blank refuses to boot in production).
+- Keep `REGISTRATION_OPEN=false` and list every pilot account in
+  `REGISTRATION_ALLOWED_EMAILS`; production logs a warning while sign-up is open.
+- Review the spend bounds (`USER_DAILY_SPEND_CAP_USD`,
+  `PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD`, `ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD`;
+  see `docs/production-hardening.md` §Configuration).
 - Set the final `BACKEND_CORS_ORIGINS`, including `capacitor://localhost`.
 - Run migrations and confirm `/health` and datastore-aware `/ready` both return 200.
 - Run `python scripts/pilot_digest.py --day YYYY-MM-DD` and inspect failures/cost.
 
 The API startup guard refuses production if auto-created users, reset-token echoing,
-or required SMTP settings remain unsafe.
+the test clock, a blank journey cohort, or missing SMTP settings remain unsafe.
+`render.yaml` is the canonical configuration; `.env.prod.example` mirrors it.
 
 ## 2. Production native build
 
@@ -32,7 +40,8 @@ npm run cap:sync:ios
 - Set the Xcode signing team and verify the bundle ID is
   `com.pixellab.feuilleton`.
 - Confirm Push Notifications capability and the `aps-environment` entitlement.
-- Set backend `APNS_USE_SANDBOX=false` for TestFlight tokens.
+- Confirm backend `APNS_USE_SANDBOX=false` on both API and worker for TestFlight
+  tokens (the `render.yaml` and `.env.prod.example` default).
 - Sign in, complete one session, grant the staged notification prompt, and confirm
   the token appears in `push_subscriptions`.
 - Force one first-party client error in a private build and confirm it appears as a
