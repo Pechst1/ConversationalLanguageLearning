@@ -83,7 +83,14 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
-from app.services.scene_items import draft_of, lexicon_of, line_meanings, meaning_of, scene_lines
+from app.services.scene_items import (
+    answer_at_band,
+    draft_of,
+    lexicon_of,
+    line_meanings,
+    meaning_of,
+    scene_lines,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -4400,7 +4407,9 @@ def add_listening_items(
     candidates = [
         line
         for line in dictation_lines(scenario)
+        # Practice band: a dictated line is written whole; it stays at the band.
         if DICTATION_MIN_WORDS <= len(line.text_fr.split()) <= limit
+        and answer_at_band(line.text_fr, scenario.level_band)
     ]
     if not candidates:
         return placed
@@ -4779,6 +4788,10 @@ def _plan_practice_day(
         scenario.setup_fr, scene_line, *(line.text_fr for line in scene_lines(scenario))
     )
     expected = task.suggested_response_fr
+    # Practice band: a scene sentence becomes an answer (a rebuilt line, a
+    # rule's guided item); one holding a word above the learner's band is read,
+    # never posed. Dropped, not replaced.
+    sentences = [line for line in sentences if answer_at_band(line, scenario.level_band)]
     # A sentence rebuilt *before* the reply must not be the reply.
     safe_sentences = [line for line in sentences if not line_spoils_reply(line, expected)]
 

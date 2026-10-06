@@ -125,7 +125,10 @@ def test_a_generated_scene_carries_three_to_five_validated_words(
     clock.advance(days=1)
     d.create()
     later = [p for schema, p in lexicon_provider.calls if schema == "SceneDraft"][-1]
-    assert set(later["lexicon_history"]) >= {"pluie", "vitre", "idée"}
+    assert set(later["lexicon_history"]) >= {"pluie", "idée"}
+    # Practice band: «vitre» (B1) is read in an A1 scene with its gloss, but it
+    # is not recorded as taught — a recorded word is practised and drilled.
+    assert "vitre" not in later["lexicon_history"]
 
 
 def _stored_lexicon(db_session, d) -> list[dict]:
