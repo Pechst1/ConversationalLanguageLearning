@@ -3148,6 +3148,10 @@ def _same_word_two_forms(left: str, right: str) -> bool:
     return bool(a) and bool(b) and a[0] == b[0]
 
 
+#: The learner's own person in a recurring sentence (folded: «j'», «m'» read «j», «m»).
+_LEARNER_FIRST_PERSON = frozenset({"je", "j", "me", "m", "moi", "mon", "ma", "mes"})
+
+
 def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> tuple[str, str]:
     """The character's line, and which move it is.
 
@@ -3169,7 +3173,18 @@ def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> 
             for index, (left, right) in enumerate(zip(wrong_tokens, correct_tokens, strict=True))
             if fold_for_comparison(left) != fold_for_comparison(right)
         ]
-        if len(differing) == 1 and _same_word_two_forms(wrong_tokens[differing[0]], correct_tokens[differing[0]]):
+        # WP-133b finding 4: the choice is read in the character's voice, so a
+        # sentence in the learner's own first person («Pardon, je reste ou resterai
+        # encore un peu ?») becomes the character asking about themselves. Those
+        # recurrences get the request to say it again instead.
+        first_person = bool(
+            _LEARNER_FIRST_PERSON & {word for token in correct_tokens for word in _folded_tokens(token)}
+        )
+        if (
+            len(differing) == 1
+            and not first_person
+            and _same_word_two_forms(wrong_tokens[differing[0]], correct_tokens[differing[0]])
+        ):
             index = differing[0]
             first, second = sorted(
                 (wrong_tokens[index], correct_tokens[index]), key=lambda item: fold_for_comparison(item)
@@ -3877,6 +3892,27 @@ def _evaluate_response(
             )
             if lexical:
                 return "reply_lexical_level", lexical
+            # WP-133b findings 3 and 4, the same guards as the story's voice lane:
+            # no echo of the learner, no agreement with a gender they never gave.
+            # A refusal here retries once, then the authored line is served.
+            from app.services import lane_guards
+            from app.services.living_story import StoryUnavailable, learner_address
+
+            echo = lane_guards.echo_hit(candidate, text)
+            if echo is not None:
+                return (
+                    "reply_echoes_learner",
+                    f"The reply repeats the learner's words («{echo[:120]}»). React to "
+                    "them in your own words; never repeat them or ask their question back.",
+                )
+            try:
+                lane_guards.check_agreement(
+                    [candidate],
+                    learner_address(user)["address"],
+                    own=lane_guards.learner_own_forms([text, *_learner_history_texts(history)]),
+                )
+            except StoryUnavailable as exc:
+                return str(exc), exc.feedback
             return None
 
         missing = [name for name in required if name not in hit]
