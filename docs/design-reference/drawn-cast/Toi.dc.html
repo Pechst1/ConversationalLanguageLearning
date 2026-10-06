@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Toi, de dos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<svg viewBox="{{vb}}" width="{{pw}}" height="{{ph}}" style="display: block">
+<path d="M86,366 L86,392 M114,366 L114,392" fill="none" style="stroke: #14285f; stroke-width: 13; stroke-linecap: round"></path>
+<ellipse cx="85" cy="399" rx="12" ry="6" fill="#14110d"></ellipse>
+<ellipse cx="115" cy="399" rx="12" ry="6" fill="#14110d"></ellipse>
+<path d="M52,196 Q40,250 46,296" fill="none" style="stroke: #5b5346; stroke-width: 18; stroke-linecap: round"></path>
+<circle cx="46" cy="303" r="8" fill="#2a231c"></circle>
+<path d="M50,190 Q56,168 80,166 L120,166 Q144,168 150,190 L160,360 Q160,372 148,372 L52,372 Q40,372 40,360 Z" fill="#5b5346"></path>
+<path d="M100,306 L100,372" fill="none" style="stroke: #4a4338; stroke-width: 2"></path>
+<path d="M70,288 L130,288 L130,297 L70,297 Z" fill="#4a4338"></path>
+<circle cx="76" cy="292.5" r="2.4" fill="#2a231c"></circle>
+<circle cx="124" cy="292.5" r="2.4" fill="#2a231c"></circle>
+<path d="M148,196 Q160,250 154,296" fill="none" style="stroke: #5b5346; stroke-width: 18; stroke-linecap: round"></path>
+<path d="M148,312 Q154,300 160,312" fill="none" style="stroke: #14110d; stroke-width: 3.5; stroke-linecap: round"></path>
+<path d="M138,312 L182,312 Q186,312 186,316 L186,354 Q186,358 182,358 L138,358 Q134,358 134,354 L134,316 Q134,312 138,312 Z" fill="#8a5a32"></path>
+<path d="M146,312 L146,358 M174,312 L174,358" fill="none" style="stroke: #4a3020; stroke-width: 3"></path>
+<circle cx="154" cy="303" r="8" fill="#2a231c"></circle>
+<g transform="translate(100 150)">
+<animateTransform attributeName="transform" type="translate" values="100 150; 100 148.6; 100 150" dur="4s" repeatCount="indefinite"></animateTransform>
+<path d="M-30,10 Q0,26 30,10 L34,36 Q0,50 -34,36 Z" fill="#4a4338"></path>
+<path d="M-28,20 Q0,34 28,20 L28,28 Q0,42 -28,28 Z" fill="#9c2411"></path>
+<path d="M-38,10 C-40,-34 -20,-48 0,-48 C20,-48 40,-34 38,10 Z" fill="#1d3a8a"></path>
+<path d="M-39,-2 L39,-2 L39,12 L-39,12 Z" fill="#14285f"></path>
+<path d="M-26,-2 L-26,12 M-13,-2 L-13,12 M0,-2 L0,12 M13,-2 L13,12 M26,-2 L26,12" fill="none" style="stroke: #1d3a8a; stroke-width: 2"></path>
+<circle cx="0" cy="-52" r="11" fill="#f8f3e8"></circle>
+</g>
+</svg>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"crop":{"editor":"enum","options":["full","bust"],"default":"full"},"w":{"editor":"int","default":200,"min":40,"max":800},"$preview":{"width":200,"height":420}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const w = Number(p.w ?? 200);
+    const VB = { full: [0, 0, 200, 420], bust: [10, 80, 180, 256] };
+    const v = VB[p.crop ?? "full"] || VB.full;
+    return { vb: v.join(" "), pw: w, ph: Math.round((w * v[3]) / v[2]) };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1578 @@
+{
+  "id": "t8",
+  "number": 8,
+  "title_fr": "Ce qu'on garde",
+  "intent": "The season finale, in three endings. Each one answers the central question («tu le gardes, tu le partages, ou tu le laisses partir ?»), each has a cost somebody pays, and in each the apartment gives up Odile's letter, which points somewhere else. All three are good endings. None of them is the one where you «lost». Lila leaves in every ending. What the endings change is what she leaves behind. Every ending closes the café question and opens the same season 2 question through a different door: the painting is in your hands, hidden by Gus, or lost in Paris. Season 2 can therefore be written once, with three first episodes.",
+  "state_in": [
+    "Days 58–59 · Thursday 7 and Friday 8 January, the day of Lila's train and the end of Solvel's offer.",
+    "Ending 1 · Garder. Requires: evidence_shared = marchand_only · Margaux persuaded in T7 · flat = keep. The cost: Marchand leaves the building he lived in for 41 years. Margaux still carries the café alone. Who «wins» the argument: Gus: everything stays.",
+    "Ending 2 · Partager. Requires: the truth made public (fire_photo = wall or evidence_shared = public) · Gus persuaded in T7 · flat = coop. The cost: You give up the flat. Gus loses the café of his childhood as it was. Who «wins» the argument: Marin: it changes so it can survive.",
+    "Ending 3 · Laisser partir. Requires: chosen in T7, with Margaux: flat = sell. The cost: The group loses its home. Who «wins» the argument: Lila: nobody holds anybody back.",
+    "Each ending runs over two days. Day A · Thursday 7 January: the ending's page, your turn, and at night the apartment yields Odile's letter; the mid-point hook is the letter's last line. Day B · Friday 8 January: the platform at 9:55, then the painting and «À suivre…». Lila leaves in every ending. What the endings change is what she leaves behind.",
+    "Ending 1 · What happened in T6/T7: You showed Marchand, and only Marchand, Odile's notebook page: «J'ai demandé à Margaux de mentir. C'est ma faute, pas la sienne.» He withdrew the complaint and renewed Margaux's lease for nine years. To pay for a place in a residence without stairs, he sold his floors above the café to Solvel. He kept the café's walls, so Margaux's rent now pays for his residence. You kept the flat and are moving in. The café stays exactly as it was. The secret stays inside four people.",
+    "Ending 2 · What happened in T6/T7: The truth is public: Romy's article, published with your consent, «Le feu du Mistral : une histoire de loyauté». The quartier came. Odile's forty pledges became 212 members of «Le Mistral à nous». Marchand sold the walls to the co-op and not to Solvel, for less, because Odile's notebook had his line: «oui, si Margaux reste». The fire damage was paid from the sale of your flat to the co-op at a low price. The flat is now the co-op's workshop, with painting classes for children in the afternoon, and the meeting room. You rent the little room under the roof from the co-op.",
+    "Ending 3 · What happened in T6/T7: In T7, Margaux said the sentence she had never said: «Je veux voir la mer avant d'être vieille. Enfin… plus vieille.» You chose with her to let it go. You sold the flat to Solvel, and the price paid the fire damage and the insurer. Solvel's compensation cleared Margaux's debts. Le Mistral closes tonight. The group loses its home.",
+    "The painting above the zinc: a small oil, «Le Mistral sur le canal»: the café's corner in a strong wind, signed «L.». It has hung above the zinc for as long as anyone remembers. All season Lila has had a running line about it: «Pas mal. Mais la lumière est fausse.» The reason is that it was painted from above, from Odile's window.",
+    "On the back of the painting (read in ending 1, glimpsed in 2, lost in 3): in ink: «Pour Odile, qui part. — L., 1970»; in pencil, in a shaky recent hand: «Toujours rue de Lancry. — L., 2021»."
+  ],
+  "flags_read": [
+    "s1.evidence_shared",
+    "s1.fire_photo",
+    "s1.gus_persuaded",
+    "s1.margaux_persuaded",
+    "s1.flat_decision",
+    "s1.lila_path",
+    "s1.lila_has_key",
+    "s1.kiss",
+    "s1.gus_photo",
+    "romy.footage",
+    "marchand.knows_why",
+    "user.return_ticket"
+  ],
+  "days": [
+    {
+      "day": "a",
+      "variant": "garder",
+      "when": {"s1.ending": "garder"},
+      "story_date_fr": "jeudi 7 janvier",
+      "title_fr": "Ce qu'on garde",
+      "location_id": "le_mistral",
+      "minutes": 8,
+      "can_do": {
+        "en": "Say goodbye to a place and to people; read a personal letter.",
+        "de": "Sich von einem Ort und von Menschen verabschieden; einen persönlichen Brief lesen.",
+        "fr": "Dire au revoir à un lieu et à des personnes ; lire une lettre personnelle."
+      },
+      "lexicon": [
+        {"surface_fr": "fermez", "lemma": "fermer", "gloss": {"en": "to close, to lock", "de": "schließen, abschließen"}, "part_of_speech": "verb"},
+        {"surface_fr": "clé", "lemma": "clé", "gloss": {"en": "key", "de": "Schlüssel"}, "part_of_speech": "noun", "gender": "f"},
+        {
+          "surface_fr": "merci pour tout",
+          "lemma": "merci pour tout",
+          "gloss": {"en": "thanks for everything", "de": "danke für alles"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "première maison",
+          "lemma": "maison",
+          "gloss": {"en": "home, house", "de": "Zuhause, Haus"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {"surface_fr": "heureuse", "lemma": "heureux", "gloss": {"en": "happy", "de": "glücklich"}, "part_of_speech": "adjective"},
+        {"surface_fr": "j'oublie", "lemma": "oublier", "gloss": {"en": "to forget", "de": "vergessen"}, "part_of_speech": "verb"},
+        {"surface_fr": "laissé", "lemma": "laisser", "gloss": {"en": "to leave (behind)", "de": "zurücklassen"}, "part_of_speech": "verb"},
+        {"surface_fr": "quelqu'un", "lemma": "quelqu'un", "gloss": {"en": "someone", "de": "jemand"}, "part_of_speech": "pronoun"}
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "e1.a.p1",
+          "visual": "Morning. Gus on a ladder by the door, screwing up a brass plaque: «LE MISTRAL · DEPUIS 1951». Marin holds the ladder with both hands, as he held the chair in T4.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque"],
+          "diegetic": ["LE MISTRAL · DEPUIS 1951"],
+          "lines": [
+            {"who": "augustin_de_roncourt", "say": {"a2": "Plus haut ? Plus bas ?", "native": {"en": "Higher? Lower?", "de": "Höher? Tiefer?"}}},
+            {"who": "marin_leveque", "say": {"a2": "Plus droit.", "native": {"en": "Straighter.", "de": "Gerader."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e1.a.p2",
+          "visual": "Inside, at the zinc. Margaux and M. Marchand on either side of a nine-year lease. They sign without looking at each other, then they look at each other.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "landlord_marchand"],
+          "lines": [
+            {"who": "margaux_barman", "say": {"a2": "Un café ?", "native": {"en": "A coffee?", "de": "Einen Kaffee?"}}},
+            {
+              "who": "landlord_marchand",
+              "direction": "beat",
+              "say": {"a2": "…Un crème.", "native": {"en": "…A café crème.", "de": "…Einen Café crème."}}
+            }
+          ],
+          "note": "A café crème was Odile's order (T4, P3). Nobody remarks on it."
+        },
+        {
+          "kind": "panel",
+          "id": "e1.a.p3",
+          "visual": "The pavement outside. Movers carry Marchand's furniture past the café window: a dresser, a clock, a framed wedding photograph. A white van with the Solvel logo stands at the kerb. In the café window, Gus's plaque shines.",
+          "location_id": "quai_de_valmy",
+          "silence": true
+        },
+        {
+          "kind": "turn",
+          "id": "e1.a.turn1",
+          "to": "landlord_marchand",
+          "panel": {
+            "kind": "panel",
+            "id": "e1.a.p4",
+            "visual": "Marchand on the pavement with the last box, his ring of old keys lighter by two. Camille loads the car behind him (the Camille panel). He turns to Toi.",
+            "location_id": "quai_de_valmy",
+            "in_frame": ["landlord_marchand", "camille_marchand", "toi"],
+            "lines": [
+              {
+                "who": "landlord_marchand",
+                "say": {"a2": "Et vous ? Vous restez ?", "native": {"en": "And you? Are you staying?", "de": "Und Sie? Bleiben Sie?"}}
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Tell him whether you're staying, and what Odile's flat is to you now. He is the one who pays for everything staying the same.",
+            "de": "Sag ihm, ob du bleibst und was Odiles Wohnung jetzt für dich ist. Er ist derjenige, der dafür bezahlt, dass alles bleibt, wie es ist.",
+            "fr": "Dis-lui si tu restes, et ce que l'appartement d'Odile est pour toi maintenant. C'est lui qui paie pour que tout reste pareil."
+          },
+          "listens_for": "Whether the learner is staying, and what Odile's flat is to them now: staying, not knowing, staying for oneself and for him, or sorry that he leaves because of them.",
+          "fallback": "b",
+          "sets": {"s1.painting": "with_you"},
+          "replies": [
+            {
+              "id": "a",
+              "label": "Staying, living upstairs",
+              "means": "The learner is staying: they live upstairs now.",
+              "examples": ["Oui. Je reste. J'habite en haut maintenant."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e1.a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Alors fermez bien la fenêtre de la cuisine. Elle ne ferme pas. Elle n'a jamais fermé.",
+                        "b1": "Alors fermez bien la fenêtre de la cuisine. Elle ferme mal. Elle a toujours mal fermé.",
+                        "native": {
+                          "en": "Then close the kitchen window properly. It doesn't close. It never has.",
+                          "de": "Dann schließen Sie das Küchenfenster gut. Es schließt nicht. Es hat nie geschlossen."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "He knows that kitchen. Six years of Sundays."
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "I don't know",
+              "means": "The learner does not know whether they are staying.",
+              "examples": ["Je ne sais pas."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e1.a.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Elle non plus, elle ne savait pas. Elle est restée quatorze ans.",
+                        "native": {
+                          "en": "She didn't know either. She stayed fourteen years.",
+                          "de": "Sie wusste es auch nicht. Sie ist vierzehn Jahre geblieben."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: staying for oneself and a little for him, and asking whether he will come on Sundays.",
+              "examples": ["Je reste… pour elle ? Non. Pour moi. Et un peu pour vous. Vous venez le dimanche ?"],
+              "clumsy": true,
+              "sets": {"marchand.sundays": true},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e1.a.turn1.c.r1",
+                  "visual": "The «softened» expression, a small reluctant nod.",
+                  "in_frame": ["landlord_marchand"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "e1.a.turn1.c.r2",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Le dimanche… On verra. Il y a le bus 46.",
+                        "native": {"en": "Sundays… We'll see. There's the 46 bus.", "de": "Sonntags… Mal sehen. Es gibt den Bus 46."}
+                      }
+                    }
+                  ],
+                  "note": "The Sunday lunches pass from Odile to her grandchild. This is the best version of the ending."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Sorry: you're leaving because of us",
+              "means": "The learner apologises: he is leaving because of them.",
+              "examples": ["Pardon. Vous partez à cause de nous."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e1.a.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Non. Je pars à cause de l'escalier.",
+                        "native": {"en": "No. I'm leaving because of the stairs.", "de": "Nein. Ich gehe wegen der Treppe."}
+                      }
+                    },
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Et un peu à cause de vous. Ce n'est pas grave.",
+                        "native": {"en": "And a little because of you. It's not serious.", "de": "Und ein bisschen wegen Ihnen. Das ist nicht schlimm."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {"kind": "include", "ref": "camille"},
+        {
+          "kind": "panel",
+          "id": "e1.a.r1",
+          "visual": "That evening, the booth, exactly as it has always been. Everyone is there: Lila's last evening. Gus stands with his glass raised.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet", "margaux_barman", "romy_tremblay"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "say": {"a2": "À ce qui ne change pas !", "native": {"en": "To what doesn't change!", "de": "Auf das, was sich nicht ändert!"}}
+            },
+            {
+              "who": "romy_tremblay",
+              "say": {
+                "a2": "Tout change, Gus.",
+                "b1": "Tout change, Gus. C'est juste plus lent ici.",
+                "native": {"en": "Everything changes, Gus.", "de": "Alles ändert sich, Gus."}
+              }
+            },
+            {"who": "augustin_de_roncourt", "say": {"a2": "Pas ce soir.", "native": {"en": "Not tonight.", "de": "Nicht heute Abend."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e1.a.r2",
+          "visual": "Two in the morning. Margaux alone, counting the till under one lamp. The stool at the end of the zinc, Odile's stool, is empty. This is the cost: nothing changed, including the fact that she carries this alone.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "e1.a.r3",
+          "visual": "Toi's first night living upstairs. The radiator is cold (the season's oldest joke). Toi kneels and hits it, as Marin taught Toi. Behind the valve, something taped to the wall shifts and slides: an envelope.",
+          "location_id": "odile_flat",
+          "in_frame": ["toi"]
+        },
+        {
+          "kind": "panel",
+          "id": "e1.a.r3.friendship",
+          "visual": "Lila on the phone, packing.",
+          "location_id": "marin_lila_flat",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Lis-le-moi. Tout. Lentement.", "native": {"en": "Read it to me. All of it. Slowly.", "de": "Lies ihn mir vor. Alles. Langsam."}}
+            }
+          ],
+          "when": {"path": ["friendship", "open"]},
+          "note": "Friendship path (an open path reads this too). Placed before the letter: she asks to hear it."
+        },
+        {"kind": "include", "ref": "letter"},
+        {
+          "kind": "panel",
+          "id": "e1.a.r3.romance",
+          "visual": "Lila came up at midnight to say goodbye and is reading over Toi's shoulder. When Toi reaches «quelqu'un», her hand finds Toi's sleeve.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true,
+          "when": {"path": "romance"},
+          "note": "Romance path. Placed after the reading: her hand finds the sleeve at «quelqu'un»."
+        },
+        {
+          "kind": "hook",
+          "id": "e1.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "e1.a.mid",
+            "visual": "The last line of the letter, alone on the panel: «Pour l'autre, regarde derrière le tableau du Mistral.» Through the floor, the café is dark, and the painting hangs on its nail directly below Toi.",
+            "location_id": "odile_flat",
+            "in_frame": ["toi"],
+            "silence": true,
+            "diegetic": ["Pour l'autre, regarde derrière le tableau du Mistral."],
+            "lines": [
+              {
+                "who": "letter",
+                "say": {
+                  "a2": "Pour l'autre, regarde derrière le tableau du Mistral.",
+                  "native": {"en": "For the other, look behind the painting of Le Mistral.", "de": "Für das andere schau hinter das Gemälde des Mistral."}
+                }
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Le tableau est juste en dessous. Demain matin, Lila part. À suivre…",
+                  "native": {
+                    "en": "The painting is right below. Tomorrow morning, Lila leaves. To be continued…",
+                    "de": "Das Gemälde hängt direkt darunter. Morgen früh reist Lila ab. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "garder",
+      "when": {"s1.ending": "garder"},
+      "story_date_fr": "vendredi 8 janvier",
+      "title_fr": "Derrière le tableau",
+      "location_id": "gare_de_lest",
+      "minutes": 6,
+      "can_do": {
+        "en": "Say goodbye to someone you love; read a short inscription and understand where it leads.",
+        "de": "Sich von jemandem verabschieden, den man liebt; eine kurze Inschrift lesen und verstehen, wohin sie führt.",
+        "fr": "Dire au revoir à quelqu'un qu'on aime ; lire une courte inscription et comprendre où elle mène."
+      },
+      "lexicon": [
+        {"surface_fr": "train", "lemma": "train", "gloss": {"en": "train", "de": "Zug"}, "part_of_speech": "noun", "gender": "m"},
+        {"surface_fr": "revenir", "lemma": "revenir", "gloss": {"en": "to come back", "de": "zurückkommen"}, "part_of_speech": "verb"},
+        {"surface_fr": "s'écrit", "lemma": "s'écrire", "gloss": {"en": "to write to each other", "de": "sich schreiben"}, "part_of_speech": "verb"},
+        {
+          "surface_fr": "se promet",
+          "lemma": "se promettre",
+          "gloss": {"en": "to promise each other", "de": "sich versprechen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "derrière le tableau",
+          "lemma": "derrière le tableau",
+          "gloss": {"en": "behind the painting", "de": "hinter dem Gemälde"},
+          "part_of_speech": "phrase"
+        },
+        {"surface_fr": "toujours", "lemma": "toujours", "gloss": {"en": "always, still", "de": "immer, noch immer"}, "part_of_speech": "adverb"},
+        {"surface_fr": "rue", "lemma": "rue", "gloss": {"en": "street", "de": "Straße"}, "part_of_speech": "noun", "gender": "f"}
+      ],
+      "previously": [{"ref": "e1.a.r3", "label": "Le radiateur."}, {"ref": "letter.toi", "label": "L'enveloppe."}, {"ref": "e1.a.mid", "label": "…et quelqu'un."}],
+      "movements": [
+        {"kind": "include", "ref": "platform"},
+        {
+          "kind": "panel",
+          "id": "e1.b.r4.romy",
+          "visual": "On the platform, Romy gives Toi the memory card, without a word.",
+          "location_id": "gare_de_lest",
+          "in_frame": ["romy_tremblay", "toi"],
+          "silence": true,
+          "when": {"romy.footage": "kept"},
+          "note": "If `romy.footage = kept`. Placed after the train has gone, before Le Mistral (R5)."
+        },
+        {
+          "kind": "panel",
+          "id": "e1.b.r5",
+          "visual": "Back at Le Mistral after the train. Margaux lifts the painting off its nail and hands it to Toi across the zinc. Toi turns it over. Both inscriptions are legible.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "toi"],
+          "diegetic": ["Pour Odile, qui part. — L., 1970", "Toujours rue de Lancry. — L., 2021"],
+          "lines": [
+            {
+              "who": "margaux_barman",
+              "say": {
+                "a2": "Rue de Lancry… C'est à deux cents mètres.",
+                "b1": "Rue de Lancry. C'est à deux cents mètres d'ici.",
+                "native": {"en": "Rue de Lancry… It's two hundred metres away.", "de": "Rue de Lancry… Das sind zweihundert Meter."}
+              }
+            },
+            {
+              "who": "margaux_barman",
+              "direction": "beat",
+              "say": {
+                "a2": "Je ne savais pas. Ça, je ne savais pas.",
+                "native": {"en": "I didn't know. That, I didn't know.", "de": "Ich wusste es nicht. Das wusste ich nicht."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "e1.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "e1.b.last",
+            "visual": "Rue de Lancry at dusk. One lit window on a third floor, curtains half-open, an easel visible inside. Toi in the street below, from behind, the painting under one arm.",
+            "location_id": "rue_de_lancry",
+            "in_frame": ["toi"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Tu as gardé l'appartement. Mais Odile a laissé quelqu'un, à deux cents mètres. À suivre…",
+                  "b1": "Tu as tout gardé. Sauf ce qu'Odile avait laissé à deux cents mètres d'ici. À suivre…",
+                  "native": {
+                    "en": "You kept the flat. But Odile left someone behind, two hundred metres away. To be continued…",
+                    "de": "Du hast die Wohnung behalten. Aber Odile hat jemanden zurückgelassen, zweihundert Meter entfernt. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ],
+            "note": "Who remembers what (1). Gus is happiest in this ending, and knows nothing of the notebook. Marin puts his folder in a drawer. He brings it up once, gently, in season 2. Margaux knows you protected her the way she protected Odile. Romy knows there is a story she wasn't given, and she lets it go, once. If `romy.footage = kept`, she gives you the memory card on the platform, without a word. Marchand comes on Sundays if (c)."
+          }
+        }
+      ]
+    },
+    {
+      "day": "a",
+      "variant": "partager",
+      "when": {"s1.ending": "partager"},
+      "story_date_fr": "jeudi 7 janvier",
+      "title_fr": "Ce qu'on garde",
+      "location_id": "le_mistral",
+      "minutes": 8,
+      "can_do": {
+        "en": "Say goodbye to a place and to people; read a personal letter.",
+        "de": "Sich von einem Ort und von Menschen verabschieden; einen persönlichen Brief lesen.",
+        "fr": "Dire au revoir à un lieu et à des personnes ; lire une lettre personnelle."
+      },
+      "lexicon": [
+        {"surface_fr": "fermer", "lemma": "fermer", "gloss": {"en": "to close, to lock", "de": "schließen, abschließen"}, "part_of_speech": "verb"},
+        {"surface_fr": "clé", "lemma": "clé", "gloss": {"en": "key", "de": "Schlüssel"}, "part_of_speech": "noun", "gender": "f"},
+        {
+          "surface_fr": "merci pour tout",
+          "lemma": "merci pour tout",
+          "gloss": {"en": "thanks for everything", "de": "danke für alles"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "première maison",
+          "lemma": "maison",
+          "gloss": {"en": "home, house", "de": "Zuhause, Haus"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {"surface_fr": "heureuse", "lemma": "heureux", "gloss": {"en": "happy", "de": "glücklich"}, "part_of_speech": "adjective"},
+        {"surface_fr": "j'oublie", "lemma": "oublier", "gloss": {"en": "to forget", "de": "vergessen"}, "part_of_speech": "verb"},
+        {"surface_fr": "laissé", "lemma": "laisser", "gloss": {"en": "to leave (behind)", "de": "zurücklassen"}, "part_of_speech": "verb"},
+        {"surface_fr": "quelqu'un", "lemma": "quelqu'un", "gloss": {"en": "someone", "de": "jemand"}, "part_of_speech": "pronoun"}
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "e2.a.p1",
+          "visual": "8 a.m., the first day of the new Mistral. A queue of neighbours with bowls. Marin at the pass in an apron, flushed and joyful, ladling soup. Margaux behind the zinc, same as ever, with a new badge: «Margaux · sociétaire n° 1».",
+          "location_id": "le_mistral",
+          "in_frame": ["marin_leveque", "margaux_barman"],
+          "diegetic": ["Margaux · sociétaire n° 1"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "mood": "happy",
+              "say": {
+                "a2": "Soupe de poisson ! Recette de ma grand-mère ! Elle disait toujours…",
+                "native": {"en": "Fish soup! My grandmother's recipe! She always said…", "de": "Fischsuppe! Rezept meiner Großmutter! Sie sagte immer…"}
+              }
+            },
+            {"who": "margaux_barman", "say": {"a2": "Avance, Marin.", "native": {"en": "Move along, Marin.", "de": "Weiter, Marin."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.p2",
+          "visual": "Gus in the doorway in his best suit, taking in the room: long communal tables where the booth used to be. The booth has moved to the back and been reupholstered in a loud new fabric.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "say": {
+                "a2": "Ils ont refait la banquette. En orange.",
+                "b1": "Ils ont retapissé la banquette. En orange.",
+                "native": {"en": "They've redone the bench. In orange.", "de": "Sie haben die Bank neu bezogen. In Orange."}
+              }
+            },
+            {
+              "who": "marin_leveque",
+              "direction": "passing with a pot",
+              "say": {"a2": "C'est couleur sarrasin.", "native": {"en": "It's buckwheat-coloured.", "de": "Es ist buchweizenfarben."}}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.p3",
+          "visual": "Gus's hand flat on the new fabric of the booth, where he did his homework as a boy while his mother worked the room.",
+          "in_frame": ["augustin_de_roncourt"],
+          "silence": true
+        },
+        {
+          "kind": "turn",
+          "id": "e2.a.turn1",
+          "to": "augustin_de_roncourt",
+          "panel": {
+            "kind": "panel",
+            "id": "e2.a.p4",
+            "visual": "The Polaroid wall, now permanent and framed. The burnt one hangs in the middle, with a card in Margaux's writing: «Odile Ferrand, 1948–2026. Elle habitait en haut.» Gus sits down stiffly at a long table between two strangers and looks at Toi.",
+            "location_id": "le_mistral",
+            "in_frame": ["augustin_de_roncourt", "toi"],
+            "diegetic": ["Odile Ferrand, 1948–2026. Elle habitait en haut."],
+            "lines": [
+              {
+                "who": "augustin_de_roncourt",
+                "say": {
+                  "a2": "Alors. Tu me dis où je m'assois, maintenant ?",
+                  "b1": "Alors, dis-moi. Ma place, elle est où, maintenant ?",
+                  "native": {"en": "So. Are you going to tell me where I sit now?", "de": "Also. Sagst du mir, wo ich jetzt sitze?"}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Give Gus a place in the café that changed around him. He is the one who pays for sharing.",
+            "de": "Gib Gus einen Platz in dem Café, das sich um ihn herum verändert hat. Er ist derjenige, der fürs Teilen bezahlt.",
+            "fr": "Donne à Gus une place dans le café qui a changé autour de lui. C'est lui qui paie pour le partage."
+          },
+          "listens_for": "Where the learner puts Gus in the changed café: with the group, on the zinc, in himself, or at the bench where his mother worked.",
+          "fallback": "c",
+          "sets": {"s1.painting": "with_gus"},
+          "replies": [
+            {
+              "id": "a",
+              "label": "Here, with us",
+              "means": "The learner gives Gus a place among the group.",
+              "examples": ["Ici. Avec nous."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "\"Avec nous.\" Quelle banalité.",
+                        "native": {"en": "\"With us.\" What a platitude.", "de": "\"Mit uns.\" Was für eine Plattitüde."}
+                      }
+                    },
+                    {
+                      "who": "augustin_de_roncourt",
+                      "direction": "he sits properly",
+                      "say": {"a2": "…Merci.", "native": {"en": "…Thank you.", "de": "…Danke."}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "On the zinc, as usual",
+              "means": "The learner puts Gus on the zinc, where he has always leaned.",
+              "examples": ["Sur le zinc, comme d'habitude."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "direction": "not looking up",
+                      "say": {"a2": "Pas sur mon zinc.", "native": {"en": "Not on my zinc.", "de": "Nicht auf meinem Tresen."}}
+                    }
+                  ]
+                },
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.b.r2",
+                  "visual": "Gus laughs, for the first time in weeks.",
+                  "in_frame": ["augustin_de_roncourt"],
+                  "silence": true
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: his place is not the bench, it is him. Gus is the place.",
+              "examples": ["Ta place… c'est pas la banquette. C'est toi. Tu es la place. Non… Tu comprends."],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.c.r1",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "Je comprends. C'est très mal dit.",
+                        "b1": "Je comprends. C'est affreusement mal dit.",
+                        "native": {"en": "I understand. That's very badly put.", "de": "Ich verstehe. Das ist sehr schlecht gesagt."}
+                      }
+                    },
+                    {
+                      "who": "augustin_de_roncourt",
+                      "mood": "moved",
+                      "say": {"a2": "Répète.", "native": {"en": "Say it again.", "de": "Sag es noch einmal."}}
+                    }
+                  ],
+                  "note": "He wants to hear it again. It is the most tender thing Gus does all season, and it happens because the sentence failed."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "The bench at the back, where his mother worked",
+              "means": "The learner points to the bench at the back and asks whether his mother worked there. Possible only if T2's Polaroid was found.",
+              "examples": ["La banquette est au fond. Ta mère… elle travaillait là, non ?"],
+              "when": {"s1.gus_photo": {"set": true}},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.d.r1",
+                  "in_frame": ["augustin_de_roncourt"],
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "direction": "Gus's «vulnerable» expression",
+                      "say": {
+                        "a2": "Au fond. Oui. C'était sa table de pause.",
+                        "native": {"en": "At the back. Yes. It was her break table.", "de": "Hinten. Ja. Das war ihr Pausentisch."}
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "panel",
+                  "id": "e2.a.turn1.d.r2",
+                  "visual": "He stands and goes to sit there.",
+                  "in_frame": ["augustin_de_roncourt"],
+                  "silence": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.r1",
+          "visual": "11 a.m. Margaux on a bench by the canal, doing nothing, her face in the winter sun. The first day off in twenty-five years.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["margaux_barman"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.r2",
+          "visual": "That afternoon, the co-op's builders are tearing out Odile's old kitchen to make the workshop. A builder hands Toi an envelope he found behind the tiles, just above where the stove stood.",
+          "location_id": "odile_flat",
+          "in_frame": ["builder", "toi", "marin_leveque"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "direction": "in the doorway",
+              "say": {
+                "a2": "Elle l'a caché derrière le feu.",
+                "b1": "Elle l'a caché derrière le feu. Si ça, c'est pas un signe…",
+                "native": {"en": "She hid it behind the fire.", "de": "Sie hat ihn hinter dem Feuer versteckt."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.r2.romance",
+          "visual": "Lila is in the doorway too, measuring the wall where her easel would go if she came back. She doesn't say it.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet"],
+          "silence": true,
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "e2.a.r2.friendship",
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Lis. Et après, on cherche ce tableau.",
+                "native": {"en": "Read. And then we look for that painting.", "de": "Lies. Und danach suchen wir dieses Gemälde."}
+              }
+            }
+          ],
+          "when": {"path": ["friendship", "open"]},
+          "note": "Friendship path (an open path reads this too)."
+        },
+        {"kind": "include", "ref": "letter"},
+        {
+          "kind": "hook",
+          "id": "e2.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "e2.a.mid",
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Derrière le tableau du Mistral… Mais le tableau n'est plus au mur depuis les travaux. Demain matin, Lila part. À suivre…",
+                  "native": {
+                    "en": "Behind the painting of Le Mistral… But the painting hasn't been on the wall since the works. Tomorrow morning, Lila leaves. To be continued…",
+                    "de": "Hinter dem Gemälde des Mistral… Aber das Gemälde hängt seit den Bauarbeiten nicht mehr an der Wand. Morgen früh reist Lila ab. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "partager",
+      "when": {"s1.ending": "partager"},
+      "story_date_fr": "vendredi 8 janvier",
+      "title_fr": "Quel tableau ?",
+      "location_id": "gare_de_lest",
+      "minutes": 6,
+      "can_do": {
+        "en": "Say goodbye to someone you love; read a short inscription and understand where it leads.",
+        "de": "Sich von jemandem verabschieden, den man liebt; eine kurze Inschrift lesen und verstehen, wohin sie führt.",
+        "fr": "Dire au revoir à quelqu'un qu'on aime ; lire une courte inscription et comprendre où elle mène."
+      },
+      "lexicon": [
+        {"surface_fr": "train", "lemma": "train", "gloss": {"en": "train", "de": "Zug"}, "part_of_speech": "noun", "gender": "m"},
+        {"surface_fr": "revenir", "lemma": "revenir", "gloss": {"en": "to come back", "de": "zurückkommen"}, "part_of_speech": "verb"},
+        {"surface_fr": "s'écrit", "lemma": "s'écrire", "gloss": {"en": "to write to each other", "de": "sich schreiben"}, "part_of_speech": "verb"},
+        {
+          "surface_fr": "se promet",
+          "lemma": "se promettre",
+          "gloss": {"en": "to promise each other", "de": "sich versprechen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "derrière le tableau",
+          "lemma": "derrière le tableau",
+          "gloss": {"en": "behind the painting", "de": "hinter dem Gemälde"},
+          "part_of_speech": "phrase"
+        },
+        {"surface_fr": "toujours", "lemma": "toujours", "gloss": {"en": "always, still", "de": "immer, noch immer"}, "part_of_speech": "adverb"},
+        {"surface_fr": "rue", "lemma": "rue", "gloss": {"en": "street", "de": "Straße"}, "part_of_speech": "noun", "gender": "f"}
+      ],
+      "previously": [{"ref": "e2.a.r2", "label": "Le carrelage."}, {"ref": "letter.toi", "label": "L'enveloppe."}, {"ref": "e2.a.mid", "label": "…et quelqu'un."}],
+      "movements": [
+        {"kind": "include", "ref": "platform"},
+        {"kind": "include", "ref": "camille"},
+        {
+          "kind": "panel",
+          "id": "e2.b.r4",
+          "visual": "Back at the café. The nail above the zinc is empty: the painting came down for the works.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "toi"],
+          "lines": [
+            {
+              "who": "toi",
+              "direction": "balloon, fixed line",
+              "say": {"a2": "Il est où, le tableau ?", "native": {"en": "Where is the painting?", "de": "Wo ist das Gemälde?"}}
+            },
+            {
+              "who": "augustin_de_roncourt",
+              "direction": "too quickly",
+              "say": {"a2": "Quel tableau ?", "native": {"en": "What painting?", "de": "Welches Gemälde?"}}
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "e2.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "e2.b.last",
+            "visual": "Gus's «château», the loft, at night. The painting leans with its face to the wall, so the inscriptions face the reader. Gus is on the phone with his back to it.",
+            "location_id": "gus_loft",
+            "in_frame": ["augustin_de_roncourt"],
+            "lines": [
+              {
+                "who": "augustin_de_roncourt",
+                "say": {
+                  "a2": "Maman ? … Tu connais un certain L. ? Rue de Lancry ?",
+                  "native": {"en": "Mum? … Do you know a certain L.? Rue de Lancry?", "de": "Mama? … Kennst du einen gewissen L.? Rue de Lancry?"}
+                }
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Tu as tout partagé. Gus, lui, garde encore un secret. À suivre…",
+                  "b1": "Tu as tout partagé. Gus, lui, ment encore par réflexe. À suivre…",
+                  "native": {
+                    "en": "You shared everything. Gus, though, is still keeping a secret. To be continued…",
+                    "de": "Du hast alles geteilt. Gus dagegen hütet noch ein Geheimnis. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ],
+            "note": "Gus's mother waited tables at Le Mistral through the 2000s, so she would know. Season 2 can tie Gus's real family to Odile's secret. Who remembers what (2). Gus forgives you by the second week, in his fashion («Tu m'as coûté une banquette»). Marin is sure the co-op was a sign. Margaux is no longer alone, and doesn't know what to do with her hands. Romy's article earns her the Paris contract (seed for season 3). Marchand buys one share. He never comes, but he pays."
+          }
+        }
+      ]
+    },
+    {
+      "day": "a",
+      "variant": "laisser_partir",
+      "when": {"s1.ending": "laisser_partir"},
+      "story_date_fr": "jeudi 7 janvier",
+      "title_fr": "Ce qu'on garde",
+      "location_id": "le_mistral",
+      "minutes": 8,
+      "can_do": {
+        "en": "Say goodbye to a place and to people; read a personal letter.",
+        "de": "Sich von einem Ort und von Menschen verabschieden; einen persönlichen Brief lesen.",
+        "fr": "Dire au revoir à un lieu et à des personnes ; lire une lettre personnelle."
+      },
+      "lexicon": [
+        {"surface_fr": "fermes", "lemma": "fermer", "gloss": {"en": "to close, to lock", "de": "schließen, abschließen"}, "part_of_speech": "verb"},
+        {"surface_fr": "clé", "lemma": "clé", "gloss": {"en": "key", "de": "Schlüssel"}, "part_of_speech": "noun", "gender": "f"},
+        {
+          "surface_fr": "merci pour tout",
+          "lemma": "merci pour tout",
+          "gloss": {"en": "thanks for everything", "de": "danke für alles"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "première maison",
+          "lemma": "maison",
+          "gloss": {"en": "home, house", "de": "Zuhause, Haus"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {"surface_fr": "heureuse", "lemma": "heureux", "gloss": {"en": "happy", "de": "glücklich"}, "part_of_speech": "adjective"},
+        {"surface_fr": "j'oublie", "lemma": "oublier", "gloss": {"en": "to forget", "de": "vergessen"}, "part_of_speech": "verb"},
+        {"surface_fr": "laissé", "lemma": "laisser", "gloss": {"en": "to leave (behind)", "de": "zurücklassen"}, "part_of_speech": "verb"},
+        {"surface_fr": "quelqu'un", "lemma": "quelqu'un", "gloss": {"en": "someone", "de": "jemand"}, "part_of_speech": "pronoun"}
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "e3.a.p1",
+          "visual": "Afternoon. A brocante dealer and his son carry chairs out to a white van. Among them, under the son's arm, is the painting from above the zinc. (The reader sees it go. The learner's character does not.)",
+          "location_id": "le_mistral",
+          "in_frame": ["dealer"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Dernier jour. Tout part : les chaises, les verres, les tableaux.",
+                "b1": "Dernier jour. Tout s'en va : les chaises, les verres, les tableaux.",
+                "native": {
+                  "en": "Last day. Everything goes: the chairs, the glasses, the paintings.",
+                  "de": "Letzter Tag. Alles geht: die Stühle, die Gläser, die Gemälde."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.p2",
+          "visual": "Gus stands in front of the dealer and the booth's bench, wallet out.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "dealer"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "say": {"a2": "La banquette. Combien ?", "native": {"en": "The bench. How much?", "de": "Die Bank. Wie viel?"}}
+            },
+            {"who": "dealer", "say": {"a2": "Deux cents.", "native": {"en": "Two hundred.", "de": "Zweihundert."}}},
+            {
+              "who": "augustin_de_roncourt",
+              "direction": "drawing himself up",
+              "say": {"a2": "Je suis Augustin de Roncourt.", "native": {"en": "I am Augustin de Roncourt.", "de": "Ich bin Augustin de Roncourt."}}
+            },
+            {"who": "dealer", "say": {"a2": "Deux cent cinquante.", "native": {"en": "Two hundred and fifty.", "de": "Zweihundertfünfzig."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.p3",
+          "visual": "Night. The last service. Everyone the café has ever had seems to be here. Margaux pours the same thing for everyone, without asking. Romy photographs the room, and the room lets her.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "romy_tremblay"],
+          "lines": [
+            {
+              "who": "margaux_barman",
+              "direction": "to the whole room",
+              "say": {"a2": "La même chose ?", "native": {"en": "The same again?", "de": "Dasselbe?"}}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.p4",
+          "visual": "Margaux takes the Polaroids down one by one and puts them back in Odile's box. She hands the box to Toi across the zinc.",
+          "in_frame": ["margaux_barman", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "turn",
+          "id": "e3.a.turn1",
+          "to": "margaux_barman",
+          "panel": {
+            "kind": "panel",
+            "id": "e3.a.p5",
+            "visual": "1 a.m. Everyone has gone except Toi (and Lila, at the door, on either path). Margaux puts the keys on the zinc, as she did in T5.",
+            "location_id": "le_mistral",
+            "in_frame": ["margaux_barman", "toi", "lila_bonnet"],
+            "lines": [
+              {
+                "who": "margaux_barman",
+                "say": {"a2": "Tu fermes ?", "b1": "C'est toi qui fermes.", "native": {"en": "Will you lock up?", "de": "Schließt du ab?"}}
+              },
+              {
+                "who": "margaux_barman",
+                "say": {
+                  "a2": "Dis-moi un truc bien. Pour la fin.",
+                  "b1": "Dis-moi quelque chose de bien. Pour finir.",
+                  "native": {"en": "Tell me something good. For the end.", "de": "Sag mir etwas Gutes. Zum Schluss."}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "The last words spoken in Le Mistral.",
+            "de": "Die letzten Worte, die im Mistral gesprochen werden.",
+            "fr": "Les derniers mots dits au Mistral."
+          },
+          "listens_for": "The learner's last words in Le Mistral: thanks, the sea, the first home in French, or regret at not keeping it.",
+          "fallback": "a",
+          "sets": {"s1.painting": "lost"},
+          "replies": [
+            {
+              "id": "a",
+              "label": "Thanks for everything",
+              "means": "The learner says thank you for everything.",
+              "examples": ["Merci pour tout."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e3.a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "say": {
+                        "a2": "Tout, c'est beaucoup. Je prends.",
+                        "native": {"en": "Everything is a lot. I'll take it.", "de": "Alles, das ist viel. Ich nehme es."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "You're going to see the sea",
+              "means": "The learner turns to Margaux's wish: she is going to see the sea.",
+              "examples": ["Tu vas voir la mer."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e3.a.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "direction": "the barely-visible smile",
+                      "say": {
+                        "a2": "Oui. Marin m'a donné une adresse. Chez son père, en Bretagne. J'ai peur.",
+                        "native": {
+                          "en": "Yes. Marin gave me an address. At his father's, in Brittany. I'm scared.",
+                          "de": "Ja. Marin hat mir eine Adresse gegeben. Bei seinem Vater, in der Bretagne. Ich habe Angst."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "This is a season 2 seed: Margaux at Marin's father's."
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: Le Mistral was the learner's first home in French.",
+              "examples": ["Ici, j'ai appris… non. Ici, j'ai… Le Mistral, c'est ma première maison en français."],
+              "clumsy": true,
+              "beats": [
+                {"kind": "panel", "id": "e3.a.turn1.c.r1", "in_frame": ["margaux_barman"], "silence": true},
+                {
+                  "kind": "panel",
+                  "id": "e3.a.turn1.c.r2",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "say": {
+                        "a2": "Alors, chez toi, maintenant, on parle français.",
+                        "b1": "Alors maintenant, chez toi, on parle français.",
+                        "native": {"en": "So, at your place now, we speak French.", "de": "Also, bei dir zu Hause spricht man jetzt Französisch."}
+                      }
+                    }
+                  ],
+                  "note": "This echoes Odile, who never spoke French at home. It is the truest line in the season, and it only exists if the learner fumbles toward it. (The script gives the silence panel no picture: a held beat on the same framing.)"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Sorry: we couldn't keep it",
+              "means": "The learner apologises that they could not keep the café.",
+              "examples": ["Pardon. On n'a pas pu le garder."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "e3.a.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "say": {
+                        "a2": "On n'a pas pu ? Non. On a choisi. C'est mieux.",
+                        "b1": "On n'a pas pu ? Non : on a choisi. Ce n'est pas pareil.",
+                        "native": {"en": "We couldn't? No. We chose. It's better.", "de": "Wir konnten nicht? Nein. Wir haben gewählt. Das ist besser."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.r1",
+          "visual": "From outside: Toi's hand turns the key. The neon goes off letter by letter: MISTRA… MIST… M.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["toi"],
+          "silence": true,
+          "diegetic": ["MISTRA…", "MIST…", "M."]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.r2",
+          "visual": "The flat, empty, the day before Solvel takes the keys. One thing is left, Odile's kitchen table, the only piece Toi is keeping. Toi turns it over to carry it. Taped under the drawer is the envelope.",
+          "location_id": "odile_flat",
+          "in_frame": ["toi"]
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.r2.romance",
+          "visual": "Lila is carrying the other end of the table. She sets it down and sits on it.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true,
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "e3.a.r2.friendship",
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Lis. Je tiens la table.", "native": {"en": "Read. I'll hold the table.", "de": "Lies. Ich halte den Tisch."}}
+            }
+          ],
+          "when": {"path": ["friendship", "open"]},
+          "note": "Friendship path (an open path reads this too)."
+        },
+        {"kind": "include", "ref": "letter"},
+        {
+          "kind": "panel",
+          "id": "e3.a.r3",
+          "visual": "Toi runs downstairs to the empty café. The nail above the zinc is bare. The white van left hours ago.",
+          "location_id": "le_mistral",
+          "in_frame": ["toi"]
+        },
+        {
+          "kind": "hook",
+          "id": "e3.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "e3.a.mid",
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Le tableau est parti cet après-midi. Et demain matin, Lila part aussi. À suivre…",
+                  "b1": "Le tableau est parti cet après-midi, dans une camionnette. Demain matin, c'est le tour de Lila. À suivre…",
+                  "native": {
+                    "en": "The painting left this afternoon. And tomorrow morning, Lila leaves too. To be continued…",
+                    "de": "Das Gemälde ist heute Nachmittag weggegangen. Und morgen früh reist auch Lila ab. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "laisser_partir",
+      "when": {"s1.ending": "laisser_partir"},
+      "story_date_fr": "vendredi 8 janvier",
+      "title_fr": "La lumière est fausse",
+      "location_id": "gare_de_lest",
+      "minutes": 6,
+      "can_do": {
+        "en": "Say goodbye to someone you love; read a short inscription and understand where it leads.",
+        "de": "Sich von jemandem verabschieden, den man liebt; eine kurze Inschrift lesen und verstehen, wohin sie führt.",
+        "fr": "Dire au revoir à quelqu'un qu'on aime ; lire une courte inscription et comprendre où elle mène."
+      },
+      "lexicon": [
+        {"surface_fr": "train", "lemma": "train", "gloss": {"en": "train", "de": "Zug"}, "part_of_speech": "noun", "gender": "m"},
+        {"surface_fr": "revenir", "lemma": "revenir", "gloss": {"en": "to come back", "de": "zurückkommen"}, "part_of_speech": "verb"},
+        {"surface_fr": "s'écrit", "lemma": "s'écrire", "gloss": {"en": "to write to each other", "de": "sich schreiben"}, "part_of_speech": "verb"},
+        {
+          "surface_fr": "se promet",
+          "lemma": "se promettre",
+          "gloss": {"en": "to promise each other", "de": "sich versprechen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "derrière le tableau",
+          "lemma": "derrière le tableau",
+          "gloss": {"en": "behind the painting", "de": "hinter dem Gemälde"},
+          "part_of_speech": "phrase"
+        },
+        {"surface_fr": "toujours", "lemma": "toujours", "gloss": {"en": "always, still", "de": "immer, noch immer"}, "part_of_speech": "adverb"},
+        {"surface_fr": "rue", "lemma": "rue", "gloss": {"en": "street", "de": "Straße"}, "part_of_speech": "noun", "gender": "f"}
+      ],
+      "previously": [
+        {"ref": "e3.a.r1", "label": "Le néon s'éteint."},
+        {"ref": "e3.a.r2", "label": "La table retournée."},
+        {"ref": "e3.a.r3", "label": "Le clou vide."}
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "e3.b.r4",
+          "visual": "Margaux is there with her own bag, packed for Brittany.",
+          "location_id": "gare_de_lest",
+          "in_frame": ["margaux_barman"],
+          "silence": true,
+          "note": "Script: «R4. → The platform (common). Margaux is there with her own bag, packed for Brittany.» The platform block is shared, so this ending-specific sentence is a leading panel before the include."
+        },
+        {"kind": "include", "ref": "platform"},
+        {"kind": "include", "ref": "camille"},
+        {
+          "kind": "panel",
+          "id": "e3.b.r5",
+          "visual": "On the platform after the train has gone, Toi's phone lights up with a message from Lila, from the train. It is a photo she took months ago for the background of her portrait: the painting, zoomed in on the «L.»",
+          "location_id": "gare_de_lest",
+          "in_frame": ["toi"],
+          "diegetic": ["L."],
+          "lines": [
+            {
+              "who": "sms",
+              "say": {
+                "a2": "La lumière est fausse parce qu'il a peint d'en haut. De la fenêtre d'Odile.",
+                "b1": "Je comprends enfin pourquoi la lumière est fausse. Il l'a peint d'en haut. Depuis la fenêtre d'Odile.",
+                "native": {
+                  "en": "The light is wrong because he painted from above. From Odile's window.",
+                  "de": "Das Licht ist falsch, weil er von oben gemalt hat. Von Odiles Fenster aus."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "e3.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "e3.b.last",
+            "visual": "A white van turning out of the quai de Valmy into the city. Through its back window, the corner of a gilt frame.",
+            "location_id": "quai_de_valmy",
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "En 1970, quelqu'un a peint le Mistral depuis chez Odile. Aujourd'hui, le tableau est quelque part dans Paris. Lui aussi, peut-être. À suivre…",
+                  "b1": "En 1970, quelqu'un a peint le Mistral depuis la fenêtre d'Odile. Le tableau roule quelque part dans Paris. Le peintre aussi, peut-être. À suivre…",
+                  "native": {
+                    "en": "In 1970, someone painted Le Mistral from Odile's place. Today, the painting is somewhere in Paris. So is he, maybe. To be continued…",
+                    "de": "1970 hat jemand den Mistral von Odiles Wohnung aus gemalt. Heute ist das Gemälde irgendwo in Paris. Er vielleicht auch. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ],
+            "note": "Who remembers what (3). Gus installs the bench in his loft. It is the first true thing in the «château». Marin cries at the neon. Margaux sends you a postcard of the sea with three words: «Elle est grande.» Romy's photo essay on the last night is the best thing she has written. Marchand sends the only Christmas card of his life, to you."
+          }
+        }
+      ]
+    }
+  ],
+  "shared": {
+    "letter": [
+      {
+        "kind": "solve",
+        "id": "letter.read",
+        "mechanic": "dechiffrer",
+        "prompt": {"a2": "Qu'est-ce qu'elle te demande ?", "native": {"en": "What is she asking you?", "de": "Worum bittet sie dich?"}},
+        "task": {
+          "en": "Read Odile's letter, alone and in French, and choose what she is asking you.",
+          "de": "Lies Odiles Brief, allein und auf Französisch, und wähle, worum sie dich bittet.",
+          "fr": "Lis la lettre d'Odile, seul(e) et en français, et choisis ce qu'elle te demande."
+        },
+        "visual": "An envelope, yellowed, addressed in Odile's hand: «Pour toi. Quand tu parleras français.»",
+        "document": {
+          "a2": "Pour toi. Quand tu parleras français.\n\nJe ne t'ai jamais parlé de Paris. Pardon. Paris était trop grand pour l'autre langue.\n\nIci, j'ai été heureuse deux fois : à vingt ans, et à soixante ans. Entre les deux, j'ai été ta grand-mère. Ce n'était pas moins bien. C'était autre chose.\n\nMaintenant, j'oublie. Alors j'écris.\n\nÀ Paris, j'ai laissé deux choses : cet appartement, et quelqu'un. L'appartement, tu l'as trouvé.\n\nPour l'autre, regarde derrière le tableau du Mistral.\n\nOdile",
+          "b1": "Pour toi. Quand tu parleras français.\n\nJe ne t'ai jamais parlé de Paris, et je te demande pardon. Paris était trop grand pour l'autre langue ; il ne tenait pas dedans.\n\nIci, j'ai été heureuse deux fois : à vingt ans et à soixante. Entre les deux, j'ai été ta grand-mère, et ce n'était pas moins bien. C'était autre chose.\n\nJe commence à oublier, alors j'écris pendant que je sais encore.\n\nJ'ai laissé deux choses à Paris : cet appartement, et quelqu'un. L'appartement, tu l'as trouvé, puisque tu lis ceci.\n\nPour l'autre, regarde derrière le tableau du Mistral.\n\nOdile",
+          "native": {
+            "en": "For you. When you speak French.\n\nI never told you about Paris. I'm sorry. Paris was too big for the other language.\n\nHere, I was happy twice: at twenty, and at sixty. In between, I was your grandmother. That was no worse. It was something else.\n\nNow I forget. So I write.\n\nIn Paris, I left two things: this flat, and someone. The flat, you found.\n\nFor the other, look behind the painting of Le Mistral.\n\nOdile",
+            "de": "Für dich. Wenn du Französisch sprichst.\n\nIch habe dir nie von Paris erzählt. Verzeih. Paris war zu groß für die andere Sprache.\n\nHier war ich zweimal glücklich: mit zwanzig und mit sechzig. Dazwischen war ich deine Großmutter. Das war nicht schlechter. Es war etwas anderes.\n\nJetzt vergesse ich. Also schreibe ich.\n\nIn Paris habe ich zwei Dinge zurückgelassen: diese Wohnung und jemanden. Die Wohnung hast du gefunden.\n\nFür das andere schau hinter das Gemälde des Mistral.\n\nOdile"
+          }
+        },
+        "flag": "s1.letter_reading",
+        "default": "tableau",
+        "options": [
+          {
+            "id": "vendre",
+            "label": {"a2": "Vendre l'appartement", "native": {"en": "Sell the flat", "de": "Die Wohnung verkaufen"}},
+            "sets": {"s1.letter_reading": "vendre"}
+          },
+          {
+            "id": "tableau",
+            "label": {"a2": "Regarder derrière le tableau", "native": {"en": "Look behind the painting", "de": "Hinter dem Gemälde nachsehen"}},
+            "correct": true,
+            "sets": {"s1.letter_reading": "tableau"}
+          },
+          {
+            "id": "margaux",
+            "label": {"a2": "Parler à Margaux", "native": {"en": "Talk to Margaux", "de": "Mit Margaux sprechen"}},
+            "sets": {"s1.letter_reading": "margaux"}
+          }
+        ],
+        "nudge": [
+          {
+            "kind": "panel",
+            "id": "letter.read.nudge",
+            "in_frame": ["lila_bonnet"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Pour l'autre, regarde derrière le tableau du Mistral.",
+                  "native": {"en": "For the other, look behind the painting of Le Mistral.", "de": "Für das andere schau hinter das Gemälde des Mistral."}
+                }
+              }
+            ],
+            "note": "Transcription: the script says «If the learner picks wrong, whoever is with them reads the last line aloud. Nothing is lost.» Lila reads it here, in every ending: she is with you on both paths (over your shoulder, on the phone, or holding the table). In ending 2 Marin is in the doorway too. Nothing is lost, nothing is scored."
+          }
+        ]
+      },
+      {
+        "kind": "panel",
+        "id": "letter.toi",
+        "visual": "Toi holding the letter, from behind.",
+        "in_frame": ["toi"],
+        "silence": true,
+        "note": "This is the payoff of the whole product. The learner reads, alone and in French, a letter written for the day they could. We show no score and no stamp. The next panel is (silence): Toi holding the letter, from behind."
+      }
+    ],
+    "platform": [
+      {
+        "kind": "panel",
+        "id": "platform.f1",
+        "visual": "The platform, a long ICE train. The whole group is there. Gus holds up a banner he painted himself, badly, using Lila's T4 banner as a template: «LILA · BERLIN · ON RESTE (ICI)». Marin is already crying. Romy is filming and pretends not to be.",
+        "location_id": "gare_de_lest",
+        "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet", "margaux_barman", "romy_tremblay"],
+        "diegetic": ["LILA · BERLIN · ON RESTE (ICI)"],
+        "lines": [
+          {
+            "who": "augustin_de_roncourt",
+            "say": {
+              "a2": "On reste ici. Toi, tu pars. C'est clair, non ?",
+              "b1": "Nous, on reste ; toi, tu pars. Le message est limpide.",
+              "native": {"en": "We're staying here. You're leaving. That's clear, isn't it?", "de": "Wir bleiben hier. Du gehst. Das ist doch klar, oder?"}
+            }
+          },
+          {
+            "who": "lila_bonnet",
+            "say": {"a2": "C'est horrible. Je le garde.", "native": {"en": "It's horrible. I'm keeping it.", "de": "Das ist schrecklich. Ich behalte es."}}
+          }
+        ]
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f2",
+        "visual": "Lila hugs Marin. His whole face is in her shoulder. Margaux, a step back, hands Lila a paper bag: a croissant, and a folded Polaroid of the booth.",
+        "in_frame": ["lila_bonnet", "marin_leveque", "margaux_barman"],
+        "silence": true
+      },
+      {
+        "kind": "turn",
+        "id": "platform.turn",
+        "to": "lila_bonnet",
+        "panel": {
+          "kind": "panel",
+          "id": "platform.f3",
+          "visual": "Toi and Lila, a little apart from the group. The train doors are open. Toi's balloon, empty.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Alors. Dernier truc vrai ?",
+                "b1": "Alors. Un dernier truc vrai ?",
+                "native": {"en": "So. One last true thing?", "de": "Also. Zum Schluss noch etwas Wahres?"}
+              }
+            }
+          ],
+          "note": "Transcription: the path is already decided by now (bible §7): the lines are coloured by it and no reply moves it. An open path reads the friendship lines.",
+          "balloon": true
+        },
+        "task": {
+          "en": "Your last words to Lila before the train.",
+          "de": "Deine letzten Worte an Lila vor dem Zug.",
+          "fr": "Tes derniers mots à Lila avant le train."
+        },
+        "listens_for": "Anything: the learner's last words to Lila, however clumsy. She answers whatever is said, directly and first, in the colour of the path. A clumsy but sincere last line is never corrected here.",
+        "fallback": "any",
+        "replies": [
+          {
+            "id": "any",
+            "label": "Whatever the learner says",
+            "means": "Any last words to Lila: she answers what was said, directly and first.",
+            "examples": ["Je vais te manquer ?", "Tu vas me manquer."],
+            "beats": [
+              {
+                "kind": "panel",
+                "id": "platform.turn.any.r1",
+                "lines": [
+                  {
+                    "who": "lila_bonnet",
+                    "say": {
+                      "a2": "Oui. Beaucoup. C'est pour ça que je pars maintenant.",
+                      "native": {"en": "Yes. A lot. That's why I'm leaving now.", "de": "Ja. Sehr. Deshalb gehe ich jetzt."}
+                    }
+                  }
+                ],
+                "when": {"path": "romance"},
+                "note": "Transcription: romance path. The script's example: to «Je vais te manquer ?»."
+              },
+              {
+                "kind": "panel",
+                "id": "platform.turn.any.r2",
+                "lines": [
+                  {
+                    "who": "lila_bonnet",
+                    "say": {"a2": "Évidemment. Je suis géniale.", "native": {"en": "Of course. I'm brilliant.", "de": "Natürlich. Ich bin großartig."}}
+                  }
+                ],
+                "when": {"path": ["friendship", "open"]},
+                "note": "Transcription: friendship path (an open path reads this too). The script's example: to «Tu vas me manquer.»."
+              }
+            ]
+          },
+          {
+            "id": "clumsy",
+            "label": "Clumsy but sincere",
+            "means": "A halting last line that still says thank you, for the key and for oneself. Never corrected here.",
+            "examples": ["Merci… pour… je sais pas. Pour tout. Pour la clé. Pour moi."],
+            "clumsy": true,
+            "beats": [
+              {
+                "kind": "panel",
+                "id": "platform.turn.clumsy.r1",
+                "lines": [
+                  {
+                    "who": "lila_bonnet",
+                    "say": {
+                      "a2": "\"Pour moi.\" C'est la meilleure.",
+                      "native": {"en": "\"For me.\" That's the best one.", "de": "\"Für mich.\" Das ist die beste."}
+                    }
+                  }
+                ],
+                "when": {"path": "romance"}
+              },
+              {
+                "kind": "panel",
+                "id": "platform.turn.clumsy.r2",
+                "lines": [
+                  {
+                    "who": "lila_bonnet",
+                    "say": {
+                      "a2": "Tu parles comme Marin, maintenant. C'est grave.",
+                      "native": {"en": "You talk like Marin now. That's bad.", "de": "Du redest jetzt wie Marin. Das ist schlimm."}
+                    }
+                  }
+                ],
+                "when": {"path": ["friendship", "open"]}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f4.romance_key",
+        "visual": "She has the copy of the key. She holds it up and puts it in her coat pocket, not in Toi's hand.",
+        "in_frame": ["lila_bonnet", "toi"],
+        "lines": [
+          {
+            "who": "lila_bonnet",
+            "say": {
+              "a2": "Je la garde. Pour revenir.",
+              "b1": "Je la garde. Pour pouvoir revenir.",
+              "native": {"en": "I'm keeping it. To come back.", "de": "Ich behalte ihn. Um zurückzukommen."}
+            }
+          },
+          {
+            "who": "lila_bonnet",
+            "say": {
+              "a2": "On ne se promet rien. On s'écrit.",
+              "native": {"en": "We promise each other nothing. We write.", "de": "Wir versprechen uns nichts. Wir schreiben uns."}
+            }
+          }
+        ],
+        "when": {"path": "romance", "s1.lila_has_key": true}
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f4.romance_nokey",
+        "lines": [
+          {
+            "who": "lila_bonnet",
+            "say": {
+              "a2": "Ton visage, je le finis quand je te revois.",
+              "native": {"en": "Your face, I'll finish it when I see you again.", "de": "Dein Gesicht male ich fertig, wenn ich dich wiedersehe."}
+            }
+          }
+        ],
+        "when": {"path": "romance", "s1.lila_has_key": {"not": true}},
+        "note": "Romance path, without the key."
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f4.friend_key",
+        "visual": "She presses the key into Toi's palm and closes Toi's fingers over it.",
+        "in_frame": ["lila_bonnet", "toi"],
+        "lines": [
+          {
+            "who": "lila_bonnet",
+            "say": {
+              "a2": "Je te la rends. Tu me la redonnes quand je reviens.",
+              "b1": "Je te la rends. Tu me la redonneras à mon retour.",
+              "native": {
+                "en": "I'm giving it back to you. You give it back to me when I come back.",
+                "de": "Ich gebe ihn dir zurück. Du gibst ihn mir wieder, wenn ich zurückkomme."
+              }
+            }
+          }
+        ],
+        "when": {"path": ["friendship", "open"], "s1.lila_has_key": true}
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f4.friend_nokey",
+        "visual": "She hands Toi a brush.",
+        "in_frame": ["lila_bonnet", "toi"],
+        "lines": [
+          {
+            "who": "lila_bonnet",
+            "say": {
+              "a2": "Le coin du portrait. Finis-le, toi. Ça va être moche. Parfait.",
+              "native": {
+                "en": "The corner of the portrait. You finish it. It's going to be ugly. Perfect.",
+                "de": "Die Ecke des Porträts. Mal du sie fertig. Das wird hässlich. Perfekt."
+              }
+            }
+          }
+        ],
+        "when": {"path": ["friendship", "open"], "s1.lila_has_key": {"not": true}},
+        "note": "Friendship path (an open path reads this too), without the key."
+      },
+      {
+        "kind": "panel",
+        "id": "platform.f5",
+        "visual": "The doors close. Through the glass, Lila holds up her phone: she wants the photo of the painting's back, or of whatever Toi finds. The train pulls out.",
+        "in_frame": ["lila_bonnet", "toi"],
+        "silence": true
+      }
+    ],
+    "camille": [
+      {
+        "kind": "turn",
+        "id": "camille.turn",
+        "to": "camille_marchand",
+        "panel": {
+          "kind": "panel",
+          "id": "camille.p1",
+          "visual": "Camille Marchand, about thirty, rooted in the 10th, who has handled the sale for their grandfather. Camille disagrees with Toi, precisely and without contempt.",
+          "in_frame": ["camille_marchand", "toi"],
+          "lines": [
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "On n'est pas d'accord sur grand-chose, vous et moi.",
+                "native": {"en": "We don't agree on much, you and I.", "de": "Wir sind uns in vielen Dingen nicht einig, Sie und ich."}
+              }
+            }
+          ],
+          "note": "Camille uses vous. The switch to tu belongs to season 2. One panel in every ending (seed of the second romantic possibility).",
+          "balloon": true
+        },
+        "task": {
+          "en": "Answer Camille in your own words.",
+          "de": "Antworte Camille mit deinen eigenen Worten.",
+          "fr": "Réponds à Camille avec tes propres mots."
+        },
+        "listens_for": "Anything: the learner's line sits between Camille's two lines, and whatever is said, Camille answers with the same closing line.",
+        "fallback": "any",
+        "sets": {"camille.disagreements": "+t8_grand_chose"},
+        "replies": [
+          {
+            "id": "any",
+            "label": "Whatever the learner says",
+            "means": "Any reply to Camille: agreement, disagreement or a joke.",
+            "examples": [],
+            "beats": [
+              {
+                "kind": "panel",
+                "id": "camille.turn.any.r1",
+                "lines": [
+                  {
+                    "who": "camille_marchand",
+                    "say": {"a2": "Bien. À la prochaine dispute.", "native": {"en": "Good. Until the next dispute.", "de": "Gut. Bis zum nächsten Streit."}}
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "state_out": {"lila.in_berlin": true, "camille.met": true},
+  "for_next_gap": [
+    "s1.ending = garder | partager | laisser_partir",
+    "s1.painting = with_you | with_gus | lost",
+    "s2.question: Who is «L.», and what did Odile leave in Paris besides the flat?",
+    "lila.in_berlin = true · s1.lila_path = romance | friendship (the key: kept, or returned)",
+    "camille.met = true (still vous)",
+    "marchand.sundays (ending 1 only)",
+    "Note for the owner. Every ending closes the café question and opens the same season 2 question through a different door: the painting is in your hands, hidden by Gus, or lost in Paris. Season 2 can therefore be written once, with three first episodes."
+  ]
+}

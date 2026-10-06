@@ -1,0 +1,426 @@
+{
+  "world_bible_version": "paris-s3",
+  "season_number": 3,
+  "season_title_fr": "Les clés du Mistral",
+  "season_logline": "A year in, Paris is yours to share: Margaux hands you a spare set of keys to Le Mistral, a newcomer walks into the quartier knowing no one, and the people who once made room for you now need you to make room for them.",
+  "season_logline_fr": "Margaux vous donne un double des clés du Mistral. Un nouveau venu arrive au quartier. Cette fois, c'est vous qui connaissez le chemin.",
+  "season_three_situation": {
+    "your_arc": "You are no longer the newcomer. The season asks whether you can hold something for other people: a bar's keys, a friend's secret, a stranger's first week in French.",
+    "open_threads": [
+      "Who are Margaux's spare keys really for, and what is she not saying about Le Mistral?",
+      "Marin's father is coming to Paris: will Marin show him his real life or a perfect one?",
+      "Lila has a studio and a date for a show: will she finally show the group portrait?",
+      "Romy's permanent job in Paris depends on a series of portraits — and the first one is about you.",
+      "A newcomer arrives in the quartier, and now you are the one who knows the way."
+    ],
+    "open_threads_fr": [
+      "Pour qui sont vraiment les clés de Margaux, et que cache-t-elle sur le Mistral ?",
+      "Le père de Marin vient à Paris : Marin va-t-il lui montrer sa vraie vie, ou une vie parfaite ?",
+      "Lila a un atelier et une date d'exposition : va-t-elle enfin montrer le portrait du groupe ?",
+      "Le poste de Romy à Paris dépend d'une série de portraits, et le premier parle de vous.",
+      "Un nouveau venu arrive au quartier : maintenant, c'est vous qui connaissez le chemin."
+    ],
+    "first_episode_seed": "A quiet morning after the season two finale: Margaux slides a set of keys across the zinc, says «au cas où», and goes back to drying a glass."
+  },
+  "cast_updates": {
+    "marin_leveque": {
+      "secret": "The stranger who read his three chapters wrote back: a small publisher in Rennes wants the whole manuscript. He has not told Lila, because then it would be real.",
+      "wants": "For his father to see the life he chose — the office, the flat, Lila — without apologising for any of it."
+    },
+    "lila_bonnet": {
+      "secret": "She turned Berlin down, but she kept the email and reads it every time a painting goes badly.",
+      "wants": "To show one true painting to strangers before she decides she is not ready."
+    },
+    "augustin_de_roncourt": {
+      "secret": "He lost his job at the agency a month ago. The conversation club is not generosity: it is the only place he has to be in the evening.",
+      "wants": "To be useful to someone without a costume."
+    },
+    "romy_tremblay": {
+      "secret": "She has already written the first portrait of her series — about you — and she is afraid of what you will say when you read it.",
+      "wants": "A byline in Paris that she earned by listening, not by leaving."
+    },
+    "margaux_barman": {
+      "secret": "The walls of Le Mistral are for sale and she cannot afford them. The spare keys are her way of asking someone to stay without saying it.",
+      "wants": "To stop carrying the bar alone, without ever having to ask."
+    }
+  },
+  "cast_additions": [
+    {
+      "id": "tiago_moreira",
+      "gender": "m",
+      "name": "Tiago Moreira",
+      "archetype_ref": "the newcomer — you, one year ago",
+      "role": "Just arrived from Porto. Works mornings at a cheese stall at the Canal market. Speaks careful, slow French and apologises for it.",
+      "origin": "Porto, Portugal — the youngest of four; first time living abroad.",
+      "register_with_user": "vous at first, very politely; tu the day you help him with something real",
+      "personality": "Eager, polite, quietly funny once he relaxes. Notices everything and asks one question too many. Homesick in the evenings, never in the mornings.",
+      "contradiction": "Came to Paris to be free of his family's expectations, and phones his mother every night to tell her everything is perfect.",
+      "secret": "He left an architecture degree one exam short in Porto. His mother thinks he is in Paris for an internship.",
+      "wants": "One real friend in Paris, and one evening where nobody switches to English for him.",
+      "flaw": "Says «oui, oui» when he has not understood, then panics later.",
+      "speech_pattern": "Short, careful sentences; checks words aloud («on dit comme ça ?»); Portuguese exclamations when surprised, then an apology.",
+      "voice": {
+        "provider": "openai",
+        "voice": "echo",
+        "style": "young, careful, warm"
+      },
+      "signature_phrases": [
+        "On dit comme ça ?",
+        "Pardon, encore une fois ?",
+        "Chez moi, à Porto…"
+      ],
+      "dynamic_with_user": "He is who you were a year ago. With him, you are the one who knows the way — and you find out how much you actually know.",
+      "teaches": "Explaining simply, giving directions, reassuring someone; the learner practises being the helper.",
+      "portrait": null,
+      "portrait_missing": true
+    }
+  ],
+  "locations_fr": {
+    "le_mistral": "Le Mistral",
+    "user_apartment": "Votre appartement",
+    "marin_lila_flat": "L’appartement de Marin et Lila",
+    "newsroom": "La rédaction de Romy",
+    "ngo_office": "Le bureau de l’ONG de Marin",
+    "marche_canal": "Le marché du canal",
+    "buttes_chaumont": "Le parc des Buttes-Chaumont",
+    "metro_platform": "Le quai du métro",
+    "gus_loft": "Le « château » de Gus",
+    "brocante": "La brocante",
+    "office_admin": "Un bureau administratif"
+  },
+  "character_agendas": {
+    "marin_leveque": [
+      {
+        "id": "s3_train_ticket",
+        "summary": "Marin prints his father's train times and pins them on the fridge like a warning.",
+        "meanwhile_fr": "Marin a imprimé les horaires du train de son père et les a mis sur le frigo.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s3_publisher_email",
+        "summary": "A publisher in Rennes asks for the whole manuscript; he reads the email ten times.",
+        "meanwhile_fr": "Marin a reçu un e-mail d'un éditeur de Rennes. Il l'a lu dix fois.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s3_tour_planned",
+        "summary": "He plans a perfect Paris tour for his father, minute by minute.",
+        "meanwhile_fr": "Marin a préparé une visite de Paris pour son père, minute par minute.",
+        "witnesses": ["augustin_de_roncourt", "romy_tremblay"]
+      },
+      {
+        "id": "s3_fish_stall",
+        "summary": "He asks Tiago which fishmonger at the market his father would respect.",
+        "meanwhile_fr": "Marin a demandé à Tiago quel poissonnier du marché son père aimerait.",
+        "witnesses": ["tiago_moreira"]
+      }
+    ],
+    "lila_bonnet": [
+      {
+        "id": "s3_studio_key",
+        "summary": "She gets the key of a shared studio by the canal and tells nobody for a week.",
+        "meanwhile_fr": "Lila a la clé d'un atelier au bord du canal. Elle n'a rien dit pendant une semaine.",
+        "witnesses": ["romy_tremblay"]
+      },
+      {
+        "id": "s3_gallery_date",
+        "summary": "A small gallery gives her a date for a group show; she writes it on her hand.",
+        "meanwhile_fr": "Une petite galerie a donné une date à Lila. Elle l'a écrite sur sa main.",
+        "witnesses": ["marin_leveque", "margaux_barman"]
+      },
+      {
+        "id": "s3_berlin_email",
+        "summary": "She rereads the old Berlin email after a bad day at the easel.",
+        "meanwhile_fr": "Après une mauvaise journée à l'atelier, Lila a relu le vieil e-mail de Berlin.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "s3_new_face",
+        "summary": "She adds one new face to the corner of the group portrait.",
+        "meanwhile_fr": "Lila a ajouté un nouveau visage dans un coin du portrait du groupe.",
+        "witnesses": ["augustin_de_roncourt", "tiago_moreira"]
+      }
+    ],
+    "augustin_de_roncourt": [
+      {
+        "id": "s3_badge_returned",
+        "summary": "He returns his agency badge and spends the afternoon at the Buttes-Chaumont.",
+        "meanwhile_fr": "Gus a rendu son badge au bureau. Il a passé l'après-midi aux Buttes-Chaumont.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s3_flyer_printed",
+        "summary": "He prints forty flyers for a conversation club and throws away thirty.",
+        "meanwhile_fr": "Gus a imprimé quarante affiches pour un club de conversation. Il en a jeté trente.",
+        "witnesses": ["romy_tremblay", "lila_bonnet"]
+      },
+      {
+        "id": "s3_mother_asks",
+        "summary": "His mother asks on the phone why he sounds so free on a Tuesday.",
+        "meanwhile_fr": "Au téléphone, la mère de Gus lui a demandé pourquoi il était libre un mardi.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "s3_method_rewritten",
+        "summary": "He rewrites «La Méthode» as ten rules for newcomers, and none of them are about seduction.",
+        "meanwhile_fr": "Gus a réécrit « La Méthode » : dix règles pour les nouveaux venus, sans séduction.",
+        "witnesses": ["tiago_moreira", "margaux_barman"]
+      }
+    ],
+    "romy_tremblay": [
+      {
+        "id": "s3_contract_offer",
+        "summary": "Her editor offers a permanent contract, on one condition: a series on the quartier.",
+        "meanwhile_fr": "La cheffe de Romy lui a proposé un contrat à Paris, avec une condition : une série sur le quartier.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s3_first_draft",
+        "summary": "She writes the first portrait of the series at night and does not send it.",
+        "meanwhile_fr": "Romy a écrit le premier portrait de la série, la nuit. Elle ne l'a pas envoyé.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s3_montreal_call",
+        "summary": "A Montréal radio asks her to come back for the spring; she says she will think.",
+        "meanwhile_fr": "Une radio de Montréal a proposé un travail à Romy pour le printemps. Elle a dit : « Je vais réfléchir. »",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "s3_market_interviews",
+        "summary": "She interviews three stallholders at the Canal market, and Tiago translates the Portuguese one.",
+        "meanwhile_fr": "Romy a interviewé trois marchands du canal. Tiago a traduit pour le marchand portugais.",
+        "witnesses": ["tiago_moreira", "marin_leveque"]
+      }
+    ],
+    "margaux_barman": [
+      {
+        "id": "s3_owner_letter",
+        "summary": "A letter from the building's owner arrives; she puts it under the till without opening it.",
+        "meanwhile_fr": "Une lettre du propriétaire est arrivée au Mistral. Margaux l'a mise sous la caisse, fermée.",
+        "witnesses": ["augustin_de_roncourt"]
+      },
+      {
+        "id": "s3_visit_buyer",
+        "summary": "A man in a good coat visits the bar after closing and measures the back room.",
+        "meanwhile_fr": "Après la fermeture, un homme en beau manteau a mesuré l'arrière-salle du Mistral.",
+        "witnesses": ["romy_tremblay", "lila_bonnet"]
+      },
+      {
+        "id": "s3_bank_meeting",
+        "summary": "She puts on her only jacket and goes to the bank on a Monday morning.",
+        "meanwhile_fr": "Lundi matin, Margaux a mis sa seule veste et elle est allée à la banque.",
+        "witnesses": ["marin_leveque"]
+      },
+      {
+        "id": "s3_sign_repainted",
+        "summary": "She has the old sign of Le Mistral repainted, as if the bar were staying forever.",
+        "meanwhile_fr": "Margaux a fait repeindre la vieille enseigne du Mistral, comme si le bar restait pour toujours.",
+        "witnesses": ["tiago_moreira", "augustin_de_roncourt"]
+      }
+    ],
+    "tiago_moreira": [
+      {
+        "id": "s3_room_found",
+        "summary": "He finds a room under the roof in the 11th and sends his mother a photo of the view only.",
+        "meanwhile_fr": "Tiago a trouvé une chambre sous les toits. Il a envoyé à sa mère une photo de la vue, rien d'autre.",
+        "witnesses": ["margaux_barman"]
+      },
+      {
+        "id": "s3_oui_oui",
+        "summary": "He says «oui, oui» to a customer, sells the wrong cheese, and pays the difference himself.",
+        "meanwhile_fr": "Au marché, Tiago a dit « oui, oui » sans comprendre. Il a vendu le mauvais fromage et il a payé la différence.",
+        "witnesses": ["marin_leveque", "romy_tremblay"]
+      },
+      {
+        "id": "s3_drawings",
+        "summary": "He sketches the canal bridges in a notebook during his break, like an architect.",
+        "meanwhile_fr": "Pendant sa pause, Tiago dessine les ponts du canal dans un carnet, comme un architecte.",
+        "witnesses": ["lila_bonnet"]
+      },
+      {
+        "id": "s3_first_joke",
+        "summary": "He makes his first joke in French at Le Mistral and it works.",
+        "meanwhile_fr": "Tiago a fait sa première blague en français au Mistral, et tout le monde a ri.",
+        "witnesses": ["augustin_de_roncourt", "margaux_barman", "lila_bonnet"]
+      }
+    ]
+  },
+  "season_arcs": [
+    {
+      "id": "margaux_mistral_keys",
+      "title": "Les clés du Mistral",
+      "title_fr": "Les clés du Mistral",
+      "characters": ["margaux_barman", "user"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Margaux gives you a spare set of keys to Le Mistral, says «au cas où», and explains nothing.",
+          "sets": {"margaux.keys_thread": "keys_given"}
+        },
+        {
+          "id": "pressure",
+          "summary": "A letter from the building's owner and a stranger measuring the back room: the bar's future is suddenly for sale, and Margaux pretends it is nothing.",
+          "sets": {"margaux.keys_thread": "threatened", "margaux.mistral_for_sale": true}
+        },
+        {
+          "id": "tentpole",
+          "summary": "Margaux asks for help out loud for the first time, and the group runs Le Mistral for one night with your keys.",
+          "sets": {"margaux.keys_thread": "named", "margaux.asked_for_help": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "marin_father_in_paris",
+      "title": "Le père de Marin à Paris",
+      "title_fr": "Le père de Marin à Paris",
+      "characters": ["marin_leveque", "lila_bonnet"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "After the phone call, Marin's father announces he is coming to Paris by train, «pour voir».",
+          "sets": {"marin.father_visit": "announced"}
+        },
+        {
+          "id": "rehearsal",
+          "summary": "Marin rehearses a perfect Paris for his father — the right café, the right words — and forgets to include his own life.",
+          "sets": {"marin.father_visit": "rehearsing"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "At the Canal market, between two fish stalls, father and son finally talk about the sea, the office and the novel.",
+          "sets": {"marin.father_visit": "met", "marin.father_blessing": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "lila_canal_studio",
+      "title": "L'atelier du canal",
+      "title_fr": "L'atelier du canal",
+      "characters": ["lila_bonnet", "romy_tremblay"],
+      "min_episodes_between_stages": 2,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Lila has the key of a shared studio by the canal and has told nobody; paint on her sleeve gives her away.",
+          "sets": {"lila.studio": "rented"}
+        },
+        {
+          "id": "deadline",
+          "summary": "A small gallery gives her a date for a group show: three weeks, and one unfinished portrait — the group's.",
+          "sets": {"lila.studio": "deadline"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "At the opening, Lila hangs the group portrait in public — and you are in it.",
+          "sets": {"lila.studio": "shown", "lila.portrait_shown": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "romy_quartier_series",
+      "title": "La série de Romy",
+      "title_fr": "La série de Romy",
+      "characters": ["romy_tremblay", "user"],
+      "min_episodes_between_stages": 3,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Romy's editor offers a permanent contract in Paris if she writes a series of portraits of the quartier.",
+          "sets": {"romy.series": "offered"}
+        },
+        {
+          "id": "interview",
+          "summary": "Romy wants the first portrait to be you — the newcomer who stayed — on the record, in French.",
+          "sets": {"romy.series": "interview"}
+        },
+        {
+          "id": "tentpole",
+          "summary": "The portrait runs with your words in it; Romy signs the Paris contract and says out loud that she is staying.",
+          "sets": {"romy.series": "published", "romy.stays_in_paris": true},
+          "tentpole": true
+        }
+      ]
+    },
+    {
+      "id": "gus_conversation_club",
+      "title": "Le club de Gus",
+      "title_fr": "Le club de Gus",
+      "characters": ["augustin_de_roncourt", "tiago_moreira", "user"],
+      "min_episodes_between_stages": 2,
+      "stages": [
+        {
+          "id": "spark",
+          "summary": "Gus pins a flyer at Le Mistral: a conversation club for newcomers, «sans Méthode».",
+          "sets": {"gus.club": "announced"}
+        },
+        {
+          "id": "first_night",
+          "summary": "The first evening, only Tiago comes, Gus has prepared nothing, and you have to help keep the conversation going.",
+          "sets": {"gus.club": "first_night", "tiago.met_group": true}
+        },
+        {
+          "id": "tentpole",
+          "summary": "The club works the night you tell your own first-night story in French — the dead radiator, the rain, the booth.",
+          "sets": {"gus.club": "alive", "user.became_the_guide": true},
+          "tentpole": true
+        }
+      ]
+    }
+  ],
+  "interlude_beats": [
+    {
+      "id": "s3_interlude_inventaire",
+      "summary": "Closing time at Le Mistral: you help Margaux count glasses and nobody talks about the future.",
+      "seed": "Margaux hands you a cloth and a tray; the counting turns into a quiet conversation.",
+      "structure": "two_hander",
+      "location_id": "le_mistral",
+      "hook_guidance": "End on a small everyday detail. Promise no new crisis."
+    },
+    {
+      "id": "s3_interlude_marche_dimanche",
+      "summary": "A Sunday at the Canal market: Tiago asks you how to order at the other stalls.",
+      "seed": "Tiago holds a shopping list in Portuguese and French; you do the market together.",
+      "structure": "two_hander",
+      "location_id": "marche_canal",
+      "hook_guidance": "End with a simple question the learner can answer in one short message."
+    },
+    {
+      "id": "s3_interlude_pique_nique",
+      "summary": "A picnic at the Buttes-Chaumont where everyone brought the same dessert.",
+      "seed": "Four tartes aux pommes on one blanket; the group argues about whose is best.",
+      "structure": "ensemble",
+      "location_id": "buttes_chaumont",
+      "hook_guidance": "End on a warm joke. No arc moves."
+    },
+    {
+      "id": "s3_interlude_dernier_metro",
+      "summary": "The last métro home with Romy, too tired for anything but honest small talk.",
+      "seed": "The train is late; Romy asks you what you miss from home.",
+      "structure": "two_hander",
+      "location_id": "metro_platform",
+      "hook_guidance": "End by inviting the learner to share one thing they miss."
+    },
+    {
+      "id": "s3_interlude_brocante",
+      "summary": "A brocante on a Saturday morning: Gus haggles for a lamp he does not need.",
+      "seed": "Gus asks you to be his «témoin» while he bargains in his best theatrical French.",
+      "structure": "two_hander",
+      "location_id": "brocante",
+      "hook_guidance": "End with the learner choosing: buy the lamp or not."
+    },
+    {
+      "id": "s3_interlude_diner_chez_marin",
+      "summary": "Dinner at Marin and Lila's: too much casserole, not enough chairs.",
+      "seed": "You arrive with bread and are immediately put in charge of the salad.",
+      "structure": "ensemble",
+      "location_id": "marin_lila_flat",
+      "hook_guidance": "End on a warm everyday detail from the evening."
+    }
+  ]
+}

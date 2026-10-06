@@ -1,0 +1,1053 @@
+{
+  "_doc": "WP-132B: the epilogue's level variants (a1 + a1_native, b2, c1) and level example replies, keyed like levels_a/levels_b.",
+  "lines": {
+    "28bc4225ef11": {
+      "a1": "Non, non ! La plaque reste comme ça.",
+      "b2": "Règle numéro un de La Méthode : on ne touche pas à la plaque.",
+      "c1": "Règle numéro un de La Méthode : la plaque, on n'y touche pas.",
+      "a1_native": {
+        "en": "No, no! The plaque stays like that.",
+        "de": "Nein, nein! Das Schild bleibt so."
+      }
+    },
+    "6d0757e96690": {
+      "a1": "Alors. Et le tableau, qu'est-ce que tu fais ?",
+      "b2": "Alors. Le tableau. Qu'est-ce que tu comptes en faire ?",
+      "c1": "Alors. Le tableau. Tu comptes en faire quoi ?",
+      "a1_native": {
+        "en": "So. And the painting, what are you doing?",
+        "de": "Also. Und das Bild, was machst du?"
+      }
+    },
+    "0923dfff68f0": {
+      "a1": "En haut, c'est la bonne lumière.",
+      "b2": "Là-haut, au moins, la lumière est juste.",
+      "c1": "Là-haut, au moins, la lumière sera juste.",
+      "a1_native": {
+        "en": "Upstairs, it's the right light.",
+        "de": "Oben ist es das richtige Licht."
+      }
+    },
+    "ac8caad7d7a4": {
+      "a1": "Pas aujourd'hui. Aujourd'hui, tu bois ton café.",
+      "b2": "Pas aujourd'hui. Aujourd'hui, tu bois ton café.",
+      "c1": "Pas aujourd'hui. Aujourd'hui, tu bois ton café. Bois."
+    },
+    "27c241bc1f3c": {
+      "a1": "Une personne très vieille. Va pas trop vite.",
+      "b2": "Quelqu'un de très âgé, maintenant. Vas-y doucement.",
+      "c1": "Quelqu'un de très âgé, à présent. Vas-y doucement.",
+      "a1_native": {
+        "en": "A very old person. Don't go too fast.",
+        "de": "Eine sehr alte Person. Nicht zu schnell."
+      }
+    },
+    "e2049db09690": {
+      "a1": "Berlin : il pleut. Comme à Paris. Et toi ?",
+      "b2": "Berlin : il pleut. Comme à Paris. Et toi, comment ça va ?",
+      "c1": "Berlin : il pleut des cordes. Comme à Paris. Et toi, tu tiens le coup ?",
+      "a1_native": {
+        "en": "Berlin: it's raining. Like in Paris. And you?",
+        "de": "Berlin: Es regnet. Wie in Paris. Und du?"
+      }
+    },
+    "4f40cdec834d": {
+      "a1": "Un matin sans Lila. À suivre…",
+      "b2": "Le premier matin sans Lila. À suivre…",
+      "c1": "Le premier matin sans Lila. À suivre…",
+      "a1_native": {
+        "en": "A morning without Lila. To be continued…",
+        "de": "Ein Morgen ohne Lila. Fortsetzung folgt…"
+      }
+    },
+    "c1a1eb72b188": {
+      "a1": "Les enfants ont six ans. Ils peignent tout.",
+      "b2": "Atelier peinture. Ils ont six ans. Ils repeignent les murs.",
+      "c1": "Atelier peinture. Moyenne d'âge : six ans. Ils repeignent les murs.",
+      "a1_native": {
+        "en": "The children are six. They paint everything.",
+        "de": "Die Kinder sind sechs. Sie malen alles an."
+      }
+    },
+    "56b3872f73e7": {
+      "a1": "Tu me regardes comme ça. Qu'est-ce qu'il y a ?",
+      "b2": "Tu me dévisages comme un policier. Qu'est-ce qu'il y a ?",
+      "c1": "Tu me dévisages comme un commissaire. Je suis inculpé de quoi ?",
+      "a1_native": {
+        "en": "You're looking at me like that. What is it?",
+        "de": "Du schaust mich so an. Was ist los?"
+      }
+    },
+    "771aaa78ae8f": {
+      "a1": "Quel tableau ? Ah, ça. Je ne sais pas.",
+      "b2": "Quel tableau ? Ah, ce tableau-là. Aucune idée.",
+      "c1": "Quel tableau ? Ah, celui-là. Pas la moindre idée.",
+      "a1_native": {
+        "en": "What painting? Oh, that. I don't know.",
+        "de": "Welches Bild? Ach, das. Ich weiß nicht."
+      }
+    },
+    "20eccf8d19ca": {
+      "a1": "Ma mère sait des choses. C'est son problème.",
+      "b2": "Ma mère connaît tout le monde. C'est bien son problème.",
+      "c1": "Ma mère connaît tout le quartier. C'est bien là le problème.",
+      "a1_native": {
+        "en": "My mother knows things. That's her problem.",
+        "de": "Meine Mutter weiß Dinge. Das ist ihr Problem."
+      }
+    },
+    "3a2170bf31b2": {
+      "a1": "C'est mal dit. Mais c'est vrai.",
+      "b2": "C'est très mal dit. Et c'est vrai.",
+      "c1": "C'est affreusement mal dit. Et c'est vrai.",
+      "a1_native": {
+        "en": "That's badly said. But it's true.",
+        "de": "Das ist schlecht gesagt. Aber es stimmt."
+      }
+    },
+    "42394166908e": {
+      "a1": "Bon. Qui veut une soupe ?",
+      "b2": "Bon. Qui veut une soupe ?",
+      "c1": "Bon. Qui veut une soupe ?"
+    },
+    "cadf59442bb9": {
+      "a1": "Pas de café, pas de Lila. Et toi ?",
+      "b2": "Le café a fermé. Lila est partie. Et toi, qu'est-ce que tu vas faire ?",
+      "c1": "Le café a fermé, Lila est partie… Et toi, tu comptes faire quoi ?",
+      "a1_native": {
+        "en": "No café, no Lila. And you?",
+        "de": "Kein Café, keine Lila. Und du?"
+      }
+    },
+    "e38c005bdbb6": {
+      "a1": "C'est un signe. Je viens avec toi.",
+      "b2": "C'est un signe, ça. Je viens avec toi.",
+      "c1": "Si ça, ce n'est pas un signe… Je viens avec toi."
+    },
+    "5ecaefd45eef": {
+      "a1": "Moi non plus. Alors on mange.",
+      "b2": "Moi non plus. Alors on mange, d'abord.",
+      "c1": "Moi non plus. Alors on mange, et on verra après."
+    },
+    "78a0f6376584": {
+      "a1": "Oh non. Je pleure, maintenant.",
+      "b2": "Arrête. Je pleure dans ma soupe, là.",
+      "c1": "Arrête, tu vas me faire pleurer dans ma soupe.",
+      "a1_native": {
+        "en": "Oh no. Now I'm crying.",
+        "de": "Oh nein. Jetzt weine ich."
+      }
+    },
+    "02dfada5c723": {
+      "a1": "Le bus 46. Deux croissants. Et cet escalier !",
+      "b2": "Le bus 46. Deux croissants. Et l'escalier, toujours aussi raide.",
+      "c1": "Le bus 46, deux croissants, et cet escalier qui n'a pas rajeuni.",
+      "a1_native": {
+        "en": "The 46 bus. Two croissants. And these stairs!",
+        "de": "Der Bus 46. Zwei Croissants. Und diese Treppe!"
+      }
+    },
+    "9f6deade3e4d": {
+      "a1": "Page trois ! Et ils veulent encore une histoire !",
+      "b2": "Page trois. Et ils me demandent une suite. Je capote.",
+      "c1": "Page trois. Et ils en redemandent. Je capote complètement.",
+      "a1_native": {
+        "en": "Page three! And they want another story!",
+        "de": "Seite drei! Und sie wollen noch eine Geschichte!"
+      }
+    },
+    "4ee116ef5bdd": {
+      "a1": "Elle est grande. — M.",
+      "b2": "Elle est grande. — M.",
+      "c1": "Elle est grande. — M."
+    },
+    "9017ad3b86da": {
+      "a1": "Alors ? Et le tableau ? Dis !",
+      "b2": "Alors ? Le tableau ? Raconte-moi tout.",
+      "c1": "Alors ? Ce tableau ? Raconte-moi tout, dans le détail.",
+      "a1_native": {
+        "en": "So? And the painting? Tell me!",
+        "de": "Und? Und das Bild? Sag schon!"
+      }
+    },
+    "fabc85eaa50e": {
+      "a1": "Je sais ! La lumière est mauvaise. Toujours.",
+      "b2": "Je le savais. La lumière est fausse, je le dis depuis le début.",
+      "c1": "Je le savais. La lumière est fausse, je le répète depuis le premier jour.",
+      "a1_native": {
+        "en": "I know! The light is wrong. Always.",
+        "de": "Ich weiß! Das Licht ist falsch. Immer."
+      }
+    },
+    "871cb4a8ebe5": {
+      "a1": "Toi aussi. Mais pas un mot à Marin.",
+      "b2": "Toi aussi. Ne le dis surtout pas à Marin.",
+      "c1": "Toi aussi. Surtout, pas un mot à Marin.",
+      "a1_native": {
+        "en": "You too. But not a word to Marin.",
+        "de": "Du mir auch. Aber kein Wort zu Marin."
+      }
+    },
+    "4120ae0b3da8": {
+      "a1": "Déjà ? Après un dimanche ? Sept sur vingt.",
+      "b2": "Déjà ? C'est seulement le premier dimanche. Sept sur vingt.",
+      "c1": "Déjà ? On n'en est qu'au premier dimanche. Sept sur vingt.",
+      "a1_native": {
+        "en": "Already? After one Sunday? Seven out of twenty.",
+        "de": "Schon? Nach einem Sonntag? Sieben von zwanzig."
+      }
+    },
+    "4084ad86ed74": {
+      "a1": "C'est un très beau message. Avec quatre fautes.",
+      "b2": "C'est le plus beau texto de ma vie. Il y a quatre fautes dedans.",
+      "c1": "C'est le plus beau texto qu'on m'ait jamais envoyé. Quatre fautes, au moins.",
+      "a1_native": {
+        "en": "It's a very beautiful message. With four mistakes.",
+        "de": "Das ist eine sehr schöne Nachricht. Mit vier Fehlern."
+      }
+    },
+    "9cdf08e4a7f0": {
+      "a1": "Derrière le tableau, rue de Lancry. Très près. À suivre…",
+      "b2": "Au dos du tableau : rue de Lancry. C'est à deux cents mètres. À suivre…",
+      "c1": "Au dos du tableau, une adresse : rue de Lancry. À deux cents mètres d'ici. À suivre…",
+      "a1_native": {
+        "en": "Behind the painting, rue de Lancry. Very close. To be continued…",
+        "de": "Hinter dem Bild: Rue de Lancry. Ganz nah. Fortsetzung folgt…"
+      }
+    },
+    "8f89a90163e1": {
+      "a1": "Gus a le tableau. Et sa mère sait. À suivre…",
+      "b2": "Gus garde le tableau. Et sa mère en sait plus qu'elle ne le dit. À suivre…",
+      "c1": "Gus garde le tableau. Et sa mère en sait plus long qu'elle ne veut bien le dire. À suivre…",
+      "a1_native": {
+        "en": "Gus has the painting. And his mother knows. To be continued…",
+        "de": "Gus hat das Bild. Und seine Mutter weiß Bescheid. Fortsetzung folgt…"
+      }
+    },
+    "dec196a41d8c": {
+      "a1": "Les chaises sont là. Et le tableau ? À suivre…",
+      "b2": "Les chaises du Mistral attendent à la brocante. Et le tableau ? À suivre…",
+      "c1": "Les chaises du Mistral attendent preneur à la brocante. Et le tableau ? À suivre…",
+      "a1_native": {
+        "en": "The chairs are there. And the painting? To be continued…",
+        "de": "Die Stühle sind da. Und das Bild? Fortsetzung folgt…"
+      }
+    },
+    "7187c1abd737": {
+      "a1": "C'est un tableau ? Il est à vous ?",
+      "b2": "C'est un tableau volé, ça ?",
+      "c1": "C'est un tableau volé, ça ? Vous pouvez me le dire.",
+      "a1_native": {
+        "en": "Is that a painting? Is it yours?",
+        "de": "Ist das ein Bild? Gehört es Ihnen?"
+      }
+    },
+    "0588ebb3c75f": {
+      "a1": "Qui est-ce que vous cherchez ?",
+      "b2": "Qui est-ce que vous cherchez ?",
+      "c1": "Vous cherchez qui ?",
+      "a1_native": {
+        "en": "Who are you looking for?",
+        "de": "Wen suchen Sie?"
+      }
+    },
+    "57f61113fc1e": {
+      "a1": "En haut, une porte est pleine de peinture.",
+      "b2": "Au troisième, il y a une porte couverte de peinture.",
+      "c1": "Au troisième, il y a une porte toute barbouillée de peinture.",
+      "a1_native": {
+        "en": "Upstairs, a door is full of paint.",
+        "de": "Oben ist eine Tür voller Farbe."
+      }
+    },
+    "e98721f2eb5d": {
+      "a1": "L. ? Pas un nom, ça ! C'est une lettre.",
+      "b2": "L. ? Mais ce n'est pas un nom, ça. C'est une lettre.",
+      "c1": "L. ? Mais enfin, ce n'est pas un nom, c'est une lettre de l'alphabet.",
+      "a1_native": {
+        "en": "L.? Not a name, that! It's a letter.",
+        "de": "L.? Das ist doch kein Name! Das ist ein Buchstabe."
+      }
+    },
+    "b0347dca3cb1": {
+      "a1": "Votre grand-mère ? Elle est du quartier ?",
+      "b2": "Votre grand-mère ? Elle habitait le quartier ?",
+      "c1": "Votre grand-mère ? Elle était du quartier ?",
+      "a1_native": {
+        "en": "Your grandmother? Is she from the quartier?",
+        "de": "Ihre Großmutter? Ist sie aus dem Viertel?"
+      }
+    },
+    "25ef3a6089d4": {
+      "a1": "En haut, une personne ferme la fenêtre. À suivre…",
+      "b2": "Au troisième, quelqu'un referme la fenêtre. À suivre…",
+      "c1": "Au troisième, une main referme la fenêtre. À suivre…",
+      "a1_native": {
+        "en": "Upstairs, a person closes the window. To be continued…",
+        "de": "Oben schließt eine Person das Fenster. Fortsetzung folgt…"
+      }
+    },
+    "4726441ad6c8": {
+      "a1": "D'abord : où est le tableau du café ?",
+      "b2": "Premier point à l'ordre du jour : le tableau du Mistral. Quelqu'un sait où il est ?",
+      "c1": "Premier point à l'ordre du jour : le tableau du Mistral. Quelqu'un a-t-il une piste ?",
+      "a1_native": {
+        "en": "First: the café's painting. Where is it?",
+        "de": "Zuerst: das Bild vom Café. Wo ist es?"
+      }
+    },
+    "fc03dd08138b": {
+      "a1": "Pourquoi les gens me regardent ?",
+      "b2": "Pourquoi est-ce que tout le monde me regarde ?",
+      "c1": "Pourquoi tous ces regards braqués sur moi ?",
+      "a1_native": {
+        "en": "Why are people looking at me?",
+        "de": "Warum schauen mich die Leute an?"
+      }
+    },
+    "41bc52501be6": {
+      "a1": "Pas de tableau. Ma mère dit : rue de Lancry.",
+      "b2": "Je n'ai aucun tableau. Mais ma mère, elle, dit : rue de Lancry.",
+      "c1": "Je n'ai pas le moindre tableau. En revanche, ma mère parle de la rue de Lancry.",
+      "a1_native": {
+        "en": "No painting. My mother says: rue de Lancry.",
+        "de": "Kein Bild. Meine Mutter sagt: Rue de Lancry."
+      }
+    },
+    "4c008e49ef46": {
+      "a1": "Ma mère dit : rue de Lancry. Voilà.",
+      "b2": "Ma mère a servi ici pendant des années. Elle dit : rue de Lancry. Point.",
+      "c1": "Ma mère a servi ici des années durant. Elle parle de la rue de Lancry. Un point c'est tout.",
+      "a1_native": {
+        "en": "My mother says: rue de Lancry. That's it.",
+        "de": "Meine Mutter sagt: Rue de Lancry. Mehr nicht."
+      }
+    },
+    "8acdb813cf2a": {
+      "a1": "Je comprends. C'est mal dit.",
+      "b2": "Je comprends. C'est très mal dit.",
+      "c1": "Je comprends. C'est atrocement mal dit.",
+      "a1_native": {
+        "en": "I understand. That's badly said.",
+        "de": "Ich verstehe. Das ist schlecht gesagt."
+      }
+    },
+    "583b0990014e": {
+      "a1": "Rue de Lancry. Ma mère. Pas de questions.",
+      "b2": "Rue de Lancry. Ma mère. Et ne me demande rien.",
+      "c1": "Rue de Lancry. Ma mère. Et pas de questions.",
+      "a1_native": {
+        "en": "Rue de Lancry. My mother. No questions.",
+        "de": "Rue de Lancry. Meine Mutter. Keine Fragen."
+      }
+    },
+    "1d39ae7106e6": {
+      "a1": "Pas de tableau. Mais une rue. À suivre…",
+      "b2": "Gus n'a pas de tableau. Mais il a une adresse. À suivre…",
+      "c1": "Gus n'a pas de tableau, paraît-il. Mais il a une adresse. À suivre…",
+      "a1_native": {
+        "en": "No painting. But a street. To be continued…",
+        "de": "Kein Bild. Aber eine Straße. Fortsetzung folgt…"
+      }
+    },
+    "0335a5a250b0": {
+      "a1": "Les chaises du café ? Vingt euros. Pour vous, vingt-cinq.",
+      "b2": "Les chaises du Mistral ? Vingt euros pièce. Pour vous, vingt-cinq.",
+      "c1": "Les chaises du Mistral ? Vingt euros pièce. Pour vous, ce sera vingt-cinq.",
+      "a1_native": {
+        "en": "The café's chairs? Twenty euros. For you, twenty-five.",
+        "de": "Die Stühle vom Café? Zwanzig Euro. Für Sie fünfundzwanzig."
+      }
+    },
+    "cb6647292749": {
+      "a1": "Et le tableau ?",
+      "b2": "Et le tableau ?",
+      "c1": "Et le tableau ?"
+    },
+    "a84d31dc4218": {
+      "a1": "Pas ici. Samedi, un vieux monsieur paie. Voilà.",
+      "b2": "Vendu. Samedi matin, à un vieux monsieur.",
+      "c1": "Parti. Samedi matin, à un vieux monsieur.",
+      "a1_native": {
+        "en": "Not here. Saturday, an old gentleman pays. That's it.",
+        "de": "Nicht hier. Samstag zahlt ein alter Herr. Das war's."
+      }
+    },
+    "d69ec162021d": {
+      "a1": "Je ne demande pas les noms. On paie, on part.",
+      "b2": "Je ne demande jamais les noms. Les gens paient, ils s'en vont.",
+      "c1": "Les noms, je ne les demande jamais. On paie, on s'en va.",
+      "a1_native": {
+        "en": "I don't ask for names. You pay, you leave.",
+        "de": "Ich frage nicht nach Namen. Man zahlt, man geht."
+      }
+    },
+    "10f96bf84eb2": {
+      "a1": "Un vieux monsieur. Pas de nom. Et maintenant ?",
+      "b2": "Un vieux monsieur. Pas de nom. Et maintenant, qu'est-ce qu'on fait ?",
+      "c1": "Un vieux monsieur, pas de nom… Et maintenant, on fait comment ?"
+    },
+    "d4fe32fe5e5e": {
+      "a1": "Un vieux monsieur dans Paris ? Facile !",
+      "b2": "Un vieux monsieur dans Paris. Facile. Il y en a deux millions.",
+      "c1": "Un vieux monsieur à Paris. Rien de plus simple : il y en a deux millions.",
+      "a1_native": {
+        "en": "An old gentleman in Paris? Easy!",
+        "de": "Ein alter Herr in Paris? Leicht!"
+      }
+    },
+    "72b58d0675da": {
+      "a1": "Alors je prends une chaise. Vingt-cinq euros !",
+      "b2": "Alors moi, je prends une chaise. Vingt-cinq euros. C'est un signe.",
+      "c1": "Dans ce cas, je prends une chaise. Vingt-cinq euros. Si ce n'est pas un signe…",
+      "a1_native": {
+        "en": "Then I'm taking a chair. Twenty-five euros!",
+        "de": "Dann nehme ich einen Stuhl. Fünfundzwanzig Euro!"
+      }
+    },
+    "2438566480aa": {
+      "a1": "Oui. Il est chez un monsieur. Il est bien.",
+      "b2": "Tu as raison. Il n'est pas perdu. Il est ailleurs.",
+      "c1": "Tu as raison. Il n'est pas perdu, il est ailleurs.",
+      "a1_native": {
+        "en": "Yes. It's with a gentleman. It's fine.",
+        "de": "Ja. Es ist bei einem Herrn. Es geht ihm gut."
+      }
+    },
+    "e3cb9ad9730e": {
+      "a1": "Il regarde le dos du tableau. Longtemps.",
+      "b2": "Il a regardé le dos du tableau. Longtemps.",
+      "c1": "Il a longuement regardé le dos du tableau.",
+      "a1_native": {
+        "en": "He looks at the back of the painting. A long time.",
+        "de": "Er schaut die Rückseite des Bildes an. Lange."
+      }
+    },
+    "41045f74176f": {
+      "a1": "Le tableau est dans Paris. Chez un monsieur. À suivre…",
+      "b2": "Le tableau est quelque part dans Paris, chez un vieux monsieur. À suivre…",
+      "c1": "Le tableau dort quelque part dans Paris, chez un vieux monsieur. À suivre…",
+      "a1_native": {
+        "en": "The painting is in Paris. With a gentleman. To be continued…",
+        "de": "Das Bild ist in Paris. Bei einem Herrn. Fortsetzung folgt…"
+      }
+    },
+    "33aa437ceb63": {
+      "a1": "Pour vous. De mon grand-père. Il écrit toujours comme ça.",
+      "b2": "De la part de mon grand-père. Il écrit en recommandé. Même à vous.",
+      "c1": "De la part de mon grand-père. Il écrit en recommandé avec accusé de réception. Même à vous.",
+      "a1_native": {
+        "en": "For you. From my grandfather. He always writes like that.",
+        "de": "Für Sie. Von meinem Großvater. Er schreibt immer so."
+      }
+    },
+    "bb83e43800ba": {
+      "a1": "Le dimanche, Odile passe par la rue de Lancry. Pourquoi ? Je ne sais pas. Je ne demande pas. Elle ne parle pas. Elle part, elle revient, elle est contente. M. Marchand",
+      "b2": "Le dimanche, Odile prenait toujours le même chemin : par la rue de Lancry. Elle ne m'a jamais dit pourquoi, et je ne le lui ai jamais demandé. M. Marchand",
+      "c1": "Le dimanche, Odile empruntait invariablement le même chemin : la rue de Lancry. Elle ne m'en a jamais dit la raison, et je me suis bien gardé de la lui demander. M. Marchand",
+      "a1_native": {
+        "en": "On Sundays, Odile goes by the rue de Lancry. Why? I don't know. I don't ask. She doesn't talk about it. She goes, she comes back, she is happy. M. Marchand",
+        "de": "Sonntags geht Odile durch die Rue de Lancry. Warum? Ich weiß nicht. Ich frage nicht. Sie spricht nicht darüber. Sie geht, sie kommt zurück, sie ist froh. M. Marchand"
+      }
+    },
+    "d0e740a5848b": {
+      "a1": "Et vous, qu'est-ce que vous allez faire ?",
+      "b2": "Et qu'est-ce que vous allez en faire ?",
+      "c1": "Et vous comptez en faire quoi, de cette lettre ?",
+      "a1_native": {
+        "en": "And you, what are you going to do?",
+        "de": "Und Sie, was werden Sie tun?"
+      }
+    },
+    "9d3bfa188ccb": {
+      "a1": "Comme ça ? Non. Je ne suis pas d'accord.",
+      "b2": "Sans plan ? Je ne suis pas d'accord.",
+      "c1": "Sans le moindre plan ? Je ne suis pas d'accord.",
+      "a1_native": {
+        "en": "Just like that? No. I don't agree.",
+        "de": "Einfach so? Nein. Ich bin nicht einverstanden."
+      }
+    },
+    "f530a8294128": {
+      "a1": "Je comprends. Mais je ne suis pas d'accord.",
+      "b2": "Je comprends. Je ne suis toujours pas d'accord.",
+      "c1": "Je comprends. Je n'en suis pas moins en désaccord.",
+      "a1_native": {
+        "en": "I understand. But I don't agree.",
+        "de": "Ich verstehe. Aber ich bin nicht einverstanden."
+      }
+    },
+    "18094d80bb30": {
+      "a1": "Pas très clair. Mais je comprends.",
+      "b2": "C'est confus. Et pourtant, c'est clair.",
+      "c1": "C'est confus. Et pourtant, c'est limpide.",
+      "a1_native": {
+        "en": "Not very clear. But I understand.",
+        "de": "Nicht sehr klar. Aber ich verstehe."
+      }
+    },
+    "1c8ddcbe346a": {
+      "a1": "À la prochaine dispute.",
+      "b2": "À la prochaine dispute.",
+      "c1": "À notre prochaine dispute."
+    },
+    "cd97ec4cf697": {
+      "a1": "Le dimanche, rue de Lancry. Pourquoi, Odile ? À suivre…",
+      "b2": "Tous les dimanches, Odile passait par la rue de Lancry. Pourquoi ? À suivre…",
+      "c1": "Chaque dimanche, Odile passait par la rue de Lancry. Pourquoi ? À suivre…",
+      "a1_native": {
+        "en": "On Sundays, rue de Lancry. Why, Odile? To be continued…",
+        "de": "Sonntags, Rue de Lancry. Warum, Odile? Fortsetzung folgt…"
+      }
+    },
+    "ad86e78c8063": {
+      "a1": "Une semaine ! Et c'est comme avant. C'est beau.",
+      "b2": "Une semaine ! Et rien n'a changé. C'est magnifique. Non : sublime.",
+      "c1": "Une semaine ! Et rien, absolument rien, n'a changé. C'est sublime.",
+      "a1_native": {
+        "en": "One week! And it's like before. It's beautiful.",
+        "de": "Eine Woche! Und es ist wie vorher. Es ist schön."
+      }
+    },
+    "a13fd4e3d319": {
+      "a1": "Ma place est ici, maintenant. Bon. Ça va. Un peu.",
+      "b2": "Tu m'as coûté une banquette. Je te pardonne. Un peu.",
+      "c1": "Tu m'as coûté une banquette. Je te pardonne. Du bout des lèvres.",
+      "a1_native": {
+        "en": "My place is here now. Fine. It's okay. A little.",
+        "de": "Mein Platz ist jetzt hier. Gut. Es geht. Ein bisschen."
+      }
+    },
+    "87b2bed71d64": {
+      "a1": "Bienvenue chez moi. La banquette est vieille. Moi aussi.",
+      "b2": "Bienvenue au château. La banquette est d'époque. Moi aussi.",
+      "c1": "Bienvenue au château. La banquette est d'époque. Son propriétaire aussi.",
+      "a1_native": {
+        "en": "Welcome to my place. The bench is old. Me too.",
+        "de": "Willkommen bei mir. Die Bank ist alt. Ich auch."
+      }
+    },
+    "52b93c5bed49": {
+      "a1": "Pas pour le journal. Quelle est ton histoire ?",
+      "b2": "Pas pour un article. Pour moi. Quelle est la vraie histoire ?",
+      "c1": "Pas pour un papier. Pour moi. C'est quoi, la vraie histoire ?",
+      "a1_native": {
+        "en": "Not for the paper. What is your story?",
+        "de": "Nicht für die Zeitung. Was ist deine Geschichte?"
+      }
+    },
+    "8e8024a5a81b": {
+      "a1": "Maintenant, Odile est un peu à toi. Pas mal !",
+      "b2": "Tu la connais mieux que nous, maintenant. Pas mal du tout.",
+      "c1": "Tu la connais mieux que nous tous, désormais. C'est pas pire.",
+      "a1_native": {
+        "en": "Now Odile is a little bit yours. Not bad!",
+        "de": "Jetzt gehört Odile ein bisschen dir. Nicht schlecht!"
+      }
+    },
+    "4df4665e852b": {
+      "a1": "Non ! Je vais pleurer.",
+      "b2": "Voyons donc. Tu vas me faire brailler, là.",
+      "c1": "Voyons donc. Tu vas finir par me faire brailler.",
+      "a1_native": {
+        "en": "No! I'm going to cry.",
+        "de": "Nein! Gleich weine ich."
+      }
+    },
+    "1b13cd5098d6": {
+      "a1": "Ça, c'est la vraie histoire. Elle reste ici.",
+      "b2": "Ça, c'est la vraie histoire. Et je ne l'écrirai pas.",
+      "c1": "Ça, c'est la vraie histoire. Et celle-là, je ne l'écrirai pas.",
+      "a1_native": {
+        "en": "That's the real story. It stays here.",
+        "de": "Das ist die wahre Geschichte. Sie bleibt hier."
+      }
+    },
+    "f1ca1bab0955": {
+      "a1": "Papa ? … Tu viens à Paris ? Quand ?",
+      "b2": "Papa ? … Tu viens à Paris ? Quand ?",
+      "c1": "Papa ? … Tu viens à Paris ? Quand ?"
+    },
+    "060887c192c7": {
+      "a1": "Le père de Marin vient à Paris. À suivre…",
+      "b2": "Le père de Marin vient à Paris. À suivre…",
+      "c1": "Le père de Marin vient à Paris. À suivre…"
+    },
+    "bc2cb7a618d5": {
+      "a1": "Votre billet : aujourd'hui, 18 h 12.",
+      "b2": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+      "c1": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+      "a1_native": {
+        "en": "Your ticket: today, 6:12 p.m.",
+        "de": "Ihre Fahrkarte: heute, 18:12 Uhr."
+      }
+    },
+    "8191b6ffed76": {
+      "a1": "C'est aujourd'hui, le billet. Tu pars ?",
+      "b2": "C'est aujourd'hui, ton billet. Tu le prends ?",
+      "c1": "C'est bien aujourd'hui, ton billet ? Tu le prends ?",
+      "a1_native": {
+        "en": "It's today, the ticket. Are you leaving?",
+        "de": "Heute ist es so weit, die Fahrkarte. Fährst du?"
+      }
+    },
+    "a332b28cf06a": {
+      "a1": "Bien ! Tu restes avec le quartier. Dix-huit sur vingt.",
+      "b2": "Bien. Il faut bien que quelqu'un garde le quartier. Dix-huit sur vingt.",
+      "c1": "Bien. Il fallait bien que quelqu'un veille sur le quartier. Dix-huit sur vingt.",
+      "a1_native": {
+        "en": "Good! You stay with the quartier. Eighteen out of twenty.",
+        "de": "Gut! Du bleibst beim Viertel. Achtzehn von zwanzig."
+      }
+    },
+    "e90245bf01e0": {
+      "a1": "On se voit en mars ? À Paris, ou ici.",
+      "b2": "Alors on se revoit en mars. À Paris, ou chez moi.",
+      "c1": "Alors on se retrouve en mars. À Paris, ou chez moi, à Berlin.",
+      "a1_native": {
+        "en": "See you in March? In Paris, or here.",
+        "de": "Sehen wir uns im März? In Paris oder hier."
+      }
+    },
+    "f9d88b22df85": {
+      "a1": "\"Je suis là.\" C'est la bonne réponse.",
+      "b2": "\"Moi aussi, je suis là.\" C'est la meilleure des réponses.",
+      "c1": "\"Moi aussi, je suis là.\" Il n'y a pas de meilleure réponse.",
+      "a1_native": {
+        "en": "\"I'm here.\" That's the right answer.",
+        "de": "„Ich bin da.“ Das ist die richtige Antwort."
+      }
+    },
+    "347c86a84c95": {
+      "a1": "Rue de Lancry, une fenêtre est encore allumée. À suivre…",
+      "b2": "Rue de Lancry, au troisième, une fenêtre est encore allumée. À suivre…",
+      "c1": "Rue de Lancry, au troisième, une fenêtre veille encore. À suivre…",
+      "a1_native": {
+        "en": "Rue de Lancry, one window is still lit. To be continued…",
+        "de": "Rue de Lancry, ein Fenster brennt noch. Fortsetzung folgt…"
+      }
+    }
+  },
+  "examples": {
+    "epilogue:ep1.a.g.turn:a": {
+      "a1": [
+        "Je le garde en haut.",
+        "Il reste chez moi."
+      ],
+      "b2": [
+        "Je vais l'accrocher là-haut, chez moi.",
+        "Il reste avec moi, en haut."
+      ],
+      "c1": [
+        "Je l'accroche là-haut, il est chez lui.",
+        "Il retourne là d'où il a été peint."
+      ]
+    },
+    "epilogue:ep1.a.g.turn:b": {
+      "a1": [
+        "Je vais rue de Lancry.",
+        "Je vais voir la rue de Lancry."
+      ],
+      "b2": [
+        "Je crois que je vais aller voir rue de Lancry.",
+        "Je vais aller voir à l'adresse, rue de Lancry."
+      ],
+      "c1": [
+        "Je vais faire un tour rue de Lancry.",
+        "Je compte aller voir rue de Lancry, à l'adresse."
+      ]
+    },
+    "epilogue:ep1.a.g.turn:c": {
+      "a1": [
+        "Je cherche… L. ? La personne ?",
+        "L.… Je veux voir. Je sais pas."
+      ],
+      "b2": [
+        "Je voudrais… trouver L. ? Enfin, la personne.",
+        "Je cherche… celui qui a signé. Je crois."
+      ],
+      "c1": [
+        "J'aimerais bien… trouver ce L. Enfin, si c'est possible.",
+        "Je cherche… la personne derrière le \"L.\", je crois."
+      ]
+    },
+    "epilogue:ep1.a.p.turn:a": {
+      "a1": [
+        "Où est le tableau, Gus ?",
+        "Gus, le tableau est où ?"
+      ],
+      "b2": [
+        "Gus, il est passé où, le tableau ?",
+        "Tu sais où est le tableau, toi ?"
+      ],
+      "c1": [
+        "Gus, qu'est-ce que tu as fait du tableau ?",
+        "Il s'est envolé, le tableau ? Où est-il ?"
+      ]
+    },
+    "epilogue:ep1.a.p.turn:b": {
+      "a1": [
+        "Ta mère connaît le tableau ?",
+        "Et ta mère ? Elle sait ?"
+      ],
+      "b2": [
+        "Ta mère travaillait ici, non ? Elle se souvient du tableau ?",
+        "Tu pourrais demander à ta mère ?"
+      ],
+      "c1": [
+        "Ta mère a servi ici des années. Elle doit savoir quelque chose.",
+        "Et si on posait la question à ta mère ?"
+      ]
+    },
+    "epilogue:ep1.a.p.turn:c": {
+      "a1": [
+        "Le tableau… pas à toi. Pas à moi.",
+        "Gus… c'est pas ton tableau."
+      ],
+      "b2": [
+        "Gus… ce tableau… il n'est ni à toi ni à moi.",
+        "Il est à… personne, ce tableau. Enfin, tu vois."
+      ],
+      "c1": [
+        "Gus… ce tableau, il ne t'appartient pas. Ni à moi, d'ailleurs.",
+        "Ce tableau… il n'est à personne. Enfin… tu me comprends."
+      ]
+    },
+    "epilogue:ep1.a.l.turn:a": {
+      "a1": [
+        "Je cherche le tableau.",
+        "Je vais chercher le tableau."
+      ],
+      "b2": [
+        "Je vais retrouver le tableau.",
+        "Je vais essayer de retrouver le tableau."
+      ],
+      "c1": [
+        "Je vais remettre la main sur ce tableau.",
+        "Je pars à la recherche du tableau."
+      ]
+    },
+    "epilogue:ep1.a.l.turn:b": {
+      "a1": [
+        "Je ne sais pas.",
+        "Je ne sais pas encore."
+      ],
+      "b2": [
+        "Aucune idée, pour l'instant.",
+        "Je ne sais pas encore, honnêtement."
+      ],
+      "c1": [
+        "Je n'en ai pas la moindre idée.",
+        "Franchement, je n'en sais rien pour l'instant."
+      ]
+    },
+    "epilogue:ep1.a.l.turn:c": {
+      "a1": [
+        "Le Mistral… pas fini. Il est… ici ?",
+        "Le café… il est dans nous ?"
+      ],
+      "b2": [
+        "Le Mistral… ce n'est pas fini. Il est… ailleurs, c'est tout.",
+        "Le Mistral, il est… en nous ? Enfin…"
+      ],
+      "c1": [
+        "Le Mistral n'est pas mort… il a juste… déménagé, en quelque sorte.",
+        "Le Mistral, c'est… nous, maintenant ? Enfin, tu vois."
+      ]
+    },
+    "epilogue:ep1.b.turn:a": {
+      "a1": [
+        "Le tableau ? C'est une longue histoire.",
+        "Le café va bien. Le tableau aussi."
+      ],
+      "b2": [
+        "Le tableau ? Tu ne vas pas me croire. Je te raconte.",
+        "Le café tient le coup. Le tableau, c'est une autre histoire."
+      ],
+      "c1": [
+        "Le tableau ? Accroche-toi, c'est toute une histoire.",
+        "Le café tient bon. Quant au tableau, c'est un roman."
+      ]
+    },
+    "epilogue:ep1.b.turn:b": {
+      "a1": [
+        "Tu me manques.",
+        "Tu me manques. Beaucoup."
+      ],
+      "b2": [
+        "Tu me manques déjà.",
+        "C'est bizarre sans toi. Tu me manques."
+      ],
+      "c1": [
+        "Tu me manques, c'est ridicule.",
+        "Le quartier est vide sans toi. Tu me manques."
+      ]
+    },
+    "epilogue:ep1.b.turn:c": {
+      "a1": [
+        "Ici… c'est pas pareil. Sans toi.",
+        "Le canal est là. Toi non."
+      ],
+      "b2": [
+        "Ici, c'est… bizarre. Rien n'a changé, mais tout a changé.",
+        "Le canal est pareil. Moi, pas trop."
+      ],
+      "c1": [
+        "C'est étrange, ici… Tout est pareil, sauf que rien ne l'est.",
+        "Le canal n'a pas bougé. Moi, si, je crois."
+      ]
+    },
+    "epilogue:ep2.a.g.turn:a": {
+      "a1": [
+        "Je cherche un peintre.",
+        "Un peintre. Il habite ici ?"
+      ],
+      "b2": [
+        "Je cherche un peintre qui habiterait ici.",
+        "Un peintre. Il vit peut-être ici."
+      ],
+      "c1": [
+        "Je suis à la recherche d'un peintre, il doit habiter ici.",
+        "Un peintre. Il vit peut-être dans cet immeuble."
+      ]
+    },
+    "epilogue:ep2.a.g.turn:b": {
+      "a1": [
+        "Je cherche L.",
+        "Une personne. Son nom : L."
+      ],
+      "b2": [
+        "Je cherche quelqu'un qui signe \"L.\".",
+        "Quelqu'un dont le nom commence par L."
+      ],
+      "c1": [
+        "Je cherche quelqu'un qui signe d'un simple \"L.\".",
+        "Quelqu'un dont je ne connais que l'initiale : L."
+      ]
+    },
+    "epilogue:ep2.a.g.turn:c": {
+      "a1": [
+        "Je cherche un ami de ma grand-mère.",
+        "Ma grand-mère… elle a un ami ici."
+      ],
+      "b2": [
+        "Je cherche… un ami de ma grand-mère. Un vieil ami.",
+        "Ma grand-mère connaissait quelqu'un ici, je crois."
+      ],
+      "c1": [
+        "Je cherche… quelqu'un que ma grand-mère a connu. Il y a longtemps.",
+        "Ma grand-mère avait un ami ici. Enfin, je crois."
+      ]
+    },
+    "epilogue:ep2.a.p.turn:a": {
+      "a1": [
+        "Gus, tu as le tableau !",
+        "Le tableau est chez toi, Gus."
+      ],
+      "b2": [
+        "Gus, c'est toi qui as le tableau. Tout le monde le sait.",
+        "Avoue, Gus. Le tableau est chez toi."
+      ],
+      "c1": [
+        "Gus, inutile de nier : le tableau est chez toi.",
+        "Allez, Gus. Tout le monde sait que tu l'as."
+      ]
+    },
+    "epilogue:ep2.a.p.turn:b": {
+      "a1": [
+        "Gus, s'il te plaît. Tu sais ?",
+        "Gus… tu sais une chose ?"
+      ],
+      "b2": [
+        "Gus, s'il te plaît. Si tu sais quelque chose, dis-le.",
+        "Je ne t'accuse pas, Gus. Tu sais quelque chose ?"
+      ],
+      "c1": [
+        "Gus, je ne t'accuse de rien. Mais si tu sais quelque chose…",
+        "Gus, s'il te plaît. Ça compte pour moi."
+      ]
+    },
+    "epilogue:ep2.a.p.turn:c": {
+      "a1": [
+        "Pas le tableau… Odile. Tu comprends ?",
+        "C'est pour Odile, Gus."
+      ],
+      "b2": [
+        "Ce n'est pas… pour le tableau. C'est pour Odile. Tu vois ?",
+        "Je m'en fiche du tableau… enfin non. C'est Odile."
+      ],
+      "c1": [
+        "Ce n'est pas le tableau qui compte… c'est Odile. Tu comprends ?",
+        "Le tableau, je m'en moque… enfin, presque. C'est d'Odile qu'il s'agit."
+      ]
+    },
+    "epilogue:ep2.a.l.turn:a": {
+      "a1": [
+        "On cherche le monsieur.",
+        "Je cherche le vieux monsieur."
+      ],
+      "b2": [
+        "On va retrouver ce vieux monsieur.",
+        "Il faut retrouver l'acheteur."
+      ],
+      "c1": [
+        "On va remonter la piste de ce vieux monsieur.",
+        "Il faut mettre la main sur l'acheteur."
+      ]
+    },
+    "epilogue:ep2.a.l.turn:b": {
+      "a1": [
+        "Le tableau part. C'est comme ça.",
+        "On laisse le tableau."
+      ],
+      "b2": [
+        "Il est parti. C'est comme ça.",
+        "On le laisse partir, ce tableau."
+      ],
+      "c1": [
+        "Il est parti, c'est ainsi.",
+        "Laissons-le partir, ce tableau."
+      ]
+    },
+    "epilogue:ep2.a.l.turn:c": {
+      "a1": [
+        "Le tableau est avec une personne. C'est bien ?",
+        "Il est chez un monsieur. C'est bien."
+      ],
+      "b2": [
+        "Le tableau… il est chez quelqu'un. C'est plutôt bien, non ?",
+        "Au moins, il n'est pas seul, ce tableau."
+      ],
+      "c1": [
+        "Le tableau… il a trouvé quelqu'un. Ce n'est pas si mal, si ?",
+        "Au fond, il est entre de bonnes mains, peut-être."
+      ]
+    },
+    "epilogue:ep2.b.turn:a": {
+      "a1": [
+        "Dimanche, je vais rue de Lancry.",
+        "Je prends le même chemin."
+      ],
+      "b2": [
+        "Dimanche, je vais faire le même chemin qu'elle.",
+        "Je vais suivre son chemin, rue de Lancry."
+      ],
+      "c1": [
+        "Dimanche, j'emprunterai le même chemin qu'elle.",
+        "Je vais marcher dans ses pas, rue de Lancry."
+      ]
+    },
+    "epilogue:ep2.b.turn:b": {
+      "a1": [
+        "Rien. C'est son secret.",
+        "Je ne fais rien."
+      ],
+      "b2": [
+        "Rien. C'était son secret, pas le mien.",
+        "Je vais laisser ça tranquille."
+      ],
+      "c1": [
+        "Rien du tout. C'était son secret, il lui appartient.",
+        "Je préfère laisser le passé où il est."
+      ]
+    },
+    "epilogue:ep2.b.turn:c": {
+      "a1": [
+        "Je veux voir. Comme elle. Le dimanche.",
+        "Je ne sais pas. Je veux voir."
+      ],
+      "b2": [
+        "Je ne sais pas… Je voudrais voir ce qu'elle voyait. Le dimanche.",
+        "Je veux juste… voir la rue. Comme elle."
+      ],
+      "c1": [
+        "Je ne sais pas… J'aimerais voir ce qu'elle regardait, le dimanche.",
+        "Je voudrais simplement… voir ce qu'elle voyait."
+      ]
+    },
+    "epilogue:ep3.a.turn:a": {
+      "a1": [
+        "C'est l'histoire d'Odile.",
+        "Odile. Je la connais, maintenant."
+      ],
+      "b2": [
+        "C'est l'histoire d'Odile. Maintenant, je la connais un peu.",
+        "J'ai rencontré ma grand-mère. Trop tard, mais quand même."
+      ],
+      "c1": [
+        "C'est l'histoire d'Odile. J'ai fini par la connaître.",
+        "J'ai rencontré ma grand-mère, à retardement."
+      ]
+    },
+    "epilogue:ep3.a.turn:b": {
+      "a1": [
+        "C'est vous. Les amis.",
+        "Le groupe. Vous."
+      ],
+      "b2": [
+        "C'est vous, en fait. Le groupe.",
+        "Je suis venu pour un appartement. J'ai trouvé des amis."
+      ],
+      "c1": [
+        "C'est vous, tout simplement. Le groupe.",
+        "Je suis venu signer des papiers, je repars avec des amis. Enfin, je reste."
+      ]
+    },
+    "epilogue:ep3.a.turn:c": {
+      "a1": [
+        "L'histoire ? Je parle français. Avec vous.",
+        "C'est ça : je parle. En français."
+      ],
+      "b2": [
+        "L'histoire… c'est que je parle français. Avec vous.",
+        "Avant, je ne parlais pas. Maintenant… je parle. Voilà."
+      ],
+      "c1": [
+        "L'histoire, c'est… que je parle français. Avec vous, ici.",
+        "Il y a deux mois, je ne disais rien. Maintenant, je parle. C'est ça, l'histoire."
+      ]
+    },
+    "epilogue:ep3.b.turn:stay": {
+      "a1": [
+        "Je reste à Paris.",
+        "Je reste. Pas de train."
+      ],
+      "b2": [
+        "Je reste. Je ne prends pas ce train.",
+        "Je reste à Paris. Le billet, je le laisse tomber."
+      ],
+      "c1": [
+        "Je reste. Ce billet, je le laisse filer.",
+        "Je reste à Paris. Le train partira sans moi."
+      ]
+    },
+    "epilogue:ep3.b.turn:leave": {
+      "a1": [
+        "Je pars ce soir. Je reviens.",
+        "Je prends le train. Mais je reviens."
+      ],
+      "b2": [
+        "Je prends le train ce soir, mais je reviendrai.",
+        "Je pars, mais ce n'est pas un adieu."
+      ],
+      "c1": [
+        "Je pars ce soir, mais ce n'est qu'un au revoir.",
+        "Je prends ce train, mais je reviendrai, c'est certain."
+      ]
+    },
+    "epilogue:ep3.b.turn:c": {
+      "a1": [
+        "Je ne sais pas. Je suis là.",
+        "Le billet est là. Moi aussi."
+      ],
+      "b2": [
+        "Je ne sais pas encore… Pour l'instant, je suis là.",
+        "Le billet est là. Et moi, je suis encore là."
+      ],
+      "c1": [
+        "Aucune idée… Pour l'heure, je suis là, c'est tout.",
+        "Le billet m'attend. Et moi, je suis toujours là."
+      ]
+    }
+  }
+}

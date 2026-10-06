@@ -12,26 +12,23 @@ def read_web(path: str) -> str:
 
 
 def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
-    archive = read_web("pages/serial/index.tsx")
-    cast = read_web("pages/serial/cast.tsx")
+    # WP-96: «La saison» and «Les personnages» moved into the Feuilleton's one
+    # surface — the archive («Archives du journal») and «Le trombinoscope».
+    # The old routes stay as redirects; the replay page stays.
+    archive_route = read_web("pages/serial/index.tsx")
+    cast_route = read_web("pages/serial/cast.tsx")
+    archive = read_web("components/feuilleton/archive/FeuilletonArchive.tsx")
+    cast = read_web("components/feuilleton/archive/Trombinoscope.tsx")
     replay = read_web("pages/serial/episode/[index].tsx")
     api = read_web("services/api.ts")
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
 
-    assert "apiService.getSerialEpisodes()" in archive
-    # Claude-design Feuilleton index: one headline, a story hero, paper rows,
-    # the generated (story-engine) episodes, and the cast register row.
-    assert "Le feuilleton" in archive
-    assert "fr-row" in archive
-    assert "getStoryEpisodes()" in archive
-    assert "Les personnages" in archive
-    assert "href=\"/serial/cast\"" in archive
-    assert "apiService.getSerialCast()" in cast
+    assert "router.replace('/graphic-novel')" in archive_route
+    assert "router.replace('/graphic-novel?view=cast')" in cast_route
+    assert "getStoryArchive" in archive
     assert "apiService.setSerialAvatar" in cast
-    assert "Rester en POV" in cast
-    # Claude-design cast register: one card per member on the av2 surface.
-    assert "CastCard" in cast
-    assert "model_sheet_url" in cast
-    assert "relationship.closeness" in cast
+    assert "stay_pov: 'Rester en POV'" in copy
+    assert "{t.stay_pov}" in cast
     assert "apiService.getGraphicNovelScene" in replay
     assert "apiService.getMission" in replay
     assert "mission-replay" in replay
@@ -93,7 +90,9 @@ def test_graphic_novel_completion_routes_to_returned_serial_beat() -> None:
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source
     # Reader rebuild: the end of the episode is one action — Terminer l’épisode
     # while it is open, the declared next beat once it is filed.
-    assert "Terminer l’épisode" in source
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
+    assert "complete_episode: 'Terminer l’épisode'" in copy
+    assert "completeLabel={t.complete_episode}" in source
     component = read_web("components/feuilleton/reader/FeuilletonReader.tsx")
     assert 'className="fr-btn fr-next is-action" data-press="3d" href={nextHref}' in component
 
@@ -113,16 +112,18 @@ def test_feuilleton_legacy_reader_rules_are_pruned_after_fe_panel_adoption() -> 
 
 def test_graphic_novel_default_route_rejoins_canonical_story_beat() -> None:
     source = read_web("pages/graphic-novel.tsx")
+    copy = read_web("components/feuilleton/feuilleton-copy.ts")
 
     assert "const [canonicalBeat, setCanonicalBeat]" in source
     assert "const [serialResult, editionsResult] = await Promise.allSettled" in source
     assert "if (serial.kind === 'feuilleton' && serial.scene_id)" in source
     assert "canonicalBeat?.kind === 'mission'" in source
-    assert "La suite se joue avant de se lire." in source
+    assert "La suite se joue avant de se lire." in copy
+    assert "<h2>{t.mission_title}</h2>" in source
     # Soft-button pass: CTA labels are sentence case (text-transform removed).
-    assert "Ouvrir la mission du jour" in source
+    assert "open_mission: 'Ouvrir la mission du jour'" in copy
     assert "onClick={openCanonicalBeat}" in source
-    assert "Aucun récit parallèle ne sera créé." in source
+    assert "Aucun récit parallèle ne sera créé." in copy
 
 
 def test_feuilleton_translations_stay_hidden_until_requested() -> None:
@@ -134,9 +135,14 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     assert "showMobileTranslations" not in source
     assert "Afficher EN" not in source
     # The paged reader owns both affordances: one per panel, one per task.
-    assert "{showTranslation ? 'Masquer la traduction' : 'Traduire la planche'}" in reader
+    # WP-82: the affordances' words come from the reader's copy table.
+    # WP-90: in the story reader the chip sits in the bar as «Traduire».
+    assert "{chipInBar ? t.translate : showTranslation ? t.hide_translation : t.translate_panel}" in reader
     assert '{showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}' in reader
-    assert "{open ? 'Masquer la traduction' : 'Traduire'}" in reader
+    assert "{open ? t.hide_translation : t.translate}" in reader
+    reader_copy = read_web("components/feuilleton/reader/reader-copy.ts")
+    assert "translate_panel: 'Traduire la case'" in reader_copy  # a case is one panel; the planche is the page
+    assert "hide_translation: 'Masquer la traduction'" in reader_copy
 
 
 def test_the_minted_collection_survives_the_almanac_page() -> None:

@@ -40,6 +40,47 @@ INTERLUDE_BEATS: tuple[dict[str, Any], ...] = (
         "location_id": "le_mistral",
         "hook_guidance": "End by inviting the learner's own version of the shared memory.",
     },
+    # WP-98: a named interlude can last two weeks; three beats would replay every few days.
+    {
+        "id": "interlude_linge_du_dimanche",
+        "summary": "A Sunday at the laundromat: two of the group fold each other's clothes and talk about nothing.",
+        "seed": "Someone has lost a sock and treats it like a mystery worth solving.",
+        "structure": "two_hander",
+        "location_id": "user_apartment",
+        "hook_guidance": "End on a small, funny detail. No arc moves.",
+    },
+    {
+        "id": "interlude_pluie_au_parc",
+        "summary": "A walk at the Buttes-Chaumont cut short by rain; everyone shelters under one tree.",
+        "seed": "The group waits out a shower and plays a word game in French.",
+        "structure": "ensemble",
+        "location_id": "buttes_chaumont",
+        "hook_guidance": "End with a light question the learner can answer in one sentence.",
+    },
+    {
+        "id": "interlude_recette_de_grand_mere",
+        "summary": "Marin cooks his grandmother's recipe and needs help reading his own handwriting.",
+        "seed": "A stained recipe card, one unreadable word, and an argument about butter.",
+        "structure": "two_hander",
+        "location_id": "marin_lila_flat",
+        "hook_guidance": "End on the smell of dinner and one warm line.",
+    },
+    {
+        "id": "interlude_chine_a_la_brocante",
+        "summary": "A Saturday brocante where the group buys useless things for each other.",
+        "seed": "Each person has five euros to find the perfect small gift.",
+        "structure": "ensemble",
+        "location_id": "brocante",
+        "hook_guidance": "End with the learner choosing a gift for someone.",
+    },
+    {
+        "id": "interlude_dernier_metro",
+        "summary": "The last métro home, too tired for drama, just honest small talk.",
+        "seed": "The train is late and the platform is almost empty.",
+        "structure": "two_hander",
+        "location_id": "metro_platform",
+        "hook_guidance": "End by inviting the learner to say one thing about their day.",
+    },
 )
 
 CEFR_RAMP: dict[str, dict[str, Any]] = {

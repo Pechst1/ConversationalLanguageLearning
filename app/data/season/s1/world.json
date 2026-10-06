@@ -1,0 +1,251 @@
+{
+  "_about": "Season 1 «La clé d'Odile» (docs/story/season-1/00-season-bible.md §2–§5, 10-lieux-et-images.md) as a world bible overlay. Merged over app/prompts/serial/world_bible_paris_v2.json by app/services/season/world.py: the cast, the situation and the registers are replaced; the places and the art direction are extended. The director reads this on the generated days; the tentpoles are authored.",
+  "world_bible_version": "s1-odile-1",
+  "season_number": 1,
+  "season_script": "s1",
+  "season_title_fr": "La clé d'Odile",
+  "season_logline_fr": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous.",
+  "logline": "You come to Paris for a week, to sign the papers for a small flat your grandmother Odile left you and to go home. The flat is above a café called Le Mistral. Everyone downstairs remembers her, and each of them remembers someone different. Keep it, share it, or let it go?",
+  "premise_note": "The learner is the protagonist: the heir of Odile Ferrand's first-floor flat, the one floor of the building M. Marchand does not own and Solvel Immobilier wants. Three arcs collide: the key and the café (who was Odile, and why did she leave?), Lila and Berlin (a slow romance or a deep friendship; Lila never stays), and the future of Le Mistral (keep it as it was, change it, or let it go). The season runs on the learner's own day count: authored tentpoles, and generated days between them that must each change something.",
+  "protagonist": {
+    "who": "Toi — the learner. Gender-neutral: lines addressed to Toi never agree an adjective with them.",
+    "situation": "Arrived from «là-bas» with a suitcase, the notary's envelope and Odile's key ring (an old key and a small enamel cicada, green and gold, from Provence). Rents a short-let studio with a cold radiator. Booked a return ticket for a week later.",
+    "want": "To sign and leave. Then to know who she was. Then, without admitting it, to stay.",
+    "fear": "Being the stranger who inherits a life that belongs to other people.",
+    "secret": "They barely knew her. The last time they saw her she called them by their parent's name.",
+    "nicknames": "Lila calls them «l'héritage». M. Marchand says «la succession Ferrand». Both are running gags.",
+    "visual_rule": "Never shown face-on: from behind, cropped, or reflected in a dark window. The slightly-too-heavy coat."
+  },
+  "cast": [
+    {
+      "id": "lila_bonnet",
+      "gender": "f",
+      "name": "Lila Bonnet",
+      "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+      "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+      "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+      "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021.",
+      "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+      "flaw": "Keeps her own secret while resenting everyone else's.",
+      "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+      "speech_pattern": "A2: «Mais arrête. C'est évident.» «Toi, tu me caches quelque chose.» «Bon, on fait quoi ?» B1: «Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+      "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+      "signature_phrases": ["Salut, l'héritage !", "Sept sur vingt.", "Bon, on fait quoi ?"],
+      "small_moments": "Paint on her thumb. The ochre scarf. Draws on napkins while others argue.",
+      "voice": {"provider": "openai", "voice": "shimmer", "style": "bright, quick, warm, a little mocking"}
+    },
+    {
+      "id": "marin_leveque",
+      "gender": "m",
+      "name": "Marin Lévêque",
+      "role": "Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).",
+      "register_with_user": "tu",
+      "personality": "A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.",
+      "wants": "That the café survives, even changed. That something he builds holds people together.",
+      "contradiction": "Wants to hold the group together and is afraid of being the one who breaks it.",
+      "flaw": "Cannot ask for anything without a grandmother's saying and three apologies.",
+      "secret": "He has already put €4,000 of savings in as the first share (known from T3).",
+      "speech_pattern": "A2: «C'est un signe, ça.» «Bon. Qui veut une soupe ?» «Ma grand-mère disait toujours…» (her sayings grow more absurd). B1: «Si ça, c'est pas un signe, je ne sais pas ce qu'il te faut.» Breton words he then explains («Kenavo ! Ça veut dire au revoir. Enfin, à la prochaine.»).",
+      "dynamic_with_user": "Brings soup when you're ill. Holds the chair, and later the ladder.",
+      "signature_phrases": ["C'est un signe, ça.", "Ma grand-mère disait toujours…"],
+      "voice": {"provider": "openai", "voice": "onyx", "style": "warm, unhurried, gentle"}
+    },
+    {
+      "id": "augustin_de_roncourt",
+      "gender": "m",
+      "name": "Augustin « Gus » de Roncourt",
+      "role": "Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.",
+      "register_with_user": "vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.",
+      "personality": "Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.",
+      "wants": "To keep the booth where he did his homework while his mother worked the room — without ever having to say that sentence.",
+      "contradiction": "Performs an aristocrat to hide that he is the one who most needs the place as it was.",
+      "flaw": "Would rather be magnificent than true.",
+      "secret": "«De Roncourt» was invented at 15; he grew up in Créteil and his mother waited tables at Le Mistral (his confession belongs to T7 — before that, never; the costume may crack, never fall). He pays other people's tabs anonymously.",
+      "speech_pattern": "A2: «Règle numéro un de La Méthode : …» «Mesdames, messieurs !» B1: «Costume… attends… né pour ça.» «Je réclame votre silence ou, à défaut, votre indulgence.»",
+      "dynamic_with_user": "Charmed, suspicious, then loyal in his fashion. The learner can hurt him, and he knows it.",
+      "signature_phrases": ["Règle numéro un de La Méthode", "Mesdames, messieurs !", "C'est sublime."],
+      "voice": {"provider": "openai", "voice": "fable", "style": "theatrical, velvety, amused"}
+    },
+    {
+      "id": "margaux_barman",
+      "gender": "f",
+      "name": "Margaux",
+      "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+      "register_with_user": "tu, at once — as she did with Odile",
+      "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+      "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help.",
+      "contradiction": "Protects everyone and lets nobody protect her.",
+      "flaw": "One sentence too few, always.",
+      "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
+      "speech_pattern": "A2: «La même chose ?» «J'ai rien entendu.» «Bois.» B1: «Ça finira bien, ou ça finira. Bois.»",
+      "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+      "signature_phrases": ["La même chose ?", "J'ai rien entendu.", "Bois."],
+      "voice": {"provider": "openai", "voice": "sage", "style": "low, dry, few words"}
+    },
+    {
+      "id": "romy_tremblay",
+      "gender": "f",
+      "name": "Romy Tremblay",
+      "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+      "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+      "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+      "wants": "The story that earns her a Paris contract — earned by listening, not by leaving.",
+      "contradiction": "A journalist who does not want to publish the thing that breaks her friends.",
+      "flaw": "Knows more than she says, and it shows.",
+      "secret": "She kept her Montréal apartment. From T4 she holds the memory card of the party (romy.footage).",
+      "speech_pattern": "A2: «Voyons donc.» «C'est quoi, la vraie histoire ?» «C'est pas pire.» B1: «Je capote.» «Me taire, je peux. Oublier, non.»",
+      "dynamic_with_user": "A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it.",
+      "signature_phrases": ["Voyons donc.", "C'est pas pire."],
+      "voice": {"provider": "openai", "voice": "nova", "style": "lively, Québécois lilt, warm"}
+    },
+    {
+      "id": "landlord_marchand",
+      "gender": "m",
+      "name": "M. Marchand",
+      "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+      "register_with_user": "vous, always",
+      "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+      "wants": "A home without stairs, not to be a burden to Camille, and to know why Odile left.",
+      "contradiction": "Plays the villain the café needs and is the loneliest man in the building.",
+      "flaw": "Would rather be right on paper than ask a question.",
+      "secret": "Six years of Sunday lunches with Odile, and his question the day before the fire (T6 only — generated days before T6 never mention the Sundays). His pledge «oui, si Margaux reste».",
+      "speech_pattern": "A2: «La succession Ferrand est en retard.» «C'est mon immeuble.» B1: «Je vous rappelle que le bail expire le 31 mars.»",
+      "dynamic_with_user": "Procedure, then respect. From T4 (mistral.villain_story broken) never written as the villain.",
+      "signature_phrases": ["La succession Ferrand.", "C'est mon immeuble."],
+      "voice": {"provider": "openai", "voice": "echo", "style": "old, formal, dry"}
+    },
+    {
+      "id": "camille_marchand",
+      "gender": "x",
+      "name": "Camille Marchand",
+      "role": "M. Marchand's grandchild, about thirty, an urban planner at a consultancy, born in the 10th and still rooted there. Handles the sale for their grandfather. The second romantic possibility — for season 2; in season 1 Camille stays on vous and the attraction grows through disagreement and earned respect.",
+      "register_with_user": "vous",
+      "personality": "Precise, dry, never contemptuous. Arrives everywhere by bike, helmet under one arm, slightly rained on. Corrects everyone's numbers, including Gus's superlatives. Knows the year of every building on the quai.",
+      "wants": "For Grand-père to be safe and for the numbers to work. «Un immeuble, ce n'est pas un musée.»",
+      "contradiction": "Loved Le Mistral as a child (hot chocolate on Wednesdays) and is selling it.",
+      "flaw": "Trusts numbers more than people, and knows it.",
+      "secret": "Camille's gender comes from s1.camille_gender (set by the learner in T1); Camille's own lines NEVER agree an adjective with Camille; other characters say «il» or «elle» from the flag.",
+      "speech_pattern": "A2: «Les chiffres sont simples.» «Je ne suis pas d'accord.» B1: «Je comprends. Je ne suis toujours pas d'accord.»",
+      "dynamic_with_user": "An obstacle with an interesting face. Disagreement first, respect earned.",
+      "signature_phrases": ["Je ne suis pas d'accord.", "Les chiffres sont simples."],
+      "voice": {"provider": "openai", "voice": "alloy", "style": "level, precise, dry"}
+    },
+    {
+      "id": "mme_diallo",
+      "gender": "f",
+      "name": "Mme Diallo",
+      "role": "Minor character: the baker on the corner, in her fifties, floured apron, reading glasses on a chain.",
+      "register_with_user": "vous",
+      "personality": "Brisk and kind. Running line: «Une tradition pas trop cuite, c'est ça ?»",
+      "wants": "Her regulars, and Le Mistral next door.",
+      "speech_pattern": "A2: «Une tradition pas trop cuite, c'est ça ?» «Et demain ?»",
+      "dynamic_with_user": "Knows the learner's face from gap 1."
+    },
+    {
+      "id": "maitre_vasseur",
+      "gender": "f",
+      "name": "Maître Vasseur",
+      "role": "Minor character: the notary handling Odile's succession. Brisk and kind.",
+      "register_with_user": "vous",
+      "personality": "Explains the law in two plain sentences («La dette peut prendre l'appartement. Pas plus.»).",
+      "wants": "The papers in order.",
+      "speech_pattern": "A2: «Rien ne peut être vendu avant plusieurs semaines.»",
+      "dynamic_with_user": "Professional, kind."
+    },
+    {
+      "id": "bastien_roux",
+      "gender": "m",
+      "name": "Bastien Roux",
+      "role": "Minor character: Solvel Immobilier's acquisitions man, in a good camel coat. He measures rooms with a laser whose red dot crosses people's things.",
+      "register_with_user": "vous",
+      "personality": "Smooth, pleasant, relentless. «Très bien. On ouvre tout, ici.»",
+      "wants": "The whole building, before 8 January.",
+      "speech_pattern": "A2: «L'offre est valable jusqu'au 8 janvier.»",
+      "dynamic_with_user": "Pressure with a smile."
+    }
+  ],
+  "register_map": {
+    "within_friend_group": "tu among Lila, Marin, Gus (with the group), Margaux and Romy",
+    "user_default": "Margaux, Lila, Marin and Romy say tu to the learner; Gus says vous until T3; M. Marchand, Camille, Mme Diallo, Maître Vasseur and Bastien Roux say vous.",
+    "augustin_seduction": "Gus uses theatrical vous as a weapon on people he dislikes, and on the learner until T3.",
+    "toi_agreement": "Lines addressed to the learner never agree an adjective or participle with them («Tu le savais ?», «Tu es en colère ?», «la première personne»).",
+    "camille_agreement": "Camille's own lines never agree an adjective with Camille; other characters use il/elle from s1.camille_gender."
+  },
+  "ensemble_dynamics": {
+    "the_three_arcs": "A · the key and the café (who was Odile, why did she leave?). B · Lila and Berlin (can you want someone here and want their leaving for them? Lila never stays). C · the future of Le Mistral (keep it as it was — Gus; change it so it survives — Marin; let it go — Lila). Every position is defensible.",
+    "collisions": "The upstairs box supports Marin (Odile's co-op) and undermines Gus (the count at 15). Lila helps the learner reveal the fire, then resents keeping secrets. Marin's plan is built on the workshop of the friend who is leaving. The notebook heals Marchand and can ruin Margaux. Solvel's offer and Lila's train expire on the same day, 8 January.",
+    "what_each_believes_about_odile": "Margaux knows everything and keeps the promise. Marchand believes she left because of his question. Gus: the lady who called him «le petit comte». Marin: a fellow believer in signs. Lila: proof you can leave and come back. Romy: a line in a fire report. Camille met her twice, on Sundays.",
+    "humour": "Gus and Marin first, then Romy's words, Lila's grades and Marchand's procedure. Every day has at least one laugh most days, and one panel without dialogue.",
+    "no_explaining": "Nobody explains their feelings. People act (dry a dry glass, lift the flap of the zinc, turn a phone face down) and say one sentence."
+  },
+  "season_one_situation": {
+    "your_arc": "From heir to the one who holds Odile's story, and decides who gets it.",
+    "open_threads": [
+      "Who was Odile, and why did she leave?",
+      "Lila and Berlin: can you want someone here and want their leaving for them?",
+      "The future of Le Mistral: keep it as it was, change it, or let it go?"
+    ],
+    "open_threads_fr": [
+      "Qui était Odile, et pourquoi est-elle partie ?",
+      "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?"
+    ],
+    "first_episode_seed": "Night rain on the quai de Valmy. You walk into Le Mistral with a suitcase, the notary's envelope and a key on your grandmother's key ring, and the café decides you are the person coming to sell the first floor."
+  },
+  "character_agendas": {},
+  "season_arcs": [],
+  "setting_locations": [
+    {"id": "odile_flat", "name": "Odile's flat", "name_fr": "L'appartement d'Odile", "type": "home", "description": "A small two-room Paris flat on the first floor above Le Mistral, stopped in April 2023: shutters, dust in bars of light, a green coat on its hook, felt slippers under a chair, an old Polaroid camera beside a cup with a dried ring of café crème, a kitchen calendar on April 2023, a patch of whiter white above the stove, a narrow balcony over the canal. A room that waited, never one that rotted."},
+    {"id": "stairwell", "name": "The stairwell", "name_fr": "L'escalier", "type": "home", "description": "A narrow old Paris stairwell with worn wooden steps and a timed light (minuterie) that clicks off mid-scene. A brass «1» on Odile's door. Where people sit to say what they cannot say at a table."},
+    {"id": "mistral_back_room", "name": "Le Mistral's back room", "name_fr": "L'arrière-salle du Mistral", "type": "café-bar", "description": "Rebuilt after the 2023 fire: new plaster of a slightly different white, the café's electrical board, stacked crates."},
+    {"id": "quai_de_valmy", "name": "Quai de Valmy", "name_fr": "Le quai de Valmy", "type": "outdoor", "description": "The Canal Saint-Martin outside Le Mistral: green iron footbridges, locks with black water, plane trees, barges, the red neon MISTRAL on the corner. Where things are said sideways."},
+    {"id": "marchand_office", "name": "Gérance Marchand", "name_fr": "La gérance Marchand", "type": "workplace", "description": "M. Marchand's second-floor office: walls of key boards, grey filing cabinets, a desk lamp, a framed photo of his late wife, and a camp bed made with hospital corners."},
+    {"id": "mairie", "name": "Mairie du 10e", "name_fr": "La mairie du 10e", "type": "institutional", "description": "Stone steps, two counters on two floors, no lift."},
+    {"id": "notaire", "name": "Maître Vasseur's office", "name_fr": "Chez Maître Vasseur", "type": "institutional", "description": "A notary's office: a polished table, a fountain pen, tall windows on a boulevard."},
+    {"id": "gare_de_lest", "name": "Gare de l'Est", "name_fr": "La gare de l'Est", "type": "transit", "description": "A glass-roofed platform and a long white high-speed train."},
+    {"id": "rue_de_lancry", "name": "Rue de Lancry", "name_fr": "La rue de Lancry", "type": "outdoor", "description": "A narrow street off the quai de Valmy, tall pale façades, wrought-iron balconies. (Background only in season 1.)"},
+    {"id": "boulangerie", "name": "Mme Diallo's bakery", "name_fr": "La boulangerie de Mme Diallo", "type": "shop", "description": "Baguettes in a wicker rack, a floured counter, paper bags of croissants."},
+    {"id": "ecole", "name": "Lila's classroom", "name_fr": "La classe de Lila", "type": "workplace", "description": "A CE1 classroom: small chairs, children's paintings on every wall."},
+    {"id": "toit", "name": "The roof", "name_fr": "Le toit de l'immeuble", "type": "outdoor", "description": "Zinc roofs, chimney pots, an open fifth-floor skylight, the canal below."}
+  ],
+  "drop_locations": ["office_admin"],
+  "visual_characters": {
+    "camille_marchand": {
+      "canonical_descriptor": "About thirty, a bike helmet under one arm, rain-damp, a practical dark waxed jacket, a folder of figures, a direct level gaze, and a long nose like M. Marchand's, softened; rolled sleeves.",
+      "canonical_descriptor_m": "A lean man of about thirty, short dark hair flattened by a bike helmet held under one arm, a close-trimmed beard, rain-damp dark waxed jacket, rolled sleeves, a folder of figures, a direct level gaze, a long nose like M. Marchand's, softened.",
+      "canonical_descriptor_f": "A lean woman of about thirty, dark hair in a low knot flattened by a bike helmet held under one arm, small silver earrings, rain-damp dark waxed jacket, rolled sleeves, a folder of figures, a direct level gaze, a long nose like M. Marchand's, softened.",
+      "accent_colour": "#7a7266"
+    },
+    "odile": {
+      "canonical_descriptor": "A small, upright woman in her seventies, short white hair cut straight, large dark eyes with deep laugh lines, fair lined skin, a moss-green cardigan, an old Polaroid camera on a strap; usually laughing at something outside the frame. Only in Polaroids and faded-ink flashbacks."
+    },
+    "bastien_roux": {"canonical_descriptor": "A smooth man in a good camel coat holding a laser measure whose red dot crosses people's things."},
+    "mme_diallo": {"canonical_descriptor": "A baker in her fifties with a floured apron and reading glasses on a chain."}
+  },
+  "visual_locations": {
+    "odile_flat": {"canonical_descriptor": "A small two-room Paris flat on the first floor above a corner café, stopped in April 2023: dust suspended in thin bars of light, a woman's green coat on a hook, felt slippers side by side under a chair, an old Polaroid camera beside a cup with a dried ring of café crème, a kitchen calendar showing April 2023, one patch of wall above the gas stove painted a whiter white, a narrow balcony over the canal. Paper and dust-cobalt; sunflower light when the shutters open."},
+    "stairwell": {"canonical_descriptor": "A narrow old Paris stairwell with worn wooden steps, a stair window onto the courtyard, a push-button timed light, and a brass numeral «1» on the first-floor door."},
+    "marchand_office": {"canonical_descriptor": "A small property-management office: walls of key boards with hundreds of labelled keys, grey filing cabinets, one warm desk lamp, a framed photo of a late wife, and a camp bed made with hospital corners in the middle of it all. Cold ink and grey, one warm lamp."},
+    "quai_de_valmy": {"canonical_descriptor": "The Canal Saint-Martin: green iron footbridges, locks with black water, plane trees, moored barges, night reflections of a vertical red neon sign «MISTRAL» on a corner café."},
+    "mistral_back_room": {"canonical_descriptor": "The back room of a small Paris café, rebuilt after a fire: new plaster a slightly different white, an electrical board, stacked crates, an easel under a sheet."},
+    "gare_de_lest": {"canonical_descriptor": "A glass-roofed Paris railway platform with a long white high-speed train."},
+    "rue_de_lancry": {"canonical_descriptor": "A narrow street off a canal, tall pale façades and wrought-iron balconies, one third-floor window with an easel visible inside."},
+    "boulangerie": {"canonical_descriptor": "A small Paris bakery: baguettes in a wicker rack, a floured counter, paper bags."},
+    "mairie": {"canonical_descriptor": "A Paris town hall: stone steps, a counter with a clerk behind a screen, no lift."},
+    "notaire": {"canonical_descriptor": "A notary's office: a polished table, a fountain pen, tall windows on a boulevard."},
+    "ecole": {"canonical_descriptor": "A French primary classroom: small chairs, children's paintings on every wall."},
+    "toit": {"canonical_descriptor": "Paris zinc rooftops at night, chimney pots, an open skylight, the canal below."}
+  },
+  "initial_state": {
+    "user.has_met_group": false,
+    "user.default_register": "tu",
+    "lila.berlin_revealed": false,
+    "gus.aristocracy_exposed": false
+  },
+  "generation_guardrails_add": {
+    "season_script": "Season 1 is scripted: eight authored tentpoles and generated days between them. On a generated day, follow season_script.brief exactly: its must_not list is absolute.",
+    "odile": "Odile Ferrand (1948–2026) is dead. She appears only in Polaroids, her handwriting, and faded-ink flashbacks; she never speaks on a generated day.",
+    "painter": "«L.», the painter of the picture above the zinc, is never named, never noticed and never discussed.",
+    "marin_lila": "Marin and Lila are flatmates and oldest friends, NOT a couple (S-1)."
+  }
+}
