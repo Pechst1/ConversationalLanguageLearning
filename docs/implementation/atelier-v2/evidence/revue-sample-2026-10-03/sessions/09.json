@@ -1,0 +1,3018 @@
+{
+ "n": 9,
+ "dossier_id": "evergreen-beaujolais-nouveau",
+ "level": "A1.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "evergreen-beaujolais-nouveau",
+  "dossier_version": "revue-v1",
+  "week": "2026-W47",
+  "topic": "food",
+  "title_fr": "Le beaujolais nouveau arrive",
+  "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+    "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+    "source_id": "beaujolais_wikipedia",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+    "published_at": "2026-07-27",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+    "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+    "source_id": "beaujolais_wikipedia",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+    "published_at": "2026-07-27",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+    "quote": "elle fut fixée au 15 novembre jusqu'en 1985, année lors de laquelle elle fut fixée au troisième jeudi de novembre, d'une part pour des raisons de calendrier, car il tombait trop près du jour férié du 11 novembre",
+    "source_id": "beaujolais_wikipedia",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+    "published_at": "2026-07-27",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+    "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+    "source_id": "beaujolais_inter",
+    "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+    "published_at": "2025-01-07",
+    "confidence": "reported",
+    "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Beaujolais",
+    "kind": "place",
+    "role": null
+   },
+   {
+    "name": "Inter Beaujolais",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+   "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": null
+   },
+   {
+    "id": "a2",
+    "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": null
+   }
+  ],
+  "places": [
+   {
+    "id": "vignoble_beaujolais",
+    "name_fr": "Les vignes du Beaujolais en novembre",
+    "brief": "rows of bare autumn vines on golden-stone hills, a small stone hut, low November mist over the valley",
+    "known": false,
+    "geo": {
+     "lat": 46.1546,
+     "lon": 4.587,
+     "precision": "city",
+     "label_fr": "Vignes du Beaujolais, Beaujeu"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-11-19/2026-11-29",
+   "relevant_until": "2026-12-13"
+  },
+  "sources": [
+   {
+    "id": "beaujolais_wikipedia",
+    "name": "Wikipédia, « Beaujolais nouveau »",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+    "published_at": "2026-07-27"
+   },
+   {
+    "id": "beaujolais_inter",
+    "name": "Inter Beaujolais (beaujolais.com)",
+    "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+    "published_at": "2025-01-07"
+   }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "une grappe de raisin"
+ },
+ "band": "A1",
+ "vocabulary": [
+  {
+   "fr": "le beaujolais nouveau",
+   "gloss": {
+    "en": "the Beaujolais nouveau (new Beaujolais wine)"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "un vin primeur",
+   "gloss": {
+    "en": "a young/early-release wine"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "le cépage gamay",
+   "gloss": {
+    "en": "the Gamay grape variety"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "la vente",
+   "gloss": {
+    "en": "the sale"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "le rendez-vous",
+   "gloss": {
+    "en": "the must-attend event/meeting"
+   },
+   "claim_id": "c4"
+  }
+ ],
+ "target_use": {
+  "word": "le beaujolais nouveau",
+  "article_said": "le",
+  "intended": "correct",
+  "sentence": "Pour moi, le beaujolais nouveau, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T00:52:59.357150+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text"
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T00:53:01.996747+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2.",
+      "translation": "Thanks. Say: \"Why is everyone talking about Beaujolais nouveau in November?\" According to c1 and c2.",
+      "glosses": [
+       {
+        "fr": "le beaujolais nouveau",
+        "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T00:53:01.996802+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+        "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+        "attributed_to": null,
+        "source": {
+         "id": "beaujolais_wikipedia",
+         "name": "Wikipédia, « Beaujolais nouveau »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+         "published_at": "2026-07-27"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+        "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+        "attributed_to": null,
+        "source": {
+         "id": "beaujolais_wikipedia",
+         "name": "Wikipédia, « Beaujolais nouveau »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+         "published_at": "2026-07-27"
+        }
+       }
+      ]
+     },
+     {
+      "id": "6",
+      "seq": 6,
+      "at": "2026-10-03T00:53:01.996836+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a2",
+       "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?"
+      }
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le beaujolais nouveau",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "un vin primeur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le cépage gamay",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la vente",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le rendez-vous",
+       "outcome": "unscored",
+       "capability_known": true
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "C'est quel raisin ?",
+   "result": {
+    "items": [
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T00:53:02.006766+00:00",
+      "kind": "mine",
+      "text_fr": "C'est quel raisin ?",
+      "mode": "text"
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T00:53:04.955752+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Surtout le cépage gamay, d'après c2.",
+      "translation": "Mostly the Gamay grape, according to c2.",
+      "glosses": [
+       {
+        "fr": "le cépage gamay",
+        "gloss": "the Gamay grape variety",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le beaujolais nouveau",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "un vin primeur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le cépage gamay",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la vente",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le rendez-vous",
+       "outcome": "unscored",
+       "capability_known": true
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "La bouteille coûte combien en 2026 ?",
+   "result": {
+    "items": [
+     {
+      "id": "12",
+      "seq": 12,
+      "at": "2026-10-03T00:53:04.958161+00:00",
+      "kind": "mine",
+      "text_fr": "La bouteille coûte combien en 2026 ?",
+      "mode": "text"
+     },
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T00:53:10.084244+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»",
+      "translation": "The sources do not say (uncertainty 0). Do you want me to phrase the question for a reader: \"What will be the price of a bottle in 2026?\"",
+      "glosses": [],
+      "reason": null
+     },
+     {
+      "id": "13.u",
+      "seq": 13,
+      "at": "2026-10-03T00:53:10.084244+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas si le prix d'une bouteille change en 2026."
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le beaujolais nouveau",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "un vin primeur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le cépage gamay",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la vente",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le rendez-vous",
+       "outcome": "unscored",
+       "capability_known": true
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T00:53:10.095277+00:00",
+      "kind": "mine",
+      "text_fr": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+      "mode": "text"
+     },
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T00:53:14.880994+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'après c4, Inter Beaujolais dit que le beaujolais nouveau est le rendez‑vous incontournable de novembre pour les amateurs.",
+      "translation": "According to c4, Inter Beaujolais says beaujolais nouveau is the unmissable November event for wine lovers.",
+      "glosses": [
+       {
+        "fr": "le beaujolais nouveau",
+        "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T00:53:14.881051+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+        "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+        "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais",
+        "source": {
+         "id": "beaujolais_inter",
+         "name": "Inter Beaujolais (beaujolais.com)",
+         "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+         "published_at": "2025-01-07"
+        }
+       }
+      ]
+     },
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T00:53:17.513513+00:00",
+      "kind": "guest",
+      "cast_id": "margaux_barman",
+      "text_fr": "Ce que je sers au comptoir vient de quelque part. Alors ça me regarde.",
+      "move": "enter",
+      "position": null,
+      "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+      "reason": null,
+      "glosses": []
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T00:53:17.513567+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a1",
+       "fr": "Pourquoi tout le monde parle de ce vin en novembre"
+      }
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le beaujolais nouveau",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "un vin primeur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le cépage gamay",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la vente",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le rendez-vous",
+       "outcome": "unscored",
+       "capability_known": true
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Le beaujolais nouveau est lancé à des dates différentes selon les pays"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Le beaujolais nouveau : le rendez‑vous incontournable de novembre, d'après Inter Beaujolais"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Le beaujolais nouveau est principalement fait avec du chardonnay"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "La bouteille coûte combien en 2026 ?",
+    "uncertainty_fr": "Les sources ne disent pas si le prix d'une bouteille change en 2026."
+   }
+  ],
+  "intro": {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T00:53:27.845751+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "La bouteille coûte combien en 2026 ?",
+    "proposal_fr": "La bouteille coûtera combien en 2026 ?",
+    "contribution": [
+     [
+      0,
+      12
+     ],
+     [
+      21,
+      31
+     ]
+    ],
+    "why_native": "Changed present tense to future tense to ask about the price in 2026."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "La bouteille coûtera combien en 2026 ?",
+    "contribution": [
+     [
+      0,
+      12
+     ],
+     [
+      21,
+      31
+     ]
+    ],
+    "learner_fr": "La bouteille coûte combien en 2026 ?"
+   },
+   "line": {
+    "id": "28",
+    "seq": 28,
+    "at": "2026-10-03T00:53:30.835305+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je garde ta question telle quelle dans l'artefact.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "La bouteille coûtera combien en 2026 ?",
+   "body_fr": [
+    "Le beaujolais nouveau est mis en vente le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+    "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+    "D'après Inter Beaujolais, c'est le rendez-vous de novembre pour ceux qui aiment le vin."
+   ],
+   "contribution": [
+    [
+     0,
+     12
+    ],
+    [
+     21,
+     31
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après Wikipédia, « Beaujolais nouveau » et Inter Beaujolais (beaujolais.com)",
+   "sources": [
+    {
+     "id": "beaujolais_wikipedia",
+     "name": "Wikipédia, « Beaujolais nouveau »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+     "published_at": "2026-07-27"
+    },
+    {
+     "id": "beaujolais_inter",
+     "name": "Inter Beaujolais (beaujolais.com)",
+     "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+     "published_at": "2025-01-07"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "le beaujolais nouveau",
+     "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+     "claim_id": "c1",
+     "used": true
+    },
+    {
+     "fr": "un vin primeur",
+     "gloss": "a young/early-release wine",
+     "claim_id": "c2",
+     "used": false
+    },
+    {
+     "fr": "le cépage gamay",
+     "gloss": "the Gamay grape variety",
+     "claim_id": "c2",
+     "used": false
+    },
+    {
+     "fr": "la vente",
+     "gloss": "the sale",
+     "claim_id": "c3",
+     "used": false
+    },
+    {
+     "fr": "le rendez-vous",
+     "gloss": "the must-attend event/meeting",
+     "claim_id": "c4",
+     "used": false
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+     "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+     "attributed_to": null,
+     "source": {
+      "id": "beaujolais_wikipedia",
+      "name": "Wikipédia, « Beaujolais nouveau »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+     "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+     "attributed_to": null,
+     "source": {
+      "id": "beaujolais_wikipedia",
+      "name": "Wikipédia, « Beaujolais nouveau »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+     "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+     "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais",
+     "source": {
+      "id": "beaujolais_inter",
+      "name": "Inter Beaujolais (beaujolais.com)",
+      "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+      "published_at": "2025-01-07"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "La bouteille coûtera combien en 2026 ?",
+  "vignette": {
+   "id": "f568831d-dfe5-4f89-bc33-d5e67ddb2cfe",
+   "session_id": "870057cd-99ae-4a6c-9997-221d4897aa5c",
+   "dossier_id": "evergreen-beaujolais-nouveau",
+   "week": "2026-W40",
+   "place_label_fr": "Les vignes du Beaujolais en novembre",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#D8321A\"/><rect x=\"30\" y=\"56\" width=\"40\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"44\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Le beaujolais nouveau arrive",
+   "minted_at": "2026-10-03T00:53:35"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T00:52:59.351355+00:00",
+   "kind": "narration",
+   "text_fr": "Les vignes du Beaujolais en novembre."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T00:52:59.351355+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 19 nov. au 29 nov.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T00:52:59.351355+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment les vignes du Beaujolais en novembre, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T00:52:59.351355+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Pourquoi tout le monde parle de ce vin en novembre ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T00:52:59.351355+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T00:52:59.357150+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text"
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T00:53:01.996747+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2.",
+   "translation": "Thanks. Say: \"Why is everyone talking about Beaujolais nouveau in November?\" According to c1 and c2.",
+   "glosses": [
+    {
+     "fr": "le beaujolais nouveau",
+     "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T00:53:01.996802+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+     "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+     "attributed_to": null,
+     "source": {
+      "id": "beaujolais_wikipedia",
+      "name": "Wikipédia, « Beaujolais nouveau »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+     "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+     "attributed_to": null,
+     "source": {
+      "id": "beaujolais_wikipedia",
+      "name": "Wikipédia, « Beaujolais nouveau »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+      "published_at": "2026-07-27"
+     }
+    }
+   ]
+  },
+  {
+   "id": "6",
+   "seq": 6,
+   "at": "2026-10-03T00:53:01.996836+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a2",
+    "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?"
+   }
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T00:53:02.006766+00:00",
+   "kind": "mine",
+   "text_fr": "C'est quel raisin ?",
+   "mode": "text"
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T00:53:04.955752+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Surtout le cépage gamay, d'après c2.",
+   "translation": "Mostly the Gamay grape, according to c2.",
+   "glosses": [
+    {
+     "fr": "le cépage gamay",
+     "gloss": "the Gamay grape variety",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "12",
+   "seq": 12,
+   "at": "2026-10-03T00:53:04.958161+00:00",
+   "kind": "mine",
+   "text_fr": "La bouteille coûte combien en 2026 ?",
+   "mode": "text"
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T00:53:10.084244+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»",
+   "translation": "The sources do not say (uncertainty 0). Do you want me to phrase the question for a reader: \"What will be the price of a bottle in 2026?\"",
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "13.u",
+   "seq": 13,
+   "at": "2026-10-03T00:53:10.084244+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas si le prix d'une bouteille change en 2026."
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T00:53:10.095277+00:00",
+   "kind": "mine",
+   "text_fr": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+   "mode": "text"
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T00:53:14.880994+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'après c4, Inter Beaujolais dit que le beaujolais nouveau est le rendez‑vous incontournable de novembre pour les amateurs.",
+   "translation": "According to c4, Inter Beaujolais says beaujolais nouveau is the unmissable November event for wine lovers.",
+   "glosses": [
+    {
+     "fr": "le beaujolais nouveau",
+     "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T00:53:14.881051+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+     "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+     "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais",
+     "source": {
+      "id": "beaujolais_inter",
+      "name": "Inter Beaujolais (beaujolais.com)",
+      "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+      "published_at": "2025-01-07"
+     }
+    }
+   ]
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T00:53:17.513513+00:00",
+   "kind": "guest",
+   "cast_id": "margaux_barman",
+   "text_fr": "Ce que je sers au comptoir vient de quelque part. Alors ça me regarde.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T00:53:17.513567+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a1",
+    "fr": "Pourquoi tout le monde parle de ce vin en novembre"
+   }
+  },
+  {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T00:53:27.845751+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "27",
+   "seq": 27,
+   "at": "2026-10-03T00:53:30.835290+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "La bouteille coûtera combien en 2026 ?",
+    "contribution": [
+     [
+      0,
+      12
+     ],
+     [
+      21,
+      31
+     ]
+    ],
+    "learner_fr": "La bouteille coûte combien en 2026 ?"
+   }
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T00:53:30.835305+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T00:53:35.630214+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je garde ta question telle quelle dans l'artefact.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "evergreen-beaujolais-nouveau",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "evergreen-beaujolais-nouveau",
+     "dossier_version": "revue-v1",
+     "week": "2026-W47",
+     "topic": "food",
+     "title_fr": "Le beaujolais nouveau arrive",
+     "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+       "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+       "source_id": "beaujolais_wikipedia",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+       "published_at": "2026-07-27",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+       "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+       "source_id": "beaujolais_wikipedia",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+       "published_at": "2026-07-27",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+       "quote": "elle fut fixée au 15 novembre jusqu'en 1985, année lors de laquelle elle fut fixée au troisième jeudi de novembre, d'une part pour des raisons de calendrier, car il tombait trop près du jour férié du 11 novembre",
+       "source_id": "beaujolais_wikipedia",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+       "published_at": "2026-07-27",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+       "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+       "source_id": "beaujolais_inter",
+       "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+       "published_at": "2025-01-07",
+       "confidence": "reported",
+       "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Beaujolais",
+       "kind": "place",
+       "role": null
+      },
+      {
+       "name": "Inter Beaujolais",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+      "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": null
+      },
+      {
+       "id": "a2",
+       "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": null
+      }
+     ],
+     "places": [
+      {
+       "id": "vignoble_beaujolais",
+       "name_fr": "Les vignes du Beaujolais en novembre",
+       "brief": "rows of bare autumn vines on golden-stone hills, a small stone hut, low November mist over the valley",
+       "known": false,
+       "geo": {
+        "lat": 46.1546,
+        "lon": 4.587,
+        "precision": "city",
+        "label_fr": "Vignes du Beaujolais, Beaujeu"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-11-19/2026-11-29",
+      "relevant_until": "2026-12-13"
+     },
+     "sources": [
+      {
+       "id": "beaujolais_wikipedia",
+       "name": "Wikipédia, « Beaujolais nouveau »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+       "published_at": "2026-07-27"
+      },
+      {
+       "id": "beaujolais_inter",
+       "name": "Inter Beaujolais (beaujolais.com)",
+       "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+       "published_at": "2025-01-07"
+      }
+     ],
+     "evergreen": true,
+     "vignette_object_fr": "une grappe de raisin"
+    },
+    "cost_usd": 0.002146
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Les vignes du Beaujolais en novembre.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 19 nov. au 29 nov.."
+    ],
+    "place_note": "Ce n'est pas vraiment les vignes du Beaujolais en novembre, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Pourquoi tout le monde parle de ce vin en novembre ». Tu m'aides ?",
+    "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2.",
+    "translation": "Thanks. Say: \"Why is everyone talking about Beaujolais nouveau in November?\" According to c1 and c2.",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Pourquoi tout le monde parle du beaujolais nouveau en novembre?",
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001001
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a2",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le beaujolais nouveau",
+      "outcome": "unscored",
+      "capability_id": "revue.word:beaujolais nouveau",
+      "capability_known": false
+     },
+     {
+      "fr": "un vin primeur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vin primeur",
+      "capability_known": false
+     },
+     {
+      "fr": "le cépage gamay",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cepage gamay",
+      "capability_known": false
+     },
+     {
+      "fr": "la vente",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vente",
+      "capability_known": false
+     },
+     {
+      "fr": "le rendez-vous",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_APPOINTMENT",
+      "capability_known": true
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "C'est quel raisin ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Surtout le cépage gamay, d'après c2.",
+    "translation": "Mostly the Gamay grape, according to c2.",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.00093
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "question_raised",
+   "payload": {
+    "text": "C'est quel raisin ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 8,
+    "kept": false
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le beaujolais nouveau",
+      "outcome": "unscored",
+      "capability_id": "revue.word:beaujolais nouveau",
+      "capability_known": false
+     },
+     {
+      "fr": "un vin primeur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vin primeur",
+      "capability_known": false
+     },
+     {
+      "fr": "le cépage gamay",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cepage gamay",
+      "capability_known": false
+     },
+     {
+      "fr": "la vente",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vente",
+      "capability_known": false
+     },
+     {
+      "fr": "le rendez-vous",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_APPOINTMENT",
+      "capability_known": true
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "La bouteille coûte combien en 2026 ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»",
+    "translation": "The sources do not say (uncertainty 0). Do you want me to phrase the question for a reader: \"What will be the price of a bottle in 2026?\"",
+    "claims_cited": [],
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+    "proposes_question": "Quel sera le prix d'une bouteille en 2026?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001689
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "question_raised",
+   "payload": {
+    "text": "La bouteille coûte combien en 2026 ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+    "turn_seq": 12,
+    "kept": false
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le beaujolais nouveau",
+      "outcome": "unscored",
+      "capability_id": "revue.word:beaujolais nouveau",
+      "capability_known": false
+     },
+     {
+      "fr": "un vin primeur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vin primeur",
+      "capability_known": false
+     },
+     {
+      "fr": "le cépage gamay",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cepage gamay",
+      "capability_known": false
+     },
+     {
+      "fr": "la vente",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vente",
+      "capability_known": false
+     },
+     {
+      "fr": "le rendez-vous",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_APPOINTMENT",
+      "capability_known": true
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 12
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'après c4, Inter Beaujolais dit que le beaujolais nouveau est le rendez‑vous incontournable de novembre pour les amateurs.",
+    "translation": "According to c4, Inter Beaujolais says beaujolais nouveau is the unmissable November event for wine lovers.",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001369
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "margaux_barman",
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "reason": "she runs the café counter and cares where what she serves comes from (Les vignes du Beaujolais en novembre)",
+    "trigger": "topic_words",
+    "word": "vin",
+    "turn_seq": 16
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "margaux_barman",
+    "text_fr": "Ce que je sers au comptoir vient de quelque part. Alors ça me regarde.",
+    "move": "enter",
+    "position": null,
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000729,
+    "turn_seq": 16
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a1",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:beaujolais nouveau",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le beaujolais nouveau"
+    ],
+    "words_used": [
+     "le beaujolais nouveau"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le beaujolais nouveau",
+      "outcome": "unscored",
+      "capability_id": "revue.word:beaujolais nouveau",
+      "capability_known": false
+     },
+     {
+      "fr": "un vin primeur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vin primeur",
+      "capability_known": false
+     },
+     {
+      "fr": "le cépage gamay",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cepage gamay",
+      "capability_known": false
+     },
+     {
+      "fr": "la vente",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vente",
+      "capability_known": false
+     },
+     {
+      "fr": "le rendez-vous",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_APPOINTMENT",
+      "capability_known": true
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000757,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 16
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Le beaujolais nouveau est lancé à des dates différentes selon les pays"
+      },
+      {
+       "id": "h2",
+       "text_fr": "Le beaujolais nouveau : le rendez‑vous incontournable de novembre, d'après Inter Beaujolais"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Le beaujolais nouveau est principalement fait avec du chardonnay"
+      }
+     ],
+     "answer": "h2",
+     "supported_by": "c4",
+     "contradicted_by": {
+      "h1": "c1",
+      "h3": "c2"
+     }
+    },
+    "cost_usd": 0.001603
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "La bouteille coûte combien en 2026 ?",
+    "proposal_fr": "La bouteille coûtera combien en 2026 ?",
+    "contribution": [
+     [
+      0,
+      12
+     ],
+     [
+      21,
+      31
+     ]
+    ],
+    "why_native": "Changed present tense to future tense to ask about the price in 2026.",
+    "cost_usd": 0.000669
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "La bouteille coûtera combien en 2026 ?",
+    "contribution": [
+     [
+      0,
+      12
+     ],
+     [
+      21,
+      31
+     ]
+    ],
+    "learner_fr": "La bouteille coûte combien en 2026 ?"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je garde ta question telle quelle dans l'artefact.",
+    "cost_usd": 0.001383
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je garde ta question telle quelle dans l'artefact.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "La bouteille coûtera combien en 2026 ?",
+      "body_fr": [
+       "Le beaujolais nouveau est mis en vente le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+       "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+       "D'après Inter Beaujolais, c'est le rendez-vous de novembre pour ceux qui aiment le vin."
+      ],
+      "contribution": [
+       [
+        0,
+        12
+       ],
+       [
+        21,
+        31
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après Wikipédia, « Beaujolais nouveau » et Inter Beaujolais (beaujolais.com)",
+      "sources": [
+       {
+        "id": "beaujolais_wikipedia",
+        "name": "Wikipédia, « Beaujolais nouveau »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+        "published_at": "2026-07-27"
+       },
+       {
+        "id": "beaujolais_inter",
+        "name": "Inter Beaujolais (beaujolais.com)",
+        "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+        "published_at": "2025-01-07"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "le beaujolais nouveau",
+        "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+        "claim_id": "c1",
+        "used": true
+       },
+       {
+        "fr": "un vin primeur",
+        "gloss": "a young/early-release wine",
+        "claim_id": "c2",
+        "used": false
+       },
+       {
+        "fr": "le cépage gamay",
+        "gloss": "the Gamay grape variety",
+        "claim_id": "c2",
+        "used": false
+       },
+       {
+        "fr": "la vente",
+        "gloss": "the sale",
+        "claim_id": "c3",
+        "used": false
+       },
+       {
+        "fr": "le rendez-vous",
+        "gloss": "the must-attend event/meeting",
+        "claim_id": "c4",
+        "used": false
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+        "quote": "il est mis en vente dans le monde entier le troisième jeudi de novembre",
+        "attributed_to": null,
+        "source": {
+         "id": "beaujolais_wikipedia",
+         "name": "Wikipédia, « Beaujolais nouveau »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+         "published_at": "2026-07-27"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+        "quote": "est un vin de primeur produit dans le vignoble du Beaujolais, au sein de l'appellation d'origine contrôlée beaujolais ou au sein de la dénomination beaujolais-villages, essentiellement à partir du cépage gamay N",
+        "attributed_to": null,
+        "source": {
+         "id": "beaujolais_wikipedia",
+         "name": "Wikipédia, « Beaujolais nouveau »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Beaujolais_nouveau&oldid=238161012",
+         "published_at": "2026-07-27"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+        "quote": "Ce moment de partage est le rendez-vous incontournable du mois de novembre pour ceux qui aiment le vin et la vie !",
+        "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais",
+        "source": {
+         "id": "beaujolais_inter",
+         "name": "Inter Beaujolais (beaujolais.com)",
+         "url": "https://www.beaujolais.com/3-univers/nouveau-by-beaujolais/",
+         "published_at": "2025-01-07"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "La bouteille coûtera combien en 2026 ?",
+     "vignette": {
+      "id": "f568831d-dfe5-4f89-bc33-d5e67ddb2cfe",
+      "session_id": "870057cd-99ae-4a6c-9997-221d4897aa5c",
+      "dossier_id": "evergreen-beaujolais-nouveau",
+      "week": "2026-W40",
+      "place_label_fr": "Les vignes du Beaujolais en novembre",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#D8321A\"/><rect x=\"30\" y=\"56\" width=\"40\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"44\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Le beaujolais nouveau arrive",
+      "minted_at": "2026-10-03T00:53:35"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le beaujolais nouveau",
+     "outcome": "unscored",
+     "capability_id": "revue.word:beaujolais nouveau",
+     "capability_known": false
+    },
+    {
+     "fr": "un vin primeur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vin primeur",
+     "capability_known": false
+    },
+    {
+     "fr": "le cépage gamay",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cepage gamay",
+     "capability_known": false
+    },
+    {
+     "fr": "la vente",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vente",
+     "capability_known": false
+    },
+    {
+     "fr": "le rendez-vous",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_APPOINTMENT",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le beaujolais nouveau",
+     "outcome": "unscored",
+     "capability_id": "revue.word:beaujolais nouveau",
+     "capability_known": false
+    },
+    {
+     "fr": "un vin primeur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vin primeur",
+     "capability_known": false
+    },
+    {
+     "fr": "le cépage gamay",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cepage gamay",
+     "capability_known": false
+    },
+    {
+     "fr": "la vente",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vente",
+     "capability_known": false
+    },
+    {
+     "fr": "le rendez-vous",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_APPOINTMENT",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 8
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le beaujolais nouveau",
+     "outcome": "unscored",
+     "capability_id": "revue.word:beaujolais nouveau",
+     "capability_known": false
+    },
+    {
+     "fr": "un vin primeur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vin primeur",
+     "capability_known": false
+    },
+    {
+     "fr": "le cépage gamay",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cepage gamay",
+     "capability_known": false
+    },
+    {
+     "fr": "la vente",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vente",
+     "capability_known": false
+    },
+    {
+     "fr": "le rendez-vous",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_APPOINTMENT",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 12
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:beaujolais nouveau",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le beaujolais nouveau"
+   ],
+   "words_used": [
+    "le beaujolais nouveau"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le beaujolais nouveau",
+     "outcome": "unscored",
+     "capability_id": "revue.word:beaujolais nouveau",
+     "capability_known": false
+    },
+    {
+     "fr": "un vin primeur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vin primeur",
+     "capability_known": false
+    },
+    {
+     "fr": "le cépage gamay",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cepage gamay",
+     "capability_known": false
+    },
+    {
+     "fr": "la vente",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vente",
+     "capability_known": false
+    },
+    {
+     "fr": "le rendez-vous",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_APPOINTMENT",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000757,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 16
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "margaux_barman",
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": "she runs the café counter and cares where what she serves comes from (Les vignes du Beaujolais en novembre)",
+   "trigger": "topic_words",
+   "word": "vin",
+   "turn_seq": 16
+  },
+  {
+   "kind": "turn_guest",
+   "id": "margaux_barman",
+   "text_fr": "Ce que je sers au comptoir vient de quelque part. Alors ça me regarde.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000729,
+   "turn_seq": 16
+  }
+ ],
+ "cost_usd_state": 0.012276,
+ "cost_usd_provider": 0.012276,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 6.231,
+   "cost_usd": 0.002146,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre."
+     },
+     {
+      "id": "c2",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay."
+     },
+     {
+      "id": "c3",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin."
+     }
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "le beaujolais nouveau",
+      "gloss": "the Beaujolais nouveau (new Beaujolais wine)",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "un vin primeur",
+      "gloss": "a young/early-release wine",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "le cépage gamay",
+      "gloss": "the Gamay grape variety",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "la vente",
+      "gloss": "the sale",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "le rendez-vous",
+      "gloss": "the must-attend event/meeting",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 2.636,
+   "cost_usd": 0.001001,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+     "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+      "purpose": "explain_disagreement"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Les vignes du Beaujolais en novembre."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 19 nov. au 29 nov.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment les vignes du Beaujolais en novembre, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Pourquoi tout le monde parle de ce vin en novembre ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2.",
+    "translation": "Thanks. Say: \"Why is everyone talking about Beaujolais nouveau in November?\" According to c1 and c2.",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "Pourquoi tout le monde parle du beaujolais nouveau en novembre?",
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 2.941,
+   "cost_usd": 0.00093,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "C'est quel raisin ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+     "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+     "purpose": "explain_disagreement"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+      "purpose": "explain_disagreement"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2"
+    ],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 19 nov. au 29 nov.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment les vignes du Beaujolais en novembre, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Pourquoi tout le monde parle de ce vin en novembre ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Surtout le cépage gamay, d'après c2.",
+    "translation": "Mostly the Gamay grape, according to c2.",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.124,
+   "cost_usd": 0.001689,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "La bouteille coûte combien en 2026 ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+     "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+     "purpose": "explain_disagreement"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+      "purpose": "explain_disagreement"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2"
+    ],
+    "history": [
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Pourquoi tout le monde parle de ce vin en novembre ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Dis : «Pourquoi tout le monde parle du beaujolais nouveau en novembre?» D'après c1 et c2."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     },
+     {
+      "who": "learner",
+      "text": "C'est quel raisin ?"
+     },
+     {
+      "who": "romy",
+      "text": "Surtout le cépage gamay, d'après c2."
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»",
+    "translation": "The sources do not say (uncertainty 0). Do you want me to phrase the question for a reader: \"What will be the price of a bottle in 2026?\"",
+    "claims_cited": [],
+    "uncertainty_cited": 0,
+    "proposes_question": "Quel sera le prix d'une bouteille en 2026?",
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.78,
+   "cost_usd": 0.001369,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+     "On ne sait pas encore comment les vignerons jugent le millésime 2026."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+     "purpose": "explain_disagreement"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Pourquoi tout le monde parle de ce vin en novembre",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+      "purpose": "explain_disagreement"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2"
+    ],
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     },
+     {
+      "who": "learner",
+      "text": "C'est quel raisin ?"
+     },
+     {
+      "who": "romy",
+      "text": "Surtout le cépage gamay, d'après c2."
+     },
+     {
+      "who": "learner",
+      "text": "La bouteille coûte combien en 2026 ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si le prix d'une bouteille change en 2026."
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'après c4, Inter Beaujolais dit que le beaujolais nouveau est le rendez‑vous incontournable de novembre pour les amateurs.",
+    "translation": "According to c4, Inter Beaujolais says beaujolais nouveau is the unmissable November event for wine lovers.",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.625,
+   "cost_usd": 0.000729,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "margaux_barman",
+    "name": "Margaux",
+    "register": "tu",
+    "move": "enter",
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "position": null,
+    "learner_text": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important.",
+    "angle": {
+     "id": "a2",
+     "fr": "Une vraie fête du vin, ou surtout une affaire de marketing ?",
+     "purpose": "explain_disagreement"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Jusqu'en 1985, la vente commençait le 15 novembre ; la date a changé, en partie parce qu'elle était trop près du 11 novembre, un jour férié.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin.",
+      "attributed_to": "Inter Beaujolais, l'interprofession des vins du Beaujolais"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c4"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "La bouteille coûte combien en 2026 ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas (incertitude 0). Veux-tu que je formule la question pour un lecteur : «Quel sera le prix d'une bouteille en 2026?»"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si le prix d'une bouteille change en 2026."
+     },
+     {
+      "who": "learner",
+      "text": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important."
+     },
+     {
+      "who": "romy",
+      "text": "D'après c4, Inter Beaujolais dit que le beaujolais nouveau est le rendez‑vous incontournable de novembre pour les amateurs."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "margaux_barman",
+     "name": "Margaux",
+     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "register_with_user": "tu, at once — as she did with Odile",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Ce que je sers au comptoir vient de quelque part. Alors ça me regarde.",
+    "position": null,
+    "move": "enter"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.034,
+   "cost_usd": 0.000757,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay."
+      }
+     ],
+     "target_words": [
+      "le beaujolais nouveau",
+      "un vin primeur",
+      "le cépage gamay",
+      "la vente",
+      "le rendez-vous"
+     ],
+     "addressee": "margaux_barman",
+     "expected_register": "tu",
+     "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre.",
+     "headline_words": null
+    },
+    "learner_text": "J'aime le vin rouge. Pour moi, le beaujolais nouveau, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le beaujolais nouveau",
+      "outcome": "correct",
+      "quote": "le beaujolais nouveau"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 7.282,
+   "cost_usd": 0.001603,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Le beaujolais nouveau arrive",
+    "angle": "Pourquoi tout le monde parle de ce vin en novembre",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin."
+     }
+    ],
+    "band": "A1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Le beaujolais nouveau : le rendez‑vous incontournable de novembre, d'après Inter Beaujolais",
+     "supported_by": "c4"
+    },
+    "distractors": [
+     {
+      "text_fr": "Le beaujolais nouveau est lancé à des dates différentes selon les pays",
+      "contradicted_by": "c1"
+     },
+     {
+      "text_fr": "Le beaujolais nouveau est principalement fait avec du chardonnay",
+      "contradicted_by": "c2"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.973,
+   "cost_usd": 0.000669,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "La bouteille coûte combien en 2026 ?",
+    "uncertainty": "Les sources ne disent pas si le prix d'une bouteille change en 2026.",
+    "title_fr": "Le beaujolais nouveau arrive",
+    "band": "A1",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "La bouteille coûtera combien en 2026 ?",
+    "why_native": "Changed present tense to future tense to ask about the price in 2026."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.755,
+   "cost_usd": 0.001383,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Le beaujolais nouveau arrive",
+    "summary_fr": "Chaque année en novembre, le beaujolais nouveau, un vin jeune du Beaujolais, arrive le même jour chez les cavistes et dans les restaurants du monde entier. Pour l'interprofession du Beaujolais, c'est le rendez-vous de novembre.",
+    "angle": "Pourquoi tout le monde parle de ce vin en novembre",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "La bouteille coûtera combien en 2026 ?",
+     "learner_fr": "La bouteille coûte combien en 2026 ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Chaque année, le beaujolais nouveau est mis en vente dans le monde entier le même jour de novembre ; en 2026, c'est le jeudi 19 novembre."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour Inter Beaujolais, l'organisation des vins du Beaujolais, c'est le rendez-vous incontournable de novembre pour ceux qui aiment le vin."
+     }
+    ],
+    "open_question": "La bouteille coûte combien en 2026 ?",
+    "band": "A1"
+   },
+   "response": {
+    "romy_line_fr": "Je garde ta question telle quelle dans l'artefact.",
+    "headline_fr": "La bouteille coûte combien en 2026 ?",
+    "body_lines": [
+     "Le beaujolais nouveau est mis en vente le même jour de novembre ; en 2026, c'est le jeudi 19 novembre.",
+     "C'est un vin primeur du vignoble du Beaujolais, fait surtout avec le cépage gamay.",
+     "D'après Inter Beaujolais, c'est le rendez-vous de novembre pour ceux qui aiment le vin."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 6.241
+  },
+  {
+   "step": "turn1",
+   "seconds": 2.648
+  },
+  {
+   "step": "turn2",
+   "seconds": 2.953
+  },
+  {
+   "step": "turn3",
+   "seconds": 5.136
+  },
+  {
+   "step": "turn4",
+   "seconds": 10.463
+  },
+  {
+   "step": "make_options",
+   "seconds": 7.294
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.983
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.008
+  },
+  {
+   "step": "close",
+   "seconds": 4.797
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini"
+ }
+}

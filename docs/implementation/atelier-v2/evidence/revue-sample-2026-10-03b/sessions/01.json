@@ -1,0 +1,3831 @@
+{
+ "n": 1,
+ "dossier_id": "2026-w40-budget-2027",
+ "level": "B1.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "2026-w40-budget-2027",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "politics",
+  "title_fr": "Le projet de budget 2027 est présenté",
+  "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+    "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+    "source_id": "w40_budget_lfpt",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "published_at": "2026-10-02",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+    "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+    "source_id": "w40_budget_franceinfo",
+    "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "interpretation",
+    "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+    "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+    "source_id": "w40_budget_lfpt",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+    "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+    "source_id": "w40_budget_lfpt",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+   }
+  ],
+  "entities": [
+   {
+    "name": "David Amiel",
+    "kind": "person",
+    "role": "ministre de l'Action et des Comptes publics"
+   },
+   {
+    "name": "Assemblée nationale",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   {
+    "id": "u1",
+    "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+   },
+   {
+    "id": "u2",
+    "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+   }
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": "marin_leveque"
+   },
+   {
+    "id": "a2",
+    "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": "augustin_de_roncourt"
+   }
+  ],
+  "places": [
+   {
+    "id": "hemicycle_assemblee",
+    "name_fr": "L'hémicycle de l'Assemblée nationale",
+    "brief": "the empty semicircular chamber of the Assemblée nationale, red velvet benches in rising rows, polished wooden desks, a high glass ceiling, soft daylight",
+    "known": false,
+    "geo": {
+     "lat": 48.862,
+     "lon": 2.3185,
+     "precision": "exact",
+     "label_fr": "Assemblée nationale, Palais Bourbon"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-10-01/2026-12-20",
+   "relevant_until": "2026-12-31"
+  },
+  "sources": [
+   {
+    "id": "w40_budget_lfpt",
+    "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "published_at": "2026-10-02"
+   },
+   {
+    "id": "w40_budget_franceinfo",
+    "name": "franceinfo",
+    "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+    "published_at": "2026-10-02"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "une calculatrice"
+ },
+ "band": "B1",
+ "vocabulary": [
+  {
+   "fr": "les euros",
+   "gloss": {
+    "en": "euros"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "le gouvernement",
+   "gloss": {
+    "en": "the government"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "le budget",
+   "gloss": {
+    "en": "the budget"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "le déficit",
+   "gloss": {
+    "en": "the deficit"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "la pension",
+   "gloss": {
+    "en": "the pension"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "l'inflation",
+   "gloss": {
+    "en": "inflation"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "sauvegarder",
+   "gloss": {
+    "en": "to safeguard"
+   },
+   "claim_id": "c3"
+  }
+ ],
+ "target_use": {
+  "word": "le gouvernement",
+  "article_said": "le",
+  "intended": "correct",
+  "sentence": "Pour moi, le gouvernement, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T01:50:19.335386+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T01:50:26.678340+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "les euros",
+        "gloss": "euros",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "le gouvernement",
+        "gloss": "the government",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le budget",
+        "gloss": "the budget",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le déficit",
+        "gloss": "the deficit",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la pension",
+        "gloss": "the pension",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "l'inflation",
+        "gloss": "inflation",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T01:50:26.678353+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+        "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+        "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_budget_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+         "published_at": "2026-10-02"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "le gouvernement",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le budget",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le déficit",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la pension",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'inflation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "sauvegarder",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Qu'est-ce que le budget change pour les retraités ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T01:50:26.684152+00:00",
+      "kind": "mine",
+      "text_fr": "Qu'est-ce que le budget change pour les retraités ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T01:50:34.562644+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "les euros",
+        "gloss": "euros",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "le budget",
+        "gloss": "the budget",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le déficit",
+        "gloss": "the deficit",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la pension",
+        "gloss": "the pension",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "sauvegarder",
+        "gloss": "to safeguard",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "8.u",
+      "seq": 8,
+      "at": "2026-10-03T01:50:34.562644+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T01:50:34.562660+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c3",
+        "kind": "interpretation",
+        "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+        "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+        "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+        "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+        "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       }
+      ]
+     },
+     {
+      "id": "11",
+      "seq": 11,
+      "at": "2026-10-03T01:50:34.562668+00:00",
+      "kind": "guest",
+      "cast_id": "marin_leveque",
+      "text_fr": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes.",
+      "move": "enter",
+      "position": "against",
+      "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "le gouvernement",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le budget",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le déficit",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la pension",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'inflation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "sauvegarder",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+   "result": {
+    "items": [
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T01:50:34.567119+00:00",
+      "kind": "mine",
+      "text_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T01:50:39.650925+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles.",
+      "translation": null,
+      "glosses": [],
+      "reason": null
+     },
+     {
+      "id": "16.u",
+      "seq": 16,
+      "at": "2026-10-03T01:50:39.650925+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T01:50:39.650943+00:00",
+      "kind": "guest",
+      "cast_id": "marin_leveque",
+      "text_fr": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?",
+      "move": "follow_up",
+      "position": "against",
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "le gouvernement",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le budget",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le déficit",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la pension",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'inflation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "sauvegarder",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T01:50:39.656703+00:00",
+      "kind": "mine",
+      "text_fr": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T01:50:46.236116+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Je suis d'accord : ça semble dur pour les retraités, hein. D'après le ministre et d'après le site, on n’a pas le même regard sur le budget. Pourquoi tu dis que le gouvernement, c’est important ?",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "le gouvernement",
+        "gloss": "the government",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le budget",
+        "gloss": "the budget",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "22",
+      "seq": 22,
+      "at": "2026-10-03T01:50:46.236131+00:00",
+      "kind": "guest",
+      "cast_id": "marin_leveque",
+      "text_fr": "Je suis d'accord : à l'association, je vois des retraités compter chaque euro — ça leur ferait vraiment mal. Et toi, tu penses quoi ?",
+      "move": "follow_up",
+      "position": "against",
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "le gouvernement",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le budget",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le déficit",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la pension",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'inflation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "sauvegarder",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "supported",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Le gouvernement promet de supprimer immédiatement le déficit public"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Certaines pensions supérieures à 1 260 euros ne suivront pas entièrement l'inflation"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Toutes les pensions suivront intégralement l'inflation"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "uncertainty_fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   }
+  ],
+  "intro": {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:50:50.026689+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "proposal_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "contribution": [
+     [
+      0,
+      21
+     ],
+     [
+      32,
+      49
+     ]
+    ],
+    "why_native": "I added the referent \"du projet de budget 2027\" for clarity and used the inverted question form \"va-t-elle\" to keep a short, correct B1-level question."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "contribution": [
+     [
+      0,
+      21
+     ],
+     [
+      32,
+      49
+     ]
+    ],
+    "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+   },
+   "line": {
+    "id": "29",
+    "seq": 29,
+    "at": "2026-10-03T01:50:52.178490+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je reprends ta question en fin d'article ; d'après le gouvernement, l'Assemblée nationale et le Sénat doivent encore en débattre, et les sources ne disent pas si elles modifieront le texte.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+   "body_fr": [
+    "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+    "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+    "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+   ],
+   "contribution": [
+    [
+     0,
+     21
+    ],
+    [
+     32,
+     49
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après La finance pour tous (Institut pour l'éducation financière du public) et franceinfo",
+   "sources": [
+    {
+     "id": "w40_budget_lfpt",
+     "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+     "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+     "published_at": "2026-10-02"
+    },
+    {
+     "id": "w40_budget_franceinfo",
+     "name": "franceinfo",
+     "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "les euros",
+     "gloss": "euros",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le gouvernement",
+     "gloss": "the government",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le budget",
+     "gloss": "the budget",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le déficit",
+     "gloss": "the deficit",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la pension",
+     "gloss": "the pension",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "l'inflation",
+     "gloss": "inflation",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "sauvegarder",
+     "gloss": "to safeguard",
+     "claim_id": "c3",
+     "used": false,
+     "outcome": "unscored"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+     "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+     "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_budget_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "interpretation",
+     "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+     "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+     "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+     "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+     "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+  "vignette": {
+   "id": "32643d44-dc99-4442-80af-b3092cdb5041",
+   "session_id": "ff5ebe0b-b417-4bcb-b27e-853571794554",
+   "dossier_id": "2026-w40-budget-2027",
+   "week": "2026-W40",
+   "place_label_fr": "L'hémicycle de l'Assemblée nationale",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"18\" fill=\"#C2890F\"/><rect x=\"29\" y=\"56\" width=\"42\" height=\"9\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#C2890F\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"54\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Le projet de budget 2027 est présenté",
+   "minted_at": "2026-10-03T01:50:56"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T01:50:19.327308+00:00",
+   "kind": "narration",
+   "text_fr": "L'hémicycle de l'Assemblée nationale."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T01:50:19.327308+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T01:50:19.327308+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment l'hémicycle de l'Assemblée nationale, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T01:50:19.327308+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que le budget changerait pour un retraité, un étudiant, une famille ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le budget",
+     "gloss": "the budget",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T01:50:19.327308+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T01:50:19.335386+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T01:50:26.678340+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "les euros",
+     "gloss": "euros",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le gouvernement",
+     "gloss": "the government",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le budget",
+     "gloss": "the budget",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le déficit",
+     "gloss": "the deficit",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la pension",
+     "gloss": "the pension",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "l'inflation",
+     "gloss": "inflation",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T01:50:26.678353+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+     "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+     "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_budget_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+      "published_at": "2026-10-02"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T01:50:26.684152+00:00",
+   "kind": "mine",
+   "text_fr": "Qu'est-ce que le budget change pour les retraités ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T01:50:34.562644+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "les euros",
+     "gloss": "euros",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le budget",
+     "gloss": "the budget",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le déficit",
+     "gloss": "the deficit",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la pension",
+     "gloss": "the pension",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "sauvegarder",
+     "gloss": "to safeguard",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "8.u",
+   "seq": 8,
+   "at": "2026-10-03T01:50:34.562644+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T01:50:34.562660+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c3",
+     "kind": "interpretation",
+     "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+     "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+     "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+     "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+     "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+     "source": {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+     }
+    }
+   ]
+  },
+  {
+   "id": "11",
+   "seq": 11,
+   "at": "2026-10-03T01:50:34.562668+00:00",
+   "kind": "guest",
+   "cast_id": "marin_leveque",
+   "text_fr": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes.",
+   "move": "enter",
+   "position": "against",
+   "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T01:50:34.567119+00:00",
+   "kind": "mine",
+   "text_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T01:50:39.650925+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "16.u",
+   "seq": 16,
+   "at": "2026-10-03T01:50:39.650925+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T01:50:39.650943+00:00",
+   "kind": "guest",
+   "cast_id": "marin_leveque",
+   "text_fr": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?",
+   "move": "follow_up",
+   "position": "against",
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T01:50:39.656703+00:00",
+   "kind": "mine",
+   "text_fr": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:50:46.236116+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Je suis d'accord : ça semble dur pour les retraités, hein. D'après le ministre et d'après le site, on n’a pas le même regard sur le budget. Pourquoi tu dis que le gouvernement, c’est important ?",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le gouvernement",
+     "gloss": "the government",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le budget",
+     "gloss": "the budget",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "22",
+   "seq": 22,
+   "at": "2026-10-03T01:50:46.236131+00:00",
+   "kind": "guest",
+   "cast_id": "marin_leveque",
+   "text_fr": "Je suis d'accord : à l'association, je vois des retraités compter chaque euro — ça leur ferait vraiment mal. Et toi, tu penses quoi ?",
+   "move": "follow_up",
+   "position": "against",
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:50:50.026689+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T01:50:52.178485+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "contribution": [
+     [
+      0,
+      21
+     ],
+     [
+      32,
+      49
+     ]
+    ],
+    "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+   }
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T01:50:52.178490+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "30",
+   "seq": 30,
+   "at": "2026-10-03T01:50:56.584857+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je reprends ta question en fin d'article ; d'après le gouvernement, l'Assemblée nationale et le Sénat doivent encore en débattre, et les sources ne disent pas si elles modifieront le texte.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le gouvernement",
+     "gloss": "the government",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-budget-2027",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-budget-2027",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "politics",
+     "title_fr": "Le projet de budget 2027 est présenté",
+     "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+       "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+       "source_id": "w40_budget_lfpt",
+       "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+       "published_at": "2026-10-02",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+       "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+       "source_id": "w40_budget_franceinfo",
+       "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "interpretation",
+       "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+       "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+       "source_id": "w40_budget_lfpt",
+       "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+       "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+       "source_id": "w40_budget_lfpt",
+       "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+      }
+     ],
+     "entities": [
+      {
+       "name": "David Amiel",
+       "kind": "person",
+       "role": "ministre de l'Action et des Comptes publics"
+      },
+      {
+       "name": "Assemblée nationale",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      {
+       "id": "u1",
+       "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+      },
+      {
+       "id": "u2",
+       "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+      }
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": "marin_leveque"
+      },
+      {
+       "id": "a2",
+       "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": "augustin_de_roncourt"
+      }
+     ],
+     "places": [
+      {
+       "id": "hemicycle_assemblee",
+       "name_fr": "L'hémicycle de l'Assemblée nationale",
+       "brief": "the empty semicircular chamber of the Assemblée nationale, red velvet benches in rising rows, polished wooden desks, a high glass ceiling, soft daylight",
+       "known": false,
+       "geo": {
+        "lat": 48.862,
+        "lon": 2.3185,
+        "precision": "exact",
+        "label_fr": "Assemblée nationale, Palais Bourbon"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-10-01/2026-12-20",
+      "relevant_until": "2026-12-31"
+     },
+     "sources": [
+      {
+       "id": "w40_budget_lfpt",
+       "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+       "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+       "published_at": "2026-10-02"
+      },
+      {
+       "id": "w40_budget_franceinfo",
+       "name": "franceinfo",
+       "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+       "published_at": "2026-10-02"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "une calculatrice"
+    },
+    "cost_usd": 0.002072,
+    "prompt_version": "revue-vocabulary-v2"
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "L'hémicycle de l'Assemblée nationale.",
+     "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+    ],
+    "place_note": "Ce n'est pas vraiment l'hémicycle de l'Assemblée nationale, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que le budget changerait pour un retraité, un étudiant, une famille ». Tu m'aides ?",
+    "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo.",
+    "translation": null,
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002438,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 7.258
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "le gouvernement",
+      "outcome": "unscored",
+      "capability_id": "revue.word:gouvernement",
+      "capability_known": false
+     },
+     {
+      "fr": "le budget",
+      "outcome": "unscored",
+      "capability_id": "revue.word:budget",
+      "capability_known": false
+     },
+     {
+      "fr": "le déficit",
+      "outcome": "unscored",
+      "capability_id": "revue.word:deficit",
+      "capability_known": false
+     },
+     {
+      "fr": "la pension",
+      "outcome": "unscored",
+      "capability_id": "revue.word:pension",
+      "capability_known": false
+     },
+     {
+      "fr": "l'inflation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:inflation",
+      "capability_known": false
+     },
+     {
+      "fr": "sauvegarder",
+      "outcome": "unscored",
+      "capability_id": "revue.word:sauvegarder",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Qu'est-ce que le budget change pour les retraités ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros.",
+    "translation": null,
+    "claims_cited": [
+     "c3",
+     "c4"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": "u2",
+    "uncertainty_index": 1,
+    "uncertainty_text": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre.",
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002622,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 7.874
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c3",
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "marin_leveque",
+    "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+    "reason": "the NGO he works for follows this closely (Le projet de budget 2027 est présenté)",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "marin_leveque",
+    "text_fr": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes.",
+    "move": "enter",
+    "position": "against",
+    "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001077,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 3.212,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "guest_position",
+   "payload": {
+    "id": "marin_leveque",
+    "position": "against",
+    "previous": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Qu'est-ce que le budget change pour les retraités ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre.",
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:budget",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le budget"
+    ],
+    "words_used": [
+     "le budget"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "le gouvernement",
+      "outcome": "unscored",
+      "capability_id": "revue.word:gouvernement",
+      "capability_known": false
+     },
+     {
+      "fr": "le budget",
+      "outcome": "unscored",
+      "capability_id": "revue.word:budget",
+      "capability_known": false
+     },
+     {
+      "fr": "le déficit",
+      "outcome": "unscored",
+      "capability_id": "revue.word:deficit",
+      "capability_known": false
+     },
+     {
+      "fr": "la pension",
+      "outcome": "unscored",
+      "capability_id": "revue.word:pension",
+      "capability_known": false
+     },
+     {
+      "fr": "l'inflation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:inflation",
+      "capability_known": false
+     },
+     {
+      "fr": "sauvegarder",
+      "outcome": "unscored",
+      "capability_id": "revue.word:sauvegarder",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000929,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles.",
+    "translation": null,
+    "claims_cited": [],
+    "claims_restated": [],
+    "uncertainty_id": "u1",
+    "uncertainty_index": 0,
+    "uncertainty_text": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier.",
+    "uncertainty_matched": false,
+    "proposes_question": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001808,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 5.078
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "marin_leveque",
+    "text_fr": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?",
+    "move": "follow_up",
+    "position": "against",
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.00149,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 4.929,
+    "turn_seq": 15
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "answerable": false,
+    "uncertainty_text": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier.",
+    "turn_seq": 15,
+    "kept": false
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "le gouvernement",
+      "outcome": "unscored",
+      "capability_id": "revue.word:gouvernement",
+      "capability_known": false
+     },
+     {
+      "fr": "le budget",
+      "outcome": "unscored",
+      "capability_id": "revue.word:budget",
+      "capability_known": false
+     },
+     {
+      "fr": "le déficit",
+      "outcome": "unscored",
+      "capability_id": "revue.word:deficit",
+      "capability_known": false
+     },
+     {
+      "fr": "la pension",
+      "outcome": "unscored",
+      "capability_id": "revue.word:pension",
+      "capability_known": false
+     },
+     {
+      "fr": "l'inflation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:inflation",
+      "capability_known": false
+     },
+     {
+      "fr": "sauvegarder",
+      "outcome": "unscored",
+      "capability_id": "revue.word:sauvegarder",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 15
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Je suis d'accord : ça semble dur pour les retraités, hein. D'après le ministre et d'après le site, on n’a pas le même regard sur le budget. Pourquoi tu dis que le gouvernement, c’est important ?",
+    "translation": null,
+    "claims_cited": [],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002254,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 6.571
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "marin_leveque",
+    "text_fr": "Je suis d'accord : à l'association, je vois des retraités compter chaque euro — ça leur ferait vraiment mal. Et toi, tu penses quoi ?",
+    "move": "follow_up",
+    "position": "against",
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001483,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 4.385,
+    "turn_seq": 20
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:gouvernement",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le gouvernement"
+    ],
+    "words_used": [
+     "le gouvernement"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "le gouvernement",
+      "outcome": "unscored",
+      "capability_id": "revue.word:gouvernement",
+      "capability_known": false
+     },
+     {
+      "fr": "le budget",
+      "outcome": "unscored",
+      "capability_id": "revue.word:budget",
+      "capability_known": false
+     },
+     {
+      "fr": "le déficit",
+      "outcome": "unscored",
+      "capability_id": "revue.word:deficit",
+      "capability_known": false
+     },
+     {
+      "fr": "la pension",
+      "outcome": "unscored",
+      "capability_id": "revue.word:pension",
+      "capability_known": false
+     },
+     {
+      "fr": "l'inflation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:inflation",
+      "capability_known": false
+     },
+     {
+      "fr": "sauvegarder",
+      "outcome": "unscored",
+      "capability_id": "revue.word:sauvegarder",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000959,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 20
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Le gouvernement promet de supprimer immédiatement le déficit public"
+      },
+      {
+       "id": "h2",
+       "text_fr": "Certaines pensions supérieures à 1 260 euros ne suivront pas entièrement l'inflation"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Toutes les pensions suivront intégralement l'inflation"
+      }
+     ],
+     "answer": "h2",
+     "supported_by": "c2",
+     "contradicted_by": {
+      "h1": "c1",
+      "h3": "c2"
+     }
+    },
+    "cost_usd": 0.001138,
+    "prompt_version": "revue-headline-v2"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "proposal_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "contribution": [
+     [
+      0,
+      21
+     ],
+     [
+      32,
+      49
+     ]
+    ],
+    "why_native": "I added the referent \"du projet de budget 2027\" for clarity and used the inverted question form \"va-t-elle\" to keep a short, correct B1-level question.",
+    "cost_usd": 0.000661,
+    "prompt_version": "revue-question-v2"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "contribution": [
+     [
+      0,
+      21
+     ],
+     [
+      32,
+      49
+     ]
+    ],
+    "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je reprends ta question en fin d'article ; d'après le gouvernement, l'Assemblée nationale et le Sénat doivent encore en débattre, et les sources ne disent pas si elles modifieront le texte.",
+    "cost_usd": 0.001565,
+    "prompt_version": "revue-close-v2",
+    "refused": [],
+    "regenerated_for": []
+   }
+  },
+  {
+   "seq": 31,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je reprends ta question en fin d'article ; d'après le gouvernement, l'Assemblée nationale et le Sénat doivent encore en débattre, et les sources ne disent pas si elles modifieront le texte.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+      "body_fr": [
+       "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+       "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+       "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+      ],
+      "contribution": [
+       [
+        0,
+        21
+       ],
+       [
+        32,
+        49
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après La finance pour tous (Institut pour l'éducation financière du public) et franceinfo",
+      "sources": [
+       {
+        "id": "w40_budget_lfpt",
+        "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+        "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+        "published_at": "2026-10-02"
+       },
+       {
+        "id": "w40_budget_franceinfo",
+        "name": "franceinfo",
+        "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+        "published_at": "2026-10-02"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "les euros",
+        "gloss": "euros",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le gouvernement",
+        "gloss": "the government",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le budget",
+        "gloss": "the budget",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le déficit",
+        "gloss": "the deficit",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la pension",
+        "gloss": "the pension",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "l'inflation",
+        "gloss": "inflation",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "sauvegarder",
+        "gloss": "to safeguard",
+        "claim_id": "c3",
+        "used": false,
+        "outcome": "unscored"
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+        "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+        "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_budget_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "interpretation",
+        "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+        "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+        "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+        "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+        "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+        "source": {
+         "id": "w40_budget_lfpt",
+         "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+         "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+         "published_at": "2026-10-02"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+     "vignette": {
+      "id": "32643d44-dc99-4442-80af-b3092cdb5041",
+      "session_id": "ff5ebe0b-b417-4bcb-b27e-853571794554",
+      "dossier_id": "2026-w40-budget-2027",
+      "week": "2026-W40",
+      "place_label_fr": "L'hémicycle de l'Assemblée nationale",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"18\" fill=\"#C2890F\"/><rect x=\"29\" y=\"56\" width=\"42\" height=\"9\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#C2890F\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"54\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Le projet de budget 2027 est présenté",
+      "minted_at": "2026-10-03T01:50:56"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "le gouvernement",
+     "outcome": "unscored",
+     "capability_id": "revue.word:gouvernement",
+     "capability_known": false
+    },
+    {
+     "fr": "le budget",
+     "outcome": "unscored",
+     "capability_id": "revue.word:budget",
+     "capability_known": false
+    },
+    {
+     "fr": "le déficit",
+     "outcome": "unscored",
+     "capability_id": "revue.word:deficit",
+     "capability_known": false
+    },
+    {
+     "fr": "la pension",
+     "outcome": "unscored",
+     "capability_id": "revue.word:pension",
+     "capability_known": false
+    },
+    {
+     "fr": "l'inflation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:inflation",
+     "capability_known": false
+    },
+    {
+     "fr": "sauvegarder",
+     "outcome": "unscored",
+     "capability_id": "revue.word:sauvegarder",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:budget",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le budget"
+   ],
+   "words_used": [
+    "le budget"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "le gouvernement",
+     "outcome": "unscored",
+     "capability_id": "revue.word:gouvernement",
+     "capability_known": false
+    },
+    {
+     "fr": "le budget",
+     "outcome": "unscored",
+     "capability_id": "revue.word:budget",
+     "capability_known": false
+    },
+    {
+     "fr": "le déficit",
+     "outcome": "unscored",
+     "capability_id": "revue.word:deficit",
+     "capability_known": false
+    },
+    {
+     "fr": "la pension",
+     "outcome": "unscored",
+     "capability_id": "revue.word:pension",
+     "capability_known": false
+    },
+    {
+     "fr": "l'inflation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:inflation",
+     "capability_known": false
+    },
+    {
+     "fr": "sauvegarder",
+     "outcome": "unscored",
+     "capability_id": "revue.word:sauvegarder",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000929,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "le gouvernement",
+     "outcome": "unscored",
+     "capability_id": "revue.word:gouvernement",
+     "capability_known": false
+    },
+    {
+     "fr": "le budget",
+     "outcome": "unscored",
+     "capability_id": "revue.word:budget",
+     "capability_known": false
+    },
+    {
+     "fr": "le déficit",
+     "outcome": "unscored",
+     "capability_id": "revue.word:deficit",
+     "capability_known": false
+    },
+    {
+     "fr": "la pension",
+     "outcome": "unscored",
+     "capability_id": "revue.word:pension",
+     "capability_known": false
+    },
+    {
+     "fr": "l'inflation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:inflation",
+     "capability_known": false
+    },
+    {
+     "fr": "sauvegarder",
+     "outcome": "unscored",
+     "capability_id": "revue.word:sauvegarder",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 15
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:gouvernement",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le gouvernement"
+   ],
+   "words_used": [
+    "le gouvernement"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "le gouvernement",
+     "outcome": "unscored",
+     "capability_id": "revue.word:gouvernement",
+     "capability_known": false
+    },
+    {
+     "fr": "le budget",
+     "outcome": "unscored",
+     "capability_id": "revue.word:budget",
+     "capability_known": false
+    },
+    {
+     "fr": "le déficit",
+     "outcome": "unscored",
+     "capability_id": "revue.word:deficit",
+     "capability_known": false
+    },
+    {
+     "fr": "la pension",
+     "outcome": "unscored",
+     "capability_id": "revue.word:pension",
+     "capability_known": false
+    },
+    {
+     "fr": "l'inflation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:inflation",
+     "capability_known": false
+    },
+    {
+     "fr": "sauvegarder",
+     "outcome": "unscored",
+     "capability_id": "revue.word:sauvegarder",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000959,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 20
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "marin_leveque",
+   "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+   "reason": "the NGO he works for follows this closely (Le projet de budget 2027 est présenté)",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "marin_leveque",
+   "text_fr": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes.",
+   "move": "enter",
+   "position": "against",
+   "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.001077,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 3.212,
+   "turn_seq": 7
+  },
+  {
+   "kind": "guest_position",
+   "id": "marin_leveque",
+   "position": "against",
+   "previous": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "marin_leveque",
+   "text_fr": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?",
+   "move": "follow_up",
+   "position": "against",
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.00149,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 4.929,
+   "turn_seq": 15
+  },
+  {
+   "kind": "turn_guest",
+   "id": "marin_leveque",
+   "text_fr": "Je suis d'accord : à l'association, je vois des retraités compter chaque euro — ça leur ferait vraiment mal. Et toi, tu penses quoi ?",
+   "move": "follow_up",
+   "position": "against",
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.001483,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 4.385,
+   "turn_seq": 20
+  }
+ ],
+ "cost_usd_state": 0.020496,
+ "cost_usd_provider": 0.020496,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 6.528,
+   "started": 0.149,
+   "cost_usd": 0.002072,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+     }
+    ],
+    "prefer": [
+     "euros"
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "le gouvernement",
+      "gloss": "the government",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "le budget",
+      "gloss": "the budget",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "le déficit",
+      "gloss": "the deficit",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "la pension",
+      "gloss": "the pension",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les euros",
+      "gloss": "euros",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "l'inflation",
+      "gloss": "inflation",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "sauvegarder",
+      "gloss": "to safeguard",
+      "claim_id": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 7.258,
+   "started": 6.778,
+   "cost_usd": 0.002438,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+      "attributed_to": null,
+      "source": "La finance pour tous (Institut pour l'éducation financière du public)"
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+      "attributed_to": null,
+      "source": "franceinfo"
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+      "source": "La finance pour tous (Institut pour l'éducation financière du public)"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+      "source": "La finance pour tous (Institut pour l'éducation financière du public)"
+     }
+    ],
+    "claims_already_said": [],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "L'hémicycle de l'Assemblée nationale."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment l'hémicycle de l'Assemblée nationale, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que le budget changerait pour un retraité, un étudiant, une famille ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo.",
+    "translation": "All right. The government presented the draft budget for 2027 on October 1 ; it wants to bring the public deficit to 5% of GDP, according to La finance pour tous. The proposal also suggests that pensions above 1,260 euros will not fully follow inflation, according to franceinfo.",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.096,
+   "started": 14.042,
+   "cost_usd": 0.000929,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+      }
+     ],
+     "target_words": [
+      "les euros",
+      "le gouvernement",
+      "le budget",
+      "le déficit",
+      "la pension",
+      "l'inflation",
+      "sauvegarder"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+     "headline_words": null
+    },
+    "learner_text": "Qu'est-ce que le budget change pour les retraités ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le budget",
+      "outcome": "correct",
+      "quote": "le budget"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.212,
+   "started": 14.047,
+   "cost_usd": 0.001077,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "marin_leveque",
+    "name": "Marin Lévêque",
+    "voice": {
+     "role": "Works at an environmental NGO and writes a novel nobody may read.",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs."
+    },
+    "register": "tu",
+    "move": "enter",
+    "reason_fr": "À l'association, on suit ça de très près. Je peux dire un mot ?",
+    "position": null,
+    "learner_text": "Qu'est-ce que le budget change pour les retraités ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment l'hémicycle de l'Assemblée nationale, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que le budget changerait pour un retraité, un étudiant, une famille ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     },
+     {
+      "who": "learner",
+      "text": "Qu'est-ce que le budget change pour les retraités ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "marin_leveque",
+     "name": "Marin Lévêque",
+     "role": "Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.",
+     "register_with_user": "tu",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes.",
+    "position": "against",
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 7.874,
+   "started": 14.047,
+   "cost_usd": 0.002622,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Qu'est-ce que le budget change pour les retraités ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics",
+      "source": "La finance pour tous (Institut pour l'éducation financière du public)"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public",
+      "source": "La finance pour tous (Institut pour l'éducation financière du public)"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment l'hémicycle de l'Assemblée nationale, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que le budget changerait pour un retraité, un étudiant, une famille ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Bien. Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB, d'après La finance pour tous. Le projet propose aussi que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation, selon franceinfo."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros.",
+    "translation": "According to David Amiel, this budget aims to \"safeguard the future\": reduce the deficit and keep investing for future generations. The site La finance pour tous says that, for individuals, it brings more bad news than boosts. The sources do not say by how much pensions above 1,260 euros will be revalued.",
+    "claims_cited": [
+     "c3",
+     "c4"
+    ],
+    "uncertainty_cited": "u2",
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 4.929,
+   "started": 21.931,
+   "cost_usd": 0.00149,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "marin_leveque",
+    "name": "Marin Lévêque",
+    "voice": {
+     "role": "Works at an environmental NGO and writes a novel nobody may read.",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs."
+    },
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": "against",
+    "learner_text": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "Qu'est-ce que le budget change pour les retraités ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3, c4"
+     },
+     {
+      "who": "marin_leveque",
+      "text": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes."
+     },
+     {
+      "who": "learner",
+      "text": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "marin_leveque",
+     "name": "Marin Lévêque",
+     "role": "Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.",
+     "register_with_user": "tu",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?",
+    "position": "against",
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.078,
+   "started": 21.931,
+   "cost_usd": 0.001808,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": "marin_leveque"
+    },
+    "claims": [],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     },
+     {
+      "who": "learner",
+      "text": "Qu'est-ce que le budget change pour les retraités ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après David Amiel, ce budget vise à «sauvegarder l'avenir» : réduire le déficit et continuer à investir pour les futures générations. Le site La finance pour tous juge que, pour les particuliers, il apporte plus de mauvaises nouvelles que de «coups de pouce». Les sources ne disent pas de combien seront revalorisées les pensions au‑dessus de 1 260 euros."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3, c4"
+     },
+     {
+      "who": "marin_leveque",
+      "text": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes."
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": "marin_leveque",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles.",
+    "translation": "The sources do not say. The text can still change: we do not know which changes the National Assembly or the Senate will propose, according to the available information.",
+    "claims_cited": [],
+    "uncertainty_cited": "u1",
+    "proposes_question": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.302,
+   "started": 27.015,
+   "cost_usd": 0.000959,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+      },
+      {
+       "id": "c3",
+       "kind": "interpretation",
+       "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+      }
+     ],
+     "target_words": [
+      "les euros",
+      "le gouvernement",
+      "le budget",
+      "le déficit",
+      "la pension",
+      "l'inflation",
+      "sauvegarder"
+     ],
+     "addressee": "marin_leveque",
+     "expected_register": "tu",
+     "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+     "headline_words": null
+    },
+    "learner_text": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le gouvernement",
+      "outcome": "correct",
+      "quote": "le gouvernement, c'est important."
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 4.385,
+   "started": 27.023,
+   "cost_usd": 0.001483,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "marin_leveque",
+    "name": "Marin Lévêque",
+    "voice": {
+     "role": "Works at an environmental NGO and writes a novel nobody may read.",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs."
+    },
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": "against",
+    "learner_text": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "B1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "marin_leveque",
+      "text": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes."
+     },
+     {
+      "who": "learner",
+      "text": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "who": "marin_leveque",
+      "text": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?"
+     },
+     {
+      "who": "learner",
+      "text": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "marin_leveque",
+     "name": "Marin Lévêque",
+     "role": "Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).",
+     "personality": "A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.",
+     "register_with_user": "tu",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je suis d'accord : à l'association, je vois des retraités compter chaque euro — ça leur ferait vraiment mal. Et toi, tu penses quoi ?",
+    "position": "against",
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 6.571,
+   "started": 27.023,
+   "cost_usd": 0.002254,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "À mon avis, c'est dur pour les retraités. Pour moi, le gouvernement, c'est important.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": "marin_leveque"
+    },
+    "claims": [],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?"
+    },
+    "angle_changed": false,
+    "question_proposed": true,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c3, c4"
+     },
+     {
+      "who": "marin_leveque",
+      "text": "Je suis contre : à l'association, on suit ça de très près, ça punirait les retraités modestes."
+     },
+     {
+      "who": "learner",
+      "text": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. Le texte peut encore changer : on ne sait pas quelles modifications l'Assemblée nationale ou le Sénat proposeront, d'après les informations disponibles."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier."
+     },
+     {
+      "who": "marin_leveque",
+      "text": "On ne sait pas encore, le Parlement débattra ; à l'association on craint que des retraités perdent des achats essentiels. Tu y crois, toi ?"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": "marin_leveque",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Je suis d'accord : ça semble dur pour les retraités, hein. D'après le ministre et d'après le site, on n’a pas le même regard sur le budget. Pourquoi tu dis que le gouvernement, c’est important ?",
+    "translation": null,
+    "claims_cited": [],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 3.783,
+   "started": 33.6,
+   "cost_usd": 0.001138,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Le projet de budget 2027 est présenté",
+    "angle": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+     }
+    ],
+    "band": "B1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Certaines pensions supérieures à 1 260 euros ne suivront pas entièrement l'inflation",
+     "supported_by": "c2"
+    },
+    "distractors": [
+     {
+      "text_fr": "Toutes les pensions suivront intégralement l'inflation",
+      "contradicted_by": "c2"
+     },
+     {
+      "text_fr": "Le gouvernement promet de supprimer immédiatement le déficit public",
+      "contradicted_by": "c1"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.146,
+   "started": 37.388,
+   "cost_usd": 0.000661,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "uncertainty": "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier.",
+    "title_fr": "Le projet de budget 2027 est présenté",
+    "band": "B1",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "why_native": "I added the referent \"du projet de budget 2027\" for clarity and used the inverted question form \"va-t-elle\" to keep a short, correct B1-level question."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.29,
+   "started": 39.538,
+   "cost_usd": 0.001565,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Le projet de budget 2027 est présenté",
+    "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+    "angle": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+     "learner_fr": "Est-ce que l'Assemblée nationale va modifier le texte ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation."
+     },
+     {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+     }
+    ],
+    "open_question": "Est-ce que l'Assemblée nationale va modifier le texte ?",
+    "band": "B1"
+   },
+   "response": {
+    "romy_line_fr": "Je reprends ta question en fin d'article ; d'après le gouvernement, l'Assemblée nationale et le Sénat doivent encore en débattre, et les sources ne disent pas si elles modifieront le texte.",
+    "headline_fr": "L'Assemblée nationale va-t-elle modifier le texte du projet de budget 2027 ?",
+    "body_lines": [
+     "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+     "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+     "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce »."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 6.644
+  },
+  {
+   "step": "turn1",
+   "seconds": 7.348
+  },
+  {
+   "step": "turn2",
+   "seconds": 7.883
+  },
+  {
+   "step": "turn3",
+   "seconds": 5.09
+  },
+  {
+   "step": "turn4",
+   "seconds": 6.586
+  },
+  {
+   "step": "make_options",
+   "seconds": 3.787
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.148
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.001
+  },
+  {
+   "step": "close",
+   "seconds": 4.42
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini",
+  "reply": "revue-reply-v2",
+  "guest": "revue-guest-v2",
+  "close": "revue-close-v2",
+  "question": "revue-question-v2",
+  "vocabulary": "revue-vocabulary-v2",
+  "headline": "revue-headline-v2",
+  "critic": "revue-critic-v1"
+ }
+}

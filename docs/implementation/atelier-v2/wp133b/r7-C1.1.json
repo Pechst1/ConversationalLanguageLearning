@@ -1,0 +1,57 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.24576000000000003,
+  "calls": 73,
+  "cap": 0.4
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La dernière tradition",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La dernière tradition — tournant",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Ce qu'on donne — la plante",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La dernière tradition — résolution",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La machine",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (invalid_story_output); journey 55904432-3e14-4785-ab82-c2f09281aee0 re-reads t6.b",
+  "daily_journey: season day lost (chapter_not_advanced, 2 in a row in g6); journey 92e53131-42da-4187-ae48-db0db4d50b7d serves the tentpole t7.a",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g7.4 twice; accepted and logged (Add a visible turn: have the learner answer (even a partial answer) so a hope meets a setback or advances.; Create a small, visible change by the end of the page (an object moved, a decision spoken, a first tu, or a revealed motive).; Tie the scene to one of the gap threads a little (mention Odile i)"
+ ]
+}

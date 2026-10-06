@@ -35,7 +35,7 @@ process-wide settings object.
 | Key | Safe default (today) | Pilot value | What it does |
 |---|---|---|---|
 | `ATELIER_DAILY_JOURNEY_ENABLED` | `false` | `true` | Master switch. `false` stops *creation* only; open journeys keep draining (§6) |
-| `ATELIER_DAILY_JOURNEY_COHORT` | `""` | `owner@email,five@study,…` | Comma-separated emails **or** user ids. In `APP_ENV=production` an empty value enables **nobody**; only the literal `*` enables every learner (development keeps empty = everyone for tests and harnesses). Shrink the pilot by removing entries, never by blanking |
+| `ATELIER_DAILY_JOURNEY_COHORT` | `""` | `owner@email,five@study,…` | Comma-separated emails **or** user ids; `*` = every learner; `none` = nobody, on purpose. **WP-88: in `APP_ENV=production` a blank value stops the API from starting** (blank used to mean "nobody", silently). Development keeps blank = everyone for tests and harnesses. Shrink the pilot by removing entries; pause it with `none` |
 | `ATELIER_STORY_ENGINE_ENABLED` | `true` (unreachable while the master switch is off) | `true` | Living-story generation. `false` sends *new* journeys to the authored scenario path; learners who already have an engine thread keep reading theirs (`living_story.manages_story`) |
 | `ATELIER_STORY_MAX_ATTEMPTS` | `2` | `2` | Generation attempts per scene. `3` roughly doubles the worst-case cost of a bad day; `1` turns one bad draft into a lost day |
 | `ATELIER_CORRECTION_LLM_ENABLED` | `true` | `true` | AI assessment of open answers. `false` = deterministic checking, open answers saved unassessed |
@@ -44,6 +44,12 @@ process-wide settings object.
 | `ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS` | `60` | `60` | |
 | `ATELIER_CORRECTION_LLM_REASONING_EFFORT` | `low` | `low` | Unset starves `gpt-5-*` of output tokens |
 | `GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED` | `false` | `false` | Keep off for the pilot: no durable S3 storage yet, ≈ US$0.053 per panel |
+| `ATELIER_EPISODE_AUDIO_ENABLED` | `false` | `true` (WP-88, D-2) | The characters speak: scene lines synthesized per scene revision, cached, priced on the ledger (≈ US$0.04 a scene) |
+| `ATELIER_PANEL_ART_ENABLED` | `false` | `true` (WP-88, D-3) | Per-panel drawings with the cast references. **Stays off, and startup logs why, until `GRAPHIC_NOVEL_IMAGE_STORAGE=s3` and a bucket are set**: a drawing on the container disk dies at the next deploy |
+| `ATELIER_PANEL_ART_BANDS` | `""` (all) | `A1,A2` | Bands that get drawn panels; the rest keep the location plate |
+| `ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD` | `0.25` | `0.25` | Art's own per-learner daily budget, apart from the text cap. Panels past it keep their plate; a `journey_panel_art_cost` row is written per drawing |
+| `USER_DAILY_SPEND_CAP_USD` | `0.50` | `0.50` | Text spend per learner-local day (art excluded). Starting a day meets the cap |
+| `USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER` | `2.0` | `2.0` | A day already started is refused only past cap × this (attempts, help, retry, scene audio): a learner is never stopped half-way, a loop still is |
 | `PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD` | `2.00` | `2.00` | Weekly per-learner warning threshold (§5) |
 
 `.env` on the owner's machine sets none of the journey keys, so the local
@@ -87,11 +93,12 @@ it never touches a real learner's journey:
     --base-url https://atelier-api.onrender.com --json var/reviews/first-deploy.json
 ```
 
-That throwaway account is admitted only while the cohort is **empty** — outside
-production an empty cohort admits everyone, which is exactly what makes this
-proof possible. So:
+That throwaway account is admitted only while the cohort admits everyone. In
+production that is the literal `*` (a blank cohort stops the API from starting
+since WP-88; before it, blank silently admitted nobody, so this proof could
+never have passed there). So:
 
-1. Deploy with `ATELIER_DAILY_JOURNEY_COHORT` unset.
+1. Deploy with `ATELIER_DAILY_JOURNEY_COHORT=*`.
 2. Run the verifier. It proves the loop end to end against the real service,
    with real generation, on an account nobody is using.
 3. **Then** set the cohort to the pilot's learners and redeploy.

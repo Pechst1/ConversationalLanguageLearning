@@ -1,5 +1,7 @@
 # Atelier V2 — implementation handoff
 
+**Latest work packages (2026-10-06):** [What comes next — WP-135 onward](WORK-PACKAGES-2026-10-06-next.md), after the experience review's [WP-123–134](WORK-PACKAGES-2026-10-04-experience.md) (results in WAVE1–3-RESULTS). The historical handoff below remains unchanged.
+
 Updated 2026-09-06. Delivery specification revision: 3. The original functional implementation has been committed; see STATUS and NEXT-STEPS-REVIEW for verified results and gaps. Wire contracts retain their implemented version until a coordinated migration.
 
 **New required scope:** the owner requires generated new situations within one continuing story, including opportunities that emerge from learner conversations. [WP-14 — Continuous story](CONTINUOUS-STORY.md) extends the original three-scenario foundation. The original functional pass alone no longer satisfies the intended product. Complete the correctness fixes in [NEXT-STEPS-REVIEW.md](NEXT-STEPS-REVIEW.md) and WP-14; final Claude UI and release gates remain required.

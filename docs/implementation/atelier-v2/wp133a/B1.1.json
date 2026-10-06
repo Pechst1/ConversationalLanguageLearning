@@ -1,0 +1,76 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "weaves": [
+  {
+   "unit": "Raconter : imparfait, passé composé, plus-que-parfait",
+   "title": "La même chose ?",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": null,
+   "title": "Un petit rituel",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La promesse du zinc",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "L'enquête de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Romy et la rumeur",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "L'enquête de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La source de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Romy hésite",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: story engine failed (story_provider_failed); journey aba6c40a-05e7-4ed5-a9cc-5a636b27f85a serves authored order_at_cafe at B1",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.3 twice; accepted and logged (Montrer le radiateur ou évoquer explicitement le risque : le card «Demain, le rituel pourrait être gêné si le radiateur casse encore» doit être visible et traité.; Ajouter une petite visible réaction (gestural) d'un autre personnage to confirm the group's investment and make the stakes tangible.)",
+  "living_story: story critic refused g1.4 twice; accepted and logged (Montre le radiateur ou mentionne la panne prévue : l'obstacle ouvert (radiateur) doit rester visible et quelqu'un doit y réagir dans la page.)"
+ ]
+}
