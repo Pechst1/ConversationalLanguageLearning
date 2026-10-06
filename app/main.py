@@ -51,6 +51,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 "to nobody. Set '*' (everyone), a comma-separated list of emails or user ids, or "
                 "'none' (nobody, on purpose)."
             )
+        # WP-138: the cohort is not an invite gate. An open sign-up in production
+        # is allowed (a public launch wants it) but never silent.
+        if settings.REGISTRATION_OPEN:
+            logger.warning(
+                "REGISTRATION_OPEN is true in production: anyone can create an account. "
+                "Set it to false and list the pilot in REGISTRATION_ALLOWED_EMAILS."
+            )
 
     # WP-88: panel art switched on but unable to run says why, once, loudly.
     if settings.ATELIER_PANEL_ART_ENABLED:

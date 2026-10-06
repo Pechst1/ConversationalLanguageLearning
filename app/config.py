@@ -180,6 +180,25 @@ class Settings(BaseSettings):
     #: dev with no worker (WP-108): a queue nobody drains only fills up.
     CELERY_TASK_ALWAYS_EAGER: bool = False
 
+    # ---- WP-138: pilot registration gate ------------------------------------
+    # A journey cohort decides who gets the daily journey; it does not stop a
+    # stranger creating an account and spending on the paid routes. This does.
+    REGISTRATION_OPEN: bool = Field(
+        True,
+        description=(
+            "Anyone may create an account. False restricts sign-up to "
+            "REGISTRATION_ALLOWED_EMAILS (the private pilot). Existing accounts "
+            "always sign in."
+        ),
+    )
+    REGISTRATION_ALLOWED_EMAILS: str = Field(
+        "",
+        description=(
+            "Comma-separated emails (case-insensitive) allowed to sign up while "
+            "REGISTRATION_OPEN is false. Empty with registration closed means nobody."
+        ),
+    )
+
     # Developer convenience: optionally auto-create users on first login attempt
     AUTO_CREATE_USERS_ON_LOGIN: bool = Field(
         False,
