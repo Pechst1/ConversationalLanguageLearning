@@ -58,7 +58,7 @@
               "native": {"en": "…And the duke says to me: \"Augustin, you are too elegant for this century.\"", "de": "…Und der Herzog sagt zu mir: \"Augustin, Sie sind zu elegant für dieses Jahrhundert.\""}
             }},
             {"who": "marin_leveque", "say": {"a2": "Il a dit ça ?", "native": {"en": "He said that?", "de": "Das hat er gesagt?"}}},
-            {"who": "lila_bonnet", "mood": "happy", "say": {"a2": "Non.", "native": {"en": "No.", "de": "Nein."}}}
+            {"who": "lila_bonnet", "mood": "cold", "say": {"a2": "Non.", "native": {"en": "No.", "de": "Nein."}}}
           ]
         },
         {
@@ -76,13 +76,13 @@
           "location_id": "le_mistral",
           "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet"],
           "lines": [
-            {"who": "augustin_de_roncourt", "say": {
+            {"who": "augustin_de_roncourt", "mood": "cold", "say": {
               "a2": "Ah ! Vous voilà. La personne de M. Marchand, je suppose ? On vous attend.",
               "b1": "Ah ! La personne de chez Marchand, je présume ? On vous attendait… avec impatience, évidemment.",
               "native": {"en": "Ah! There you are. M. Marchand's person, I suppose? We've been waiting for you.", "de": "Ah! Da sind Sie ja. Die Person von Herrn Marchand, nehme ich an? Wir warten auf Sie."}
             }},
             {"who": "marin_leveque", "direction": "to Lila, a whisper", "say": {"a2": "C'est qui ?", "native": {"en": "Who is it?", "de": "Wer ist das?"}}},
-            {"who": "lila_bonnet", "say": {"a2": "La personne qui vend.", "native": {"en": "The person who's selling.", "de": "Die Person, die verkauft."}}}
+            {"who": "lila_bonnet", "mood": "cold", "say": {"a2": "La personne qui vend.", "native": {"en": "The person who's selling.", "de": "Die Person, die verkauft."}}}
           ]
         },
         {
@@ -118,7 +118,7 @@
             "in_frame": ["augustin_de_roncourt", "toi"],
             "balloon": true,
             "lines": [
-              {"who": "augustin_de_roncourt", "say": {
+              {"who": "augustin_de_roncourt", "mood": "cold", "say": {
                 "a2": "Alors ? Vous êtes qui, exactement ?",
                 "b1": "Alors, dites-moi. Qui êtes-vous, exactement ?",
                 "native": {"en": "So? Who are you, exactly?", "de": "Also? Wer sind Sie eigentlich?"}

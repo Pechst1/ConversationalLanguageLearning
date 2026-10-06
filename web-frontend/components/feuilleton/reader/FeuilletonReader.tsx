@@ -789,6 +789,7 @@ function PlateArt({
   pending,
   ribbon,
   variant,
+  pan = false,
   children,
 }: {
   src: string;
@@ -796,6 +797,8 @@ function PlateArt({
   pending: boolean;
   ribbon: string;
   variant?: 'bubble' | 'line' | null;
+  /** WP-137 C-5: a silent panel's plate moves slowly (never under Reduce Motion). */
+  pan?: boolean;
   children?: React.ReactNode;
 }) {
   const [shown, setShown] = useState<{ src: string; pending: boolean }>({ src, pending });
@@ -826,6 +829,7 @@ function PlateArt({
       className="fr-plate"
       data-variant={variant || undefined}
       data-pending={shown.pending ? 'true' : undefined}
+      data-pan={pan ? 'slow' : undefined}
     >
       {previous && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -926,6 +930,7 @@ function PanelBody({
             pending={!drawn && Boolean(stage.artPending)}
             ribbon={fillReaderCopy(t.art_on_press, { n: stage.ordinal })}
             variant={variant}
+            pan={Boolean(stage.silent)}
           >
             {castOnPlate}
             {bubbleLine && (
@@ -969,6 +974,7 @@ function PanelBody({
             onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
           />
         )}
+        {stage.silent && <p className="fr-caption fr-caption--silent">{t.silent_beat}</p>}
 
         {speech.length > 0 && <div className="fr-captions">{speech}</div>}
       </>
@@ -978,7 +984,7 @@ function PanelBody({
   return (
     <>
       {artReady && src ? (
-        <figure className="fr-plate">
+        <figure className="fr-plate" data-pan={stage.silent ? 'slow' : undefined}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={alt} />
           {castOnPlate}
@@ -1022,6 +1028,7 @@ function PanelBody({
           onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
         />
       )}
+      {stage.silent && <p className="fr-caption fr-caption--silent">{t.silent_beat}</p>}
     </>
   );
 }

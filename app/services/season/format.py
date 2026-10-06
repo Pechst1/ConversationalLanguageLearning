@@ -36,7 +36,8 @@ SEASON_ROOT = Path(__file__).resolve().parents[2] / "data" / "season"
 B1_BANDS = frozenset({"B1", "B2", "C1", "C2"})
 #: Chrome languages a task or a translation is written in.
 LANGUAGES = ("en", "de", "fr")
-MOODS = ("neutral", "happy", "cross", "moved")
+#: WP-137 C-4: ``cold`` — a dry or frosty line; the drawn face holds no smile.
+MOODS = ("neutral", "happy", "cross", "moved", "cold")
 MECHANICS = ("enquete", "choix", "dechiffrer", "convaincre", "balloon_choice")
 #: Speakers that are not cast members: diegetic text and the learner's own fixed line.
 TEXT_SPEAKERS = frozenset({"caption", "sms", "letter", "card", "toi", "all"})
@@ -198,7 +199,7 @@ class Line(_Model):
 
     who: str = Field(min_length=1)
     say: Say
-    mood: Literal["neutral", "happy", "cross", "moved"] = "neutral"
+    mood: Literal["neutral", "happy", "cross", "moved", "cold"] = "neutral"
     #: The script's stage direction, e.g. "to Lila, a whisper" — for the art and
     #: the owner, never printed as dialogue.
     direction: str = ""

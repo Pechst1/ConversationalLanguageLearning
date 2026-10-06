@@ -325,7 +325,9 @@ def _lenient_text(value: Any, limit: int) -> str | None:
 # because a 118-word scene overflowed a 350-character premise. Reading time is bounded
 # by the per-band word limits in `_validate_scene`, not by these.
 #: WP-90 «La planche»: the faces the reader's portraits can act (``expressionForMood``).
-LINE_MOODS = ("neutral", "happy", "cross", "moved")
+#: WP-137 C-4: ``cold`` — a dry or frosty line, which the drawn cast plays without a
+#: smile (every neutral rig mouth is one).
+LINE_MOODS = ("neutral", "happy", "cross", "moved", "cold")
 LINE_NATIVE_CHARS = 320
 PANEL_ALT_CHARS = 160
 #: The bands whose learners get every line translated («Traduire la case»).
@@ -340,7 +342,7 @@ class Dialogue(StrictModel):
     # WP-90. How the speaker feels saying it; an unknown word is "neutral", never a
     # refused draft. `text_native` is the line in the learner's own language, only for
     # A1/A2 learners whose language is not French (`line_translation` in the prompt).
-    mood: Literal["neutral", "happy", "cross", "moved"] = "neutral"
+    mood: Literal["neutral", "happy", "cross", "moved", "cold"] = "neutral"
     text_native: str | None = Field(default=None, max_length=LINE_NATIVE_CHARS)
 
     @field_validator("mood", mode="before")
@@ -817,8 +819,8 @@ that character the addressed character today and let them ask it in opening_line
 warmly and in their own voice, with the words «On se tutoie ?»; the scene still speaks
 vous. Never presume the learner's answer. When tutoiement is absent, nobody raises it.
 FACES AND READING AIDS. Every dialogue line has mood: how the speaker feels saying it —
-neutral, happy, cross or moved (the reader's portrait plays it, so vary it with the
-scene). When line_translation names a language, every dialogue line also has
+neutral, happy, cross, moved or cold (the reader's portrait plays it, so vary it with
+the scene; cold is a dry, frosty or wary line, never played with a smile). When line_translation names a language, every dialogue line also has
 text_native: a faithful, short translation of that very line into that language, never
 a paraphrase or a summary; when line_translation is null, text_native is null. Every
 panel has alt_native: one plain sentence in control_language saying what the picture

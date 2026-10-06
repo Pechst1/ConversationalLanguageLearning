@@ -10,6 +10,12 @@ The 2026-10-06 walk, as a German-speaking A1 learner at phone size:
        on the table, so every item fell to elimination. One article policy per
        item, and at A1 the wrong cards are core words of the band with the
        answer's part of speech.
+  C-4  «Le mauvais accueil»: every face grinned, Lila said «Non.» laughing. A
+       line can be ``cold`` (the script's and the director's word), which the
+       drawn cast plays without a smile; day 1's cold lines say so.
+  C-5  Panel 3 of 6 was the bare plate: an authored silence (``silence: true``)
+       projects to a panel with no line and no narration. The reader gives it a
+       caption and a slow pan (web-frontend); here, the shape it keys on.
 """
 from __future__ import annotations
 
@@ -22,10 +28,15 @@ from sqlalchemy.orm import Session
 
 from app.schemas.daily_journey import JourneyFinishRequest
 from app.services import journey_planner as planner
+from app.services import living_story as engine
 from app.services.daily_journey import DailyJourneyService
 from app.services.daily_journey_adapters import build_default_adapters
 from app.services.journey_contracts import TargetKind, TargetRef
 from app.services.practice_level import core_entry
+from app.services.season import runtime as season_runtime
+from app.services.season.flags import effective_flags
+from app.services.season.format import MOODS, load_season
+from app.services.season.page import project, resolve_day
 from app.services.streak import local_today, snapshot_fields
 from tests.test_daily_journey_state import (  # noqa: F401 - fixture
     create_request,
@@ -170,3 +181,44 @@ def test_c3_above_a2_the_cards_are_unchanged() -> None:
     texts = {o["text_fr"] for o in task.options}
     assert texts == {"Wohnung", "Schlüssel", "verkaufen"}, "one policy, today's words, as before"
 
+
+# ---------------------------------------------------------------------------
+# C-4 · a cold line is a mood, and day 1's cold lines carry it
+# C-5 · an authored silence reaches the reader as a panel with nothing in it
+# ---------------------------------------------------------------------------
+
+
+def _day_one_panels(band: str = "A1", language: str = "de") -> list[dict]:
+    season = load_season("s1")
+    flags = effective_flags(season, {}, seed="wp137")
+    page = resolve_day(season, "t1", "a", flags=flags, band=band, language=language)
+    return [
+        season_runtime._engine_panel(panel, language=language)
+        for panel in project(page)["scene_panels"]
+    ]
+
+
+def test_c4_cold_is_a_mood_the_script_and_the_director_may_write() -> None:
+    assert "cold" in MOODS and "cold" in engine.LINE_MOODS
+    line = engine.Dialogue.model_validate({"character_id": "lila_bonnet", "text_fr": "Non.", "mood": "cold"})
+    assert line.mood == "cold", "the engine keeps the word, it does not fold it to neutral"
+    assert "moved or cold" in engine.DIRECTOR, "the director is told it may"
+
+
+@pytest.mark.parametrize("band", ["A1", "A2", "B1"])
+def test_c4_day_one_plays_its_cold_beats_cold(band: str) -> None:
+    panels = _day_one_panels(band)
+    lines = [(line["character_id"], line["text_fr"], line["mood"]) for panel in panels for line in panel["dialogue"]]
+    lila_non = [mood for who, text, mood in lines if who == "lila_bonnet" and text.strip() == "Non."]
+    assert lila_non == ["cold"], "«Non.» is dry, not laughing"
+    welcome = [line["mood"] for line in panels[3]["dialogue"] if line["character_id"] == "augustin_de_roncourt"]
+    assert welcome == ["cold"], "the bow is too deep; the welcome is frosty"
+    question = [line["mood"] for line in panels[-1]["dialogue"] if line["character_id"] == "augustin_de_roncourt"]
+    assert question == ["cold"], "all charm and no warmth"
+
+
+def test_c5_the_silent_panel_reaches_the_reader_with_nothing_said() -> None:
+    panels = _day_one_panels()
+    silent = [panel for panel in panels if not panel["dialogue"] and not panel["narration_fr"].strip()]
+    assert len(silent) == 1, "panel 3, the cicada on the zinc, is the day's one authored silence"
+    assert panels.index(silent[0]) == 2

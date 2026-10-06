@@ -48,6 +48,8 @@ export type ReaderCopy = {
   page_alt: string;
   art_printing: string;
   art_missing: string;
+  /** WP-137 C-5: the caption of a panel where nobody speaks (a beat on a detail). */
+  silent_beat: string;
   answer_sent: string;
   verdict_branch: string;
   verdict_ok: string;
@@ -131,6 +133,7 @@ const FR: ReaderCopy = {
   page_alt: 'La page illustrée de cette édition',
   art_printing: 'L’illustration de cette planche est encore sous presse. Le texte est complet.',
   art_missing: 'Cette planche est parue sans illustration.',
+  silent_beat: 'Un silence.',
   answer_sent: 'Votre réponse, déjà envoyée',
   verdict_branch: 'Choix pris en compte',
   verdict_ok: 'Acceptée',
@@ -199,6 +202,7 @@ const EN: ReaderCopy = {
   page_alt: 'This edition’s illustrated page',
   art_printing: 'This panel’s picture is still being drawn. The text is complete.',
   art_missing: 'This panel came out without a picture.',
+  silent_beat: 'A moment of silence.',
   answer_sent: 'Your answer, already sent',
   verdict_branch: 'Choice noted',
   verdict_ok: 'Accepted',
@@ -267,6 +271,7 @@ const DE: ReaderCopy = {
   page_alt: 'Die illustrierte Seite dieser Ausgabe',
   art_printing: 'Das Bild zu dieser Szene wird noch gezeichnet. Der Text ist vollständig.',
   art_missing: 'Dieses Bild ist ohne Illustration erschienen.',
+  silent_beat: 'Einen Moment lang Stille.',
   answer_sent: 'Deine Antwort, schon gesendet',
   verdict_branch: 'Wahl übernommen',
   verdict_ok: 'Angenommen',

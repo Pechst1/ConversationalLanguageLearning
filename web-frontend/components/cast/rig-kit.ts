@@ -31,6 +31,12 @@ import type { ReactElement } from 'react';
 
 export type RigMood = 'neutre' | 'ravie' | 'surprise' | 'fachee' | 'emue';
 export type Viseme = 'rest' | 'a' | 'o' | 'e' | 'm' | 'f';
+/**
+ * WP-137 C-4 · a mouth a figure is *held* in, not one it speaks with: `flat`, the
+ * level unsmiling line every rig already draws (Camille's neutral). A cold beat
+ * holds it; a voice still moves the mouth through the visemes.
+ */
+export type HeldMouth = 'flat';
 export type RigCrop = 'full' | 'bust' | 'head';
 export type EyeState = 'open' | 'wry' | 'heavy' | 'level' | 'wide' | 'cross' | 'sad' | 'happy' | 'shut';
 export type IdleKind = 'bob' | 'bounce' | 'sway' | 'nod';
@@ -65,7 +71,7 @@ export interface EyeParams {
 
 export interface RigProps {
   mood: RigMood;
-  mouth: Viseme | 'auto';
+  mouth: Viseme | HeldMouth | 'auto';
   blink: boolean;
   hold?: string;
   variant?: string;
@@ -92,6 +98,8 @@ export interface RigValues {
   browL: string;
   browR: string;
   mouthD: string;
+  /** WP-137: which mouth is drawn (`smile`, `flat`, a viseme…), for the walk's checks. */
+  mouth?: string;
   mouthFill: string;
   teethD: string;
   tongueD: string;
@@ -338,6 +346,7 @@ export function rigValues(def: RigDef, props: RigProps): RigValues {
     browL: curve(brows[0]),
     browR: curve(brows[1]),
     mouthD: shape,
+    mouth: set[key] ? key : 'rest',
     mouthFill: open ? INK : (def.lips ?? INK),
     teethD: teeth,
     tongueD: tongue,

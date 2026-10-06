@@ -1240,7 +1240,20 @@ export function FeuilletonReaderStyles() {
         animation: av2-shimmer 1.4s ease infinite;
       }
 
+      /* WP-137 C-5: a panel where nobody speaks is never a still, bare plate —
+         the picture drifts slowly across its frame while its caption says so. */
+      .av2 .fr-plate[data-pan='slow'] img {
+        animation: fr-slow-pan 14s ease-in-out infinite alternate;
+        transform-origin: 30% 50%;
+      }
+      @keyframes fr-slow-pan {
+        from { transform: scale(1.04) translate3d(1.5%, 0, 0); }
+        to { transform: scale(1.12) translate3d(-2.5%, -1%, 0); }
+      }
+      .av2 .fr-caption--silent { font-style: italic; }
+
       @media (prefers-reduced-motion: reduce) {
+        .av2 .fr-plate[data-pan='slow'] img { animation: none; transform: none; }
         /* WP-90: the drawing simply appears; the ink simply lifts */
         .av2 .fr-reader .fr-plate .fr-art,
         .av2 .fr-reader .fr-plate .fr-ink { transition: none; }
