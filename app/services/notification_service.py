@@ -108,7 +108,7 @@ class NotificationService:
         self,
         user_id: UUID,
         message: str,
-        title: str = "Feuilleton",
+        title: str = "L’Atelier",
         *,
         data: dict[str, Any] | None = None,
     ) -> int:

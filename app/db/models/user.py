@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Time
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Time
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,11 +44,25 @@ class User(Base):
     grammar_streak_days = Column(Integer, default=0)
     grammar_last_review_date = Column(Date)
     grammar_longest_streak = Column(Integer, default=0)
+    # WP-80: one «jour de relâche» earned per full seven-day week of the streak
+    # above (at most one banked), and the local day the last one covered. The
+    # streak itself is read through `app.services.streak`, never directly.
+    streak_freezes = Column(Integer, default=0, server_default="0")
+    streak_freeze_used_on = Column(Date)
+
+    # WP-80: the learner's IANA zone. Every "today" — the streak, the morning
+    # push, the evening reminder — is a day in this zone, not the server's.
+    timezone = Column(String(64), default="Europe/Paris", server_default="Europe/Paris")
 
     # Settings - Practice
-    daily_goal_minutes = Column(Integer, default=15)
+    # WP-L6: the learner's rhythm, as minutes (5 Léger / 10 Régulier / 20
+    # Soutenu / 30 Intensif). Read through `User.rhythm`; older values (15, 60,
+    # anything typed) map onto a rhythm and are never rewritten.
+    daily_goal_minutes = Column(Integer, default=10)
     daily_goal_xp = Column(Integer, default=50)
     new_words_per_day = Column(Integer, default=10)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day = Column(Integer, default=200, server_default="200", nullable=False)
     default_vocab_direction = Column(String(20), default="fr_to_de")
     preferred_session_time = Column(Time)  # Deprecated in favor of reminder_time string for simplicity, but kept for schema compact? No, let's just add new ones.
 
@@ -105,10 +119,19 @@ class User(Base):
     pending_email = Column(String(255))
     pending_email_token_hash = Column(String(255))
     pending_email_requested_at = Column(DateTime(timezone=True))
+    # WP-71: the six-digit code a learner types on the phone. Stored as a keyed
+    # digest (never the digits), valid from `password_reset_requested_at` for
+    # 15 minutes, and cleared after five wrong guesses or one right one.
+    password_reset_code_hash = Column(String(128))
+    password_reset_code_attempts = Column(Integer, default=0)
 
     # Relationships
     grammar_progress = relationship("UserGrammarProgress", back_populates="user", lazy="dynamic")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+
+    # WP-71: sign-in, reset and duplicate checks match email case-insensitively.
+    # Not unique: legacy rows may differ only by case and must stay readable.
+    __table_args__ = (Index("ix_users_email_lower", func.lower(email)),)
 
     def mark_activity(self, activity_date: date | None = None) -> None:
         """Update last activity and streak metadata."""
@@ -127,6 +150,20 @@ class User(Base):
 
         self.preferred_session_time = session_time
 
+    @property
+    def rhythm(self) -> str:
+        """WP-L6: «leger» / «regulier» / «soutenu» / «intensif», from the minutes."""
+
+        from app.services.journey_rhythm import rhythm_for_minutes
+
+        return rhythm_for_minutes(self.daily_goal_minutes)
+
+    @rhythm.setter
+    def rhythm(self, value: str) -> None:
+        from app.services.journey_rhythm import RHYTHM_MINUTES
+
+        self.daily_goal_minutes = RHYTHM_MINUTES[value]  # type: ignore[index]
+
 
 class RefreshToken(Base):
     """Persisted refresh token metadata for rotation and revocation."""
@@ -142,5 +179,12 @@ class RefreshToken(Base):
     last_used_at = Column(DateTime(timezone=True))
     user_agent = Column(String(255))
     ip_address = Column(String(64))
+    # WP-71: one sign-in is one family. Rotation records its single successor so
+    # a request that raced the rotation, a few seconds late, is handed that same
+    # successor instead of a 401; replaying a rotated token after the grace
+    # window revokes the whole family.
+    family_id = Column(UUID(as_uuid=True), index=True)
+    replaced_by_id = Column(UUID(as_uuid=True))
+    rotated_at = Column(DateTime(timezone=True))
 
     user = relationship("User", back_populates="refresh_tokens")

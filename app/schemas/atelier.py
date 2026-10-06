@@ -21,6 +21,9 @@ class AtelierConceptRead(BaseModel):
     anchor_examples: list[str] = Field(default_factory=list)
     exercise_tags: list[str] = Field(default_factory=list)
     is_foundation: bool = False
+    rule_card: dict[str, Any] | None = None
+    #: WP-S5: the rule's coach, `{id, name, register, family, family_title}`.
+    coach: dict[str, Any] | None = None
     role: str | None = None
     mastery: float = 0
     next_review: str | None = None
@@ -41,12 +44,26 @@ class AtelierTodayResponse(BaseModel):
     serial_episode: dict[str, Any] | None = None
     serial: dict[str, Any] | None = None
     phrase_of_day: dict[str, Any] | None = None
+    #: WP-80: ``{days, today_done, freeze_available, freeze_used_on}``, checked
+    #: against the learner's local date on this read.
+    streak: dict[str, Any] | None = None
+    #: WP-L6 §2.2: the auto-throttle («Cette semaine, on consolide.»):
+    #: ``{consolidating, factor, reasons, backlog_days, accuracy, …}``.
+    intake: dict[str, Any] | None = None
 
 
 class AtelierSessionStartRequest(BaseModel):
     concept_ids: list[int] | None = None
     preferred_concept_id: int | None = None
     preferred_vocabulary_ids: list[int] | None = None
+    #: WP-S4 — La Forge. How the block was entered: ``journey`` (folded into a
+    #: Soutenu/Intensif day, from its forge step), ``after_day`` (the Léger /
+    #: Régulier chip or the recap), ``practice`` (any other practice link).
+    origin: Literal["journey", "after_day", "practice"] | None = None
+    #: The block's length when the day sized it (the fold); else the rhythm's.
+    budget_seconds: int | None = Field(default=None, ge=60, le=1800)
+    #: The day's forge step this block belongs to (folded days only).
+    journey_step_id: UUID | None = None
 
 
 class AtelierSessionStartResponse(BaseModel):
@@ -63,6 +80,9 @@ class AtelierSessionStartResponse(BaseModel):
     target_vocabulary: list[dict[str, Any]] = Field(default_factory=list)
     recap: dict[str, Any] = Field(default_factory=dict)
     learning_moments: dict[str, Any] = Field(default_factory=dict)
+    # WP-S3 La Forge: the séance's composition and the item the learner is on
+    # (empty for a legacy-ladder session).
+    forge: dict[str, Any] = Field(default_factory=dict)
 
 
 class AtelierActiveSessionResponse(BaseModel):
@@ -127,8 +147,25 @@ class AtelierAttemptResponse(BaseModel):
     verdict: str
     score_0_4: float
     correction: dict[str, Any]
+    #: WP-103 T9, free production only: ``right`` (an accepted answer — final) or
+    #: ``checking`` («Je relis…» until the model's verdict). Also on ``correction``.
+    local_status: str | None = None
     ai_review: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
+    # WP-S3 La Forge: the staircase after this answer and the next item.
+    forge: dict[str, Any] = Field(default_factory=dict)
+
+
+class AtelierForgeTestOutRequest(BaseModel):
+    concept_id: int
+    #: SPEED-3: the journey's three-item check instead of the five-item épreuve.
+    short: bool = False
+    #: SPEED-3: the surface that started it, for the pilot events.
+    source: Literal["journey", "cahier", "forge"] | None = None
+
+
+class AtelierForgeStateResponse(BaseModel):
+    rules: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AtelierAttemptRepairRequest(BaseModel):
