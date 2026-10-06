@@ -1,0 +1,15 @@
+{
+ "band": "B2.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.10755600000000001,
+  "calls": 35,
+  "cap": 0.3
+ },
+ "weaves": [],
+ "failures": [
+  "daily_journey: season day lost (gendered_agreement); journey 1b738521-401c-4ea2-9003-6e6d07bef4be re-reads t7.b",
+  "daily_journey: season day lost (invalid_story_output, 2 in a row in g7); journey f43e84f9-4606-483d-8f85-16ea4bda10e4 serves the tentpole t8.a",
+  "daily_journey: season day lost (wrong_beat); journey 4b3734ef-9667-4eae-86cb-75c99a58b3d3 re-reads e3.b"
+ ]
+}

@@ -1,0 +1,388 @@
+# Saison 1 · «La clé d'Odile» — les premiers jours d'une vie (modèle réel)
+
+*Joué par le harnais (`tests/test_season_one.py`), niveau B2.1, langue de l'interface : anglais.*
+*Les jours de tentpole sont les pages de la bible, telles qu'un apprenant les rencontre. Les jours générés sont écrits par le vrai modèle (réalisateur, critique, voies de réponse). Les réponses de l'apprenant sont des phrases toutes faites du harnais, pas une vraie conversation.*
+
+## Jour 51 — T7 · Le dernier soir · jour A · jeudi 31 décembre
+
+**a.p1** — *Le Mistral dressed for the Réveillon: one long table, paper stars, and Gus's candelabra. By the menu board, Romy and Marin argue with chalk in hand. Gus, in a dinner jacket, lays out place cards. Lila, on a chair, hangs the last star.*
+> *Le 31 décembre. Le Mistral fête le réveillon, et tout le monde fait comme si ce n'était pas le dernier.*
+**Romy Tremblay** — «Chez nous, au Québec, le souper, c'est le soir !»
+**Marin Lévêque** — «Et le dîner, alors, c'est quand ?»
+**Romy Tremblay** — «Le midi, bien sûr !»
+**Marin Lévêque** — «Et le déjeuner, alors ?»
+**Romy Tremblay** — «Le matin, voyons donc !»
+**Augustin « Gus » de Roncourt** — «Je propose que nous passions à table. Tout simplement.»
+
+**a.p2** *(silence)* — *The end of the zinc. Margaux puts a café crème in front of the empty stool, Odile's stool, then turns back to her glasses. Lila, on her chair with a star in her hand, sees it. So does Toi.*
+
+**a.p5** — *The whole café counting down around the long table. Marin holds his watch up, Romy films, and Gus stands on a chair. Near the door, Lila slips out onto the pavement before zero. Toi's panel shows the door swinging behind her.*
+**all** — «Dix ! Neuf ! Huit !…»
+
+**a.p6** — *The pavement under the red neon, with the canal black beyond. Lila in her coat, the ochre scarf. Toi beside her, from behind. Through the glass, the room shouts «Bonne année !» and nobody out here does.*
+**all** *(through the glass)* — «Bonne année !»
+**Lila Bonnet** — «Bonne année, l'héritage.»
+
+*Ta tâche : Dites à Lila ce que vous voulez lui dire à minuit.*
+
+**Toi** (bulle) — «Toi et moi, on forme une équipe. Quoi qu'il arrive.»
+*→ la scène lit : A pact*
+
+**a.turn2.p**
+**Lila Bonnet** — «On se fait trois promesses. Un : plus de secrets. Deux : tu ne refais jamais l'omelette. Trois : c'est moi que tu appelles en premier, quand tu trouves quelque chose.»
+
+*Ta tâche : Ajoutez une quatrième promesse aux trois de Lila.*
+
+**Toi** (bulle) — «Quatre : tu m'envoies une photo de Berlin chaque semaine.»
+*→ la scène lit : Adds a fourth (anything)*
+
+**a.turn2.fourth.r1**
+**Lila Bonnet** *(she spits on her palm; Marseille; you shake)* — «Quatre. D'accord. Signé.»
+
+**a.hook · midpoint** — *Back inside, after one in the morning. The long table is wrecked. Gus and Marin are asleep in the booth. Margaux, alone at the zinc, catches Toi's eye as Toi comes in and speaks very low.*
+**Margaux** — «Demain matin, huit heures. Viens. Sans les autres.»
+> *Margaux veut te parler. Margaux, qui ne parle jamais. À suivre…*
+
+## Jour 52 — T7 · Le dernier soir · jour B · vendredi 1er janvier
+
+**b.p1** — *8 a.m., New Year's Day. The shutter is half up. Inside, Gus and Marin are still asleep in the booth: Gus under his dinner jacket, Marin hugging the co-op folder (or the lease, or the chain). Margaux behind the zinc makes Toi's usual order and slides it across.*
+**Margaux** — «La même chose que d'habitude.»
+
+**b.p2** *(silence)* — *Margaux pours herself a coffee, which she never does, and drinks it standing, looking out at the empty quai.*
+
+**b.p3** — *Margaux and Toi across the zinc. The sleeping pair are in the background.*
+**Margaux** — «Je suis fatiguée.»
+**Margaux** — «Vingt-cinq ans derrière ce zinc. J'aimerais voir la mer avant d'être vieille. Enfin… plus vieille.»
+
+**b.p4** — *The same framing. What she says next depends on the plan.*
+**Margaux** — «Ton appartement, c'est la dernière pièce du puzzle. Je ne te demande rien. C'est toi qui choisis.»
+
+**b.p5** — *Toi's balloon, across the zinc from a woman who has just asked for nothing.*
+
+*Ta tâche : Dites à Margaux ce que vous voulez pour elle, pour le café et pour l'appartement.*
+
+**Toi** (bulle) — «Reste. On a besoin de toi, ici.»
+*→ la scène lit : Stay*
+
+**b.turn1.a.r1**
+**Margaux** — «Je sais. C'est bien ça, le problème.»
+
+**b.choix · choix** — «Décide de ce que devient l'appartement d'Odile.»
+Cartes : [ Le vendre à Solvel ]
+*→ non posé avant WP-112 ; l'histoire prend : [ Le vendre à Solvel ]*
+
+**b.r1** *(silence)* — *9 a.m. The canal on New Year's Day, the city empty. Toi walks alone along the quai de Valmy. One pigeon, one jogger, and the locks.*
+
+**b.r2** — *Back in the booth, the sleepers wake. Marin sits up, sees the folder in his arms and remembers.*
+**Marin Lévêque** — «On a… On a gagné ? Ou on a perdu ?»
+**Augustin « Gus » de Roncourt** *(without opening his eyes)* — «Mon cher, surtout, on a trop bu.»
+
+**b.suivre · a_suivre** — *Odile's flat. On the kitchen wall, her calendar is still stopped on April 2023. Beside it, Toi pins a new calendar, January 2027, and circles one date in pen: 8. The two calendars hang side by side.*
+> ✎ avril 2023
+> ✎ janvier 2027
+> ✎ 8
+> *Dans sept jours : le train de Lila, la fin de l'offre de Solvel, et tout le reste. À suivre…*
+
+## Jour 53 — jour perdu : relecture de «t7.b» (la saison n'avance pas)
+
+**Toi** — «Reste. On a besoin de toi, ici.»
+**Réponse** — «Je sais. C'est bien ça, le problème.»
+
+**Toi** — «Le vendre à Solvel»
+**Réponse** — «Marin : On a… On a gagné ? Ou on a perdu ?
+Gus : Mon cher, surtout, on a trop bu.»
+
+## Jour 54 — T8 · Ce qu'on garde · jour A · jeudi 7 janvier
+
+**e3.a.p1** — *Afternoon. A brocante dealer and his son carry chairs out to a white van. Among them, under the son's arm, is the painting from above the zinc. (The reader sees it go. The learner's character does not.)*
+> *Dernier jour. Tout s'en va : les chaises, les verres, les tableaux.*
+
+**e3.a.p2** — *Gus stands in front of the dealer and the booth's bench, wallet out.*
+**Augustin « Gus » de Roncourt** — «La banquette. Combien en voulez-vous ?»
+**Le brocanteur** — «Deux cents.»
+**Augustin « Gus » de Roncourt** *(drawing himself up)* — «Je suis Augustin de Roncourt, monsieur.»
+**Le brocanteur** — «Deux cent cinquante.»
+
+**e3.a.p3** — *Night. The last service. Everyone the café has ever had seems to be here. Margaux pours the same thing for everyone, without asking. Romy photographs the room, and the room lets her.*
+**Margaux** *(to the whole room)* — «La même chose ?»
+
+**e3.a.p4** *(silence)* — *Margaux takes the Polaroids down one by one and puts them back in Odile's box. She hands the box to Toi across the zinc.*
+
+**e3.a.p5** — *1 a.m. Everyone has gone except Toi (and Lila, at the door, on either path). Margaux puts the keys on the zinc, as she did in T5.*
+**Margaux** — «C'est toi qui fermes.»
+**Margaux** — «Dis-moi quelque chose de bien. Pour finir.»
+
+*Ta tâche : Dites à Margaux vos derniers mots au Mistral.*
+
+**Toi** (bulle) — «Ici, j'ai appris… Le Mistral, c'est ma première maison en français.»
+*→ la scène lit : Clumsy but sincere*
+
+**e3.a.turn1.c.r1** *(silence)*
+
+**e3.a.turn1.c.r2**
+**Margaux** — «Alors maintenant, chez toi, on parle français.»
+
+**e3.a.r1** *(silence)* — *From outside: Toi's hand turns the key. The neon goes off letter by letter: MISTRA… MIST… M.*
+> ✎ MISTRA…
+> ✎ MIST…
+> ✎ M.
+
+**e3.a.r2** — *The flat, empty, the day before Solvel takes the keys. One thing is left, Odile's kitchen table, the only piece Toi is keeping. Toi turns it over to carry it. Taped under the drawer is the envelope.*
+
+**e3.a.r2.friendship**
+**Lila Bonnet** — «Lis. Je tiens la table.»
+
+**letter.read · dechiffrer** — «Qu'est-ce qu'elle te demande ?»
+> Pour toi. Pour le jour où tu parleras français.
+> 
+> Paris, je n'en ai jamais parlé avec toi, et je t'en demande pardon. Paris était trop grand pour l'autre langue : il débordait de partout.
+> 
+> Ici, j'ai été heureuse deux fois : à vingt ans, et à soixante. Entre les deux, j'ai été ta grand-mère, et ce n'était pas moins bien. C'était autre chose.
+> 
+> Aujourd'hui, j'oublie. Alors j'écris, tant que je le peux encore.
+> 
+> À Paris, j'ai laissé deux choses : cet appartement, et quelqu'un. L'appartement, tu l'as trouvé, puisque tu lis ces lignes.
+> 
+> Pour l'autre, regarde bien derrière le tableau du Mistral.
+> 
+> Odile
+Cartes : [ Vendre l'appartement ] · [ Chercher derrière le tableau ] · [ Parler à Margaux ]
+*→ non posé avant WP-112 ; l'histoire prend : [ Chercher derrière le tableau ]*
+
+**letter.toi** *(silence)* — *Toi holding the letter, from behind.*
+
+**e3.a.r3** — *Toi runs downstairs to the empty café. The nail above the zinc is bare. The white van left hours ago.*
+
+**e3.a.hook · midpoint**
+> *Le tableau est parti cet après-midi, dans une camionnette. Demain matin, c'est le tour de Lila. À suivre…*
+
+## Jour 55 — T8 · Ce qu'on garde · jour B · vendredi 8 janvier
+
+**e3.b.r4** *(silence)* — *Margaux is there with her own bag, packed for Brittany.*
+
+**platform.f1** — *The platform, a long ICE train. The whole group is there. Gus holds up a banner he painted himself, badly, using Lila's T4 banner as a template: «LILA · BERLIN · ON RESTE (ICI)». Marin is already crying. Romy is filming and pretends not to be.*
+> ✎ LILA · BERLIN · ON RESTE (ICI)
+**Augustin « Gus » de Roncourt** — «On reste ici, et toi, tu pars. Le message est clair, non ?»
+**Lila Bonnet** — «C'est affreux. Je le garde.»
+
+**platform.f2** *(silence)* — *Lila hugs Marin. His whole face is in her shoulder. Margaux, a step back, hands Lila a paper bag: a croissant, and a folded Polaroid of the booth.*
+
+**platform.f3** — *Toi and Lila, a little apart from the group. The train doors are open. Toi's balloon, empty.*
+**Lila Bonnet** — «Alors. Une dernière chose vraie ?»
+
+*Ta tâche : Dites vos derniers mots à Lila avant le départ du train.*
+
+**Toi** (bulle) — «Merci… pour… je ne sais pas. Pour la clé. Pour moi.»
+*→ la scène lit : Clumsy but sincere*
+
+**platform.turn.clumsy.r2**
+**Lila Bonnet** — «Tu parles comme Marin, maintenant. C'est grave.»
+
+**platform.f4.friend_nokey** — *She hands Toi a brush.*
+**Lila Bonnet** — «Le coin du portrait. Finis-le, toi. Ça va être moche. Parfait.»
+
+**platform.f5** *(silence)* — *The doors close. Through the glass, Lila holds up her phone: she wants the photo of the painting's back, or of whatever Toi finds. The train pulls out.*
+
+**camille.p1** — *Camille Marchand, about thirty, rooted in the 10th, who has handled the sale for their grandfather. Camille disagrees with Toi, precisely and without contempt.*
+**Camille Marchand** — «On n'est pas d'accord sur grand-chose, vous et moi.»
+
+*Ta tâche : Répondez à Camille avec vos mots.*
+
+**Toi** (bulle) — «C'est vrai. Mais c'est ce qui rend les choses intéressantes.»
+*→ la scène lit : Whatever the learner says*
+
+**camille.turn.any.r1**
+**Camille Marchand** — «Bien. À la prochaine dispute, alors.»
+
+**e3.b.r5** — *On the platform after the train has gone, Toi's phone lights up with a message from Lila, from the train. It is a photo she took months ago for the background of her portrait: the painting, zoomed in on the «L.»*
+> ✎ L.
+> **SMS** — La lumière est fausse parce qu'il a peint d'en haut. Depuis la fenêtre d'Odile.
+
+**e3.b.suivre · a_suivre** — *A white van turning out of the quai de Valmy into the city. Through its back window, the corner of a gilt frame.*
+> *En 1970, quelqu'un a peint le Mistral depuis chez Odile. Aujourd'hui, le tableau est quelque part dans Paris. Le peintre aussi, peut-être. À suivre…*
+
+## Jour 56 — T9 · Le premier matin · jour A · samedi 9 janvier
+
+**ep1.a.l.p1** *(silence)* — *Saturday morning on the quai de Valmy. Le Mistral's shutter is down. The neon letters lie stacked on the pavement, M-I-S-T-R-A-L, waiting for a Solvel van.*
+
+**ep1.a.l.p2** — *Toi's short-let studio, the cold radiator. Marin at the door with a pot of soup held in both hands, as he held the ladder.*
+**Marin Lévêque** — «Bon. Qui veut une soupe ?»
+
+**ep1.a.l.p3** — *Two bowls on the small table. Marin does not touch his.*
+**Marin Lévêque** — «Le café a fermé. Lila est partie. Et toi, qu'est-ce que tu vas faire ?»
+
+*Ta tâche : Dites à Marin ce que vous allez faire maintenant.*
+
+**Toi** (bulle) — «Le Mistral… ce n'est pas fini. Il est… ailleurs, c'est tout.»
+*→ la scène lit : Clumsy but sincere*
+
+**ep1.a.l.turn.c.r1**
+**Marin Lévêque** — «Arrête. Je pleure dans ma soupe, là.»
+
+**ep1.a.l.hook · midpoint** — *Evening. Toi's phone lights up on the table: a message from Lila, with a photo of a grey canal under rain, in Berlin.*
+> ✎ Lila
+> **SMS** — Berlin : il pleut. Comme à Paris. Et toi, comment ça va ?
+> *Le premier matin sans Lila. À suivre…*
+
+## Jour 57 — T9 · Le premier matin · jour B · dimanche 10 janvier
+
+**ep1.b.p4** — *Toi's studio, Sunday. A postcard on the doormat: the sea in Brittany, very blue. Three words in Margaux's hand.*
+> ✎ Elle est grande.
+> **CARD** — Elle est grande. — M.
+
+**ep1.b.p5** — *Toi's phone, the message thread with Lila. Her new message, and the three dots of someone waiting for an answer.*
+> **SMS** — Alors ? Le tableau ? Raconte-moi tout.
+
+*Ta tâche : Répondez à Lila.*
+
+**Toi** (bulle) — «Le tableau ? Tu ne vas pas me croire. Je te raconte.»
+*→ la scène lit : News of the painting*
+
+**ep1.b.turn.a.r1**
+> **SMS** — Je le savais. La lumière est fausse, je le dis depuis le début.
+
+**ep1.b.hook.l · a_suivre** — *Night. The brocante under the arches of the canal, its iron shutter down. Through the bars, the chairs of Le Mistral, stacked, with price tags.*
+> *Les chaises du Mistral attendent à la brocante. Et le tableau ? À suivre…*
+
+## Jour 58 — T9 · Rue de Lancry · jour A · mardi 12 janvier
+
+**ep2.a.l.p1** — *The brocante under the arches. Le Mistral's chairs with price tags. The booth's bench is gone (Gus bought it). The dealer reads a newspaper behind a till that is older than he is. Marin touches a chair as if it might bite.*
+**Le brocanteur** — «Les chaises du Mistral ? Vingt euros pièce. Pour vous, vingt-cinq.»
+
+**ep2.a.l.p2** — *Toi at the till, pointing at the bare wall behind it. The dealer does not lower his newspaper.*
+**Toi** (bulle) — «Et le tableau ?»
+**Le brocanteur** — «Vendu. Samedi matin, à un vieux monsieur.»
+**Le brocanteur** — «Je ne demande jamais les noms. Les gens paient, ils s'en vont.»
+
+**ep2.a.l.p3** — *Marin, a Mistral chair in his arms like a child, looks at Toi.*
+**Marin Lévêque** — «Un vieux monsieur. Pas de nom. Et maintenant, qu'est-ce qu'on fait ?»
+
+*Ta tâche : Dites à Marin ce que vous faites maintenant.*
+
+**Toi** (bulle) — «Il est parti. C'est comme ça.»
+*→ la scène lit : Let it go*
+
+**ep2.a.l.turn.b.r1**
+**Marin Lévêque** — «Alors moi, je prends une chaise. Vingt-cinq euros. C'est un signe.»
+
+**ep2.a.l.after** — *Behind them, the dealer lowers his newspaper for the first time.*
+**Le brocanteur** — «Il a regardé le dos du tableau. Longtemps.»
+
+**ep2.a.l.hook · midpoint** — *Outside on the quai, Marin carries one Mistral chair on his head through the rain.*
+> *Le tableau est quelque part dans Paris, chez un vieux monsieur. À suivre…*
+
+## Jour 59 — T9 · Rue de Lancry · jour B · mercredi 13 janvier
+
+**ep2.b.p1** — *Wednesday, the quai de Valmy in a fine rain. Camille arrives by bike, helmet under one arm, slightly rained on, and holds out a white envelope with the green slip of a registered letter.*
+**Camille Marchand** — «De la part de mon grand-père. Il écrit en recommandé. Même à vous.»
+
+**ep2.b.p2** — *The letter, on the office's headed paper, in a careful old hand.*
+> ✎ Gérance Marchand
+> **LETTER** — Le dimanche, Odile prenait toujours le même chemin : par la rue de Lancry. Elle ne m'a jamais dit pourquoi, et je ne le lui ai jamais demandé. M. Marchand
+
+**ep2.b.p3** *(silence)* — *Toi folds the letter. The rain thickens. Camille does not leave.*
+
+**ep2.b.p4** — *Camille, helmet dripping, with the precise look of someone about to correct a number.*
+**Camille Marchand** — «Et qu'est-ce que vous allez en faire ?»
+
+*Ta tâche : Dites à Camille ce que vous allez faire de la lettre.*
+
+**Toi** (bulle) — «Je ne sais pas… Je voudrais voir ce qu'elle voyait. Le dimanche.»
+*→ la scène lit : Clumsy but sincere*
+
+**ep2.b.turn.c.r1**
+**Camille Marchand** — «C'est confus. Et pourtant, c'est clair.»
+
+**ep2.b.after** — *Camille puts the helmet back on and gets on the bike.*
+**Camille Marchand** — «À la prochaine dispute.»
+
+**ep2.b.hook · a_suivre** — *Night. Toi's window. On the sill, the registered letter, and the green slip.*
+> *Tous les dimanches, Odile passait par la rue de Lancry. Pourquoi ? À suivre…*
+
+## Jour 60 — T9 · Le billet · jour A · jeudi 14 janvier
+
+**ep3.a.p3** — *Thursday evening at Gus's «château», the loft. The Mistral's bench stands against the wall: the first true thing in the room. The group squeezed onto it, Marin's soup on their knees.*
+**Augustin « Gus » de Roncourt** — «Bienvenue au château. La banquette est d'époque. Moi aussi.»
+
+**ep3.a.p4** — *Romy switches off her camera in front of Toi, so that Toi can see her do it, and puts it face down.*
+**Romy Tremblay** — «Pas pour un article. Pour moi. Quelle est la vraie histoire ?»
+
+*Ta tâche : Dites à Romy ce que ces semaines ont vraiment été pour vous.*
+
+**Toi** (bulle) — «C'est l'histoire d'Odile. Maintenant, je la connais un peu.»
+*→ la scène lit : Odile*
+
+**ep3.a.turn.a.r1**
+**Romy Tremblay** — «Tu la connais mieux que nous, maintenant. Pas mal du tout.»
+
+**ep3.a.hook · midpoint** — *Marin's phone vibrates on the table: «Papa». Everyone goes quiet. Marin answers, then goes pale.*
+> ✎ Papa
+**Marin Lévêque** — «Papa ? … Tu viens à Paris ? Quand ?»
+> *Le père de Marin vient à Paris. À suivre…*
+
+## Jour 61 — T9 · Le billet · jour B · vendredi 15 janvier
+
+**ep3.b.p1** — *Friday morning. Toi's phone on the pillow, an automatic reminder lighting the screen.*
+> ✎ Rappel : votre billet retour, aujourd'hui, 18 h 12.
+> **SMS** — Rappel : votre billet retour, aujourd'hui, 18 h 12.
+
+**ep3.b.p2** *(silence)* — *The quai de Valmy, morning light on the canal. Toi on the iron footbridge, the ticket on the phone, the city waking up.*
+
+**ep3.b.p3** — *The phone buzzes in Toi's hand: Lila, who has remembered the date.*
+> **SMS** — C'est aujourd'hui, ton billet. Tu le prends ?
+
+*Ta tâche : Dites à Lila si vous restez ou si vous partez.*
+
+**Toi** (bulle) — «Je prends le train ce soir, mais je reviendrai.»
+*→ la scène lit : I'm going, and coming back*
+
+**ep3.b.turn.leave.r1**
+> **SMS** — Alors on se revoit en mars. À Paris, ou chez moi.
+
+**ep3.b.p6** *(silence)* — *Evening. The bare nail above the zinc of the closed Mistral, seen through the shutter's slats.*
+
+**ep3.b.hook · a_suivre** — *Night. Rue de Lancry, seen from the street: one lit window on the third floor, an easel, a shape that does not move. The camera does not go closer.*
+> *Rue de Lancry, au troisième, une fenêtre est encore allumée. À suivre…*
+
+## Jour 62 — jour perdu : relecture de «e3.b» (la saison n'avance pas)
+
+**Toi** — «Je prends le train ce soir, mais je reviendrai.»
+**Réponse** — «…»
+
+---
+
+**Coût du passage :** US$0.1076 en 35 appels (plafond US$0.30).
+
+---
+
+**Drapeaux après ces jours** (jamais montrés à l'apprenant) :
+
+```json
+{
+ "camille.met": true,
+ "user.return_ticket": "mercredi 18 novembre",
+ "user.has_met_group": true,
+ "user.first_entry": "door_closed",
+ "s1.gus_photo": "with_lila",
+ "s1.notebook_found": true,
+ "flat.kitchen_repaint_seen": true,
+ "mistral.wall_agreed": true,
+ "marin.first_share": "4000",
+ "register.augustin_de_roncourt": "tu",
+ "s1.estate_liable": true,
+ "romy.footage": "with_romy",
+ "s1.fire_truth_known_by": "room",
+ "margaux.secret": "exposed_to_group",
+ "mistral.villain_story": "broken",
+ "lila.berlin_revealed": true,
+ "s1.flat_decision": "sell",
+ "margaux.wants_out": "named",
+ "s1.painting": "lost",
+ "s1.letter_reading": "tableau",
+ "camille.disagreements": [
+  "t8_grand_chose"
+ ],
+ "lila.in_berlin": true,
+ "user.stays": "leaves_and_returns"
+}
+```

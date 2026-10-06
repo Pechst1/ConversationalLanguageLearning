@@ -65,3 +65,46 @@ The learner's replies are the harness's scripted lines, so they never answer the
 
 ## Recommendation
 **No cohort yet.** Recovery works: all 19 losses were honest, with no stranger scene and no reset. Prose continuity after the finale and gender agreement in the reply lanes are not yet acceptable. Fix findings 1–4, then repeat runs 1, 3 and 8 at about US$0.60 in all. The higher loss rate in the seeded later runs needs separating from the `jump_to_day` artefact first: play a learner there through real days, or seed the flags of a real life. A zero-loss sample would still not guarantee production reliability.
+
+## Re-read after the fixes (2026-10-06, `861d0b6`, US$0.61)
+
+The four findings were fixed:
+- **Findings 1 and 2** in `exp/fix-director`:
+  - departed cast never appear on the page after the finale;
+  - the A1 être example is now «Je suis au café. Et toi, tu es où ?», and two other examples were fixed;
+  - the season's «tu» register is enforced per character;
+  - nouns that would give the learner a gender are caught.
+- **Findings 3 and 4** in `exp/fix-lanes`:
+  - agreement is checked on reactions, resolutions and summaries;
+  - a reaction that echoes the learner is caught;
+  - the voice lane is told who is who;
+  - the self-repair question no longer puts the learner's «je» in a character's mouth.
+
+Runs 1, 3 and 8 were read again under caps of US$0.40, 0.40 and 0.30. Transcripts: `wp133b/reread-r*`.
+
+| Run | Generated-day attempts | Lost | Recovery | Cost |
+|---|---:|---:|---|---:|
+| 1 A1, days 1–10 | 7 | 2 (`two_hander_crowded`, `invalid_story_output`) | 2 re-reads | 0.260 |
+| 3 C1, days 1–10 | 6 | 3 (`objective_too_thin`, `invalid_story_output`, `wrong_beat`) | 2 re-reads, 1 bridge | 0.245 |
+| 8 B2, days 51–62 | 3 | 3 (`gendered_agreement`, `invalid_story_output`, `wrong_beat`) | 2 re-reads, 1 jump to T8 | 0.108 |
+
+**The findings did not recur.**
+- **Tooling.** A scan of every page and reaction in the three runs found none of the following:
+  - agreement with the learner;
+  - a gendered noun for the learner;
+  - «vous» from a «tu» character;
+  - a reaction that echoes the learner;
+  - Lila on the page after T8.
+- **A1, day 3.** The day that failed before now reads «Tu restes ? Ça me va. Prends ce que tu veux, mais reste.»: Margaux says «tu», and no rule-card example appears.
+- **The guard at work.** One B2 draft was refused for `gendered_agreement` and recovered.
+
+**What the re-read could not show.**
+- **The continuation day after the epilogue (day 62) was lost** (`wrong_beat`) and re-read, so finding 1 was not exercised live. The deterministic guard and its integration test cover it.
+- **Roles and objects** are a prompt-only fix. No swap appeared in these runs, but the sample is small.
+
+**The loss rate stays high: 8 of 16 attempts.** It was 19 of 42 before. Every loss recovered honestly. The recurring reasons, `invalid_story_output`, `wrong_beat`, `objective_too_thin` and `two_hander_crowded`, call for a director and prompt pass of their own, not for weaker guards.
+
+**Recommendation, updated.** The blocking prose findings are resolved in the sample. Before a cohort:
+1. Reduce the generated-day loss rate.
+2. Read one continuation day after the epilogue live, about US$0.10.
+3. Separate the `jump_to_day` effect from the losses in the seeded runs.
