@@ -116,6 +116,18 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       encoding: 'utf8',
     });
     if (mig.status !== 0) throw new Error(`alembic upgrade head failed:\n${mig.stderr.slice(-2000)}`);
+    // WP-138: the deployed image syncs the core word list after its migrations
+    // (docker/entrypoint.sh); the walk's database does too, or every word lookup
+    // and «Garder» runs against a catalogue no learner ever meets (`vous`, `chez`
+    // were 404s, and scene rows held one learner's gloss). WALK_SYNC_CORE_LEXICON=0 skips it.
+    if (process.env.WALK_SYNC_CORE_LEXICON !== '0') {
+      const sync = spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
+        cwd: REPO_ROOT,
+        env: { ...process.env, DATABASE_URL: dbUrl },
+        encoding: 'utf8',
+      });
+      if (sync.status !== 0) throw new Error(`core lexicon sync failed:\n${sync.stderr.slice(-2000)}`);
+    }
     stack.migrateSeconds = (Date.now() - t0) / 1000;
 
     const web = `http://localhost:${webPort}`;

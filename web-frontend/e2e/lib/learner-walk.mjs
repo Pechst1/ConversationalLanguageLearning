@@ -409,8 +409,12 @@ export class LearnerWalk {
     for (let i = 0; i < 40; i += 1) {
       // WP-115b: once a day, a word a character says is kept («Garder»), as a learner
       // would — so the drill has a word from the story to bring back in its own line.
-      if (!this.keptToday && (await page.locator('.fr-captions button[data-word]').count())) {
-        this.keptToday = await this.keepAWord();
+      if (!this.keepTried && (await page.locator('.fr-captions button[data-word]').count())) {
+        const attempt = await this.keepAWord();
+        // One attempt per walk once «Garder» was offered: a refusal is reported once,
+        // at its source, not again on every later panel.
+        this.keepTried = attempt.offered;
+        this.keptAWord = attempt.kept;
       }
       const movement = (await stage.getAttribute('data-movement').catch(() => null)) || (await stage.getAttribute('data-kind'));
       seen.movements.push(movement);
@@ -432,28 +436,54 @@ export class LearnerWalk {
     return seen;
   }
 
-  /** WP-115b: tap a word in a character's line and keep it; true when kept. */
+  /**
+   * WP-115b: tap a word in a character's line and keep it; `{ offered, kept }`.
+   * WP-138: success is the server's answer and the sheet's result line, not the
+   * button being offered — a refusal is reported here, with its status, code and
+   * the line the learner read, and the next word is tried.
+   */
   async keepAWord() {
     const page = this.page;
     const words = page.locator('.fr-captions button[data-word]');
     const count = Math.min(await words.count(), 8);
-    for (let i = count - 1; i >= 0; i -= 1) {
+    const refusals = [];
+    let kept = false;
+    let offeredAny = false;
+    for (let i = count - 1; i >= 0 && !kept && refusals.length < 3; i -= 1) {
       const text = ((await words.nth(i).innerText().catch(() => '')) || '').trim();
       if (text.length < 4) continue;
       await words.nth(i).click().catch(() => {});
       const keep = page.locator('.fr-keep-btn');
       const offered = await keep.waitFor({ timeout: 4000 }).then(() => true, () => false);
       if (offered) {
+        offeredAny = true;
+        const answer = page
+          .waitForResponse((r) => r.url().includes('/vocabulary/keep') && r.request().method() === 'POST', { timeout: 10000 })
+          .catch(() => null);
         await keep.click();
-        await sleep(1200);
+        const response = await answer;
+        const status = response ? response.status() : null;
+        const body = response ? await response.json().catch(() => null) : null;
+        const result = page.locator('.fr-keep-status');
+        await result.waitFor({ timeout: 4000 }).catch(() => {});
+        const shown = await result.getAttribute('data-keep-result').catch(() => null);
+        const line = ((await result.innerText().catch(() => '')) || '').trim();
         await this.shoot('kept-word');
+        if (status === 200 && shown === 'kept') {
+          kept = true;
+        } else {
+          const code = body && body.detail && typeof body.detail === 'object' ? body.detail.code : null;
+          refusals.push(`«${text}» → ${status ?? 'no answer'}${code ? ` ${code}` : ''}, sheet ${shown ?? 'silent'}: «${line}»`);
+        }
       }
       await page.keyboard.press('Escape').catch(() => {});
       await page.locator('.fr-scrim').click({ timeout: 1000 }).catch(() => {});
       await sleep(300);
-      if (offered) return true;
     }
-    return false;
+    if (offeredAny) {
+      this.findings.check('keep-a-word-is-saved', kept, `«Garder» was refused: ${refusals.join('; ')}`, this.where({ kind: 'keep' }));
+    }
+    return { offered: offeredAny, kept };
   }
 
   async visit(routePath, label) {
