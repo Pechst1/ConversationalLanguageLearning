@@ -528,6 +528,20 @@ def build_line_unscramble_task(
     )
 
 
+def answer_at_band(text: Any, level: Any) -> bool:
+    """Practice band: may ``text`` be an item's answer for a learner at ``level``?
+
+    A line of the story may show a word above the learner's band, read with its
+    gloss; an item built from it never makes that word the answer
+    (:mod:`app.services.practice_band`, the same bands as the walk's
+    ``check_level``). The lexicon is a static file read once; no Session.
+    """
+
+    from app.services.practice_band import at_band
+
+    return at_band(str(text or ""), str(level or "") or None)
+
+
 _ARTICLE = re.compile(r"^(?:le|la|les|un|une|des|du|l')\s*", re.IGNORECASE)
 
 
@@ -560,10 +574,18 @@ def floor_tasks(
     """
 
     from app.services.journey_content import line_spoils_reply
-
     language = getattr(scenario, "control_language", "en")
+    level = getattr(scenario, "level_band", None)
     names = cast_names(scenario)
-    lines = [line for line in scene_lines(scenario) if not line_spoils_reply(line.text_fr, expected_reply)]
+    # Practice band: a line read with its gloss may hold a word above the
+    # learner's band; an item never makes that word the answer. A rebuilt line's
+    # answer is the whole line, a cloze's is its blank. Such a line or blank is
+    # skipped, not replaced.
+    lines = [
+        line
+        for line in scene_lines(scenario)
+        if not line_spoils_reply(line.text_fr, expected_reply) and answer_at_band(line.text_fr, level)
+    ]
     lexicon = lexicon_of(scenario)
     draft = draft_of(scenario)
     glossed = [t for t, _m in targets if getattr(t, "label_native", None)]
@@ -597,6 +619,8 @@ def floor_tasks(
         sentence = sentence_of(draft, entry)
         if not sentence or line_spoils_reply(sentence, expected_reply):
             continue
+        if not answer_at_band(entry.get("surface_fr"), level):
+            continue
         found = owner(entry.get("surface_fr") or "")
         if found is None:
             continue
@@ -629,6 +653,7 @@ def floor_tasks(
 
 __all__ = [
     "BAND_RANK_CEILING",
+    "answer_at_band",
     "LEXICON_MAX",
     "LEXICON_MIN",
     "SceneLine",

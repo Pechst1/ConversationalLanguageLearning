@@ -1417,6 +1417,19 @@ def _scene_lexicon_candidates(
         except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
             logger.warning("journey_learning_season_lexicon_unavailable")
             entries = []
+    from app.services.practice_band import at_band
+
+    # Practice band: a scene word above the learner's band (an A1 line of T5's
+    # «adieu», B1) stays in the scene, read with its gloss, but is not recorded
+    # as taught: a recorded word is practised here and introduced by the drill
+    # («met in the story» comes first, progress.py), and either would make it
+    # an answer. No other word is looked up in its place.
+    entries = [
+        entry
+        for entry in entries
+        if at_band(str(entry.get("surface_fr") or ""), scenario.level_band)
+        and at_band(str(entry.get("lemma") or ""), scenario.level_band)
+    ]
     if not entries:
         return []
     draft = draft_of(scenario)
@@ -1436,11 +1449,16 @@ def _scene_lexicon_candidates(
     for word in words:
         if str(word.word_id) in exclude:
             continue
+        label = _lexicon_label(word)
+        if not (at_band(label, scenario.level_band) and at_band(word.surface, scenario.level_band)):
+            # Practice band: the catalogue row's own word may differ from the
+            # entry checked above; it is held to the same band.
+            continue
         exclude.add(str(word.word_id))
         target = TargetRef(
             kind=TargetKind.VOCABULARY,
             id=str(word.word_id),
-            label_fr=_lexicon_label(word),
+            label_fr=label,
             label_native=word.gloss or None,
         )
         candidates.append(
@@ -1456,7 +1474,10 @@ def _scene_lexicon_candidates(
                     "word_id": word.word_id,
                     "anchor": "scene_lexicon",
                     "surface_fr": word.surface,
-                    "example_fr": word.sentence,
+                    # The planner may rebuild this sentence as an answer: an
+                    # at-band word taught in a line with an above-band one
+                    # («Ce n'est pas un adieu») is practised without that line.
+                    "example_fr": word.sentence if at_band(word.sentence, scenario.level_band) else None,
                     **_history_metadata(history, target),
                 },
             )
