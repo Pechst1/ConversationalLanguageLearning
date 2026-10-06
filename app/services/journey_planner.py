@@ -31,7 +31,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from app.services import grammar_items, pragmatics
 from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
@@ -2180,25 +2180,97 @@ def expected_reply_words(task: ResponseTask, band: str | None = None) -> int:
     return min(words, REPLY_WORDS_CEILING)
 
 
-def authored_turns(scenario: ScenarioBrief) -> list[tuple[str, int]]:
-    """WP-128: an authored (season) page's exchanges as ``(kind, words)`` —
-    ``("card", words on the cards)`` for «Le choix», else ``("reply", the length
-    of the turn's authored example answer)``. Empty for a generated day."""
+class AuthoredExchange(NamedTuple):
+    """WP-128 / tentpole pricing: one exchange of an authored (season) page, as
+    the learner meets it.
+
+    ``kind`` is ``"card"`` («Le choix», tapped) or ``"reply"`` (composed);
+    ``words`` the cards' words or the turn's authored example answer's length.
+    What the learner then *reads* is priced from the page's own lines at the
+    band they were resolved at (only spoken lines: what the conversation shows):
+    ``going_on`` when the conversation continues — the reaction (the replies'
+    beats, their mean: the page cannot know which reply the learner's words
+    route to), the turn's ``after`` and the next question with its lead-in —
+    and ``closing`` when it closes on this exchange — the reaction, the
+    ``after`` and the page's tail (``season.runtime.page_tail``), which the
+    runtime says after the last reached turn. ``task_words``: the next
+    question's own task line (the learner's language), shown with it.
+    """
+
+    kind: str
+    words: int
+    going_on: int = RESPOND_REPLY_TOKENS
+    closing: int = RESPOND_REPLY_TOKENS
+    task_words: int = 0
+
+
+def _spoken_words(panels: Any) -> int:
+    """Words of the spoken lines of ``panels`` — what ``season.turns.reaction_lines``
+    shows in the conversation (captions and silent panels stay on the page)."""
+
+    total = 0
+    for panel in panels if isinstance(panels, list) else []:
+        if not isinstance(panel, dict):
+            continue
+        for line in panel.get("lines") or []:
+            if isinstance(line, dict) and line.get("kind") in ("speech", "all"):
+                total += _tokens(str(line.get("text_fr") or ""))
+    return total
+
+
+def authored_turns(scenario: ScenarioBrief) -> list[AuthoredExchange]:
+    """WP-128: an authored (season) page's exchanges, in the order the runtime
+    asks them — ``("card", words on the cards)`` for «Le choix», else
+    ``("reply", the length of the turn's authored example answer)`` — each with
+    what the learner reads after it (:class:`AuthoredExchange`). A «Convaincre»
+    is one exchange per objection (``season.page.exchanges_for``). Empty for a
+    generated day.
+
+    Tentpole pricing (2026-10-06): the character's answer used to be priced as
+    :data:`RESPOND_REPLY_TOKENS` (12) words whatever the page said. T4 day B's
+    first answer is 101 words at A1 (Margaux tells the night of the fire): the
+    walk's Timer read the four exchanges in 880 s against a 327 s estimate.
+    """
 
     context = scenario.story_context if isinstance(scenario.story_context, dict) else {}
     season = context.get("season") if isinstance(context.get("season"), dict) else {}
-    out: list[tuple[str, int]] = []
-    for turn in season.get("turns") or []:
-        if not isinstance(turn, dict):
-            continue
+    turns = [turn for turn in season.get("turns") or [] if isinstance(turn, dict)]
+    tail = _spoken_words(season.get("tail"))
+    out: list[AuthoredExchange] = []
+    for index, turn in enumerate(turns):
         replies = [reply for reply in turn.get("replies") or [] if isinstance(reply, dict)]
-        if turn.get("choice"):
-            out.append(("card", sum(_tokens(str(reply.get("label") or "")) for reply in replies)))
-            continue
-        lengths = sorted(
-            _tokens(str((reply.get("examples") or [""])[0])) for reply in replies if reply.get("examples")
+        reacted = [_spoken_words(reply.get("beats")) for reply in replies]
+        reaction = round(sum(reacted) / len(reacted)) if reacted else 0
+        reaction += _spoken_words(turn.get("after"))
+        following = turns[index + 1] if index + 1 < len(turns) else None
+        question = (
+            _spoken_words(following.get("lead_in")) + _spoken_words([following.get("panel")])
+            if following is not None
+            else 0
         )
-        out.append(("reply", lengths[len(lengths) // 2] if lengths else 0))
+        task_words = _tokens(str(following.get("task_native") or "")) if following is not None else 0
+        if turn.get("choice"):
+            kind, words = "card", sum(_tokens(str(reply.get("label") or "")) for reply in replies)
+        else:
+            lengths = sorted(
+                _tokens(str((reply.get("examples") or [""])[0]))
+                for reply in replies
+                if reply.get("examples")
+            )
+            kind, words = "reply", (lengths[len(lengths) // 2] if lengths else 0)
+        attempts = max(1, int((turn.get("convince") or {}).get("attempts") or 1))
+        for attempt in range(attempts):
+            last = attempt + 1 == attempts
+            out.append(
+                AuthoredExchange(
+                    kind=kind,
+                    words=words,
+                    # A «Convaincre» objection is about one reaction long.
+                    going_on=reaction + (question if last else 0),
+                    closing=reaction + tail,
+                    task_words=task_words if last else 0,
+                )
+            )
     return out
 
 
@@ -2259,14 +2331,29 @@ def respond_seconds(
             # An authored page says what each exchange asks: a card to tap, or
             # an answer the size of its own example (never under the band's
             # sentence: a learner's own answer is rarely shorter than the model's).
+            # Tentpole pricing: and what each answer says — the page's own lines,
+            # as prose at the band — then, on the exchange the conversation
+            # closes on (the plan's last: ``season.runtime`` closes at the
+            # planned ``max_turns``), the rest of the page.
+            prose = spt * page_reading_factor(band)
+            floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
             costs = []
             for index in range(turns):
-                kind, words = authored[index] if index < len(authored) else ("reply", 0)
-                if kind == "card":
-                    costs.append(card(words))
+                if index >= len(authored):
+                    # A reply asked again (``repeat_once``): one more exchange.
+                    costs.append(default_turn)
+                    continue
+                # A bare ``(kind, words)`` (pre-tentpole callers) reads the old
+                # twelve-word answer.
+                turn = AuthoredExchange(*authored[index])
+                read = turn.closing if index == turns - 1 else turn.going_on
+                said = read * prose + (
+                    0 if index == turns - 1 else turn.task_words * NATIVE_SECONDS_PER_TOKEN
+                )
+                if turn.kind == "card":
+                    costs.append(card(turn.words) + said)
                 else:
-                    floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
-                    costs.append(exchange(max(floor, words)) + answer)
+                    costs.append(exchange(max(floor, turn.words)) + said)
         else:
             costs = [default_turn] * turns
             cards = [c for c in getattr(task, "opening_choices", None) or [] if isinstance(c, dict)]
@@ -2315,30 +2402,73 @@ def story_alone_seconds(scenario: ScenarioBrief, *, pace: PacingProfile | None =
 
 
 def reply_input_seconds(
-    task: ResponseTask, *, turns: int, spt: float, band: str | None = None
+    task: ResponseTask, *, turns: int, spt: float, band: str | None = None,
+    authored: list[AuthoredExchange] | None = None,
 ) -> int:
     """WP-128: the French the reply makes the learner read — the opening line and
     each of the character's answers — which is input as much as a page is (WP-93's
     floor counts reading and listening). Zero for a caller that names no band,
-    which keeps the WP-93 floor exactly."""
+    which keeps the WP-93 floor exactly. An authored page's answers are counted
+    from its own lines (:class:`AuthoredExchange`)."""
 
     if not _band_key(band):
         return 0
-    tokens = _tokens(task.opening_line_fr) + RESPOND_REPLY_TOKENS * max(0, turns)
+    count = max(0, turns)
+    answers = RESPOND_REPLY_TOKENS * count
+    if authored:
+        answers = sum(
+            (
+                AuthoredExchange(*authored[index]).closing
+                if index == count - 1
+                else AuthoredExchange(*authored[index]).going_on
+            ) if index < len(authored) else RESPOND_REPLY_TOKENS
+            for index in range(count)
+        )
+    tokens = _tokens(task.opening_line_fr) + answers
     return round(tokens * spt * page_reading_factor(band))
 
 
 def resolution_seconds(
     scenario: ScenarioBrief, outcome_key: str, *, spt: float, multiplier: float
 ) -> int:
-    """Reading the ending the learner earned, plus closing the day."""
+    """Reading the ending the learner earned, plus closing the day.
 
+    Tentpole pricing (2026-10-06): an authored (season) page ends on its own
+    «À suivre…» — ``season.runtime`` shows the page's ending caption as the
+    ending and its translation as the summary (the caption again where the page
+    has none) — so that is what is priced: the caption as prose at the scene's
+    band, the summary at the native pace. T4 day B's caption is 31 words at A1;
+    the walk's Timer read the ending in 55 s against 10–12 estimated.
+    """
+
+    ending = authored_ending(scenario)
+    if ending is not None:
+        text_fr, summary = ending
+        band = _band_key(scenario.level_band)
+        reading = (
+            _reading_seconds(spt, text_fr) * page_reading_factor(band)
+            + _tokens(summary) * NATIVE_SECONDS_PER_TOKEN
+        )
+        return max(1, round(RESOLUTION_BASE_SECONDS * multiplier + reading))
     reading = _reading_seconds(
         spt,
         render_authored_text(scenario.resolution_lines.get(outcome_key)),
         render_authored_text(scenario.resolution_summaries.get(outcome_key)),
     )
     return max(1, round(RESOLUTION_BASE_SECONDS * multiplier + reading))
+
+
+def authored_ending(scenario: ScenarioBrief) -> tuple[str, str] | None:
+    """An authored page's ending as ``season.runtime`` shows it — ``(the caption,
+    the summary)`` — or ``None`` for a generated day or a page without one."""
+
+    context = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    season = context.get("season") if isinstance(context.get("season"), dict) else {}
+    ending = season.get("ending") if isinstance(season.get("ending"), dict) else {}
+    text_fr = str(ending.get("text_fr") or "").strip()
+    if not text_fr:
+        return None
+    return text_fr, str(ending.get("text_native") or text_fr).strip()
 
 
 # --------------------------------------------------------------------------
@@ -3911,6 +4041,18 @@ def page_review_step(
                 + _reading_seconds(spt, text) * page_reading_factor(band)
                 + _tokens(native) * NATIVE_SECONDS_PER_TOKEN
             )
+            if _band_key(band):
+                # Tentpole pricing (2026-10-06): the review shows the whole card
+                # — its pattern rows and contrast too, not only the page's line
+                # and the rule — so it is priced as the card it shows (the
+                # walk's Timer read T4 day B's in 57 s against 19 estimated).
+                cost = max(
+                    cost,
+                    rule_card_seconds(
+                        shown, spt=spt, multiplier=multiplier, band=band,
+                        language=language or "en",
+                    ),
+                )
             return PlannedStep(
                 ordinal=0,
                 kind=StepKind.RULE,
@@ -4759,7 +4901,9 @@ def _plan_practice_day(
     if scene_page(scenario):
         floor = round(INPUT_FLOOR_SHARE * budget_seconds)
         input_gap = max(
-            0, floor - scene_cost - read_cost - reply_input_seconds(task, turns=turns, spt=spt, band=band)
+            0, floor - scene_cost - read_cost - reply_input_seconds(
+                task, turns=turns, spt=spt, band=band, authored=authored
+            )
         )
         if input_gap:
             notes.append(f"input floor: {input_gap}s kept for reading and listening")
@@ -5439,6 +5583,7 @@ def input_seconds(plan: PlannedJourney) -> int:
                     turns=int(step.private_task.max_turns or 1),
                     spt=reading_prior(band),
                     band=band,
+                    authored=authored_turns(plan.scenario),
                 ),
             )
     return total
@@ -5646,6 +5791,8 @@ __all__ = [
     "page_reading_factor",
     "reading_prior",
     "authored_turns",
+    "AuthoredExchange",
+    "authored_ending",
     "reply_input_seconds",
     "story_alone_seconds",
     "word_drill_seconds",
