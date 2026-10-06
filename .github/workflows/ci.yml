@@ -43,7 +43,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web-frontend/package-lock.json
-      - run: pip install .
+      - run: pip install -c constraints.txt .
       - run: npm ci
         working-directory: web-frontend
       - name: Reject stale generated types
@@ -94,7 +94,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install -c constraints.txt .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Check Python with Ruff
@@ -154,7 +154,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install -c constraints.txt .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Run the long learner walk
@@ -218,7 +218,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install -c constraints.txt .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Verify Alembic migrations
