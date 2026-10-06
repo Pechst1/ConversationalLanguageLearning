@@ -1,0 +1,5613 @@
+{
+ "_source": "lib/revue-mock.ts wire output (snake_case), every payload validated against app/schemas/revue.py (extra=forbid) on 2026-10-02 — regenerated for phase 2 («Les invités») + WP-120 vignettes",
+ "offer": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "recommended": {
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "evergreen": true,
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   }
+  },
+  "recommended_reason": "interests",
+  "alternatives": [
+   {
+    "dossier_id": "evergreen-greve-transports",
+    "title_fr": "Un jour de grève dans les transports",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+    "topic": "work",
+    "place_fr": "Un quai de métro un matin de grève",
+    "plate_url": "/assets/serial/locations/metro_platform.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "quai_metro_greve",
+     "place_fr": "Un quai de métro un matin de grève",
+     "plate_url": "/assets/serial/locations/metro_platform.webp",
+     "plate_place_id": "metro_platform",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   },
+   {
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "title_fr": "La Fête de la musique",
+    "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+    "topic": "culture",
+    "place_fr": "Une petite place parisienne le soir du 21 juin",
+    "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "place_fete_musique",
+     "place_fr": "Une petite place parisienne le soir du 21 juin",
+     "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "plate_place_id": "le_mistral",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   }
+  ],
+  "evergreen_only": true,
+  "resume": null,
+  "filed": null
+ },
+ "match": {
+  "match": "evergreen-greve-transports",
+  "romy_line_fr": null
+ },
+ "session_arrive": {
+  "id": "mock-tm6e2vmv",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:00:00.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "arrondissement",
+     "gloss": "Bezirk",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "Vormittage",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "marché couvert",
+     "gloss": "Markthalle",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "im Freien",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "Können",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 6
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.p",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "place_note",
+    "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "artifact": null,
+  "closing": null
+ },
+ "turn_facts": {
+  "items": [
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": "Danke! Das wissen wir.",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "facts",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 5
+  },
+  "support": {
+   "glosses": "shown",
+   "translation": "one_tap",
+   "reading_target_words": 60,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_prix": {
+  "items": [
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+    "translation": "Und da habe ich nichts. Die Quellen sagen es nicht. Formulieren wir die Frage zusammen?",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "6.u",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "uncertainty",
+    "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+    "move": "enter",
+    "position": "against",
+    "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+    "reason": null,
+    "glosses": []
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 4
+  },
+  "support": {
+   "glosses": "shown",
+   "translation": "one_tap",
+   "reading_target_words": 60,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_formulate": {
+  "items": [
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "On formule la question ensemble ?",
+    "mode": "text"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "D'accord. Écris-la comme elle te vient, même dans ta langue : je t'aide pour le français.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 3,
+   "phase": "open",
+   "remaining_turns": 3
+  },
+  "support": {
+   "glosses": "shown",
+   "translation": "one_tap",
+   "reading_target_words": 60,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "offer_resume": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "recommended": {
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "evergreen": true,
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   }
+  },
+  "recommended_reason": "interests",
+  "alternatives": [
+   {
+    "dossier_id": "evergreen-greve-transports",
+    "title_fr": "Un jour de grève dans les transports",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+    "topic": "work",
+    "place_fr": "Un quai de métro un matin de grève",
+    "plate_url": "/assets/serial/locations/metro_platform.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "quai_metro_greve",
+     "place_fr": "Un quai de métro un matin de grève",
+     "plate_url": "/assets/serial/locations/metro_platform.webp",
+     "plate_place_id": "metro_platform",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   },
+   {
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "title_fr": "La Fête de la musique",
+    "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+    "topic": "culture",
+    "place_fr": "Une petite place parisienne le soir du 21 juin",
+    "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "place_fete_musique",
+     "place_fr": "Une petite place parisienne le soir du 21 juin",
+     "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "plate_place_id": "le_mistral",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   }
+  ],
+  "evergreen_only": true,
+  "resume": {
+   "session_id": "mock-tm6e2vmv",
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "started_at": "2026-10-01T07:00:00.000Z",
+   "beat": "pursue",
+   "open_question_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?"
+  },
+  "filed": null
+ },
+ "session_resume": {
+  "id": "mock-tm6e2vmv",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:00:00.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "arrondissement",
+     "gloss": "Bezirk",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "Vormittage",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "marché couvert",
+     "gloss": "Markthalle",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "im Freien",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "Können",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "margaux_barman",
+     "hold": null
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 3,
+   "phase": "open",
+   "remaining_turns": 3
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.p",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "place_note",
+    "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   },
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": "Danke! Das wissen wir.",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+    "translation": "Und da habe ich nichts. Die Quellen sagen es nicht. Formulieren wir die Frage zusammen?",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "6.u",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "uncertainty",
+    "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+    "move": "enter",
+    "position": "against",
+    "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+    "reason": null,
+    "glosses": []
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "On formule la question ensemble ?",
+    "mode": "text"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "D'accord. Écris-la comme elle te vient, même dans ta langue : je t'aide pour le français.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "artifact": null,
+  "closing": null
+ },
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
+     },
+     {
+      "id": "h2",
+      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "À Aligre, il n'y a plus de marché couvert"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "uncertainty_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   }
+  ],
+  "intro": {
+   "id": "10",
+   "seq": 10,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_propose": {
+  "kind": "reader_question",
+  "draft": {
+   "learner_fr": "les prix sont plus bas qu'au supermarché",
+   "proposal_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+   "contribution": [
+    [
+     11,
+     51
+    ]
+   ],
+   "why_native": "„Est-ce que“ macht aus einem Satz eine Frage, ohne die Wortstellung zu ändern."
+  }
+ },
+ "make_send": {
+  "kind": "reader_question",
+  "made": {
+   "kind": "reader_question",
+   "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+   "contribution": [
+    [
+     11,
+     51
+    ]
+   ],
+   "learner_fr": "les prix sont plus bas qu'au supermarché"
+  },
+  "line": {
+   "id": "12",
+   "seq": 12,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "C'est parti pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close": {
+  "session": {
+   "id": "mock-tm6e2vmv",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T07:00:00.000Z",
+   "closed_at": "2026-10-01T07:00:00.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "A1",
+    "ui_language": "de",
+    "gloss_language": "de",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "arrondissement",
+      "gloss": "Bezirk",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "Vormittage",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "Markthalle",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "im Freien",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "Können",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "reader_question"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "margaux_barman",
+      "hold": null
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 3,
+    "phase": "open",
+    "remaining_turns": 3
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.p",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "place_note",
+     "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": "Danke! Das wissen wir.",
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+     "mode": "text"
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+     "translation": "Und da habe ich nichts. Die Quellen sagen es nicht. Formulieren wir die Frage zusammen?",
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6.u",
+     "seq": 6,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "uncertainty",
+     "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "guest",
+     "cast_id": "margaux_barman",
+     "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+     "move": "enter",
+     "position": "against",
+     "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+     "reason": null,
+     "glosses": []
+    },
+    {
+     "id": "8",
+     "seq": 8,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "On formule la question ensemble ?",
+     "mode": "text"
+    },
+    {
+     "id": "9",
+     "seq": 9,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "D'accord. Écris-la comme elle te vient, même dans ta langue : je t'aide pour le français.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "10",
+     "seq": 10,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "11",
+     "seq": 11,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "reader_question",
+      "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+      "contribution": [
+       [
+        11,
+        51
+       ]
+      ],
+      "learner_fr": "les prix sont plus bas qu'au supermarché"
+     }
+    },
+    {
+     "id": "12",
+     "seq": 12,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "C'est parti pour la rédaction.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "reader_question",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "contribution": [
+     [
+      11,
+      51
+     ]
+    ],
+    "learner_fr": "les prix sont plus bas qu'au supermarché"
+   },
+   "closing": {
+    "romy_line_fr": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "Reste une question de lecteur : les prix sont plus bas qu'au supermarché ?"
+     ],
+     "contribution": [
+      [
+       32,
+       72
+      ]
+     ],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ]
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "arrondissement",
+       "gloss": "Bezirk",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "Vormittage",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "marché couvert",
+       "gloss": "Markthalle",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "im Freien",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "Können",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": null,
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-tm6e2vmv",
+     "session_id": "mock-tm6e2vmv",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "question",
+     "kept_contribution": true,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+     "minted_at": "2026-10-01T07:00:00.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "Reste une question de lecteur : les prix sont plus bas qu'au supermarché ?"
+    ],
+    "contribution": [
+     [
+      32,
+      72
+     ]
+    ],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "arrondissement",
+      "gloss": "Bezirk",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "Vormittage",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "Markthalle",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "im Freien",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "Können",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-tm6e2vmv",
+    "session_id": "mock-tm6e2vmv",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "question",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+    "minted_at": "2026-10-01T07:00:00.000Z"
+   }
+  }
+ },
+ "offer_filed": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "recommended": {
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "evergreen": true,
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   }
+  },
+  "recommended_reason": "interests",
+  "alternatives": [
+   {
+    "dossier_id": "evergreen-greve-transports",
+    "title_fr": "Un jour de grève dans les transports",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+    "topic": "work",
+    "place_fr": "Un quai de métro un matin de grève",
+    "plate_url": "/assets/serial/locations/metro_platform.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "quai_metro_greve",
+     "place_fr": "Un quai de métro un matin de grève",
+     "plate_url": "/assets/serial/locations/metro_platform.webp",
+     "plate_place_id": "metro_platform",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   },
+   {
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "title_fr": "La Fête de la musique",
+    "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+    "topic": "culture",
+    "place_fr": "Une petite place parisienne le soir du 21 juin",
+    "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "place_fete_musique",
+     "place_fr": "Une petite place parisienne le soir du 21 juin",
+     "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "plate_place_id": "le_mistral",
+     "place_is_real": false,
+     "dress": "coat",
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   }
+  ],
+  "evergreen_only": true,
+  "resume": null,
+  "filed": {
+   "session_id": "mock-tm6e2vmv",
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "closed_at": "2026-10-01T07:00:00.000Z",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "contribution": [
+     [
+      11,
+      51
+     ]
+    ],
+    "learner_fr": "les prix sont plus bas qu'au supermarché"
+   },
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "Reste une question de lecteur : les prix sont plus bas qu'au supermarché ?"
+    ],
+    "contribution": [
+     [
+      32,
+      72
+     ]
+    ],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   }
+  }
+ },
+ "vignettes": {
+  "vignettes": [
+   {
+    "id": "vig-mock-tm6e2vmv",
+    "session_id": "mock-tm6e2vmv",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "question",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
+    "minted_at": "2026-10-01T07:00:00.000Z"
+   }
+  ]
+ },
+ "turn_b0": {
+  "items": [
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": "Thanks! Here is what we know.",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+      "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_ecologie",
+       "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+       "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+       "published_at": "2018-05-25"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "facts",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 5
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_b1": {
+  "items": [
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Il y a autre chose.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 4
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_b2": {
+  "items": [
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Il y a aussi un avis, d'après les syndicats de salariés et les partis de gauche.",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "salarié",
+      "gloss": "employee",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "syndicats",
+      "gloss": "unions",
+      "claim_id": "c4"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 3,
+   "phase": "open",
+   "remaining_turns": 3
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_b3": {
+  "items": [
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 4,
+   "phase": "open",
+   "remaining_turns": 2
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_b4": {
+  "items": [
+   {
+    "id": "13",
+    "seq": 13,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "14",
+    "seq": 14,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "15",
+    "seq": 15,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "bouclage",
+    "angle": null
+   },
+   {
+    "id": "16",
+    "seq": 16,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "Il me reste peu de place dans la colonne : on fait le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 5,
+   "phase": "bouclage",
+   "remaining_turns": 1
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": true,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_b5": {
+  "items": [
+   {
+    "id": "17",
+    "seq": 17,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "18",
+    "seq": 18,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "19",
+    "seq": 19,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "boucle",
+    "angle": null
+   },
+   {
+    "id": "20",
+    "seq": 20,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "La colonne est pleine ! On boucle avec ce qu'on a : le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 7,
+   "phase": "boucle",
+   "remaining_turns": 0
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": true,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_budget": {
+  "items": [
+   {
+    "id": "21",
+    "seq": 21,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Et après ?",
+    "mode": "text"
+   },
+   {
+    "id": "22",
+    "seq": 22,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "fallback",
+    "text_fr": "Bonne question. Je la garde pour la semaine prochaine : on boucle avec ce qu'on a ?",
+    "translation": null,
+    "glosses": [],
+    "reason": "budget"
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 7,
+   "phase": "boucle",
+   "remaining_turns": 0
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": true,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "préavis",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "grève",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "salarié",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "service minimum",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "syndicats",
+     "outcome": "unscored",
+     "capability_known": true
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "make_offer_a2": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Grève : un préavis de cinq jours au moins"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Grève : aucun préavis, les salariés arrêtent quand ils veulent"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Grève : la loi impose un vrai service minimum"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Et après ?",
+    "uncertainty_fr": null
+   }
+  ],
+  "intro": {
+   "id": "23",
+   "seq": 23,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_pick": {
+  "kind": "headline_choice",
+  "correct": false,
+  "answer_id": "h1",
+  "evidence": {
+   "claim_id": "c1",
+   "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+   "source": {
+    "id": "greve_ecologie",
+    "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+    "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+    "published_at": "2018-05-25"
+   }
+  },
+  "made": {
+   "kind": "headline_choice",
+   "text_fr": "Grève : un préavis de cinq jours au moins",
+   "contribution": [],
+   "learner_fr": null
+  },
+  "line": {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Je garde celui-là : c'est ce que disent les sources.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "session_boucle": {
+  "id": "mock-ymo0ulj5",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:00:00.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-greve-transports",
+   "title_fr": "Un jour de grève dans les transports",
+   "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+   "topic": "work",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "greve_ecologie",
+     "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+     "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+     "published_at": "2018-05-25"
+    },
+    {
+     "id": "greve_wikipedia_service_minimum",
+     "name": "Wikipédia, « Service minimum »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+     "published_at": "2026-09-24"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Comment se passe un jour de grève pour un voyageur",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "préavis",
+     "gloss": "notice",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "salarié",
+     "gloss": "employee",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "service minimum",
+     "gloss": "minimum service",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "syndicats",
+     "gloss": "unions",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "quai_metro_greve",
+   "place_fr": "Un quai de métro un matin de grève",
+   "plate_url": "/assets/serial/locations/metro_platform.webp",
+   "plate_place_id": "metro_platform",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "make",
+  "room": {
+   "used": 7,
+   "phase": "boucle",
+   "remaining_turns": 0
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Un quai de métro, tôt le matin. Le panneau annonce de longues attentes."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Romy est assise sur un banc, son carnet sur les genoux."
+   },
+   {
+    "id": "1.p",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "place_note",
+    "text_fr": "Ce n'est pas un jour de grève aujourd'hui, hein. Mais imagine ce quai à moitié vide.",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "grève",
+      "gloss": "strike",
+      "claim_id": "c1"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "grève",
+      "gloss": "strike",
+      "claim_id": "c1"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation."
+   },
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": "Thanks! Here is what we know.",
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+      "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_ecologie",
+       "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+       "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+       "published_at": "2018-05-25"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   },
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Il y a autre chose.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+      "attributed_to": null,
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Il y a aussi un avis, d'après les syndicats de salariés et les partis de gauche.",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "salarié",
+      "gloss": "employee",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "syndicats",
+      "gloss": "unions",
+      "claim_id": "c4"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     }
+    ]
+   },
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "13",
+    "seq": 13,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "14",
+    "seq": 14,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "15",
+    "seq": 15,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "bouclage",
+    "angle": null
+   },
+   {
+    "id": "16",
+    "seq": 16,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "Il me reste peu de place dans la colonne : on fait le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "17",
+    "seq": 17,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Dis-m'en plus.",
+    "mode": "text"
+   },
+   {
+    "id": "18",
+    "seq": 18,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "C'est tout ce que disent mes sources. On en fait quelque chose ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "19",
+    "seq": 19,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "boucle",
+    "angle": null
+   },
+   {
+    "id": "20",
+    "seq": 20,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "La colonne est pleine ! On boucle avec ce qu'on a : le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "21",
+    "seq": 21,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Et après ?",
+    "mode": "text"
+   },
+   {
+    "id": "22",
+    "seq": 22,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "fallback",
+    "text_fr": "Bonne question. Je la garde pour la semaine prochaine : on boucle avec ce qu'on a ?",
+    "translation": null,
+    "glosses": [],
+    "reason": "budget"
+   },
+   {
+    "id": "23",
+    "seq": 23,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_intro",
+    "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "24",
+    "seq": 24,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "made",
+    "made": {
+     "kind": "headline_choice",
+     "text_fr": "Grève : un préavis de cinq jours au moins",
+     "contribution": [],
+     "learner_fr": null
+    }
+   },
+   {
+    "id": "25",
+    "seq": 25,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Je garde celui-là : c'est ce que disent les sources.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "artifact": {
+   "kind": "headline_choice",
+   "text_fr": "Grève : un préavis de cinq jours au moins",
+   "contribution": [],
+   "learner_fr": null
+  },
+  "closing": null
+ },
+ "session_b1_arrive": {
+  "id": "mock-0e8dfmdc",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:00:00.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "fr",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "arrondissement",
+     "gloss": "quartier de Paris",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "débuts de journée",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "marché couvert",
+     "gloss": "marché sous un toit",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "dehors",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "talent du métier",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 6
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.p",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "place_note",
+    "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "artifact": null,
+  "closing": null
+ },
+ "turn_b1_facts": {
+  "items": [
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "facts",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 5
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_guest_enter": {
+  "items": [
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "6.u",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "uncertainty",
+    "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+    "move": "enter",
+    "position": "against",
+    "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+    "reason": null,
+    "glosses": []
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 4
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "turn_guest_disagree": {
+  "items": [
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Mais vous trouvez que les produits sont plus frais ?",
+    "mode": "voice"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Bonne question. Mes sources ne le disent pas. On l'écrit pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Je ne suis pas d'accord. Au marché, on paie aussi la qualité.",
+    "move": "disagree",
+    "position": "against",
+    "reason_fr": null,
+    "reason": null,
+    "glosses": []
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 3,
+   "phase": "open",
+   "remaining_turns": 3
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "On formule la question",
+    "send_fr": "On formule la question ensemble ?"
+   },
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "vous_to_tu"
+  }
+ },
+ "turn_guest_moved": {
+  "items": [
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Au marché couvert, les producteurs vendent eux-mêmes, alors le prix est juste.",
+    "mode": "text"
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Oui, mes sources le disent.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "13",
+    "seq": 13,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   {
+    "id": "14",
+    "seq": 14,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Bon. Vu comme ça, tu n'as pas tort.",
+    "move": "moved",
+    "position": "moved",
+    "reason_fr": null,
+    "reason": null,
+    "glosses": []
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 4,
+   "phase": "open",
+   "remaining_turns": 2
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "correct",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register_note": "ok"
+  }
+ },
+ "turn_model_down": {
+  "items": [
+   {
+    "id": "15",
+    "seq": 15,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Et le dimanche soir ? [panne]",
+    "mode": "text"
+   },
+   {
+    "id": "16",
+    "seq": 16,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "fallback",
+    "text_fr": "Je ne sais pas encore. On regarde ce que disent les sources ?",
+    "translation": null,
+    "glosses": [],
+    "reason": "model_down"
+   },
+   {
+    "id": "17",
+    "seq": 17,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "bouclage",
+    "angle": null
+   },
+   {
+    "id": "18",
+    "seq": 18,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "Il me reste peu de place dans la colonne : on fait le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "beat": "pursue",
+  "room": {
+   "used": 5,
+   "phase": "bouclage",
+   "remaining_turns": 1
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": true,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "unsupported",
+   "register_note": "ok"
+  }
+ },
+ "session_b1_guest": {
+  "id": "mock-0e8dfmdc",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:00:00.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "fr",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "arrondissement",
+     "gloss": "quartier de Paris",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "débuts de journée",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "marché couvert",
+     "gloss": "marché sous un toit",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "dehors",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "talent du métier",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "margaux_barman",
+     "hold": null
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 5,
+   "phase": "bouclage",
+   "remaining_turns": 1
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.p",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "place_note",
+    "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   },
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+    "mode": "text"
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "6.u",
+    "seq": 6,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "uncertainty",
+    "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+    "move": "enter",
+    "position": "against",
+    "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+    "reason": null,
+    "glosses": []
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Mais vous trouvez que les produits sont plus frais ?",
+    "mode": "voice"
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Bonne question. Mes sources ne le disent pas. On l'écrit pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Je ne suis pas d'accord. Au marché, on paie aussi la qualité.",
+    "move": "disagree",
+    "position": "against",
+    "reason_fr": null,
+    "reason": null,
+    "glosses": []
+   },
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Au marché couvert, les producteurs vendent eux-mêmes, alors le prix est juste.",
+    "mode": "text"
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Oui, mes sources le disent.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "13",
+    "seq": 13,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   {
+    "id": "14",
+    "seq": 14,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "guest",
+    "cast_id": "margaux_barman",
+    "text_fr": "Bon. Vu comme ça, tu n'as pas tort.",
+    "move": "moved",
+    "position": "moved",
+    "reason_fr": null,
+    "reason": null,
+    "glosses": []
+   },
+   {
+    "id": "15",
+    "seq": 15,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "Et le dimanche soir ? [panne]",
+    "mode": "text"
+   },
+   {
+    "id": "16",
+    "seq": 16,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "fallback",
+    "text_fr": "Je ne sais pas encore. On regarde ce que disent les sources ?",
+    "translation": null,
+    "glosses": [],
+    "reason": "model_down"
+   },
+   {
+    "id": "17",
+    "seq": 17,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "shift",
+    "reason": "bouclage",
+    "angle": null
+   },
+   {
+    "id": "18",
+    "seq": 18,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "steer",
+    "text_fr": "Il me reste peu de place dans la colonne : on fait le titre, ou la question pour les lecteurs ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": true,
+  "artifact": null,
+  "closing": null
+ },
+ "make_offer_b1": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
+     },
+     {
+      "id": "h2",
+      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "À Aligre, il n'y a plus de marché couvert"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Mais vous trouvez que les produits sont plus frais ?",
+    "uncertainty_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   }
+  ],
+  "intro": {
+   "id": "19",
+   "seq": 19,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_write_rejected": {
+  "kind": "headline_write",
+  "accepted": false,
+  "evidence": {
+   "outcome": "incorrect",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "contradicted",
+   "register_note": "ok"
+  },
+  "made": null,
+  "line": {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Attention : les sources disent autre chose. Tu réessaies ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_write": {
+  "kind": "headline_write",
+  "accepted": true,
+  "evidence": {
+   "outcome": "correct",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register_note": "ok"
+  },
+  "made": {
+   "kind": "headline_write",
+   "text_fr": "Paris et ses 91 marchés en plein air",
+   "contribution": [
+    [
+     0,
+     36
+    ]
+   ],
+   "learner_fr": "Paris et ses 91 marchés en plein air"
+  },
+  "line": {
+   "id": "22",
+   "seq": 22,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Je le prends. C'est ton titre.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close_b1_write": {
+  "session": {
+   "id": "mock-0e8dfmdc",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T07:00:00.000Z",
+   "closed_at": "2026-10-01T07:00:00.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "B1",
+    "ui_language": "fr",
+    "gloss_language": "fr",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "arrondissement",
+      "gloss": "quartier de Paris",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "débuts de journée",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "talent du métier",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "headline_write",
+     "reader_question",
+     "short_report"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "margaux_barman",
+      "hold": null
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 5,
+    "phase": "bouclage",
+    "remaining_turns": 1
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.p",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "place_note",
+     "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "Est-ce que les prix sont plus bas qu'au supermarché ?",
+     "mode": "text"
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Et là, je n'ai rien. Les sources ne le disent pas. On formule la question ensemble ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6.u",
+     "seq": 6,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "uncertainty",
+     "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "guest",
+     "cast_id": "margaux_barman",
+     "text_fr": "Les prix ? Moi, je viens ici tous les dimanches pour le bar. Ce n'est pas toujours moins cher.",
+     "move": "enter",
+     "position": "against",
+     "reason_fr": "Elle achète les citrons du bar ici, chaque dimanche.",
+     "reason": null,
+     "glosses": []
+    },
+    {
+     "id": "8",
+     "seq": 8,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "Mais vous trouvez que les produits sont plus frais ?",
+     "mode": "voice"
+    },
+    {
+     "id": "9",
+     "seq": 9,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Bonne question. Mes sources ne le disent pas. On l'écrit pour les lecteurs ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "10",
+     "seq": 10,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "guest",
+     "cast_id": "margaux_barman",
+     "text_fr": "Je ne suis pas d'accord. Au marché, on paie aussi la qualité.",
+     "move": "disagree",
+     "position": "against",
+     "reason_fr": null,
+     "reason": null,
+     "glosses": []
+    },
+    {
+     "id": "11",
+     "seq": 11,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "Au marché couvert, les producteurs vendent eux-mêmes, alors le prix est juste.",
+     "mode": "text"
+    },
+    {
+     "id": "12",
+     "seq": 12,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Oui, mes sources le disent.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "13",
+     "seq": 13,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+       "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "14",
+     "seq": 14,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "guest",
+     "cast_id": "margaux_barman",
+     "text_fr": "Bon. Vu comme ça, tu n'as pas tort.",
+     "move": "moved",
+     "position": "moved",
+     "reason_fr": null,
+     "reason": null,
+     "glosses": []
+    },
+    {
+     "id": "15",
+     "seq": 15,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "Et le dimanche soir ? [panne]",
+     "mode": "text"
+    },
+    {
+     "id": "16",
+     "seq": 16,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "fallback",
+     "text_fr": "Je ne sais pas encore. On regarde ce que disent les sources ?",
+     "translation": null,
+     "glosses": [],
+     "reason": "model_down"
+    },
+    {
+     "id": "17",
+     "seq": 17,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "shift",
+     "reason": "bouclage",
+     "angle": null
+    },
+    {
+     "id": "18",
+     "seq": 18,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "steer",
+     "text_fr": "Il me reste peu de place dans la colonne : on fait le titre, ou la question pour les lecteurs ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "19",
+     "seq": 19,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "20",
+     "seq": 20,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "Attention : les sources disent autre chose. Tu réessaies ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "21",
+     "seq": 21,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "headline_write",
+      "text_fr": "Paris et ses 91 marchés en plein air",
+      "contribution": [
+       [
+        0,
+        36
+       ]
+      ],
+      "learner_fr": "Paris et ses 91 marchés en plein air"
+     }
+    },
+    {
+     "id": "22",
+     "seq": 22,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "Je le prends. C'est ton titre.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "headline_write",
+    "text_fr": "Paris et ses 91 marchés en plein air",
+    "contribution": [
+     [
+      0,
+      36
+     ]
+    ],
+    "learner_fr": "Paris et ses 91 marchés en plein air"
+   },
+   "closing": {
+    "romy_line_fr": "Ton titre part tel quel avec mon papier. Je n’y touche pas.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Paris et ses 91 marchés en plein air",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "La suite la semaine prochaine, avec les lecteurs."
+     ],
+     "contribution": [
+      [
+       0,
+       36
+      ]
+     ],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ]
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "arrondissement",
+       "gloss": "quartier de Paris",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "débuts de journée",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "marché couvert",
+       "gloss": "marché sous un toit",
+       "claim_id": "c3",
+       "used": true
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "dehors",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "talent du métier",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+       "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": "Mais vous trouvez que les produits sont plus frais ?",
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-0e8dfmdc",
+     "session_id": "mock-0e8dfmdc",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "headline",
+     "kept_contribution": true,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Paris et ses 91 marchés en plein air",
+     "minted_at": "2026-10-01T07:00:00.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "Ton titre part tel quel avec mon papier. Je n’y touche pas.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Paris et ses 91 marchés en plein air",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "La suite la semaine prochaine, avec les lecteurs."
+    ],
+    "contribution": [
+     [
+      0,
+      36
+     ]
+    ],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "arrondissement",
+      "gloss": "quartier de Paris",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "débuts de journée",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3",
+      "used": true
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "talent du métier",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": "Mais vous trouvez que les produits sont plus frais ?",
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-0e8dfmdc",
+    "session_id": "mock-0e8dfmdc",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "headline",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Paris et ses 91 marchés en plein air",
+    "minted_at": "2026-10-01T07:00:00.000Z"
+   }
+  }
+ },
+ "turn_r_facts": {
+  "items": [
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:00:00.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "facts",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 5
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "none",
+   "reading_target_words": 140,
+   "vocab_target": 7,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "make_offer_r": {
+  "recommended": "headline_write",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
+     },
+     {
+      "id": "h2",
+      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "À Aligre, il n'y a plus de marché couvert"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": null,
+    "uncertainty_fr": null
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   }
+  ],
+  "intro": {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Il me faut un titre. Tu l'écris ? Court, et vrai.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_report": {
+  "kind": "short_report",
+  "evidence": {
+   "outcome": "correct",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register_note": "ok"
+  },
+  "made": {
+   "kind": "short_report",
+   "text_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines.",
+   "contribution": [
+    [
+     0,
+     127
+    ]
+   ],
+   "learner_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines."
+  },
+  "line": {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-01T07:00:00.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "C'est enregistré. Je le mets dans mon papier.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close_report": {
+  "session": {
+   "id": "mock-xnghfzk6",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T07:00:00.000Z",
+   "closed_at": "2026-10-01T07:00:00.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "B1",
+    "ui_language": "en",
+    "gloss_language": "en",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "arrondissement",
+      "gloss": "district",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "mornings",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "know-how",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "headline_write",
+     "reader_question",
+     "short_report"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": false,
+    "dress": "coat",
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 1,
+    "phase": "open",
+    "remaining_turns": 5
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.p",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "place_note",
+     "text_fr": "On n'est pas à Aligre, hein : c'est le marché du canal. Mais ça se passe pareil.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Il me faut un titre. Tu l'écris ? Court, et vrai.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "short_report",
+      "text_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines.",
+      "contribution": [
+       [
+        0,
+        127
+       ]
+      ],
+      "learner_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines."
+     }
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T07:00:00.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "C'est enregistré. Je le mets dans mon papier.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "short_report",
+    "text_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines.",
+    "contribution": [
+     [
+      0,
+      127
+     ]
+    ],
+    "learner_fr": "Je suis au marché d'Aligre. Il y a un marché couvert et des étals en plein air. Les gens parlent fort, ça sent les clémentines."
+   },
+   "closing": {
+    "romy_line_fr": "Ton reportage part avec mon papier. À Montréal, on va t’entendre.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Le marché d’Aligre",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "Sur place, un lecteur raconte : « Je suis au marché d'Aligre »."
+     ],
+     "contribution": [],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ]
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "arrondissement",
+       "gloss": "district",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "mornings",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "marché couvert",
+       "gloss": "covered market",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "outdoors",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "know-how",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": null,
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-xnghfzk6",
+     "session_id": "mock-xnghfzk6",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "report",
+     "kept_contribution": true,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Le marché d’Aligre",
+     "minted_at": "2026-10-01T07:00:00.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "Ton reportage part avec mon papier. À Montréal, on va t’entendre.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "Sur place, un lecteur raconte : « Je suis au marché d'Aligre »."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "arrondissement",
+      "gloss": "district",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "mornings",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "know-how",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-xnghfzk6",
+    "session_id": "mock-xnghfzk6",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "report",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre",
+    "minted_at": "2026-10-01T07:00:00.000Z"
+   }
+  }
+ },
+ "vignettes_two": {
+  "vignettes": [
+   {
+    "id": "vig-mock-xnghfzk6",
+    "session_id": "mock-xnghfzk6",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "report",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre",
+    "minted_at": "2026-10-01T07:00:00.000Z"
+   }
+  ]
+ }
+}

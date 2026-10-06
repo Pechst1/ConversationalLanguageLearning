@@ -1,0 +1,121 @@
+{
+  "id": "2026-w40-prix-de-l-arc-de-triomphe",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "sport",
+  "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+  "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+      "source_id": "w40_arc_equidia",
+      "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+      "published_at": "2026-10-01",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+      "source_id": "w40_arc_afp",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+      "source_id": "w40_arc_afp",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+      "source_id": "w40_arc_afp",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02",
+      "confidence": "reported",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+    }
+  ],
+  "entities": [
+    {
+      "name": "ParisLongchamp",
+      "kind": "place"
+    },
+    {
+      "name": "Daryz",
+      "kind": "other",
+      "role": "cheval, gagnant de l'Arc en 2025"
+    },
+    {
+      "name": "Francis-Henri Graffard",
+      "kind": "person",
+      "role": "entraîneur de Daryz"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+    "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+      "purpose": "choose_angle",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
+    },
+    {
+      "id": "a2",
+      "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
+    }
+  ],
+  "places": [
+    {
+      "id": "hippodrome_longchamp",
+      "name_fr": "L'hippodrome de ParisLongchamp",
+      "brief": "the hippodrome ParisLongchamp in the bois de Boulogne: an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
+      "known": false,
+      "geo": {
+        "lat": 48.8573,
+        "lon": 2.2338,
+        "precision": "exact",
+        "label_fr": "Hippodrome de ParisLongchamp"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-10-01/2026-10-04",
+    "relevant_until": "2026-10-18"
+  },
+  "sources": [
+    {
+      "id": "w40_arc_equidia",
+      "name": "Equidia",
+      "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+      "published_at": "2026-10-01"
+    },
+    {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+    }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un fer à cheval"
+}
