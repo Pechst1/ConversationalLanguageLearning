@@ -314,7 +314,7 @@ def active_seconds(session: AtelierSession, attempts: list[AtelierAttempt]) -> i
         moments.append(_aware(session.completed_at))
     points = sorted(m for m in moments if m is not None)
     return int(
-        sum(min(IDLE_GAP_CEILING_SECONDS, max(0.0, (b - a).total_seconds())) for a, b in zip(points, points[1:]))
+        sum(min(IDLE_GAP_CEILING_SECONDS, max(0.0, (b - a).total_seconds())) for a, b in zip(points, points[1:], strict=False))
     )
 
 

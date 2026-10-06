@@ -378,7 +378,6 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
     ] or [line for line in ((first or {}).get("panel") or {}).get("lines") or [] if line.get("text_fr")]
     opening_fr = " ".join(str(line.get("text_fr")) for line in opening).strip() or page["title_fr"]
     opening_native = " ".join(str(line.get("text_native") or "") for line in opening).strip()
-    replies = (first or {}).get("replies") or []
     example = turn_example(first) or opening_fr
     captions = [
         line for panel in scene for line in panel.get("lines") or [] if line.get("kind") == "caption"
@@ -903,7 +902,7 @@ def _cast_names(scenario) -> set[str]:
         season = load_season(str(season_ctx.get("id") or "s1"))
         for member in season.cast:
             names.update(part for part in member.name.replace("«", " ").replace("»", " ").split() if part[:1].isupper())
-    except Exception:  # noqa: BLE001 - a name filter never costs a turn
+    except Exception:  # noqa: BLE001, S110 - a name filter never costs a turn
         pass
     return names
 

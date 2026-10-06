@@ -25,10 +25,10 @@ from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.services.concept_life import concept_stage
 from app.services.forge import (
+    ForgePlanComposer,
     ForgeService,
     PayloadItemProvider,
     PickedUnit,
-    ForgePlanComposer,
     forge_state_of,
     verdict_from_attempt,
 )

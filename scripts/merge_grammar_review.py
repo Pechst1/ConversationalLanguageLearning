@@ -94,7 +94,7 @@ def merge(check_only: bool, bands: set[str] | None = None) -> int:
         for sub_band, tasks in extra.items():
             if sub_band in SUB_BANDS:
                 can_dos.setdefault("sub_bands", {})[sub_band] = tasks
-    for sub_band, tasks in (can_dos.get("sub_bands") or {}).items():
+    for _sub_band, tasks in (can_dos.get("sub_bands") or {}).items():
         for task in tasks:
             for ref in task.get("units") or []:
                 if ref not in rows:

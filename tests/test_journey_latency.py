@@ -16,10 +16,10 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
-from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

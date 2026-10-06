@@ -1265,7 +1265,7 @@ def forge_features() -> dict[str, bool]:
 
 #: WP-S7: the rare token's source (a new source for the existing logo token,
 #: as the daily journey's keepsake is — not a new collectible kind).
-TEST_OUT_TOKEN_SOURCE_KIND = "test_out"
+TEST_OUT_TOKEN_SOURCE_KIND = "test_out"  # noqa: S105 - a collectible source kind, not a secret
 
 
 def mint_test_out_token(db: Session, *, user: User, concept_id: int, now: datetime) -> dict[str, Any] | None:

@@ -120,8 +120,8 @@ def restore(root: Path, repo: Path) -> int:
     manifest = _load(root)
     problems = _problems(root, manifest)
     for rel, why in problems:
-        blob = subprocess.run(
-            ["git", "-C", str(repo), "show", f"{manifest['tag']}:{rel}"],
+        blob = subprocess.run(  # noqa: S603 - fixed git argv, no shell
+            ["git", "-C", str(repo), "show", f"{manifest['tag']}:{rel}"],  # noqa: S607 - git from PATH (dev script)
             check=True,
             capture_output=True,
         ).stdout

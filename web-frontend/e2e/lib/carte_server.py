@@ -21,8 +21,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO))
 os.environ["REVUE_ENABLED"] = "true"
 
-import dev_walk_server  # noqa: E402,F401  (sets the walk's environment on import)
 import dev_story_engine_server as base  # noqa: E402
+import dev_walk_server  # noqa: E402,F401  (sets the walk's environment on import)
 
 
 def main() -> None:

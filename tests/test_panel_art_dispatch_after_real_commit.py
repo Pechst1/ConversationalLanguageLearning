@@ -11,10 +11,9 @@ Fake image API only, never a paid call.
 from __future__ import annotations
 
 from types import SimpleNamespace
-
-from app.config import settings
 from uuid import UUID
 
+from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.services import panel_art
 from tests import test_wp87_lanes as harness

@@ -245,15 +245,14 @@ def test_the_tu_is_a_scene_a_date_and_one_seal_in_the_releve(
     assert after["register"] == "tu"
     assert after["tu_since"] == {"date": tu_journeys[0][1], "scene_id": tu_journeys[0][2]}
 
-    seals = [
-        row
-        for row in db_session.scalars(
+    seals = list(
+        db_session.scalars(
             select(AtelierCollectible).where(
                 AtelierCollectible.user_id == d.user_id,
                 AtelierCollectible.source_kind == story_archive.TUTOIEMENT_SOURCE_KIND,
             )
         )
-    ]
+    )
     assert len(seals) == 1, "one «tu» Seal per character, however often it is accepted"
     assert seals[0].kind == "story_seal"
     assert seals[0].metadata_payload["name"].startswith("Le tu de ")

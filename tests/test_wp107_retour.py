@@ -1,13 +1,12 @@
 """The owner's B1 return: same-form traps, production and learner language."""
-import pytest
 from types import SimpleNamespace
 
-from app.services import grammar_items, journey_content
-from app.services.item_bank import public_item
+import pytest
+
+from app.services import grammar_items, journey_content, journey_planner
 from app.services.grammar_units import french_rule
-from app.services import journey_planner
-from app.services.journey_contracts import TargetKind, TargetRef
-from app.services.journey_contracts import CapabilityKey, ScenarioBrief
+from app.services.item_bank import public_item
+from app.services.journey_contracts import CapabilityKey, ScenarioBrief, TargetKind, TargetRef
 from app.services.journey_rhythm import RHYTHM_BUDGET_SECONDS
 from tests.test_journey_content import _user
 from tests.test_wpl6_rhythm import _plan

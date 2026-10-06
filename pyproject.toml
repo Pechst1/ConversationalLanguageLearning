@@ -75,7 +75,10 @@ target-version = "py311"
 # design deliverable — the artboards themselves are the artefact — and holding
 # them to the application's lint rules only invites someone to "fix" a
 # throwaway by rewriting the design output.
-extend-exclude = ["docs/design-reference/canvas"]
+# The same holds for the evidence scripts under docs/implementation/*/evidence:
+# each is the exact script that produced a dated sample, kept so the sample can
+# be re-read; editing it for lint would make it no longer the script that ran.
+extend-exclude = ["docs/design-reference/canvas", "docs/implementation/atelier-v2/evidence"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "A", "C4", "TID", "S"]
@@ -89,3 +92,9 @@ ignore = ["E203", "E266", "E501", "B008"]
 "scripts/seed_stories.py" = ["E402"]
 "tests/*.py" = ["S101", "S105", "S106", "S107", "S311"]
 "tests/**/*.py" = ["S101", "S105", "S106", "S107", "S311"]
+# These suites import fixtures from a sibling test module and take them as test
+# parameters, which is how pytest shares fixtures; Ruff reads the parameter as a
+# redefinition of the (unused) import.
+"tests/test_one_language_intake_letters_placement.py" = ["F811"]
+"tests/test_wp103_engine.py" = ["F811"]
+"tests/test_wp96_story_archive.py" = ["F811"]

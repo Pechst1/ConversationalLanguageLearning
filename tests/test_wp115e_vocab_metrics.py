@@ -77,7 +77,7 @@ def test_with_the_pilot_on_only_the_story_half_rides_the_story(db_session, monke
 
 
 def test_the_report_refuses_the_live_database():
-    done = subprocess.run(
+    done = subprocess.run(  # noqa: S603 - this interpreter and a repo script, no shell
         [sys.executable, "scripts/vocab_retention_report.py", "--database-url", "postgresql://localhost/language_learning"],
         capture_output=True, text=True,
     )

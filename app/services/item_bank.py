@@ -2611,7 +2611,7 @@ def _cue_l10n(key: str, item: BankItem, *, scene: str | None = None) -> dict[str
 
 _RETIRED_FRAMES = tuple(
     sorted(
-        {scene for scene in _SCENES_L10N}
+        set(_SCENES_L10N)
         | {text for row in _SCENES_L10N.values() for text in row.values()},
         key=len,
         reverse=True,

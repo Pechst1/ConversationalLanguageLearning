@@ -695,7 +695,10 @@ def check_life(record: dict[str, Any]) -> list[str]:
                     problems.append(f"{label}: a level-{level} learner's letter asks for {objective!r} (3+ levels below)")
     # Wave 1 package checks (each in its own module, wired here by the orchestrator).
     from tests.walk_checks_wp125a import check_letter_omissions
-    from tests.walk_checks_wp133b_director import check_departed_after_finale, check_season_tu_register
+    from tests.walk_checks_wp133b_director import (
+        check_departed_after_finale,
+        check_season_tu_register,
+    )
 
     problems.extend(check_letter_omissions(record))
     problems.extend(check_season_tu_register(record))

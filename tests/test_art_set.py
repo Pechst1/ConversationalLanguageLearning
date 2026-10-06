@@ -17,7 +17,11 @@ SPEC.loader.exec_module(art_set)
 
 
 def _tag_exists() -> bool:
-    out = subprocess.run(["git", "-C", str(REPO), "tag", "-l", art_set.TAG], capture_output=True, text=True)
+    out = subprocess.run(  # noqa: S603 - fixed git argv, no shell
+        ["git", "-C", str(REPO), "tag", "-l", art_set.TAG],  # noqa: S607 - git from PATH
+        capture_output=True,
+        text=True,
+    )
     return art_set.TAG in out.stdout.split()
 
 
