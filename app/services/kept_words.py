@@ -35,18 +35,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.glosses import normalize_language, resolve_gloss
-from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
+from app.services.glosses import gloss_map, normalize_language, resolve_gloss
 
 KEPT_INTERACTION_TYPE = "kept_from_story"
 KEPT_PROVENANCE = "kept_from_story"
@@ -63,11 +63,59 @@ KEEP_SESSION_STYLE = "story_reader"
 
 
 class KeepRefused(ValueError):
-    """The word cannot be kept honestly. ``reason`` is a stable code."""
+    """The word cannot be kept honestly. ``reason`` is a stable code.
+
+    Every reason is a property of the content (no catalogue entry, no meaning in
+    the learner's language, no sentence), so a refusal is **permanent**: trying
+    again later gives the same answer, and the sheet must not say otherwise.
+    """
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+    retryable = False
+
+
+#: WP-138 — the refusal in the learner's own language, per reason. French is the
+#: chrome line the sheet already showed; English and German are the A1/A2 chrome.
+KEEP_REFUSALS: dict[str, dict[str, str]] = {
+    "empty_term": {
+        "fr": "Ce mot ne peut pas être gardé.",
+        "en": "This word can't be kept.",
+        "de": "Dieses Wort kann nicht gespeichert werden.",
+    },
+    "no_sentence": {
+        "fr": "Ce mot ne peut être gardé qu'avec sa phrase.",
+        "en": "A word can only be kept with the sentence it came from.",
+        "de": "Ein Wort kann nur mit seinem Satz gespeichert werden.",
+    },
+    "not_in_lexicon": {
+        "fr": "Ce mot n'est pas encore dans le lexique.",
+        "en": "This word isn't in the dictionary yet, so it can't be kept.",
+        "de": "Dieses Wort steht noch nicht im Wörterbuch und kann nicht gespeichert werden.",
+    },
+    "no_gloss_in_learner_language": {
+        "fr": "Pas encore de traduction dans votre langue pour ce mot.",
+        "en": "There is no English translation for this word yet, so it can't be kept.",
+        "de": "Für dieses Wort gibt es noch keine deutsche Übersetzung, deshalb kann es nicht gespeichert werden.",
+    },
+}
+
+
+def keep_refusal(reason: str, native_language: Any) -> dict[str, Any]:
+    """The structured 422 body for a refused keep (``detail``)."""
+
+    table = KEEP_REFUSALS.get(reason) or KEEP_REFUSALS["empty_term"]
+    language = normalize_language(native_language)
+    return {
+        "code": reason,
+        "retryable": KeepRefused.retryable,
+        # French: the chrome line (kept for clients that read ``message``).
+        "message": table["fr"],
+        "language": language if language in table else "en",
+        "message_native": table.get(language) or table["en"],
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,11 +225,12 @@ def keep_word(
         # The example *is* the point: a kept word comes back in its sentence.
         raise KeepRefused("no_sentence")
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    try:
-        word = VocabularyService(db).lookup_word(term=term, language=language)
-    except VocabularyNotFoundError as exc:
-        raise KeepRefused("not_in_lexicon") from exc
     native = normalize_language(getattr(user, "native_language", None))
+    # WP-138: the same row the word-help sheet looked up (``/vocabulary/lookup``),
+    # so the meaning the learner read is the meaning that is kept.
+    word = catalogue_row_for(db, term=term, language=language, native=native)
+    if word is None:
+        raise KeepRefused("not_in_lexicon")
     gloss, gloss_language = resolve_gloss(word, native)
     if not gloss or gloss_language != native:
         # A meaning in another language than the learner's would be a
@@ -336,6 +385,61 @@ _GLOSS_COLUMN = {"de": "german_translation", "en": "english_translation", "fr": 
 _BAND_DIFFICULTY = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 5}
 
 
+def catalogue_row_for(
+    db: Session, *, term: str, language: str, native: Any
+) -> VocabularyWord | None:
+    """WP-138 — the one catalogue row a learner reads and keeps for ``term``.
+
+    A word can have several shared rows (the core list, a scene's, an imported
+    deck's). ``/vocabulary/lookup`` and ``POST /vocabulary/keep`` used to pick one
+    each with an unordered ``LIMIT 1`` under different filters, so the sheet could
+    show one row's meaning and the keep refuse another's. Both read this instead:
+    a row with a gloss in the learner's language first, then the core list, then
+    the frequency rank, then the oldest — never a row the old mission bank invented.
+    """
+
+    from app.services.lexical_coverage import fold
+    from app.services.missions import is_polluted_mission_word
+
+    value = " ".join(str(term or "").split()).lower()
+    if not value:
+        return None
+    rows = db.scalars(
+        select(VocabularyWord)
+        .where(
+            VocabularyWord.language == language,
+            or_(
+                func.lower(VocabularyWord.word) == value,
+                VocabularyWord.normalized_word == value,
+                VocabularyWord.normalized_word == fold(value),
+            ),
+        )
+        .order_by(VocabularyWord.id.asc())
+        .limit(25)
+    ).all()
+    rows = [row for row in rows if not is_polluted_mission_word(row)]
+    if not rows:
+        return None
+    preferred = normalize_language(native)
+
+    def rank(row: VocabularyWord) -> tuple[int, int, int, int]:
+        has_native = bool(str(gloss_map(row).get(preferred) or "").strip())
+        return (
+            0 if has_native else 1,
+            0 if row.deck_name == _core_deck() else 1,
+            int(row.frequency_rank) if row.frequency_rank else 10**9,
+            int(row.id),
+        )
+
+    return min(rows, key=rank)
+
+
+def _core_deck() -> str:
+    from app.services.core_lexicon import CORE_DECK
+
+    return CORE_DECK
+
+
 def _catalogue_row(db: Session, *, language: str, lemma: str) -> VocabularyWord | None:
     """The shared row for a lemma — never one the old mission bank polluted."""
 
@@ -443,6 +547,73 @@ class SceneWord:
     studied: bool
 
 
+@lru_cache(maxsize=1)
+def _authored_gloss_index() -> dict[str, dict[str, str]]:
+    """``{lemma: {language: gloss}}`` from the app's own authored word lists: the
+    core lexicon, then the season bibles. Authored content, never a learner's or
+    a model's text, so it may seed a new shared row in every language it has."""
+
+    import json
+    from pathlib import Path
+
+    from app.services.lexical_coverage import fold, load_lexicon
+
+    index: dict[str, dict[str, str]] = {}
+
+    def add(lemma: Any, glosses: Any) -> None:
+        if not isinstance(lemma, str) or not isinstance(glosses, dict):
+            return
+        slot = index.setdefault(fold(lemma), {})
+        for code, text in glosses.items():
+            if code in _GLOSS_COLUMN and isinstance(text, str) and text.strip():
+                slot.setdefault(code, text.strip())
+
+    for lemma, entry in load_lexicon().lemmas.items():
+        add(lemma, (entry or {}).get("gloss"))
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            add(node.get("lemma"), node.get("gloss"))
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    season_root = Path(__file__).resolve().parents[1] / "data" / "season"
+    for path in sorted(season_root.glob("*/*.json")):
+        try:
+            walk(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return index
+
+
+def _new_row_glosses(lemma: str, *, gloss: str, native: str, language: str) -> dict[str, str]:
+    """The gloss columns of a scene word the catalogue lacks (WP-138).
+
+    The authored lists' glosses in every language they have, so the row serves
+    the next learner too (the walk's «appartement» was created with one learner's
+    gloss and refused every other learner's keep). The scene's own gloss fills
+    the learner's column only when the authored lists have none there. The
+    target language's own column is never written: a «translation» of a French
+    word into French is not one, and a French-speaking learner's scene gloss is
+    the English fallback (the season runtime) — English text in the French column.
+    """
+
+    from app.services.lexical_coverage import fold
+
+    columns: dict[str, str] = {}
+    authored = _authored_gloss_index().get(fold(lemma)) or {}
+    for code, text in authored.items():
+        if code != language:
+            columns[_GLOSS_COLUMN[code]] = text
+    column = _GLOSS_COLUMN.get(native)
+    if column and native != language and column not in columns and gloss:
+        columns[column] = gloss
+    return columns
+
+
 def record_scene_lexicon(
     db: Session,
     *,
@@ -484,7 +655,6 @@ def record_scene_lexicon(
         word = _catalogue_row(db, language=language, lemma=lemma)
         created = word is None
         if word is None:
-            column = _GLOSS_COLUMN.get(native)
             word = VocabularyWord(
                 language=language,
                 word=lemma,
@@ -494,7 +664,7 @@ def record_scene_lexicon(
                 difficulty_level=_BAND_DIFFICULTY.get(str(level or "").upper(), 2),
                 topic_tags=[SCENE_LEXICON_TAG],
                 usage_notes="Mot appris dans une scène du feuilleton.",
-                **({column: gloss} if column else {}),
+                **_new_row_glosses(lemma, gloss=gloss, native=native, language=language),
             )
             db.add(word)
             db.flush([word])
