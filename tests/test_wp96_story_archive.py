@@ -37,6 +37,17 @@ def first_day_authored(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", True)
 
 
+@pytest.fixture
+def serial_world(monkeypatch):
+    """The cast route lives under /serial, which answers 403 while the flag is off.
+
+    The flag defaults off; these tests passed only where a developer .env turned it on
+    (CI has no .env, nor has a fresh worktree).
+    """
+
+    monkeypatch.setattr(settings, "SERIAL_WORLD_ENABLED", True)
+
+
 def _archive(client, d, **params) -> dict:
     response = client.get("/api/v1/story-engine/archive", headers=d.headers, params=params)
     assert response.status_code == 200, response.text
@@ -217,7 +228,7 @@ def _cast_row(client, d, character_id: str) -> dict:
 
 
 def test_the_tu_is_a_scene_a_date_and_one_seal_in_the_releve(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, serial_world
 ):
     d = story.driver(assembled_client, db_session, cefr="A2.2")
     story.play_day(d, provider, answer="Bonjour Romy.")
@@ -264,7 +275,7 @@ def test_the_tu_is_a_scene_a_date_and_one_seal_in_the_releve(
 
 
 def test_trust_is_the_one_meter_and_it_can_fall(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, serial_world
 ):
     d = story.driver(assembled_client, db_session, cefr="A2.2")
     romy = story.CAST["romy"]
