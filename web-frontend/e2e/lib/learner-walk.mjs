@@ -77,6 +77,17 @@ export class LearnerWalk {
   pageChecks(s, kind) {
     const w = this.where({ kind });
     this.findings.check('no-horizontal-scroll', s.scrollW <= s.innerW + 1, `scrollWidth ${s.scrollW} > ${s.innerW}`, w);
+    // Réglages is the one screen that follows the account's native language at every
+    // level (WP-46, lib/product-shell.ts `resolveProductTitle`, lib/settings-copy.ts
+    // `resolveSettingsLanguage`): English there is the contract for an English
+    // speaker, not chrome leaking onto a French screen. WP-138: assert that instead.
+    if (kind === 'settings') {
+      if (this.lang === 'en') {
+        const eng = englishWords(s.nonFrText);
+        this.findings.check('settings-follow-the-native-language', eng.length >= 3, `Réglages are not in English for an English speaker: «${s.nonFrText.slice(0, 120)}»`, w);
+      }
+      return;
+    }
     if (this.level.startsWith('B') || this.level.startsWith('C')) {
       const eng = englishWords(s.nonFrText);
       this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${s.nonFrText.slice(0, 120)}»`, w);
