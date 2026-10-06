@@ -4,10 +4,10 @@
     "FR2_A11_ETRE": {
       "speaker": "margaux_barman",
       "example": {
-        "fr": "Je [suis] Margaux. Et vous, vous [êtes] le nouveau voisin ?",
+        "fr": "Je [suis] au café. Et toi, tu [es] où ?",
         "tr": {
-          "en": "I'm Margaux. And you, are you the new neighbour?",
-          "de": "Ich bin Margaux. Und Sie, sind Sie der neue Nachbar?"
+          "en": "I'm at the café. And you, where are you?",
+          "de": "Ich bin im Café. Und du, wo bist du?"
         }
       },
       "rule": {
