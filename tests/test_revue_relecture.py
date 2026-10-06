@@ -190,7 +190,7 @@ def api(db_session: Session, relecture_tables) -> Generator[TestClient, None, No
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_relecture_scorer] = grading.FakeRubricScorer
+    app.dependency_overrides[get_relecture_scorer] = lambda: grading.FakeRubricScorer()
     with TestClient(app) as client:
         yield client
 
