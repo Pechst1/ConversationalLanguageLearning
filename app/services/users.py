@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
+from app.services.journey_rhythm import rhythm_of
+from app.services.vocabulary_pace import RHYTHM_NEW_WORDS
 from app.utils.cache import build_cache_key, cache_backend
 
 
@@ -43,8 +45,19 @@ class UserService:
                 seen.add(normalized)
                 parts.append(normalized)
             update_data["interests"] = ",".join(parts[:20])
+        # WP-L6: the rhythm is written as its minutes (`User.rhythm`), after any
+        # raw minutes in the same payload so the named choice wins.
+        rhythm = update_data.pop("rhythm", None)
+        if rhythm is not None:
+            update_data["rhythm"] = rhythm
+        rhythm_before = rhythm_of(user)
         for field, value in update_data.items():
             setattr(user, field, value)
+        # 2026-10-03: a new rhythm brings its own daily word intake (Léger 5,
+        # Régulier 10, Soutenu 18, Intensif 30) unless this same request sets
+        # the number of new words itself.
+        if "new_words_per_day" not in update_data and rhythm_of(user) != rhythm_before:
+            user.new_words_per_day = RHYTHM_NEW_WORDS[rhythm_of(user)]
 
         self.db.add(user)
         self.db.commit()

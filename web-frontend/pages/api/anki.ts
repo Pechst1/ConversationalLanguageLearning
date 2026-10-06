@@ -5,6 +5,9 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(404).end();
+    }
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
     }
@@ -14,6 +17,7 @@ export default async function handler(
         // We explicitly set the Origin to http://localhost to satisfy AnkiConnect's CORS check
         // even if the request comes from a different port or origin.
         const response = await axios.post('http://127.0.0.1:8765', req.body, {
+            timeout: 5000,
             headers: {
                 'Origin': 'http://localhost',
                 'Content-Type': 'application/json'
