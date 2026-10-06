@@ -481,3 +481,51 @@ def test_the_learners_own_address_and_words_are_honoured():
     own = engine.learner_self_forms(["Je suis la nouvelle voisine."])
     assert "voisine" in own
     engine._check_address(["Ah, tu es la voisine !"], "neutral", own=own)
+
+
+# ---------------------------------------------------------------------------
+# The walk checks
+# ---------------------------------------------------------------------------
+
+
+def _walk_day(day: int, last: str, played: int, lines: list[tuple[str, str]], key: str = "story_x") -> dict:
+    page = [{"dialogue": [{"character_id": who, "text_fr": text} for who, text in lines]}]
+    return {
+        "day": day,
+        "season": {"id": "s1", "played": played, "last": last},
+        "journey": {"day": day, "scenario": {"scenario_key": key}, "events": [{"page": page}]},
+    }
+
+
+def test_the_walk_checks_fire_on_the_live_reads_days_and_only_then():
+    from tests import walk_checks_wp133b as checks
+
+    margaux_vous = [("margaux_barman", line) for line in R1_D3_MARGAUX]
+    authored_t1 = [("marin_leveque", "…Vous allez vraiment vendre l'appartement d'Odile ?")]
+    bad = {
+        "days": [
+            _walk_day(1, "t1.a", 1, authored_t1),  # T1 A: Marin's first-meeting vous is the bible's
+            _walk_day(3, "g1.1", 3, margaux_vous),
+            _walk_day(59, "t8.b", 59, [("lila_bonnet", "Alors. Une dernière chose vraie ?")]),
+            _walk_day(60, "t8.b", 59, [("lila_bonnet", R8_LILA_LINES[0]), ("marin_leveque", "Tu vois la fenêtre ?")]),
+        ]
+    }
+    register = checks.check_season_tu_register(bad)
+    assert len(register) == 1 and register[0].startswith("day 3: margaux_barman")
+    departed = checks.check_departed_after_finale(bad)
+    assert departed == ["day 60: Lila is on a generated page after the finale (she is in Berlin)"]
+    nouns = [problem for day in bad["days"] for problem in checks.check_gendered_learner_nouns(day["journey"])]
+    assert len(nouns) == 1 and "héritier" in nouns[0]
+
+    good = {
+        "days": [
+            _walk_day(1, "t1.a", 1, authored_t1),
+            _walk_day(3, "g1.1", 3, [("margaux_barman", "La même chose ?"), ("margaux_barman", "Tu es où ?")]),
+            _walk_day(59, "t8.b", 59, [("lila_bonnet", "Alors. Une dernière chose vraie ?")]),
+            _walk_day(60, "t8.b", 59, [("marin_leveque", "Lila me manque. Tu vois la fenêtre ?")]),
+            _walk_day(61, "t8.b", 59, [("lila_bonnet", "Lis.")], key=f"{REPRISE_SCENARIO_PREFIX}t8.b"),
+        ]
+    }
+    assert checks.check_season_tu_register(good) == []
+    assert checks.check_departed_after_finale(good) == []
+    assert not [problem for day in good["days"] for problem in checks.check_gendered_learner_nouns(day["journey"])]
