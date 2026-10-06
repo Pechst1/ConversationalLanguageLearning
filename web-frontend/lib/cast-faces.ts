@@ -90,6 +90,30 @@ export function expressionForMood(mood: unknown): PortraitMood {
 }
 
 /**
+ * WP-137 C-4 · the drawn stage's faces: the four portrait moods, and `cold`.
+ * The painted set has no cold portrait (it keeps `expressionForMood`); a drawn
+ * figure holds its neutral face on a level mouth, so a dry «Non.» or a frosty
+ * welcome is never played with a smile.
+ */
+export type StageMood = PortraitMood | 'cold';
+
+const COLD_WORDS = new Set([
+  'cold', 'cool', 'frosty', 'icy', 'dry', 'deadpan', 'curt', 'flat', 'wary',
+  'froid', 'froide', 'sec', 'seche', 'distant', 'distante', 'mefiant', 'mefiante',
+]);
+
+/** A line's mood word → the stage face (`cold` for the cold words, else the portrait's). */
+export function stageMoodFor(mood: unknown): StageMood {
+  if (typeof mood !== 'number' && COLD_WORDS.has(fold(mood).trim())) return 'cold';
+  return expressionForMood(mood);
+}
+
+/** Does a beat with these moods hold no smile at all (a cold or a cross line in it)? */
+export function isColdBeat(moods: Array<StageMood | null | undefined>): boolean {
+  return moods.some((mood) => mood === 'cold' || mood === 'cross');
+}
+
+/**
  * The character reacts to *your* answer: pleased when it lands, surprised when it
  * misses (WP-116 phase 4: never cross at the learner; the painted set, which has
  * no surprised portrait, still shows its cross one).

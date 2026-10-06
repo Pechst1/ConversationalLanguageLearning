@@ -8,7 +8,7 @@
  */
 
 // Relative, not `@/`: the reader's node tests load this model without the alias.
-import { castIdFor } from '../../../lib/cast-faces';
+import { castIdFor, type StageMood } from '../../../lib/cast-faces';
 import type { PortraitMood } from '../../../lib/onboarding-portraits';
 
 export type ReaderScene = {
@@ -52,6 +52,8 @@ export type ReaderLine = {
   faceId?: string | null;
   /** WP-77: which face, from the story's live mood when sent (WP-D8 adds `moved`). */
   faceMood?: PortraitMood;
+  /** WP-137 C-4: the drawn stage's face for the line (`cold` included), when it differs. */
+  stageMood?: StageMood;
   /**
    * WP-90/91: the line's audio key — `${panelId}:l${rawIndex}`, computed from the
    * raw dialogue array exactly as `app/services/episode_audio.py` does — so a
@@ -98,7 +100,13 @@ export type ReaderPanelStage = {
   /** WP-116: the location plate under the panel, for the drawn cast to stand on. */
   plateUrl?: string;
   /** WP-116: who stands on the plate in the drawn set (the panel's speakers). */
-  cast?: Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }>;
+  cast?: Array<{ id: string; mood?: StageMood | null; speaking?: boolean }>;
+  /**
+   * WP-137 C-5: a panel with no line and no narration (an authored silence, a
+   * beat on a detail). The reader gives it a caption and a slow pan, never a
+   * bare plate.
+   */
+  silent?: boolean;
 };
 
 /**

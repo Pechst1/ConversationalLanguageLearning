@@ -13,17 +13,18 @@
  */
 import React from 'react';
 
-import type { PortraitMood } from '@/lib/onboarding-portraits';
+import type { StageMood } from '@/lib/cast-faces';
 import { castVariant } from '@/lib/cast-variants';
 import { CastRig } from './CastRig';
-import { rigFor, rigMoodFor } from './cast-registry';
+import { rigFaceFor, rigFor } from './cast-registry';
 import { drawnFaceId } from './CastFace';
 import type { Outfit, Viseme } from './rig-kit';
 
 export type StageMember = {
   /** Any id the payloads use for the character («marin», «marin_leveque», a name). */
   id: string;
-  mood?: PortraitMood | null;
+  /** WP-137 C-4: the four portrait moods, or `cold` (no smile). */
+  mood?: StageMood | null;
   speaking?: boolean;
   /** WP-116 phase 4: the mouth while this member's line is heard. */
   mouth?: Viseme | 'auto';
@@ -113,6 +114,8 @@ export function PanelStage({
       {cast.map((member, index) => {
         const slot = slots[index];
         const front = Boolean(member.speaking);
+        const face = rigFaceFor(member.mood ?? 'neutral');
+        const heard = talkingRig === member.rigId ? talking?.mouth ?? 'auto' : 'auto';
         return (
           <div
             key={member.rigId}
@@ -128,11 +131,12 @@ export function PanelStage({
           >
             <CastRig
               id={member.rigId}
-              mood={rigMoodFor(member.mood ?? 'neutral')}
+              mood={face.mood}
               crop="bust"
               size={180}
               variant={castVariant(member.rigId) ?? undefined}
-              mouth={talkingRig === member.rigId ? talking?.mouth ?? 'auto' : 'auto'}
+              // The voice moves the mouth; between words a cold face holds its level line.
+              mouth={heard !== 'auto' ? heard : face.mouth}
               // One mover at a time: while someone is heard, the others hold still.
               still={still || Boolean(talkingRig && talkingRig !== member.rigId)}
               hold={member.hold ?? undefined}

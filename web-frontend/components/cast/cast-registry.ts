@@ -2,8 +2,10 @@
  * WP-116 · which rig draws which cast member, and how the app's moods map onto
  * the rigs' moods.
  */
+import type { StageMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
-import type { RigDef, RigMood } from './rig-kit';
+
+import type { HeldMouth, RigDef, RigMood } from './rig-kit';
 import { camille } from './rigs/camille';
 import { gus } from './rigs/gus';
 import { lila } from './rigs/lila';
@@ -61,4 +63,17 @@ export function rigMoodFor(mood: PortraitMood | RigMood | 'surprised' | null | u
   if (mood === 'surprised') return 'surprise';
   if (mood in FROM_PORTRAIT) return FROM_PORTRAIT[mood as PortraitMood];
   return ['neutre', 'ravie', 'surprise', 'fachee', 'emue'].indexOf(mood) >= 0 ? (mood as RigMood) : 'neutre';
+}
+
+/**
+ * WP-137 C-4 · the face a figure makes on the stage. The four app moods are the
+ * rigs' own; `cold` (a dry «Non.», a frosty welcome) is the neutral face held on
+ * the level `flat` mouth — every neutral rig mouth is a smile or a smirk, and a
+ * cold beat never renders one. No new drawing: eyes, brows and mouth all exist.
+ */
+export function rigFaceFor(
+  mood: StageMood | RigMood | 'surprised' | null | undefined,
+): { mood: RigMood; mouth: HeldMouth | 'auto' } {
+  if (mood === 'cold') return { mood: 'neutre', mouth: 'flat' };
+  return { mood: rigMoodFor(mood), mouth: 'auto' };
 }

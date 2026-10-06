@@ -95,6 +95,24 @@ function join(parts: Array<string | null | undefined>): string {
 
 type DrillNames = Pick<JourneyCopy, 'drill_recall' | 'drill_rule' | 'drill_forge'>;
 
+type AnswerCards = { options?: Array<{ text_fr?: unknown }> | null };
+
+/**
+ * WP-137 C-1: a header topic that an answer card carries, or that carries one,
+ * names the answer. Folded the same way the goal line is.
+ */
+export function revealsAnswer(topic: unknown, prompt: AnswerCards | null | undefined): boolean {
+  const name = fold(topic);
+  if (!name) return false;
+  // Whole words only, and never a bare article or chip («la», «une»).
+  const within = (outer: string, inner: string) =>
+    inner.length >= 4 && ` ${outer} `.includes(` ${inner} `);
+  return (prompt?.options ?? []).some((option) => {
+    const card = fold(option?.text_fr);
+    return Boolean(card) && (card === name || within(name, card) || within(card, name));
+  });
+}
+
 /**
  * «Rappel · Genre et nombre». The name follows the chrome language; the topic
  * is the unit's (or the word's) name in the same language — French at B1+,
@@ -110,8 +128,14 @@ export function drillHeaderLabel(
   const pick = (native: unknown, fr: unknown) =>
     french ? clean(fr) || clean(native) : clean(native) || clean(fr);
   if (step.kind === 'recall') {
+    // WP-137 C-1: «Wiederholung · verkaufen» above «vendre — Was bedeutet
+    // das?» gave the answer away. A word's label is its gloss and an error's
+    // is its correction, so only a grammar unit's title is named — and not
+    // even that when the item's own answer cards carry it.
     const target = step.prompt.target;
-    return join([copy.drill_recall, pick(target?.label_native, target?.label_fr)]);
+    if (target?.kind !== 'grammar') return join([copy.drill_recall]);
+    const topic = pick(target.label_native, target.label_fr);
+    return join([copy.drill_recall, revealsAnswer(topic, step.prompt) ? null : topic]);
   }
   if (step.kind === 'rule') {
     return join([copy.drill_rule, pick(step.prompt.title_native, step.prompt.title_fr)]);

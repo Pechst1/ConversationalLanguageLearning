@@ -26,7 +26,7 @@ import {
   type ReaderResolutionStage,
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
-import { castIdFor, expressionForMood } from '@/lib/cast-faces';
+import { castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
@@ -131,6 +131,20 @@ export function storyMoodFor(
   return expressionForMood(typeof entry === 'object' && entry ? entry.mood : entry);
 }
 
+/**
+ * WP-137 C-4: the drawn stage's face for one line — `cold` when the director (or
+ * the season script) wrote a cold word, else the portrait face above.
+ */
+export function storyStageMoodFor(
+  episode: StoryEpisode | null | undefined,
+  characterId: string | null | undefined,
+  line?: Record<string, unknown> | null,
+): StageMood {
+  const own = line ? (line.mood ?? line.expression) : undefined;
+  if (own != null && stageMoodFor(own) === 'cold') return 'cold';
+  return storyMoodFor(episode, characterId, line);
+}
+
 function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLine[] {
   return ((panel.dialogue || []) as StoryDialogueLine[])
     // The raw index is kept before filtering: it is the line's audio key.
@@ -165,6 +179,7 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
       // WP-77: a face beside every line a drawn character speaks.
       faceId: castIdFor(line.character_id, line.character_name),
       faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
+      stageMood: storyStageMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
       // WP-92: the day's rule in this line, for «Rayons X» (the focus unit only).
       ...lineMarks(line, episode),
       };
@@ -292,6 +307,8 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       // WP-116: the plate and the cast for the drawn art set.
       plateUrl: panelPlateUrl(panel),
       cast: panelCast(lines),
+      // WP-137 C-5: nothing said and nothing narrated — an authored silence.
+      ...(panelIsSilent(panel, lines) ? { silent: true } : {}),
     };
   });
 
@@ -321,18 +338,33 @@ export function panelPlateUrl(panel: StoryPanel & { plate_url?: string | null })
   return '';
 }
 
-/** WP-116: the panel's speakers, in order, the first one speaking. Toi is not in it. */
-export function panelCast(lines: ReaderLine[]): Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }> {
-  const cast: Array<{ id: string; mood?: PortraitMood | null; speaking?: boolean }> = [];
+/**
+ * WP-116: the panel's speakers, in order, the first one speaking. Toi is not in it.
+ *
+ * WP-137 C-4: each figure wears its line's stage face, and a cold beat (a cold or
+ * a cross line in the panel) smiles at no one: a figure whose face would be the
+ * neutral one — every rig's neutral mouth is a smile or a smirk — holds it cold.
+ * A face the script wrote (happy, moved) is the script's.
+ */
+export function panelCast(lines: ReaderLine[]): Array<{ id: string; mood?: StageMood | null; speaking?: boolean }> {
+  const cast: Array<{ id: string; mood?: StageMood | null; speaking?: boolean }> = [];
   const seen = new Set<string>();
+  const cold = isColdBeat(lines.filter((line) => !line.you).map((line) => line.stageMood ?? line.faceMood));
   for (const line of lines) {
     if (line.you) continue;
     const id = line.speakerId || line.who;
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    cast.push({ id, mood: line.faceMood ?? null, speaking: cast.length === 0 });
+    const face = line.stageMood ?? line.faceMood ?? null;
+    const mood = cold && (face === null || face === 'neutral') ? 'cold' : face;
+    cast.push({ id, mood, speaking: cast.length === 0 });
   }
   return cast;
+}
+
+/** WP-137 C-5: a panel with no spoken line and no narration of its own. */
+export function panelIsSilent(panel: StoryPanel, lines: ReaderLine[]): boolean {
+  return lines.length === 0 && !stripPanelPrefix(panel.narration_fr);
 }
 
 const SHOWN_ART = new Set(['panel_art', 'rendering', 'setting_reference']);

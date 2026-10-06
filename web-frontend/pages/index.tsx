@@ -62,14 +62,16 @@ export default function HomePage() {
             <AtelierMark size={26} />
             <p className="la-une__nameplate">L’Atelier</p>
             {/* The dateline's space is reserved so the line never reflows when the
-                client fills it in; only its opacity changes. */}
-            <p className={`la-une__folio${dateline ? ' is-shown' : ''}`}>
+                client fills it in. WP-137 C-11: the nameplate's own words are
+                always there at full contrast; only the client-set date fades in
+                (the whole line used to sit at opacity 0 until hydration). */}
+            <p className="la-une__folio">
               Quotidien de français
               {dateline && (
-                <>
+                <span className="la-une__date">
                   {' · '}
                   <time dateTime={dateline.iso}>{dateline.text}</time>
-                </>
+                </span>
               )}
             </p>
             <div className="la-une__rule" aria-hidden="true" />
@@ -135,13 +137,20 @@ export default function HomePage() {
           font-size: var(--av2-t-meta);
           font-weight: 700;
           line-height: 1.4;
+          /* --av2-muted on the paper is 4.7:1 light and 6.2:1 dark — at full
+             opacity, which the line now always has. */
           color: var(--av2-muted);
-          opacity: 0;
-          transition: opacity 0.4s ease;
           overflow-wrap: anywhere;
         }
-        .av2 .la-une__folio.is-shown {
-          opacity: 1;
+        .av2 .la-une__date {
+          animation: la-une-date-in 0.4s ease both;
+        }
+        @keyframes la-une-date-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .av2 .la-une__date { animation: none; }
         }
         .av2 .la-une__rule {
           width: 100%;

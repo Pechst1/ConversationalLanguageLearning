@@ -213,9 +213,19 @@ def test_choice_cards_share_the_answers_shape() -> None:
     assert task is not None and task.task_type == "choice"
     texts = sorted(option["text_fr"] for option in task.options)
     # «clé» has no gender in the scene's lexicon and «vendre» is a verb: dropped,
-    # not shown bare beside «une lettre»; «appartement» gets its article.
-    assert texts == ["un appartement", "une lettre", "une maison"]
+    # not shown bare beside «une lettre». WP-137 C-3: at A1 the other cards are
+    # core nouns of the band, in the answer's shape.
+    assert "une lettre" in texts and len(texts) == 3
+    assert not {"clé", "vendre"} & set(texts)
     assert all(text.split()[0] in {"un", "une"} for text in texts), texts
+
+    # Above A2 the scene's own phrases are the cards, as before.
+    task = planner.build_recall_task(
+        target=target, scenario=_season_brief(level_band="B1"),
+        affordances=["appartement", "clé", "vendre", "une maison"], optional=False,
+    )
+    assert task is not None and task.task_type == "choice"
+    assert sorted(option["text_fr"] for option in task.options) == ["un appartement", "une lettre", "une maison"]
 
 
 def test_a_matching_grid_never_holds_one_word_twice() -> None:

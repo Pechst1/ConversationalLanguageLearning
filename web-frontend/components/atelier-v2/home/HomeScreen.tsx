@@ -298,6 +298,8 @@ export function HomeScreen({
   const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
   const levelBand = nextStep?.band || level?.band || null;
+  // WP-137 C-11: the separator joins two real parts — never «A1.1 ·» alone.
+  const nextLine = nextStep?.line?.trim() || '';
   const [quickOpen, setQuickOpen] = React.useState(false);
   const quickLabel = settingsCopy(resolveSettingsLanguage(language)).quick_open;
   return (
@@ -327,7 +329,7 @@ export function HomeScreen({
               Garamond line (the date is the screen's one headline). */}
           {/* WP-95 / W12: the band code, small, and the next can-do linking
               to the Carnet — never a percentage («A1.1 · 0 %» after day 1). */}
-          {oneThing && (levelBand || nextStep) && (
+          {oneThing && (levelBand || nextLine) && (
             <p className="av2-home__kicker av2-home__level">
               {levelBand && (
                 <>
@@ -337,15 +339,15 @@ export function HomeScreen({
                   </span>
                 </>
               )}
-              {levelBand && nextStep && <span aria-hidden="true"> · </span>}
-              {nextStep && (
+              {levelBand && nextLine && <span aria-hidden="true"> · </span>}
+              {nextStep && nextLine && (
                 <Link
                   className="av2-carnet__home-link"
                   href={nextStep.href}
                   aria-label={nextStep.ariaLabel}
                   data-next-step=""
                 >
-                  {nextStep.line}
+                  {nextLine}
                 </Link>
               )}
             </p>

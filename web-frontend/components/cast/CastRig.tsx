@@ -13,12 +13,12 @@ import React, { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { rigFor } from './cast-registry';
 import { rigValues } from './rig-kit';
-import type { Outfit, RigCrop, RigMood, Viseme } from './rig-kit';
+import type { HeldMouth, Outfit, RigCrop, RigMood, Viseme } from './rig-kit';
 
 export interface CastRigProps {
   id: string;
   mood?: RigMood;
-  mouth?: Viseme | 'auto';
+  mouth?: Viseme | HeldMouth | 'auto';
   /** Controlled blink. Leave undefined to let the rig blink by itself. */
   blink?: boolean;
   crop?: RigCrop;
@@ -111,6 +111,7 @@ export function CastRig({
       aria-hidden={name ? undefined : true}
       data-cast={rig.id}
       data-mood={mood}
+      data-mouth={values.mouth || undefined}
       focusable="false"
     >
       <Art v={values} />

@@ -859,6 +859,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # WP-115b: the recall ladder's rung from a stability already on the
         # candidate — thresholds and a comparison, no ORM and no scheduler.
         "app.services.recall_ladder",
+        # WP-137 C-3: the core lexicon's part of speech and band word lists for
+        # a choice's decoys — a cached JSON read, no ORM and no scheduler.
+        "app.services.practice_level",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

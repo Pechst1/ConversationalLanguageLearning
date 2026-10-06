@@ -482,3 +482,24 @@ test('WP-110: the replay closes on «À suivre…» with tomorrow’s line', () 
   assert.ok(/data-a-suivre="true"/.test(markup));
   assert.ok(/Demain, Camille\./.test(markup));
 });
+
+// ---------------------------------------------------------------------------
+// WP-137 C-5 — a silent panel is never a bare plate
+// ---------------------------------------------------------------------------
+
+test('WP-137: a silent panel carries a caption in the learner’s language and a slow pan', () => {
+  const silent = {
+    kind: 'panel', key: 'panel:p3', ordinal: 3, panelId: 'p3', panelIndex: 2, title: '', beat: '',
+    imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: '',
+    caption: '', tasks: [], lines: [], silent: true,
+  };
+  for (const [language, words] of [['de', 'Stille'], ['en', 'silence'], ['fr', 'silence']]) {
+    for (const variant of ['line', null]) {
+      const markup = renderStory({ stages: [silent], index: 0, language, panelVariant: () => variant });
+      assert.ok(/<figure class="fr-plate"[^>]*data-pan="slow"/.test(markup), `${language} ${variant}: the plate pans`);
+      assert.ok(new RegExp(`class="fr-caption fr-caption--silent">[^<]*${words}`).test(markup), `${language} ${variant}: a caption`);
+    }
+  }
+  const spoken = renderPlanche({ index: 0 });
+  assert.ok(!/data-pan=/.test(spoken) && !/fr-caption--silent/.test(spoken), 'a panel with words stays as it was');
+});
