@@ -3564,7 +3564,9 @@
 .av2 .av2-carnet__stamp { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--av2-muted); font-size: var(--av2-t-meta); }
 .av2 .av2-carnet__quote { margin: 0; font-family: var(--av2-serif); font-style: italic; color: var(--av2-ink); }
 .av2 .av2-carnet__try { justify-self: start; }
-.av2 .av2-carnet__home-link { display: inline-block; padding: 4px 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+/* WP-137 C-11: inline, so a long can-do wraps after the « · » instead of leaving
+   «A1.1 ·» alone on the first line; the padding still widens the touch target. */
+.av2 .av2-carnet__home-link { display: inline; padding: 4px 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 
 
 /* ===========================================================================

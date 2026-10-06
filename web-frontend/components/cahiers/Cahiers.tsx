@@ -251,7 +251,7 @@ export function NcIndexRow({
         {errata > 0 && <span className="nc-errdot"><i />{fill(t.legacy.errata, { n: errata })}</span>}
       </span>
       <span className="meta">
-        <span>{level} · {cat}</span>
+        <span>{[level, cat].filter(Boolean).join(' · ')}</span>
         <span className="lead" aria-hidden="true" />
         <span className="nc-pips" aria-label={fill(t.legacy.mastery, { n: mastery })}>
           {Array.from({ length: 10 }, (_, i) => <i key={i} className={i < mastery ? 'on' : ''} />)}

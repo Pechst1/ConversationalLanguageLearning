@@ -8,6 +8,7 @@
 //   C-5  Panel 3 of 6 was the bare plate. A panel with nothing said and nothing
 //        narrated is marked silent: it gets a caption and a slow pan (none under
 //        Reduce Motion).
+//   C-11 «A1.1 ·» with nothing after the dot.
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -131,4 +132,60 @@ test('C-5 · the silent caption exists in all three languages; the pan stops und
   assert.match(css, /\.fr-plate\[data-pan='slow'\] img \{\s*animation: fr-slow-pan/);
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(reduced, /\.fr-plate\[data-pan='slow'\] img \{ animation: none;/);
+});
+
+// ---------------------------------------------------------------------------
+// C-11 · the dateline is always legible; «A1.1 ·» never stands alone
+// ---------------------------------------------------------------------------
+
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test('C-11 · the first-run dateline is never held at opacity 0, and its token reads ≥ 4.5:1 in both themes', () => {
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/index.tsx'), 'utf8');
+  const rule = page.slice(page.indexOf('.av2 .la-une__folio {'), page.indexOf('}', page.indexOf('.av2 .la-une__folio {')));
+  assert.ok(!/opacity:\s*0/.test(rule), 'the nameplate line is never invisible');
+  const token = (rule.match(/color:\s*var\((--av2-[a-z0-9-]+)\)/) || [])[1];
+  assert.ok(token, 'an av2 token, no new colour');
+  const css = fs.readFileSync(path.join(WEB_ROOT, 'styles/atelier-v2.css'), 'utf8');
+  const values = (name) => [...css.matchAll(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'gi'))].map((m) => m[1]);
+  const inks = values(token);
+  const papers = values('--av2-paper');
+  assert.ok(inks.length >= 2 && papers.length >= 2, 'light and dark values');
+  for (let i = 0; i < Math.min(inks.length, papers.length); i += 1) {
+    assert.ok(contrast(inks[i], papers[i]) >= 4.5, `${token} ${inks[i]} on ${papers[i]}: ${contrast(inks[i], papers[i]).toFixed(2)}`);
+  }
+});
+
+test('C-11 · the home level line drops the separator when nothing follows it', () => {
+  const { HomeScreen } = require('../home/HomeScreen.tsx');
+  const { dayMarkState } = require('./day-mark.ts');
+  const level = (nextStep) => {
+    const html = renderToStaticMarkup(React.createElement(HomeScreen, {
+      dateLabel: 'mardi 6 octobre',
+      editionLabel: 'Édition Nº 1 · A1.1',
+      streak: 0,
+      level: { band: 'A1.1', percent: 0 },
+      nextStep,
+      language: 'de',
+      day: dayMarkState(null, 'de'),
+      chips: [],
+    }));
+    const start = html.indexOf('av2-home__level');
+    return start < 0 ? '' : html.slice(start, html.indexOf('</p>', start));
+  };
+  const bare = level({ band: 'A1.1', line: '', ariaLabel: '', href: '/carnet' });
+  assert.ok(/A1\.1/.test(bare), 'the band stays');
+  assert.ok(!/ · /.test(bare), `no dangling separator: ${bare}`);
+  const full = level({ band: 'A1.1', line: 'Nächster Schritt: Sagen, wer du bist', ariaLabel: 'x', href: '/carnet' });
+  assert.ok(/ · <\/span><a /.test(full), 'a separator between two real parts');
+  const css = fs.readFileSync(path.join(WEB_ROOT, 'styles/atelier-v2.css'), 'utf8');
+  assert.match(css, /\.av2-carnet__home-link \{ display: inline;/, 'the link wraps after the dot, never under it');
 });
