@@ -499,6 +499,39 @@ class SeasonProvider(ScriptedProvider):
             },
         }
 
+    def _draft(self, context: dict) -> dict:
+        """A generated day in the season's world without a gap brief (the continuation
+        after the finale): a compliant director keeps the cast's register with Toi and
+        never stages the cast the ending removed (WP-133b's guards)."""
+
+        value = super()._draft(context)
+        block = context.get("season_script") or {}
+        if not block:
+            return value
+        after = block.get("after_finale") or {}
+        registers = after.get("registers") or {
+            member.id: member.address for member in load_season(str(block.get("id") or "s1")).cast
+        }
+        departed = {row.get("id") for row in after.get("departed") or []}
+        speaker = value["character_id"]
+        if speaker in departed or registers.get(speaker) != "tu":
+            speaker = next(
+                (
+                    member_id
+                    for member_id in SEASON_SPEAKERS
+                    if member_id not in departed and registers.get(member_id) == "tu" and member_id != speaker
+                ),
+                speaker,
+            )
+        for panel in value["panels"]:
+            for line in panel.get("dialogue") or []:
+                if line.get("character_id") in departed or line.get("character_id") == value["character_id"]:
+                    line["character_id"] = speaker
+                line["text_fr"] = line["text_fr"].replace("Vous avez", "Tu as")
+        value["character_id"] = speaker
+        value["opening_line_fr"] = value["opening_line_fr"].replace("Vous pouvez", "Tu peux")
+        return value
+
     def _turn(self, source: dict) -> dict:
         value = super()._turn(source)
         season_turn = (source.get("story") or {}).get("season_turn") or {}

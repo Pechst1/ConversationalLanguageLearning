@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import replace as dc_replace
 from pathlib import Path
 from typing import Any
@@ -383,6 +384,124 @@ CONTINUATION_RULES: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Who the ending removed (WP-133b, finding 1)
+# ---------------------------------------------------------------------------
+
+#: Cast members a flag sends away, ``(cast id, flag, value, why)``. Bible 08 / T8 F5:
+#: ``lila.in_berlin`` is set by T8's ``state_out`` on every ending and every Lila path
+#: (romance, friendship, open) — the platform, the ICE train, Lila writes from Berlin.
+#: The authored epilogue agrees: on every branch Lila only ever reaches Toi as an «sms».
+DEPARTED_BY_FLAG: tuple[tuple[str, str, Any, str], ...] = (
+    (
+        "lila_bonnet",
+        "lila.in_berlin",
+        True,
+        "Lila left for Berlin on 8 January (T8, the platform) and lives there now.",
+    ),
+)
+#: Cast members an ending sends away, ``s1.ending -> ((cast id, why), …)``. Bible 08,
+#: ending 3 «Laisser partir»: Margaux goes to Brittany, to Marin's father's, and writes
+#: postcards; the epilogue's «laisser_partir» branch never stages her (only her «card»).
+#: «Garder» and «Partager» remove nobody else: M. Marchand moves to a residence without
+#: stairs but stays in Paris, and Gus, Marin, Romy and Camille stay.
+DEPARTED_BY_ENDING: dict[str, tuple[tuple[str, str], ...]] = {
+    "laisser_partir": (
+        ("margaux_barman", "Margaux has gone to Brittany, to Marin's father's, to see the sea."),
+    ),
+}
+
+
+def _flags_after_finale(season: Season, state: dict | None, flags: dict[str, Any]) -> dict[str, Any]:
+    """``flags`` plus the finale's own ``state_out`` once it is played: a life whose
+    stored flags predate T8's (a seeded life) still reads what the finale made true."""
+
+    own = [segment for segment in season.segments if not is_epilogue_segment(segment.id)]
+    finale = season.tentpoles.get(own[-1].id) if own else None
+    out = dict(finale.state_out) if finale is not None and finale_played(season, state) else {}
+    return {**out, **{key: value for key, value in flags.items() if value not in (None, "", False)}}
+
+
+def departed_cast(season: Season, state: dict | None, flags: dict[str, Any]) -> list[dict[str, Any]]:
+    """The cast this life's season says are gone, ``[{id, name, names, why}]``.
+
+    Only once the finale is played: before it, everyone is still in Paris. Derived
+    from the flags and the ending alone (:data:`DEPARTED_BY_FLAG`,
+    :data:`DEPARTED_BY_ENDING`) — never a new absence the season does not define.
+    ``names`` are the words a page names them by (the first name: «Lila», «Margaux»)."""
+
+    if not finale_played(season, state):
+        return []
+    effective = _flags_after_finale(season, state, flags)
+    gone: list[tuple[str, str]] = [
+        (member_id, why) for member_id, flag, value, why in DEPARTED_BY_FLAG if effective.get(flag) == value
+    ]
+    gone += list(DEPARTED_BY_ENDING.get(str(effective.get("s1.ending") or ""), ()))
+    cast = {member.id: member for member in season.cast}
+    rows: list[dict[str, Any]] = []
+    for member_id, why in gone:
+        member = cast.get(member_id)
+        if member is None or any(row["id"] == member_id for row in rows):
+            continue
+        first = member.name.split()[0]
+        rows.append({"id": member_id, "name": member.name, "names": [first], "why": why})
+    return rows
+
+
+# A departed character may be talked about, remembered, or reach Toi from afar (a
+# message, a letter, a postcard, a photo, a call) — the epilogue's own «sms» and «card»
+# lines. Physically on the page, never. A name in a panel is a mention when it follows
+# a preposition («le départ de Lila», «un message de Lila», «pense à Lila»), is a
+# possessive («Lila's empty chair»), or sits in a sentence about distance or absence;
+# otherwise the panel shows them.
+_MENTION_BEFORE = re.compile(
+    r"(?:\b(?:de|d|à|pour|sans|chez|of|to|for|from|without|about|like|than)\s*|['’])$",
+    re.IGNORECASE,
+)
+_POSSESSIVE_AFTER = re.compile(r"^['’]s\b")
+_FROM_AFAR = re.compile(
+    r"\b(?:messages?|sms|textos?|texts?|phones?|téléphones?|portables?|écrans?|screens?|"
+    r"lettres?|letters?|cartes?|postcards?|cards?|photos?|pictures?|appels?|calls?|calling|"
+    r"vidéos?|videos?|visio|mails?|e-mails?|emails?|courriels?|billets?|notes?|mots?|"
+    r"écrit|écrite|écrire|écrit-elle|écrit-il|writes|wrote|written|"
+    r"berlin|bretagne|brittany|absence|absente?|absent|départ|partie?|left|gone|leaving|"
+    r"souvenirs?|memory|memories|remembers?|pensent?|thinks?|thinking|manque|misses|miss|"
+    r"vides?|empty|plus là|n est plus|isn't here|not here|no longer)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?;…])\s+|\s*;\s*|\n+")
+
+
+def presence_on_page(text: str | None, names: list[str]) -> str | None:
+    """The sentence of ``text`` that puts one of ``names`` on the page, else ``None``."""
+
+    for sentence in _SENTENCE_SPLIT.split(str(text or "")):
+        if not sentence.strip():
+            continue
+        for name in names:
+            for match in re.finditer(rf"\b{re.escape(name)}\b", sentence):
+                before, after = sentence[: match.start()], sentence[match.end():]
+                if _MENTION_BEFORE.search(before) or _POSSESSIVE_AFTER.match(after):
+                    continue
+                if _FROM_AFAR.search(sentence.replace("'", " ").replace("’", " ")):
+                    continue
+                return sentence.strip()
+    return None
+
+
+def departed_hint(member: dict[str, Any], evidence: str) -> str:
+    """The retry hint for a page that stages a departed cast member."""
+
+    name = str(member.get("names", [member.get("name")])[0] or member.get("id"))
+    return (
+        f"«{evidence[:120]}» puts {name} on the page, but {member.get('why')} After the "
+        f"finale {name} is never physically in a scene: no line, no panel, not the "
+        f"character the learner talks to. {name} may be mentioned or remembered, or "
+        f"reach Toi from afar (a message on the phone, a letter, a postcard). Give "
+        f"{name}'s lines to someone who is here."
+    )
+
+
 def _lila_key(flags: dict[str, Any]) -> str | None:
     """The copy of the key at the platform (bible 08, F4): Lila keeps it on the
     romance path and gives it back on the friendship path."""
@@ -441,6 +560,12 @@ def carried(season: Season, state: dict | None, flags: dict[str, Any], *, band: 
         "last_page": caption,
         "rules": list(CONTINUATION_RULES),
         "closed_locations": ["le_mistral"] if ending == "laisser_partir" else [],
+        # WP-133b: who the ending removed (never on the page; the draft guard
+        # refuses it), and how each cast member speaks to the learner now.
+        "departed": departed_cast(season, state, flags),
+        "registers": {
+            member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast
+        },
     }
 
 
@@ -671,10 +796,13 @@ __all__ = [
     "carried",
     "carry_into_live",
     "context_extra",
+    "departed_cast",
+    "departed_hint",
     "epilogue_problems",
     "has_epilogue",
     "phase",
     "position_for",
+    "presence_on_page",
     "read_epilogue",
     "season_end_brief",
     "season_finished",
