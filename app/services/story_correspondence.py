@@ -1546,6 +1546,11 @@ def objective_progress_from_journey(
             # unanswered — said neutrally, and nothing follows from it.
             row["observed"] = False
             row["note"] = learner_note_with("mission.vocabulary_unused", language, word=_objective_word(item))
+        elif not met and not item.get("required"):
+            # WP-138: the same for a grammar point or an old mistake the letter
+            # hoped for: "not practised", never "no answer" and never an error.
+            row["observed"] = False
+            row["note"] = learner_note("mission.target_unpractised", language)
         rows.append(row)
     return rows
 
