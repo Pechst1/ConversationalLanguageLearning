@@ -49,6 +49,32 @@ _AUTHORED_INDEX = kept_words._authored_gloss_index
 
 
 @pytest.fixture(autouse=True)
+def _leave_the_catalogue_as_found(db_session: Session):
+    """These tests commit catalogue rows; later suites (an empty queue, a printed
+    slate) read the shared catalogue, so every row made here leaves with the test."""
+
+    from sqlalchemy import func
+
+    from app.db.base import Base
+
+    before = db_session.query(func.max(VocabularyWord.id)).scalar() or 0
+    yield
+    db_session.rollback()
+    made = [row.id for row in db_session.query(VocabularyWord.id).filter(VocabularyWord.id > before)]
+    if not made:
+        return
+    word_table = VocabularyWord.__table__
+    for table in reversed(Base.metadata.sorted_tables):
+        for fk in table.foreign_keys:
+            if fk.column.table is word_table and table.name in db_session.bind.dialect.get_table_names(
+                db_session.connection()
+            ):
+                db_session.execute(table.delete().where(fk.parent.in_(made)))
+    db_session.query(VocabularyWord).filter(VocabularyWord.id.in_(made)).delete(synchronize_session=False)
+    db_session.commit()
+
+
+@pytest.fixture(autouse=True)
 def _own_word(monkeypatch: pytest.MonkeyPatch) -> None:
     global WORD, LINE
     WORD = f"appartement{uuid.uuid4().hex[:6]}"
