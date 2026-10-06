@@ -75,3 +75,35 @@ def pytest_report_header() -> str:
     """Make the guard visible in every run, so a regression is noticed."""
 
     return "provider guard: API keys neutralised; no test may reach a paid provider"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:  # noqa: ARG001
+    """Fold pytest-randomly's per-test seed into 32 bits for its entry-point seeders.
+
+    pytest-randomly reseeds every test phase with ``randomly_seed + crc32(nodeid)``,
+    which can reach 2**33. It folds that into numpy's range itself but hands it
+    unfolded to each ``pytest_randomly.random_seeder`` entry point, and spaCy's
+    ``thinc`` registers one (``thinc.api:fix_random_seed``) that passes it straight
+    to ``numpy.random.seed`` → «Seed must be between 0 and 2**32 - 1». Whenever the
+    sum overflowed, a test errored in setup and teardown with nothing wrong in it:
+    with the plugin's default random seed about half the tests of a file
+    (tests/test_wp73_observability.py showed 18-28 errors), with a fixed seed a
+    scattered handful across the suite.
+    """
+
+    try:
+        import pytest_randomly
+    except ImportError:  # pragma: no cover - plugin not installed
+        return
+    from importlib.metadata import entry_points
+
+    def folded(reseed):
+        def _reseed(seed: int) -> None:
+            reseed(seed % 2**32)
+
+        return _reseed
+
+    pytest_randomly.entrypoint_reseeds = [
+        folded(ep.load()) for ep in entry_points(group="pytest_randomly.random_seeder")
+    ]

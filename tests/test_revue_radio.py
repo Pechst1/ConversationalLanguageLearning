@@ -47,6 +47,19 @@ class FakeTts:
         return SpokenLine(audio=b"ID3fake" + text.encode()[:8], model=model, spec=spec_for(character_id, band, model=model))
 
 
+@pytest.fixture(autouse=True)
+def empty_clip_store(db_session: Session) -> None:
+    """Each test starts with no spoken lines in the shared database.
+
+    ``line_audio`` hands a learner a copy of any clip of the same line, voice and band,
+    so a grève bulletin spoken by an earlier test (in this module or another) made
+    «a fake TTS speaks every line» find six cached lines and no call, in some orders.
+    """
+
+    db_session.query(LineAudioClip).delete()
+    db_session.commit()
+
+
 def greve():
     return next(dossier for dossier in load_evergreens() if dossier.id == GREVE)
 

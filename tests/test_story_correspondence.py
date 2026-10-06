@@ -51,6 +51,14 @@ def _living_thread(
 ) -> SerialThread:
     """A learner with a living story but no legacy serial episodes."""
 
+    if thread_id is not None:
+        # A fixed id (the story-letter die is seeded on it) is reused by more than one
+        # test on the run's shared database — here and in tests/test_wp96_97_suites.py —
+        # so whichever runs second found the first one's row: UNIQUE constraint failed.
+        leftover = db_session.get(SerialThread, thread_id)
+        if leftover is not None:
+            db_session.delete(leftover)
+            db_session.commit()
     thread = SerialThread(
         id=thread_id or uuid4(),
         user_id=user.id,

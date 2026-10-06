@@ -712,7 +712,6 @@ export default function AtelierPage() {
   const [loadError, setLoadError] = useState<AtelierErrorNotice | null>(null);
   const [activeSessionReady, setActiveSessionReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [serialWelcomeDismissed, setSerialWelcomeDismissed] = useState(false);
   const [rewardMoment, setRewardMoment] = useState<RewardMoment | null>(null);
   // WP-S3 La Forge: the séance's composition and the item the learner is on.
   const [forge, setForge] = useState<AtelierForgeView | null>(null);
@@ -1908,42 +1907,6 @@ export default function AtelierPage() {
   // WP-S3 La Forge: the forge counts its own items (its length is the rhythm's).
   const completedDrills = forge ? forge.answered : ladderCompletedDrills;
   const plannedDrills = forge ? Math.max(forge.length, forge.answered) : baseDrills + totalRetests;
-  // The feuilleton welcome is onboarding for the serial, and its call to action
-  // starts a legacy grammar session. When the daily journey owns Today it must
-  // not render at all: a fixed overlay in front of the day's recommended action
-  // makes that action unclickable, and its one button leads somewhere else.
-  const showSerialWelcome = !loading
-    && !serialWelcomeDismissed
-    && today?.onboarding?.serial_seen === false
-    && !session
-    && !journeyEntryVisible
-    // The capability read decides who owns Today. Until it settles, showing the
-    // welcome would flash a full-screen overlay in front of an action that is
-    // about to appear underneath it.
-    && journey.phase.kind !== 'loading'
-    && dayProgress.sessionStatus === 'none';
-  const dismissSerialWelcome = async () => {
-    setSerialWelcomeDismissed(true);
-    try {
-      await apiService.markSerialOnboardingSeen();
-      setToday((current) => current ? {
-        ...current,
-        onboarding: {
-          ...(current.onboarding || {}),
-          serial_seen: true,
-        },
-      } : current);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-  // The modal's own button reads "Start today" -- it should be the one true
-  // start action, not a first tap that only dismisses a modal in front of a
-  // second, identically-labelled button underneath.
-  const beginFromSerialWelcome = async () => {
-    await dismissSerialWelcome();
-    void startSession();
-  };
 
   return (
     <>
@@ -2178,12 +2141,6 @@ export default function AtelierPage() {
             onClose={() => setRewardMoment(null)}
           />
         )}
-        {showSerialWelcome && (
-          <SerialWelcomeModal
-            onBegin={beginFromSerialWelcome}
-            onDismiss={() => { void dismissSerialWelcome(); }}
-          />
-        )}
       </div>
     </>
   );
@@ -2255,122 +2212,6 @@ function Masthead({ view }: { view: 'today' | 'session' }) {
   );
 }
 
-/**
- * The feuilleton welcome. It is a real modal dialog, so it has to behave like
- * one: it must be dismissible without committing the learner to anything, it
- * must move focus in and hand it back, and Tab must not walk out of it into the
- * page it is covering.
- *
- * It never renders while the daily journey owns Today (see `journeyEntryVisible`),
- * because a fixed overlay in front of the day's recommended action makes that
- * action unclickable.
- */
-function SerialWelcomeModal({
-  onBegin,
-  onDismiss,
-}: {
-  /** Accept the invitation: dismiss and start today's legacy session. */
-  onBegin: () => void;
-  /** Close without starting anything. */
-  onDismiss: () => void;
-}) {
-  const dialogRef = useRef<HTMLElement | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-  // The dismiss handler is read through a ref so the focus/keyboard effect
-  // never re-runs (and never steals focus back) when the parent re-renders.
-  const dismissRef = useRef(onDismiss);
-  dismissRef.current = onDismiss;
-
-  const focusable = () => {
-    const root = dialogRef.current;
-    if (!root) return [] as HTMLElement[];
-    return Array.from(
-      root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'),
-    ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-  };
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    // Focus the close control first: the escape from the dialog is the first
-    // thing the learner can reach, not the commitment.
-    closeRef.current?.focus();
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dismissRef.current();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const items = focusable();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown, true);
-      // Hand focus back where it was, so closing the dialog does not dump the
-      // learner at the top of the document.
-      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
-    };
-  }, []);
-
-  return (
-    <div
-      className="serial-welcome-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        // Only a press that both starts and ends on the backdrop closes it, so
-        // a drag that finishes outside the card never dismisses by accident.
-        if (event.target === event.currentTarget) onDismiss();
-      }}
-    >
-      <section
-        className="serial-welcome"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="serial-welcome-title"
-        ref={(node) => { dialogRef.current = node; }}
-      >
-        <div className="serial-welcome-head">
-          <div className="t-mono red">Le Feuilleton</div>
-          <button
-            type="button"
-            className="serial-welcome-close"
-            aria-label="Fermer"
-            ref={closeRef}
-            onClick={onDismiss}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <h2 id="serial-welcome-title">Votre feuilleton français quotidien commence ici.</h2>
-        <p>Chaque jour porte un acte : parfois vous écrivez le message qui change la scène, parfois vous lisez sa conséquence illustrée.</p>
-        <div className="serial-welcome-steps">
-          <span><b>1</b> Agir en français</span>
-          <span><b>2</b> Lire l’édition</span>
-          <span><b>3</b> Revenir demain</span>
-        </div>
-        <button type="button" onClick={onBegin}>
-          Commencer aujourd’hui <ArrowRight size={16} />
-        </button>
-        <button type="button" className="serial-welcome-later" onClick={onDismiss}>
-          Plus tard
-        </button>
-      </section>
-    </div>
-  );
-}
 
 function TodayView({
   today,
@@ -4935,102 +4776,6 @@ function AtelierStyles() {
           radial-gradient(circle at 18% 22%, rgba(20,17,13,0.025) 0, transparent 0.7px),
           radial-gradient(circle at 71% 56%, rgba(20,17,13,0.025) 0, transparent 0.7px);
         background-size: 7px 7px, 11px 11px;
-      }
-      .serial-welcome-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 80;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        background: rgba(20, 17, 13, 0.68);
-      }
-      .serial-welcome {
-        width: min(520px, 100%);
-        border: 2px solid var(--ink);
-        background: var(--paper);
-        box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 22%, transparent);
-        padding: 24px;
-      }
-      .serial-welcome h2 {
-        margin: 8px 0 10px;
-        font-family: var(--serif);
-        font-size: 38px;
-        font-style: italic;
-        line-height: .98;
-        letter-spacing: 0;
-      }
-      .serial-welcome p {
-        margin: 0;
-        color: var(--ink-2);
-        line-height: 1.45;
-      }
-      .serial-welcome-steps {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-        margin: 18px 0;
-      }
-      .serial-welcome-steps span {
-        display: grid;
-        gap: 6px;
-        border: 1.5px solid var(--ink);
-        background: var(--paper-2);
-        padding: 10px;
-        font-size: 12px;
-        font-weight: 900;
-      }
-      .serial-welcome-steps b {
-        display: grid;
-        place-items: center;
-        width: 24px;
-        height: 24px;
-        background: var(--yellow);
-        border: 1.5px solid var(--ink);
-      }
-      .serial-welcome button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        width: 100%;
-        border: 2px solid var(--ink);
-        background: var(--red);
-        color: #fff;
-        min-height: 52px;
-        font-weight: 900;
-        letter-spacing: .13em;
-        text-transform: uppercase;
-      }
-      .serial-welcome-head {
-        display: flex;
-        align-items: start;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      /* The close control and the "later" control are escapes, not calls to
-         action: they must be reachable at 44px without shouting. */
-      .serial-welcome button.serial-welcome-close {
-        flex: none;
-        width: 44px;
-        min-height: 44px;
-        margin: -10px -10px 0 0;
-        border: 0;
-        background: transparent;
-        color: var(--ink);
-      }
-      .serial-welcome button.serial-welcome-later {
-        margin-top: 10px;
-        border: 0;
-        background: transparent;
-        color: var(--ink-2);
-        min-height: 44px;
-        font-weight: 700;
-        letter-spacing: .1em;
-      }
-      .serial-welcome button:focus-visible {
-        outline: 2px solid var(--ink);
-        outline-offset: 2px;
       }
       .atelier-page * { box-sizing: border-box; }
       .atelier-page button, .atelier-page input, .atelier-page textarea { font: inherit; color: inherit; }

@@ -398,7 +398,13 @@ def test_a_soutenu_story_day_asks_for_coulisses_and_projects_it(
     read = _read(journey)
     assert read is not None, [step["kind"] for step in journey["steps"]]
     kinds = [step["kind"] for step in journey["steps"]]
-    assert kinds[-1] == "read" and kinds[-2] == "resolution"
+    # The page is the day's last step, after the ending. WP-109 places the day's
+    # "mid"/"post" recalls between the resolution and the page; whether a fresh
+    # learner gets any depends on what the catalogue holds (in a full run other
+    # suites have filled it), so only recalls may stand between the two.
+    assert kinds[-1] == "read"
+    tail = kinds[kinds.index("resolution") + 1 : -1]
+    assert all(kind == "recall" for kind in tail), kinds
     assert kinds.index("respond") == kinds.index("scene") + 1
     prompt = ReadPrompt.model_validate(read["prompt"])
     assert (prompt.variant, prompt.status, prompt.scene_id) == ("coulisses", "writing", None)

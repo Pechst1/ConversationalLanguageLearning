@@ -175,7 +175,10 @@ def test_missions_never_create_placeholder_or_uncorrected_vocabulary(db_session)
 
 def test_corrected_catalogue_word_is_queued_without_a_fake_review(db_session) -> None:
     user = _user(db_session)
-    word = VocabularyWord(language="fr", word="la porte", normalized_word="la porte", english_translation="the door")
+    # The catalogue is shared by the whole run (one SQLite database), and other suites
+    # add «la porte» with a stub gloss («la porte-en»); the lookup by text then found
+    # theirs in some orders. A word no other test writes keeps the row this test owns.
+    word = VocabularyWord(language="fr", word="la poterne", normalized_word="la poterne", english_translation="the postern")
     db_session.add(word)
     mission = _mission(user)
     db_session.add(mission)
@@ -185,10 +188,10 @@ def test_corrected_catalogue_word_is_queued_without_a_fake_review(db_session) ->
             mission_id=mission.id,
             user_id=user.id,
             mode="writing",
-            answer_payload={"text": "le porte"},
+            answer_payload={"text": "le poterne"},
             correction_payload={
                 "verdict": "needs_revision",
-                "errata": [{"learner_text": "le porte", "corrected_target": "la porte", "task_error_type": "gender"}],
+                "errata": [{"learner_text": "le poterne", "corrected_target": "la poterne", "task_error_type": "gender"}],
             },
             verdict="needs_revision",
             score_0_4=2,
@@ -201,7 +204,7 @@ def test_corrected_catalogue_word_is_queued_without_a_fake_review(db_session) ->
     db_session.commit()
 
     assert result["saved_count"] == 1
-    assert result["phrase_bank"][0]["translation"] == "the door"
+    assert result["phrase_bank"][0]["translation"] == "the postern"
     progress = db_session.scalars(
         select(UserVocabularyProgress).where(
             UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == word.id

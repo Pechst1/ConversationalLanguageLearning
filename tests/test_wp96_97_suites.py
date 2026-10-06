@@ -456,14 +456,8 @@ def test_the_morning_push_says_tu_after_the_switch(db_session, monkeypatch):
 def test_a_story_letter_is_written_in_tu_after_the_switch(db_session, monkeypatch):
     monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
     user = letters._user(db_session)
-    # SEEDS[0] deals Romy the letter; test_story_correspondence uses the same seed
-    # on the shared session database, so a leftover row is cleared first.
-    from app.db.models.serial import SerialThread
-
-    leftover = db_session.get(SerialThread, letters.SEEDS[0])
-    if leftover is not None:
-        db_session.delete(leftover)
-        db_session.commit()
+    # SEEDS[0] deals Romy the letter; `_living_thread` clears the row another test
+    # left under that id on the shared session database.
     thread = letters._living_thread(db_session, user, thread_id=letters.SEEDS[0])
     for index in range(6):
         letters._journey_event(thread, event_id=f"journey:{index}:story")

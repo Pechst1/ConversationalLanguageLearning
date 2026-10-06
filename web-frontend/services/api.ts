@@ -2863,10 +2863,6 @@ class ApiService {
     }>('/serial/threads/current/avatar', payload);
   }
 
-  async markSerialOnboardingSeen() {
-    return this.atelierPost<{ serial_onboarding_seen: boolean }>('/serial/onboarding/seen');
-  }
-
   async transcribeMissionAudio(audioBlob: Blob): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob, 'mission-audio'));
