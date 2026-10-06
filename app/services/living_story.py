@@ -328,6 +328,8 @@ def _lenient_text(value: Any, limit: int) -> str | None:
 LINE_MOODS = ("neutral", "happy", "cross", "moved")
 LINE_NATIVE_CHARS = 320
 PANEL_ALT_CHARS = 160
+#: The illustrator's brief for one panel (never shown to the learner).
+VISUAL_DIRECTION_CHARS = 500
 #: The bands whose learners get every line translated («Traduire la case»).
 LINE_TRANSLATION_LEVELS = frozenset({"A1", "A2"})
 #: WP-94: the host's pass / fail line on an épreuve scene.
@@ -358,7 +360,7 @@ class Dialogue(StrictModel):
 class Panel(StrictModel):
     narration_fr: str = Field(default="", max_length=360)
     dialogue: list[Dialogue] = Field(default_factory=list, max_length=3)
-    visual_direction: str = Field(min_length=1, max_length=500)
+    visual_direction: str = Field(min_length=1, max_length=VISUAL_DIRECTION_CHARS)
     # WP-90. One plain sentence in the learner's language saying what the picture shows,
     # for a screen reader. Lenient like `text_native`.
     alt_native: str | None = Field(default=None, max_length=PANEL_ALT_CHARS)
@@ -826,9 +828,14 @@ shows (who, doing what, where) for a screen reader, without quoting the dialogue
 All native fields use control_language.
 SEASON SCRIPT. season_script, when present, means this life is playing an authored
 season (the owner's bible); season_script.position says where it stands. On a generated
-day season_script.brief is your brief, and it outranks every other story instruction
-above (chapter shapes, arcs, secrets, callbacks): write a day that happens INSIDE the
-gap it describes. brief.rules.the_rule is absolute: episodes without meaningful change
+day season_script.brief is your brief, and it outranks the story instructions above
+about arcs, secrets and callbacks: write a day that happens INSIDE the gap it describes.
+The chapter bookkeeping still holds on every season day and is checked:
+brief.page_rules states, with today's values, what the page must satisfy — the beat and
+whether today opens a new chapter (after a tentpole it always does: beat setup, a new
+title and a new small question, never the season's question), who may speak, each
+character's register, the objective's size and the field limits. Follow
+brief.page_rules literally: a page that breaks one is refused. brief.rules.the_rule is absolute: episodes without meaningful change
 are refused — the day ends with something different from how it began, visible to the
 learner (a relationship, knowledge, a situation, or their life in Paris); quiet changes
 count, an errand that could happen any day with any cast does not. Follow brief.rules.shape
@@ -1017,6 +1024,189 @@ def _cache_friendly_content(payload: dict, schema: type[BaseModel]) -> str:
     return '{"output_schema": ' + _schema_json(schema) + ', "data": ' + data + "}"
 
 
+# ---------------------------------------------------------------------------
+# LOSS-RATE 2026-10-06 — the draft's shape, read tolerantly where the content is fine
+# ---------------------------------------------------------------------------
+#
+# Across the WP-133a/b live reads, about one lost generated day in five ended on
+# ``invalid_story_output``: the page failed the JSON schema, not a story guard. What
+# follows repairs ONLY what carries no story: a claim's casing («Setup»), a «none»
+# where null was meant, an id nobody holds, a key the schema does not have, a
+# director's note or a lexicon gloss one clause too long. Learner-facing French is
+# never cut here — an overlong line still fails, with the field named for the retry.
+
+#: Optional claims whose unknown value means «no claim» (dropped, never a lost day —
+#: the rule unknown arc ids, stages and threads already follow in ``_validate_scene``).
+_CLAIM_ENUMS: dict[str, tuple[str, ...]] = {
+    "secret_shift": ("hinted", "revealed"),
+    "thread_shift": ("developing", "closed"),
+}
+_BEATS = ("setup", "complication", "turn", "resolution")
+_NULL_WORDS = frozenset({"", "none", "null", "n/a", "no", "false"})
+#: How many of a list the schema keeps where the extra items carry no story.
+_LIST_CAPS = {"source_event_ids": 8, "lexicon": 10}
+#: The completion budget a draft is retried with after one was cut off (``length``).
+TRUNCATED_RETRY_TOKENS = 8000
+
+
+def _model_keys(model: type[BaseModel]) -> frozenset[str]:
+    return frozenset(model.model_fields)
+
+
+def tolerant_scene_json(data: Any) -> tuple[Any, list[str]]:
+    """A SceneDraft's raw JSON with its no-story shape slips repaired, plus a note of
+    each repair (kept for the live read's record). Anything else is left for the
+    schema to judge."""
+
+    notes: list[str] = []
+    if not isinstance(data, dict):
+        return data, notes
+    data = dict(data)
+
+    def drop_unknown(row: dict, model: type[BaseModel], where: str) -> dict:
+        extra = sorted(key for key in row if key not in _model_keys(model))
+        if extra:
+            notes.append(f"{where}: dropped unknown keys {extra}")
+        return {key: value for key, value in row.items() if key not in extra}
+
+    data = drop_unknown(data, SceneDraft, "scene")
+    beat = data.get("beat")
+    if isinstance(beat, str):
+        word = beat.strip().casefold()
+        if word in _NULL_WORDS:
+            data["beat"] = None
+            notes.append(f"beat {beat!r} read as null")
+        elif word in _BEATS and word != beat:
+            data["beat"] = word
+            notes.append(f"beat {beat!r} read as {word!r}")
+    for key, allowed in _CLAIM_ENUMS.items():
+        value = data.get(key)
+        if value is None:
+            continue
+        word = str(value).strip().casefold()
+        if word in allowed:
+            data[key] = word
+        else:
+            data[key] = None
+            notes.append(f"{key} {value!r} is no claim: dropped")
+    capability = data.get("capability_key")
+    if capability is not None:
+        word = str(capability).strip().casefold()
+        known = {member.value for member in CapabilityKey}
+        if word in known:
+            data["capability_key"] = word
+        else:
+            data["capability_key"] = None
+            if word not in _NULL_WORDS:
+                notes.append(f"capability_key {capability!r} is not a known capability: dropped")
+    for key, cap in _LIST_CAPS.items():
+        value = data.get(key)
+        if isinstance(value, list) and len(value) > cap:
+            data[key] = value[:cap]
+            notes.append(f"{key}: kept the first {cap} of {len(value)}")
+    lexicon = data.get("lexicon")
+    if isinstance(lexicon, list):
+        # WP-86's entries are lenient by design (an entry the check cannot stand behind
+        # is dropped): a gloss one clause too long is cut, a non-entry is dropped.
+        caps = {
+            name: field.metadata[0].max_length
+            for name, field in LexiconEntry.model_fields.items()
+            if field.metadata and getattr(field.metadata[0], "max_length", None)
+        }
+        entries = []
+        for entry in lexicon:
+            if not isinstance(entry, dict):
+                notes.append("lexicon: dropped a non-entry")
+                continue
+            entry = dict(entry)
+            for name, cap in caps.items():
+                if isinstance(entry.get(name), str) and len(entry[name]) > cap:
+                    entry[name] = _lenient_text(entry[name], cap) or ""
+                    notes.append(f"lexicon.{name}: cut to {cap} characters")
+            entries.append(entry)
+        data["lexicon"] = entries
+    chapter = data.get("chapter")
+    if isinstance(chapter, dict):
+        chapter = drop_unknown(chapter, Chapter, "chapter")
+        developments = chapter.get("possible_developments")
+        if isinstance(developments, list) and len(developments) > 5:
+            chapter["possible_developments"] = developments[:5]
+            notes.append(f"chapter.possible_developments: kept the first 5 of {len(developments)}")
+        data["chapter"] = chapter
+    panels = data.get("panels")
+    if isinstance(panels, list):
+        cleaned = []
+        for index, panel in enumerate(panels):
+            if not isinstance(panel, dict):
+                cleaned.append(panel)
+                continue
+            panel = drop_unknown(panel, Panel, f"panel {index}")
+            direction = panel.get("visual_direction")
+            # The illustrator's brief, never read by the learner: cut at a word.
+            if isinstance(direction, str) and len(direction) > VISUAL_DIRECTION_CHARS:
+                panel["visual_direction"] = _lenient_text(direction, VISUAL_DIRECTION_CHARS)
+                notes.append(f"panel {index}: visual_direction cut to {VISUAL_DIRECTION_CHARS} characters")
+            lines = panel.get("dialogue")
+            if isinstance(lines, list):
+                panel["dialogue"] = [
+                    drop_unknown(line, Dialogue, f"panel {index} line {j}") if isinstance(line, dict) else line
+                    for j, line in enumerate(lines)
+                ]
+            cleaned.append(panel)
+        data["panels"] = cleaned
+    return data, notes
+
+
+def _finish_details(result: Any) -> dict[str, Any]:
+    """What the provider said about how the completion ended (no secrets: the
+    finish reason and the token counts)."""
+
+    raw = getattr(result, "raw_response", None)
+    if not isinstance(raw, dict):
+        return {}
+    choice = (raw.get("choices") or [{}])[0] or {}
+    usage = raw.get("usage") or {}
+    details = usage.get("completion_tokens_details") or {}
+    return {
+        key: value
+        for key, value in {
+            "finish_reason": choice.get("finish_reason"),
+            "completion_tokens": usage.get("completion_tokens"),
+            "reasoning_tokens": details.get("reasoning_tokens"),
+        }.items()
+        if value is not None
+    }
+
+
+def _excerpt(content: str | None, error: dict | None = None, *, width: int = 160) -> str:
+    """A short piece of the model's own output around a parse error (never the prompt)."""
+
+    text = str(content or "")
+    if not text:
+        return ""
+    position = None
+    if error and error.get("type") == "json_invalid":
+        match = re.search(r"column (\d+)", str(error.get("msg") or ""))
+        position = int(match.group(1)) if match else None
+    if position is None and error and error.get("loc"):
+        key = str(error["loc"][-1]) if not isinstance(error["loc"][-1], int) else str(error["loc"][0])
+        found = text.find(f'"{key}"')
+        position = found if found >= 0 else None
+    if position is None:
+        return text[-width:]
+    start = max(0, position - width // 2)
+    return text[start : start + width]
+
+
+class ParsedOutputError(StoryUnavailable):
+    """``invalid_story_output`` with what the live read needs to tell truncation from
+    a shape slip: the provider's finish reason and an excerpt of the model's output."""
+
+    def __init__(self, reason: str, *, hint: str | None = None, details: dict | None = None) -> None:
+        super().__init__(reason, hint=hint)
+        self.details = details or {}
+
+
 def _json_call(
     system: str,
     payload: dict,
@@ -1028,6 +1218,7 @@ def _json_call(
     reasoning_effort: str = "low",
     window: float | None = None,
 ) -> tuple[BaseModel, dict]:
+    result = None
     try:
         remaining = deadline - time.monotonic()
         if remaining < 1:
@@ -1064,22 +1255,83 @@ def _json_call(
             on_usage(usage)
         if time.monotonic() >= deadline:
             raise StoryUnavailable("story_generation_deadline")
-        parsed = schema.model_validate_json(result.content)
+        if issubclass(schema, SceneDraft):
+            # LOSS-RATE 2026-10-06: the no-story shape slips are repaired before the
+            # schema reads the page (``tolerant_scene_json``); the rest is judged.
+            raw = json.loads(result.content)
+            raw, repairs = tolerant_scene_json(raw)
+            if repairs:
+                logger.info("living_story: draft shape repaired (%s)", "; ".join(repairs)[:400])
+            parsed = schema.model_validate(raw)
+        else:
+            parsed = schema.model_validate_json(result.content)
         return parsed, usage
     except ValidationError as exc:
         # Name the fields so the retry can fix them (WP-60): a bare token here cost
         # the C1 review its second day when both drafts overran a character cap.
+        errors = exc.errors()
+        finish = _finish_details(result)
+        truncated = finish.get("finish_reason") == "length" or any(
+            error.get("type") == "json_invalid" and "EOF" in str(error.get("msg") or "") for error in errors
+        )
         problems = "; ".join(
             f"{'.'.join(str(part) for part in error.get('loc', ()))}: {error.get('msg')}"
-            for error in exc.errors()[:4]
+            for error in errors[:4]
         )
-        raise StoryUnavailable(
-            "invalid_story_output",
-            hint=(
+        if truncated:
+            # The page was cut off mid-JSON (the completion budget ran out): the retry
+            # is told to write less, and is given a larger budget (``_approved``).
+            hint = (
+                "The JSON was cut off before its end (the answer ran out of room). Write "
+                "the same kind of page more briefly: shorter visual_direction and "
+                "narration, at most 6 panels, at most 3 lexicon entries, and close every "
+                "bracket."
+            )
+        else:
+            hint = (
                 f"The JSON did not fit the schema — {problems}. Keep every field within "
                 "its limit: shorten the premise and the objective rather than dropping "
                 "content."
+            )
+        raise ParsedOutputError(
+            "invalid_story_output",
+            hint=hint,
+            details={
+                **finish,
+                "truncated": truncated,
+                "errors": [
+                    {
+                        "loc": ".".join(str(part) for part in error.get("loc", ())),
+                        "type": error.get("type"),
+                        "msg": str(error.get("msg") or "")[:160],
+                    }
+                    for error in errors[:6]
+                ],
+                "excerpt": _excerpt(getattr(result, "content", None), errors[0] if errors else None),
+                "content_chars": len(str(getattr(result, "content", "") or "")),
+            },
+        ) from exc
+    except json.JSONDecodeError as exc:
+        finish = _finish_details(result)
+        truncated = finish.get("finish_reason") == "length" or exc.pos >= len(exc.doc or "") - 1
+        raise ParsedOutputError(
+            "invalid_story_output",
+            hint=(
+                "The JSON was cut off before its end (the answer ran out of room). Write "
+                "the same kind of page more briefly: shorter visual_direction and "
+                "narration, at most 6 panels, at most 3 lexicon entries, and close every "
+                "bracket."
+                if truncated
+                else f"The answer was not valid JSON ({exc.msg} at character {exc.pos}). "
+                "Return one JSON object and nothing else."
             ),
+            details={
+                **finish,
+                "truncated": truncated,
+                "errors": [{"loc": "", "type": "json_invalid", "msg": f"{exc.msg} at {exc.pos}"}],
+                "excerpt": str(exc.doc or "")[max(0, exc.pos - 80) : exc.pos + 80],
+                "content_chars": len(str(exc.doc or "")),
+            },
         ) from exc
     except ValueError as exc:
         raise StoryUnavailable("invalid_story_output") from exc
@@ -1235,6 +1487,71 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
     return round(score, 4)
 
 
+#: LOSS-RATE 2026-10-06: every refused proposal, as a record the next paid read keeps
+#: (``tests/test_wp133a_live_read.py`` appends a recorder here). Production logs only.
+REFUSAL_OBSERVERS: list = []
+REFUSAL_HINT_CHARS = 600
+
+
+def _clip(value: Any, limit: int = 160) -> Any:
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[: limit - 1] + "…"
+    return value
+
+
+def scene_digest(draft: Any, context: dict | None = None) -> dict[str, Any]:
+    """What a refused scene claimed, beside what the day required — the fields the
+    recurring guards read (beat, chapter question, voices, objective), each clipped."""
+
+    if not isinstance(draft, SceneDraft):
+        return {}
+    context = context or {}
+    chapter = context.get("chapter") or {}
+    speakers = sorted({line.character_id for panel in draft.panels for line in panel.dialogue})
+    checklist = draft.season_checklist
+    return {
+        "beat": draft.beat,
+        "required_beat": list(required_beats(chapter)) if context else None,
+        "chapter_closed": bool(not chapter or chapter.get("resolved") or chapter.get("exhausted")) if context else None,
+        "shape": str((context.get("chapter_shape") or {}).get("shape") or "") or None,
+        "chapter_title_fr": _clip(draft.chapter.title_fr, 100),
+        "dramatic_question": _clip(draft.chapter.dramatic_question),
+        "open_question": _clip(chapter.get("dramatic_question")) if chapter else None,
+        "character_id": draft.character_id,
+        "speakers": speakers,
+        "objective_native": _clip(draft.objective_native),
+        "objective_words": len(draft.objective_native.split()),
+        "panels": len(draft.panels),
+        "premise_id": checklist.premise_id if checklist else None,
+    }
+
+
+def _refused(stage: str, exc: StoryUnavailable, *, attempt: int, proposal: Any = None, digest=None) -> None:
+    """One refused proposal: logged, and handed to any observer (never raises)."""
+
+    exc._noted = True  # type: ignore[attr-defined]
+    record: dict[str, Any] = {
+        "stage": stage,
+        "attempt": attempt,
+        "reason": str(exc),
+        "hint": _clip(exc.hint or "", REFUSAL_HINT_CHARS),
+    }
+    details = getattr(exc, "details", None)
+    if details:
+        record["output"] = details
+    if proposal is not None and digest is not None:
+        try:
+            record["draft"] = digest(proposal)
+        except Exception:  # pragma: no cover - a record never costs the draft
+            logger.exception("living_story: refusal digest unavailable")
+    logger.info("living_story: %s attempt %s refused (%s): %s", stage, attempt, exc, record["hint"][:300])
+    for observer in list(REFUSAL_OBSERVERS):
+        try:
+            observer(record)
+        except Exception:  # pragma: no cover - an observer never costs the draft
+            logger.exception("living_story: refusal observer failed")
+
+
 def _approved(
     system: str,
     payload: dict,
@@ -1246,6 +1563,7 @@ def _approved(
     candidates: int = 1,
     choose=None,
     story_review=None,
+    digest=None,
 ) -> tuple[Any, list[dict]]:
     # Leave headroom under the journey's 90-second generation claim and HTTP timeout.
     # No hidden retries or provider cascades may multiply this budget.
@@ -1284,6 +1602,9 @@ def _approved(
     # here. The next attempt carries the hint; an attempt after that accepts the aids as
     # they come; and if no later attempt succeeds, this draft is served.
     soft: dict[str, Any] = {"fallback": None, "hinted": False, "this_attempt": False}
+    # LOSS-RATE 2026-10-06: the completion budget of the next attempt — the default,
+    # or a larger one once a draft was cut off by the budget (``_next_budget``).
+    budget: int | None = None
 
     def vet(proposal):
         """The proposal to keep: ``proposal`` itself, or — on the attempt after a soft
@@ -1323,9 +1644,12 @@ def _approved(
                 request = {**payload, "previous_rejections": feedback}
                 collected: list[list[dict]] = [[] for _ in range(candidates)]
 
-                def draw(index: int, request=request, collected=collected):
+                # Only a proven truncation passes a budget (scripted fakes take none).
+                sized = {"max_tokens": budget} if budget else {}
+
+                def draw(index: int, request=request, collected=collected, sized=sized):
                     return _json_call(
-                        system, request, schema, collected[index].append, deadline=deadline
+                        system, request, schema, collected[index].append, deadline=deadline, **sized
                     )[0]
 
                 from concurrent.futures import ThreadPoolExecutor
@@ -1345,12 +1669,15 @@ def _approved(
                         reason = str(error)
                         if isinstance(error, StoryUnavailable):
                             feedback = list(dict.fromkeys([*feedback, error.feedback]))
+                            budget = _next_budget(error, budget)
+                            _refused(schema.__name__, error, attempt=attempt)
                         continue
                     try:
                         approved.append(vet(proposal))
                     except StoryUnavailable as exc:
                         reason = str(exc)
                         feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+                        _refused(schema.__name__, exc, attempt=attempt, proposal=proposal, digest=digest)
                         continue
                 if not approved:
                     continue
@@ -1370,8 +1697,13 @@ def _approved(
                     schema,
                     record,
                     deadline=deadline,
+                    **({"max_tokens": budget} if budget else {}),
                 )
-                proposal = vet(proposal)
+                try:
+                    proposal = vet(proposal)
+                except StoryUnavailable as exc:
+                    _refused(schema.__name__, exc, attempt=attempt, proposal=proposal, digest=digest)
+                    raise
             if story_review is not None:
                 # WP-114 «La qualité du récit»: a generated day of a season must change
                 # something. One refusal buys one retry with the critic's own words; a
@@ -1381,6 +1713,13 @@ def _approved(
                     critic_refusals += 1
                     feedback = list(dict.fromkeys([*feedback, *(verdict.get("issues") or ["story_critic_refused"])]))
                     reason = "story_critic_refused"
+                    _refused(
+                        schema.__name__,
+                        StoryUnavailable(reason, hint=" | ".join(verdict.get("issues") or [])),
+                        attempt=attempt,
+                        proposal=proposal,
+                        digest=digest,
+                    )
                     if critic_refusals <= 1:
                         critic_kept = critic_kept or proposal
                         continue
@@ -1408,6 +1747,9 @@ def _approved(
         except StoryUnavailable as exc:
             reason = str(exc)
             feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+            budget = _next_budget(exc, budget)
+            if not getattr(exc, "_noted", False):
+                _refused(schema.__name__, exc, attempt=attempt)
     if critic_kept is not None:
         logger.warning(
             "living_story: the retry the story critic bought failed (%s); serving the refused draft",
@@ -1438,6 +1780,17 @@ def _approved(
     hint = " | ".join(feedback)[:1200] or None
     logger.warning("living_story: every %s attempt refused (%s): %s", schema.__name__, reason, hint)
     raise StoryUnavailable(reason, hint=hint)
+
+
+def _next_budget(exc: BaseException, budget: int | None) -> int | None:
+    """A draft cut off mid-JSON (``finish_reason: length``) is retried with room to
+    finish: gpt-5's reasoning tokens share the completion budget, so a long page plus
+    its reasoning can run past the default. Only proven truncation raises it."""
+
+    details = getattr(exc, "details", None) or {}
+    if details.get("truncated"):
+        return max(int(budget or 0), TRUNCATED_RETRY_TOKENS)
+    return budget
 
 
 def _active_thread(db: Session, user: User, *, lock=False):
@@ -4321,7 +4674,11 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         if phase == "interlude"
         else planned_shape(live, seed=seed)
     )
-    if chapter:
+    if chapter and not (chapter.get("resolved") or chapter.get("exhausted")):
+        # The open chapter keeps its hand. A closed one does not: the next scene opens
+        # a new chapter, and ``bind_journey`` stores it with ``planned_shape`` — the
+        # shape the director is told here, and the one the guards check (LOSS-RATE
+        # 2026-10-06: a closed two-hander's shape used to bind the next setup scene).
         shape = str(chapter.get("shape") or shape)
     gap = gap_days(db, user, live, today=_today())
     absence = absence_context(gap)
@@ -4342,6 +4699,21 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             "asked_scene_id": entry.get("scene_id") if entry.get("state") == "asked" else None,
         }
     season_block = season_runtime.context_block(season_today)
+    if season_block and season_block.get("brief"):
+        # LOSS-RATE 2026-10-06: what the guards check on a generated day, written into
+        # the brief the director is told outranks everything else.
+        season_block["brief"] = {
+            **season_block["brief"],
+            **season_page_rules(
+                season_today,
+                chapter=chapter,
+                shape=shape,
+                level=level,
+                cast=cast,
+                resolved_questions=list(live.get("resolved_chapter_questions") or [])[-12:],
+                recent=recent,
+            ),
+        }
     return {
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
         # WP-111: the season, where this life stands in it, and on a generated day
@@ -5036,6 +5408,132 @@ def season_registers(context: dict) -> dict[str, str]:
     return {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast}
 
 
+#: How many retired chapter questions ``brief.page_rules`` repeats.
+_PAGE_RULE_RETIRED = 6
+#: How much of the previous scene's objective a resolution may share (``resolution_repeats_turn``).
+RESOLUTION_OVERLAP = 0.45
+
+
+def season_page_rules(
+    today: Any,
+    *,
+    chapter: dict | None,
+    shape: str,
+    level: str | None,
+    cast: list[dict],
+    resolved_questions: list[str],
+    recent: list[dict],
+) -> dict[str, Any]:
+    """LOSS-RATE 2026-10-06: ``brief.page_rules`` — what the deterministic guards will
+    check on today's generated page, stated in the brief the director is told
+    outranks every other instruction.
+
+    The live reads lost 64 % of first gap days after a tentpole (23 of 36) against
+    20 % of the days inside a gap (8 of 41): the brief said nothing of the chapter the
+    tentpole had just closed, so the director continued it (``wrong_beat``) or reused
+    its question (``chapter_not_advanced``). Every rule here is a guard's own rule,
+    with today's values filled in; none is new."""
+
+    closed = not chapter or bool(chapter.get("resolved") or chapter.get("exhausted"))
+    allowed = list(required_beats(chapter))
+    cast_ids = [str(member["id"]) for member in cast if member.get("id")]
+    registers = {
+        member_id: register
+        for member_id, register in season_registers({SEASON_TODAY_KEY: today}).items()
+        if member_id in cast_ids
+    }
+    rules: dict[str, Any] = {
+        "checked": (
+            "Each rule below is checked on the finished page; a page that breaks one is "
+            "refused and the learner loses the day. Follow them literally."
+        ),
+    }
+    if closed:
+        retired = [*resolved_questions]
+        if chapter and chapter.get("dramatic_question"):
+            retired.append(str(chapter["dramatic_question"]))
+        rules["chapter"] = {
+            "open_new": True,
+            "beat": "setup",
+            "rule": (
+                "The last chapter is closed (a tentpole or a resolution ended it). Today "
+                "OPENS a new chapter: beat is setup; chapter.title_fr is new; "
+                "chapter.dramatic_question is a new, small question this gap can answer in "
+                "a few days (from today's premise or one of gap.threads) — never the "
+                "season's question, never one of retired_questions, never a rewording."
+            ),
+            "retired_questions": [
+                str(question)[:140] for question in dict.fromkeys(retired)
+            ][-_PAGE_RULE_RETIRED:],
+        }
+    else:
+        beats = list(chapter_beats(chapter))
+        rules["chapter"] = {
+            "open_new": False,
+            "beat": " or ".join(allowed),
+            "rule": (
+                f"The chapter «{chapter.get('title_fr')}» is open: copy chapter.title_fr and "
+                "chapter.dramatic_question verbatim and write scene "
+                f"{int(chapter.get('scene_count') or 0) + 1} of its {len(beats)} beats "
+                f"({' → '.join(beats)}): set beat to {' or '.join(allowed)}."
+            ),
+        }
+        if "resolution" in allowed:
+            asked = [
+                str(item.get("objective_native") or "")
+                for item in recent
+                if item.get("chapter_title_fr") == chapter.get("title_fr") and item.get("objective_native")
+            ]
+            if asked:
+                rules["chapter"]["already_asked"] = [text[:160] for text in asked[-3:]]
+                rules["chapter"]["resolution"] = (
+                    "A resolution settles the chapter with a different act (a decision, a "
+                    "consequence, a thank-you, what comes next). Its objective_native may "
+                    f"share less than {int(RESOLUTION_OVERLAP * 100)} % of its words longer "
+                    "than three letters with the last one asked — do not reuse its names, "
+                    "verbs and nouns."
+                )
+    speakers = (
+        "Every dialogue character_id is one of speakers. The learner (Toi) never has a "
+        "dialogue line, and nobody outside speakers speaks on a generated page (Odile "
+        "and the walk-ons speak only in tentpoles)."
+    )
+    if shape == "two_hander":
+        speakers += (
+            " This chapter is a two-hander: ONLY character_id has dialogue lines. Others "
+            "may be in frame, doing something, silent (gesture and narration carry them)."
+        )
+    rules["voices"] = {"speakers": cast_ids, "rule": speakers}
+    rules["address"] = {
+        "registers": registers,
+        "rule": (
+            "Each character speaks to the learner with their register here. premise_fr and "
+            "every narration_fr address the learner exactly as character_id does (tu or "
+            "vous) — or, simplest, not at all (describe, do not address)."
+        ),
+    }
+    band = str(level or "")
+    floor = _OBJECTIVE_MINIMUM_WORDS.get(band)
+    limits = _OBJECTIVE_LIMITS.get(band)
+    if floor:
+        rules["objective"] = (
+            f"objective_native is a move of at least {floor} words (a position with a "
+            "reason, a counter-proposal with a condition, an objection answered); never "
+            "«in one sentence» or «en une phrase»."
+        )
+    elif limits:
+        rules["objective"] = (
+            f"objective_native asks for {'ONE act' if limits[0] == 1 else 'at most two acts'}: "
+            f"at most {limits[1]} words and at most {limits[0]} comma, semicolon or "
+            "«and/et/und»."
+        )
+    rules["limits"] = (
+        "4 to 6 panels; at most 3 dialogue lines per panel; season_checklist.threads at "
+        "most 4; keep every field under its schema limit."
+    )
+    return {"page_rules": rules}
+
+
 def _check_season_register(draft: SceneDraft, context: dict) -> None:
     """WP-133b: a season cast member who says «tu» to the learner never says «vous».
 
@@ -5179,7 +5677,8 @@ def _check_objective_scope(
                     f"A {level} learner is not asked for one sentence. Ask for a move: "
                     "a position with a reason, a counter-proposal with a condition, an "
                     "objection answered — two or three sentences, at least "
-                    f"{floor} words of objective. \"{objective}\" is an A2 ask. "
+                    f"{floor} words of objective. \"{objective}\" ({len(objective.split())} "
+                    "words) is an A2 ask. "
                     + _PINCER_EXIT
                     + OTHER_ACTS
                     + (f". Already asked: {list(asked)[-3:]}" if asked else "")
@@ -5396,13 +5895,16 @@ def _check_addressee(draft: SceneDraft, context: dict) -> None:
     )
 
 
+def _content_words(text: str | None) -> set[str]:
+    """The words ``_premise_overlap`` compares: longer than three letters, folded."""
+
+    return {w for w in re.findall(r"\w+", str(text or "").casefold()) if len(w) > 3}
+
+
 def _premise_overlap(left: str, right: str) -> float:
     """Jaccard overlap of the content words of two premises (0 when either is empty)."""
 
-    def words(text: str) -> set[str]:
-        return {w for w in re.findall(r"\w+", text.casefold()) if len(w) > 3}
-
-    a, b = words(left), words(right)
+    a, b = _content_words(left), _content_words(right)
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
@@ -5502,6 +6004,36 @@ def _season_required_moment(draft: SceneDraft, context: dict) -> str | None:
     )
 
 
+def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...], closing: bool) -> str:
+    """LOSS-RATE 2026-10-06: the retry is told WHICH chapter the scene belongs to.
+
+    The old hint said «must be the setup beat … scene 3 of a 4-scene chapter» on the
+    day after a tentpole — a setup is never scene 3 — and the retries kept continuing
+    the closed chapter, then reused its question (``chapter_not_advanced``)."""
+
+    if closing or not chapter:
+        title = _one_line(chapter.get("title_fr"), 80) if chapter else ""
+        return (
+            f"The previous chapter{f' «{title}»' if title else ''} is closed, so this scene "
+            f"OPENS a new chapter: set beat to setup, not {draft.beat}. Write a new "
+            "chapter.title_fr and a new chapter.dramatic_question (never a closed chapter's "
+            "question, nor a rewording of it); the page itself may follow from what just "
+            "happened — it is the first scene of what comes next."
+        )
+    beats = list(chapter_beats(chapter))
+    return (
+        f"This scene must be the chapter's {' or '.join(allowed)} beat, not {draft.beat}: "
+        f"scene {int(chapter.get('scene_count') or 0) + 1} of the {len(beats)}-beat chapter "
+        f"«{_one_line(chapter.get('title_fr'), 80)}» ({' → '.join(beats)}). Keep its "
+        "title and question verbatim and set beat accordingly. "
+        + (
+            "Settle the practical problem and answer the chapter question now."
+            if allowed[0] == "resolution"
+            else "Write that beat."
+        )
+    )
+
+
 def _validate_scene(draft: SceneDraft, context: dict):
     cast = {c["id"] for c in context["world"]["cast"]}
     locations = {loc["id"] for loc in context["world"]["locations"]}
@@ -5527,7 +6059,10 @@ def _validate_scene(draft: SceneDraft, context: dict):
             "unknown_panel_character",
             hint=(
                 f"{strangers} speak in the panels but are not in the cast. Give their "
-                f"lines to someone who is, or to narration: cast is {sorted(cast)}."
+                f"lines to someone who is, or to narration: cast is {sorted(cast)}. The "
+                "learner never has a dialogue line (their words are their reply), and a "
+                "person who is only remembered or mentioned (Odile, a clerk) is spoken "
+                "about, never given a line."
             ),
         )
     if context.get("absence"):
@@ -5607,24 +6142,17 @@ def _validate_scene(draft: SceneDraft, context: dict):
     if draft.beat is None:
         draft.beat = allowed[0]
     elif draft.beat not in allowed:
-        raise StoryUnavailable(
-            "wrong_beat",
-            hint=(
-                f"This scene must be the chapter's {' or '.join(allowed)} beat, not "
-                f"{draft.beat}: scene {int(chapter.get('scene_count') or 0) + 1} of a "
-                f"{CHAPTER_MAX_SCENES}-scene chapter. "
-                + (
-                    "Settle the practical problem and answer the chapter question now."
-                    if allowed[0] == "resolution"
-                    else "Write that beat."
-                )
-            ),
-        )
+        raise StoryUnavailable("wrong_beat", hint=_wrong_beat_hint(draft, chapter, allowed, closing))
     # WP-63 chapter shapes. The beats already follow the shape (``required_beats``);
     # these are the two content rules a shape makes, and both are rules the director
     # was told before it wrote: two voices in a two-hander, one room in a bottle.
+    # The shape of the chapter this scene belongs to: the open chapter's, or — when the
+    # chapter is closed and this scene opens the next — the planned hand the director
+    # was given (``chapter_shape``), which is what ``bind_journey`` stores.
     shape = str(
-        chapter.get("shape") or (context.get("chapter_shape") or {}).get("shape") or DEFAULT_SHAPE
+        (chapter.get("shape") if chapter and not closing else None)
+        or (context.get("chapter_shape") or {}).get("shape")
+        or DEFAULT_SHAPE
     )
     if shape == "two_hander" and not epreuve:
         voices = {draft.character_id} | {
@@ -5664,13 +6192,18 @@ def _validate_scene(draft: SceneDraft, context: dict):
         )
         if previous and _premise_overlap(
             draft.objective_native, previous.get("objective_native", "")
-        ) >= 0.45:
+        ) >= RESOLUTION_OVERLAP:
+            shared = sorted(_content_words(draft.objective_native) & _content_words(previous.get("objective_native", "")))
             raise StoryUnavailable(
                 "resolution_repeats_turn",
                 hint=(
                     "The resolution asks the turn's question again: "
                     f"\"{previous.get('objective_native')}\". Settle the chapter with a "
-                    "different move — a consequence, a decision made, an aftermath."
+                    "different move — a consequence, a decision made, an aftermath. "
+                    f"Your objective shares these words with it: {shared[:12]}; the new "
+                    f"one may share less than {int(RESOLUTION_OVERLAP * 100)} % of its "
+                    "words longer than three letters (names and boilerplate count): "
+                    "change what the learner DOES, not only the wording."
                 ),
             )
     arcs = [arc for arc in (context["world"].get("arcs") or []) if arc.get("id")]
@@ -5800,11 +6333,24 @@ def _validate_scene(draft: SceneDraft, context: dict):
     if question in retired or any(
         _premise_overlap(draft.chapter.dramatic_question, past) >= 0.6 for past in retired
     ):
+        matched = next(
+            (
+                past
+                for past in retired
+                if past == question or _premise_overlap(draft.chapter.dramatic_question, past) >= 0.6
+            ),
+            question,
+        )
         raise StoryUnavailable(
             "chapter_not_advanced",
             hint=(
                 "This chapter is closed. Open a new one about something else in this "
-                f"life; already answered: {sorted(retired)}."
+                f"life; already answered: {sorted(retired)}. Your dramatic_question "
+                f"«{_one_line(draft.chapter.dramatic_question, 120)}» repeats «{_one_line(matched, 120)}». "
+                "Set beat to setup and write a NEW chapter.title_fr and a NEW, smaller "
+                "chapter.dramatic_question that today's page raises (on a season day: "
+                "from today's premise or one of the gap's threads — the season's own "
+                "question belongs to the tentpoles)."
             ),
         )
     recent = context["recent_situations"][-PREMISE_WINDOW:]
@@ -7163,6 +7709,7 @@ def generate_scene(
                 candidates=dual_draft_candidates(context),
                 choose=lambda p: _scene_score(p, context),
                 story_review=_season_story_review(context, reviews),
+                digest=lambda p: scene_digest(p, context),
             )
         finally:
             # A lost day's readings are the metric too.
