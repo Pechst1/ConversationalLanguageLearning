@@ -420,7 +420,18 @@ def measured_intake(db: Session, user: Any, *, now: datetime) -> MeasuredIntake:
     """
 
     start = now - timedelta(days=INTAKE_WINDOW_DAYS)
-    words = db.query(UserVocabularyProgress).filter(UserVocabularyProgress.user_id == user.id).all()
+    # WP-123b: a card the vocabulary check credited (WP-127: sampled or inferred
+    # recognition) was not learnt at the learner's pace and was "known" by
+    # construction: counting it made a placed B2 learner's first fortnight read as
+    # ~200 words a day and their retention as perfect. Intake and retention are
+    # measured on the words the learner actually met.
+    from app.services.band_check import CHECK_PROVENANCES
+
+    words = [
+        row
+        for row in db.query(UserVocabularyProgress).filter(UserVocabularyProgress.user_id == user.id).all()
+        if row.provenance not in CHECK_PROVENANCES
+    ]
     units = db.query(UserGrammarProgress).filter(UserGrammarProgress.user_id == user.id).all()
     words_recent = sum(1 for row in words if row.created_at is not None and _aware(row.created_at) >= start)
     units_recent = sum(1 for row in units if row.created_at is not None and _aware(row.created_at) >= start)
