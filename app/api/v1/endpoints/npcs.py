@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/{npc_id}", response_model=NPCDetailRead)
-async def get_npc(
+def get_npc(
     npc_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -46,7 +46,7 @@ async def get_npc(
 
 
 @router.get("/{npc_id}/relationship", response_model=NPCRelationshipRead)
-async def get_npc_relationship(
+def get_npc_relationship(
     npc_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -79,7 +79,7 @@ async def get_npc_relationship(
 
 
 @router.get("/{npc_id}/memories", response_model=list[NPCMemoryRead])
-async def get_npc_memories(
+def get_npc_memories(
     npc_id: str,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],

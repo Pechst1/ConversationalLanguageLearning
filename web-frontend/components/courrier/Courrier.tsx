@@ -14,13 +14,14 @@
    Every component still maps onto a real API field. All rules here are written
    `.av2 .cr-…` so they outrank the legacy element resets. */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 
 import {
   Action,
   ArrowLeftIcon,
   ArrowRightIcon,
+  CastPortrait,
   Chip,
   IconAction,
   Portrait,
@@ -28,17 +29,28 @@ import {
   ShapeToken,
 } from '@/components/atelier-v2/ui';
 
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
+import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
+import { listenLabel } from '@/components/atelier-v2/journey/useStepVoice';
+import { pickByLanguage } from '@/lib/language-rule';
+
+import { courrierCopy, crFill, crPlural, useCrCopy } from './courrier-copy';
+
+export { useCrCopy } from './courrier-copy';
+
 /* ---------- lazy translate (frame + character voice) ----------
    Wraps apiService.translateToEnglish; English is out-of-fiction chrome, so
    the reveal is plain muted text, never set as the character's line. */
 export function CrTranslate({
   translate,
-  label = 'Traduire',
+  label,
 }: {
   translate: () => Promise<string>;
   variant?: 'glyph' | 'text';
   label?: string;
 }) {
+  const t = useCrCopy();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState('');
@@ -52,7 +64,7 @@ export function CrTranslate({
       setText(await translate());
     } catch (error) {
       console.error(error);
-      setText('Traduction indisponible.');
+      setText(t.translate_unavailable);
     } finally {
       setLoading(false);
     }
@@ -65,13 +77,13 @@ export function CrTranslate({
         className="cr-trad-btn"
         onClick={reveal}
         aria-expanded={open}
-        aria-label={open ? 'Masquer la traduction' : 'Voir la traduction'}
+        aria-label={open ? t.translate_hide_aria : t.translate_show_aria}
       >
-        {open ? 'Masquer' : label}
+        {open ? t.translate_hide : label || t.translate}
       </button>
       {open && (
         <p className="cr-trad-reveal" lang="en">
-          {loading ? 'Traduction…' : text || 'Traduction indisponible.'}
+          {loading ? t.translate_loading : text || t.translate_unavailable}
         </p>
       )}
     </div>
@@ -79,8 +91,10 @@ export function CrTranslate({
 }
 
 /* ---------- header row (the design's Missions header) ----------
+   WP-83: ONE line — back, portrait, the name as the one headline, the chip.
    name    ← messenger.contact_name (portrait initial + the one headline)
-   line    ← cadence / act kicker · mission title (12px muted)
+   line    ← cadence / act kicker · mission title: no longer a second visible
+             kicker line, only said to assistive tech
    chip    ← reward chip "■ used/total" from target_vocabulary, or "done" */
 export function CrDesk({
   name,
@@ -88,24 +102,48 @@ export function CrDesk({
   chip,
   onBack,
   backHref = '/atelier',
-  backLabel = 'Retour à la Une',
+  backLabel,
+  letterFr,
+  senderId,
 }: {
   name: string;
-  line: string;
+  line?: string;
   chip?: React.ReactNode;
   onBack?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   backHref?: string;
   backLabel?: string;
+  /**
+   * WP-91 «Les voix»: the letter's French body. When given, the sender's face
+   * is the play button and reads it aloud (the device's French voice).
+   */
+  letterFr?: string | null;
+  /** The sender's cast id, so the voice and the face are theirs. */
+  senderId?: string | null;
 }) {
+  const t = useCrCopy();
+  const back = backLabel || t.back_home;
+  const voice = useLineVoice();
+  const letter = String(letterFr || '').trim();
   return (
     <header className="cr-desk">
-      <Link className="av2-icon-btn cr-back" href={backHref} onClick={onBack} aria-label={backLabel} title={backLabel}>
+      <Link className="av2-icon-btn cr-back" href={backHref} onClick={onBack} aria-label={back} title={back}>
         <ArrowLeftIcon size={20} />
       </Link>
-      <Portrait name={name} />
+      {letter ? (
+        <SpeakingPortrait
+          line={{ key: 'courrier-letter', text_fr: letter, character_id: senderId || name }}
+          voice={voice}
+          label={listenLabel(journeyCopy(t.lang as 'en' | 'de' | 'fr'), name)}
+          characterId={senderId || name}
+          name={name}
+          size="sm"
+        />
+      ) : (
+        <Portrait name={name} />
+      )}
       <div className="cr-desk-main">
         <h1 className="cr-name" lang="fr">{name}</h1>
-        <p className="cr-line">{line}</p>
+        {line && <p className="av2-sr">{line}</p>}
       </div>
       {chip}
     </header>
@@ -113,23 +151,30 @@ export function CrDesk({
 }
 
 /* ---------- the situation (no artboard: extended as a card surface) ----------
-   frame ← slim_payload.frame · ask ← slim_payload.ask (red triangle = action) */
+   frame ← slim_payload.frame · ask ← slim_payload.ask_by_language[chrome]
+   (red triangle = action). The objective is chrome: in the learner's language
+   up to A2 when the letter carries that version; `askLang` says which language
+   the text is actually in (a letter with only its French objective keeps it,
+   marked `fr`). */
 export function CrSituation({
   frame,
   ask,
+  askLang = 'fr',
   translate,
 }: {
   frame: string;
   ask: string;
+  askLang?: string;
   translate?: () => Promise<string>;
 }) {
+  const t = useCrCopy();
   return (
-    <section className="cr-sit" aria-label="La situation">
+    <section className="cr-sit" aria-label={t.situation_aria}>
       <p className="cr-sit-frame" lang="fr">{frame}</p>
       {ask && (
         <p className="cr-sit-ask">
           <ShapeToken kind="action" size="sm" />
-          <span><b>À faire ·</b> <span lang="fr">{ask}</span></span>
+          <span><b>{t.todo}</b> <span lang={askLang}>{ask}</span></span>
         </p>
       )}
       {translate && <CrTranslate translate={translate} />}
@@ -151,16 +196,22 @@ export function CrPS({ text }: { text?: string | null }) {
 /* ---------- word ribbon ← target_vocabulary (≤3) as reward chips ----------
    A word already placed flips to the ink square (= done), with the word said
    out loud so the state is never colour alone. */
-export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean }[] }) {
+export function CrRibbon({ words = [] }: { words?: { t: string; used?: boolean; recall?: string }[] }) {
+  const t = useCrCopy();
   if (!words.length) return null;
   return (
-    <div className="cr-ribbon" role="list" aria-label="Mots à placer">
-      <span className="cr-ribbon-k">À placer</span>
+    <div className="cr-ribbon" role="list" aria-label={t.ribbon_aria}>
+      <span className="cr-ribbon-k">{t.ribbon_k}</span>
       {words.map((w) => (
         <span role="listitem" key={w.t}>
           <Chip tone={w.used ? 'plain' : 'reward'} icon={<ShapeToken kind={w.used ? 'done' : 'reward'} size="sm" />}>
-            <span lang="fr">{w.t}</span>
-            {w.used && <span className="av2-sr"> · placé</span>}
+            {/* WP-115d: a word to recall shows its meaning until the reply uses it. */}
+            {w.recall && !w.used ? (
+              <span data-recall="true">{w.recall}</span>
+            ) : (
+              <span lang="fr">{w.t}</span>
+            )}
+            {w.used && <span className="av2-sr"> · {t.ribbon_used_sr}</span>}
           </Chip>
         </span>
       ))}
@@ -176,6 +227,7 @@ export function CrSlip({
   time,
   you = false,
   translate,
+  lang = 'fr',
   children,
 }: {
   who: string;
@@ -183,11 +235,13 @@ export function CrSlip({
   you?: boolean;
   sent?: boolean;
   translate?: () => Promise<string>;
+  /** A letter's line is French; an artefact's opening instruction is chrome. */
+  lang?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className={'cr-turn' + (you ? ' cr-turn--mine' : '')}>
-      <div className={'av2-bubble' + (you ? ' av2-bubble--mine' : '')} lang="fr">
+      <div className={'av2-bubble' + (you ? ' av2-bubble--mine' : '')} lang={lang}>
         <span className="av2-sr">{who} · </span>
         {children}
       </div>
@@ -208,13 +262,14 @@ export function CrRepair({
   lines: { fixed?: string; why?: string }[];
   savedCount?: number;
 }) {
+  const t = useCrCopy();
   if (!correctedAnswer && !lines.length) return null;
   const count = Math.max(lines.length, correctedAnswer ? 1 : 0);
   return (
-    <aside className="cr-repair" aria-label="Correction">
+    <aside className="cr-repair" aria-label={t.repair_aria}>
       <p className="cr-feedback">
         <span className="cr-feedback-dot" aria-hidden="true" />
-        Bien dit · {count === 1 ? 'une petite remarque' : `${count} petites remarques`}
+        {count === 1 ? t.repair_one : crFill(t.repair_many, { n: count })}
       </p>
       <div className="cr-repair-card">
         {correctedAnswer && (
@@ -229,7 +284,7 @@ export function CrRepair({
         {savedCount > 0 && (
           <p className="cr-repair-saved">
             <ShapeToken kind="done" size="sm" />
-            <span>{savedCount} réparation{savedCount === 1 ? '' : 's'} enregistrée{savedCount === 1 ? '' : 's'}</span>
+            <span>{crPlural(t, 'repairs_saved', savedCount)}</span>
           </p>
         )}
       </div>
@@ -251,23 +306,24 @@ export function CrMemo({
   stamp?: string | null;
   translate?: () => Promise<string>;
 }) {
+  const t = useCrCopy();
   return (
     <div className="cr-memo">
       <div className="cr-memo-card">
         <p className="cr-memo-head">
           <ShapeToken kind="story" size="sm" />
-          <span>Pendant votre absence · message téléphonique</span>
+          <span>{t.memo_head}</span>
           {stamp && (
             <Chip icon={<ShapeToken kind="done" size="sm" />} className="cr-memo-stamp">{stamp}</Chip>
           )}
         </p>
         {rows.map((r) => (
-          <p className="cr-memo-row" key={r[0]}><span>{r[0]}</span><b>{r[1]}</b></p>
+          <p className="cr-memo-row" key={r[0]}><span>{r[0]}</span><b lang="fr">{r[1]}</b></p>
         ))}
       </div>
       <div className="cr-turn">
         <div className="av2-bubble" lang="fr">
-          <span className="av2-sr">Transcription automatique · </span>
+          <span className="av2-sr">{t.memo_transcript_sr} · </span>
           {transcript}
         </div>
         {translate && <CrTranslate translate={translate} />}
@@ -294,15 +350,19 @@ export function CrCallStrip({
   );
 }
 
-/* ---------- composer (the design's footer) ----------
+/* ---------- composer ----------
+   WP-83: collapsed by default. The letter is read first; one «Répondre» pill
+   (in the chrome language) opens the composer, which then sits in the flow
+   right after the letter — never sticky, never over what it answers.
    quick ← quick_replies (paper chips) · the well ← the learner's draft ·
-   `send` ← the ONE 3D press on the screen: a round red icon action, unless the
-   page hands in a voice control to stand in its place while the draft is
-   empty. Finish stays a quiet action gated on ≥1 learner turn. */
+   `send` ← the ONE 3D press on the screen once open: a round red icon action,
+   unless the page hands in a voice control to stand in its place while the
+   draft is empty. Closed, the pill is that press. Finish stays a quiet action
+   gated on ≥1 learner turn. */
 export function CrComposer({
   quick = [],
   onQuick,
-  cta = 'Envoyer',
+  cta,
   onSubmit,
   sending = false,
   canSubmit = true,
@@ -310,8 +370,10 @@ export function CrComposer({
   onFinish,
   finishing = false,
   hideFinish = false,
-  finishLabel = 'Terminer',
+  finishLabel,
   voice,
+  collapsible = true,
+  open: openProp = false,
   children,
 }: {
   quick?: string[];
@@ -327,12 +389,55 @@ export function CrComposer({
   finishLabel?: string;
   /** A control that replaces the send press (the mic) while there is no draft. */
   voice?: React.ReactNode;
+  /** False renders the composer open from the start (the old behaviour). */
+  collapsible?: boolean;
+  /** Keeps the composer open whatever the pill did — a draft in progress, a
+   *  recording running. */
+  open?: boolean;
   children: React.ReactNode;
 }) {
+  const t = useCrCopy();
+  const [expanded, setExpanded] = useState(!collapsible);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const open = expanded || openProp;
+  const finishText = finishLabel || t.finish;
+
+  const expand = () => {
+    setExpanded(true);
+    // The well is what the learner asked for: put the caret in it, and bring
+    // it into view above the tab bar (`scroll-margin-bottom` below).
+    window.setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      form.querySelector('textarea')?.focus({ preventScroll: true });
+      form.scrollIntoView({ block: 'nearest' });
+    }, 0);
+  };
+
+  if (!open) {
+    return (
+      <div className="cr-composer cr-composer--closed">
+        <Action
+          tone="primary"
+          className="cr-reply-pill"
+          aria-expanded={false}
+          onClick={expand}
+        >
+          {t.reply}
+        </Action>
+        {!hideFinish && canFinish && (
+          <Action tone="quiet" inline pending={finishing} pendingLabel={t.finishing} onClick={onFinish} className="cr-finish">
+            {finishText}
+          </Action>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <form className="cr-composer" onSubmit={onSubmit}>
+    <form className="cr-composer" onSubmit={onSubmit} ref={formRef}>
       {quick.length > 0 && (
-        <div className="cr-quick" role="group" aria-label="Réponses rapides">
+        <div className="cr-quick" role="group" aria-label={t.quick_aria}>
           {quick.map((q) => (
             <Chip key={q} onClick={() => onQuick?.(q)} className="cr-quick-chip">
               <span lang="fr">{q}</span>
@@ -344,7 +449,7 @@ export function CrComposer({
         {children}
         {voice ?? (
           <IconAction
-            label={cta}
+            label={cta || t.send}
             tone="action"
             pressable
             type="submit"
@@ -363,16 +468,135 @@ export function CrComposer({
             inline
             disabled={!canFinish}
             pending={finishing}
-            pendingLabel="Clôture…"
+            pendingLabel={t.finishing}
             onClick={onFinish}
             className="cr-finish"
           >
-            {finishLabel}
+            {finishText}
           </Action>
-          {!canFinish && <span className="cr-gate">Envoyez d’abord une réponse.</span>}
+          {!canFinish && <span className="cr-gate">{t.finish_gate}</span>}
         </div>
       )}
     </form>
+  );
+}
+
+/* ---------- the seal (Appendix A, «Courrier (done)») ----------
+   An answered letter used to print credit rows, debrief rows, the objectives
+   and the last message over again. It is now ONE seal on the ink surface: the
+   verdict, one sentence, at most three numbers — every one of them counted
+   (`recap.measured`, or the legacy recap counts on a pre-WP-64 letter). */
+
+export type CrSealNumber = { value: string; label: string };
+
+export type CrSealMeasured = {
+  objectives_met?: number;
+  objectives_total?: number;
+  repairs?: number;
+  phrases_saved?: number;
+  words_written?: number;
+  assessed?: boolean;
+};
+
+/** The seal's numbers, three at most, in the chrome language (French by default). */
+export function crSealNumbers(
+  measured: CrSealMeasured | null | undefined,
+  legacy: { turns?: number; errata?: number; saved?: number } = {},
+  language: unknown = 'fr',
+): CrSealNumber[] {
+  const t = courrierCopy(language);
+  const rows: CrSealNumber[] = [];
+  if (measured) {
+    const total = Number(measured.objectives_total || 0);
+    // WP-74: no grader ran — «0/2» would be a verdict nobody gave.
+    if (total > 0 && measured.assessed !== false) {
+      rows.push({ value: `${Number(measured.objectives_met || 0)}/${total}`, label: t.num_objectives });
+    }
+    const repairs = Number(measured.repairs || 0);
+    if (repairs > 0) rows.push({ value: String(repairs), label: repairs === 1 ? t.num_repairs_one : t.num_repairs_many });
+    const words = Number(measured.words_written || 0);
+    const saved = Number(measured.phrases_saved || 0);
+    if (words > 0) rows.push({ value: String(words), label: words === 1 ? t.num_words_one : t.num_words_many });
+    else if (saved > 0) rows.push({ value: String(saved), label: saved === 1 ? t.num_saved_one : t.num_saved_many });
+    return rows.slice(0, 3);
+  }
+  const turns = Number(legacy.turns || 0);
+  const errata = Number(legacy.errata || 0);
+  const kept = Number(legacy.saved || 0);
+  rows.push({ value: String(turns), label: turns === 1 ? t.num_replies_one : t.num_replies_many });
+  rows.push({ value: String(errata), label: errata === 1 ? t.num_errors_one : t.num_errors_many });
+  rows.push({ value: String(kept), label: kept === 1 ? t.num_saved_one : t.num_saved_many });
+  return rows;
+}
+
+/** The correspondent's face on the seal: cast members wear their drawn
+ *  portrait in the mood; anyone else (a shop, a clerk) keeps the initial disc. */
+export type CrSealMood = {
+  name: string;
+  /** A cast id (`serial_character_id` / correspondent id) when there is one. */
+  characterId?: string | null;
+  face: 'happy' | 'neutral' | 'cross';
+  /** One short line in the chrome language: «Anaïs is pleased with you». */
+  line: string;
+};
+
+export function CrSeal({
+  verdict,
+  mood,
+  date,
+  sentence,
+  sentenceLang,
+  numbers = [],
+  token,
+}: {
+  verdict: string;
+  date?: string | null;
+  /** One sentence. Chrome (the outcome's meaning) or the letter's own French. */
+  sentence?: string | null;
+  /** `fr` when the sentence is the letter's content rather than chrome. */
+  sentenceLang?: string;
+  numbers?: CrSealNumber[];
+  /** The minted collectible, when the recap says one was minted. */
+  token?: React.ReactNode;
+  /** The correspondent in the mood the letter left: a face and one short line. */
+  mood?: CrSealMood | null;
+}) {
+  const t = useCrCopy();
+  return (
+    <div className="cr-seal" role="group" aria-label={t.resolved_aria}>
+      <span className="cr-seal-word">
+        <ShapeToken kind="done" size="lg" />
+        {verdict}
+      </span>
+      {mood && mood.line && (
+        <p className="cr-seal-mood" data-mood={mood.face}>
+          {mood.characterId ? (
+            <CastPortrait characterId={mood.characterId} name={mood.name} mood={mood.face} size="sm" ring />
+          ) : (
+            <Portrait name={mood.name} mood={mood.face} />
+          )}
+          <span>{mood.line}</span>
+        </p>
+      )}
+      {date && <span className="cr-seal-date">{date}</span>}
+      {sentence && <p className="cr-seal-sub" lang={sentenceLang}>{sentence}</p>}
+      {numbers.length > 0 && (
+        <dl className="cr-seal-nums" aria-label={t.seal_numbers_aria}>
+          {numbers.slice(0, 3).map((row) => (
+            <div key={row.label}>
+              <dt>{row.label}</dt>
+              <dd>{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {token && (
+        <p className="cr-seal-token" role="status">
+          {token}
+          <span>{t.token_minted}</span>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -419,6 +643,613 @@ export function CrGhost({
 }
 
 /* ============================================================
+   WP-34 — «Apportez votre français»
+   The learner hands the app something real: the menu of the café downstairs,
+   the letter from the gérant about the chauffage. It is read once, summarised
+   at their band, glossed in their own language, and turned into ONE Courrier
+   task answered through the ordinary composer above.
+
+   No artboard covers this, so it is extended from the same primitives as the
+   rest of the file: rounded card surfaces, the four Bauhaus tokens, sentence
+   case, two fonts, French. Three rules it keeps:
+
+     · one primary press per screen — «Faire lire» while composing, «Répondre»
+       once the document has been read, and never both;
+     · «Non lu» is a real state with a retry, not an empty card. A document the
+       model could not read is never shown as a document it did;
+     · the document is the learner's: the delete control sits on the card, says
+       what it takes with it, and is a quiet action, not a hidden gesture.
+   ============================================================ */
+
+export type CrGlossedWord = {
+  word: string;
+  lemma?: string;
+  gloss?: string;
+  gloss_language?: string | null;
+  gloss_source?: 'vocabulary' | 'model' | 'none' | string;
+  example_fr?: string;
+};
+
+type CrByLanguage = Partial<Record<string, string>> | null;
+
+export type CrArtefactPayload = {
+  type?: string;
+  type_label_fr?: string;
+  type_label_by_language?: CrByLanguage;
+  title_fr?: string;
+  summary_fr?: string;
+  summary_bounded?: boolean;
+  key_facts?: { label_fr: string; value_fr: string }[];
+  glossed_words?: CrGlossedWord[];
+  band?: string;
+};
+
+export type CrArtefactTask = {
+  kind?: string;
+  kind_label_fr?: string;
+  instruction_fr?: string;
+  counterpart_fr?: string;
+  register?: string;
+  success_fr?: string;
+  kind_label_by_language?: CrByLanguage;
+  instruction_by_language?: CrByLanguage;
+  success_by_language?: CrByLanguage;
+  counterpart_by_language?: CrByLanguage;
+};
+
+/** One piece of an artefact's chrome: the version in the chrome language when
+ *  the server has it, else its French — marked `fr` — else `fallback`. */
+export type CrSaid = { text: string; lang: string };
+
+function crSay(table: CrByLanguage | undefined, french: string | undefined, language: string, fallback?: CrSaid): CrSaid | null {
+  const localized = pickByLanguage(table ?? null, language as 'fr' | 'en' | 'de');
+  if (localized) return { text: localized, lang: language };
+  const fr = String(french || '').trim();
+  if (fr) return { text: fr, lang: 'fr' };
+  return fallback ?? null;
+}
+
+const CR_TASK_KIND_KEYS = { reply: 'task_kind_reply', decide: 'task_kind_decide', ask: 'task_kind_ask' } as const;
+
+/** What an artefact's card says, in the chrome language (the one-language rule):
+ *  the type label, the task's label, instruction and success line, and the
+ *  counterpart when the document named nobody. The counterpart the document
+ *  does name is its own French. */
+export function crArtefactChrome(
+  artefact: { artefact?: CrArtefactPayload; task?: CrArtefactTask | null } | null | undefined,
+  language: unknown = 'fr',
+) {
+  const t = courrierCopy(language);
+  const payload = artefact?.artefact ?? {};
+  const task = artefact?.task ?? {};
+  const kindKey = CR_TASK_KIND_KEYS[(task.kind as keyof typeof CR_TASK_KIND_KEYS) || 'reply'] ?? 'task_kind_reply';
+  return {
+    type: crSay(payload.type_label_by_language, payload.type_label_fr, t.lang),
+    // The kind is known, so its label is always this table's when the server
+    // sent none in the chrome language.
+    kind: crSay(task.kind_label_by_language, '', t.lang, {
+      text: t[kindKey],
+      lang: t.lang,
+    }),
+    instruction: crSay(task.instruction_by_language, task.instruction_fr, t.lang),
+    success: crSay(task.success_by_language, task.success_fr, t.lang),
+    who: crSay(task.counterpart_by_language, task.counterpart_fr, t.lang),
+  };
+}
+
+export type CrArtefactView = {
+  id: string;
+  status: 'read' | 'unread' | string;
+  source_kind?: string;
+  source_text?: string;
+  artefact?: CrArtefactPayload;
+  task?: CrArtefactTask;
+  mission_id?: string | null;
+  queued_word_count?: number;
+  /** When the document was brought in. The label says «reçue le 12 sept.»
+   *  rather than nothing when the server sent it, and simply drops the clause
+   *  when it did not — an invented date is worse than no date. */
+  created_at?: string | null;
+};
+
+/** «Lettre · votre propriétaire · reçue le 12 sept.» — the artboard's label.
+ *  Every clause is dropped rather than guessed when its field is absent. The
+ *  type and the counterpart are the document's own French; the fallback and
+ *  the date clause are chrome, in `language` (French by default). */
+export function crArtefactLabel(artefact: CrArtefactView, language: unknown = 'fr'): string {
+  const said = crArtefactChrome(artefact, language);
+  return [said.type?.text || courrierCopy(language).art_a_document, said.who?.text || null, crReceivedOn(artefact.created_at, language)]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** «reçue le 12 sept.» (or «received 12 Sept», «erhalten am 12. Sept.»), or nothing at all. */
+export function crReceivedOn(value?: string | null, language: unknown = 'fr'): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const t = courrierCopy(language);
+  return crFill(t.art_received, {
+    date: new Intl.DateTimeFormat(t.locale, { day: 'numeric', month: 'short' }).format(date),
+  });
+}
+
+export type CrIntakeCap = {
+  limit: number;
+  used: number;
+  remaining: number;
+  enabled: boolean;
+};
+
+/** The allowance, said plainly in the chrome language (French by default).
+ *  Never a bare number. */
+export function crIntakeCapLine(cap?: CrIntakeCap | null, language: unknown = 'fr'): string {
+  const t = courrierCopy(language);
+  if (!cap || !cap.enabled || cap.limit <= 0) return t.cap_off;
+  if (cap.remaining <= 0) return t.cap_none;
+  if (cap.remaining === 1) return t.cap_one;
+  return crFill(t.cap_many, { n: cap.remaining });
+}
+
+/** Where the intake lives. One constant, so the Courrier's quiet row, Home's
+ *  entry and the page that renders the surface cannot drift apart. */
+export const CR_INTAKE_HREF = '/missions?intake=1';
+
+/* ---------- the way in (WP-37 §2.1, applied by WP-38) ----------
+   A row, never a press. The Courrier's own 3D press is the reply the learner
+   owes someone; bringing a document in is a side door, and design principle 1
+   allows exactly one primary action per screen. Same `.av2-row` the Home
+   entries use, so it needs no CSS of its own and cannot drift from them. */
+export function CrIntakeLink({
+  cap,
+  href = CR_INTAKE_HREF,
+}: {
+  cap?: CrIntakeCap | null;
+  href?: string;
+}) {
+  const t = useCrCopy();
+  // Without a loaded cap the row says what the screen is for rather than
+  // guessing an allowance — the surface itself prints the real number.
+  const hint = cap ? crIntakeCapLine(cap, t.lang) : t.intake_link_hint;
+  return (
+    <Link className="av2-row" href={href} aria-label={`${t.intake_link} — ${hint}`}>
+      <span className="av2-row__main">
+        <span className="av2-label">{t.intake_link}</span>
+        <span className="av2-label" style={{ display: 'block', fontWeight: 400 }}>
+          {hint}
+        </span>
+      </span>
+      <ArrowRightIcon size={18} />
+    </Link>
+  );
+}
+
+/* ---------- the entry: paste or photograph ----------
+   `onRead` is handed the paste, or the file, never both: the two controls fill
+   one field between them, so the learner cannot half-send two documents. */
+export function CrIntakeEntry({
+  cap,
+  onRead,
+  reading = false,
+  error,
+  onDismissError,
+  pasteOpen = false,
+}: {
+  cap?: CrIntakeCap | null;
+  onRead: (input: { text?: string; file?: File }) => void;
+  reading?: boolean;
+  error?: string | null;
+  onDismissError?: () => void;
+  /** Open the paste well on mount. The two ways in are two buttons on
+   *  `Documents.dc.html`, so the well is closed until one is chosen; a page
+   *  that arrives with a document already in hand can open it directly. */
+  pasteOpen?: boolean;
+}) {
+  const t = useCrCopy();
+  const lang = t.lang;
+  const [text, setText] = useState('');
+  const [paste, setPaste] = useState(pasteOpen);
+  const [file, setFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const blocked = !cap?.enabled || (cap?.limit ?? 0) <= 0 || (cap?.remaining ?? 0) <= 0;
+  const ready = !blocked && !reading && (file !== null || text.trim().length >= 20);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!ready) return;
+    if (file) onRead({ file });
+    else onRead({ text: text.trim() });
+  };
+
+  const pickFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0] ?? null;
+    setFile(picked);
+    if (picked) {
+      setText('');
+      setPaste(false);
+    }
+  };
+
+  const openPaste = () => {
+    setPaste(true);
+    setFile(null);
+    if (fileRef.current) fileRef.current.value = '';
+    // The well is what the learner asked for, so put the caret in it.
+    window.setTimeout(() => textRef.current?.focus(), 0);
+  };
+
+  return (
+    <form className="cr-intake" onSubmit={submit} aria-label={t.intake_link}>
+      <p className="cr-intake-kicker">{t.intake_kicker}</p>
+      <h2 className="cr-intake-k">{t.intake_head}</h2>
+
+      {/* The two ways in, side by side as the artboard draws them. Neither is
+          the screen's press: they choose *how* the document arrives. */}
+      <div className="cr-intake-ways">
+        <Action
+          tone="secondary"
+          disabled={reading || blocked}
+          aria-expanded={paste}
+          aria-controls="cr-intake-text"
+          onClick={openPaste}
+        >
+          {t.intake_paste}
+        </Action>
+        <input
+          ref={fileRef}
+          className="av2-sr"
+          id="cr-intake-photo"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          disabled={reading || blocked}
+          onChange={pickFile}
+        />
+        <Action
+          tone="secondary"
+          disabled={reading || blocked}
+          onClick={() => fileRef.current?.click()}
+        >
+          {file ? t.intake_photo_change : t.intake_photo}
+        </Action>
+      </div>
+
+      {/* The allowance and what happens to the document, on one quiet line. */}
+      <p className="cr-intake-cap">
+        {crIntakeCapLine(cap, lang)} · {t.intake_privacy}
+      </p>
+
+      <label className={paste ? 'cr-intake-lab' : 'av2-sr'} htmlFor="cr-intake-text">
+        {t.intake_paste_label}
+      </label>
+      <textarea
+        ref={textRef}
+        id="cr-intake-text"
+        className="cr-intake-well"
+        lang="fr"
+        rows={5}
+        value={text}
+        hidden={!paste}
+        placeholder={t.intake_paste_placeholder}
+        disabled={reading || blocked || file !== null}
+        onChange={(event) => setText(event.target.value)}
+      />
+
+      {file && (
+        <p className="cr-intake-row">
+          <span className="cr-intake-file">
+            <ShapeToken kind="done" size="sm" />
+            <span>{file.name}</span>
+            <button
+              type="button"
+              className="cr-intake-drop"
+              onClick={() => {
+                setFile(null);
+                if (fileRef.current) fileRef.current.value = '';
+              }}
+            >
+              {t.intake_remove}
+            </button>
+          </span>
+        </p>
+      )}
+
+      {error && (
+        <p className="cr-intake-error" role="alert">
+          {error}
+          {onDismissError && (
+            <button type="button" className="cr-intake-drop" onClick={onDismissError}>
+              {t.intake_close}
+            </button>
+          )}
+        </p>
+      )}
+
+      {/* The one 3D press on this screen, and only once there is something to
+          read: before a way in is chosen there is nothing to press. */}
+      {(paste || file) && (
+        <Action
+          tone="primary"
+          type="submit"
+          disabled={!ready}
+          pending={reading}
+          pendingLabel={t.intake_reading}
+          iconAfter={<ArrowRightIcon size={18} />}
+        >
+          {t.intake_read}
+        </Action>
+      )}
+    </form>
+  );
+}
+
+/* ---------- the artefact card ----------
+   type · title · summary · the facts that matter · the words, glossed. */
+export function CrArtefactCard({
+  artefact,
+  onDelete,
+  deleting = false,
+}: {
+  artefact: CrArtefactView;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
+  const t = useCrCopy();
+  const payload = artefact.artefact ?? {};
+  const facts = payload.key_facts ?? [];
+  const words = payload.glossed_words ?? [];
+  const said = crArtefactChrome(artefact, t.lang);
+  const who = said.who;
+  const type = said.type;
+  const received = crReceivedOn(artefact.created_at, t.lang);
+  return (
+    <section className="cr-art" aria-label={t.art_aria}>
+      {/* «Lettre · votre propriétaire · reçue le 12 sept.» — one 12px line,
+          where a chip used to carry only the type. The type and the
+          counterpart the document names is its French; the type label and
+          the rest are chrome, in the chrome language. */}
+      <p className="cr-art-head">
+        {type ? <span lang={type.lang}>{type.text}</span> : t.art_a_document}
+        {who && <span lang={who.lang}> · {who.text}</span>}
+        {received && <span> · {received}</span>}
+        {artefact.source_kind === 'image' && <span className="cr-art-src"> · {t.art_photographed}</span>}
+      </p>
+      {payload.title_fr
+        ? <h2 className="cr-art-title" lang="fr">{payload.title_fr}</h2>
+        : <h2 className="cr-art-title">{t.art_untitled}</h2>}
+      {payload.summary_fr && (
+        <p className="cr-art-sum">
+          <span lang="fr">{payload.summary_fr}</span>
+          {payload.summary_bounded && <span className="cr-art-cut"> {t.art_bounded}</span>}
+        </p>
+      )}
+
+      {facts.length > 0 && (
+        <dl className="cr-art-facts">
+          {facts.map((fact) => (
+            <div key={`${fact.label_fr}-${fact.value_fr}`}>
+              <dt>{fact.label_fr}</dt>
+              <dd lang="fr">{fact.value_fr}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {words.length > 0 && (
+        <div className="cr-art-words">
+          <p className="cr-art-k">{t.art_words_k}</p>
+          {/* Chips, as the artboard draws them: the French word in the serif
+              italic, its gloss beside it in the muted colour. A word the
+              resolver could not gloss still gets a chip and says so — dropping
+              it would hide that the lexique has a hole. */}
+          <ul>
+            {words.map((word) => (
+              <li key={word.word} className="cr-art-word">
+                <b lang="fr">{word.word}</b>
+                {word.gloss ? (
+                  <span lang={word.gloss_language || undefined}>{word.gloss}</span>
+                ) : (
+                  <span className="cr-art-nogloss">{t.art_no_gloss}</span>
+                )}
+                {word.gloss_source === 'model' && (
+                  <span className="cr-art-nogloss"> · {t.art_off_lexicon}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="cr-art-queued">
+            <ShapeToken kind="reward" size="sm" />
+            <span>
+              {words.length === 1 ? t.art_queued_one : crFill(t.art_queued_many, { n: words.length })}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {/* The screen's one primary, inside the card it belongs to: the document
+          is read, and what is owed is an answer to whoever sent it. A Link,
+          because the reply is written in the Courrier's own composer — the
+          corrector and the thread already live there. Rendered only when the
+          server actually made the mission: a press that goes nowhere would be
+          a worse promise than no press. */}
+      {artefact.mission_id && artefact.task?.instruction_fr && (
+        <Link
+          className="av2-btn av2-btn--primary cr-art-reply"
+          href={`/missions?mission=${artefact.mission_id}`}
+        >
+          <span>{who ? crFill(t.reply_to, { name: who.text }) : t.reply}</span>
+          <ArrowRightIcon size={18} />
+        </Link>
+      )}
+
+      {onDelete && (
+        <Action tone="quiet" inline onClick={onDelete} pending={deleting} pendingLabel={t.art_deleting}>
+          {t.art_delete}
+        </Action>
+      )}
+    </section>
+  );
+}
+
+/* ---------- the derived task ----------
+   One line saying what to do, and who to. The answer itself is written in the
+   ordinary Courrier composer, graded by the ordinary Courrier corrector. */
+export function CrArtefactTaskCard({
+  task,
+  onStart,
+  starting = false,
+}: {
+  task?: CrArtefactTask | null;
+  onStart?: () => void;
+  starting?: boolean;
+}) {
+  const t = useCrCopy();
+  if (!task || !task.instruction_fr) return null;
+  // The label, the instruction and the success line are the app's words to the
+  // learner: in the chrome language when the server has that version, else
+  // their French, marked so. The counterpart the document names stays French.
+  const said = crArtefactChrome({ task }, t.lang);
+  return (
+    <section className="cr-art-task" aria-label={t.task_aria}>
+      <p className="cr-art-k">
+        {said.kind && <span lang={said.kind.lang}>{said.kind.text}</span>}
+        {said.who && <span lang={said.who.lang}> · {said.who.text}</span>}
+      </p>
+      {said.instruction && <p className="cr-art-ask" lang={said.instruction.lang}>{said.instruction.text}</p>}
+      {said.success && <p className="cr-art-win" lang={said.success.lang}>{said.success.text}</p>}
+      {onStart && (
+        <Action
+          tone="primary"
+          onClick={onStart}
+          pending={starting}
+          pendingLabel={t.task_opening}
+          iconAfter={<ArrowRightIcon size={18} />}
+        >
+          {t.reply}
+        </Action>
+      )}
+    </section>
+  );
+}
+
+/* ---------- «Non lu» ----------
+   The honest state. No summary, no facts, no task — and a retry that says what
+   went wrong in one French sentence. */
+export function CrArtefactUnread({
+  sourceKind = 'text',
+  onRetry,
+  retrying = false,
+  onDelete,
+}: {
+  sourceKind?: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  onDelete?: () => void;
+}) {
+  const t = useCrCopy();
+  return (
+    <section className="cr-art cr-art--unread" aria-label={t.unread_aria} role="status">
+      <p className="cr-art-head">
+        <Chip icon={<ShapeToken kind="action" size="sm" />}>{t.unread}</Chip>
+      </p>
+      <p className="cr-art-sum">
+        {sourceKind === 'image' ? t.unread_photo : t.intake_error}
+      </p>
+      <div className="cr-art-row">
+        {onRetry && (
+          <Action tone="primary" onClick={onRetry} pending={retrying} pendingLabel={t.intake_reading}>
+            {t.retry}
+          </Action>
+        )}
+        {onDelete && (
+          <Action tone="quiet" inline onClick={onDelete}>
+            {t.unread_delete}
+          </Action>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ---------- WP-D7 · the sealed letter ----------
+   A letter still waiting for its reader, drawn from the shapes and nothing
+   else: a card-coloured rectangle, the triangle as its flap, the sender's face
+   as the wax seal in their own `--char-*` ring, and a small red triangle for
+   the stamp. Pure SVG + tokens — no image asset, no stroke, no new colour — so
+   it follows the theme into dark mode. It sits on the Feuilleton hero's blue
+   surface in place of an illustration a letter does not have. */
+
+/** «Lire et répondre · 8 min» — the minutes only when the server gave them.
+ *  `language` is the chrome language (French by default). */
+export function crReadAndReplyLabel(minutes?: number | null, language: unknown = 'fr'): string {
+  const t = courrierCopy(language);
+  const n = typeof minutes === 'number' && Number.isFinite(minutes) ? Math.round(minutes) : 0;
+  return n > 0 ? crFill(t.read_and_reply_min, { n }) : t.read_and_reply;
+}
+
+export function CrEnvelope({
+  senderId,
+  senderName,
+  language = 'fr',
+}: {
+  /** The sender's cast id (or anything `castIdFor` resolves). */
+  senderId?: string | null;
+  senderName?: string | null;
+  /** The chrome language of the accessible name (French by default). */
+  language?: unknown;
+}) {
+  const t = courrierCopy(language);
+  const id = String(senderId || '').trim();
+  const name = String(senderName || '').trim();
+  const sealed = Boolean(id || name);
+  return (
+    <div
+      className="cr-env"
+      role="img"
+      aria-label={name ? crFill(t.envelope_named, { name }) : t.envelope}
+    >
+      <CrEnvelopeStyles />
+      <svg className="cr-env-art" viewBox="0 0 160 100" aria-hidden="true" focusable="false">
+        <rect className="cr-env-body" x="24" y="16" width="112" height="70" rx="8" />
+        <polygon className="cr-env-flap" points="24,20 136,20 80,58" />
+        <polygon className="cr-env-stamp" points="114,26 128,26 121,38" />
+      </svg>
+      {sealed && (
+        <span className="cr-env-seal">
+          <CastPortrait characterId={id || name} name={name || undefined} size="sm" ring />
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function CrEnvelopeStyles() {
+  return (
+    <style jsx global>{`
+      .av2 .cr-env {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+      }
+      .av2 .cr-env-art { width: min(78%, 20rem); height: auto; display: block; overflow: visible; }
+      .av2 .cr-env-body { fill: var(--av2-card); }
+      .av2 .cr-env-flap { fill: var(--av2-line-2); }
+      .av2 .cr-env-stamp { fill: var(--av2-red); }
+      /* The seal sits on the flap's point: 58 of the drawing's 100 units down. */
+      .av2 .cr-env-seal {
+        position: absolute;
+        left: 50%;
+        top: 58%;
+        transform: translate(-50%, -50%);
+        display: inline-flex;
+      }
+    `}</style>
+  );
+}
+
+/* ============================================================
    Styles — written `.av2 .cr-…` (0,2,0) on purpose: legacy page resets such
    as `.x-page button { background: transparent }` are (0,1,1). Only --av2-*
    tokens; sizes in rem; two faces (AtelierSerif / AtelierSans) behind the
@@ -439,20 +1270,39 @@ export function CourrierStyles() {
       }
       /* :where() keeps the reset at zero specificity so no component class is outranked. */
       .av2.cr :where(a, button) { font: inherit; color: inherit; text-align: inherit; }
-      .av2 .cr-page { flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; padding: 0 var(--av2-gutter) 16px; }
+      /* WP-83: nothing on this page may push it wider than a 320px phone —
+         long French words wrap, flex children may shrink. */
+      .av2 .cr-page {
+        flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; padding: 0 var(--av2-gutter) 16px;
+        min-width: 0; overflow-wrap: break-word;
+      }
+      .av2 .cr-page > * { min-width: 0; }
       .av2 .cr-page--centre { justify-content: center; }
 
-      /* header row */
-      .av2 .cr-desk { display: flex; align-items: center; gap: 12px; padding: 14px 0 6px; }
+      /* header row — WP-83: one line. Back, portrait, name, chip; the name
+         truncates rather than wrapping to a second line. */
+      .av2 .cr-desk { display: flex; align-items: center; gap: 10px; padding: 14px 0 6px; min-width: 0; }
+      /* 2026-10-01: room for the settings corner (ShellCorner) at the top right. */
+      .av2 .cr-desk:not(.cr-desk--back) { padding-right: 52px; }
       .av2 .cr-back { flex: none; margin-left: -6px; text-decoration: none; background: transparent; }
+      .av2 .cr-desk .av2-portrait { flex: none; }
       .av2 .cr-desk-main { flex: 1 1 auto; min-width: 0; }
       .av2 .cr-name {
         margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 400;
-        font-size: 1.375rem; line-height: 1; color: var(--av2-ink);
-        overflow-wrap: anywhere;
+        font-size: 1.375rem; line-height: 1.2; color: var(--av2-ink);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .av2 .cr-line { margin: 3px 0 0; font-size: var(--av2-t-meta); line-height: 1.3; color: var(--av2-muted); }
       .av2 .cr-desk .av2-chip { flex: none; min-height: 30px; padding: 0 10px; font-size: var(--av2-t-meta); }
+      /* The name wins the line. On a narrow phone a status chip (a word, not a
+         count) folds to its shape — an icon dot — and keeps its words for
+         assistive tech, so «Boutique Anaïs» is never cut to «Bou…». */
+      @media (max-width: 420px) {
+        .av2 .cr-desk .cr-status { position: relative; width: 30px; padding: 0; justify-content: center; }
+        .av2 .cr-desk .cr-status > span:last-child {
+          position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+          overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+        }
+      }
       .av2 .cr-reason { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
 
       /* the situation */
@@ -495,8 +1345,9 @@ export function CourrierStyles() {
       .av2 .cr-thread { display: flex; flex-direction: column; gap: 12px; padding: 10px 0 4px; }
       .av2 .cr-turn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
       .av2 .cr-turn--mine { align-items: flex-end; }
-      .av2 .cr-turn .av2-bubble { white-space: pre-wrap; }
+      .av2 .cr-turn .av2-bubble { white-space: pre-wrap; max-width: 100%; overflow-wrap: anywhere; }
       .av2 .cr-turn-time { font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
+      .av2 .cr-unassessed { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
       .av2 .cr-typing {
         display: inline-flex; align-items: center; gap: 8px;
         font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-blue);
@@ -539,17 +1390,22 @@ export function CourrierStyles() {
       .av2 .cr-call-tx b { display: block; font-size: var(--av2-t-label); font-weight: 700; }
       .av2 .cr-call-tx span { display: block; font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; }
 
-      /* composer footer */
+      /* composer — WP-83: in the flow, right after the letter; never sticky,
+         never over what it answers. Collapsed it is one «Répondre» pill. When
+         it scrolls into view it stops clear of the tab bar and the home
+         indicator (the page's own bottom padding keeps it clear at rest). */
       .av2 .cr-composer {
-        position: sticky; bottom: var(--phone-bottom-nav-space, 88px); z-index: 2;
         flex: none; display: flex; flex-direction: column; gap: 10px;
-        padding: 12px var(--av2-gutter) 14px; background: var(--av2-paper);
+        padding: 4px 0 0; min-width: 0;
+        scroll-margin-bottom: calc(var(--phone-bottom-nav-space, 88px) + env(safe-area-inset-bottom, 0px) + 12px);
       }
+      .av2 .cr-composer--closed { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+      .av2 .cr-composer--closed .cr-reply-pill { flex: 1 1 12rem; min-height: var(--av2-tap); }
       .av2 .cr-quick { display: flex; flex-wrap: wrap; gap: 8px; }
-      .av2 .cr-quick-chip { font-weight: 600; }
+      .av2 .cr-quick-chip { font-weight: 600; min-height: var(--av2-tap); }
       .av2 .cr-well { align-items: flex-end; flex-wrap: wrap; }
       .av2 .cr-well .cr-mic-state, .av2 .cr-well .cr-mic-problem { flex: 1 1 100%; }
-      .av2 .cr-well .av2-field { flex: 1 1 auto; gap: 4px; }
+      .av2 .cr-well .av2-field { flex: 1 1 auto; min-width: 0; gap: 4px; }
       .av2 .cr-well .av2-field__label { font-weight: 600; }
       .av2 .cr-instruction { margin: 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
       .av2 .cr-draft {
@@ -574,28 +1430,21 @@ export function CourrierStyles() {
       .av2 .cr-seal-word { display: flex; align-items: center; gap: 10px; font-size: var(--av2-t-title); font-weight: 700; line-height: 1.1; }
       .av2 .cr-seal-word .av2-shape { color: var(--av2-yellow); }
       .av2 .cr-seal-date { font-size: var(--av2-t-meta); opacity: .8; }
+      /* The correspondent's face in the mood the letter left, one line beside it. */
+      .av2 .cr-seal-mood { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: var(--av2-t-label); font-weight: 700; line-height: 1.3; }
+      .av2 .cr-seal-mood > span:last-child { min-width: 0; }
+      .av2 .cr-seal-mood .av2-portrait, .av2 .cr-seal-mood .ob-portrait { flex: none; }
       .av2 .cr-seal-sub { margin: 4px 0 0; font-size: var(--av2-t-body); line-height: 1.45; }
-      .av2 .cr-token { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--av2-r-episode); background: var(--av2-yellow); color: var(--av2-on-yellow); }
+      /* Appendix A: the seal is the whole answer — verdict, one sentence, at
+         most three counted numbers — on the same ink surface, no second card. */
+      .av2 .cr-seal-nums { margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: 8px; }
+      .av2 .cr-seal-nums > div { display: flex; flex-direction: column-reverse; gap: 2px; min-width: 0; }
+      .av2 .cr-seal-nums dt { font-size: var(--av2-t-meta); line-height: 1.25; opacity: .8; }
+      .av2 .cr-seal-nums dd { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-title); line-height: 1; font-variant-numeric: tabular-nums; }
+      .av2 .cr-seal-token { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: var(--av2-t-label); font-weight: 700; }
       /* the minted collectible keeps its artwork but drops the legacy ink box + offset shadow */
-      .av2 .cr-token .logo-token { width: 64px; height: 64px; border: 0; border-radius: var(--av2-r-card); background: var(--av2-card); box-shadow: none; }
-      .av2 .cr-token .logo-token .lt { width: 40px; height: 40px; }
-      .av2 .cr-token-earned { font-size: var(--av2-t-body); font-weight: 700; }
-      .av2 .cr-credit { display: flex; flex-direction: column; gap: 2px; padding: 6px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
-      .av2 .cr-credit-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; font-size: var(--av2-t-label); }
-      .av2 .cr-credit-row span { display: flex; align-items: center; gap: 8px; color: var(--av2-muted); }
-      .av2 .cr-credit-row b { font-weight: 700; color: var(--av2-ink); text-align: right; }
-      .av2 .cr-recap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-      .av2 .cr-recap-grid div { display: flex; flex-direction: column; gap: 4px; padding: 12px 10px; border-radius: var(--av2-r-tile); background: var(--av2-card); text-align: center; }
-      .av2 .cr-recap-grid strong { font-family: var(--av2-serif); font-style: italic; font-weight: 400; font-size: var(--av2-t-head); line-height: 1; color: var(--av2-ink); }
-      .av2 .cr-recap-grid span { font-size: var(--av2-t-meta); line-height: 1.25; color: var(--av2-muted); }
-      .av2 .cr-readiness { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); font-size: var(--av2-t-label); color: var(--av2-muted); }
-      .av2 .cr-readiness strong { font-size: var(--av2-t-action); color: var(--av2-ink); }
-      .av2 .cr-objectives { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
-      .av2 .cr-objectives-k { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
-      .av2 .cr-objective { display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
-      .av2 .cr-objective .av2-shape { margin-top: 5px; }
-      .av2 .cr-objective--met { color: var(--av2-ink); }
-      .av2 .cr-next { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-seal-token .logo-token { width: 44px; height: 44px; border: 0; border-radius: var(--av2-r-card); background: var(--av2-card); box-shadow: none; }
+      .av2 .cr-seal-token .logo-token .lt { width: 28px; height: 28px; }
       .av2 .cr-nexts { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
       .av2 .cr-nexts .av2-btn { text-decoration: none; }
       .av2 .cr-ghost--quiet { color: var(--av2-muted); }
@@ -611,6 +1460,85 @@ export function CourrierStyles() {
       }
       .av2 .cr-archive-row b { flex: 1 1 auto; font-size: var(--av2-t-body); font-weight: 600; line-height: 1.3; }
       .av2 .cr-archive-row span { display: flex; align-items: center; gap: 6px; font-size: var(--av2-t-meta); color: var(--av2-muted); white-space: nowrap; }
+
+
+      /* ---- WP-34 «Apportez votre français» — extended from the same
+         primitives: card surfaces, --av2 tokens only, so dark comes free. ---- */
+      /* WP-45, Documents.dc.html: the head sits on the paper, not in a card —
+         it is the screen, and a card around the whole screen reads as a box. */
+      .av2 .cr-intake { display: flex; flex-direction: column; gap: 14px; padding: 6px 0 0; background: transparent; }
+      .av2 .cr-intake-kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
+      .av2 .cr-intake-k { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-head); line-height: 1.15; color: var(--av2-ink); text-wrap: pretty; }
+      .av2 .cr-intake-lead { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      /* The two ways in, side by side. They collapse to one column when the
+         text size grows past what two 56px pills can hold. */
+      .av2 .cr-intake-ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      @media (max-width: 360px) {
+        .av2 .cr-intake-ways { grid-template-columns: minmax(0, 1fr); }
+      }
+      .av2 .cr-intake-lab { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      /* The intake's header is the head inside the form now; what is left of
+         the desk on that screen is the way back. */
+      .av2 .cr-desk--back { margin: 0; display: flex; align-items: center; min-height: var(--av2-tap); }
+      .av2 .cr-intake-well {
+        width: 100%; min-height: 108px; resize: vertical; box-sizing: border-box;
+        padding: 12px 14px; border: 0; border-radius: var(--av2-r-tile);
+        background: var(--av2-paper); color: var(--av2-ink);
+        font: inherit; font-size: var(--av2-t-body); line-height: 1.45;
+      }
+      .av2 .cr-intake-well::placeholder { color: var(--av2-muted); }
+      .av2 .cr-intake-well:disabled { color: var(--av2-muted); }
+      .av2 .cr-intake-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+      .av2 .cr-intake-file { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--av2-t-meta); color: var(--av2-ink-2); }
+      .av2 .cr-intake-file > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .av2 .cr-intake-drop {
+        min-height: var(--av2-tap); padding: 0 4px; border: 0; background: transparent; cursor: pointer;
+        font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted);
+        text-decoration: underline; text-underline-offset: 3px;
+      }
+      .av2 .cr-intake-cap { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-intake-error { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-red); }
+
+      /* the artefact card */
+      .av2 .cr-art { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-art-head { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
+      .av2 .cr-art-src { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-art-title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-rule); line-height: 1.15; color: var(--av2-ink); overflow-wrap: anywhere; text-wrap: pretty; }
+      .av2 .cr-art-sum { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+      .av2 .cr-art-cut { color: var(--av2-muted); font-size: var(--av2-t-meta); }
+      .av2 .cr-art-facts { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+      .av2 .cr-art-facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 34px; font-size: var(--av2-t-label); }
+      .av2 .cr-art-facts dt { color: var(--av2-muted); }
+      .av2 .cr-art-facts dd { margin: 0; font-weight: 700; color: var(--av2-ink); text-align: right; }
+      .av2 .cr-art-k { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+      .av2 .cr-art-words { display: flex; flex-direction: column; gap: 6px; }
+      /* Gloss chips: the French word in the serif italic, the gloss beside it
+         in the muted colour, on the paper ground so they read as chips laid on
+         the card rather than more card. */
+      .av2 .cr-art-words ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+      .av2 .cr-art-word {
+        display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+        min-height: 32px; padding: 4px 12px; border-radius: var(--av2-r-pill);
+        background: var(--av2-paper); color: var(--av2-ink);
+        font-size: var(--av2-t-label); line-height: 1.4;
+      }
+      .av2 .cr-art-word b {
+        font-family: var(--av2-serif); font-style: italic; font-weight: 600;
+        font-size: var(--av2-t-body); color: var(--av2-ink);
+      }
+      .av2 .cr-art-word > span { color: var(--av2-muted); }
+      /* The card's own primary. The class the button system already styles,
+         on a Link: same face, same press, same 56px floor. */
+      .av2 a.cr-art-reply { margin-top: 4px; text-decoration: none; }
+      .av2 .cr-art-nogloss { color: var(--av2-muted); font-size: var(--av2-t-meta); }
+      .av2 .cr-art-queued { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+
+      /* the derived task */
+      .av2 .cr-art-task { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+      .av2 .cr-art-ask { margin: 0; font-size: var(--av2-t-body); line-height: 1.45; color: var(--av2-ink); }
+      .av2 .cr-art-win { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-blue); }
+      .av2 .cr-art-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+      .av2 .cr-art--unread .cr-art-sum { color: var(--av2-ink-2); }
 
       /* loading */
       .av2 .cr-skel { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
