@@ -49,6 +49,9 @@ def test_incidental_en_does_not_turn_agreement_into_pronouns():
 def test_offline_open_answer_is_unassessed_not_accepted(monkeypatch, round_name):
     service = AtelierCorrectionService(None)
     monkeypatch.setattr(service, '_get_llm_service', lambda: None)
+    # WP-S1: "offline" is "no relecture can be scheduled" — the only case in
+    # which the live submit does not return a provisional local verdict.
+    monkeypatch.setattr(service, '_can_schedule_ai_review', lambda: False)
     # Isolate the wrapper from storage and emulate the former unsafe fallback.
     fallback = {'verdict': 'accepted', 'score_0_4': 4, 'corrected_answer': 'there is no question to answer to',
                 'errata': [], 'concept_hits': [{'detected_count': 1}], 'correction_debug': {'fallback_used': True}}

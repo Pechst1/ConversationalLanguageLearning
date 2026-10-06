@@ -606,7 +606,11 @@ export type ConnectionStateKind =
   | 'offline_cached'
   /** No connection and nothing cached to read. */
   | 'offline_empty'
-  /** Connected again with work still waiting to be settled. */
+  /**
+   * Connected, with a mutation that was queued or failed and is still waiting
+   * to be settled. Never a draft: text the learner is typing while online is
+   * simply being typed (WP-89 / W6).
+   */
   | 'pending_sync';
 
 export type ConnectionView = {
@@ -614,7 +618,10 @@ export type ConnectionView = {
   online: boolean;
   /** True when what is painted is a cached copy rather than a server answer. */
   readingCache: boolean;
-  /** True when a draft or a mutation is still waiting on the server. */
+  /**
+   * True when a draft or a mutation is held on this device only. A fact for the
+   * offline notice; it never, by itself, makes a connected session `pending_sync`.
+   */
   unsent: boolean;
   /** The cached copy is from an earlier learner-local day. */
   stale: boolean;
@@ -637,7 +644,11 @@ export function connectionView(input: {
     state = readingCache || input.source === 'server' ? 'offline_cached' : 'offline_empty';
   } else if (input.inFlight) {
     state = 'syncing';
-  } else if (unsent) {
+  } else if (input.pending) {
+    // W6 (2026-09-28): an unsent *draft* used to land here, so typing an
+    // answer while online raised «Something you did has not reached the
+    // server yet» and pushed Send under the thumb. Only a real mutation that
+    // is queued or failed is pending.
     state = 'pending_sync';
   } else {
     state = 'live';

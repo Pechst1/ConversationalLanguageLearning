@@ -59,14 +59,58 @@ export function ShapeToken({ kind, size = 'md', title, className }: ShapeTokenPr
   );
 }
 
-/** The masthead mark: all four shapes, 28×28, exactly as drawn in the design. */
+/** WP-D1: one part of the day, as the mark draws it. */
+export type MarkPartState = 'done' | 'active' | 'todo' | 'absent';
+
+/**
+ * WP-D1: the day's four parts — scene (blue circle), recall (yellow square),
+ * respond (red triangle), resolution (ink square).
+ */
+export type MarkProgress = {
+  scene: MarkPartState;
+  recall: MarkPartState;
+  respond: MarkPartState;
+  resolution: MarkPartState;
+};
+
+type MarkPart = keyof MarkProgress;
+
+/**
+ * A part that is not done is the same solid shape in `--av2-line` — a ghost.
+ * Never an outline and never an ink stroke (owner, 2026-09-22).
+ */
+function partFill(part: MarkPart, colour: string, progress: MarkProgress | undefined): string {
+  if (!progress) return colour;
+  return progress[part] === 'done' ? colour : 'var(--av2-line)';
+}
+
+/**
+ * The masthead mark: all four shapes, 28×28, exactly as drawn in the design.
+ *
+ * WP-D1: with `progress` it is the day's only gauge. Each shape fills in its
+ * own colour when its part is done, and pops (`av2-pop`) the moment it does —
+ * never on first paint, and never under Reduce Motion. Pass the day's label
+ * («Aujourd’hui : 2 sur 4 — …») as `title` so the state is never colour alone.
+ */
 export function AtelierMark({
   size = 26,
   title,
+  progress,
 }: {
   size?: number;
   title?: string;
+  progress?: MarkProgress;
 }) {
+  const popping = useMarkPops(progress);
+  const partProps = (part: MarkPart) =>
+    progress
+      ? {
+          'data-part': part,
+          'data-state': progress[part],
+          className: popping.includes(part) ? 'av2-mark__pop' : undefined,
+        }
+      : {};
+
   return (
     <svg
       className="av2-mark"
@@ -76,13 +120,36 @@ export function AtelierMark({
       role={title ? 'img' : undefined}
       aria-label={title || undefined}
       aria-hidden={title ? undefined : true}
+      data-progress={progress ? 'day' : undefined}
     >
-      <rect x="0" y="0" width="11" height="11" rx="2" fill="var(--av2-ink)" />
-      <circle cx="22" cy="6" r="6" fill="var(--av2-blue)" />
-      <rect x="0" y="17" width="11" height="11" rx="2" fill="var(--av2-yellow)" />
-      <path d="M17 28L23 16L28 28H17Z" fill="var(--av2-red)" />
+      <rect x="0" y="0" width="11" height="11" rx="2" fill={partFill('resolution', 'var(--av2-ink)', progress)} {...partProps('resolution')} />
+      <circle cx="22" cy="6" r="6" fill={partFill('scene', 'var(--av2-blue)', progress)} {...partProps('scene')} />
+      <rect x="0" y="17" width="11" height="11" rx="2" fill={partFill('recall', 'var(--av2-yellow)', progress)} {...partProps('recall')} />
+      <path d="M17 28L23 16L28 28H17Z" fill={partFill('respond', 'var(--av2-red)', progress)} {...partProps('respond')} />
     </svg>
   );
+}
+
+/** The parts that turned `done` since the last render — never on the first one. */
+function useMarkPops(progress: MarkProgress | undefined): MarkPart[] {
+  const key = progress
+    ? `${progress.scene}|${progress.recall}|${progress.respond}|${progress.resolution}`
+    : '';
+  const previous = React.useRef(key);
+  const [popping, setPopping] = React.useState<MarkPart[]>([]);
+  React.useEffect(() => {
+    const before = previous.current.split('|');
+    previous.current = key;
+    if (!key || before.length !== 4) return undefined;
+    const now = key.split('|');
+    const parts: MarkPart[] = ['scene', 'recall', 'respond', 'resolution'];
+    const fresh = parts.filter((_, i) => now[i] === 'done' && before[i] !== 'done');
+    if (fresh.length === 0) return undefined;
+    setPopping(fresh);
+    const timer = window.setTimeout(() => setPopping([]), 400);
+    return () => window.clearTimeout(timer);
+  }, [key]);
+  return popping;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,11 +210,14 @@ export const ArrowLeftIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** The settings affordance: the design's thin 1.8px gear. */
+/**
+ * The settings affordance: a toothed cog. (Until 2026-10-01 it was a circle with
+ * eight rays, which read as a sun, i.e. a light/dark switch.)
+ */
 export const GearIcon = (p: IconProps) => (
   <Icon {...p} stroke={1.8}>
-    <circle cx="12" cy="12" r="3.2" />
-    <path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </Icon>
 );
 

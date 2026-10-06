@@ -33,22 +33,22 @@ evidence only — it never credits a schedule, a lapse or a vocabulary word.
 """
 from __future__ import annotations
 
-import difflib
 import hashlib
 import re
 import unicodedata
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.core.srs.memory import Evidence, EvidenceFormat, format_for_name
 from app.db.models.grammar import GrammarConcept
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
@@ -58,8 +58,7 @@ from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import word_gloss
 from app.services.grammar import (
     GrammarService,
-    calculate_next_review,
-    determine_state,
+    apply_grammar_evidence,
     is_machine_note,
     personal_note,
 )
@@ -80,8 +79,10 @@ from app.services.journey_contracts import (
     TargetObservation,
     TargetRef,
     TaskOutcome,
+    article_optional,
     evidence_source_key,
     normalize_answer_text,
+    split_article,
     strongest_assistance,
 )
 from app.services.unified_srs import DueLearningItem, ItemType, UnifiedSRSService
@@ -127,6 +128,24 @@ OBJECTIVE_TARGET_FALLBACK = "response_turn"
 
 MAX_DUE_CANDIDATES = 2
 MAX_NEW_CANDIDATES = 1
+#: WP-78. A ``limit`` above ``MAX_DUE_CANDIDATES + MAX_NEW_CANDIDATES`` is a
+#: practice day asking for its pool: up to this many new scene words, the rest
+#: due items. The planner still elicits at most two due targets and one new
+#: anchor in the reply — the extra candidates become quick items.
+MAX_PRACTICE_NEW_CANDIDATES = 2
+#: Words the learner kept from a story (tap-to-keep) that are not due yet are
+#: still offered, this many at most, so a kept word comes back the next day.
+MAX_KEPT_EXTRA_CANDIDATES = 2
+#: WP-78. Words the learner already owns, offered to a practice day as the
+#: *other* cards of a matching or listen-and-tap item — never as a target, so
+#: they gain no evidence and no schedule moves (``metadata["partner_only"]``).
+MAX_PARTNER_WORDS = 5
+#: WP-78. When too little is due for a practice day, *fragile* words — ones the
+#: learner has studied that come due within this window — fill the quick items
+#: (CONTRACTS §9 already names due **or fragile** targets). Recognition only is
+#: credited for them, and nothing is rescheduled until the learner answers.
+FRAGILE_WINDOW_DAYS = 2
+PRACTICE_TARGET_POOL = 5
 
 #: Per-candidate journey budget (CONTRACTS §9). Deliberately larger than the
 #: flashcard estimates in :mod:`app.services.unified_srs`: a journey recall step
@@ -151,6 +170,44 @@ GRAMMAR_EVIDENCE_SCORE: dict[EvidenceKind, float] = {
     EvidenceKind.PRODUCED_INDEPENDENT: 8.5,
     EvidenceKind.NOT_YET: 2.0,
 }
+
+#: WP-L3: what each journey observation proves, on the one evidence ladder
+#: (`app.core.srs.memory`), for a grammar concept and an erratum alike. A journey target is posed inside the scene's reply,
+#: so producing it is free production (with or without help), and getting it
+#: wrong there is a lapse.
+JOURNEY_EVIDENCE: dict[EvidenceKind, Evidence] = {
+    EvidenceKind.RECOGNIZED: Evidence(EvidenceFormat.RECOGNISE, correct=True),
+    EvidenceKind.PRODUCED_SUPPORTED: Evidence(EvidenceFormat.PRODUCE, correct=True, assisted=True),
+    EvidenceKind.PRODUCED_INDEPENDENT: Evidence(EvidenceFormat.PRODUCE, correct=True),
+    EvidenceKind.NOT_YET: Evidence(EvidenceFormat.PRODUCE, correct=False),
+}
+
+
+def grammar_journey_evidence(
+    evidence_kind: EvidenceKind,
+    *,
+    task_format: str | None = None,
+    assistance: AssistanceLevel = AssistanceLevel.NONE,
+) -> Evidence:
+    """WP-L4: what one journey observation proves about a grammar unit.
+
+    A reply (no format) is free production (:data:`JOURNEY_EVIDENCE`). A
+    recall item proves what its format proves: a pick is recognition, tiles and
+    a word bank are guided, a transform is a transform — so an intro day's
+    guided items write weak and medium evidence, and only the reply writes
+    strong evidence. A wrong answer in an easier format is a Hard, not a lapse.
+    """
+
+    fmt = format_for_name(task_format) if task_format else None
+    if fmt is None or fmt is EvidenceFormat.PRODUCE:
+        return JOURNEY_EVIDENCE[evidence_kind]
+    return Evidence(
+        fmt,
+        correct=evidence_kind is not EvidenceKind.NOT_YET,
+        assisted=strongest_assistance([assistance]) is not AssistanceLevel.NONE
+        or evidence_kind is EvidenceKind.PRODUCED_SUPPORTED,
+    )
+
 
 #: Vocabulary credit events (``app.services.vocabulary_credit``).
 VOCABULARY_EVIDENCE_EVENT: dict[EvidenceKind, str] = {
@@ -217,9 +274,11 @@ def fold_for_comparison(value: str | None) -> str:
     provider invents, which must never turn a correct answer into a mistake.
     """
 
-    text = normalize_answer_text(value).lower()
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(char for char in text if not unicodedata.combining(char))
+    from app.services.answer_acceptance import fold_all
+
+    # EXERCISE-QA: «œ»/«æ» are spelled out first («sœur» = «soeur»); the old
+    # fold dropped them, so a German keyboard's «soeur» was graded wrong.
+    text = fold_all(normalize_answer_text(value))
     text = re.sub(r"[^0-9a-z\s]+", " ", text)
     return " ".join(text.split())
 
@@ -241,14 +300,51 @@ def _contains_run(haystack: list[str], needle: list[str]) -> bool:
     return False
 
 
-def answer_matches(answer: str | None, accepted: Iterable[str | None]) -> bool:
+#: An answer may hold the accepted one inside a short frame («c'est un
+#: appartement», «Bonjour, un café, s'il vous plaît, merci»): at most this many
+#: extra words, or as many as the answer itself has. «euh je ne sais pas» is not
+#: an answer of «pas» (the learner walk found it graded right).
+CONTAINED_ANSWER_PADDING = 2
+
+
+def _recall_accent_policy(db: Session | None, task: RecallTask) -> str:
+    """QA-CLOSE (owner decision c): accents are strict on a spelling unit's items
+    (``FR2_A12_ER_SPELLING``) and on an item whose source or options differ from
+    the key by accents alone; lenient-but-named everywhere else."""
+
+    from app.services.answer_acceptance import accent_policy
+
+    unit = None
+    if db is not None and task.target.kind == TargetKind.GRAMMAR and str(task.target.id).isdigit():
+        try:
+            from app.db.models.grammar import GrammarConcept
+
+            concept = db.get(GrammarConcept, int(task.target.id))
+            unit = getattr(concept, "external_id", None)
+        except Exception:  # noqa: BLE001 - a policy lookup never fails a grade
+            unit = None
+    keys = _accepted_answers(task)
+    others = [task.source_fr, *(str(option.get("text") or option.get("label_fr") or "") for option in task.options or [])]
+    return accent_policy(unit=unit, target=keys[0] if keys else None, others=[o for o in others if o])
+
+
+def answer_matches(
+    answer: str | None,
+    accepted: Iterable[str | None],
+    *,
+    accents: str = "lenient",
+    within_reply: bool = False,
+) -> bool:
     """Is this a reasonable rendering of one of the accepted answers?
 
-    Exact string comparison is not the test: correct but differently worded
-    French must not be penalised. An answer counts when it folds to an accepted
-    answer, contains it as a contiguous run of words, or is within a single
-    typo of it.
+    EXERCISE-QA: the one acceptance contract (``answer_acceptance.judge``) —
+    typography never counts, an accent slip is forgiven unless the accent is
+    grammar (a/à, ou/où, a final «-é»), one typo is forgiven unless it makes
+    another form («parle/parles», «du/de» never pass). A word or short phrase
+    also counts when the answer holds it as a run of words.
     """
+
+    from app.services.answer_acceptance import judge
 
     folded = fold_for_comparison(answer)
     if not folded:
@@ -258,14 +354,32 @@ def answer_matches(answer: str | None, accepted: Iterable[str | None]) -> bool:
         target = fold_for_comparison(candidate)
         if not target:
             continue
-        if folded == target:
+        if judge(answer, [candidate], accents=accents).correct:
             return True
         target_tokens = target.split()
-        if _contains_run(answer_tokens, target_tokens):
-            return True
-        if len(target) >= 6 and difflib.SequenceMatcher(None, folded, target).ratio() >= 0.92:
-            return True
+        # A recall answer may frame the key in a few words; a free reply
+        # (``within_reply``: a target used in the learner's own sentence) may be
+        # any length — «Un café en terrasse, s'il vous plaît» uses «en terrasse».
+        short_enough = within_reply or len(answer_tokens) <= len(target_tokens) + max(
+            CONTAINED_ANSWER_PADDING, len(target_tokens)
+        )
+        if short_enough and _contains_run(answer_tokens, target_tokens):
+            if judge(" ".join(_original_run(answer, len(target_tokens), target_tokens)), [candidate], accents=accents).correct:
+                return True
     return False
+
+
+def _original_run(answer: str | None, length: int, target_tokens: list[str]) -> list[str]:
+    """The learner's own words (accents as typed) that fold to ``target_tokens``."""
+
+    from app.services.answer_acceptance import fold_typography
+
+    words = fold_typography(answer).replace("'", "' ").split()
+    folded = [fold_for_comparison(word) for word in words]
+    for start in range(len(words) - length + 1):
+        if folded[start : start + length] == target_tokens:
+            return words[start : start + length]
+    return words
 
 
 def _source_id_for(source_key: str) -> str:
@@ -324,11 +438,14 @@ def _target_ref_for_item(item: DueLearningItem) -> TargetRef | None:
         concept_id = metadata.get("concept_id")
         if concept_id is None:
             return None
+        # WP-L1: `display_title` is the English catalogue name. The chip is
+        # French and its gloss is in the learner's own language.
         return TargetRef(
             kind=TargetKind.GRAMMAR,
             id=str(concept_id),
-            label_fr=item.display_title,
-            label_native=metadata.get("category") or None,
+            label_fr=metadata.get("title_fr") or item.display_title,
+            label_native=metadata.get("title_native") or item.display_title or None,
+            concept_title=True,
         )
     if item.item_type is ItemType.ERROR:
         return TargetRef(
@@ -471,6 +588,38 @@ def _exposure_sort_key(item: DueLearningItem) -> str:
     return ""
 
 
+#: WP-L6. A word is *held* once its memory stability reaches three weeks;
+#: below that, a word the learner has reviewed is "drilled but not held" and a
+#: scene or a recall prefers it (§5.1). A planning prior until WP-L3's
+#: held rule lands.
+HELD_STABILITY_DAYS = 21.0
+
+
+def drilled_not_held(candidate: LearningCandidate) -> bool:
+    """A vocabulary target the learner has reviewed but does not hold yet."""
+
+    if candidate.target.kind is not TargetKind.VOCABULARY or candidate.is_new:
+        return False
+    metadata = candidate.metadata or {}
+    if metadata.get("fragile"):
+        return True
+    try:
+        stability = float(metadata.get("stability") or 0.0)
+    except (TypeError, ValueError):
+        return False
+    state = str(metadata.get("state") or "").lower()
+    return state not in {"", "new"} and stability < HELD_STABILITY_DAYS
+
+
+def _mark_story_need(candidate: LearningCandidate) -> LearningCandidate:
+    """WP-115c: a word today's story needs from the learner — fully relevant, so the
+    planner ranks it first and the reply may require it."""
+
+    from dataclasses import replace
+
+    return replace(candidate, relevance=1.0, metadata={**(candidate.metadata or {}), "story_need": True})
+
+
 def select_learning_candidates(
     db: Session,
     *,
@@ -478,13 +627,28 @@ def select_learning_candidates(
     scenario: ScenarioBrief,
     limit: int = 3,
     now: datetime | None = None,
+    new_word_quota: int | None = None,
+    budget_seconds: int | None = None,
 ) -> list[LearningCandidate]:
     """Existing due/fragile identities the learner already owns, ranked for this scene.
+
+    WP-L4: on a practice day the due grammar units come from the one Rappel
+    queue (``UnifiedSRSService.plan_review_items``), at most
+    :func:`grammar_rappel_room` of them, and every grammar candidate carries
+    its unit brief (``metadata["grammar_brief"]``) so the planner can pose it.
 
     Read-only. No due date is moved to fit a scene and nothing is marked
     reviewed: an omitted candidate stays exactly as due as it was. When the
     queue is genuinely empty the result is ``[]`` — no item is invented and
     nothing is claimed to be due.
+
+    WP-L6: ``new_word_quota`` is what the learner's vocabulary pace leaves for
+    today (:func:`app.services.vocabulary_pace.journey_new_word_room`): no more
+    than that many ``is_new`` candidates are offered, so the day and the word
+    drill never introduce more than the day's quota together. ``None`` keeps
+    the pre-WP-L6 behaviour. Among equally relevant words, one the learner is
+    drilling but does not hold yet comes first (§5.1): the story doubles as
+    its review, and the reply gives it strong evidence.
     """
 
     if limit <= 0:
@@ -521,7 +685,17 @@ def select_learning_candidates(
                 "level": item.level,
                 **{
                     key: item.metadata.get(key)
-                    for key in ("word_id", "concept_id", "review_mode", "state", "lapses")
+                    for key in (
+                        "word_id",
+                        "concept_id",
+                        "review_mode",
+                        "state",
+                        "lapses",
+                        "stability",
+                        # An erratum is posed as a repair of the learner's own
+                        # wording; the planner needs it next to the target.
+                        "original_text",
+                    )
                     if key in (item.metadata or {})
                 },
                 **_history_metadata(history, target),
@@ -530,6 +704,7 @@ def select_learning_candidates(
         scored.append(
             (
                 -relevance,
+                0 if drilled_not_held(candidate) else 1,
                 -float(item.priority_score or 0.0),
                 -int(item.due_since_days or 0),
                 _exposure_sort_key(item),
@@ -537,12 +712,79 @@ def select_learning_candidates(
             )
         )
 
-    scored.sort(key=lambda row: row[:4])
-    due_cap = min(MAX_DUE_CANDIDATES, limit)
-    selected = [row[4] for row in scored[:due_cap]]
+    # WP-115c: the words today's story was written to need come first, and the reply
+    # may require them — the scene is built around retrieving them.
+    story_ids = {
+        str(row.get("word_id"))
+        for row in ((getattr(scenario, "story_context", None) or {}).get("story_words") or [])
+        if isinstance(row, dict) and row.get("word_id") is not None
+    }
+    if story_ids:
+        scored = [
+            (
+                (-1.0, -1, *row[2:5], _mark_story_need(row[5]))
+                if row[5].target.kind is TargetKind.VOCABULARY and row[5].target.id in story_ids
+                else row
+            )
+            for row in scored
+        ]
+    practice = limit > MAX_DUE_CANDIDATES + MAX_NEW_CANDIDATES
+    kept = _kept_words(db, user=user, now=now) if practice else {}
+    if kept:
+        scored = [
+            (
+                (-1.0, *row[1:5], _mark_kept(row[5], kept))
+                if _kept_id(row[5]) in kept
+                else row
+            )
+            for row in scored
+        ]
+    scored.sort(key=lambda row: row[:5])
+    if practice:
+        new_room = MAX_PRACTICE_NEW_CANDIDATES
+        due_cap = max(MAX_DUE_CANDIDATES, limit - new_room)
+    else:
+        new_room = MAX_NEW_CANDIDATES
+        due_cap = min(MAX_DUE_CANDIDATES, limit)
+    selected = [row[5] for row in scored[:due_cap]]
 
-    new_cap = min(MAX_NEW_CANDIDATES, limit - len(selected))
-    if new_cap > 0:
+    if practice and kept:
+        # A kept word that is not due yet still comes back tomorrow: keeping it
+        # was the learner asking to see it again.
+        present = {c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY}
+        extras = _kept_extra_candidates(
+            db, user=user, kept=kept, exclude=present, history=history
+        )
+        selected = extras[:MAX_KEPT_EXTRA_CANDIDATES] + selected
+
+    # WP-86: the scene's words are recorded on every day (the director's
+    # lexicon history reads them back); they are *practised* on a practice day.
+    lexicon = _scene_lexicon_candidates(
+        db,
+        user=user,
+        scenario=scenario,
+        exclude={c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY},
+        history=history,
+    )
+    lexicon = lexicon if practice else []
+    if new_word_quota is not None:
+        # WP-L6: the scene's new words past the day's quota stay in the scene,
+        # read and glossed, but are not introduced today.
+        admitted = 0
+        within: list[LearningCandidate] = []
+        for candidate in lexicon:
+            if candidate.is_new:
+                if admitted >= new_word_quota:
+                    continue
+                admitted += 1
+            within.append(candidate)
+        lexicon = within
+        new_room = min(new_room, max(0, new_word_quota - admitted))
+    selected.extend(lexicon)
+    # WP-86: the scene's own words are today's new anchors; a scene that named
+    # none still gets the classic one looked up from its text.
+    new_cap = 0 if lexicon else min(new_room, limit - len(selected))
+    for _ in range(max(0, new_cap)):
         anchor = _new_vocabulary_anchor(
             db,
             user=user,
@@ -551,9 +793,899 @@ def select_learning_candidates(
             exclude={(str(c.target.kind), c.target.id) for c in selected},
             history=history,
         )
-        if anchor is not None:
-            selected.append(anchor)
-    return selected
+        if anchor is None:
+            break
+        selected.append(anchor)
+    if practice:
+        targets = sum(1 for c in selected if not (c.metadata or {}).get("partner_only"))
+        # WP-L6: a longer rhythm asks for a larger pool, and the fragile shelf
+        # (drilled, not held) fills it.
+        pool_target = max(PRACTICE_TARGET_POOL, limit - MAX_PRACTICE_NEW_CANDIDATES - 1)
+        if targets < pool_target:
+            selected.extend(
+                _fragile_words(
+                    db,
+                    user=user,
+                    now=now,
+                    exclude={
+                        c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY
+                    },
+                    room=pool_target - targets,
+                    history=history,
+                )
+            )
+        selected.extend(
+            _partner_words(
+                db,
+                user=user,
+                exclude={c.target.id for c in selected if c.target.kind is TargetKind.VOCABULARY},
+            )
+        )
+        selected = _with_grammar_rappel(
+            db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
+        )
+        selected = _with_practice_units(
+            db, user=user, selected=selected, scenario=scenario, now=now,
+            budget_seconds=budget_seconds,
+        )
+        selected = _with_held_opportunities(
+            db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
+        )
+    selected = _one_target_per_word(selected)
+    if scenario.control_language == "fr" and user.native_language != "fr":
+        # The catalogue's stored translation is English/German. French tasks
+        # use the scene's sentence instead of posing that foreign gloss.
+        selected = [replace(candidate, target=replace(candidate.target, label_native=None))
+                    if candidate.target.kind is TargetKind.VOCABULARY else candidate
+                    for candidate in selected]
+    else:
+        selected = _glosses_in_language(db, selected, str(scenario.control_language))
+    selected = _with_grammar_briefs(
+        db, user=user, candidates=selected, level=getattr(scenario, "level_band", None)
+    )
+    return _with_level_fit(selected, scenario=scenario)
+
+
+def _with_level_fit(
+    candidates: list[LearningCandidate], *, scenario: ScenarioBrief
+) -> list[LearningCandidate]:
+    """WP-129: from B1, each grammar brief lists its sentences at the learner's
+    level (``level_ok_fr``, folded) — a catalogue sentence is written for its
+    unit's band, and the B1+ practice items (a contrast, a free sentence's
+    model, a repair) of an earlier unit stay at the learner's (the planner
+    reads no lexicon itself)."""
+
+    band = str(getattr(scenario, "level_band", "") or "").upper()[:2]
+    if band not in ADVANCED_PRACTICE_BANDS:
+        return candidates
+    from app.services import grammar_items
+    from app.services.practice_level import within_band
+
+    out: list[LearningCandidate] = []
+    for candidate in candidates:
+        brief = (candidate.metadata or {}).get("grammar_brief")
+        if candidate.target.kind is not TargetKind.GRAMMAR or not isinstance(brief, dict):
+            out.append(candidate)
+            continue
+        texts = [
+            *(brief.get("examples") or []),
+            *(pair.get(side) for pair in brief.get("contrast_pairs") or [] for side in ("right", "wrong")),
+        ]
+        ok = sorted(
+            {
+                grammar_items._fold(grammar_items.plain(text))
+                for text in texts
+                if text and within_band(grammar_items.plain(text), band)
+            }
+        )
+        out.append(
+            replace(
+                candidate,
+                metadata={**dict(candidate.metadata or {}), "grammar_brief": {**brief, "level_ok_fr": ok}},
+            )
+        )
+    return out
+
+
+def _one_target_per_word(candidates: list[LearningCandidate]) -> list[LearningCandidate]:
+    """QA-PRACTICE: the scene's «appartement» and the deck's «un appartement» are
+    one word. Two targets for it made a day ask its gender twice and put both in
+    one matching grid. The first (the higher-ranked source) is kept."""
+
+    seen: set[str] = set()
+    kept: list[LearningCandidate] = []
+    for candidate in candidates:
+        if candidate.target.kind is TargetKind.VOCABULARY:
+            _article, noun = split_article(candidate.target.label_fr)
+            key = fold_for_comparison(noun)
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+        kept.append(candidate)
+    return kept
+
+
+def _glosses_in_language(
+    db: Session, candidates: list[LearningCandidate], language: str
+) -> list[LearningCandidate]:
+    """QA-PRACTICE: a German learner was asked «Welcher französische Ausdruck
+    bedeutet „a letter“?» — ``word_gloss`` falls back to another language's gloss
+    when the learner's own is missing, which is right for a word list and wrong
+    for a question. A vocabulary gloss that is a catalogue row's gloss *in
+    another language* is replaced by the row's own-language gloss, or dropped
+    (the planner then poses the word in a format that needs no meaning)."""
+
+    from app.services.glosses import _GLOSS_COLUMNS
+
+    own_column = _GLOSS_COLUMNS.get(language)
+    if own_column is None:
+        return candidates
+    ids = {
+        int(candidate.target.id)
+        for candidate in candidates
+        if candidate.target.kind is TargetKind.VOCABULARY
+        and candidate.target.label_native
+        and str(candidate.target.id).isdigit()
+    }
+    if not ids:
+        return candidates
+    try:
+        with db.begin_nested():
+            words = {word.id: word for word in db.query(VocabularyWord).filter(VocabularyWord.id.in_(ids)).all()}
+    except Exception:  # noqa: BLE001 - a gloss check never costs the day
+        logger.warning("journey_learning_gloss_language_check_unavailable")
+        return candidates
+    checked: list[LearningCandidate] = []
+    for candidate in candidates:
+        target = candidate.target
+        word = words.get(int(target.id)) if str(target.id).isdigit() else None
+        if word is None or target.kind is not TargetKind.VOCABULARY or not target.label_native:
+            checked.append(candidate)
+            continue
+        gloss = fold_for_comparison(target.label_native)
+        own = " ".join(str(getattr(word, own_column, None) or "").split())
+        foreign = {
+            fold_for_comparison(getattr(word, column, None))
+            for code, column in _GLOSS_COLUMNS.items()
+            if code != language and getattr(word, column, None)
+        }
+        if gloss in foreign and gloss != fold_for_comparison(own):
+            target = replace(target, label_native=own or None)
+            candidate = replace(candidate, target=target)
+        checked.append(candidate)
+    return checked
+
+
+#: WP-L4 — due grammar units a day's Rappel poses, by rhythm budget. One
+#: interleaved item per unit (§2.4), and never more than the Réemploi's two a
+#: day on the shortest rhythm's scale.
+GRAMMAR_RAPPEL_ROOM: dict[int, int] = {300: 1, 600: 2, 1200: 3, 1800: 4}
+
+
+def grammar_rappel_room(budget_seconds: int | None) -> int:
+    from app.services.journey_contracts import rhythm_caps
+
+    return GRAMMAR_RAPPEL_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 1)
+
+
+def _with_grammar_rappel(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """Due grammar from the one Rappel queue, in its interleaved order."""
+
+    room = grammar_rappel_room(budget_seconds)
+    present = {c.target.id for c in selected if c.target.kind is TargetKind.GRAMMAR}
+    room -= len(present)
+    if room <= 0:
+        return selected
+    try:
+        queue = UnifiedSRSService(db).plan_review_items(
+            user.id, budget_seconds=int(budget_seconds or 300), now=now
+        )
+    except Exception:  # pragma: no cover - a queue that cannot be read costs the items
+        logger.exception("journey_grammar_rappel_unavailable")
+        return selected
+    extra: list[LearningCandidate] = []
+    for item in queue:
+        if item.item_type is not ItemType.GRAMMAR or room <= 0:
+            continue
+        target = _target_ref_for_item(item)
+        if target is None or target.id in present:
+            continue
+        present.add(target.id)
+        room -= 1
+        extra.append(
+            LearningCandidate(
+                target=target,
+                priority_score=float(item.priority_score or 0.0),
+                due_since_days=int(item.due_since_days or 0),
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(item.item_type),
+                metadata={
+                    "queue_item_id": item.id,
+                    "original_id": str(item.original_id),
+                    "rappel": True,
+                    **{
+                        key: item.metadata.get(key)
+                        for key in ("concept_id", "state", "lapses", "stability", "review_mode")
+                        if key in (item.metadata or {})
+                    },
+                },
+            )
+        )
+    return [*selected, *extra]
+
+
+#: WP-129 (owner decision 4) — introduced units a B1+ practice day may also
+#: practise in its free time (interleaved, contrasted with their partners), by
+#: rhythm budget, besides the due Rappel units.
+PRACTICE_UNIT_ROOM: dict[int, int] = {300: 2, 600: 5, 1200: 6, 1800: 8}
+ADVANCED_PRACTICE_BANDS = frozenset({"B1", "B2", "C1", "C2"})
+
+
+def _with_practice_units(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    scenario: ScenarioBrief,
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """WP-129: units the learner has *already been introduced to*, for a B1+ day.
+
+    Marked ``practice_unit``: the planner never makes them a reply obligation;
+    it poses them as mixed-unit practice after the ending (a contrast with a
+    partner unit, a repair, a free sentence) while the day has time. Only
+    units introduced before now (``concept_life``: first evidence or a rule
+    read) — practising a unit never introduces one. First the units whose
+    catalogue ``contrast_partners`` are introduced too, then the most recently
+    introduced; a held unit last. Read-only.
+    """
+
+    band = str(getattr(scenario, "level_band", "") or "").upper()[:2]
+    if band not in ADVANCED_PRACTICE_BANDS:
+        return selected
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.grammar_catalog import concept_syllabus
+    from app.services.journey_contracts import rhythm_caps
+
+    room = PRACTICE_UNIT_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 2)
+    present = {c.target.id for c in selected if c.target.kind is TargetKind.GRAMMAR}
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.introduced_at < now,
+                    GrammarConcept.active.is_(True),
+                )
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - practice units are never worth the day
+        logger.warning("journey_practice_units_unavailable")
+        return selected
+    introduced = {str(concept.external_id or ""): concept for _progress, concept in rows}
+
+    def partnered(concept: GrammarConcept) -> bool:
+        own = str(concept.external_id or "")
+        named = concept_syllabus(concept).get("contrast_partners") or []
+        if any(ref in introduced and ref != own for ref in named):
+            return True
+        return any(
+            own in (concept_syllabus(other).get("contrast_partners") or [])
+            for ref, other in introduced.items() if ref != own
+        )
+
+    def introduced_at(progress: Any) -> float:
+        value = progress.introduced_at
+        if value is None:
+            return 0.0
+        value = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return value.timestamp()
+
+    rows.sort(
+        key=lambda row: (
+            0 if partnered(row[1]) else 1,
+            1 if row[0].held_at is not None else 0,
+            -introduced_at(row[0]),
+            row[1].id,
+        )
+    )
+    from app.services.chrome_language import user_chrome_language
+    from app.services.grammar_units import localized_titles
+
+    language = str(user_chrome_language(user))
+
+    def titles(concept: GrammarConcept) -> dict[str, str]:
+        try:
+            return localized_titles(concept)
+        except Exception:  # noqa: BLE001 - a title is a label, never the day
+            return {}
+
+    extra: list[LearningCandidate] = []
+    for progress, concept in rows:
+        if len(extra) >= room:
+            break
+        if str(concept.id) in present:
+            continue
+        present.add(str(concept.id))
+        extra.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.GRAMMAR,
+                    id=str(concept.id),
+                    label_fr=titles(concept).get("fr") or str(concept.name or ""),
+                    label_native=titles(concept).get(language) or str(concept.name or "") or None,
+                    concept_title=True,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.GRAMMAR),
+                metadata={
+                    "practice_unit": True,
+                    "concept_id": concept.id,
+                    "stability": float(progress.stability or 0.0),
+                },
+            )
+        )
+    return [*selected, *extra]
+
+
+#: WP-130 B — units a day offers a «Tenue» evidence opportunity, per kind, by
+#: rhythm budget. One reply carries one «Réemploi» besides the day's new unit
+#: (``journey_planner.MAX_REPLY_GRAMMAR_TARGETS``); the longer rhythms also
+#: have the coach's scene for a second. The items are priced and placed by the
+#: planner inside WP-128's budget like any Rappel item.
+HELD_OPPORTUNITY_ROOM: dict[int, int] = {300: 1, 600: 1, 1200: 2, 1800: 2}
+
+
+def held_opportunity_room(budget_seconds: int | None) -> int:
+    from app.services.journey_contracts import rhythm_caps
+
+    return HELD_OPPORTUNITY_ROOM.get(rhythm_caps(budget_seconds).budget_seconds, 1)
+
+
+def _with_held_opportunities(
+    db: Session,
+    *,
+    user: User,
+    selected: list[LearningCandidate],
+    now: datetime,
+    budget_seconds: int | None,
+) -> list[LearningCandidate]:
+    """WP-130 B: the units owed a «Tenue» opportunity today, whatever their stability.
+
+    «Tenue» needs a second free use at least seven days after the first and a
+    spaced item at least fourteen days after the introduction
+    (``concept_life``). Neither used to be offered on time: the Rappel queue
+    only brings a unit back when its memory says so, and the reply only asked
+    for a unit past ten days of stability. Each owed unit
+    (:func:`concept_life.held_opportunity`) is tagged ``held_opportunity`` —
+    on its Rappel candidate when it is already due, else as a candidate of its
+    own — and :func:`_with_held_opportunity_brief` poses it. At most
+    :func:`held_opportunity_room` units per kind a day, rotated by the day, so
+    a unit missed today comes back within a few days and never crowds the
+    others out. Nothing is scheduled here: an opportunity offered and missed
+    leaves the unit exactly as owed as it was.
+    """
+
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.concept_life import (
+        OPPORTUNITY_FREE_USE,
+        OPPORTUNITY_SPACED,
+        held_opportunity,
+    )
+
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.held_at.is_(None),
+                    GrammarConcept.active.is_(True),
+                )
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - an opportunity is never worth the day
+        logger.warning("journey_held_opportunities_unavailable")
+        return selected
+    owed: dict[str, list[tuple[Any, GrammarConcept]]] = {
+        OPPORTUNITY_FREE_USE: [],
+        OPPORTUNITY_SPACED: [],
+    }
+    for progress, concept in rows:
+        kind = held_opportunity(progress, now=now)
+        if kind in owed:
+            owed[kind].append((progress, concept))
+    room = held_opportunity_room(budget_seconds)
+    rotation = now.date().toordinal()
+    chosen: dict[int, tuple[str, Any, GrammarConcept]] = {}
+    for kind, units in owed.items():
+        units.sort(key=lambda row: (row[0].introduced_at, row[1].id))
+        if not units:
+            continue
+        start = rotation % len(units)
+        for progress, concept in [*units[start:], *units[:start]][:room]:
+            chosen[concept.id] = (kind, progress, concept)
+    if not chosen:
+        return selected
+
+    out: list[LearningCandidate] = []
+    for candidate in selected:
+        concept_id = (candidate.metadata or {}).get("concept_id")
+        try:
+            key = int(concept_id if concept_id is not None else candidate.target.id)
+        except (TypeError, ValueError):
+            key = None
+        if candidate.target.kind is TargetKind.GRAMMAR and key in chosen:
+            kind, _progress, _concept = chosen.pop(key)
+            candidate = replace(
+                candidate, metadata={**dict(candidate.metadata or {}), "held_opportunity": kind}
+            )
+        out.append(candidate)
+    if not chosen:
+        return out
+
+    from app.services.chrome_language import user_chrome_language
+    from app.services.grammar_units import localized_titles
+
+    language = str(user_chrome_language(user))
+    for kind, progress, concept in chosen.values():
+        try:
+            titles = localized_titles(concept)
+        except Exception:  # noqa: BLE001 - a title is a label, never the day
+            titles = {}
+        out.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.GRAMMAR,
+                    id=str(concept.id),
+                    label_fr=titles.get("fr") or str(concept.name or ""),
+                    label_native=titles.get(language) or str(concept.name or "") or None,
+                    concept_title=True,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.GRAMMAR],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.GRAMMAR),
+                metadata={
+                    "held_opportunity": kind,
+                    "concept_id": concept.id,
+                    "stability": float(progress.stability or 0.0),
+                },
+            )
+        )
+    return out
+
+
+def _with_held_opportunity_brief(brief: dict[str, Any], kind: str | None) -> dict[str, Any]:
+    """WP-130 B: pose a unit's «Tenue» opportunity, whatever its stability.
+
+    * ``free_use`` — the unit is briefed as a strong unit (stability at least
+      :data:`grammar_items.REEMPLOI_STABILITY_DAYS`, the measured one kept as
+      ``stability_measured``): the reply asks for it («Réemploi») and the
+      Rappel slot poses the coach's two-line scene, never an item that would
+      show the form before the learner uses it.
+    * ``spaced`` — a spaced item: a strong unit keeps the transform Rappel
+      (as :func:`spaced_item_pending` does), a weaker one its own format.
+
+    The evidence keeps its own category: a reply or a scene with a hint or a
+    copied suggestion is assisted, and an item is an item.
+    """
+
+    from app.services import grammar_items
+    from app.services.concept_life import OPPORTUNITY_FREE_USE, OPPORTUNITY_SPACED
+
+    if kind not in {OPPORTUNITY_FREE_USE, OPPORTUNITY_SPACED}:
+        return brief
+    try:
+        stability = float(
+            brief.get("stability_measured")
+            if brief.get("stability_measured") is not None
+            else brief.get("stability") or 0.0
+        )
+    except (TypeError, ValueError):
+        stability = 0.0
+    out = {**brief, "held_opportunity": kind}
+    if kind == OPPORTUNITY_FREE_USE:
+        out.pop("spaced_item_pending", None)
+        out["stability_measured"] = stability
+        out["stability"] = max(stability, grammar_items.REEMPLOI_STABILITY_DAYS)
+    elif grammar_items.review_band(out.get("stability")) == "high":
+        out["stability_measured"] = stability
+        out["stability"] = round(grammar_items.REEMPLOI_STABILITY_DAYS - 0.1, 2)
+        out["spaced_item_pending"] = True
+    return out
+
+
+def _with_grammar_briefs(
+    db: Session, *, user: User, candidates: list[LearningCandidate], level: str | None = None
+) -> list[LearningCandidate]:
+    """Attach each grammar candidate's unit brief (what the planner poses it from)."""
+
+    if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
+        return candidates
+    from app.services.chrome_language import user_chrome_language
+    from app.services.concept_life import concept_brief
+
+    language = user_chrome_language(user)
+    out: list[LearningCandidate] = []
+    for candidate in candidates:
+        if candidate.target.kind is not TargetKind.GRAMMAR:
+            out.append(candidate)
+            continue
+        try:
+            concept = db.get(GrammarConcept, int(candidate.target.id))
+            brief = (
+                concept_brief(
+                    db,
+                    concept,
+                    control_language=language,
+                    stability=(candidate.metadata or {}).get("stability"),
+                )
+                if concept is not None
+                else None
+            )
+        except Exception:  # pragma: no cover - a brief is never worth the day
+            logger.exception("journey_grammar_brief_unavailable")
+            brief = None
+        if brief is None:
+            out.append(candidate)
+            continue
+        brief = spaced_item_pending(db, user=user, brief=brief)
+        brief = _with_held_opportunity_brief(
+            brief, (candidate.metadata or {}).get("held_opportunity")
+        )
+        brief = _with_coach_scene(brief, language=str(language), level=level)
+        if concept is not None:
+            # WP-129: the catalogue's partner units, for the B1+ contrast items.
+            from app.services.grammar_catalog import concept_syllabus
+
+            brief = {
+                **brief,
+                "contrast_partners": list(concept_syllabus(concept).get("contrast_partners") or []),
+            }
+        out.append(
+            replace(candidate, metadata={**dict(candidate.metadata or {}), "grammar_brief": brief})
+        )
+    return out
+
+
+def _lexicon_label(word: Any) -> str:
+    """A noun is taught with its article, so its gender can be asked about."""
+
+    lemma = str(word.lemma)
+    if str(word.part_of_speech or "").lower() not in {"noun", "nom", "n"} or not word.gender:
+        return lemma
+    if lemma[:1].lower() in "aeiouyhàâéèêëîïôûœ":
+        return ("une " if word.gender == "f" else "un ") + lemma
+    return ("la " if word.gender == "f" else "le ") + lemma
+
+
+def _scene_lexicon_candidates(
+    db: Session,
+    *,
+    user: User,
+    scenario: ScenarioBrief,
+    exclude: set[str],
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """WP-86. The words today's scene teaches, as candidates with relevance 1.0.
+
+    Matched to the catalogue (or entered in it, learner-safely) by
+    :func:`app.services.kept_words.record_scene_lexicon`, inside a SAVEPOINT: a
+    lexicon that cannot be recorded costs the words, never the day. A word the
+    learner has never studied is ``is_new``; the gloss is the scene's own, in the
+    learner's language, and the sentence it was taught in rides along so the
+    planner can rebuild or blank it.
+    """
+
+    from app.services.kept_words import record_scene_lexicon
+    from app.services.scene_items import draft_of, lexicon_of, sentence_of
+
+    entries = lexicon_of(scenario)
+    if not entries:
+        # WP-131: a B1+ season tentpole carries no bible lexicon (it is written
+        # for A1–A2). Its words are derived from the lines at the learner's own
+        # level — new anchors at the band and one below, a foundational word only
+        # when the learner holds it due (app/services/season_lexicon).
+        from app.services.season_lexicon import scene_entries
+
+        try:
+            with db.begin_nested():
+                entries = scene_entries(db, user=user, scenario=scenario)
+        except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
+            logger.warning("journey_learning_season_lexicon_unavailable")
+            entries = []
+    from app.services.practice_band import at_band
+
+    # Practice band: a scene word above the learner's band (an A1 line of T5's
+    # «adieu», B1) stays in the scene, read with its gloss, but is not recorded
+    # as taught: a recorded word is practised here and introduced by the drill
+    # («met in the story» comes first, progress.py), and either would make it
+    # an answer. No other word is looked up in its place.
+    entries = [
+        entry
+        for entry in entries
+        if at_band(str(entry.get("surface_fr") or ""), scenario.level_band)
+        and at_band(str(entry.get("lemma") or ""), scenario.level_band)
+    ]
+    if not entries:
+        return []
+    draft = draft_of(scenario)
+    sentences = {
+        " ".join(str(entry.get("lemma") or entry.get("surface_fr") or "").split()): sentence_of(draft, entry)
+        for entry in entries
+    }
+    try:
+        with db.begin_nested():
+            words = record_scene_lexicon(
+                db, user=user, entries=entries, sentences=sentences, level=scenario.level_band
+            )
+    except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
+        logger.warning("journey_learning_scene_lexicon_unavailable")
+        return []
+    candidates: list[LearningCandidate] = []
+    for word in words:
+        if str(word.word_id) in exclude:
+            continue
+        label = _lexicon_label(word)
+        if not (at_band(label, scenario.level_band) and at_band(word.surface, scenario.level_band)):
+            # Practice band: the catalogue row's own word may differ from the
+            # entry checked above; it is held to the same band.
+            continue
+        exclude.add(str(word.word_id))
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word.word_id),
+            label_fr=label,
+            label_native=word.gloss or None,
+        )
+        candidates.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=not word.studied,
+                relevance=1.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word.word_id,
+                    "anchor": "scene_lexicon",
+                    "surface_fr": word.surface,
+                    # The planner may rebuild this sentence as an answer: an
+                    # at-band word taught in a line with an above-band one
+                    # («Ce n'est pas un adieu») is practised without that line.
+                    "example_fr": word.sentence if at_band(word.sentence, scenario.level_band) else None,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+    return candidates
+
+
+def _fragile_words(
+    db: Session,
+    *,
+    user: User,
+    now: datetime,
+    exclude: set[str],
+    room: int,
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """WP-78. Studied words about to come due, soonest first — read-only."""
+
+    if room <= 0:
+        return []
+    horizon = now + timedelta(days=FRAGILE_WINDOW_DAYS)
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(VocabularyWord, UserVocabularyProgress)
+                .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+                .filter(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.reps > 0,
+                    UserVocabularyProgress.due_at.isnot(None),
+                    UserVocabularyProgress.due_at <= horizon,
+                )
+                .order_by(UserVocabularyProgress.due_at.asc(), VocabularyWord.id.asc())
+                .limit(room * 3)
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - a fuller day is never worth the day
+        logger.warning("journey_learning_fragile_words_unavailable")
+        return []
+    fragile: list[LearningCandidate] = []
+    for word, _progress in rows:
+        if str(word.id) in exclude:
+            continue
+        gloss = word_gloss(word, user.native_language)
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word.id),
+            label_fr=str(word.word),
+            label_native=gloss or None,
+        )
+        fragile.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word.id,
+                    "anchor": "fragile_word",
+                    "fragile": True,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+        if len(fragile) >= room:
+            break
+    return fragile
+
+
+def _partner_words(db: Session, *, user: User, exclude: set[str]) -> list[LearningCandidate]:
+    """WP-78. A few glossed words the learner has already studied.
+
+    Context cards only: a matching item needs four meanings on the table and a
+    listen-and-tap item three, and a learner with one due word still deserves
+    the format. Read-only, and flagged so the planner never makes them a target.
+    """
+
+    try:
+        with db.begin_nested():
+            rows = (
+                db.query(VocabularyWord)
+                .join(UserVocabularyProgress, UserVocabularyProgress.word_id == VocabularyWord.id)
+                .filter(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.reps > 0,
+                )
+                .order_by(
+                    UserVocabularyProgress.last_review_date.desc().nullslast(),
+                    VocabularyWord.id.asc(),
+                )
+                .limit(MAX_PARTNER_WORDS * 3)
+                .all()
+            )
+    except Exception:  # noqa: BLE001 - context cards never cost the day
+        logger.warning("journey_learning_partner_words_unavailable")
+        return []
+    partners: list[LearningCandidate] = []
+    for word in rows:
+        if str(word.id) in exclude:
+            continue
+        gloss = word_gloss(word, user.native_language)
+        if not gloss:
+            continue
+        partners.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.VOCABULARY,
+                    id=str(word.id),
+                    label_fr=str(word.word),
+                    label_native=gloss,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=0,
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={"word_id": word.id, "partner_only": True},
+            )
+        )
+        if len(partners) >= MAX_PARTNER_WORDS:
+            break
+    return partners
+
+
+def _kept_id(candidate: LearningCandidate) -> int | None:
+    if candidate.target.kind is not TargetKind.VOCABULARY:
+        return None
+    try:
+        return int(candidate.target.id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _kept_words(db: Session, *, user: User, now: datetime) -> dict[int, Any]:
+    """WP-78. The learner's recently kept words; ``{}`` when they cannot be read.
+
+    Best effort inside a SAVEPOINT (WP-69): the preference is worth a lot less
+    than the day.
+    """
+
+    from app.services.kept_words import recent_kept_words
+
+    try:
+        with db.begin_nested():
+            return recent_kept_words(db, user_id=user.id, now=now)
+    except Exception:  # noqa: BLE001 - a preference never costs the day
+        logger.warning("journey_learning_kept_words_unavailable")
+        return {}
+
+
+def _mark_kept(candidate: LearningCandidate, kept: dict[int, Any]) -> LearningCandidate:
+    row = kept.get(_kept_id(candidate) or -1)
+    if row is None:
+        return candidate
+    # Ranked first by the caller, but its *relevance* is left alone: a kept word
+    # the scene does not use must not become an obligation in the reply.
+    return replace(
+        candidate,
+        metadata={**candidate.metadata, "kept": True, "example_fr": row.example_fr},
+    )
+
+
+def _kept_extra_candidates(
+    db: Session,
+    *,
+    user: User,
+    kept: dict[int, Any],
+    exclude: set[str],
+    history: dict[tuple[str, str], tuple[EvidenceKind | None, bool]],
+) -> list[LearningCandidate]:
+    """Kept words the due pool did not already return, as practice candidates."""
+
+    extras: list[LearningCandidate] = []
+    for word_id, row in kept.items():
+        if str(word_id) in exclude:
+            continue
+        word = db.get(VocabularyWord, word_id)
+        if word is None:
+            continue
+        target = TargetRef(
+            kind=TargetKind.VOCABULARY,
+            id=str(word_id),
+            label_fr=str(word.word),
+            label_native=word_gloss(word, user.native_language) or row.gloss or None,
+        )
+        extras.append(
+            LearningCandidate(
+                target=target,
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=CANDIDATE_SECONDS[ItemType.VOCAB],
+                is_new=False,
+                relevance=0.0,
+                source_item_type=str(ItemType.VOCAB),
+                metadata={
+                    "word_id": word_id,
+                    "anchor": "kept_word",
+                    "kept": True,
+                    "example_fr": row.example_fr,
+                    **_history_metadata(history, target),
+                },
+            )
+        )
+    return extras
 
 
 def _new_vocabulary_anchor(
@@ -575,6 +1707,18 @@ def _new_vocabulary_anchor(
         return None
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
     max_difficulty = LEVEL_BAND_DIFFICULTY.get((scenario.level_band or "A1").upper(), 3)
+    # EXPERIENCE-REVIEW 2026-10-04: «level-appropriate» had only a ceiling, and the
+    # scene's most frequent uncarded word is always a grammar word: the B2 and C1
+    # walks drilled «pas», «moi», «elle», «nous», «cinq», «vingt» as their day's new
+    # words. From B1 a new word is at most one level below the learner, and never a
+    # closed-class word (those are taught by the grammar units, not by cards).
+    min_difficulty = max(1, max_difficulty - 1) if max_difficulty >= 3 else 1
+    if max_difficulty >= 3:
+        from app.services.level_coverage import CLOSED_CLASS_WORDS
+
+        terms = {term for term in terms if term not in CLOSED_CLASS_WORDS}
+        if not terms:
+            return None
     words = (
         db.query(VocabularyWord)
         .filter(
@@ -582,7 +1726,10 @@ def _new_vocabulary_anchor(
             VocabularyWord.normalized_word.in_(sorted(terms)),
             or_(
                 VocabularyWord.difficulty_level.is_(None),
-                VocabularyWord.difficulty_level <= max_difficulty,
+                and_(
+                    VocabularyWord.difficulty_level <= max_difficulty,
+                    VocabularyWord.difficulty_level >= min_difficulty,
+                ),
             ),
         )
         .order_by(
@@ -777,7 +1924,84 @@ def _accepted_answers(task: RecallTask) -> list[str]:
         accepted.append(task.solution_fr)
     if not accepted and task.prompt_fr:
         accepted.append(task.prompt_fr)
+    if task.task_type == "short_answer" and not task.prompt_fr and article_optional(task.target):
+        # The bare noun: ``answer_matches`` accepts any answer that holds it as a
+        # run of words, so «appartement», «l'appartement» (U+2019 too) and
+        # «un appartement» all count.
+        _article, noun = split_article(task.target.label_fr)
+        accepted.append(noun)
     return accepted
+
+
+#: Formats answered by placing tiles in order.
+TILE_ORDER_FORMATS = frozenset({"tiles", "word_bank", "unscramble"})
+#: Formats graded by option id or tile order — never the learner's own French.
+IDENTITY_GRADED_FORMATS = TILE_ORDER_FORMATS | {"choice", "classify", "listen_tap", "who_said", "match_pairs"}
+#: QA-PRACTICE: what a rebuilt sentence got wrong, in the learner's language.
+_ORDER_NOTES: dict[str, dict[str, str]] = {
+    "from": {
+        "en": "From “{word}” on, the order is off. The right order is above.",
+        "de": "Ab „{word}“ stimmt die Reihenfolge nicht mehr. Oben steht die richtige.",
+        "fr": "À partir de « {word} », l'ordre ne va plus. Le bon ordre est au-dessus.",
+    },
+    "first": {
+        "en": "The sentence does not start with “{word}”. The right order is above.",
+        "de": "Der Satz beginnt nicht mit „{word}“. Oben steht die richtige Reihenfolge.",
+        "fr": "La phrase ne commence pas par « {word} ». Le bon ordre est au-dessus.",
+    },
+    "missing": {
+        "en": "Some words are missing. The whole sentence is above.",
+        "de": "Es fehlen Wörter. Oben steht der ganze Satz.",
+        "fr": "Il manque des mots. La phrase entière est au-dessus.",
+    },
+    "extra": {
+        "en": "Some tiles were not needed. The sentence is above.",
+        "de": "Manche Bausteine gehörten nicht dazu. Oben steht der Satz.",
+        "fr": "Certains mots étaient en trop. La phrase est au-dessus.",
+    },
+}
+
+
+def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
+    by_id = {str(option.get("id")): str(option.get("text_fr") or "") for option in task.options}
+    return [by_id[str(tile)] for tile in tile_ids if by_id.get(str(tile))]
+
+
+def recall_learner_text(task: RecallTask, answer: AttemptAnswer) -> str:
+    """What the learner actually *said* with this attempt, as French text.
+
+    A tile answer arrives as ids; its correction must show the words the
+    learner placed («tile_3f… tile_a1…» is not a sentence, and the old
+    ``answer.text`` was empty, so the correction was dropped and a wrong
+    unscramble showed «Noch nicht» without the sentence).
+    """
+
+    if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
+        return " ".join(_tile_texts(task, answer.tile_ids))
+    # A pick is corrected on the device (the right card lights up); its typed
+    # text, if any, is what the server's correction is checked against.
+    return normalize_answer_text(answer.text)
+
+
+def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
+    """Where a rebuilt sentence went wrong, in the learner's language."""
+
+    expected = [str(tile) for tile in task.correct_tile_order]
+    submitted = [str(tile) for tile in tile_ids]
+    table = lambda key: _ORDER_NOTES[key].get(language) or _ORDER_NOTES[key]["en"]  # noqa: E731
+    if not expected or submitted == expected:
+        return None
+    if any(tile not in expected for tile in submitted):
+        return table("extra")
+    if len(submitted) < len(expected) and submitted == expected[: len(submitted)]:
+        return table("missing")
+    index = next((i for i, (got, want) in enumerate(zip(submitted, expected, strict=False)) if got != want), None)
+    if index is None:
+        return table("missing")
+    word = (_tile_texts(task, [submitted[index]]) or [""])[0]
+    if not word:
+        return None
+    return table("first" if index == 0 else "from").format(word=word)
 
 
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
@@ -799,6 +2023,84 @@ def _option_text(task: RecallTask, option_id: str | None) -> str | None:
     return None
 
 
+def match_pairs_target_correct(task: RecallTask, tile_ids: Sequence[str]) -> bool:
+    """Did the learner pair the day's target right the *first* time?
+
+    ``correct_tile_order`` is ``[fr, native, …]`` with the target first. The
+    submission is every pairing the learner made, in order, wrong ones
+    included. Only the first pairing that touches either of the target's two
+    cards counts: a learner who found the target's meaning by eliminating the
+    other three still paired it right, and one who tried it against the wrong
+    meaning first did not know it.
+    """
+
+    order = [str(item) for item in task.correct_tile_order]
+    if len(order) < 2:
+        return False
+    target_fr, target_native = order[0], order[1]
+    submitted = [str(item) for item in tile_ids]
+    for index in range(0, len(submitted) - 1, 2):
+        pair = submitted[index], submitted[index + 1]
+        if target_fr in pair or target_native in pair:
+            return pair == (target_fr, target_native)
+    return False
+
+
+def _is_free_sentence(task: RecallTask) -> bool:
+    from app.services.grammar_items import FREE_SENTENCE_FORMAT
+
+    return (
+        task.task_type == "short_answer"
+        and task.evidence_format == FREE_SENTENCE_FORMAT
+        and task.target.kind is TargetKind.GRAMMAR
+    )
+
+
+def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+
+    from app.services import grammar_items, grammar_units
+
+    concept = None
+    try:
+        concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
+    except Exception:  # noqa: BLE001 - an unreadable unit grades nothing as met
+        logger.warning("journey_free_sentence_unit_unavailable")
+    if concept is None:
+        return False
+    brief = {
+        "detectors": grammar_units.regex_patterns(grammar_units.unit_detectors(concept)),
+        "noun_phrase": grammar_units.is_noun_phrase_unit(concept),
+    }
+    return grammar_items.free_sentence_uses_unit(brief, text)
+
+
+def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-130 B: is the learner's free sentence one the app has *shown* for the unit?
+
+    The model sentence (shown after a miss), the rule card's and the unit's
+    examples and the ✓ side of its contrast pairs are displayed sentences. Typing
+    one back is a correct production, but a reproduced displayed example, not
+    an independent use: it keeps that category (``produced_supported``), so it
+    schedules the unit without counting towards «Tenue».
+    """
+
+    from app.services import grammar_items, grammar_units
+
+    folded = grammar_items._fold(grammar_items.plain(text))
+    if not folded:
+        return False
+    shown = [*(task.accepted_answers or []), task.solution_fr]
+    try:
+        concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
+    except Exception:  # noqa: BLE001 - the model sentence alone is then the check
+        concept = None
+    if concept is not None:
+        shown += grammar_units.examples(concept)
+        shown += [pair["right"] for pair in grammar_units.contrast_pairs(concept)]
+    return any(folded == grammar_items._fold(grammar_items.plain(item)) for item in shown if item)
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -809,12 +2111,15 @@ def evaluate_recall(
 ) -> RecallEvaluation:
     """Grade one recall opportunity. Pure policy — writes nothing."""
 
-    del db, user  # canonical writes happen in apply_learning_evidence
+    # Canonical writes happen in apply_learning_evidence; ``db`` only names the
+    # grammar unit (accent policy) and ``user`` the note language.
+    accents = _recall_accent_policy(db, task)
 
     if is_infrastructure_failure(answer):
         return unscored_recall_evaluation(
             assistance=assistance, reason="transcription_unavailable"
         )
+    typed_verdict = None
 
     modality = answer.mode
     if answer.is_blank:
@@ -829,21 +2134,59 @@ def evaluate_recall(
             failure_reason="empty_answer",
         )
 
-    if task.task_type == "choice":
+    # WP-66 brought three Séance formats into the journey. Two of them are
+    # answered with the renderers that already exist, so they are graded by the
+    # same two branches: a `classify` is an option pick (two contrastive
+    # labels), and a `word_bank` is a tile order — with distractor chips, so an
+    # answer that uses a chip it should not have used is simply not the
+    # expected order. `transform` is free text and falls through to open
+    # production, which is what it is.
+    # WP-78: `listen_tap` is a pick, `unscramble` a tile order, and a
+    # `match_pairs` item is graded on the day's target alone (see
+    # `match_pairs_target_correct`). All three are recognition.
+    if task.task_type == "dictation":
+        # WP-91: its own verdict ladder (met / accents / not yet).
+        return evaluate_dictation(task=task, answer=answer, assistance=assistance)
+    if task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
         selected = _selected_option_id(task, answer)
         is_correct = bool(selected) and selected == task.correct_option_id
         learner_text = _option_text(task, selected) or answer.text
         opportunity: OpportunityKind = "choice"
-    elif task.task_type == "tiles":
+    elif task.task_type == "match_pairs":
+        is_correct = match_pairs_target_correct(task, answer.tile_ids)
+        learner_text = task.target.label_fr if is_correct else None
+        opportunity = "tiles"
+    elif _is_free_sentence(task):
+        # WP-129: the learner's own sentence, graded by the unit's detector —
+        # never against the one model sentence (shown after a miss).
+        # The model sentence itself, typed with a forgiven slip («meme» for
+        # «même»), is the unit used too: the detector reads accents literally.
+        from app.services.answer_acceptance import judge
+
+        typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
+        is_correct = _free_sentence_uses_unit(db, task, answer.text) or bool(
+            typed_verdict is not None and typed_verdict.correct
+        )
+        if not (typed_verdict is not None and typed_verdict.correct):
+            typed_verdict = None
+        learner_text = answer.text
+        opportunity = "open_production"
+    elif task.task_type in {"tiles", "word_bank", "unscramble"}:
         expected = [str(tile) for tile in task.correct_tile_order]
         submitted = [str(tile) for tile in answer.tile_ids]
         is_correct = bool(expected) and submitted == expected
-        learner_text = " ".join(submitted) if submitted else answer.text
+        # The words placed, not their ids: the correction shows this span.
+        learner_text = recall_learner_text(task, answer) if submitted else answer.text
         opportunity = "tiles"
     else:
-        is_correct = answer_matches(answer.text, _accepted_answers(task))
+        is_correct = answer_matches(answer.text, _accepted_answers(task), accents=accents)
         learner_text = answer.text
         opportunity = "open_production"
+        from app.services.answer_acceptance import judge
+
+        typed_verdict = judge(
+            answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
+        )
 
     observation = classify_observation(
         target=task.target,
@@ -855,15 +2198,193 @@ def evaluate_recall(
         learner_text=learner_text,
         corrected_text=task.solution_fr if not is_correct else None,
     )
+    if task.task_type == "who_said":
+        # WP-86. Knowing who said a line is reading the story, not knowing the
+        # word the line holds: the item is graded, and nothing is scheduled.
+        observation = None
+    if observation is not None:
+        # WP-L4: a grammar unit is credited with the weight of the format.
+        # WP-94: the Rappel's coach mini-scene proves free use, not a transform.
+        observation = replace(observation, task_format=task.evidence_format or task.task_type)
+        if (
+            _is_free_sentence(task)
+            and observation.evidence_kind is EvidenceKind.PRODUCED_INDEPENDENT
+            and _free_sentence_copies_shown(db, task, answer.text)
+        ):
+            # WP-130 B: a displayed example typed back keeps its category.
+            observation = replace(observation, evidence_kind=EvidenceKind.PRODUCED_SUPPORTED)
     correction = None
+    typed = typed_verdict
     if not is_correct:
-        correction = build_correction(
-            learner_text=learner_text,
-            corrected_fr=task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None),
-            note_native=task.hint_native or task.instruction_native,
-        )
+        note = task.hint_native or task.instruction_native
+        if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
+            from app.services.chrome_language import user_chrome_language
+
+            note = tile_order_note(task, answer.tile_ids, str(user_chrome_language(user))) or note
+        elif typed is not None and typed.note is not None:
+            # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
+            # ending, an elision, a gender) beats the item's generic hint.
+            from app.services.answer_acceptance import feedback_note
+            from app.services.chrome_language import user_chrome_language
+
+            note = feedback_note(typed, str(user_chrome_language(user))) or note
+        expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None)
+        correction = build_correction(learner_text=learner_text, corrected_fr=expected, note_native=note)
+        if correction is None and typed is not None and typed.note == "accent" and learner_text and expected:
+            # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
+            # the folds see no difference, the learner must still see the answer.
+            candidate = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
+            correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if correction is None and _is_free_sentence(task) and learner_text and expected:
+            # WP-129: a free sentence that did not use the unit is not a slip in
+            # one span: the learner sees a model sentence that does, whole.
+            candidate = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
+            correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+    slip_note = None
+    if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+        # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
+        from app.services.answer_acceptance import feedback_note
+        from app.services.chrome_language import user_chrome_language
+
+        slip_note = feedback_note(typed, str(user_chrome_language(user)))
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
+        assistance=assistance,
+        observations=[observation] if observation is not None else [],
+        correction=correction,
+        pending=False,
+        failure_reason=None,
+        slip_note_native=slip_note,
+    )
+
+
+# --------------------------------------------------------------------------
+# WP-91 — «Dictée»: what was heard, written down
+# --------------------------------------------------------------------------
+
+#: Every apostrophe and quote a keyboard (iOS above all) may insert.
+_DICTATION_APOSTROPHES = str.maketrans({
+    "\u2019": "'", "\u2018": "'", "\u201b": "'", "\u2032": "'", "\u00b4": "'", "`": "'",
+})
+#: The correction's margin note, in the learner's language.
+_DICTATION_NOTE: dict[str, dict[str, str]] = {
+    "accents": {
+        "en": "Almost: only the accents are missing.",
+        "de": "Fast: nur die Akzente fehlen.",
+        "fr": "Presque : il ne manque que les accents.",
+    },
+    "words": {
+        "en": "Listen again: this is what was said.",
+        "de": "Hör noch einmal hin: Das wurde gesagt.",
+        "fr": "Réécoutez : voici ce qui a été dit.",
+    },
+}
+
+
+def _dictation_language(task: RecallTask) -> str:
+    """The learner's language, read off the instruction the planner wrote."""
+
+    from app.services.journey_planner import _DICTATION_INSTRUCTION
+
+    for language, text in _DICTATION_INSTRUCTION.items():
+        if text == task.instruction_native:
+            return language
+    return "en"
+
+
+def dictation_form(value: str | None, *, keep_accents: bool = True) -> str:
+    """The form a dictation is compared in.
+
+    Case, punctuation (guillemets and the typographer's quotes included),
+    apostrophe variants — ``’`` ``‘`` fold to ``'`` — hyphens and whitespace
+    never count. ``keep_accents=False`` also strips diacritics: the second rung
+    of the ladder.
+    """
+
+    text = normalize_answer_text(value).translate(_DICTATION_APOSTROPHES).lower()
+    text = unicodedata.normalize("NFC", text)
+    if not keep_accents:
+        text = "".join(
+            char for char in unicodedata.normalize("NFKD", text) if not unicodedata.combining(char)
+        )
+    # Words and apostrophes survive; «», “”, ?!.,;: and hyphens become spaces.
+    text = re.sub(r"[^\w']+", " ", text)
+    # «j' ai», «j 'ai» and «j'ai» are the same thing typed three ways.
+    text = re.sub(r"\s*'\s*", "' ", text)
+    return " ".join(text.replace("_", " ").split())
+
+
+def _dictation_credits_target(task: RecallTask) -> bool:
+    """Does the dictated line hold the item's word? Only then is it evidence."""
+
+    label = dictation_form(task.target.label_fr, keep_accents=False)
+    line = dictation_form(task.solution_fr, keep_accents=False)
+    if not label or not line:
+        return False
+    return f" {label} " in f" {line} " or f" {re.sub(r'^(le|la|les|un|une|des|du) ', '', label)} " in f" {line} "
+
+
+def evaluate_dictation(
+    *, task: RecallTask, answer: AttemptAnswer, assistance: AssistanceLevel
+) -> RecallEvaluation:
+    """Grade one dictation.
+
+    * the same words (case, punctuation, quotes and spacing aside) — **met**;
+    * the same words with a missing or wrong accent — **partially met**, with
+      the line as the correction;
+    * anything else — **not yet**, with the line as the correction.
+
+    Listening, then transcribing, is recognition of the word the line holds —
+    never production. A line that does not hold the item's word is graded and
+    schedules nothing (as «Qui a dit ça ?»).
+    """
+
+    expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else "")
+    learner = normalize_answer_text(answer.text)
+    if dictation_form(learner) and dictation_form(learner) == dictation_form(expected):
+        outcome = TaskOutcome.MET
+    elif dictation_form(learner, keep_accents=False) and dictation_form(
+        learner, keep_accents=False
+    ) == dictation_form(expected, keep_accents=False):
+        outcome = TaskOutcome.PARTIALLY_MET
+    else:
+        outcome = TaskOutcome.NOT_YET
+    heard = outcome is not TaskOutcome.NOT_YET
+    observation = None
+    if _dictation_credits_target(task):
+        observation = classify_observation(
+            target=task.target,
+            opportunity="tiles",
+            is_correct=heard,
+            assistance=assistance,
+            modality=answer.mode,
+            elicited=True,
+            learner_text=learner,
+            corrected_text=None if outcome is TaskOutcome.MET else expected,
+        )
+        if observation is not None:
+            observation = replace(observation, task_format=task.task_type)
+    correction = None
+    if outcome is not TaskOutcome.MET and learner and expected:
+        # Built directly: `build_correction` folds accents away, and an accent
+        # is exactly what the partial verdict is about.
+        correction = Correction(
+            span_fr=learner,
+            corrected_fr=normalize_answer_text(expected),
+            note_native=_DICTATION_NOTE[
+                "accents" if outcome is TaskOutcome.PARTIALLY_MET else "words"
+            ][_dictation_language(task)],
+        )
+    return RecallEvaluation(
+        outcome=outcome,
         assistance=assistance,
         observations=[observation] if observation is not None else [],
         correction=correction,
@@ -1151,29 +2672,17 @@ def record_drill_credit(
 def record_daily_practice_streak(db: Session, user: User, *, on_date: date | None = None) -> int:
     """Move the learner's practice streak, at most once per local day.
 
-    Byte-for-byte the rule the legacy Atelier session already applies
-    (`AtelierService._update_streak`), deliberately: both surfaces write the
-    same three user columns and both are no-ops once the day is marked, so a
+    WP-80: a thin door onto :mod:`app.services.streak`, the one place the rule
+    lives (local day, checked on read, one «jour de relâche» per full week).
+    The legacy Atelier session (`AtelierService._update_streak`) goes through
+    the same function, and both are no-ops once the day is marked, so a
     learner who finishes the journey and then drills gets one increment, not
     two. Returns the streak after the call.
     """
 
-    day = on_date or date.today()
-    last = getattr(user, "grammar_last_review_date", None)
-    if last == day:
-        return int(getattr(user, "grammar_streak_days", 0) or 0)
-    if last == day - timedelta(days=1):
-        user.grammar_streak_days = (user.grammar_streak_days or 0) + 1
-    else:
-        user.grammar_streak_days = 1
-    user.grammar_last_review_date = day
-    user.grammar_longest_streak = max(
-        user.grammar_longest_streak or 0, user.grammar_streak_days or 0
-    )
-    user.mark_activity(day)
-    db.add(user)
-    db.flush([user])
-    return int(user.grammar_streak_days or 0)
+    from app.services.streak import record_practice_day
+
+    return record_practice_day(db, user, on_date=on_date).days
 
 
 def _apply_vocabulary_credit(
@@ -1204,7 +2713,17 @@ def _apply_vocabulary_credit(
         learner_text=observation.learner_text,
         corrected_text=observation.corrected_text,
         session=session,
-        source_payload={"source_key": source_key, "policy_version": JOURNEY_LEARNING_POLICY_VERSION},
+        source_payload={
+            "source_key": source_key,
+            "policy_version": JOURNEY_LEARNING_POLICY_VERSION,
+            # WP-115e: the review log records the format (``reply`` for the reply).
+            "task_type": observation.task_format or "reply",
+        },
+        # EXPERIENCE-REVIEW 2026-10-04: a missed practice item lapses the word; only
+        # the learner's own French (the reply) opens a repair. A recall miss used to
+        # come back as «Schreib richtig, was du gesagt hast: clé» — a tapped card,
+        # or «euh je ne sais pas», posed as the learner's sentence.
+        record_erratum=(observation.task_format or "reply") == "reply",
     )
     return _CreditOutcome(True, result.to_dict())
 
@@ -1216,6 +2735,8 @@ def _apply_grammar_credit(
     target: TargetRef,
     evidence_kind: EvidenceKind,
     now: datetime,
+    task_format: str | None = None,
+    assistance: AssistanceLevel = AssistanceLevel.NONE,
 ) -> _CreditOutcome:
     """Grammar credit written through the caller's transaction.
 
@@ -1236,11 +2757,12 @@ def _apply_grammar_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
 
     progress = GrammarService(db).get_or_create_progress(user_id=user.id, concept_id=concept_id)
-    progress.score = score
-    progress.reps = (progress.reps or 0) + 1
-    progress.last_review = now
-    progress.next_review = now + calculate_next_review(score)
-    progress.state = determine_state(score, progress.reps)
+    # WP-L3: the one door (`apply_grammar_evidence`), with the weight of what
+    # the journey observed; the concept's own memory carries the history.
+    evidence = grammar_journey_evidence(
+        evidence_kind, task_format=task_format, assistance=assistance
+    )
+    apply_grammar_evidence(progress, evidence, now=now, score=score)
     note = f"[{JOURNEY_SOURCE_TYPE}] {evidence_kind}"
     if not is_machine_note(note) or not personal_note(progress.notes):
         progress.notes = note
@@ -1254,8 +2776,74 @@ def _apply_grammar_credit(
             "score": score,
             "state": progress.state,
             "next_review": progress.next_review.isoformat(),
+            "stability": progress.stability,
+            "evidence_format": str(evidence.format),
         },
     )
+
+
+def _grammar_success_credited_today(
+    db: Session, *, user: User, concept_id: str, observed_on: date
+) -> bool:
+    """WP-L4: a journey success already moved this unit's schedule today.
+
+    One day, one success on the schedule (D-0's «one séance, one credit»
+    inside the journey): an introduction day's guided items and its reply
+    all see the unit, and only the first success schedules it. A failure
+    always lands, and the life (``note_concept_evidence``) sees every use.
+    """
+
+    stmt = select(SessionLearningMoment).where(
+        SessionLearningMoment.user_id == user.id,
+        SessionLearningMoment.source_type == JOURNEY_SOURCE_TYPE,
+        SessionLearningMoment.kind == JOURNEY_MOMENT_KIND_BY_TARGET[TargetKind.GRAMMAR],
+        SessionLearningMoment.srs_credit_applied.is_(True),
+    )
+    for moment in db.execute(stmt).scalars():
+        payload = dict(moment.prompt_payload or {})
+        if str(payload.get("observed_on") or "") != observed_on.isoformat():
+            continue
+        if str((payload.get("target") or {}).get("id") or "") != str(concept_id):
+            continue
+        result = dict(moment.result_payload or {})
+        if str(result.get("evidence_kind") or "") != str(EvidenceKind.NOT_YET):
+            return True
+    return False
+
+
+def _note_folded_grammar_use(
+    db: Session,
+    *,
+    user: User,
+    observation: TargetObservation,
+    evidence_kind: EvidenceKind,
+    now: datetime,
+) -> None:
+    """A folded success still counts for the unit's life (free use, spaced item)."""
+
+    try:
+        concept_id = int(observation.target.id)
+    except (TypeError, ValueError):
+        return
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services.concept_life import note_concept_evidence
+
+    progress = (
+        db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept_id)
+        .first()
+    )
+    if progress is None:
+        return
+    note_concept_evidence(
+        progress,
+        grammar_journey_evidence(
+            evidence_kind, task_format=observation.task_format, assistance=observation.assistance
+        ),
+        now=now,
+    )
+    db.add(progress)
+    db.flush([progress])
 
 
 def _apply_error_credit(
@@ -1264,6 +2852,7 @@ def _apply_error_credit(
     user: User,
     target: TargetRef,
     evidence_kind: EvidenceKind,
+    now: datetime,
 ) -> _CreditOutcome:
     try:
         error_id = UUID(str(target.id))
@@ -1274,22 +2863,59 @@ def _apply_error_credit(
         return _CreditOutcome(False, {"skipped": "unscored"})
     rating, repaired = review
     reviewed = ErrorMemoryService(db).review_error(
-        user=user, error_id=error_id, rating=rating, repaired=repaired
+        user=user, error_id=error_id, rating=rating, repaired=repaired, now=now,
+        evidence=JOURNEY_EVIDENCE[evidence_kind],
     )
     if reviewed is None:
         return _CreditOutcome(False, {"skipped": "error_missing"})
     db.flush([reviewed])
-    return _CreditOutcome(
-        True,
-        {
-            "error_id": str(reviewed.id),
-            "rating": rating,
-            "repaired": repaired,
-            "state": reviewed.state,
-            "next_review_date": (
-                reviewed.next_review_date.isoformat() if reviewed.next_review_date else None
-            ),
-        },
+    detail: dict[str, Any] = {
+        "error_id": str(reviewed.id),
+        "rating": rating,
+        "repaired": repaired,
+        "state": reviewed.state,
+        "next_review_date": (
+            reviewed.next_review_date.isoformat() if reviewed.next_review_date else None
+        ),
+    }
+    if reviewed.concept_id:
+        # WP-L1: a repair is evidence on the concept the erratum belongs to, as
+        # the unified queue's repair already treats it (`UnifiedSRSService.
+        # _credit_linked_grammar_from_error`). Written through this transaction.
+        detail["concept_credit"] = _apply_linked_concept_credit(
+            db, user=user, concept_id=reviewed.concept_id, evidence_kind=evidence_kind, now=now
+        ).detail
+    return _CreditOutcome(True, detail)
+
+
+def _apply_linked_concept_credit(
+    db: Session,
+    *,
+    user: User,
+    concept_id: int,
+    evidence_kind: EvidenceKind,
+    now: datetime,
+) -> _CreditOutcome:
+    """Grammar evidence reached through an erratum rather than a concept target.
+
+    A success folds into a credit the concept already earned today, on either
+    surface (WP-16 / D-0: one séance, one credit); a lapse always lands.
+    """
+
+    if evidence_kind is not EvidenceKind.NOT_YET and any(
+        journey_credited_today(
+            db, user=user, target_kind=str(TargetKind.GRAMMAR), target_id=str(concept_id),
+            on_date=now.date(), source_type=source_type,
+        )
+        for source_type in (JOURNEY_SOURCE_TYPE, "atelier")
+    ):
+        return _CreditOutcome(False, {"concept_id": concept_id, "skipped": "credited_today"})
+    return _apply_grammar_credit(
+        db,
+        user=user,
+        target=TargetRef(kind=TargetKind.GRAMMAR, id=str(concept_id), label_fr=""),
+        evidence_kind=evidence_kind,
+        now=now,
     )
 
 
@@ -1321,11 +2947,35 @@ def _credit_for(
         )
     if target.kind is TargetKind.GRAMMAR:
         return _apply_grammar_credit(
-            db, user=user, target=target, evidence_kind=evidence_kind, now=now
+            db, user=user, target=target, evidence_kind=evidence_kind, now=now,
+            task_format=observation.task_format, assistance=observation.assistance,
         )
     if target.kind is TargetKind.ERROR:
-        return _apply_error_credit(db, user=user, target=target, evidence_kind=evidence_kind)
+        return _apply_error_credit(
+            db, user=user, target=target, evidence_kind=evidence_kind, now=now
+        )
     return _CreditOutcome(False, {"skipped": "unknown_target_kind"})
+
+
+def attempted_answer(learner_text: str | None, expected: str | None) -> bool:
+    """Was this an attempt at an answer, rather than a give-up?
+
+    A give-up is «je ne sais pas» and its kin, a bare «?», or a sentence in the
+    learner's own language: no French was tried, so there is nothing to repair.
+    Wrong French — even the wrong word — is an attempt.
+    """
+
+    import re as _re
+
+    from app.services.answer_acceptance import fold_all
+    from app.services.season.turns import reply_is_not_french
+
+    given = fold_all(learner_text)
+    if not given or not _re.search(r"[a-z]", given):
+        return False
+    if _re.search(r"\b(?:je\s+(?:ne\s+)?sais\s+pas|sais\s+pas|aucune\s+idee|keine\s+ahnung|weiss\s+(?:ich\s+)?nicht|i\s+don'?t\s+know|no\s+idea|idk)\b", given):
+        return False
+    return not reply_is_not_french(str(learner_text))
 
 
 def _record_correction_erratum(
@@ -1337,8 +2987,20 @@ def _record_correction_erratum(
     modality: InputMode,
     source_key: str,
     foreground: bool,
+    concept_id_hint: int | None = None,
 ) -> dict[str, Any] | None:
-    return ErrorMemoryService(db).record_erratum(
+    service = ErrorMemoryService(db)
+    # WP-L1: the erratum names its concept, as `record_detected_error` does, so
+    # the mistake can make that concept due and a later repair can credit it.
+    # WP-L4: when the step itself observed one grammar unit going wrong (a
+    # guided item, or a reply the unit's detector saw), the erratum is that
+    # unit's — so its lapse is booked once, and its repair credits it.
+    concept_id = concept_id_hint or service.infer_concept_id_for_correction(
+        learner_text=correction.span_fr,
+        corrected_text=correction.corrected_fr,
+        note=correction.note_native,
+    )
+    return service.record_erratum(
         user=user,
         erratum={
             "display_label": f"Reprise : {correction.span_fr}"[:120],
@@ -1352,6 +3014,7 @@ def _record_correction_erratum(
             "external_id": None,
         },
         source_type=JOURNEY_SOURCE_TYPE,
+        concept_id=concept_id,
         learning_session_id=session.id,
         source_payload={
             "source_key": source_key,
@@ -1530,6 +3193,9 @@ def apply_learning_evidence(
     # learner's text and the target form, so the foreground correction is shown
     # but not booked a second time.
     punishment_recorded = False
+    # Concepts this step already booked a lapse on, so a correction about the
+    # same concept does not book a second one.
+    lapsed_concepts: set[str] = set()
 
     if evaluation.pending or evaluation.outcome is TaskOutcome.UNSCORED:
         # Infrastructure failure. No attempt, no lapse, no credit, no row.
@@ -1615,8 +3281,22 @@ def apply_learning_evidence(
                 source_type="atelier",
             )
         )
+        folded_reason = "credited_in_drill_today"
+        if (
+            not folded
+            and evidence_kind is not EvidenceKind.NOT_YET
+            and observation.target.kind is TargetKind.GRAMMAR
+            and _grammar_success_credited_today(
+                db, user=user, concept_id=str(observation.target.id), observed_on=observed_on
+            )
+        ):
+            folded, folded_reason = True, "credited_in_journey_today"
+        if folded and observation.target.kind is TargetKind.GRAMMAR:
+            _note_folded_grammar_use(
+                db, user=user, observation=observation, evidence_kind=evidence_kind, now=now
+            )
         credit = (
-            _CreditOutcome(False, {"skipped": "credited_in_drill_today"})
+            _CreditOutcome(False, {"skipped": folded_reason})
             if folded else _credit_for(
                 db, user=user, observation=observation, evidence_kind=evidence_kind,
                 session=session, source_key=source_key, now=now,
@@ -1624,6 +3304,12 @@ def apply_learning_evidence(
         )
         moment.srs_credit_applied = credit.applied
         punishment_recorded = punishment_recorded or bool(credit.detail.get("erratum_id"))
+        if (
+            credit.applied
+            and evidence_kind is EvidenceKind.NOT_YET
+            and observation.target.kind is TargetKind.GRAMMAR
+        ):
+            lapsed_concepts.add(str(observation.target.id))
         moment.score_0_10 = _score_for(evidence_kind)
         moment.result_payload = {
             "evidence_kind": str(evidence_kind),
@@ -1633,6 +3319,7 @@ def apply_learning_evidence(
             in {EvidenceKind.PRODUCED_SUPPORTED, EvidenceKind.PRODUCED_INDEPENDENT},
             "learner_text": observation.learner_text,
             "corrected_text": observation.corrected_text,
+            "task_format": observation.task_format,
             "credit": credit.detail,
         }
         flag_modified(moment, "result_payload")
@@ -1676,7 +3363,25 @@ def apply_learning_evidence(
         ),
         None,
     )
-    if correction is not None and validate_correction(
+    # QA-PRACTICE: a sentence rebuilt from tiles in the wrong order is shown its
+    # correction, but the order was the app's shuffle, not the learner's own
+    # French: it is not an erratum to drill later.
+    # The same holds for every format graded by identity: a wrong card
+    # («féminin» for «un appartement») is not French to repair later.
+    rebuilt = any(
+        getattr(observation, "task_format", None) in IDENTITY_GRADED_FORMATS
+        for observation in evaluation.observations
+    )
+    # EXPERIENCE-REVIEW 2026-10-04: «euh je ne sais pas» for «appartement» is a word
+    # not yet retrieved, not French to repair: it came back two days later as
+    # «Schreib richtig, was du gesagt hast: euh je ne sais pas». A miss of a practice
+    # item opens a repair only when it was an attempt at the answer.
+    if correction is not None and learner_text and not rebuilt and any(
+        getattr(observation, "task_format", None) not in (None, "reply")
+        for observation in evaluation.observations
+    ):
+        rebuilt = not attempted_answer(learner_text, correction.corrected_fr)
+    if correction is not None and not rebuilt and validate_correction(
         correction, learner_text if learner_text else correction.span_fr
     ):
         correction_key = evidence_source_key(
@@ -1728,14 +3433,25 @@ def apply_learning_evidence(
                     modality=modality,
                     source_key=correction_key,
                     foreground=True,
+                    concept_id_hint=_single_lapsed_concept(lapsed_concepts),
                 )
                 punishment_recorded = bool(erratum)
+            concept_credit = None
+            concept_id = (erratum or {}).get("concept_id")
+            if concept_id and str(concept_id) not in lapsed_concepts:
+                # WP-L1: the mistake makes its concept due again (the lapse
+                # interval), through the same history-aware journey credit.
+                concept_credit = _apply_linked_concept_credit(
+                    db, user=user, concept_id=int(concept_id),
+                    evidence_kind=EvidenceKind.NOT_YET, now=now,
+                ).detail
             moment.srs_credit_applied = bool(erratum)
             moment.result_payload = {
                 "span_fr": correction.span_fr,
                 "corrected_fr": correction.corrected_fr,
                 "note_native": correction.note_native,
                 "erratum": erratum,
+                "concept_credit": concept_credit,
                 "suppressed_reason": None if erratum else "one_punishment_event_per_turn",
             }
             flag_modified(moment, "result_payload")
@@ -1760,6 +3476,13 @@ def apply_learning_evidence(
         learning_session_id=session.id,
         learning_moment_id=first_moment_id,
     )
+
+
+def _single_lapsed_concept(lapsed: set[str]) -> int | None:
+    if len(lapsed) != 1:
+        return None
+    value = next(iter(lapsed))
+    return int(value) if value.isdigit() else None
 
 
 def _score_for(evidence_kind: EvidenceKind) -> float | None:
@@ -1973,7 +3696,194 @@ def _uuid_or_none(value: Any) -> UUID | None:
         return None
 
 
+# --------------------------------------------------------------------------
+# WP-94 — the Rappel's coach mini-scene (free use elicited, not hoped for)
+# --------------------------------------------------------------------------
+
+_COACH_SCENE_INSTRUCTION: dict[str, str] = {
+    "en": "{name} is talking to you. Reply in French: “{meaning}”",
+    "de": "{name} spricht dich an. Antworte auf Französisch: „{meaning}“",
+    "fr": "{name} vous parle. Répondez en français : « {meaning} »",
+}
+
+
+def coach_scene_review_task(
+    brief: dict[str, Any], *, language: str, day_key: str, level: str | None = None
+) -> RecallTask | None:
+    """A strong unit's Rappel: the rule's coach says a line, the learner replies.
+
+    Past :data:`grammar_items.REEMPLOI_STABILITY_DAYS` (10 days) of stability
+    the Rappel used to pose nothing and *hope* the reply would use the unit.
+    WP-94 poses the Forge's two-line scene instead (``item_bank`` +
+    ``forge_coaches.mini_scene``, the same one ``item_bank.scene_item``
+    builds): the coach's line in French, the reply's meaning as the cue. It is
+    a ``short_answer`` on the wire (every client renders one), graded by
+    :func:`answer_matches` against the scene's reply and the frame's accepted
+    variants, and credited as free use (``evidence_format="conversation"``).
+    ``None`` when the unit has no bank templates, no coach, or no item that
+    can be a scene with that coach — then the reply asks for it, as before.
+
+    WP-130 B: with the learner's ``level``, a scene whose answer holds a word
+    more than one band above it is passed over (the scene now carries the
+    free-use opportunity whenever the reply cannot: it is posed far more often).
+    """
+
+    from app.services import forge_coaches, grammar_items, item_bank
+
+    external_id = str(brief.get("external_id") or "")
+    if not external_id or brief.get("concept_id") is None:
+        return None
+    units = item_bank.units_for_external_id(external_id)
+    coach = forge_coaches.coach_for_concept(external_id)
+    if not units or not coach:
+        return None
+    unit = units[0]
+    candidates = item_bank.default_bank().generate(
+        unit, 8, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+    )
+    for item in candidates:
+        scene = forge_coaches.mini_scene(item, coach)
+        if scene is None:
+            continue
+        line = scene["lines"][0]
+        name = str(coach.get("name") or "")
+        template = _COACH_SCENE_INSTRUCTION.get(language, _COACH_SCENE_INSTRUCTION["en"])
+        accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
+        if level:
+            from app.services.practice_level import within_band
+
+            if not all(within_band(text, level) for text in accepted):
+                continue
+        return RecallTask(
+            task_type="short_answer",
+            # FORGE-DE: a German learner reads the German meaning when the item has one.
+            instruction_native=template.format(
+                name=name, meaning=(scene.get("reply_de") if language == "de" else None) or scene["reply_en"]
+            ),
+            prompt_fr=f"{name} : « {line['fr']} »",
+            options=[],
+            target=grammar_items.grammar_target(brief),
+            optional=False,
+            accepted_answers=accepted,
+            solution_fr=scene["reply"],
+            translation_native=(str(line.get("en") or "") or None) if language == "en" else None,
+            estimated_seconds=40,
+            evidence_format="conversation",
+        )
+    return None
+
+
+def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> dict[str, Any]:
+    """WP-99 / O-4: a strong unit still owed its «Tenue» spaced item keeps the transform Rappel.
+
+    From :data:`grammar_items.REEMPLOI_STABILITY_DAYS` the Rappel poses the
+    coach's free-use mini-scene. «Held» also needs one correct *spaced item*
+    at least 14 days after the introduction (``concept_life``), and a unit
+    whose stability passed 10 days before day 14 would otherwise never be
+    posed one again. Until ``spaced_success_at`` is set, the brief's stability
+    is held just under the threshold (the real one kept as
+    ``stability_measured``, and ``spaced_item_pending`` set), so the planner
+    poses the medium band's transform. The simulation does the same
+    (``simulation.rappel_format(..., spaced_done=...)``).
+    """
+
+    from app.db.models.grammar import UserGrammarProgress
+    from app.services import grammar_items
+
+    try:
+        stability = float(brief.get("stability") or 0.0)
+    except (TypeError, ValueError):
+        return brief
+    if stability < grammar_items.REEMPLOI_STABILITY_DAYS or brief.get("concept_id") is None:
+        return brief
+    progress = (
+        db.query(UserGrammarProgress)
+        .filter(
+            UserGrammarProgress.user_id == user.id,
+            UserGrammarProgress.concept_id == int(brief["concept_id"]),
+        )
+        .first()
+    )
+    if progress is None or getattr(progress, "spaced_success_at", None) is not None:
+        return brief
+    return {
+        **brief,
+        "stability": round(grammar_items.REEMPLOI_STABILITY_DAYS - 0.1, 2),
+        "stability_measured": stability,
+        "spaced_item_pending": True,
+    }
+
+
+def _with_coach_scene(
+    brief: dict[str, Any], *, language: str, level: str | None = None
+) -> dict[str, Any]:
+    """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
+
+    JSON-safe (the planner stays pure: it rebuilds the ``RecallTask`` from this
+    and the brief's own target). Seeded by the day, so one day asks one scene.
+    """
+
+    from app.services import grammar_items
+
+    if grammar_items.review_band(brief.get("stability")) != "high":
+        return brief
+    try:
+        task = coach_scene_review_task(
+            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level
+        )
+    except Exception:  # pragma: no cover - a Rappel item is never worth the day
+        logger.exception("journey_coach_scene_unavailable")
+        task = None
+    if task is None:
+        return brief
+    return {
+        **brief,
+        "coach_scene": {
+            "task_type": task.task_type,
+            "instruction_native": task.instruction_native,
+            "prompt_fr": task.prompt_fr,
+            "options": [],
+            "optional": task.optional,
+            "accepted_answers": list(task.accepted_answers),
+            "solution_fr": task.solution_fr,
+            "translation_native": task.translation_native,
+            "estimated_seconds": task.estimated_seconds,
+            "evidence_format": task.evidence_format,
+        },
+    }
+
+
+def measured_avoidance_rate(db: Session, *, limit: int = 500) -> dict[str, Any]:
+    """WP-94 harness honesty: how often a reply asked for a unit and avoided it.
+
+    Reads WP-L4's ``concept_evidence`` on the most recent respond steps
+    (``correct`` / ``error`` / ``avoided``; ``undetected`` is left out — no
+    detector, no verdict). ``rate`` is ``None`` under 20 verdicts.
+    """
+
+    from app.db.models.daily_journey import DailyJourneyStep
+    from app.services.journey_contracts import StepKind
+
+    rows = db.scalars(
+        select(DailyJourneyStep.private_task)
+        .where(DailyJourneyStep.kind == str(StepKind.RESPOND))
+        .order_by(DailyJourneyStep.completed_at.desc().nullslast())
+        .limit(limit)
+    ).all()
+    counts = {"correct": 0, "error": 0, "avoided": 0}
+    for private in rows:
+        for item in (private or {}).get("concept_evidence") or []:
+            outcome = item.get("outcome") if isinstance(item, dict) else None
+            if outcome in counts:
+                counts[outcome] += 1
+    total = sum(counts.values())
+    return {**counts, "total": total, "rate": (counts["avoided"] / total) if total >= 20 else None}
+
+
 __all__ = [
+    "coach_scene_review_task",
+    "measured_avoidance_rate",
+    "spaced_item_pending",
     "BACKGROUND_ERRATA_CAP",
     "CANDIDATE_HISTORY_LIMIT",
     "CANDIDATE_SECONDS",

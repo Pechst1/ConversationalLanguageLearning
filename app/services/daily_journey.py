@@ -36,7 +36,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -49,15 +49,19 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.user import User
+from app.db.savepoint import best_effort, run_best_effort, session_is_usable
 from app.schemas.daily_journey import (
     PRACTICE_ERRATA_HREF,
     AttemptResult,
     CapabilityEvidence,
     CapabilityProgress,
     CapabilitySummary,
+    DayTimeEstimate,
+    ForgeEntry,
     HelpResult,
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
+    JourneyBecause,
     JourneyCorrection,
     JourneyCreateRequest,
     JourneyFinishRequest,
@@ -74,21 +78,28 @@ from app.schemas.daily_journey import (
     ScenarioDescriptor,
     StoryOutcome,
     TodayEnvelope,
+    forge_href_for,
     practice_href_for,
 )
+from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
     preview_scenario,
 )
-from app.services.grammar import GrammarService
+from app.services.journey_capabilities import build_journey_register_line
+from app.services.journey_content import learner_level_band
 from app.services.journey_contracts import (
+    DEFAULT_DAY_SHAPE,
+    FIRST_DAY_KIND,
+    READ_MIN_BUDGET_SECONDS,
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
     ContentUnavailable,
     ControlLanguage,
     Correction,
+    DayShape,
     EvidenceKind,
     HelpKind,
     InputMode,
@@ -106,10 +117,31 @@ from app.services.journey_contracts import (
     TaskOutcome,
     effect_source_key,
     normalize_answer_text,
-    normalize_control_language,
+    rhythm_caps,
     strongest_assistance,
 )
-from app.services.journey_learning import record_daily_practice_streak
+from app.services.journey_day_shapes import (
+    DayShapeDecision,
+    DayShapeInputs,
+    choose_day_shape,
+    choose_desk,
+    letter_offer_for,
+)
+from app.services.journey_errata import errata_targets_for_user
+from app.services.journey_events import MIN_MEASURED_PACE_DAYS, measured_pace
+from app.services.journey_latency import (
+    PHASE_DRAFT,
+    PHASE_RECAP,
+    PHASE_RESPOND,
+    has_live_prefetch,
+    measure_phase,
+    server_wait_ms_since_last_event,
+    take_prefetched_scene,
+)
+from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
+from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
+from app.services.seals import edition_no_for, mastery_today_for
+from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +164,12 @@ def _target_practice_href(target: dict | object) -> str | None:
     return None
 
 
+#: WP-36 §8.4. One row per graded respond turn, carrying only what the self-repair
+#: policy decided about it. Deliberately **not** one of WP-11's ten frozen journey
+#: event names: this is a package's own uptake counter, not part of the journey
+#: contract, and it must be addable without touching a frozen vocabulary.
+SELF_REPAIR_EVENT_TYPE = "journey_self_repair"
+
 #: A generation claim older than this is recoverable through ``POST /retry``.
 GENERATION_CLAIM_TTL_SECONDS = 90
 #: A mutation receipt stuck in ``processing`` longer than this is retryable.
@@ -141,6 +179,76 @@ PREPARING_RETRY_AFTER_SECONDS = 3
 UNAVAILABLE_RETRY_AFTER_SECONDS = 30
 MAX_GENERATION_ATTEMPTS = 3
 CANDIDATE_LIMIT = 3
+#: WP-78. A practice day sees more of the queue than the reply may oblige: the
+#: planner still elicits at most two due targets plus one new anchor in the
+#: reply, and the rest become quick items (``journey_learning`` reads a limit
+#: above three as room for the practice pool).
+PRACTICE_CANDIDATE_LIMIT = 8
+
+
+def _planned_introduction(plan: Any) -> dict[str, Any] | None:
+    """WP-L4: ``{"concept_id", "title_native"}`` of the plan's rule step, or None."""
+
+    for step in getattr(plan, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == str(StepKind.RULE):
+            prompt = dict(getattr(step, "public_prompt", None) or {})
+            if prompt.get("review"):
+                # WP-129 (D7): a review in context introduces nothing.
+                continue
+            return {
+                "concept_id": prompt.get("concept_id"),
+                "title_native": prompt.get("title_native"),
+            }
+    return None
+
+
+def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
+    """WP-S4: was a forge block opened from this journey step completed?"""
+
+    rows = (
+        db.query(AtelierSession.quote_payload)
+        .filter(AtelierSession.user_id == user_id, AtelierSession.status == "completed")
+        .order_by(AtelierSession.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    wanted = str(step_id)
+    for (quote,) in rows:
+        forge = (quote or {}).get("forge") if isinstance(quote, dict) else None
+        if isinstance(forge, dict) and str(forge.get("journey_step_id") or "") == wanted:
+            return True
+    return False
+
+
+def _new_word_ids(plan: Any, candidates: list[Any]) -> list[int]:
+    """WP-L6: the vocabulary ids this plan introduces — kept targets that
+    were offered as new. The day's reservation in the learner's intake pool."""
+
+    kept = set(getattr(plan, "selected_target_ids", None) or [])
+    ids: list[int] = []
+    for candidate in candidates:
+        target = getattr(candidate, "target", None)
+        if target is None or not getattr(candidate, "is_new", False):
+            continue
+        if str(target.kind) != str(TargetKind.VOCABULARY) or f"{target.kind}:{target.id}" not in kept:
+            continue
+        try:
+            value = int(target.id)
+        except (TypeError, ValueError):
+            continue
+        if value not in ids:
+            ids.append(value)
+    return ids
+
+
+#: WP-69. The ``unavailable_reason`` a journey gets when a read finds it in
+#: ``preparing`` with a dead (or no) generation claim: the worker that owned it
+#: is gone, and the learner is offered a retry instead of an endless spinner.
+GENERATION_INTERRUPTED_REASON = "generation_interrupted"
+#: WP-69. Written into ``plan_selection["generation_fallback"]["kind"]`` when the
+#: story engine could not produce the day and an authored scene was served.
+#: Internal telemetry only: the learner is never told which one they got.
+AUTHORED_FALLBACK_KIND = "authored"
 #: How far back the scenario rotation looks. One journey per learner-local day,
 #: so this is a season of history and bounds the query.
 SCENARIO_HISTORY_LIMIT = 120
@@ -183,6 +291,18 @@ def resolve_timezone(value: str | None, fallback: str = "UTC") -> str:
         else:
             return candidate
     return fallback
+
+
+def _streak_snapshot_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
+    """WP-80: ``streak`` and ``missed_days`` for a snapshot; never costs the day."""
+
+    from app.services.streak import snapshot_fields
+
+    try:
+        return snapshot_fields(db, journey.user_id, journey.local_date)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("daily_journey: streak snapshot fields unavailable")
+        return {}
 
 
 def local_date_for(timezone_name: str, *, now: datetime | None = None) -> date:
@@ -264,6 +384,7 @@ def _target_from_json(payload: dict[str, Any]) -> TargetRef:
         id=payload["id"],
         label_fr=payload.get("label_fr", ""),
         label_native=payload.get("label_native"),
+        concept_title=bool(payload.get("concept_title")),
     )
 
 
@@ -282,6 +403,11 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         "translation_native": task.translation_native,
         "solution_fr": task.solution_fr,
         "estimated_seconds": task.estimated_seconds,
+        # WP-94: only when set, so every other stored task reads as before.
+        **({"evidence_format": task.evidence_format} if task.evidence_format else {}),
+        # WP-103 T3: likewise.
+        **({"goal_native": task.goal_native} if task.goal_native else {}),
+        **({"source_fr": task.source_fr} if task.source_fr else {}),
     }
 
 
@@ -300,6 +426,9 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         translation_native=payload.get("translation_native"),
         solution_fr=payload.get("solution_fr"),
         estimated_seconds=int(payload.get("estimated_seconds", 45)),
+        evidence_format=payload.get("evidence_format") or None,
+        goal_native=payload.get("goal_native") or None,
+        source_fr=payload.get("source_fr") or None,
     )
 
 
@@ -368,6 +497,7 @@ def _brief_to_json(brief: ScenarioBrief) -> dict[str, Any]:
         "is_authored_fallback": brief.is_authored_fallback,
         "control_language": brief.control_language,
         "story_context": dict(brief.story_context),
+        "panels": [dict(panel) for panel in brief.panels],
     }
 
 
@@ -396,7 +526,476 @@ def _brief_from_json(payload: dict[str, Any]) -> ScenarioBrief:
         estimated_seconds=int(payload.get("estimated_seconds", 264)),
         is_authored_fallback=bool(payload.get("is_authored_fallback", False)),
         control_language=payload.get("control_language", "en"),
+        panels=[dict(panel) for panel in payload.get("panels") or []],
     )
+
+
+
+def _scenario_view(snapshot: Any) -> Any:
+    """The stored scenario, with its place named in French (WP-50). Journeys
+    planned before the world bible carried `name_fr` stored the English
+    name; the fold happens here so they read right without a data fix."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    from app.services.living_story import LOCATION_NAMES_FR
+
+    location_id = str(snapshot.get("location_id") or "")
+    french = LOCATION_NAMES_FR.get(location_id)
+    if not french:
+        return snapshot
+    return {**snapshot, "location_name": french}
+
+
+def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
+    """WP-89: the respond step's exchanges as the public ``ThreadExchange`` shape.
+
+    Built from ``private_task["turns"]`` and nothing else in it: the learner's
+    own line, the character's line and the public correction that turn showed.
+    Oldest first.
+    """
+
+    thread: list[dict[str, Any]] = []
+    for turn in turns or []:
+        if not isinstance(turn, dict):
+            continue
+        learner = str(turn.get("learner") or "").strip()
+        if not learner:
+            continue
+        correction = turn.get("correction")
+        if isinstance(correction, dict):
+            try:
+                correction = JourneyCorrection.model_validate(correction).model_dump(mode="json")
+            except ValueError:
+                correction = None
+        else:
+            correction = None
+        lines = [
+            {
+                "speaker_id": row.get("speaker_id"),
+                "speaker_name": row.get("speaker_name"),
+                "text_fr": str(row.get("text_fr") or ""),
+            }
+            for row in turn.get("lines") or []
+            if isinstance(row, dict) and str(row.get("text_fr") or "").strip()
+        ]
+        thread.append(
+            {
+                "learner_fr": learner,
+                "character_fr": str(turn.get("character") or ""),
+                "correction": correction,
+                **({"character_lines": lines} if lines else {}),
+            }
+        )
+    return thread
+
+
+def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
+    """The stored public prompt, plus what the client must know about this
+    deployment before it offers a mode (WP-49). Read at projection time, never
+    stored: a flag flipped after the journey was planned is still honoured."""
+    prompt = dict(step.public_prompt or {})
+    if StepKind(step.kind) is StepKind.SCENE:
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        prompt["audio_available"] = audio
+        # WP-66. A «jour d'écoute» planned while audio was on, projected after
+        # it was switched off, is a day that cannot be listened to. Say so here
+        # rather than open the learner on a player that will never play.
+        if prompt.get("listen_first") and not audio:
+            prompt["listen_first"] = False
+    elif StepKind(step.kind) is StepKind.RECALL:
+        # WP-76: the one deliberate read of `private_task` in a projection. It
+        # leaves as a salted digest the client can check a pick against, never
+        # as the answer (`journey_answer_key`).
+        from app.services.journey_answer_key import answer_key_for
+
+        private = step.private_task if isinstance(step.private_task, dict) else {}
+        key = answer_key_for(str(step.id), private.get("recall_task"))
+        if key is not None:
+            prompt["answer_key"] = key
+        if (
+            prompt.get("task_type") == "listen_tap"
+            and prompt.get("audio_url")
+            and not settings.ATELIER_EPISODE_AUDIO_ENABLED
+        ):
+            # WP-91: planned with a clip, projected after audio was switched
+            # off — the phrase is printed again and the item is read-and-tap,
+            # exactly as a day planned without audio.
+            task = private.get("recall_task") if isinstance(private.get("recall_task"), dict) else {}
+            prompt["prompt_fr"] = task.get("prompt_fr")
+            prompt["audio_url"] = None
+    elif StepKind(step.kind) is StepKind.RULE and "review" in prompt and not _RULE_PROMPT_HAS_REVIEW:
+        # WP-129 (D7): the tentpole's review in context says ``review`` to the
+        # client once ``RulePrompt`` carries the field; a schema without it
+        # (strict: ``extra="forbid"``) is not handed a key it would refuse.
+        prompt.pop("review", None)
+    return prompt
+
+
+def _rule_prompt_has_review() -> bool:
+    from app.schemas.daily_journey import RulePrompt
+
+    return "review" in RulePrompt.model_fields
+
+
+#: WP-129: read once — the schema does not change under a running process.
+_RULE_PROMPT_HAS_REVIEW = _rule_prompt_has_review()
+
+
+#: Evidence kinds that mean the learner *wrote the target*, as opposed to having
+#: recognised it or been carried to it. Only these count as an objective met.
+_PRODUCED_EVIDENCE = frozenset(
+    {str(EvidenceKind.PRODUCED_INDEPENDENT), str(EvidenceKind.PRODUCED_SUPPORTED)}
+)
+
+
+def _produced_target_ids(evaluation: Any) -> list[str]:
+    """``["vocabulary:41", "grammar:7"]`` — what this turn actually produced.
+
+    Written for the WP-64 seam (a letter's optional objectives are marked met
+    from real observations, never from a good overall verdict), and tolerant of
+    an adapter whose evaluation carries no observations at all.
+    """
+
+    produced: list[str] = []
+    for observation in getattr(evaluation, "observations", None) or []:
+        target = getattr(observation, "target", None)
+        if target is None:
+            continue
+        if str(getattr(observation, "evidence_kind", "")) not in _PRODUCED_EVIDENCE:
+            continue
+        produced.append(f"{target.kind}:{target.id}")
+    return produced
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    """``value`` when it is a dict, ``{}`` otherwise. A brief is JSON from three
+    packages; a key that holds the wrong type is an absent key, never a 500."""
+
+    return value if isinstance(value, dict) else {}
+
+
+def _shape_name(value: Any) -> str | None:
+    """A shape name out of a string or out of ``{"shape": …}``, or ``None``."""
+
+    if isinstance(value, dict):
+        value = value.get("shape")
+    text = str(value or "").strip().lower()
+    return text or None
+
+
+def _plan_time_budget(plan: Any) -> dict[str, Any]:
+    """WP-128: what ``plan_selection["time_budget"]`` stores for a plan."""
+
+    core = getattr(plan, "core_seconds", None)
+    extensions = getattr(plan, "extension_seconds", None)
+    return {
+        "budget_seconds": int(getattr(plan, "budget_seconds", 0) or 0),
+        "core_seconds": int(core() if callable(core) else plan.estimated_active_seconds),
+        "longer_day": bool(getattr(plan, "longer_day", False)),
+        "extensions": {
+            str(kind): int(seconds)
+            for kind, seconds in ((extensions() if callable(extensions) else {}) or {}).items()
+        },
+    }
+
+
+def _stored_time_budget(journey: DailyJourney) -> dict[str, Any] | None:
+    """WP-128: the stored time budget, or ``None`` for a plan from before it."""
+
+    selection = journey.plan_selection if isinstance(journey.plan_selection, dict) else {}
+    stored = selection.get("time_budget")
+    if isinstance(stored, dict) and isinstance(stored.get("core_seconds"), int):
+        return stored
+    return None
+
+
+def _stored_core_seconds(journey: DailyJourney) -> int | None:
+    """WP-128: the day's core estimate — stored, else (an older plan) the whole
+    plan's, which had no extension the core could leave out; ``None`` unplanned."""
+
+    stored = _stored_time_budget(journey)
+    if stored is not None:
+        return int(stored["core_seconds"])
+    estimate = int(journey.estimated_active_seconds or 0)
+    return estimate if estimate > 0 else None
+
+
+def _time_estimate_view(journey: DailyJourney) -> dict[str, Any] | None:
+    """WP-128: the plan's own estimate — its core and in-day extensions."""
+
+    core = _stored_core_seconds(journey)
+    if core is None:
+        return None
+    stored = _stored_time_budget(journey) or {}
+    return {
+        "budget_seconds": int(journey.budget_seconds or stored.get("budget_seconds") or 0),
+        "core_seconds": core,
+        "basis": "plan",
+        "longer_day": bool(stored.get("longer_day")),
+        "extensions": [
+            {"kind": kind, "seconds": int(seconds), "in_day": True}
+            for kind, seconds in (stored.get("extensions") or {}).items()
+            if kind in ("reading", "forge", "desk") and int(seconds or 0) > 0
+        ],
+    }
+
+
+def _due_word_count(db: Session, user: User) -> int:
+    """WP-128: the word drill's waiting cards, for its own estimate."""
+
+    from app.services.progress import ProgressService
+
+    return int(ProgressService(db).count_due_reviews(user.id) or 0)
+
+
+def _stored_day_shape(journey: DailyJourney) -> DayShape:
+    """The shape a persisted plan was built with.
+
+    WP-66 stores it inside the existing ``plan_selection`` JSON rather than in a
+    new column: there is no migration, and a journey planned before this
+    package simply has no key — which reads back as ``standard``, which is what
+    it is. A shape name this build does not know (a newer deployment's plan,
+    read by an older one) is also read as standard rather than refusing to load
+    the learner's day.
+    """
+
+    selection = journey.plan_selection if isinstance(journey.plan_selection, dict) else {}
+    try:
+        return DayShape(str(selection.get("day_shape") or DEFAULT_DAY_SHAPE))
+    except ValueError:
+        return DEFAULT_DAY_SHAPE
+
+
+def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
+    """WP-75: the cast introduction the first day was planned with, or ``None``."""
+
+    first_day = _mapping((journey.plan_selection or {}).get("first_day"))
+    rows = first_day.get("cast_intro")
+    if not isinstance(rows, list) or not rows:
+        return None
+    return [dict(row) for row in rows if isinstance(row, dict)] or None
+
+
+def _journey_input_mode(journey: DailyJourney) -> InputMode:
+    """The mode a journey was created in: voice when its reply offered voice."""
+
+    for step in journey.steps or []:
+        if str(step.kind) == str(StepKind.RESPOND):
+            modes = (step.public_prompt or {}).get("input_modes") or []
+            if str(InputMode.VOICE) in [str(mode) for mode in modes]:
+                return InputMode.VOICE
+    return InputMode.TEXT
+
+
+def _coulisses_module() -> Any:
+    """WP-93: the story lane's «coulisses» module, when this build has it."""
+
+    try:
+        from app.services import coulisses  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - absent or broken: no «coulisses» today
+        return None
+    return coulisses if callable(getattr(coulisses, "request_coulisses", None)) else None
+
+
+def _coulisses_enabled() -> bool:
+    return bool(getattr(settings, "ATELIER_COULISSES_ENABLED", False)) and (
+        _coulisses_module() is not None
+    )
+
+
+#: WP-93: the names the story lane's status helper may carry (the contract names
+#: the three states, not the function); tried in order.
+_COULISSES_STATUS_HELPERS = ("coulisses_status", "coulisses_status_for", "status_for", "status")
+_READ_STATUSES = frozenset({"ready", "writing", "unavailable"})
+
+
+def _cast_name(db: Session, scene: Any, character_id: str | None) -> str | None:
+    """A cast member's display name, from the scene's thread world bible."""
+
+    if not character_id:
+        return None
+    from app.db.models.serial import SerialThread
+
+    thread_id = getattr(scene, "serial_thread_id", None)
+    thread = db.get(SerialThread, thread_id) if thread_id else None
+    for member in ((thread.world_bible or {}) if thread is not None else {}).get("cast") or []:
+        if isinstance(member, dict) and str(member.get("id") or "") == character_id:
+            return str(member.get("name") or "") or None
+    return None
+
+
+def _coulisses_state(
+    db: Session, journey: DailyJourney, private: dict[str, Any]
+) -> tuple[str, str | None, str | None, str | None, str | None]:
+    """``(status, scene_id, title_fr, pov_character_id, pov_name)`` of today's
+    «coulisses», read defensively."""
+
+    module = _coulisses_module()
+    if module is None or not getattr(settings, "ATELIER_COULISSES_ENABLED", False):
+        return "unavailable", None, None, None, None
+    scene: Any = None
+    finder = getattr(module, "coulisses_scene_for", None)
+    if callable(finder):
+        scene = finder(db, journey.id)
+    status: str | None = None
+    for name in _COULISSES_STATUS_HELPERS:
+        helper = getattr(module, name, None)
+        if not callable(helper):
+            continue
+        try:
+            value = helper(db, journey.id)
+        except TypeError:
+            value = helper(db, journey_id=journey.id)
+        value = str(getattr(value, "value", value) or "")
+        if value in _READ_STATUSES:
+            status = value
+            break
+    scene_id: str | None = None
+    title: str | None = None
+    pov: str | None = None
+    if scene is not None:
+        if isinstance(scene, dict):
+            scene_id = str(scene.get("id") or scene.get("scene_id") or "") or None
+            title = str(scene.get("title_fr") or scene.get("title") or "") or None
+            pov = str(scene.get("pov_character_id") or "") or None
+        elif isinstance(scene, (str, uuid.UUID)):
+            scene_id = str(scene)
+        else:
+            scene_id = str(getattr(scene, "id", "") or "") or None
+            title = str(getattr(scene, "title", "") or "") or None
+            for payload in (scene.source_snapshot, scene.script_payload):
+                if isinstance(payload, dict) and payload.get("pov_character_id"):
+                    pov = str(payload["pov_character_id"])
+                    break
+    if status is None:
+        if scene_id:
+            status = "ready"
+        else:
+            status = "writing" if private.get("coulisses_requested") else "unavailable"
+    if status == "ready" and not scene_id:
+        status = "writing"
+    if status != "ready":
+        return status, None, title, None, None
+    name = _cast_name(db, scene, pov) if pov and not isinstance(scene, (dict, str)) else None
+    return status, scene_id, title, pov, name
+
+
+def _is_reprise(brief: Any) -> bool:
+    """WP-124a: is this brief a season reprise (re-read, never bound or settled)?"""
+
+    from app.services.season.reprise import is_reprise
+
+    return is_reprise(getattr(brief, "story_context", None))
+
+
+def _journey_story_context(journey: DailyJourney) -> dict[str, Any]:
+    """The pinned brief's ``story_context`` (the engine scene's id and draft), or ``{}``."""
+
+    for step in journey.steps:
+        payload = (step.private_task or {}).get("scenario_brief")
+        if isinstance(payload, dict) and isinstance(payload.get("story_context"), dict):
+            return dict(payload["story_context"])
+    return {}
+
+
+def _owned_engine_scene(db: Session, user_id: Any, scene_id: Any) -> Any:
+    from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    try:
+        key = uuid.UUID(str(scene_id))
+    except (TypeError, ValueError):
+        return None
+    scene = db.get(GraphicNovelScene, key)
+    if scene is None or scene.user_id != user_id:
+        return None
+    if not str(scene.prompt_version or "").startswith(ENGINE_VERSION_PREFIX):
+        return None
+    return scene
+
+
+def _is_side_page(scene: Any) -> bool:
+    """A «coulisses» page is not a day's scene: it is never «yesterday's page»."""
+
+    source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+    payload = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+    return bool(
+        source.get("coulisses")
+        or payload.get("coulisses")
+        or source.get("kind") == "coulisses"
+        or payload.get("kind") == "coulisses"
+    )
+
+
+def _previous_engine_scenes(
+    db: Session, user: User, journey: DailyJourney, *, limit: int = 2
+) -> list[Any]:
+    """The learner's most recent story-engine pages before today's journey,
+    newest first (yesterday's, then the day before's)."""
+
+    from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    rows = db.scalars(
+        select(GraphicNovelScene)
+        .where(
+            GraphicNovelScene.user_id == user.id,
+            GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        )
+        .order_by(GraphicNovelScene.created_at.desc())
+        .limit(10)
+    ).all()
+    today = str(journey.id)
+    found: list[Any] = []
+    for scene in rows:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        if str(source.get("journey_id") or "") == today or _is_side_page(scene):
+            continue
+        if scene.panels:
+            found.append(scene)
+            if len(found) >= limit:
+                break
+    return found
+
+
+def _scene_page_texts(scene: Any) -> tuple[list[str], int]:
+    """The French a stored page prints, and how many panels it has."""
+
+    panels = sorted(scene.panels, key=lambda panel: panel.panel_index)
+    texts: list[str] = []
+    for panel in panels:
+        overlay = panel.overlay_payload if isinstance(panel.overlay_payload, dict) else {}
+        narration = str(overlay.get("narration_fr") or "").strip()
+        if narration:
+            texts.append(narration)
+        for line in overlay.get("dialogue") or []:
+            text = str((line or {}).get("text_fr") or "").strip() if isinstance(line, dict) else ""
+            if text:
+                texts.append(text)
+    return texts, len(panels)
+
+
+class _GenerationFailure(Exception):
+    """Why a scene could not be turned into a playable day (WP-69).
+
+    Carries exactly what :meth:`DailyJourneyService._mark_unavailable` needs,
+    plus whether an authored scene may stand in for it. Adapter outages are
+    never eligible: the authored path goes through the same adapters.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        retry_allowed: bool = True,
+        retry_after_seconds: int = UNAVAILABLE_RETRY_AFTER_SECONDS,
+        fallback_eligible: bool = False,
+    ) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.retry_allowed = retry_allowed
+        self.retry_after_seconds = retry_after_seconds
+        self.fallback_eligible = fallback_eligible
 
 
 class DailyJourneyService:
@@ -405,6 +1004,12 @@ class DailyJourneyService:
     def __init__(self, db: Session, adapters: JourneyAdapters) -> None:
         self.db = db
         self.adapters = adapters
+        #: WP-26: did *this* service instance serve the draft from a prefetched
+        #: scene? ``None`` means no draft was generated on this instance at all.
+        self.draft_prefetch_hit: bool | None = None
+        #: WP-128: the offered story alone is longer than the rhythm (set by
+        #: ``_available_descriptor`` on the same read).
+        self._offer_longer_day = False
 
     # ------------------------------------------------------------------
     # Reads
@@ -412,9 +1017,12 @@ class DailyJourneyService:
 
     def get_today(self, user: User, *, timezone_hint: str | None = None) -> TodayEnvelope:
         enabled = journey_enabled_for(user)
-        control_language = normalize_control_language(user.native_language)
+        control_language = user_chrome_language(user)
 
         journey = self._occupying_journey(user)
+        if journey is not None and self._heal_interrupted(journey):
+            # WP-69: a dead `preparing` journey no longer occupies the day.
+            journey = self._occupying_journey(user)
         if journey is None:
             fallback_tz = resolve_timezone(timezone_hint)
             today = local_date_for(fallback_tz)
@@ -422,29 +1030,214 @@ class DailyJourneyService:
 
         timezone_name = journey.timezone if journey else resolve_timezone(timezone_hint)
         today = local_date_for(timezone_name)
+        # WP-80: the client's zone is the learner's zone (it moves the streak
+        # day and the push schedule), and the streak is settled on this read.
+        from app.services.streak import today_fields
+
+        streak_fields = today_fields(self.db, user, timezone_hint=timezone_hint)
 
         available: ScenarioDescriptor | None = None
         if enabled and journey is None:
             available = self._available_descriptor(user)
 
+        forge_anchor = self._forge_anchor_id(user)
+        forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
+        # WP-99: what Home can say honestly — the absence, a premiere, an interlude.
+        from app.services.journey_absence import story_frame_fields
+
+        frame = story_frame_fields(
+            self.db,
+            user_id=user.id,
+            local_date=today,
+            missed_days=int(streak_fields.get("missed_days") or 0),
+            journey=journey,
+        )
+        snapshot = self.snapshot(journey) if journey else None
         return TodayEnvelope(
+            learner_level=learner_level_band(user),
             enabled=enabled,
             control_language=control_language,
             local_date=today,
             timezone=timezone_name,
-            journey=self.snapshot(journey) if journey else None,
+            journey=snapshot,
             available=available,
             legacy_resume=self._legacy_resume(user),
-            practice_href=self._practice_href(user),
+            # WP-S4: one forge-picker read serves both entries.
+            practice_href=self._practice_href(user, anchor=forge_anchor),
+            forge=forge_entry,
+            # WP-128: the one estimate Home shows, and each extension's own.
+            time_estimate=(
+                self._today_time_estimate(user, snapshot, available, forge_entry)
+                if enabled
+                else None
+            ),
+            because=self._because_for(journey),
+            is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
+            headline=self._headline(user, journey, today) if enabled else None,
+            **streak_fields,
+            **frame,
+        )
+
+    def _today_time_estimate(
+        self,
+        user: User,
+        snapshot: JourneySnapshot | None,
+        available: ScenarioDescriptor | None,
+        forge: ForgeEntry | None,
+    ) -> DayTimeEstimate | None:
+        """WP-128: today's core — the plan's once planned, else the forecast the
+        offer card prints — and every optional extension with its own minutes:
+        the drill's waiting cards, one letter, La Forge after the day."""
+
+        from app.services.journey_planner import letter_seconds, word_drill_seconds
+
+        if snapshot is not None and snapshot.time_estimate is not None:
+            estimate = snapshot.time_estimate.model_dump()
+        elif available is not None:
+            estimate = {
+                "budget_seconds": budget_seconds_for(user),
+                "core_seconds": int(available.estimated_seconds),
+                "basis": "forecast",
+                "longer_day": bool(self._offer_longer_day),
+                "extensions": [],
+            }
+        else:
+            return None
+        band = learner_level_band(user) or (available.level_band if available else None)
+        due = run_best_effort(
+            self.db,
+            "daily_journey: due words for the estimate",
+            lambda: _due_word_count(self.db, user),
+            default=0,
+            log=logger,
+        )
+        extensions = list(estimate.get("extensions") or [])
+        if word_drill_seconds(due) > 0:
+            extensions.append({"kind": "words", "seconds": word_drill_seconds(due)})
+        extensions.append({"kind": "letter", "seconds": letter_seconds(band)})
+        if forge is not None and not forge.folded and forge.budget_seconds:
+            extensions.append({"kind": "forge", "seconds": int(forge.budget_seconds)})
+        estimate["extensions"] = extensions
+        return DayTimeEstimate.model_validate(estimate)
+
+    def _headline(self, user: User, journey: DailyJourney | None, today) -> dict | None:
+        """WP-109: today's episode, headlined — read-only, never costs Home."""
+
+        from app.services.story_headline import episode_headline
+
+        return episode_headline(self.db, user, journey, local_date=today)
+
+    def _because_for(self, journey: DailyJourney | None) -> JourneyBecause | None:
+        """WP-24's because-line, read back from the plan that produced it."""
+
+        if journey is None:
+            return None
+        payload = (journey.plan_selection or {}).get("because")
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return JourneyBecause.model_validate(payload)
+        except Exception:  # pragma: no cover - written through the same schema
+            logger.warning("daily_journey: stored because payload is unreadable")
+            return None
+
+    def _draft_is_warm(self, user: User) -> bool:
+        """WP-26: is a prefetched scene waiting? A read, never a generation.
+
+        ``GET /today`` must never pay for content (CONTRACTS §4) and this does
+        not: it is one indexed lookup on the pilot ledger. False is always the
+        safe answer — the client then behaves exactly as it did before.
+        """
+
+        # WP-75: the authored first day costs no generation — it is as warm as
+        # a scene gets.
+        if run_best_effort(
+            self.db,
+            "daily_journey: first-day warmth",
+            lambda: self._first_day_eligible(user, None),
+            default=False,
+            log=logger,
+        ):
+            return True
+        return run_best_effort(
+            self.db,
+            "daily_journey: prefetch warmth lookup",
+            lambda: bool(has_live_prefetch(self.db, user)),
+            default=False,
+            log=logger,
         )
 
     def get_journey(self, user: User, journey_id: uuid.UUID) -> JourneySnapshot:
-        return self.snapshot(self._journey_or_404(user, journey_id))
+        journey = self._journey_or_404(user, journey_id)
+        self._heal_interrupted(journey)
+        # WP-87: a story lane whose worker died gets today's authored ending (free).
+        from app.services.story_lanes import heal_stale_lane
+
+        heal_stale_lane(self.db, user, journey)
+        return self.snapshot(journey)
+
+    def _heal_interrupted(self, journey: DailyJourney) -> bool:
+        """WP-69 (L6): a `preparing` journey whose claim is dead becomes retryable.
+
+        The worker that claimed the generation is gone (crashed, killed, or a
+        request that died on an aborted transaction), so nothing will ever move
+        the journey out of `preparing` and the learner watches «Deine Szene wird
+        gerade vorbereitet» forever. A read cannot generate — `GET` never pays
+        for content (CONTRACTS §4) — so it does the one safe thing: it moves the
+        journey to `unavailable` with a retry offered at once. `POST /retry` then
+        regenerates under a fresh claim.
+
+        Compare-and-set on the revision *and* the claim the read observed, so a
+        worker that reclaimed the journey a moment ago is never overwritten, and
+        two concurrent reads heal it once. Returns whether this call healed it.
+        """
+
+        if JourneyStatus(journey.status) is not JourneyStatus.PREPARING:
+            return False
+        if self._claim_is_live(journey):
+            return False
+        observed_claim = journey.generation_claim_id
+        claim_matches = (
+            DailyJourney.generation_claim_id.is_(None)
+            if observed_claim is None
+            else DailyJourney.generation_claim_id == observed_claim
+        )
+        try:
+            result = self.db.execute(
+                update(DailyJourney)
+                .where(
+                    DailyJourney.id == journey.id,
+                    DailyJourney.status == str(JourneyStatus.PREPARING),
+                    DailyJourney.revision == journey.revision,
+                    claim_matches,
+                )
+                .values(
+                    status=str(JourneyStatus.UNAVAILABLE),
+                    unavailable_reason=GENERATION_INTERRUPTED_REASON,
+                    unavailable_retry_allowed=True,
+                    unavailable_retry_after_seconds=0,
+                    generation_claim_id=None,
+                    generation_claimed_at=None,
+                    revision=journey.revision + 1,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            healed = result.rowcount == 1
+            self.db.commit()
+        except Exception:  # pragma: no cover - a read must never 500 on a repair
+            logger.exception("daily_journey: could not heal an interrupted journey")
+            self._rollback_quietly()
+            return False
+        self.db.refresh(journey)
+        if healed:
+            logger.warning(
+                "daily_journey: journey %s was stuck preparing with a dead claim; now retryable",
+                journey.id,
+            )
+        return healed
 
     def get_capability_progress(self, user: User) -> CapabilityProgress:
-        control_language: ControlLanguage = normalize_control_language(
-            user.native_language
-        )
+        control_language: ControlLanguage = user_chrome_language(user)
         try:
             view = self.adapters.capabilities.build_capability_summary(
                 self.db, user=user, control_language=control_language
@@ -482,6 +1275,17 @@ class DailyJourneyService:
     def create_journey(
         self, user: User, payload: JourneyCreateRequest
     ) -> tuple[JourneySnapshot, int]:
+        """WP-26: the draft the learner waits on, measured end to end."""
+
+        with measure_phase(self.db, user=user, phase=PHASE_DRAFT) as timing:
+            snapshot, status_code = self._create_journey(user, payload)
+            timing.prefetch_hit = self.draft_prefetch_hit
+            timing.journey_id = snapshot.id
+            return snapshot, status_code
+
+    def _create_journey(
+        self, user: User, payload: JourneyCreateRequest
+    ) -> tuple[JourneySnapshot, int]:
         if not journey_enabled_for(user):
             raise journey_error(
                 http_status.HTTP_403_FORBIDDEN,
@@ -497,7 +1301,8 @@ class DailyJourneyService:
             digest=_digest(
                 {
                     "timezone": timezone_name,
-                    "budget_seconds": payload.budget_seconds,
+                    # WP-L6: the server's budget, not the client's.
+                    "budget_seconds": budget_seconds_for(user),
                     "preferred_input_mode": str(payload.preferred_input_mode),
                 }
             ),
@@ -512,10 +1317,22 @@ class DailyJourneyService:
             raise
 
         snapshot = self.snapshot(journey)
-        self._commit_mutation(receipt, journey, status_code, snapshot)
+        self._settle_receipt(receipt, journey, status_code, snapshot)
         return snapshot, status_code
 
     def retry_journey(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyRetryRequest
+    ) -> tuple[JourneySnapshot, int]:
+        """A retry is a draft the learner is still waiting on: measured too."""
+
+        with measure_phase(
+            self.db, user=user, phase=PHASE_DRAFT, journey_id=journey_id
+        ) as timing:
+            snapshot, status_code = self._retry_journey(user, journey_id, payload)
+            timing.prefetch_hit = self.draft_prefetch_hit
+            return snapshot, status_code
+
+    def _retry_journey(
         self, user: User, journey_id: uuid.UUID, payload: JourneyRetryRequest
     ) -> tuple[JourneySnapshot, int]:
         journey = self._journey_or_404(user, journey_id)
@@ -544,8 +1361,30 @@ class DailyJourneyService:
             raise
 
         snapshot = self.snapshot(journey)
-        self._commit_mutation(receipt, journey, status_code, snapshot)
+        self._settle_receipt(receipt, journey, status_code, snapshot)
         return snapshot, status_code
+
+    def _settle_receipt(
+        self,
+        receipt: DailyJourneyMutation,
+        journey: DailyJourney,
+        status_code: int,
+        snapshot: JourneySnapshot,
+    ) -> None:
+        """Commit a create/retry receipt — unless the answer was "still preparing".
+
+        WP-69: a 202 says *somebody else is generating, look again*. It has no
+        effect to protect, and committing it as the receipt meant the client's
+        next tap with the same key replayed "preparing" forever — even after
+        that other worker had died. The key is released instead, so the same
+        request asked again is answered again.
+        """
+
+        if status_code == http_status.HTTP_202_ACCEPTED:
+            self._release_mutation(receipt)
+            self.db.commit()
+            return
+        self._commit_mutation(receipt, journey, status_code, snapshot)
 
     # ------------------------------------------------------------------
     # Mutations
@@ -611,6 +1450,32 @@ class DailyJourneyService:
         return result
 
     def submit_attempt(
+        self,
+        user: User,
+        journey_id: uuid.UUID,
+        step_id: uuid.UUID,
+        payload: JourneyAttemptRequest,
+    ) -> AttemptResult:
+        """WP-26: the reply turn, measured. It still pays a provider call."""
+
+        try:
+            with measure_phase(
+                self.db, user=user, phase=PHASE_RESPOND, journey_id=journey_id
+            ):
+                result = self._submit_attempt(user, journey_id, step_id, payload)
+        except BaseException:
+            from app.services.story_lanes import discard_pending
+
+            discard_pending(self.db)
+            raise
+        # WP-87: the story lane starts only once the reply's transaction is durable,
+        # and outside the measured respond time — the learner is not waiting on it.
+        from app.services.story_lanes import dispatch_pending
+
+        dispatch_pending(self.db)
+        return result
+
+    def _submit_attempt(
         self,
         user: User,
         journey_id: uuid.UUID,
@@ -722,6 +1587,8 @@ class DailyJourneyService:
             if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
                 step.status = str(StepStatus.COMPLETED)
                 step.completed_at = _utcnow()
+                if StepKind(step.kind) is StepKind.RULE:
+                    self._mark_rule_read(user, step)
             self._activate_next_step(journey, after_ordinal=step.ordinal)
             self.db.flush()
         except HTTPException as exc:
@@ -739,9 +1606,421 @@ class DailyJourneyService:
                 "step_kind": str(step.kind),
                 "ordinal": step.ordinal,
                 "estimated_seconds": step.estimated_seconds,
+                # WP-76: the graded answers of this step were server time, not
+                # learner time. WP-11 subtracts what the closing event declares.
+                "provider_wait_ms": server_wait_ms_since_last_event(
+                    self.db, journey_id=journey.id
+                ),
             },
         )
+        # WP-76: the event is added after the mutation's commit, and the request
+        # session (autoflush off) closes without another one — so it was dropped
+        # and WP-11 never saw a step boundary. Telemetry only; never fails the step.
+        try:
+            self.db.commit()
+        except Exception:  # pragma: no cover - telemetry must never break a flow
+            logger.exception("daily_journey: step_completed event not persisted")
+            self.db.rollback()
         return snapshot
+
+    def _forge_prompt_view(self, journey: DailyJourney, step: DailyJourneyStep) -> dict[str, Any]:
+        """WP-S4: the folded forge step, with where it opens and whether it is done.
+
+        ``forged`` is read from the séance ledger: a forge block started from
+        this step (``quote_payload.forge.journey_step_id``) and completed.
+        """
+
+        prompt = dict(step.public_prompt or {})
+        budget = int(prompt.get("budget_seconds") or step.estimated_seconds or 0)
+        prompt["budget_seconds"] = budget
+        prompt["href"] = forge_href_for(
+            prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
+        )
+        prompt["forged"] = bool(
+            run_best_effort(
+                self.db,
+                "daily_journey: forge step done",
+                lambda: _forge_block_completed(self.db, journey.user_id, step.id),
+                default=False,
+                log=logger,
+            )
+        )
+        return prompt
+
+    # ------------------------------------------------------------------
+    # WP-121/122 — «Le bureau»: the Revue's other desks as one optional step
+    # ------------------------------------------------------------------
+
+    def _desks_dealt_this_week(self, user: User, day: date) -> set[str]:
+        """The desks already planned on this learner's earlier days this ISO week."""
+
+        monday = day - timedelta(days=day.weekday())
+        rows = self.db.execute(
+            select(DailyJourneyStep.public_prompt)
+            .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+            .where(
+                DailyJourney.user_id == user.id,
+                DailyJourney.local_date >= monday,
+                DailyJourney.local_date < day,
+                DailyJourneyStep.kind == str(StepKind.DESK),
+            )
+        ).all()
+        return {
+            str(prompt.get("desk"))
+            for (prompt,) in rows
+            if isinstance(prompt, dict) and prompt.get("desk")
+        }
+
+    def _desk_offer(self, user: User, desk: str, day: date) -> dict[str, Any] | None:
+        """One desk's offer for ``day``, or ``None`` when its flag is off or it has
+        nothing to offer. Read only: nothing is created until the learner opens it."""
+
+        from app.services.journey_planner import desk_offer
+
+        moment = datetime.combine(day, datetime.min.time(), tzinfo=UTC) + timedelta(hours=12)
+        if desk == "relecture":
+            if not getattr(settings, "REVUE_ENABLED", False):
+                return None
+            from app.services.revue import relecture
+
+            offer = relecture.offer(self.db, user, now=moment)
+            if offer is None:
+                return None
+            return desk_offer(
+                "relecture", title_fr=offer.dossier_title_fr, relecture=offer.model_dump(mode="json")
+            )
+        if desk == "radio":
+            if not (
+                getattr(settings, "REVUE_ENABLED", False)
+                and getattr(settings, "REVUE_RADIO_ENABLED", False)
+            ):
+                return None
+            from app.services.revue import radio
+
+            rotation = radio.radio_week(self.db, user.id, now=moment)
+            if not rotation.chip or rotation.current is None:
+                return None
+            script = radio.bulletin_script(
+                rotation.current, radio.learner_band(user), week=rotation.week
+            )
+            return desk_offer(
+                "radio",
+                title_fr=rotation.current.title_fr,
+                dossier_id=rotation.current.id,
+                seconds=int(5 * round(script.seconds / 5)),
+            )
+        if desk == "correcteur":
+            if not getattr(settings, "REVUE_CORRECTEUR_ENABLED", False):
+                return None
+            from app.services.revue import correcteur, radio
+
+            week = correcteur.week_for(self.db, user, radio.current_week(moment))
+            first = next(iter(week.get("dossiers") or []), None)
+            if not first:
+                return None
+            return desk_offer("correcteur", title_fr=str(first["title_fr"]), dossier_id=str(first["id"]))
+        return None
+
+    def _desk_for_today(
+        self, user: User, journey: DailyJourney, dice: DayShapeInputs, shape: Any
+    ) -> dict[str, Any] | None:
+        """Today's desk offer (``journey_day_shapes.choose_desk``), or ``None``.
+
+        Flags off, nothing due this week or nothing on offer: no desk. A failure
+        costs the desk, never the day."""
+
+        if not (
+            getattr(settings, "REVUE_ENABLED", False)
+            or getattr(settings, "REVUE_CORRECTEUR_ENABLED", False)
+        ):
+            return None
+
+        def read() -> dict[str, Any] | None:
+            offers: dict[str, dict[str, Any] | None] = {}
+
+            def offered(desk: str) -> bool:
+                offers[desk] = self._desk_offer(user, desk, journey.local_date)
+                return offers[desk] is not None
+
+            chosen = choose_desk(
+                dice,
+                shape=shape,
+                offered=offered,
+                dealt_this_week=self._desks_dealt_this_week(user, journey.local_date),
+            )
+            return offers.get(chosen) if chosen else None
+
+        return run_best_effort(
+            self.db, "daily_journey: desk offer", read, default=None, log=logger
+        )
+
+    def _with_place_lines(self, user: User, candidates: list[Any]) -> list[Any]:
+        """WP-121 A.4: a vocabulary card kept in a Papier carries
+        ``metadata["place_label_fr"]`` («vu au marché d'Aligre, semaine 41»)."""
+
+        ids: dict[int, int] = {}
+        for index, candidate in enumerate(candidates):
+            target = getattr(candidate, "target", None)
+            if target is None or str(getattr(target, "kind", "")) != str(TargetKind.VOCABULARY):
+                continue
+            try:
+                ids[int(target.id)] = index
+            except (TypeError, ValueError):
+                continue
+        if not ids:
+            return candidates
+
+        def read() -> dict[int, str]:
+            from app.db.models.progress import UserVocabularyProgress
+            from app.services.kept_words import place_line_fr
+
+            rows = self.db.execute(
+                select(UserVocabularyProgress.word_id, UserVocabularyProgress.context).where(
+                    UserVocabularyProgress.user_id == user.id,
+                    UserVocabularyProgress.word_id.in_(list(ids)),
+                )
+            ).all()
+            lines: dict[int, str] = {}
+            for word_id, context in rows:
+                line = place_line_fr(context if isinstance(context, dict) else None)
+                if line:
+                    lines[int(word_id)] = line
+            return lines
+
+        lines = run_best_effort(
+            self.db, "daily_journey: place lines", read, default={}, log=logger
+        )
+        if not lines:
+            return candidates
+        from dataclasses import is_dataclass, replace
+
+        out = list(candidates)
+        for word_id, line in lines.items():
+            candidate = out[ids[word_id]]
+            if is_dataclass(candidate) and hasattr(candidate, "metadata"):
+                out[ids[word_id]] = replace(
+                    candidate, metadata={**dict(candidate.metadata or {}), "place_label_fr": line}
+                )
+        return out
+
+    # ------------------------------------------------------------------
+    # WP-93 — «Lecture»: a second page on a long rhythm
+    # ------------------------------------------------------------------
+
+    def _reading_for_today(
+        self, user: User, journey: DailyJourney, brief: ScenarioBrief
+    ) -> list[dict[str, Any]]:
+        """Today's «Lecture» offers, in order (empty when none).
+
+        Soutenu: one page, Intensif: two (``RhythmCaps.max_reads``), on a
+        practice day. «coulisses» leads when the story lane can write today's
+        side page (a story-engine day, the ``coulisses`` module present and
+        ``ATELIER_COULISSES_ENABLED`` on); the rest are the latest earlier
+        story pages, newest first («relecture»). A read that fails costs the
+        step, never the day.
+        """
+
+        pages = rhythm_caps(journey.budget_seconds).max_reads
+        if int(journey.budget_seconds or 0) < READ_MIN_BUDGET_SECONDS or pages <= 0:
+            return []
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return []
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        previous = run_best_effort(
+            self.db,
+            "daily_journey: earlier pages",
+            lambda: _previous_engine_scenes(self.db, user, journey, limit=pages),
+            default=[],
+            log=logger,
+        ) or []
+        relectures: list[dict[str, Any]] = []
+        for scene in previous:
+            texts, panel_count = _scene_page_texts(scene)
+            relectures.append(
+                {
+                    "variant": "relecture",
+                    "title_fr": str(scene.title or ""),
+                    "scene_id": str(scene.id),
+                    "status": "ready",
+                    "audio_available": audio,
+                    "texts_fr": texts,
+                    "panel_count": panel_count,
+                }
+            )
+        offers: list[dict[str, Any]] = []
+        if brief.story_context and not _is_reprise(brief) and _coulisses_enabled():
+            offers.append(
+                {
+                    "variant": "coulisses",
+                    "title_fr": str(brief.title_fr or ""),
+                    "scene_id": None,
+                    "status": "writing",
+                    "audio_available": audio,
+                }
+            )
+        # The planner plans the first ``pages``; a relecture past them is kept
+        # (``_bind_reading_step``) as the page a failed «coulisses» gives way to.
+        offers.extend(relectures)
+        return offers
+
+    def _bind_reading_step(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        reading: list[dict[str, Any]] | dict[str, Any] | None,
+    ) -> None:
+        """Store what each «Lecture» step offers; ask the story lane for «coulisses»."""
+
+        steps = sorted(
+            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)),
+            key=lambda item: item.ordinal,
+        )
+        if not steps:
+            return
+        offers = [reading] if isinstance(reading, dict) else list(reading or [])
+        relectures = [
+            {"scene_id": offer.get("scene_id"), "title_fr": offer.get("title_fr")}
+            for offer in offers
+            if isinstance(offer, dict) and offer.get("variant") == "relecture" and offer.get("scene_id")
+        ]
+        for step in steps:
+            prompt = dict(step.public_prompt or {})
+            private: dict[str, Any] = {"variant": prompt.get("variant"), "relectures": relectures}
+            if prompt.get("variant") == "relecture":
+                private["relecture"] = {
+                    "scene_id": prompt.get("scene_id"),
+                    "title_fr": prompt.get("title_fr"),
+                }
+            if prompt.get("variant") == "coulisses":
+                private["coulisses_requested"] = self._request_coulisses(user, journey, brief)
+            step.private_task = private
+
+    def _request_coulisses(self, user: User, journey: DailyJourney, brief: ScenarioBrief) -> bool:
+        module = _coulisses_module()
+        scene_id = str((brief.story_context or {}).get("scene_id") or "")
+        if module is None or not scene_id:
+            return False
+        from app.db.models.graphic_novel import GraphicNovelScene
+
+        def ask() -> bool:
+            scene = self.db.get(GraphicNovelScene, uuid.UUID(scene_id))
+            if scene is None:
+                return False
+            return bool(
+                module.request_coulisses(self.db, user=user, journey_id=journey.id, scene=scene)
+            )
+
+        return bool(
+            run_best_effort(
+                self.db, "daily_journey: coulisses request", ask, default=False, log=logger
+            )
+        )
+
+    def _read_views(self, journey: DailyJourney) -> dict[Any, dict[str, Any]]:
+        """WP-93: every «Lecture» step as it stands *now* — re-read on each snapshot.
+
+        The pages on offer are gathered first: today's «coulisses» while it is
+        being written or once ready (with its point-of-view character), then
+        the earlier pages the day named («relecture»), newest first, each only
+        while it is still the learner's. They are handed to the READ steps in
+        order, so an unavailable «coulisses» gives its place to yesterday's
+        page (relecture first) and a step left without a page is
+        ``unavailable``. ``audio_available`` is the switch at projection time.
+        """
+
+        steps = sorted(
+            (item for item in journey.steps if str(item.kind) == str(StepKind.READ)),
+            key=lambda item: item.ordinal,
+        )
+        if not steps:
+            return {}
+        audio = bool(settings.ATELIER_EPISODE_AUDIO_ENABLED)
+        pages: list[dict[str, Any]] = []
+        relectures: list[dict[str, Any]] = []
+        for step in steps:
+            private = dict(step.private_task or {})
+            stored = dict(step.public_prompt or {})
+            if (private.get("variant") or stored.get("variant")) == "coulisses":
+                status, scene_id, title, pov, pov_name = run_best_effort(
+                    self.db,
+                    "daily_journey: coulisses status",
+                    lambda private=private: _coulisses_state(self.db, journey, private),
+                    default=("unavailable", None, None, None, None),
+                    log=logger,
+                )
+                if status != "unavailable":
+                    pages.append(
+                        {
+                            "variant": "coulisses",
+                            "title_fr": title or str(stored.get("title_fr") or ""),
+                            "scene_id": scene_id,
+                            "status": status,
+                            "character_id": pov,
+                            "character_name": pov_name,
+                        }
+                    )
+            for candidate in [private.get("relecture"), *(private.get("relectures") or [])]:
+                if isinstance(candidate, dict) and candidate.get("scene_id"):
+                    relectures.append(candidate)
+        seen: set[str] = set()
+        for candidate in relectures:
+            scene_id = str(candidate["scene_id"])
+            if scene_id in seen:
+                continue
+            seen.add(scene_id)
+            exists = bool(
+                run_best_effort(
+                    self.db,
+                    "daily_journey: relecture page",
+                    lambda scene_id=scene_id: _owned_engine_scene(
+                        self.db, journey.user_id, scene_id
+                    )
+                    is not None,
+                    default=False,
+                    log=logger,
+                )
+            )
+            if exists:
+                pages.append(
+                    {
+                        "variant": "relecture",
+                        "title_fr": str(candidate.get("title_fr") or ""),
+                        "scene_id": scene_id,
+                        "status": "ready",
+                        "character_id": None,
+                        "character_name": None,
+                    }
+                )
+        views: dict[Any, dict[str, Any]] = {}
+        for index, step in enumerate(steps):
+            stored = dict(step.public_prompt or {})
+            page = pages[index] if index < len(pages) else {
+                "variant": stored.get("variant") or "relecture",
+                "title_fr": str(stored.get("title_fr") or ""),
+                "scene_id": None,
+                "status": "unavailable",
+                "character_id": None,
+                "character_name": None,
+            }
+            views[step.id] = {**page, "audio_available": audio}
+        return views
+
+    def _mark_rule_read(self, user: User, step: DailyJourneyStep) -> None:
+        """WP-L4: the Règle was read — the unit is introduced (visible to WP-L7)."""
+
+        concept_id = dict(step.private_task or {}).get("concept_id")
+        if concept_id is None:
+            return
+        from app.services.concept_life import mark_introduced
+
+        run_best_effort(
+            self.db,
+            "daily_journey: mark concept introduced",
+            lambda: mark_introduced(self.db, user=user, concept_id=int(concept_id), now=_utcnow()),
+            default=None,
+            log=logger,
+        )
 
     def pause(
         self, user: User, journey_id: uuid.UUID, payload: JourneyRevisionRequest
@@ -815,6 +2094,16 @@ class DailyJourneyService:
     def finish(
         self, user: User, journey_id: uuid.UUID, payload: JourneyFinishRequest
     ) -> JourneySnapshot:
+        """WP-26: the recap, measured. It is assembled, never generated."""
+
+        with measure_phase(
+            self.db, user=user, phase=PHASE_RECAP, journey_id=journey_id
+        ):
+            return self._finish(user, journey_id, payload)
+
+    def _finish(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyFinishRequest
+    ) -> JourneySnapshot:
         journey = self._journey_or_404(user, journey_id)
         receipt, replay = self._begin_mutation(
             user,
@@ -859,6 +2148,12 @@ class DailyJourneyService:
             self._settle_resolution_if_unsettled(user, journey)
             recap = self._build_recap(user, journey, payload.finish_kind)
             self._claim_revision(journey, payload.expected_revision)
+            # WP-137 C-2: a day stopped before a single step was done is not a
+            # practised day. Counted, it made a learner who opened day 1 for ten
+            # seconds «returning» three days later, still on N° 1.
+            practised = payload.finish_kind == "complete" or any(
+                StepStatus(step.status) is StepStatus.COMPLETED for step in journey.steps
+            )
             for step in journey.steps:
                 if StepStatus(step.status) not in (
                     StepStatus.COMPLETED,
@@ -878,9 +2173,10 @@ class DailyJourneyService:
             # legacy loop applies and is a no-op once the day is marked, so a
             # learner who finishes the journey and then drills in
             # «Plus de pratique» gets one increment, not two.
-            record_daily_practice_streak(
-                self.db, user, on_date=local_date_for(journey.timezone)
-            )
+            if practised:
+                record_daily_practice_streak(
+                    self.db, user, on_date=local_date_for(journey.timezone)
+                )
             self._close_learning_session(journey, payload.finish_kind)
             self.db.flush()
         except HTTPException as exc:
@@ -902,6 +2198,8 @@ class DailyJourneyService:
             journey,
             {"finish_kind": payload.finish_kind},
         )
+        if payload.finish_kind == "complete":
+            self._warm_next_day(user, journey)
         return snapshot
 
     def _close_learning_session(self, journey: DailyJourney, finish_kind: str) -> None:
@@ -930,6 +2228,9 @@ class DailyJourneyService:
         """Build the public snapshot. Reads ``public_prompt`` only, never
         ``private_task``, so evaluator material cannot leak by construction."""
 
+        read_views = self._read_views(journey)
+        scene_story = self._scene_story_fields(journey)
+        streak_fields = _streak_snapshot_fields(self.db, journey)
         steps = [
             {
                 "id": str(step.id),
@@ -938,7 +2239,13 @@ class DailyJourneyService:
                 "status": step.status,
                 "estimated_seconds": step.estimated_seconds,
                 "assistance_used": list(step.assistance_used or []),
-                "prompt": dict(step.public_prompt or {}),
+                "prompt": self._forge_prompt_view(journey, step)
+                if StepKind(step.kind) is StepKind.FORGE
+                else read_views.get(step.id) or _public_prompt_view(step)
+                if StepKind(step.kind) is StepKind.READ
+                else {**_public_prompt_view(step), **scene_story}
+                if StepKind(step.kind) is StepKind.SCENE
+                else _public_prompt_view(step),
             }
             for step in sorted(journey.steps, key=lambda item: item.ordinal)
         ]
@@ -955,11 +2262,84 @@ class DailyJourneyService:
                 "current_step_id": (
                     str(journey.current_step_id) if journey.current_step_id else None
                 ),
-                "scenario": journey.scenario_snapshot,
+                "scenario": _scenario_view(journey.scenario_snapshot),
+                "learner_level": learner_level_band(self.db.get(User, journey.user_id)),
                 "steps": steps,
                 "recap": journey.recap_snapshot,
                 "retry": self._retry_hint(journey),
+                # WP-66: read from the persisted plan, never recomputed. The
+                # claim is about the day the learner actually has.
+                "day_shape": str(_stored_day_shape(journey)),
+                # WP-75: only the first day carries it; every other day, null.
+                "cast_intro": _stored_cast_intro(journey),
+                # WP-80: the streak and the absence, read, never written here.
+                **streak_fields,
+                # WP-D4: the edition, once, so Home, the recap and the seal
+                # collection print the same Nº and press the same seal.
+                "edition_no": edition_no_for(self.db, journey),
+                # WP-S7: a Seal ring for each rule held on this day.
+                "mastery_today": mastery_today_for(self.db, journey),
+                # WP-94: «Numéro spécial» — the épreuve day, and what it asks.
+                **self._epreuve_snapshot_fields(journey),
+                # WP-99: «Pendant votre absence», «Nouvelle saison», the interlude.
+                **self._story_frame_fields(journey, int(streak_fields.get("missed_days") or 0)),
+                # WP-128: the plan's core estimate and its in-day extensions.
+                "time_estimate": _time_estimate_view(journey),
             }
+        )
+
+    def _story_frame_fields(self, journey: DailyJourney, missed_days: int) -> dict[str, Any]:
+        from app.services.journey_absence import story_frame_fields
+
+        return story_frame_fields(
+            self.db,
+            user_id=journey.user_id,
+            local_date=journey.local_date,
+            missed_days=missed_days,
+            journey=journey,
+        )
+
+    def _scene_story_fields(self, journey: DailyJourney) -> dict[str, Any]:
+        """WP-96/97: «Précédemment» and the margin notes of the bound engine
+        scene, read at projection time (the story lane may write them after the
+        plan was stored). ``None`` for both on an authored day."""
+
+        context = _journey_story_context(journey)
+        if not context.get("scene_id"):
+            return {"previously_fr": None, "margin_notes": None}
+        from app.services.story_archive import scene_step_story_fields
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: précédemment and margin notes",
+            lambda: scene_step_story_fields(self.db, journey),
+            default={"previously_fr": [], "margin_notes": []},
+            log=logger,
+        )
+
+    def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
+        from app.services.can_do import epreuve_snapshot_view, scene_script
+
+        context = _journey_story_context(journey)
+        if not context.get("scene_id") and not context.get("draft"):
+            return {"special": None, "epreuve": None}
+
+        def read() -> dict[str, Any]:
+            script = scene_script(self.db, context)
+            user = self.db.get(User, journey.user_id)
+            return {
+                "special": script["special"],
+                "epreuve": epreuve_snapshot_view(
+                    script["epreuve"], getattr(user, "native_language", None)
+                ),
+            }
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: épreuve view",
+            read,
+            default={"special": None, "epreuve": None},
+            log=logger,
         )
 
     # ------------------------------------------------------------------
@@ -1107,6 +2487,8 @@ class DailyJourneyService:
                 continue
             if StepStatus(candidate.status) is StepStatus.PENDING:
                 candidate.status = str(StepStatus.ACTIVE)
+                # WP-L9: each step records when it started.
+                candidate.started_at = _utcnow()
                 journey.current_step_id = candidate.id
                 return
         journey.current_step_id = None
@@ -1118,7 +2500,10 @@ class DailyJourneyService:
         if status_value is JourneyStatus.UNAVAILABLE:
             return {
                 "allowed": bool(journey.unavailable_retry_allowed)
-                and journey.generation_attempts < MAX_GENERATION_ATTEMPTS,
+                and (
+                    journey.generation_attempts < MAX_GENERATION_ATTEMPTS
+                    or self._authored_rescue_possible(journey)
+                ),
                 "after_seconds": journey.unavailable_retry_after_seconds,
             }
         return None
@@ -1127,28 +2512,45 @@ class DailyJourneyService:
         levels = [AssistanceLevel(value) for value in (step.assistance_used or [])]
         return strongest_assistance(levels)
 
-    def _practice_href(self, user: User) -> str:
+    def _practice_href(self, user: User, *, anchor: Any = ...) -> str:
         """WP-16 / D-0: where «Plus de pratique» opens.
 
-        The legacy exercise Séance is the drill loop now, and a drill loop is
-        entered by concept, never by "today". The concept is the learner's own
-        most urgent due grammar concept — the same queue the legacy loop would
-        have picked from — so the href seats what the scheduler already thinks
-        is fragile. With an empty queue the bare practice entry is returned and
-        the loop composes its own set, exactly as it does today.
+        WP-S4: keyed by La Forge's one picker (``forge_picker``) — today's rule,
+        the same one the forge and the day's Règle work on — so every entry
+        into the drill loop seats what the journey and the séance agree on.
+        With nothing to seat, the bare practice entry is returned.
         """
 
-        try:
-            due = GrammarService(self.db).get_due_concepts(user=user, limit=1)
-        except Exception:  # pragma: no cover - the entry must never 500 Today
-            logger.exception("daily_journey: due-concept lookup for practice_href failed")
-            return practice_href_for(None)
-        if not due:
-            return practice_href_for(None)
-        # `get_due_concepts` yields (concept, progress) pairs.
-        first = due[0]
-        concept = first[0] if isinstance(first, tuple) else first
-        return practice_href_for(getattr(concept, "id", None))
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
+        return practice_href_for(anchor)
+
+    def _forge_anchor_id(self, user: User) -> int | None:
+        from app.services.forge_picker import forge_anchor_id
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: forge anchor for practice_href",
+            lambda: forge_anchor_id(self.db, user, _utcnow()),
+            default=None,
+            log=logger,
+        )
+
+    def _forge_entry(self, user: User, *, anchor: Any = ...) -> ForgeEntry | None:
+        """WP-S4: «Forge today's rule» — its href, length, and whether it is folded."""
+
+        from app.services import forge_picker
+
+        folded = forge_picker.forge_is_folded(user)
+        budget = forge_picker.forge_budget_seconds(user)
+        if anchor is ...:
+            anchor = self._forge_anchor_id(user)
+        return ForgeEntry(
+            href=forge_href_for(anchor),
+            concept_id=anchor,
+            budget_seconds=budget,
+            folded=folded,
+        )
 
     def _legacy_resume(self, user: User) -> LegacyResume | None:
         stmt = (
@@ -1225,6 +2627,14 @@ class DailyJourneyService:
         without a catalogue keeps the previous single-offer behaviour.
         """
 
+        # WP-75: a learner's first day is the authored café, and the offer
+        # card says so rather than promising a story scene the day is not.
+        if self._first_day_eligible(user, None):
+            first = self.adapters.content.first_day_brief(
+                self.db, user=user, input_mode=InputMode.TEXT
+            )
+            if isinstance(first, ScenarioBrief):
+                return first
         describe = getattr(self.adapters.content, "describe_available_scenario", None)
         if callable(describe):
             offer = describe(self.db, user=user, input_mode=InputMode.TEXT)
@@ -1253,17 +2663,26 @@ class DailyJourneyService:
         deterministic priority order.
         """
 
-        try:
-            offer = self._offer_scenario(user)
-        except Exception:  # pragma: no cover - defensive: never break generation
-            logger.exception("daily_journey: scenario rotation failed")
-            return None
+        offer = run_best_effort(
+            self.db,
+            "daily_journey: scenario rotation",
+            lambda: self._offer_scenario(user),
+            default=None,
+            log=logger,
+        )
         key = getattr(offer, "scenario_key", None)
         return str(key) if key else None
 
     def _available_descriptor(self, user: User) -> ScenarioDescriptor | None:
+        result: Any = None
         try:
-            result = self._offer_scenario(user)
+            with best_effort(
+                self.db,
+                "daily_journey: scenario preview",
+                reraise=(AdapterUnavailable,),
+                log=logger,
+            ):
+                result = self._offer_scenario(user)
         except AdapterUnavailable as exc:
             # Nothing is on offer, and saying "available: null" is the honest
             # answer. Creation then refuses with generation_unavailable.
@@ -1271,12 +2690,105 @@ class DailyJourneyService:
                 "daily_journey: content adapter unavailable (%s)", exc.reason
             )
             return None
-        except Exception:  # pragma: no cover - defensive: GET must never 500
-            logger.exception("daily_journey: scenario preview failed")
-            return None
         if isinstance(result, ContentUnavailable) or result is None:
             return None
-        return ScenarioDescriptor.model_validate(result.public_descriptor())
+        descriptor = dict(result.public_descriptor())
+        # WP-L6: the day is planned to the learner's rhythm, so the preview says
+        # the rhythm's minutes, not the story brief's own 4½-minute estimate.
+        # WP-93: and the minutes a day at that rhythm actually plans — the
+        # learner's recent planned days, else the planner's prior — never the
+        # rhythm's budget when the plan comes in under it.
+        descriptor["estimated_seconds"] = self._expected_day_seconds(user)
+        # WP-128: an offer whose page is already known (the authored first day,
+        # a catalogue scene) is priced as the story alone; a story longer than
+        # the rhythm is said before Start, never discovered after it.
+        self._offer_longer_day = False
+        if isinstance(result, ScenarioBrief):
+            from app.services.journey_planner import story_alone_seconds
+
+            story = run_best_effort(
+                self.db,
+                "daily_journey: the offer's story estimate",
+                lambda: story_alone_seconds(result),
+                default=0,
+                log=logger,
+            )
+            budget = budget_seconds_for(user)
+            if story > budget:
+                self._offer_longer_day = True
+                descriptor["estimated_seconds"] = story
+        # WP-94: the special edition is announced before Start.
+        descriptor.update(self._offered_epreuve(user))
+        return ScenarioDescriptor.model_validate(descriptor)
+
+    def _offered_epreuve(self, user: User) -> dict[str, Any]:
+        """Is today's (not yet written) scene the band's épreuve? Read-only, no model call.
+
+        The engine's own rule, asked ahead: the checkpoint says ``checkpoint_ready``
+        and ``living_story.epreuve_plan`` would stage one over the band's
+        least-evidenced can-dos (``can_do_menu``). Only with the story engine on:
+        nothing else stages an épreuve.
+        """
+
+        none = {"special": None, "epreuve": None}
+        if not settings.ATELIER_STORY_ENGINE_ENABLED:
+            return none
+
+        def read() -> dict[str, Any]:
+            from app.services import living_story
+            from app.services.can_do import epreuve_snapshot_view
+
+            view = living_story.scene_checkpoint(self.db, user)
+            if not isinstance(view, dict) or not view.get("checkpoint_ready"):
+                return none
+            language = user_chrome_language(user)
+            menu = living_story.can_do_menu(
+                self.db, user, band=view.get("band"), control_language=str(language)
+            )
+            plan = living_story.epreuve_plan(view, menu, {}, {})
+            if not plan:
+                return none
+            return {
+                "special": "epreuve",
+                "epreuve": epreuve_snapshot_view(
+                    {"band": plan.get("band"), "can_do_ids": plan.get("can_do_ids")},
+                    language,
+                ),
+            }
+
+        return run_best_effort(
+            self.db, "daily_journey: offered épreuve", read, default=none, log=logger
+        )
+
+    def _expected_day_seconds(self, user: User) -> int:
+        from app.services.journey_planner import EXPECTED_DAY_SAMPLE, expected_day_seconds
+
+        budget = budget_seconds_for(user)
+        # WP-128: the forecast is of the *core* — the recent planned days' core
+        # estimates (the whole plan's for a day planned before WP-128) — and a
+        # flagged longer day is not an ordinary day to forecast from.
+        recent = run_best_effort(
+            self.db,
+            "daily_journey: recent planned minutes",
+            lambda: [
+                core
+                for journey in self.db.scalars(
+                    select(DailyJourney)
+                    .where(
+                        DailyJourney.user_id == user.id,
+                        DailyJourney.budget_seconds == budget,
+                        DailyJourney.estimated_active_seconds > 0,
+                    )
+                    .order_by(DailyJourney.local_date.desc())
+                    .limit(EXPECTED_DAY_SAMPLE)
+                )
+                if not (_stored_time_budget(journey) or {}).get("longer_day")
+                and (core := _stored_core_seconds(journey))
+            ],
+            default=[],
+            log=logger,
+        )
+        return expected_day_seconds(budget, recent)
 
     # ------------------------------------------------------------------
     # Internals — idempotency receipts
@@ -1445,9 +2957,17 @@ class DailyJourneyService:
             if JourneyStatus(occupying.status) is JourneyStatus.PREPARING:
                 if self._claim_is_live(occupying):
                     return occupying, http_status.HTTP_202_ACCEPTED
-                self._reclaim(occupying)
+                if not self._reclaim(occupying):
+                    # Another request took the claim a moment ago.
+                    return occupying, http_status.HTTP_202_ACCEPTED
                 return self._run_generation(
-                    user, occupying, payload.preferred_input_mode
+                    user,
+                    occupying,
+                    payload.preferred_input_mode,
+                    # Past the provider budget, a reclaim serves the authored
+                    # day instead of paying for a fourth story-engine call.
+                    authored_only=occupying.generation_attempts > MAX_GENERATION_ATTEMPTS
+                    and self._authored_fallback_enabled(),
                 )
             # A timezone change never rekeys or duplicates an open journey.
             return occupying, http_status.HTTP_200_OK
@@ -1484,7 +3004,9 @@ class DailyJourneyService:
                 level_band=descriptor.level_band,
                 status=str(JourneyStatus.PREPARING),
                 revision=1,
-                budget_seconds=payload.budget_seconds,
+                # WP-L6: the learner's rhythm sizes the day, whatever an
+                # older client sends.
+                budget_seconds=budget_seconds_for(user),
                 estimated_active_seconds=0,
                 scenario_snapshot=descriptor.model_dump(mode="json"),
                 serial_thread_id=descriptor.serial_thread_id,
@@ -1514,13 +3036,40 @@ class DailyJourneyService:
             )
         return winner, http_status.HTTP_200_OK
 
-    def _reclaim(self, journey: DailyJourney) -> None:
-        """Take over an expired claim durably before calling a provider again."""
+    def _reclaim(self, journey: DailyJourney) -> bool:
+        """Take over an expired claim durably before calling a provider again.
 
-        journey.generation_claim_id = uuid.uuid4().hex
-        journey.generation_claimed_at = _utcnow()
-        journey.generation_attempts += 1
+        WP-69: compare-and-set on the claim this request observed and on the
+        revision, so two requests that both saw a dead claim cannot both take
+        it over and both pay for a generation. Returns whether this one won.
+        """
+
+        observed_claim = journey.generation_claim_id
+        claim_matches = (
+            DailyJourney.generation_claim_id.is_(None)
+            if observed_claim is None
+            else DailyJourney.generation_claim_id == observed_claim
+        )
+        result = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.status == str(JourneyStatus.PREPARING),
+                DailyJourney.revision == journey.revision,
+                claim_matches,
+            )
+            .values(
+                generation_claim_id=uuid.uuid4().hex,
+                generation_claimed_at=_utcnow(),
+                generation_attempts=journey.generation_attempts + 1,
+                revision=journey.revision + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        won = result.rowcount == 1
         self.db.commit()
+        self.db.refresh(journey)
+        return won
 
     def _claim_is_live(self, journey: DailyJourney) -> bool:
         claimed_at = _as_aware(journey.generation_claimed_at)
@@ -1550,14 +3099,20 @@ class DailyJourneyService:
                 current_revision=journey.revision,
                 refresh_href=refresh_href_for(journey.id),
             )
+        authored_only = False
         if journey.generation_attempts >= MAX_GENERATION_ATTEMPTS:
-            raise journey_error(
-                http_status.HTTP_503_SERVICE_UNAVAILABLE,
-                JourneyErrorCode.GENERATION_UNAVAILABLE,
-                "This journey could not be prepared. Try again later.",
-                current_revision=journey.revision,
-                refresh_href=refresh_href_for(journey.id),
-            )
+            # WP-69: the provider budget is spent, but the day is not lost while
+            # an authored scene can still be served — one more attempt, with no
+            # provider call in it.
+            if not self._authored_rescue_possible(journey):
+                raise journey_error(
+                    http_status.HTTP_503_SERVICE_UNAVAILABLE,
+                    JourneyErrorCode.GENERATION_UNAVAILABLE,
+                    "This journey could not be prepared. Try again later.",
+                    current_revision=journey.revision,
+                    refresh_href=refresh_href_for(journey.id),
+                )
+            authored_only = True
         if current is JourneyStatus.UNAVAILABLE:
             blocker = self._occupying_journey(user)
             if blocker is not None and blocker.id != journey.id:
@@ -1568,50 +3123,149 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(blocker.id),
                 )
-        journey.status = str(JourneyStatus.PREPARING)
-        journey.unavailable_reason = None
-        journey.generation_claim_id = uuid.uuid4().hex
-        journey.generation_claimed_at = _utcnow()
-        journey.generation_attempts += 1
-        journey.revision += 1
+        # WP-69: the claim is taken with a compare-and-set on the revision this
+        # request read, so two concurrent retries cannot both generate.
+        taken = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.revision == journey.revision,
+                DailyJourney.status == journey.status,
+            )
+            .values(
+                status=str(JourneyStatus.PREPARING),
+                unavailable_reason=None,
+                generation_claim_id=uuid.uuid4().hex,
+                generation_claimed_at=_utcnow(),
+                generation_attempts=journey.generation_attempts + 1,
+                revision=journey.revision + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if taken.rowcount != 1:
+            self.db.rollback()
+            fresh = self.db.get(DailyJourney, journey.id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found()
+            self.db.refresh(fresh)
+            busy = JourneyStatus(fresh.status) is JourneyStatus.PREPARING
+            return fresh, (http_status.HTTP_202_ACCEPTED if busy else http_status.HTTP_200_OK)
         self.db.commit()
-        return self._run_generation(user, journey, InputMode.TEXT)
+        self.db.refresh(journey)
+        return self._run_generation(
+            user, journey, InputMode.TEXT, authored_only=authored_only
+        )
 
     def _run_generation(
-        self, user: User, journey: DailyJourney, input_mode: InputMode
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        *,
+        authored_only: bool = False,
     ) -> tuple[DailyJourney, int]:
-        """Phase 2: provider work outside the lock, then verify the claim."""
+        """Phase 2: provider work outside the lock, then verify the claim.
 
+        WP-69: whatever happens in here, the journey does not stay in
+        `preparing`. An unexpected error is logged, the transaction is rolled
+        back to its last commit (the claim), and — if the claim is still ours —
+        the journey is marked `unavailable` with a retry offered. Before this, a
+        crash here left the learner looking at «wird vorbereitet» for the rest
+        of the day.
+        """
+
+        journey_id = journey.id
+        claim = journey.generation_claim_id
+        try:
+            return self._generate(user, journey, input_mode, authored_only=authored_only)
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("daily_journey: generation crashed; journey %s made retryable", journey_id)
+            self._rollback_quietly()
+            fresh = self.db.get(DailyJourney, journey_id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found() from None
+            self.db.refresh(fresh)
+            if fresh.generation_claim_id != claim or JourneyStatus(
+                fresh.status
+            ) is not JourneyStatus.PREPARING:
+                return fresh, http_status.HTTP_200_OK
+            return self._mark_unavailable(fresh, "generation_crashed")
+
+    def _generate(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        *,
+        authored_only: bool,
+    ) -> tuple[DailyJourney, int]:
         if journey.steps:
             # Already planned. Step ids stay stable through a generation retry:
             # never re-plan a journey that already has a persisted plan.
             return self._activate_prepared(journey)
 
         claim = journey.generation_claim_id
-        # The family was chosen and persisted at create time (phase 1), so a
-        # generation retry re-serves the same scene instead of rotating under an
-        # in-flight journey. Only a journey whose snapshot predates that — or
-        # was written without a key — falls back to choosing now.
-        scenario_key = (journey.scenario_snapshot or {}).get("scenario_key")
-        if not scenario_key:
-            scenario_key = self._rotated_offer_key(user)
-        try:
-            result = self.adapters.content.build_scenario_context(
-                self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
+        result: Any = None
+        # WP-75: a learner's first day is authored and instant — no prefetch
+        # consumed (that scene is day 2's), no provider call.
+        first_day = self._first_day_brief(user, journey, input_mode)
+        if first_day is not None:
+            result = first_day
+            self.draft_prefetch_hit = False
+        elif authored_only:
+            # WP-69: the provider budget is spent. No provider call, no
+            # prefetch: straight to the authored day below.
+            result = ContentUnavailable(reason="generation_attempts_exhausted")
+            self.draft_prefetch_hit = False
+        else:
+            # The family was chosen and persisted at create time (phase 1), so a
+            # generation retry re-serves the same scene instead of rotating under
+            # an in-flight journey. Only a journey whose snapshot predates that —
+            # or was written without a key — falls back to choosing now.
+            scenario_key = (journey.scenario_snapshot or {}).get("scenario_key")
+            if not scenario_key:
+                scenario_key = self._rotated_offer_key(user)
+            # WP-26 hot path. A prefetched scene whose cache key still matches the
+            # story revision, learner context and prompt version is served as-is;
+            # anything stale was discarded inside ``take_prefetched_scene`` rather
+            # than handed back. Taking one writes its consume row in this same
+            # transaction, so the scene is never generated or served twice.
+            result = run_best_effort(
+                self.db,
+                "daily_journey: prefetched scene lookup",
+                lambda: take_prefetched_scene(self.db, user, input_mode=input_mode),
+                default=None,
+                log=logger,
             )
-        except AdapterUnavailable as exc:
-            # The content module exists but is broken. Honest dead end, and a
-            # retry cannot help until someone fixes the module.
-            logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
-            result = ContentUnavailable(
-                reason=f"content_adapter_{exc.reason}",
-                retry_after_seconds=0,
-                retry_allowed=False,
-            )
-        except Exception:
-            logger.exception("daily_journey: scenario generation failed")
-            result = ContentUnavailable(reason="generation_failed")
+            self.draft_prefetch_hit = result is not None
+            if result is None:
+                try:
+                    with best_effort(
+                        self.db,
+                        "daily_journey: scenario generation",
+                        reraise=(AdapterUnavailable,),
+                        log=logger,
+                    ) as generation:
+                        result = self.adapters.content.build_scenario_context(
+                            self.db, user=user, scenario_key=scenario_key, input_mode=input_mode
+                        )
+                    if generation.failed:
+                        result = ContentUnavailable(reason="generation_failed")
+                except AdapterUnavailable as exc:
+                    # The content module exists but is broken. Honest dead end, and
+                    # a retry cannot help until someone fixes the module.
+                    logger.error("daily_journey: content adapter unavailable (%s)", exc.reason)
+                    result = ContentUnavailable(
+                        reason=f"content_adapter_{exc.reason}",
+                        retry_after_seconds=0,
+                        retry_allowed=False,
+                    )
 
+        # A generation that committed internally and then failed is outside any
+        # savepoint; make sure the claim check below runs on a live transaction.
+        self._ensure_usable_session()
         self.db.expire(journey)
         fresh = self.db.get(DailyJourney, journey.id)
         if fresh is None:  # pragma: no cover - defensive
@@ -1621,80 +3275,258 @@ class DailyJourneyService:
         ) is not JourneyStatus.PREPARING:
             # Another worker committed first; its result stands.
             return fresh, http_status.HTTP_200_OK
+        if not self._lock_claimed_row(fresh, claim):
+            # Taken over between the read and the lock: theirs stands too.
+            self.db.refresh(fresh)
+            return fresh, http_status.HTTP_200_OK
 
+        failure: _GenerationFailure | None
         if isinstance(result, ContentUnavailable):
-            return self._mark_unavailable(
-                fresh,
+            failure = _GenerationFailure(
                 result.reason,
                 retry_allowed=result.retry_allowed,
                 retry_after_seconds=result.retry_after_seconds,
+                # With the story engine on, every content failure is the
+                # engine's; an adapter outage is not, and the authored path
+                # would meet the same broken module.
+                fallback_eligible=not str(result.reason).startswith("content_adapter_"),
+            )
+        else:
+            failure = self._prepare_scene(
+                user, fresh, result, input_mode, first_day=first_day is not None
             )
 
-        try:
-            candidates = self.adapters.learning.select_learning_candidates(
-                self.db, user=user, scenario=result, limit=CANDIDATE_LIMIT
+        if failure is not None and failure.fallback_eligible and self._authored_fallback_enabled():
+            failure = self._serve_authored_fallback(user, fresh, input_mode, failure)
+
+        if failure is not None:
+            return self._mark_unavailable(
+                fresh,
+                failure.reason,
+                retry_allowed=failure.retry_allowed,
+                retry_after_seconds=failure.retry_after_seconds,
             )
-            plan = self.adapters.planner.plan_journey(
+        self._emit(JourneyEventName.STARTED, user, fresh, {})
+        return fresh, http_status.HTTP_201_CREATED
+
+    def _prepare_scene(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        input_mode: InputMode,
+        *,
+        fallback: dict[str, Any] | None = None,
+        first_day: bool = False,
+    ) -> _GenerationFailure | None:
+        """Plan, bind and persist one brief as today's day — all or nothing.
+
+        Runs inside a SAVEPOINT (WP-69): a brief that cannot be planned or bound
+        leaves no half-written steps, learning session or serial episode
+        behind, so an authored scene can be tried on the same journey next.
+        Returns ``None`` when the journey is now active, else why not.
+        """
+
+        self._ensure_usable_session()
+        nested = self.db.begin_nested()
+        try:
+            self._plan_and_bind(
+                user, journey, brief, input_mode, fallback=fallback, first_day=first_day
+            )
+        except _GenerationFailure as failure:
+            self._rollback_savepoint(nested)
+            return failure
+        except HTTPException:
+            self._rollback_savepoint(nested)
+            raise
+        except Exception:
+            logger.exception("daily_journey: preparing the scene failed")
+            self._rollback_savepoint(nested)
+            return _GenerationFailure(
+                "planning_failed", fallback_eligible=bool(brief.story_context)
+            )
+        if nested.is_active:
+            nested.commit()
+        return None
+
+    def _plan_and_bind(
+        self,
+        user: User,
+        fresh: DailyJourney,
+        result: ScenarioBrief,
+        input_mode: InputMode,
+        *,
+        fallback: dict[str, Any] | None,
+        first_day: bool = False,
+    ) -> None:
+        # WP-124a: a season reprise re-reads a settled page — never bound to the
+        # living story (no scene, no episode, no settlement).
+        story_brief = bool(result.story_context) and not _is_reprise(result)
+        # WP-24 §5, wired by WP-28. The learner's ranked due errata are read
+        # before the plan is built, merged in front of the day's candidates by
+        # the planner, and the target the plan actually keeps becomes the
+        # because-line. Reading the queue reschedules nothing; a queue that
+        # cannot be read costs the line, never the day.
+        errata = self._errata_targets(user)
+        because: dict[str, Any] | None = None
+        # WP-66. Today's *shape* is decided here, where the cheap facts already
+        # are: what yesterday was, whether yesterday happened at all, what beat
+        # the story is on, whether this deployment can speak, and how much the
+        # errata queue is holding. No provider call, no second content source.
+        dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
+        decision = choose_day_shape(dice)
+        from app.services.season.runtime import is_tentpole, tentpole_units
+
+        if is_tentpole(result.story_context):
+            # WP-111: a tentpole's reply IS the authored page — never a letter day,
+            # a short day or a listening day in its place.
+            decision = DayShapeDecision(
+                shape=DEFAULT_DAY_SHAPE, reason="season_tentpole", eligible=decision.eligible
+            )
+        try:
+            if first_day:
+                # WP-75: the scene's own words, not the (empty) queue of a
+                # learner who has never practised.
+                candidates = self.adapters.content.first_day_candidates(
+                    self.db, user=user, brief=result
+                )
+            else:
+                candidates = self._select_candidates(user, fresh, result)
+            # T-1 (content program 2026-10-03, D7): a tentpole page is served as
+            # written, so a tentpole day introduces no new unit (the quota offers
+            # it again tomorrow); its rule review is a unit the page uses.
+            story_units = tentpole_units(result.story_context)
+            # WP-124a: a reprise re-reads a page but is an ordinary practice day. It
+            # introduces the day's unit like any other day; skipping it would hand
+            # tomorrow's director the very same plan, and a deterministic guard
+            # failure would then repeat every day (the 2026-10-04 A1 walk lost 28 days).
+            introduction = (
+                None
+                if first_day or (is_tentpole(result.story_context) and not _is_reprise(result))
+                else self._introduction_for_today(user, result)
+            )
+            forge = None if first_day else self._forge_for_today(user, introduction, story_units)
+            # WP-93 «Lecture»: Soutenu and Intensif buy a second page.
+            reading = None if first_day else self._reading_for_today(user, fresh, result)
+            # WP-129 (content program D7): a tentpole page reviews a unit the
+            # learner met earlier, in one of its own lines, after the ending.
+            page_review = (
+                self._page_review_for_today(user, story_units)
+                if not first_day and is_tentpole(result.story_context) and not _is_reprise(result)
+                else None
+            )
+            # WP-121/122 «Le bureau»: at most one Revue desk on an ordinary day.
+            desk = (
+                None
+                if first_day or is_tentpole(result.story_context)
+                else self._desk_for_today(user, fresh, dice, decision.shape)
+            )
+            if not first_day:
+                # WP-121 A.4: a card kept in a Papier says where it was met.
+                candidates = self._with_place_lines(user, list(candidates))
+            plan = self._plan_with_shape(
                 scenario=result,
                 candidates=list(candidates),
                 budget_seconds=fresh.budget_seconds,
-                pace=None,
+                # WP-L6: the learner's measured pace, once three days are
+                # measured; the priors before that (the planner ignores an
+                # untrusted profile).
+                pace=self._pace_profile(user, fresh),
                 # WP-04 coordination addition, ratified 2026-09-05: the frozen
                 # ScenarioBrief carries no modality, so RespondPrompt.input_modes
                 # can only know about voice if the create request says so.
                 input_mode=input_mode,
+                errata_targets=errata,
+                dice=dice,
+                decision=decision,
+                scenario_result=result,
+                first_day=first_day,
+                introduction=introduction,
+                forge=forge,
+                reading=reading,
+                desk=desk,
+                page_review=page_review,
             )
             plan.validate()
+            because = self._plan_because(plan, list(candidates), errata)
         except AdapterUnavailable as exc:
             logger.error("daily_journey: %s adapter unavailable (%s)", exc.module_name, exc.reason)
-            return self._mark_unavailable(
-                fresh,
-                f"{exc.module_name}_{exc.reason}",
-                retry_allowed=False,
-                retry_after_seconds=0,
-            )
+            raise _GenerationFailure(
+                f"{exc.module_name}_{exc.reason}", retry_allowed=False, retry_after_seconds=0
+            ) from exc
         except Exception as exc:
             logger.exception("daily_journey: planning failed")
             if self._is_plan_unavailable(exc):
                 # A deterministic content defect (no setup, no ending, too long
                 # for five minutes). Retrying identical content cannot help.
-                return self._mark_unavailable(
-                    fresh,
+                raise _GenerationFailure(
                     str(getattr(exc, "reason", "plan_unavailable")),
                     retry_allowed=False,
                     retry_after_seconds=0,
-                )
-            return self._mark_unavailable(fresh, "planning_failed")
+                    fallback_eligible=story_brief,
+                ) from exc
+            raise _GenerationFailure("planning_failed", fallback_eligible=story_brief) from exc
 
         session = None
         try:
-            session = self.adapters.learning.ensure_journey_learning_session(
-                self.db, user=user, journey_id=fresh.id, scenario_key=str((result.story_context.get("draft") or {}).get("capability_key") or result.scenario_key)
-            )
-            # WP-05 adds and flushes but never commits; the id exists after flush.
-            self.db.flush()
+            with best_effort(
+                self.db,
+                "daily_journey: learning session bootstrap",
+                reraise=(AdapterUnavailable,),
+                log=logger,
+            ):
+                session = self.adapters.learning.ensure_journey_learning_session(
+                    self.db,
+                    user=user,
+                    journey_id=fresh.id,
+                    scenario_key=str(
+                        (result.story_context.get("draft") or {}).get("capability_key")
+                        or result.scenario_key
+                    ),
+                )
+                # WP-05 adds and flushes but never commits; the id exists after flush.
+                self.db.flush()
         except AdapterUnavailable as exc:
             # No canonical session means no canonical credit. Refuse the journey
             # rather than running one whose evidence goes nowhere.
-            logger.error(
-                "daily_journey: learning adapter unavailable (%s)", exc.reason
-            )
-            return self._mark_unavailable(
-                fresh,
-                f"{exc.module_name}_{exc.reason}",
-                retry_allowed=False,
-                retry_after_seconds=0,
-            )
-        except Exception:  # pragma: no cover - defensive
-            logger.exception("daily_journey: learning session bootstrap failed")
+            logger.error("daily_journey: learning adapter unavailable (%s)", exc.reason)
+            raise _GenerationFailure(
+                f"{exc.module_name}_{exc.reason}", retry_allowed=False, retry_after_seconds=0
+            ) from exc
 
-        if result.story_context:
+        if story_brief:
             from app.services.living_story import StoryUnavailable, bind_journey
+
             try:
                 result = bind_journey(self.db, user=user, journey=fresh, brief=result)
             except StoryUnavailable as exc:
-                return self._mark_unavailable(fresh, str(exc))
-        self._persist_plan(fresh, result, plan, input_mode)
+                raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
+        self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
+        # WP-93: the «Lecture» remembers what it offers; «coulisses» is asked
+        # for now that today's scene is bound (the story lane writes it).
+        self._bind_reading_step(user, fresh, result, reading)
+        # WP-78: what the dice dealt, so tomorrow's dice do not deal a shape
+        # that could not be built today straight back (`previous_dealt_shape`).
+        fresh.plan_selection = {
+            **dict(fresh.plan_selection or {}),
+            "dealt_shape": str(decision.shape),
+            # WP-L6: the new words this day introduces — the journey's share
+            # of the learner's one intake pool, reserved against the drill.
+            JOURNEY_NEW_WORDS_KEY: _new_word_ids(plan, list(candidates)),
+            # WP-L4: the grammar unit this day introduces, if its rule made it
+            # into the plan. The unit is *introduced* when the rule is read.
+            "introduction": _planned_introduction(plan),
+        }
+        if first_day:
+            fresh.plan_selection = {
+                **dict(fresh.plan_selection or {}),
+                "first_day": {
+                    "kind": FIRST_DAY_KIND,
+                    "cast_intro": self.adapters.content.first_day_cast_intro(
+                        user_chrome_language(user)
+                    ),
+                },
+            }
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()
@@ -1702,8 +3534,432 @@ class DailyJourneyService:
         fresh.generation_claimed_at = None
         fresh.revision += 1
         self.db.flush()
-        self._emit(JourneyEventName.STARTED, user, fresh, {})
-        return fresh, http_status.HTTP_201_CREATED
+
+    # ------------------------------------------------------------------
+    # WP-75 — the first day is authored, instant, and introduces the cast
+    # ------------------------------------------------------------------
+
+    def _first_day_eligible(self, user: User, journey: DailyJourney | None) -> bool:
+        """Is this the learner's first day?
+
+        Only with the deployment flag on, only through a content adapter that
+        can author one (the real ``journey_content``; the deterministic test
+        stub cannot), and only for a learner who has never completed a day and
+        whose story has not started — a day the story engine already bound is
+        never rewound to the café.
+        """
+
+        if not getattr(settings, "ATELIER_JOURNEY_FIRST_DAY_AUTHORED_ENABLED", False):
+            return False
+        if self._starts_on_season(user):
+            # WP-111: a learner who begins on the authored season meets the cast in
+            # its first tentpole (T1 Day A, instant, no model call) — not the café.
+            return False
+        content = self.adapters.content
+        if not all(
+            callable(getattr(content, name, None))
+            for name in ("first_day_brief", "first_day_candidates", "first_day_cast_intro")
+        ):
+            return False
+        others = [DailyJourney.user_id == user.id]
+        if journey is not None:
+            others.append(DailyJourney.id != journey.id)
+        earlier = self.db.execute(
+            select(DailyJourney.id)
+            .where(
+                *others,
+                or_(
+                    DailyJourney.status == str(JourneyStatus.COMPLETED),
+                    DailyJourney.serial_episode_id.isnot(None),
+                ),
+            )
+            .limit(1)
+        ).first()
+        return earlier is None
+
+    def _starts_on_season(self, user: User) -> bool:
+        """Would this learner's story be the authored season (WP-111)?"""
+
+        if not getattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False):
+            return False
+        from app.services.living_story import STATE_KEY, _active_thread
+        from app.services.season.runtime import season_id_for
+
+        thread = _active_thread(self.db, user)
+        live = ((thread.state or {}) if thread else {}).get(STATE_KEY) or {}
+        return season_id_for(live) is not None
+
+    def _first_day_brief(
+        self, user: User, journey: DailyJourney, input_mode: InputMode
+    ) -> ScenarioBrief | None:
+        """The authored first day, or ``None`` (then the day is made as usual)."""
+
+        eligible = run_best_effort(
+            self.db,
+            "daily_journey: first-day eligibility",
+            lambda: self._first_day_eligible(user, journey),
+            default=False,
+            log=logger,
+        )
+        if not eligible:
+            return None
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: first-day brief",
+            lambda: self.adapters.content.first_day_brief(
+                self.db, user=user, input_mode=input_mode
+            ),
+            default=None,
+            log=logger,
+        )
+        return brief if isinstance(brief, ScenarioBrief) else None
+
+    def _warm_next_day(self, user: User, journey: DailyJourney) -> None:
+        """WP-75: after the first day, have day 2's scene ready before it is asked for.
+
+        The WP-26 prefetch, scheduled for the learner's next local day (its own
+        guard refuses a learner who already has today's journey), in the input
+        mode the first day was played in. Cohort, flag and the weekly spend
+        guardrail are the prefetch's own checks. Never fatal: a broker outage
+        costs the warm start, not the finish.
+        """
+
+        if not (journey.plan_selection or {}).get("first_day"):
+            return
+        try:
+            from app.tasks.journey_prefetch import schedule_next_day_warmup
+
+            schedule_next_day_warmup(
+                user,
+                timezone_name=journey.timezone,
+                input_mode=_journey_input_mode(journey),
+            )
+        except Exception:  # pragma: no cover - never fail a finish for a warm-up
+            logger.warning("daily_journey: day-2 warm-up could not be scheduled", exc_info=True)
+
+    # ------------------------------------------------------------------
+    # WP-69 — the authored day, when the story engine cannot write one
+    # ------------------------------------------------------------------
+
+    def _authored_fallback_enabled(self) -> bool:
+        """Can an authored scene stand in for a failed story-engine day?
+
+        Only when the deployment opts in (``ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED``),
+        only with the story engine on — with it off, the content *is* authored
+        and a failure there is the authored content's own — and only through a
+        content adapter that can resolve an authored family without generating
+        (the real ``journey_content``; the deterministic test stub cannot).
+        """
+
+        if not settings.ATELIER_STORY_ENGINE_ENABLED:
+            return False
+        if not getattr(settings, "ATELIER_JOURNEY_AUTHORED_FALLBACK_ENABLED", False):
+            return False
+        content = self.adapters.content
+        return callable(getattr(content, "resolve_scenario_brief", None)) and bool(
+            getattr(content, "SCENARIO_PRIORITY", None)
+        )
+
+    def _authored_rescue_possible(self, journey: DailyJourney) -> bool:
+        """One provider-free attempt past the budget, while the day has no plan."""
+
+        return (
+            self._authored_fallback_enabled()
+            and not journey.steps
+            and journey.generation_attempts <= MAX_GENERATION_ATTEMPTS
+        )
+
+    def _authored_fallback_brief(
+        self, user: User, journey: DailyJourney, input_mode: InputMode
+    ) -> ScenarioBrief | None:
+        """An authored scene for this learner's band, rotated like any other day.
+
+        ``level_band`` is left to the content module, which serves the
+        learner's own band or the nearest authored one (the authored ceiling is
+        A2, so a B1+ learner gets the A2 variant and its honest level note).
+        ``bind_serial=False`` keeps the stand-in out of the living story: it is
+        not a chapter, and it must not claim to be one.
+        """
+
+        content = self.adapters.content
+        resolve = content.resolve_scenario_brief
+        keys = [str(key) for key in (content.SCENARIO_PRIORITY or ())]
+        if not keys:
+            return None
+        first = run_best_effort(
+            self.db,
+            "daily_journey: authored fallback rotation",
+            lambda: self._rotated_scenario_key(user, keys),
+            default=None,
+            log=logger,
+        ) or keys[0]
+        for key in [first, *[item for item in keys if item != first]]:
+            brief = run_best_effort(
+                self.db,
+                f"daily_journey: authored fallback {key}",
+                lambda key=key: resolve(
+                    self.db,
+                    user=user,
+                    scenario_key=key,
+                    input_mode=input_mode,
+                    allow_generation=False,
+                    bind_serial=False,
+                ),
+                default=None,
+                log=logger,
+            )
+            if isinstance(brief, ScenarioBrief):
+                return brief
+        return None
+
+    def _serve_authored_fallback(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+    ) -> _GenerationFailure | None:
+        """Try the authored day; ``None`` when it is now the learner's day.
+
+        WP-124a: a season life never gets the generic authored scenes (a stranger's
+        welcome, the «vous» of strangers). It re-reads its last season page, or —
+        with no page to re-read — keeps the honest «unavailable, retry» day.
+        """
+
+        on_season = run_best_effort(
+            self.db,
+            "daily_journey: season life check",
+            lambda: self._starts_on_season(user),
+            default=False,
+            log=logger,
+        )
+        if on_season:
+            return self._serve_season_reprise(user, journey, input_mode, failure)
+        brief = self._authored_fallback_brief(user, journey, input_mode)
+        if brief is None:
+            logger.error(
+                "daily_journey: story engine failed (%s) and no authored scene resolved",
+                failure.reason,
+            )
+            return failure
+        marker = {
+            "kind": AUTHORED_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: story engine failed (%s); the authored fallback failed too (%s)",
+                failure.reason,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: story engine failed (%s); journey %s serves authored %s at %s",
+            failure.reason,
+            journey.id,
+            brief.scenario_key,
+            brief.level_band,
+        )
+        return None
+
+    def _serve_season_reprise(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+    ) -> _GenerationFailure | None:
+        """WP-124a: a lost season day re-reads the last completed season page.
+
+        Served under the generation claim like any stand-in, so a reload or a
+        concurrent request reads the one persisted plan. It is a learner day, not
+        a season day: nothing is bound or settled, so the season does not move.
+
+        WP-124b: the next lost day in a row of the same gap is the authored
+        continuation instead (``season.recovery``): the next tentpole when its
+        prerequisites hold, else the gap's bridge — a season day, bound and settled.
+        """
+
+        from app.services.season.reprise import REPRISE_FALLBACK_KIND, reprise_brief
+
+        decision = run_best_effort(
+            self.db,
+            "daily_journey: season recovery decision",
+            lambda: self._season_recovery_decision(user, journey),
+            default=None,
+            log=logger,
+        )
+        if decision is not None and decision.kind in ("tentpole", "bridge"):
+            recovered = self._serve_season_recovery(user, journey, input_mode, failure, decision)
+            if recovered is None:
+                return None
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: season reprise",
+            lambda: reprise_brief(
+                self.db, user, input_mode=input_mode, reason=str(failure.reason)
+            ),
+            default=None,
+            log=logger,
+        )
+        if brief is None:
+            # No page to re-read (only a life that never completed T1 Day B, whose
+            # pages need no model): the honest dead end, never a stranger scene.
+            logger.error(
+                "daily_journey: season day lost (%s) and no season page to re-read",
+                failure.reason,
+            )
+            return failure
+        reprise = (brief.story_context.get("season") or {}).get("reprise") or {}
+        marker = {
+            "kind": REPRISE_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "page_key": str(reprise.get("key") or ""),
+            "page_source": str(reprise.get("source") or ""),
+            # Generation attempts are the journey's; this day is not a season day.
+            "generation_attempts": int(journey.generation_attempts or 0),
+            "season_day": False,
+            # WP-124b: the gap the run of lost days is in, and this day's place in it.
+            "gap": decision.gap if decision is not None else None,
+            "failure": decision.failure if decision is not None else None,
+            "recovery": decision.reason if decision is not None else None,
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: season day lost (%s); the reprise failed too (%s)",
+                failure.reason,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: season day lost (%s); journey %s re-reads %s",
+            failure.reason,
+            journey.id,
+            marker["page_key"],
+        )
+        return None
+
+    def _season_recovery_decision(self, user: User, journey: DailyJourney):
+        """WP-124b: what today's lost day becomes (``None`` off a season)."""
+
+        from app.services.season.recovery import decide_today
+
+        decision, _today = decide_today(self.db, user, journey)
+        return decision
+
+    def _serve_season_recovery(
+        self,
+        user: User,
+        journey: DailyJourney,
+        input_mode: InputMode,
+        failure: _GenerationFailure,
+        decision: Any,
+    ) -> _GenerationFailure | None:
+        """WP-124b: serve the next tentpole or the gap's bridge; ``None`` when it is
+        now the learner's day, else the failure (the caller re-reads instead)."""
+
+        from app.services.season.recovery import RECOVERY_FALLBACK_KIND, recovery_brief
+
+        brief = run_best_effort(
+            self.db,
+            "daily_journey: season recovery",
+            lambda: recovery_brief(self.db, user, decision),
+            default=None,
+            log=logger,
+        )
+        if brief is None:
+            logger.error(
+                "daily_journey: season day lost (%s); the %s recovery could not be built",
+                failure.reason,
+                decision.kind,
+            )
+            return failure
+        marker = {
+            "kind": RECOVERY_FALLBACK_KIND,
+            "reason": str(failure.reason)[:120],
+            "scenario_key": str(brief.scenario_key),
+            "level_band": str(brief.level_band),
+            "recovery": decision.kind,
+            "gap": decision.gap,
+            "failure": decision.failure,
+            "page_key": decision.position.key if decision.position else "",
+            "moments": list(decision.missing) if decision.kind == "bridge" else [],
+            "generation_attempts": int(journey.generation_attempts or 0),
+            # A season day: bound, settled, and the gap it cuts short is recorded.
+            "season_day": True,
+            "at": _utcnow().isoformat(),
+        }
+        rescued = self._prepare_scene(user, journey, brief, input_mode, fallback=marker)
+        if rescued is not None:
+            logger.error(
+                "daily_journey: season day lost (%s); the %s recovery failed too (%s)",
+                failure.reason,
+                decision.kind,
+                rescued.reason,
+            )
+            return failure
+        logger.warning(
+            "daily_journey: season day lost (%s, %s in a row in %s); journey %s serves the %s %s",
+            failure.reason,
+            decision.failure,
+            decision.gap,
+            journey.id,
+            decision.kind,
+            marker["page_key"],
+        )
+        return None
+
+    def _lock_claimed_row(self, journey: DailyJourney, claim: str | None) -> bool:
+        """Write-lock the journey row while it is still ours to finish.
+
+        A no-op UPDATE guarded by the claim: on PostgreSQL it holds the row until
+        the plan commits, so a reclaim cannot interleave with persisting it; on
+        SQLite it opens the write transaction *before* the savepoint, so the
+        savepoint nests inside it instead of opening a read transaction that a
+        concurrent writer would make impossible to upgrade. Returns whether the
+        claim still matched.
+        """
+
+        result = self.db.execute(
+            update(DailyJourney)
+            .where(
+                DailyJourney.id == journey.id,
+                DailyJourney.generation_claim_id == claim,
+                DailyJourney.status == str(JourneyStatus.PREPARING),
+            )
+            .values(revision=DailyJourney.revision)
+            .execution_options(synchronize_session=False)
+        )
+        return result.rowcount == 1
+
+    def _ensure_usable_session(self) -> None:
+        if not session_is_usable(self.db):
+            logger.warning("daily_journey: the transaction was aborted; rolling back to the claim")
+            self._rollback_quietly()
+
+    def _rollback_quietly(self) -> None:
+        try:
+            self.db.rollback()
+        except Exception:  # pragma: no cover - the connection itself is gone
+            logger.exception("daily_journey: rollback failed")
+
+    def _rollback_savepoint(self, nested: Any) -> None:
+        try:
+            if nested.is_active:
+                nested.rollback()
+        except Exception:  # pragma: no cover - the connection itself is gone
+            logger.exception("daily_journey: savepoint rollback failed")
+            self._rollback_quietly()
+            return
+        self._ensure_usable_session()
 
     def _is_plan_unavailable(self, exc: BaseException) -> bool:
         """Is this WP-04's typed ``PlanUnavailable``?
@@ -1723,6 +3979,11 @@ class DailyJourneyService:
         journey.generation_claimed_at = None
         if journey.started_at is None:
             journey.started_at = _utcnow()
+            # WP-L9: a day planned ahead starts its first step now, not at
+            # planning time.
+            for step in journey.steps:
+                if step.id == journey.current_step_id:
+                    step.started_at = journey.started_at
         if journey.current_step_id is None:
             self._activate_next_step(journey, after_ordinal=-1)
         journey.revision += 1
@@ -1742,7 +4003,24 @@ class DailyJourneyService:
         WP-03's deterministic reasons (``scenario_not_authored`` and friends)
         arrive with ``retry_allowed=False``; the public ``retry`` hint then says
         so instead of promising a retry that cannot help.
+
+        WP-69: this must work on a transaction that something before it broke —
+        on 2026-09-22 it did not, and the journey stayed `preparing`. A session
+        that cannot run a statement is rolled back to its last commit (the
+        claim) first; if the claim is no longer this journey's to settle, the
+        row is returned as it stands.
         """
+
+        if not session_is_usable(self.db):
+            logger.warning("daily_journey: marking unavailable on an aborted transaction; rolling back")
+            self._rollback_quietly()
+            fresh = self.db.get(DailyJourney, journey.id)
+            if fresh is None:  # pragma: no cover - defensive
+                raise _not_found()
+            self.db.refresh(fresh)
+            journey = fresh
+            if JourneyStatus(journey.status) is not JourneyStatus.PREPARING:
+                return journey, http_status.HTTP_200_OK
 
         journey.status = str(JourneyStatus.UNAVAILABLE)
         journey.unavailable_reason = reason[:120]
@@ -1754,12 +4032,474 @@ class DailyJourneyService:
         self.db.flush()
         return journey, http_status.HTTP_200_OK
 
+    # ------------------------------------------------------------------
+    # WP-66 — the day's shape
+    # ------------------------------------------------------------------
+
+    def _day_shape_inputs(
+        self,
+        user: User,
+        journey: DailyJourney,
+        brief: ScenarioBrief,
+        *,
+        errata_count: int,
+    ) -> DayShapeInputs:
+        """Everything the seeded dice are allowed to know about today.
+
+        Every field is either already in hand or one cheap indexed read. A
+        failure anywhere in here costs the *variation*, never the day: the
+        fallbacks are the values that deal a standard day.
+        """
+
+        previous_shape: DayShape | None = None
+        previous_dealt: DayShape | None = None
+        missed = False
+        with best_effort(self.db, "daily_journey: previous-day lookup", log=logger):
+            yesterday = journey.local_date - timedelta(days=1)
+            previous = self._journey_for_date(user, yesterday)
+            if previous is None:
+                # Nothing yesterday. A learner on their *first* day has not
+                # missed anything, so the short shape is offered only to
+                # somebody who has been here before.
+                missed = self._has_earlier_journey(user, journey.local_date)
+            else:
+                previous_shape = _stored_day_shape(previous)
+                dealt_name = _shape_name(_mapping(previous.plan_selection).get("dealt_shape"))
+                if dealt_name and dealt_name != str(previous_shape):
+                    try:
+                        previous_dealt = DayShape(dealt_name)
+                    except ValueError:
+                        previous_dealt = None
+
+        story = brief.story_context if isinstance(brief.story_context, dict) else {}
+        draft = story.get("draft") if isinstance(story.get("draft"), dict) else {}
+        # WP-62/63 put the whole director context under `source`; the top level of
+        # a scenario brief holds the draft and the provenance and nothing else.
+        # Written before WP-63 landed, this read looked only at the top level and
+        # so never found a chapter shape at all (WP-68).
+        source = _mapping(story.get("source"))
+        chapter = _mapping(story.get("chapter")) or _mapping(source.get("chapter"))
+        beat = (
+            story.get("beat")
+            or story.get("chapter_beat")
+            or draft.get("beat")
+            or source.get("beat")
+        )
+        # WP-63 deals a *chapter* shape and one of its five values is «letter»: a
+        # chapter whose turn beat is a Courrier letter. It is read with `.get`
+        # from every place that package could reasonably put it, and an absent
+        # key is simply a chapter that did not ask for one.
+        shape_row = _mapping(source.get("chapter_shape"))
+        chapter_shape = _shape_name(
+            chapter.get("shape")
+            or shape_row.get("shape")
+            or story.get("chapter_shape")
+            or draft.get("chapter_shape")
+            or draft.get("shape")
+        )
+        letter_beat = _shape_name(shape_row.get("letter_beat"))
+        if (
+            chapter_shape == str(DayShape.LETTER)
+            and letter_beat
+            and str(beat or "").strip().lower() != letter_beat
+        ):
+            # A letter chapter names *which* of its beats is the letter. The other
+            # three are ordinary days, and dealing four letter days off one
+            # chapter would empty the Courrier to fill a chapter that asked for
+            # one letter.
+            chapter_shape = None
+
+        # WP-119 phase 3: «jour du Papier» — once a week, never on a tentpole.
+        from app.services.season.runtime import is_tentpole
+
+        revue_available, revue_dealt = self._revue_week_inputs(user, journey.local_date)
+        return DayShapeInputs(
+            revue_available=revue_available,
+            revue_dealt_this_week=revue_dealt,
+            tentpole=is_tentpole(brief.story_context if isinstance(brief.story_context, dict) else None),
+            user_id=str(user.id),
+            local_date=journey.local_date,
+            previous_shape=previous_shape,
+            previous_dealt_shape=previous_dealt,
+            missed_previous_day=missed,
+            chapter_beat=str(beat) if beat else None,
+            chapter_shape=chapter_shape,
+            audio_available=bool(settings.ATELIER_EPISODE_AUDIO_ENABLED),
+            # WP-91: Soutenu/Intensif hear every third day first.
+            budget_seconds=int(journey.budget_seconds or 0) or None,
+            errata_count=int(errata_count),
+            # The WP-64 seam, wired: the letter the Courrier is already showing
+            # this learner, read inside this transaction. `None` — no letter
+            # waiting, or no provider — makes «jour de lettre» ineligible
+            # rather than empty.
+            # WP-69: inside a SAVEPOINT. This is the lookup that cost the day
+            # on 2026-09-22 — a letter is never worth the day.
+            letter=run_best_effort(
+                self.db,
+                "daily_journey: Courrier letter offer",
+                lambda: letter_offer_for(
+                    user_id=str(user.id), local_date=journey.local_date, db=self.db
+                ),
+                default=None,
+                log=logger,
+            ),
+        )
+
+    def _revue_week_inputs(self, user: User, day: date) -> tuple[bool, bool]:
+        """WP-119 phase 3: is Le Papier on with a story this week, and was a Papier day
+        already dealt this ISO week? A failure answers ``(False, False)``: no Papier day,
+        never a lost day."""
+
+        if not getattr(settings, "REVUE_ENABLED", False):
+            return False, False
+
+        def read() -> tuple[bool, bool]:
+            from app.services.revue.encounter import available_dossiers
+            from app.services.revue.weekly import period_for
+
+            monday = day - timedelta(days=day.weekday())
+            rows = self.db.execute(
+                select(DailyJourney.plan_selection).where(
+                    DailyJourney.user_id == user.id,
+                    DailyJourney.local_date >= monday,
+                    DailyJourney.local_date < day,
+                )
+            ).all()
+            dealt = any(
+                isinstance(selection, dict)
+                and str(DayShape.REVUE) in {str(selection.get("day_shape")), str(selection.get("dealt_shape"))}
+                for (selection,) in rows
+            )
+            if dealt:
+                return True, True
+            return bool(available_dossiers(period_for(day), self.db)), False
+
+        return run_best_effort(
+            self.db, "daily_journey: revue week", read, default=(False, False), log=logger
+        )
+
+    def _has_earlier_journey(self, user: User, day: date) -> bool:
+        """Has this learner had any journey before ``day``?"""
+
+        stmt = select(DailyJourney.id).where(
+            DailyJourney.user_id == user.id, DailyJourney.local_date < day
+        )
+        return self.db.execute(stmt.limit(1)).first() is not None
+
+    def _select_candidates(self, user: User, journey: DailyJourney, scenario: ScenarioBrief) -> Any:
+        """The day's candidates, at the rhythm's pool size and inside the
+        learner's vocabulary pace (WP-L6).
+
+        The new-word quota is offered only to a learning adapter that accepts
+        it, so a stub built before WP-L6 still plans a day.
+        """
+
+        select = self.adapters.learning.select_learning_candidates
+        kwargs: dict[str, Any] = {
+            "user": user,
+            "scenario": scenario,
+            "limit": (
+                # WP-L6: a longer rhythm sees more of the queue.
+                max(PRACTICE_CANDIDATE_LIMIT, candidate_limit_for(journey.budget_seconds))
+                if settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED
+                else CANDIDATE_LIMIT
+            ),
+        }
+        try:
+            accepted = set(inspect.signature(select).parameters)
+        except (TypeError, ValueError):  # pragma: no cover - exotic callables
+            accepted = set()
+        if "budget_seconds" in accepted:
+            # WP-L4: the Rappel's grammar room grows with the rhythm.
+            kwargs["budget_seconds"] = journey.budget_seconds
+        if "new_word_quota" in accepted:
+            kwargs["new_word_quota"] = run_best_effort(
+                self.db,
+                "daily_journey: vocabulary pace",
+                lambda: journey_new_word_room(self.db, user, now=_utcnow()),
+                default=None,
+                log=logger,
+            )
+        return select(self.db, **kwargs)
+
+    def _introduction_for_today(self, user: User, scenario: ScenarioBrief) -> Any:
+        """WP-L4: today's new grammar unit (a unit brief), or None.
+
+        The rhythm's weekly quota and the one new-concept picker decide
+        (`concept_life.introduction_for_today`). Only a practice day has room
+        for a rule and its guided items; a failure costs the introduction,
+        never the day.
+        """
+
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+        from app.services.concept_life import introduction_for_today
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: grammar introduction",
+            lambda: introduction_for_today(
+                self.db,
+                user,
+                now=_utcnow(),
+                control_language=str(scenario.control_language),
+            ),
+            default=None,
+            log=logger,
+        )
+
+    def _page_review_for_today(self, user: User, story_units: list[str] | None) -> list[dict[str, Any]] | None:
+        """WP-129 (D7): briefs of the units today's tentpole page uses that the
+        learner was introduced to before today — the page's own order, a unit
+        not yet held first. ``None`` when there are none (nothing is reviewed:
+        a new unit is never shown as review). A failure costs the review only."""
+
+        if not story_units or not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+
+        def briefs() -> list[dict[str, Any]] | None:
+            from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+            from app.services.chrome_language import user_chrome_language
+            from app.services.concept_life import concept_brief
+
+            today = _utcnow()
+            rows = (
+                self.db.query(UserGrammarProgress, GrammarConcept)
+                .join(GrammarConcept, GrammarConcept.id == UserGrammarProgress.concept_id)
+                .filter(
+                    UserGrammarProgress.user_id == user.id,
+                    UserGrammarProgress.introduced_at.isnot(None),
+                    UserGrammarProgress.introduced_at < today,
+                    GrammarConcept.active.is_(True),
+                    GrammarConcept.external_id.in_(list(story_units)),
+                )
+                .all()
+            )
+            order = {unit: index for index, unit in enumerate(story_units)}
+            rows.sort(key=lambda row: (row[0].held_at is not None, order.get(row[1].external_id, 10**6)))
+            language = str(user_chrome_language(user))
+            out = [
+                concept_brief(self.db, concept, control_language=language, stability=progress.stability)
+                for progress, concept in rows[:8]
+            ]
+            return out or None
+
+        return run_best_effort(
+            self.db, "daily_journey: page review", briefs, default=None, log=logger
+        )
+
+    def _forge_for_today(
+        self, user: User, introduction: Any, story_units: list[str] | None = None
+    ) -> dict[str, Any] | None:
+        """WP-S4: the folded forge's planner input, or None.
+
+        Only Soutenu and Intensif fold La Forge into the day (owner decision
+        3); Léger and Régulier get it as the after-day chip. Today's rule is
+        the day's introduction when there is one, else the forge picker's
+        anchor. A failure costs the fold, never the day.
+        """
+
+        if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            return None
+        from app.services import forge_picker
+
+        if not forge_picker.forge_is_folded(user):
+            return None
+        ceiling = forge_picker.forge_budget_seconds(user)
+        forge: dict[str, Any] = {
+            "concept_id": None,
+            "title_native": "",
+            "title_fr": "",
+            "reserve_seconds": forge_picker.FORGE_RESERVE_SECONDS,
+            "max_seconds": ceiling,
+        }
+        if isinstance(introduction, dict) and introduction.get("concept_id"):
+            forge.update(
+                concept_id=int(introduction["concept_id"]),
+                title_native=str(introduction.get("title_native") or ""),
+                title_fr=str(introduction.get("title_fr") or ""),
+            )
+            return forge
+        anchor = run_best_effort(
+            self.db,
+            "daily_journey: forge anchor",
+            lambda: forge_picker.forge_anchor_brief(
+                self.db,
+                user,
+                now=_utcnow(),
+                preferred_concept_id=forge_picker.story_review_concept_id(
+                    self.db, user, story_units or []
+                ),
+            ),
+            default=None,
+            log=logger,
+        )
+        if isinstance(anchor, dict):
+            forge.update(anchor)
+        return forge
+
+    def _pace_profile(self, user: User, journey: DailyJourney) -> Any:
+        """WP-L6: the planner's pace profile from the learner's measured days.
+
+        ``None`` (the priors) until :data:`MIN_MEASURED_PACE_DAYS` days are
+        measured, or when the planner adapter has no profile type.
+        """
+
+        profile_type = getattr(self.adapters.planner, "PacingProfile", None)
+        if not isinstance(profile_type, type):
+            return None
+        measured = run_best_effort(
+            self.db,
+            "daily_journey: pace profile",
+            lambda: measured_pace(self.db, user_id=user.id, exclude_journey_id=journey.id),
+            default=None,
+            log=logger,
+        )
+        if measured is None or measured.days < MIN_MEASURED_PACE_DAYS:
+            return None
+        return profile_type(
+            step_multiplier=measured.step_multiplier,
+            observations=measured.days,
+        )
+
+    def _plan_with_shape(
+        self,
+        *,
+        scenario: ScenarioBrief,
+        candidates: list[Any],
+        budget_seconds: int,
+        pace: Any,
+        input_mode: InputMode,
+        errata_targets: list[Any],
+        dice: DayShapeInputs,
+        decision: Any,
+        scenario_result: ScenarioBrief,
+        first_day: bool = False,
+        introduction: Any = None,
+        forge: Any = None,
+        reading: Any = None,
+        desk: Any = None,
+        page_review: Any = None,
+    ) -> Any:
+        """Call the planner with WP-66's arguments, or without them.
+
+        The planner is reached through an adapter, and an adapter built before
+        this package — a stub in a test, an older deployment's module — has a
+        ``plan_journey`` that has never heard of a day shape. Passing the new
+        keywords to it would be a ``TypeError`` on the learner's only path into
+        their day, so the shape arguments are offered and dropped rather than
+        forced. Dropping them yields the standard day, which is exactly what
+        that planner would have built anyway.
+        """
+
+        plan_journey = self.adapters.planner.plan_journey
+        base: dict[str, Any] = {
+            "scenario": scenario,
+            "candidates": candidates,
+            "budget_seconds": budget_seconds,
+            "pace": pace,
+            "input_mode": input_mode,
+            "errata_targets": errata_targets,
+        }
+        try:
+            accepted = set(inspect.signature(plan_journey).parameters)
+        except (TypeError, ValueError):  # pragma: no cover - exotic callables
+            accepted = set()
+        if "day_shape" not in accepted:
+            return plan_journey(**base)
+        story = (
+            scenario_result.story_context
+            if isinstance(scenario_result.story_context, dict)
+            else {}
+        )
+        recap = story.get("chapter_recap_fr") or story.get("chapter_recap")
+        if first_day and "first_day" in accepted:
+            base["first_day"] = True
+        elif "practice" in accepted and settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
+            # WP-78: quick items around the one open reply.
+            base["practice"] = True
+            if introduction and "introduction" in accepted:
+                # WP-L4: today's new grammar unit, its rule and guided items.
+                base["introduction"] = introduction
+            if forge and "forge" in accepted:
+                # WP-S4: Soutenu/Intensif fold La Forge into the Scène movement.
+                base["forge"] = forge
+            if reading and "reading" in accepted:
+                # WP-93: the «Lecture», one optional page after the ending.
+                base["reading"] = reading
+            if desk and "desk" in accepted:
+                # WP-121/122 «Le bureau»: one optional Revue desk after the ending.
+                base["desk"] = desk
+            if page_review and "page_review" in accepted:
+                # WP-129 (D7): a unit met earlier, reviewed in a line of the page.
+                base["page_review"] = page_review
+        return plan_journey(
+            **base,
+            day_shape=decision.shape,
+            shape_reason=decision.reason,
+            dice=dice,
+            letter=dice.letter,
+            chapter_recap_fr=str(recap).strip() if recap else None,
+            audio_available=dice.audio_available,
+        )
+
+    def _errata_targets(self, user: User) -> list[Any]:
+        """The learner's ranked due errata. A broken queue is never fatal.
+
+        WP-24 owns the ranking; this reads it. The read must not reschedule
+        anything (pinned in ``tests/test_wp24_mistake_loop.py``), and a failure
+        here costs the because-line and the erratum's priority — never the
+        learner's day.
+        """
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: errata targets",
+            lambda: list(errata_targets_for_user(self.db, user)),
+            default=[],
+            log=logger,
+        )
+
+    def _plan_because(
+        self, plan: Any, candidates: list[Any], errata: list[Any]
+    ) -> dict[str, Any] | None:
+        """The because payload for the target the plan actually kept, or None.
+
+        Resolved through the planner adapter rather than imported, for the same
+        reason ``PlanUnavailable`` is: the state machine owns no domain logic.
+        """
+
+        if not errata:
+            return None
+        plan_because = getattr(self.adapters.planner, "plan_because", None)
+        merge = getattr(self.adapters.planner, "merge_errata_candidates", None)
+        if not callable(plan_because):
+            return None
+        try:
+            merged = merge(candidates, errata) if callable(merge) else candidates
+            payload = plan_because(plan, list(merged), errata)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("daily_journey: because-line unavailable")
+            return None
+        if not payload:
+            return None
+        # Validated here so an unprintable payload is dropped at write time
+        # rather than 500-ing every subsequent GET /today.
+        try:
+            return JourneyBecause.model_validate(payload).model_dump(mode="json")
+        except Exception:
+            logger.warning("daily_journey: because payload rejected by the schema")
+            return None
+
     def _persist_plan(
         self,
         journey: DailyJourney,
         brief: ScenarioBrief,
         plan: Any,
         input_mode: InputMode,
+        *,
+        because: dict[str, Any] | None = None,
+        fallback: dict[str, Any] | None = None,
     ) -> None:
         for existing in list(journey.steps):
             journey.steps.remove(existing)
@@ -1789,6 +4529,18 @@ class DailyJourneyService:
                     "input_modes",
                     ["text", "voice"] if input_mode is InputMode.VOICE else ["text"],
                 )
+            elif kind is StepKind.RULE and public_prompt.get("review"):
+                # WP-129 (D7): the tentpole's review of a unit already met, in a
+                # line of the page. Reading it introduces nothing and credits
+                # nothing: no ``concept_id`` for `_mark_rule_read` to act on.
+                private_task["review_concept_id"] = public_prompt.get("concept_id")
+            elif kind is StepKind.RULE:
+                # WP-L4: which unit advancing this step introduces.
+                private_task["concept_id"] = public_prompt.get("concept_id")
+            elif kind is StepKind.FORGE:
+                # WP-S4: the folded forge block's rule and length.
+                private_task["concept_id"] = public_prompt.get("concept_id")
+                private_task["budget_seconds"] = public_prompt.get("budget_seconds")
             elif kind is StepKind.RESOLUTION:
                 private_task["resolution_lines"] = dict(brief.resolution_lines)
                 private_task["resolution_summaries"] = dict(brief.resolution_summaries)
@@ -1815,6 +4567,7 @@ class DailyJourneyService:
             journey.steps.append(step)
             if first_step_id is None and StepStatus(step.status) is StepStatus.PENDING:
                 step.status = str(StepStatus.ACTIVE)
+                step.started_at = _utcnow()
                 first_step_id = step.id
 
         journey.current_step_id = first_step_id
@@ -1827,7 +4580,28 @@ class DailyJourneyService:
             "selected_target_ids": list(plan.selected_target_ids),
             "omitted_candidate_ids": list(plan.omitted_candidate_ids),
             "rationale": plan.rationale,
+            # WP-24's because-line, stored with the plan that earned it. It is
+            # never recomputed on read: the claim is about the scene the
+            # learner actually has, not about the queue as it stands now.
+            "because": because,
+            # WP-66. The day's shape and why the dice dealt it, stored with the
+            # plan that was built for it. Inside the existing JSON column on
+            # purpose: no migration, and an old row with no key reads back as
+            # the standard day it was.
+            "day_shape": str(getattr(plan, "day_shape", None) or DEFAULT_DAY_SHAPE),
+            "shape_reason": str(getattr(plan, "shape_reason", "") or ""),
+            # WP-78. Telemetry: a practice day, and what it poses.
+            "practice": bool(getattr(plan, "practice", False)),
+            # WP-128. The one estimate every surface shows, stored with the plan
+            # that earned it: the core the rhythm budgets, its in-day
+            # extensions, and whether the story alone is a longer day.
+            "time_budget": _plan_time_budget(plan),
         }
+        if fallback:
+            # WP-69. The story engine could not write this day and an authored
+            # scene stands in. Telemetry only — nothing public reads it, and the
+            # learner is never shown a "fallback" label.
+            journey.plan_selection["generation_fallback"] = dict(fallback)
         journey.estimated_active_seconds = plan.estimated_active_seconds
         journey.serial_thread_id = brief.serial_thread_id
         journey.serial_episode_id = brief.serial_episode_id
@@ -1911,10 +4685,13 @@ class DailyJourneyService:
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
             assistance_level=assistance,
-            correction=self._public_correction(evaluation.correction, answer.text),
+            # QA-PRACTICE: a tile answer is checked against the words placed —
+            # `answer.text` is empty for it, which used to drop the correction.
+            correction=self._public_correction(evaluation.correction, recall_learner_text(task, answer)),
             character_reply_fr=None,
             next_turn=None,
             pending=False,
+            slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
 
@@ -1931,6 +4708,9 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
+        # WP-89: a turn that cost no exchange (the opening greeting nudge) does
+        # not move the conversation's own clock either.
+        free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))
 
         evaluation = self.adapters.conversation.evaluate_response(
             self.db,
@@ -1938,12 +4718,13 @@ class DailyJourneyService:
             scenario=brief,
             task=task,
             answer=answer,
-            turn_index=step.turn_index,
+            turn_index=max(0, step.turn_index - free_turns),
             assistance=assistance,
             history=history,
         )
         if evaluation.pending:
             return self._pending_result(journey, assistance)
+        evaluation = self._with_concept_evidence(task, answer, evaluation)
 
         # The provider call is done; only now is the revision verified and taken.
         self._claim_revision(journey, expected_revision)
@@ -1951,10 +4732,21 @@ class DailyJourneyService:
         step.evidence_ref = applied.evidence_ref
         if evaluation.turn_consumed:
             step.turns_used += 1
+        public_correction = self._public_correction(evaluation.correction, answer.text)
         history.append(
             {
                 "learner": answer.text,
                 "character": evaluation.character_reply_fr or "",
+                # WP-89: kept with the turn so the thread can be redrawn —
+                # exactly the correction the learner was shown, never a second.
+                "correction": (
+                    public_correction.model_dump(mode="json") if public_correction else None
+                ),
+                "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # Every speaker of a many-voiced reply, so each gets their bubble.
+                **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
+                # QA-STORY: the season route this exchange took (replayed, never re-read).
+                **({"route": dict(evaluation.route)} if getattr(evaluation, "route", None) else {}),
             }
         )
         private["turns"] = history
@@ -1974,6 +4766,27 @@ class DailyJourneyService:
             if evaluation.character_reply_fr:
                 prompt["character_line_fr"] = evaluation.character_reply_fr
             prompt["repair_allowed"] = False
+            # WP-113: the next question's cards when it is «Le choix», else none.
+            prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
+            if getattr(evaluation, "next_task_native", None):
+                prompt["objective_native"] = evaluation.next_task_native
+            if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
+                # QA-STORY: the hint belongs to the question now asked, not the first one.
+                response_task = dict(private.get("response_task") or {})
+                if evaluation.next_hint_native:
+                    response_task["hint_native"] = evaluation.next_hint_native
+                if evaluation.next_suggested_fr:
+                    response_task["suggested_response_fr"] = evaluation.next_suggested_fr
+                if getattr(evaluation, "next_translation_native", None):
+                    response_task["translation_native"] = evaluation.next_translation_native
+                private["response_task"] = response_task
+                step.private_task = private
+            if history[-1].get("free"):
+                # The exchange the nudge did not use is still owed: one more token.
+                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
+            # WP-89 «Le fil»: the conversation so far, so a reloaded client can
+            # redraw it. Public by construction: what was said and shown.
+            prompt["thread"] = _public_thread(history)
             step.public_prompt = prompt
             next_turn = NextTurn(
                 step_id=str(step.id), prompt=RespondPrompt.model_validate(prompt)
@@ -1989,18 +4802,144 @@ class DailyJourneyService:
 
         self._store_step_result(step, evaluation, assistance)
         self.db.flush()
+        if step.status == str(StepStatus.COMPLETED):
+            # WP-94 / WP-95: grade the épreuve, press the scene's can-do.
+            self._settle_can_do(user, journey, step, brief)
+        # After the turn's own flush, and inside a savepoint: a telemetry row
+        # must not be able to take a graded turn down with it.
+        self._record_feedback_decision(user, journey, step, evaluation)
+        # Last, because it is the only thing here that reaches outside the
+        # journey: on «jour de lettre» the turn the learner just took *is* the
+        # answer to a Courrier letter, and the Courrier must stop waiting for it.
+        if step.status == str(StepStatus.COMPLETED):
+            self._finish_answered_letter(user, journey, step, evaluation)
 
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
             assistance_level=assistance,
-            correction=self._public_correction(evaluation.correction, answer.text),
+            correction=public_correction,
             character_reply_fr=evaluation.character_reply_fr,
+            character_lines=list(evaluation.reply_lines or []),
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
             journey=self.snapshot(journey),
         )
+
+    def _settle_can_do(
+        self, user: User, journey: DailyJourney, step: DailyJourneyStep, brief: ScenarioBrief
+    ) -> None:
+        """WP-94 / WP-95: the completed respond step's can-do and épreuve.
+
+        Best effort, inside a savepoint: a Seal is never worth the day. What
+        was decided is kept on the step (``private_task["can_do"]``) for the
+        recap; the épreuve's result itself is the checkpoint row's.
+        """
+
+        from app.services.can_do import settle_respond
+
+        private = dict(step.private_task or {})
+        result = run_best_effort(
+            self.db,
+            "daily_journey: can-do and épreuve",
+            lambda: settle_respond(
+                self.db,
+                user,
+                journey=journey,
+                story_context=_journey_story_context(journey) or dict(brief.story_context or {}),
+                scenario_key=str(brief.scenario_key or ""),
+                title_fr=brief.title_fr,
+                character_id=brief.character_id,
+                outcome=str((private.get("result") or {}).get("outcome") or ""),
+                turns=list(private.get("turns") or []),
+                concept_evidence=list(private.get("concept_evidence") or []),
+                now=_utcnow(),
+            ),
+            default=None,
+            log=logger,
+        )
+        if result:
+            step.private_task = {**private, "can_do": result}
+            self.db.flush()
+
+    def _with_concept_evidence(
+        self, task: ResponseTask, answer: AttemptAnswer, evaluation: Any
+    ) -> Any:
+        """WP-L4 «Emploi»: the reply's grammar units, read by their detectors."""
+
+        if not any(str(target.kind) == str(TargetKind.GRAMMAR) for target in task.targets):
+            return evaluation
+        from app.services.concept_evidence import with_concept_evidence
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: concept evidence",
+            lambda: with_concept_evidence(
+                self.db,
+                evaluation=evaluation,
+                task=task,
+                text=normalize_answer_text(answer.text),
+                modality=answer.mode,
+            ),
+            default=evaluation,
+            log=logger,
+        )
+
+    def _record_feedback_decision(
+        self,
+        user: User,
+        journey: DailyJourney,
+        step: DailyJourneyStep,
+        evaluation: Any,
+    ) -> None:
+        """WP-36 §8.4: make the self-repair loop countable.
+
+        The package's own question — *does a prompted repair succeed more often
+        than a recast?* — was unanswerable because the decision was taken, acted
+        on and thrown away. One row per graded respond turn records the reason
+        and nothing else: no learner text, no correction, no character line.
+
+        The interesting reasons are the ones where the policy stayed quiet.
+        ``repair_not_attempted`` is a learner who was asked « Pardon, un ou une
+        café ? » and answered something else — no uptake, which is precisely the
+        arm the evidence is being compared against. ``no_open_errata`` is every
+        other turn in the app and is not written: a row per turn saying "nothing
+        applied" would bury the six that mean something.
+
+        Telemetry, so it never breaks a turn: the flow owns the transaction and
+        a failure here is logged and swallowed.
+        """
+
+        reason = str(getattr(evaluation, "feedback_reason", "") or "")
+        if not reason or reason == "no_open_errata":
+            return
+        try:
+            from app.services.pilot_events import PilotEventService
+
+            # The row is written inside a SAVEPOINT so that a ledger that is
+            # unavailable — or a column that has drifted — rolls back this row
+            # alone. Without it the failure surfaces on the *next* flush, which
+            # is the transaction that carries the learner's turn.
+            with self.db.begin_nested():
+                PilotEventService(self.db).record(
+                    SELF_REPAIR_EVENT_TYPE,
+                    user_id=user.id,
+                    entity_type="daily_journey_step",
+                    entity_id=str(step.id),
+                    payload={
+                        "reason": reason,
+                        "journey_id": str(journey.id),
+                        "turn_index": int(step.turn_index),
+                        "outcome": str(evaluation.outcome),
+                        # Whether the turn actually carried a question to the
+                        # learner. A reason alone cannot say so: `repair_failed`
+                        # shows a correction, `recurrence` shows a question.
+                        "elicited": bool(evaluation.needs_repair),
+                    },
+                )
+        except Exception:  # pragma: no cover - telemetry must never break a turn
+            logger.exception("daily_journey: self-repair telemetry failed")
 
     def _pending_result(
         self, journey: DailyJourney, assistance: AssistanceLevel
@@ -2064,6 +5003,70 @@ class DailyJourneyService:
                 if text:
                     texts.append(text)
         return texts
+
+    def _finish_answered_letter(
+        self,
+        user: User,
+        journey: DailyJourney,
+        step: DailyJourneyStep,
+        evaluation: Any,
+    ) -> None:
+        """WP-66 ⋈ WP-64 — the letter the learner just answered is answered.
+
+        On «jour de lettre» the respond step *is* the reply to a real Courrier
+        letter. Finishing it here, through `MissionScheduler.complete`, is what
+        keeps the two surfaces from contradicting each other: the mission's
+        writeback into the living story, its `kept | partial | missed` outcome,
+        the correspondent's mood step and the chain's next instalment all happen
+        exactly once, and the letter is no longer sitting in the Courrier as
+        unanswered — which is what a learner who just answered it would find
+        unforgivable.
+
+        Idempotent three ways: the step remembers that it paid (a replayed
+        mutation re-runs this method), the mission carries at most one journey
+        attempt, and `complete()` returns early on a finished mission.
+
+        Never fatal. A Courrier that cannot be reached costs the letter's
+        bookkeeping, never the turn the learner has already taken and already
+        been graded on.
+        """
+
+        prompt = step.public_prompt if isinstance(step.public_prompt, dict) else {}
+        letter = prompt.get("letter") if isinstance(prompt.get("letter"), dict) else None
+        mission_id = str((letter or {}).get("mission_id") or "")
+        if not mission_id:
+            return
+        private = dict(step.private_task or {})
+        if private.get("letter_answered"):
+            return
+        try:
+            from app.services import story_correspondence as courrier
+
+            mission = courrier.answer_letter_from_journey(
+                self.db,
+                user=user,
+                mission_id=mission_id,
+                learner_text=" ".join(self._respond_learner_texts(journey)),
+                outcome=str(getattr(evaluation, "outcome", "") or ""),
+                # What the journey actually observed the learner produce. The
+                # letter's optional objectives are marked met from this and from
+                # nothing else, so a word the letter hoped for and the reply
+                # never used stays unmet.
+                produced_target_ids=_produced_target_ids(evaluation),
+                language=getattr(user, "native_language", None),
+            )
+        except Exception:
+            logger.exception("daily_journey: the answered Courrier letter could not be filed")
+            return
+        if mission is None:
+            return
+        private["letter_answered"] = {
+            "mission_id": mission_id,
+            "outcome": str(getattr(mission, "outcome", "") or ""),
+        }
+        step.private_task = private
+        self.db.add(step)
+        self.db.flush()
 
     def _rendered_ending(
         self,
@@ -2135,12 +5138,17 @@ class DailyJourneyService:
         )
         if resolution is None:
             return
+        if _is_reprise(brief):
+            self._settle_reprise_resolution(resolution, brief, proposal)
+            self._attach_register_line(user, journey, resolution)
+            return
         if brief.story_context:
             from app.services.living_story import StoryUnavailable, settle_resolution
             try:
                 settle_resolution(self.db, user=user, journey=journey, brief=brief, resolution=resolution, proposal=proposal)
             except StoryUnavailable as exc:
                 raise journey_error(409, JourneyErrorCode.VERSION_CONFLICT, "The story changed. Refresh and retry your answer.", current_revision=journey.revision, refresh_href=refresh_href_for(journey.id)) from exc
+            self._attach_register_line(user, journey, resolution)
             return
 
         private = dict(resolution.private_task or {})
@@ -2184,6 +5192,7 @@ class DailyJourneyService:
         prompt["character_line_fr"] = line
         prompt["summary_native"] = summary
         resolution.public_prompt = prompt
+        self._attach_register_line(user, journey, resolution)
 
         if proposal is not None and outcome_key == proposal.outcome_key:
             outcome_ref = self.adapters.conversation.apply_story_outcome(
@@ -2212,6 +5221,67 @@ class DailyJourneyService:
             # learner through the recap's story_outcome instead.
         private["resolution_settled"] = True
         resolution.private_task = private
+
+    def _settle_reprise_resolution(
+        self,
+        resolution: DailyJourneyStep,
+        brief: ScenarioBrief,
+        proposal: StoryOutcomeProposal | None,
+    ) -> None:
+        """WP-124a: a reprise ends on the page's own ending and an honest summary.
+
+        Nothing is written to the story: no settlement, no flag, no consequence. A
+        repeat call (a reload, a concurrent finish) rewrites the same two lines.
+        """
+
+        outcome_key = "resolved" if proposal is not None else "open"
+        prompt = dict(resolution.public_prompt or {})
+        prompt["outcome_key"] = outcome_key
+        prompt["character_line_fr"] = brief.resolution_lines.get(outcome_key, "")
+        prompt["summary_native"] = brief.resolution_summaries.get(outcome_key, "")
+        # The page's ending is its caption: narration, said by nobody.
+        prompt["narrated"] = True
+        resolution.public_prompt = prompt
+        private = dict(resolution.private_task or {})
+        private["resolution_settled"] = True
+        private["story_outcome"] = None
+        resolution.private_task = private
+
+    def _attach_register_line(
+        self, user: User, journey: DailyJourney, resolution: DailyJourneyStep
+    ) -> None:
+        """WP-66 / WP-33: show the register the learner was already graded on.
+
+        One French line under the ending, plus why it matters in the learner's
+        own language. Nothing is written when the dimension was *not evaluated*
+        — no counterpart register to hold, or a conversation that addressed
+        nobody — because "non évalué" is neither a pass nor a failure and the
+        honest rendering of it is no line at all.
+
+        Never fatal: the day's ending does not depend on this sentence.
+        """
+
+        try:
+            # The turn that decides the verdict was recorded moments ago and is
+            # still pending in this transaction. Flush it first: the register
+            # reader queries the step row, and reading the exchange without the
+            # last thing the learner said would grade half a conversation.
+            self.db.flush()
+            line = build_journey_register_line(
+                self.db,
+                user=user,
+                journey_id=journey.id,
+                control_language=user_chrome_language(user),
+            )
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("daily_journey: register line unavailable")
+            return
+        if line is None:
+            return
+        prompt = dict(resolution.public_prompt or {})
+        prompt["register_note_fr"] = line.line_fr
+        prompt["register_reason_native"] = line.reason_native
+        resolution.public_prompt = prompt
 
     def _settle_resolution_if_unsettled(
         self, user: User, journey: DailyJourney
@@ -2266,6 +5336,13 @@ class DailyJourneyService:
                 for observation in evaluation.observations
             ],
         }
+        concept_evidence = list(getattr(evaluation, "concept_evidence", None) or [])
+        if concept_evidence:
+            # WP-L4: what the reply showed about each grammar unit (WP-L7 reads it).
+            history = list(private.get("concept_evidence") or [])
+            history.extend(concept_evidence)
+            private["concept_evidence"] = history
+            private["result"]["concept_evidence"] = concept_evidence
         step.private_task = private
 
     @staticmethod
@@ -2360,10 +5437,10 @@ class DailyJourneyService:
             available = {
                 HelpKind.HINT: (None, response.hint_native),
                 HelpKind.TRANSLATION: (None, response.translation_native),
-                HelpKind.SUGGESTED_RESPONSE: (
-                    response.suggested_response_fr,
-                    response.translation_native,
-                ),
+                # EXPERIENCE-REVIEW 2026-10-04: the suggestion has no translation of
+                # its own; the character's line translated under it («Ma famille dit :
+                # fatiguée.» over «Warum ist Odile gegangen?») read as its meaning.
+                HelpKind.SUGGESTED_RESPONSE: (response.suggested_response_fr, None),
             }
         if help_kind not in available:
             raise HTTPException(
@@ -2411,7 +5488,7 @@ class DailyJourneyService:
                 self.db,
                 user=user,
                 journey_id=journey.id,
-                control_language=normalize_control_language(user.native_language),
+                control_language=user_chrome_language(user),
             )
         except AdapterUnavailable:
             raise
@@ -2497,6 +5574,21 @@ class DailyJourneyService:
             except Exception:  # pragma: no cover - defensive
                 logger.exception("daily_journey: keepsake minting failed")
 
+        can_do_result: dict[str, Any] = {}
+        for step in journey.steps:
+            if StepKind(step.kind) is StepKind.RESPOND:
+                value = (step.private_task or {}).get("can_do")
+                if isinstance(value, dict):
+                    can_do_result = value
+        epreuve_result = can_do_result.get("epreuve_result")
+        story_fields = self._recap_story_fields(journey, finish_kind)
+        extras = self._recap_extras(
+            user,
+            journey,
+            practiced,
+            collectible_ids,
+            epreuve_band=can_do_result.get("epreuve_band") if epreuve_result == "passed" else None,
+        )
         return JourneyRecap(
             completion_kind="complete" if finish_kind == "complete" else "early",
             objective_outcome=objective_outcome,
@@ -2508,7 +5600,66 @@ class DailyJourneyService:
             # WP-02 does not measure active time; a fabricated number would be
             # worse than an honest null (CONTRACTS §9).
             active_seconds=self._measure_active_seconds(journey),
+            # WP-128: the core the day was planned at, beside the measured time.
+            estimated_core_seconds=_stored_core_seconds(journey),
+            # WP-79: streak-free reward facts (the streak rides on the
+            # snapshot): words, the character's mood, the keepsake, the
+            # teaser and a level move — each read, none invented.
+            **extras,
+            # WP-94: the épreuve's verdict, when today was a «Numéro spécial».
+            epreuve_result=epreuve_result if epreuve_result in {"passed", "failed"} else None,
+            epreuve_line_fr=can_do_result.get("epreuve_line_fr") if epreuve_result else None,
+            # WP-95: the can-dos this day pressed into the Carnet.
+            can_dos_stamped=list(can_do_result.get("can_do_stamped") or []),
+            # WP-96/97: margin notes, «Fin du chapitre», «Tome N».
+            **story_fields,
         )
+
+    def _recap_story_fields(self, journey: DailyJourney, finish_kind: str) -> dict[str, Any]:
+        """WP-96/97 on the recap, and the «tu» Seal pressed when today's scene
+        says it was accepted. Neither may ever cost the learner the day."""
+
+        from app.services.story_archive import mint_tutoiement_seal, recap_story_fields
+
+        if finish_kind == "complete":
+            run_best_effort(
+                self.db,
+                "daily_journey: tutoiement seal",
+                lambda: mint_tutoiement_seal(self.db, journey),
+                default=None,
+                log=logger,
+            )
+        return run_best_effort(
+            self.db,
+            "daily_journey: recap story fields",
+            lambda: recap_story_fields(self.db, journey),
+            default={"margin_notes": [], "chapter_closed": None, "season_finished": None},
+            log=logger,
+        )
+
+    def _recap_extras(
+        self,
+        user: User,
+        journey: DailyJourney,
+        practiced: list[PracticedTarget],
+        collectible_ids: list[str],
+        *,
+        epreuve_band: str | None = None,
+    ) -> dict[str, Any]:
+        from app.services.achievement_recap import recap_extras
+
+        try:
+            return recap_extras(
+                self.db,
+                user=user,
+                journey=journey,
+                practiced=practiced,
+                collectible_ids=collectible_ids,
+                epreuve_band=epreuve_band,
+            )
+        except Exception:  # pragma: no cover - a reward is never worth the day
+            logger.exception("daily_journey: WP-79 recap extras failed")
+            return {}
 
     # ------------------------------------------------------------------
     # Internals — events
@@ -2590,6 +5741,7 @@ __all__ = [
     "GENERATION_CLAIM_TTL_SECONDS",
     "MAX_GENERATION_ATTEMPTS",
     "MUTATION_PROCESSING_TTL_SECONDS",
+    "SELF_REPAIR_EVENT_TYPE",
     "DailyJourneyService",
     "journey_enabled_for",
     "journey_error",

@@ -36,31 +36,63 @@ import React from 'react';
 
 import {
   Action,
+  AtelierMark,
   AtelierV2Root,
   CrossIcon,
   IconAction,
   Notice,
-  ShapeToken,
   StateBlock,
   StepProgress,
-  Surface,
   type StepSegment,
 } from '@/components/atelier-v2/ui';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
+import { journeyChromeLanguage } from '@/lib/language-rule';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
+import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
-import { formatDuration, joinMeta, recapView, type JourneyPhase } from './journey-state';
 import {
+  journeyHeaderCaption,
+  type JourneyPhase,
+} from './journey-state';
+import {
+  ForgeStepView,
   JourneyFeedbackView,
   RecallStepView,
   RespondStepView,
   ResolutionStepView,
+  RuleStepView,
 } from './JourneySteps';
 import { StoryEpisodeStep } from './StoryEpisodeStep';
+import { ReadStepView } from './ReadStep';
+import { DeskStepView } from './DeskStep';
+import { journeySpeaker } from './journey-faces';
+import { useJourneyFeel } from './useJourneyFeel';
+import { continuesConversation } from './respond-thread';
+import { stepHeaderLine } from './drill-frame';
+import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
+import { firstSceneStepId } from './practice-formats';
+import { PushOptIn } from './PushOptIn';
+import { EntreTemps, SeasonPremiere } from './SeasonPages';
+import {
+  absenceOf,
+  dayPreludes,
+  premierePoster,
+  preludeSeen,
+  rememberPreludeSeen,
+  seasonPremiereOf,
+  type DayPrelude,
+} from './season-return-model';
+import { useStoryEpisodeEntry } from './story-episode-store';
+import { JourneyRecap } from './JourneyRecap';
+import { SpecialKickerContext } from './special-edition';
+import { canDoCopy } from '@/lib/can-do-copy';
+import { epreuveOf } from '@/lib/can-dos';
 import type { DailyJourneyController } from './useDailyJourney';
+import { RvJourneyPapier } from '@/components/revue/RvJourneyPapier';
+import { isRevueDay } from '@/lib/revue-une';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -74,6 +106,17 @@ export type JourneySessionProps = {
    * builds one, and it never reopens the finished journey.
    */
   onPractice?: (href: string) => void;
+  /**
+   * WP-S4: open La Forge from the day's folded forge step (Soutenu, Intensif).
+   * The séance's recap brings the learner back to the day. Without it the
+   * step falls back to `onPractice`, then to a plain navigation.
+   */
+  onForge?: (href: string) => void;
+  /**
+   * WP-S4: «Forge today's rule» after the day (Léger, Régulier). When given,
+   * the recap's quiet practice button becomes the forge entry.
+   */
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 };
 
 /**
@@ -84,9 +127,16 @@ export type JourneySessionProps = {
  * verdict is still on screen. Reading `completed` first told the learner they
  * had moved on from a step they had not left (WP-20 D-5).
  */
-function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[] {
+function segmentsOf(
+  steps: PublicStep[],
+  currentId: string | null,
+  face: StepSegment['face'] = null,
+): StepSegment[] {
   return steps.map((step) => ({
     id: step.id,
+    // WP-D3: one shape per step, from WP-D1's step → shape mapping.
+    shape: STEP_SHAPE[step.kind],
+    face: step.id === currentId ? face : null,
     state:
       step.id === currentId
         ? 'active'
@@ -98,27 +148,37 @@ function segmentsOf(steps: PublicStep[], currentId: string | null): StepSegment[
   }));
 }
 
-/**
- * The 1-based position of the step actually on screen, or null when there is
- * none. Counting finished steps instead advances the header the instant an
- * answer is graded, while the graded step is still the one being read.
- */
-function positionOnScreen(steps: PublicStep[], currentId: string | null): number | null {
-  if (!currentId) return null;
-  const index = steps.findIndex((step) => step.id === currentId);
-  return index < 0 ? null : index + 1;
-}
-
-export function JourneySession({ controller, onExit, morePractice, onPractice }: JourneySessionProps) {
-  const { phase, feedback, step, progress, busy, help, voice, actions } = controller;
+export function JourneySession({
+  controller,
+  onExit,
+  morePractice,
+  onPractice,
+  onForge,
+  forgeAfterDay,
+}: JourneySessionProps) {
+  const openForge = (href: string) => {
+    if (onForge) onForge(href);
+    else if (onPractice) onPractice(href);
+    else if (typeof window !== 'undefined') window.location.assign(href);
+  };
+  // WP-27: the respond step owns the microphone itself (`useVoiceAnswer`), so
+  // the controller's own voice fields are no longer read here.
+  const { phase, feedback, step, busy, help, actions } = controller;
+  // WP-82: one chrome language, the learner's up to A2 and French from B1.
+  const chromeLanguage = journeyChromeLanguage(controller);
   const copy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyCopy(controller.controlLanguage),
+    ...atelierCopy(chromeLanguage),
+    ...journeyCopy(chromeLanguage),
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
+  // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
+  useJourneyFeel(phase.kind, step?.id ?? null, feedback);
+  const speaker = journeySpeaker(journey, step);
 
-  const remaining = formatDuration(progress.remainingSeconds, controller.controlLanguage);
+  // WP-82: the step caption is status, in the screen's one chrome language.
+  // WP-76: steps only — no clock that a server wait can move.
+  const chrome = copy;
 
   // Draft persistence (WP-10). The accessors are stable callbacks, so the field
   // is not remounted and typing is not interrupted.
@@ -129,16 +189,32 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
     [draftGet, draftSet],
   );
 
-  const segments = journey ? segmentsOf(journey.steps, journey.current_step_id) : [];
-  const position = journey ? positionOnScreen(journey.steps, journey.current_step_id) : null;
-  const caption =
-    progress.total > 0
-      ? `${stepOfLabel(
-          copy,
-          position ?? Math.min(progress.done + 1, progress.total),
-          progress.total,
-        )}${remaining ? ` · ${remaining} ${copy.time_left}` : ''}`
-      : undefined;
+  // A step change is a new screen: the learner reached the action at the
+  // bottom of the last one, and the next must open at its title (WP-54).
+  const currentStepId = journey?.current_step_id ?? null;
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !currentStepId) return;
+    window.scrollTo({ top: 0 });
+  }, [currentStepId]);
+
+  // WP-D3: the active token grins or frowns once the verdict is on screen —
+  // not while the reply is still typing in (WP-76: words first).
+  // WP-89: a turn the conversation continues past is not a verdict, so the
+  // token keeps its face until the closing turn.
+  const tokenFace: StepSegment['face'] =
+    feedback.kind === 'graded' && !continuesConversation(feedback)
+      ? feedback.verdict === 'correct'
+        ? 'grin'
+        : feedback.verdict === 'wrong'
+          ? 'frown'
+          : null
+      : null;
+  const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
+  // WP-D1: the mark is the day's plan, in the head's right-hand slot.
+  const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
+  const caption = journeyHeaderCaption(journey, (position, total) =>
+    stepOfLabel(chrome, position, total),
+  );
 
   /* The story-engine reader is a full-screen surface with its own exit and its
      own progress rail. While it is up the session's header would be a second,
@@ -147,11 +223,83 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
      surface on screen. */
   const immersive = useImmersiveSurface();
 
+  /* WP-75: the first journey meets the cast before its opening scene. Shown
+     in place of that scene until «Continuer», remembered per journey. */
+  const castIntro = castIntroOf(journey);
+  const journeyId = journey?.id ?? '';
+  const [castIntroDone, setCastIntroDone] = React.useState(true);
+  React.useEffect(() => {
+    setCastIntroDone(!journeyId || castIntroSeen(journeyId));
+  }, [journeyId]);
+  const showCastIntro =
+    castIntro.length > 0 &&
+    !castIntroDone &&
+    phase.kind === 'session' &&
+    step?.kind === 'scene' &&
+    // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
+    firstSceneStepId(journey) === step.id;
+
+  /* WP-98 / WP-99: before the day's first step, a returning learner reads
+     «Pendant votre absence», and a new season opens on its front page. Each
+     once per journey (device memory); never on day 1; a resume goes on. Until
+     the device memory is read, nothing is shown (as for the cast intro). */
+  const [preludeMemory, setPreludeMemory] = React.useState<Record<DayPrelude, boolean> | null>(null);
+  React.useEffect(() => {
+    if (!journeyId) {
+      setPreludeMemory(null);
+      return;
+    }
+    const storage = preludeStorage();
+    setPreludeMemory({
+      entre_temps: preludeSeen(storage, 'entre_temps', journeyId),
+      premiere: preludeSeen(storage, 'premiere', journeyId),
+    });
+  }, [journeyId]);
+  const prelude: DayPrelude | null =
+    preludeMemory && phase.kind === 'session' && !showCastIntro
+      ? dayPreludes(journey, (kind) => preludeMemory[kind])[0] ?? null
+      : null;
+  const finishPrelude = (kind: DayPrelude) => {
+    rememberPreludeSeen(preludeStorage(), kind, journeyId);
+    setPreludeMemory((memory) => ({ entre_temps: false, premiere: false, ...memory, [kind]: true }));
+  };
+  const episodeEntry = useStoryEpisodeEntry(prelude === 'premiere' ? journeyId : null);
+  const absence = prelude === 'entre_temps' ? absenceOf(journey) : null;
+  const premiere = prelude === 'premiere' ? seasonPremiereOf(journey) : null;
+
+  // WP-94: a «Numéro spécial» — the session and the reader carry the kicker.
+  const specialKicker = epreuveOf(journey) ? canDoCopy(chromeLanguage).special_kicker : null;
+
+  /* WP-119 phase 3: on a Revue day the short story day ends, then the Papier
+     follows inside the same player — the ONE `RvEncounter` — before the recap.
+     Leaving it (× or «Classer la Revue») shows the recap; a day ended early
+     goes straight to its recap. Never on a special edition. */
+  const [papierDone, setPapierDone] = React.useState(false);
+  const showPapier =
+    !papierDone &&
+    phase.kind === 'finished' &&
+    journey?.status !== 'ended_early' &&
+    isRevueDay(journey?.day_shape ?? null, Boolean(epreuveOf(journey)));
+
+  // WP-103 T3: the caption names the drill on a drill («Rappel · Genre et
+  // nombre»); the place and the day's objective belong to the scene and the reply.
+  const headerLine = journey
+    ? stepHeaderLine({
+        step,
+        language: chromeLanguage,
+        copy,
+        location: journey.scenario.location_name,
+        objective: journey.scenario.objective_native,
+      })
+    : '';
+
   return (
-    <AtelierV2Root as="main" language={controller.controlLanguage} className="journey-shell">
+    <SpecialKickerContext.Provider value={specialKicker}>
+    <AtelierV2Root as="main" language={chromeLanguage} className="journey-shell">
       <div className="av2-screen">
         {/* The design's session header: close, then the progress rule. The
-            streak slot the design puts on the right is deliberately empty. */}
+            streak slot the design puts on the right holds the mark as the
+            day's plan (WP-D1) — never a streak. */}
         {journey && !immersive && (
           <header className="av2-session__head">
             {onExit && (
@@ -164,35 +312,90 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
             ) : (
               <span className="av2-label">{copy.progress_none}</span>
             )}
+            {dayMark && <AtelierMark size={28} progress={dayMark.groups} title={dayMark.label} />}
+            {/* W6 (WP-89): the connection lives in the header's own slot. It
+                hangs under the head out of the flow, so it can never push the
+                step — or the Send button — down under the thumb. */}
+            <div className="av2-session__notice">
+              <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+            </div>
           </header>
         )}
 
         <div className="av2-screen__body">
-          <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+          {/* No header (nothing loaded yet, or the immersive reader): the
+              notice is then the only thing to read, so it keeps its row. */}
+          {(!journey || immersive) && (
+            <ConnectionNotice connection={recovery ? recovery.connection : null} copy={copy} />
+          )}
 
-          {journey && phase.kind === 'session' && !immersive && (
+          {journey && phase.kind === 'session' && !immersive && (specialKicker || headerLine) && (
             /* One separator between two real parts. The story engine ships an
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
-            <p className="av2-label">
-              {joinMeta(journey.scenario.location_name, journey.scenario.objective_native)}
+            <p className="av2-label" data-header={headerLine ? 'step' : undefined}>
+              {specialKicker && (
+                <>
+                  <span className="av2-special__kicker" lang="fr" data-special-kicker="">
+                    {specialKicker}
+                  </span>
+                  {headerLine ? ' · ' : ''}
+                </>
+              )}
+              {headerLine}
             </p>
           )}
 
-          <JourneyPhaseView
-            phase={phase}
-            controller={controller}
-            copy={copy}
-            onExit={onExit}
-            morePractice={morePractice}
-            onPractice={onPractice}
-          />
+          {showPapier ? (
+            <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
+          ) : (
+            <JourneyPhaseView
+              phase={phase}
+              controller={controller}
+              copy={copy}
+              onExit={onExit}
+              morePractice={morePractice}
+              onPractice={onPractice}
+              forgeAfterDay={forgeAfterDay}
+            />
+          )}
 
           {/* A paused journey shows its resume prompt alone, so the learner has
               exactly one action rather than a half-live step behind a notice. */}
           {phase.kind === 'session' && step && (
             <>
-              {step.kind === 'scene' && (
+              {showCastIntro && (
+                <CastIntro
+                  cast={castIntro}
+                  language={chromeLanguage}
+                  onContinue={() => {
+                    rememberCastIntroSeen(journeyId);
+                    setCastIntroDone(true);
+                  }}
+                />
+              )}
+              {absence && (
+                <EntreTemps
+                  absence={absence}
+                  language={chromeLanguage}
+                  journeyId={journeyId || null}
+                  onContinue={() => finishPrelude('entre_temps')}
+                />
+              )}
+              {premiere && (
+                <SeasonPremiere
+                  premiere={premiere}
+                  posterUrl={premierePoster(
+                    journey,
+                    episodeEntry?.kind === 'episode' ? episodeEntry.episode.panels : null,
+                  )}
+                  language={chromeLanguage}
+                  onContinue={() => finishPrelude('premiere')}
+                />
+              )}
+              {!prelude && (
+              <>
+              {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
                 // journey; the plain scene prompt otherwise (WP-14E).
                 <StoryEpisodeStep
@@ -202,6 +405,56 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   busy={busy}
                   onContinue={actions.continueJourney}
                   onExit={onExit}
+                  speaker={speaker}
+                  language={chromeLanguage}
+                  // WP-96: the first journey (the cast is introduced) has no «Précédemment».
+                  firstDay={castIntro.length > 0}
+                />
+              )}
+              {step.kind === 'rule' && (
+                // WP-L4 «Règle»: the new unit's rule card, then its guided items.
+                <RuleStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  language={chromeLanguage}
+                  onContinue={actions.continueJourney}
+                  journeyId={journey?.id ?? null}
+                />
+              )}
+              {step.kind === 'read' && (
+                // WP-93: an optional page — yesterday's, or «Coulisses» —
+                // read in the reader, never answered.
+                <ReadStepView
+                  journeyId={journey?.id ?? null}
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  onExit={onExit}
+                  language={chromeLanguage}
+                  speaker={speaker}
+                />
+              )}
+              {step.kind === 'desk' && (
+                // «Le bureau» (WP-121/122): one Revue desk after the ending —
+                // La Relecture, La Radio or Le Correcteur. Advanced, never answered.
+                <DeskStepView
+                  key={step.id}
+                  step={step}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  language={chromeLanguage}
+                />
+              )}
+              {step.kind === 'forge' && (
+                // WP-S4 «La Forge», folded into the day: open the block, come back.
+                <ForgeStepView
+                  step={step}
+                  copy={copy}
+                  busy={busy}
+                  onContinue={actions.continueJourney}
+                  onOpen={openForge}
                 />
               )}
               {step.kind === 'recall' && (
@@ -215,6 +468,7 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   onSubmit={actions.submitAnswer}
                   onContinue={actions.continueJourney}
                   draft={draft}
+                  journeyId={journey?.id ?? null}
                 />
               )}
               {step.kind === 'respond' && (
@@ -224,22 +478,24 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   busy={busy}
                   feedback={feedback}
                   help={help}
-                  voice={voice}
                   onHelp={actions.requestHelp}
                   onSubmit={actions.submitAnswer}
                   onContinue={actions.continueJourney}
-                  onStartRecording={() => void actions.startRecording()}
-                  onStopRecording={actions.stopRecording}
-                  onResetVoice={actions.resetVoice}
                   draft={draft}
+                  journeyId={journey?.id ?? null}
                 />
               )}
               {step.kind === 'resolution' && (
+                // WP-90: the ending is the page's last panel, said by the
+                // day's counterpart, closing the page the learner just read.
                 <ResolutionStepView
                   step={step}
                   copy={copy}
                   busy={busy}
                   onContinue={actions.continueJourney}
+                  speaker={speaker}
+                  journey={journey}
+                  onExit={onExit}
                 />
               )}
 
@@ -249,12 +505,16 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                 onContinue={actions.continueJourney}
                 onRetry={actions.retryLastAnswer}
                 onDismiss={actions.clearFeedback}
+                speaker={speaker}
+                stepKind={step?.kind ?? null}
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary
                   stays the only primary in the composition. Hidden under the
                   immersive reader, which owns its whole screen. */}
-              {!immersive && (
+              {/* WP-103 T7: once the conversation is closed, «Continuer» is the
+                  only action on the screen. */}
+              {!immersive && !showCastIntro && step.kind !== 'respond' && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"
@@ -266,12 +526,24 @@ export function JourneySession({ controller, onExit, morePractice, onPractice }:
                   </Action>
                 </div>
               )}
+              </>
+              )}
             </>
           )}
         </div>
       </div>
     </AtelierV2Root>
+    </SpecialKickerContext.Provider>
   );
+}
+
+/** The device memory for the day's preludes; `null` when storage is unreachable. */
+function preludeStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +606,7 @@ function JourneyPhaseView({
   onExit,
   morePractice,
   onPractice,
+  forgeAfterDay,
 }: {
   phase: JourneyPhase;
   controller: DailyJourneyController;
@@ -341,6 +614,7 @@ function JourneyPhaseView({
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
   onPractice?: (href: string) => void;
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
   const { actions, busy } = controller;
 
@@ -365,7 +639,12 @@ function JourneyPhaseView({
             tone="loading"
             title={copy.preparing_title}
             body={copy.preparing_body}
-            action={{ label: copy.preparing_retry, onSelect: () => void actions.refresh() }}
+            action={{
+              label: copy.preparing_retry,
+              // WP-69: take over a dead generation when the server allows it.
+              onSelect: () =>
+                void (phase.retryAllowed ? actions.retryGeneration() : actions.refresh()),
+            }}
           />
         </div>
       );
@@ -439,6 +718,7 @@ function JourneyPhaseView({
           onExit={onExit}
           morePractice={morePractice}
           onPractice={onPractice}
+          forgeAfterDay={forgeAfterDay}
         />
       );
 
@@ -448,7 +728,7 @@ function JourneyPhaseView({
 }
 
 // ---------------------------------------------------------------------------
-// Completion recap — the server's evidence, and nothing invented
+// Completion recap — WP-79: one reward screen (`JourneyRecap.tsx`)
 // ---------------------------------------------------------------------------
 
 export function JourneyRecapView({
@@ -457,132 +737,38 @@ export function JourneyRecapView({
   onExit,
   morePractice,
   onPractice,
+  forgeAfterDay,
 }: {
   phase: Extract<JourneyPhase, { kind: 'finished' }>;
   controller: DailyJourneyController;
   onExit?: () => void;
   morePractice?: { label: string; onSelect: () => void } | null;
+  /** WP-16 / D-0: the recap opens the drill loop at the server's own href. */
   onPractice?: (href: string) => void;
+  /** WP-S4: «Forge today's rule» replaces the practice button (Léger, Régulier). */
+  forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
-  const copy: AtelierCopy = {
-    ...atelierCopy(controller.controlLanguage),
-    ...journeyCopy(controller.controlLanguage),
-  };
-  const view = recapView(phase.recap);
-  const partial = view?.partial ?? phase.journey.status === 'ended_early';
-  const duration = formatDuration(view?.activeSeconds ?? null, controller.controlLanguage);
-
+  const speaker = journeySpeaker(phase.journey);
   return (
-    <section className="journey-recap av2-stack" data-state={partial ? 'partial' : 'complete'}>
-      <Surface tone={partial ? 'outline' : 'paper'} shape="hero" className="av2-recap__header">
-        <p className="av2-label">{copy.today_eyebrow}</p>
-        <h2 className="av2-headline">
-          {partial ? copy.finished_partial_title : copy.finished_title}
-        </h2>
-        {partial && <p className="av2-body av2-body--lg">{copy.finished_partial_body}</p>}
-
-        {/* `recap.active_seconds` is null by design until WP-11 measures it.
-            Say so rather than printing an invented duration. */}
-        <p className="av2-label" style={{ marginTop: 8 }}>
-          {duration ? duration : copy.duration_not_measured}
-        </p>
-      </Surface>
-
-      {view && view.practiced.length > 0 && (
-        <Surface>
-          <p className="av2-label">{copy.practiced}</p>
-          <ul className="av2-recap__list">
-            {view.practiced.map((item) => (
-              <li key={`${item.target.kind}:${item.target.id}`}>
-                <ShapeToken kind="reward" size="sm" />
-                <span>
-                  <span className="av2-fr" lang="fr">
-                    {item.target.label_fr}
-                  </span>
-                  {item.target.label_native ? ` — ${item.target.label_native}` : ''}{' '}
-                  <span className="av2-label" style={{ display: 'inline' }}>
-                    · {copy[`evidence_${item.evidence_kind}` as const]}
-                  </span>
-                  {/* WP-16 / D-0: the drill loop is where this target is worked
-                      again. The href is the server's own; the recap never
-                      composes one and never reopens the finished journey. */}
-                  {onPractice && item.practice_href && (
-                    <>
-                      {' · '}
-                      <button
-                        type="button"
-                        className="av2-recap__practice"
-                        onClick={() => onPractice(item.practice_href as string)}
-                        aria-label={`${copy.practice_this} — ${item.target.label_fr}`}
-                      >
-                        {copy.practice_this}
-                      </button>
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Surface>
-      )}
-
-      {/* Server-recorded capability evidence. Not a second headline: it is what
-          the learner actually did, in the server's own words. */}
-      {view && view.capabilities.length > 0 && (
-        <Surface>
-          <p className="av2-label">{copy.capability_shown}</p>
-          <ul className="av2-recap__list">
-            {view.capabilities.map((item, index) => (
-              <li key={`${item.capability_key}-${index}`}>
-                <ShapeToken kind="done" size="sm" />
-                <span>
-                  {item.context_native}{' '}
-                  <span className="av2-label" style={{ display: 'inline' }}>
-                    · {copy[`capability_state_${item.state}` as const]}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Surface>
-      )}
-
-      {/* At most ONE headline. */}
-      {view?.headline && (
-        <Surface tone="blue">
-          <p className="av2-label">{copy.next_focus}</p>
-          <p className="av2-headline av2-headline--rule" lang="fr">
-            {view.headline.labelFr}
-          </p>
-          <p className="av2-body av2-body--lg">{view.headline.reasonNative}</p>
-        </Surface>
-      )}
-
-      {/* The callback is a character's line, so it is attributed rather than
-          left as a bare French fragment with no speaker. */}
-      {view?.storyCallbackFr && (
-        <Surface>
-          <p className="av2-label">{phase.journey.scenario.character_name}</p>
-          <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-            {view.storyCallbackFr}
-          </p>
-        </Surface>
-      )}
-
-      <div className="av2-recap__actions">
-        {onExit && (
-          <Action tone="primary" onClick={onExit}>
-            {copy.continue}
-          </Action>
-        )}
-        {morePractice && (
-          <Action tone="secondary" onClick={morePractice.onSelect}>
-            {morePractice.label || copy.more_practice}
-          </Action>
-        )}
-      </div>
-      {morePractice && <p className="av2-label">{copy.more_practice_note}</p>}
-    </section>
+    <JourneyRecap
+      journey={phase.journey}
+      recap={phase.recap}
+      language={journeyChromeLanguage(controller)}
+      onExit={onExit}
+      morePractice={morePractice}
+      onPractice={onPractice}
+      forge={forgeAfterDay}
+      pushOptIn={
+        // WP-80: the push pre-prompt, once, after a finished day. Renders
+        // nothing unless this device has something to ask.
+        <PushOptIn
+          language={journeyChromeLanguage(controller)}
+          dayFinished
+          characterId={phase.recap?.teaser?.character_id || speaker?.id || undefined}
+          characterName={phase.recap?.teaser?.character_name || speaker?.name || undefined}
+        />
+      }
+    />
   );
 }
 

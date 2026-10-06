@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -27,19 +28,177 @@ from app.schemas.vocabulary import (
     VocabularyBiographyOrigin,
     VocabularyBiographyProgress,
     VocabularyBiographyResponse,
+    VocabularyBiographyRevisit,
     VocabularyListResponse,
     VocabularyWordRead,
 )
 from app.services.conjugation import ConjugationService
+from app.services.core_lexicon import CORE_DECK
 from app.services.daily_words import DailyWordSlateService
 from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
+from app.services.vocabulary_pace import new_words_left_today, vocabulary_pace_allowance
 from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
+
+# ---------------------------------------------------------------------------
+# «Vérification du lexique» (2026-10-03): skip the words a learner already knows.
+# Declared first: a later ``/{word_id}`` route would otherwise capture «band-check».
+# ---------------------------------------------------------------------------
+
+
+class BandCheckItem(BaseModel):
+    id: str
+    fr: str
+    options: list[str]
+
+
+class BandCheckSubBand(BaseModel):
+    sub_band: str
+    words: int
+    credited: bool
+    #: WP-127: ``sampled`` (a pass on this band) or ``inferred`` (from a pass above).
+    credit_kind: str | None = None
+    #: WP-127: the latest check of this band did not pass (ladder only).
+    missed: bool = False
+
+
+class BandCheckLadder(BaseModel):
+    """WP-127: the top-down check — where it stands and what to check next."""
+
+    policy_version: str
+    #: open / paused (this visit's checks are spent) / done / none
+    status: str
+    next: str | None = None
+    resume_band: str | None = None
+    visit_checks_used: int
+    visit_checks_left: int
+    max_checks_per_visit: int
+    items_per_check: int
+    pass_correct: int
+    #: Highest first.
+    bands: list[BandCheckSubBand]
+
+
+class BandCheckStart(BaseModel):
+    sub_band: str
+    items: list[BandCheckItem]
+    pass_share: float
+    #: WP-127: correct answers a pass needs (a documented candidate).
+    pass_correct: int | None = None
+    #: WP-127: this check's persistent identity; send it back with the answers.
+    attempt_id: str | None = None
+    policy_version: str | None = None
+
+
+class BandCheckSubmit(BaseModel):
+    #: item id → the chosen option's index, or null for «je ne sais pas».
+    answers: dict[str, int | None] = Field(default_factory=dict)
+    #: WP-127: the ``attempt_id`` the check was opened with (older clients omit it).
+    attempt_id: str | None = Field(default=None, max_length=64)
+
+
+class BandCheckResult(BaseModel):
+    sub_band: str
+    correct: int
+    total: int
+    passed: bool
+    credited_words: int
+    missed: list[str]
+    #: WP-127: words on the check and answered right.
+    credited_sampled: int = 0
+    #: WP-127: words credited by inference — the pass's unsampled words and lower bands.
+    credited_inferred: int = 0
+    inferred_bands: list[str] = Field(default_factory=list)
+    pass_correct: int | None = None
+    attempt_id: str | None = None
+    policy_version: str | None = None
+    #: A replayed submit: the stored result, nothing credited twice.
+    replayed: bool = False
+    #: The ladder after this check: the next band down, or why there is none.
+    next: str | None = None
+    ladder_status: str | None = None
+    resume_band: str | None = None
+
+
+@router.get("/band-check", response_model=list[BandCheckSubBand])
+def list_band_checks(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> list[dict[str, Any]]:
+    """The sub-bands below the learner's level whose words a short check can credit."""
+
+    from app.services import band_check
+
+    return band_check.checkable(db, current_user)
+
+
+@router.get("/band-check/ladder", response_model=BandCheckLadder)
+def band_check_ladder(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """WP-127: the top-down check — the next band to check, or why there is none."""
+
+    from app.services import band_check
+
+    return band_check.ladder(db, current_user)
+
+
+@router.get("/band-check/{sub_band}", response_model=BandCheckStart)
+def start_band_check(
+    sub_band: str,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """This attempt's check for one sub-band: meaning choices, no answer key."""
+
+    from app.services import band_check
+
+    allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
+    if sub_band not in allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
+    try:
+        return band_check.start(db, current_user, sub_band)
+    except band_check.VisitFull:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="visit_full") from None
+
+
+@router.post("/band-check/{sub_band}", response_model=BandCheckResult)
+def submit_band_check(
+    sub_band: str,
+    payload: BandCheckSubmit,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """Grade the check; a pass credits the band (sampled) and the bands below (inferred)."""
+
+    from app.services import band_check
+
+    allowed = {row["sub_band"] for row in band_check.checkable(db, current_user)}
+    if sub_band not in allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check for this level.")
+    try:
+        result = band_check.submit(db, current_user, sub_band, payload.answers, attempt=payload.attempt_id)
+    except band_check.VisitFull:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="visit_full") from None
+    except band_check.StaleAttempt:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="stale_attempt") from None
+    db.commit()
+    return result
+
+
+
+def _core_sub_band(word: VocabularyWord) -> str:
+    """The sub-band tag of a core-list row («A1.1»), else its band."""
+
+    tags = [str(tag) for tag in (word.topic_tags or [])]
+    return next((tag for tag in tags if len(tag) == 4 and tag[2] == "."), next(
+        (tag for tag in tags if len(tag) == 2 and tag[:1] in "ABC"), ""))
 
 def optional_viewer(
     token: str | None = Depends(deps.optional_oauth2_scheme),
@@ -324,7 +483,9 @@ def _example_payloads(db: Session, *, user: User, word: Any) -> list[VocabularyB
             VocabularyBiographyExample(
                 sentence=sentence,
                 translation=interaction.correction,
-                source="conversation",
+                # WP-78: a word kept from the story shows the sentence it was
+                # kept with, and its meaning in the learner's language.
+                source="story" if interaction.interaction_type == "kept_from_story" else "conversation",
                 occurred_at=interaction.created_at,
             )
         )
@@ -332,6 +493,100 @@ def _example_payloads(db: Session, *, user: User, word: Any) -> list[VocabularyB
         if len(examples) >= 4:
             break
     return examples
+
+
+#: WP-93: how many of the learner's latest story pages «revu dans» looks at.
+#: Bounded: a season of daily pages, read newest first, filtered in Python
+#: (the lemma lists are JSON, and SQLite has no portable containment test).
+REVISIT_SCENE_LIMIT = 120
+REVISIT_MAX = 12
+_ARTICLES = ("le ", "la ", "les ", "l'", "un ", "une ", "des ", "du ", "de la ", "de l'")
+
+
+def _lemma_keys(value: Any) -> set[str]:
+    """A word's folded forms: as written, and without its article."""
+
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(value or "")).casefold().replace("’", "'")
+    text = " ".join("".join(c for c in text if not unicodedata.combining(c)).split())
+    keys = {text} if text else set()
+    for article in _ARTICLES:
+        if text.startswith(article) and len(text) > len(article):
+            keys.add(text[len(article):].strip())
+    return keys
+
+
+def _story_revisits(db: Session, *, user: User, word: Any) -> list[VocabularyBiographyRevisit]:
+    """WP-93 «revu dans l'épisode du 12»: the story pages that brought this word back."""
+
+    from app.services.living_story import ENGINE_VERSION_PREFIX
+
+    wanted = _lemma_keys(getattr(word, "word", None)) | _lemma_keys(
+        getattr(word, "normalized_word", None)
+    )
+    if not wanted:
+        return []
+    try:
+        rows = (
+            db.query(GraphicNovelScene)
+            .filter(
+                GraphicNovelScene.user_id == user.id,
+                GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+            )
+            .order_by(GraphicNovelScene.created_at.desc())
+            .limit(REVISIT_SCENE_LIMIT)
+            .all()
+        )
+    except Exception:  # noqa: BLE001 - a biography never fails for its story line
+        return []
+    hits = []
+    for scene in rows:
+        payload = scene.script_payload if isinstance(scene.script_payload, dict) else {}
+        lemmas = [
+            *(payload.get("recycled_lemmas") or []),
+            *(payload.get("placed_lemmas") or []),
+        ]
+        if any(_lemma_keys(lemma) & wanted for lemma in lemmas if isinstance(lemma, str)):
+            hits.append(scene)
+            if len(hits) >= REVISIT_MAX:
+                break
+    # The page's day is the learner's local day of the journey it was written for.
+    local_days: dict[str, str] = {}
+    journey_ids = []
+    for scene in hits:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        try:
+            journey_ids.append(UUID(str(source.get("journey_id"))))
+        except (TypeError, ValueError):
+            continue
+    if journey_ids:
+        from app.db.models.daily_journey import DailyJourney
+
+        try:
+            for journey_id, local_date in (
+                db.query(DailyJourney.id, DailyJourney.local_date)
+                .filter(DailyJourney.id.in_(journey_ids), DailyJourney.user_id == user.id)
+                .all()
+            ):
+                local_days[str(journey_id)] = local_date.isoformat()
+        except Exception:  # noqa: BLE001 - fall back to the page's own date
+            local_days = {}
+    revisits: list[VocabularyBiographyRevisit] = []
+    for scene in hits:
+        source = scene.source_snapshot if isinstance(scene.source_snapshot, dict) else {}
+        created = _as_aware_datetime(scene.created_at)
+        day = local_days.get(str(source.get("journey_id") or "")) or (
+            created.date().isoformat() if created else ""
+        )
+        revisits.append(
+            VocabularyBiographyRevisit(
+                date=day,
+                scene_title_fr=str(scene.title or ""),
+                scene_id=str(scene.id),
+            )
+        )
+    return revisits
 
 
 def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[VocabularyBiographyEvent]:
@@ -623,6 +878,22 @@ def get_vocabulary_due_context(
                     "source": "feuilleton",
                 }
 
+    # WP-L6: the word drill introduces only what the learner's vocabulary
+    # pace leaves after today's journey (one intake pool), and never a word
+    # the journey has reserved. WP-131: the room is kept, so the deck can say
+    # what the day's allowance still holds after it.
+    new_limit, reserved_new, new_room = vocabulary_pace_allowance(db, current_user, new_limit)
+    # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
+    try:
+        from app.services.vocabulary_pace import reviews_left_today
+
+        reviews_left = reviews_left_today(db, current_user)
+    except Exception:  # noqa: BLE001 - a cap that cannot be read never costs the deck
+        reviews_left = None
+    if reviews_left is not None:
+        due_limit = min(due_limit, reviews_left)
+        fragile_limit = min(fragile_limit, max(0, reviews_left - due_limit))
+
     service = ProgressService(db)
     payload = service.get_vocabulary_due_context(
         user=current_user,
@@ -630,11 +901,15 @@ def get_vocabulary_due_context(
         due_limit=due_limit,
         fragile_limit=fragile_limit,
         new_limit=new_limit,
+        exclude_new_word_ids=reserved_new,
         topic_limit=topic_limit,
         linked_limit=linked_limit,
         direction=direction,
         topic_tags=resolved_topic_tags,
         linked_word_ids=resolved_linked_ids,
+    )
+    payload["new_words_left_today"] = new_words_left_today(
+        new_room, new_limit, len(payload.get("new_words") or [])
     )
     if episodic_anchor:
         anchor_word_ids = {int(word_id) for word_id in resolved_linked_ids}
@@ -669,7 +944,52 @@ def get_words_of_the_day(
     service = DailyWordSlateService(db)
     payload = service.get_or_create(user=current_user)
     db.commit()
-    return DailyWordSlateResponse(**payload)
+    return DailyWordSlateResponse(**_with_word_grammar(db, payload))
+
+
+def _with_word_grammar(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Attach each slate word's stored gender and part of speech (WP-D6).
+
+    The slate is persisted once per day, so these are read from the catalogue
+    on every request instead of being frozen into it: a gender backfill shows
+    up the same day. A word the catalogue has no gender for keeps ``None``.
+    """
+
+    entries = [entry for entry in payload.get("words") or [] if isinstance(entry, dict)]
+    ids: set[int] = set()
+    for entry in entries:
+        try:
+            ids.add(int(entry.get("word_id") or 0))
+        except (TypeError, ValueError):
+            continue
+    ids.discard(0)
+    if not ids:
+        return payload
+    rows = (
+        db.query(
+            VocabularyWord.id,
+            VocabularyWord.word,
+            VocabularyWord.language,
+            VocabularyWord.part_of_speech,
+            VocabularyWord.gender,
+        )
+        .filter(VocabularyWord.id.in_(ids))
+        .all()
+    )
+    from app.services.lexicon_grammar import word_grammar
+
+    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la.
+    grammar = {int(row.id): word_grammar(row) for row in rows}
+    words = []
+    for entry in payload.get("words") or []:
+        if isinstance(entry, dict):
+            try:
+                pos, gender = grammar.get(int(entry.get("word_id") or 0), (None, None))
+            except (TypeError, ValueError):
+                pos, gender = None, None
+            entry = {**entry, "part_of_speech": pos, "gender": gender}
+        words.append(entry)
+    return {**payload, "words": words}
 
 
 @router.get("/coverage")
@@ -726,9 +1046,18 @@ def submit_conjugation_review(
             tense=payload.tense,
             rating=payload.rating,
             response_time_ms=payload.response_time_ms,
+            person=payload.person,
+            answer_text=payload.answer_text,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    verdict = getattr(progress, "last_verdict", None)
+    note = None
+    if verdict is not None:
+        from app.services.answer_acceptance import feedback_note
+        from app.services.chrome_language import user_chrome_language
+
+        note = feedback_note(verdict, str(user_chrome_language(current_user)))
     return ConjugationReviewResponse(
         lemma=progress.verb_lemma,
         tense=progress.tense,
@@ -737,7 +1066,74 @@ def submit_conjugation_review(
         reps=progress.reps or 0,
         lapses=progress.lapses or 0,
         next_review=progress.next_review_date,
+        correct=verdict.correct if verdict is not None else None,
+        expected=verdict.expected if verdict is not None else None,
+        note_native=note,
     )
+
+
+class KeepWordRequest(BaseModel):
+    """WP-78 «Garder»: a word tapped in the story, and the sentence it was in."""
+
+    term: str = Field(..., min_length=1, max_length=80)
+    sentence: str = Field(..., min_length=1, max_length=2000)
+    surface: str | None = Field(default=None, max_length=80)
+    journey_id: UUID | None = None
+    #: WP-115a — where the word was met, so its reviews can bring the scene back.
+    speaker_id: str | None = Field(default=None, max_length=80)
+    panel_id: str | None = Field(default=None, max_length=80)
+    #: The line's audio key (``{panel_id}:l{index}``).
+    line_key: str | None = Field(default=None, max_length=120)
+
+
+#: What the sheet says when a word cannot be kept. French: this is chrome.
+_KEEP_REFUSAL_FR = {
+    "empty_term": "Ce mot ne peut pas être gardé.",
+    "no_sentence": "Ce mot ne peut être gardé qu'avec sa phrase.",
+    "not_in_lexicon": "Ce mot n'est pas encore dans le lexique.",
+    "no_gloss_in_learner_language": "Pas encore de traduction dans votre langue pour ce mot.",
+}
+
+
+@router.post("/keep")
+def keep_vocabulary_word(
+    payload: KeepWordRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, Any]:
+    """WP-78 — keep a tapped word in the learner's Lexique, with its sentence.
+
+    Learner-scoped by construction (``app/services/kept_words.py``): the shared
+    catalogue row is never written. Idempotent for the same word and sentence.
+    """
+
+    from app.services.kept_words import KeepRefused, keep_word
+
+    try:
+        kept = keep_word(
+            db,
+            user=current_user,
+            term=payload.term,
+            sentence=payload.sentence,
+            surface=payload.surface,
+            journey_id=payload.journey_id,
+            met={
+                "speaker_id": payload.speaker_id,
+                "panel_id": payload.panel_id,
+                "line_key": payload.line_key,
+            },
+        )
+    except KeepRefused as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": exc.reason,
+                "message": _KEEP_REFUSAL_FR.get(exc.reason, _KEEP_REFUSAL_FR["empty_term"]),
+            },
+        ) from exc
+    db.commit()
+    return kept.as_public()
 
 
 @router.get("/lookup", response_model=VocabularyWordRead)
@@ -796,7 +1192,10 @@ def get_vocabulary_word_biography(
             event_type="origin",
             label=f"Entré par {origin.label}",
             description=(
-                f"Rang de fréquence {word.frequency_rank}"
+                # The core list's rank is a learning order, not a frequency.
+                f"Lexique de base · {_core_sub_band(word)}"
+                if word.deck_name == CORE_DECK
+                else f"Rang de fréquence {word.frequency_rank}"
                 if word.frequency_rank
                 else word.definition or word.usage_notes
             ),
@@ -914,6 +1313,7 @@ def get_vocabulary_word_biography(
         linked_errata_count=linked_errata_count,
         context_event_count=context_event_count,
         timeline=timeline,
+        revisited_in=_story_revisits(db, user=current_user, word=word),
     )
 
 
@@ -939,3 +1339,4 @@ def get_vocabulary_word(
     payload = _word_payload(word, viewer_language)
     cache_backend.set("vocabulary:item", cache_key, payload, ttl_seconds=3600)
     return payload
+

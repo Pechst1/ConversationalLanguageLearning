@@ -106,7 +106,9 @@ def test_grammar_notebook_list_and_detail_include_blueprint_progress_and_errata(
     items = list_response.json()
     item = next(row for row in items if row["id"] == concept.id)
     assert item["mastery"] == 6.0
-    assert item["state_label"] == "En cours"
+    # WP-130 A: the label is the unit's stage, the level's word («en route»).
+    assert item["state_label"] == "En route"
+    assert item["stage"] == "practising"
     assert item["due_errata_count"] == 1
     assert item["recent_errata_count"] == 1
     assert item["motif"]["style"] == "atelier_bauhaus_v1"

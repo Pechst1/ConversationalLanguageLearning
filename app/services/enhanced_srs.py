@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.services.progress import vocabulary_due_filter
-from app.services.srs import FSRSScheduler, SchedulerState
+from app.services.srs import SchedulerState
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +296,10 @@ class EnhancedSRSService:
     
     def __init__(self, db: Session):
         self.db = db
-        self.fsrs_scheduler = FSRSScheduler()
+        from app.services.vocab_fsrs import VocabularyFSRS
+
+        # WP-115a: the drill's own words are scheduled by FSRS-4.5, like the day's.
+        self.fsrs_scheduler = VocabularyFSRS()
         self.anki_scheduler = AnkiSM2Scheduler()
     
     def process_review(
@@ -304,9 +307,14 @@ class EnhancedSRSService:
         progress: UserVocabularyProgress,
         rating: int,
         response_time_ms: int | None = None,
-        now: datetime | None = None
+        now: datetime | None = None,
+        source: str | None = None,
+        review_format: str | None = None,
+        direction: str | None = None,
     ) -> None:
         """Process a vocabulary review using the appropriate scheduler."""
+
+        self._log_fields = {"source": source, "format": review_format, "direction": direction}
         
         now = now or datetime.now(UTC)
         if now.tzinfo is None:
@@ -348,6 +356,9 @@ class EnhancedSRSService:
             state=progress.state or "new"
         )
         previous_schedule = progress.scheduled_days or state.scheduled_days
+        from app.services.vocab_fsrs import prediction
+
+        predicted_r, elapsed_exact = prediction(progress.stability, progress.reps, progress.last_review_date, now)
         
         # Process review
         outcome = self.fsrs_scheduler.review(
@@ -374,7 +385,10 @@ class EnhancedSRSService:
             rating=fsrs_rating,
             response_time_ms=response_time_ms,
             state_transition=f"{state.state} -> {outcome.state}",
-            scheduler_type="fsrs"
+            scheduler_type="fsrs",
+            predicted_r=predicted_r,
+            elapsed_days_exact=elapsed_exact,
+            **{k: v for k, v in getattr(self, "_log_fields", {}).items() if v},
         )
         review_log.set_schedule_transition(previous_schedule, outcome.scheduled_days)
         

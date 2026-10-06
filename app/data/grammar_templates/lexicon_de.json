@@ -1,0 +1,5094 @@
+{
+ "_about": "FORGE-DE (2026-10-03): the German side of lexicon.json, merged at load time by item_bank_de.merge_overlay. Keys are deu / deu_* (the key «de» is French: «de Paris»). Verbs: inf, pres (irregular table) or pres2/pres3 (du/er forms with a vowel change), prt (Präteritum 1s), pp, aux (sein), sep (separable prefix), refl, konj (Konjunktiv II), imp, tail (a fixed end of the middle field, «nach Hause»); a complement may bring its own German verb (deu_verb) and its negated form (deu_neg). Nouns: deu, dg (m/f/n), dpl, dweak, deu_at/deu_to/deu_from.",
+ "verbs": {
+  "être": {
+   "inf": "sein",
+   "pres": [
+    "bin",
+    "bist",
+    "ist",
+    "sind",
+    "seid",
+    "sind"
+   ],
+   "prt": "war",
+   "pp": "gewesen",
+   "aux": "sein",
+   "konj": "wäre",
+   "imp": "sei"
+  },
+  "avoir": {
+   "inf": "haben",
+   "pres": [
+    "habe",
+    "hast",
+    "hat",
+    "haben",
+    "habt",
+    "haben"
+   ],
+   "prt": "hatte",
+   "pp": "gehabt",
+   "konj": "hätte",
+   "imp": "hab",
+   "comps": {
+    "une voiture": "ein Auto",
+    "un chat": "eine Katze",
+    "deux frères": {
+     "deu": "zwei Brüder",
+     "deu_neg": {
+      "nicht": "keine zwei Brüder",
+      "nicht mehr": "nicht mehr zwei Brüder",
+      "nie": "nie zwei Brüder"
+     }
+    },
+    "un vélo rouge": "ein rotes Fahrrad",
+    "une idée": "eine Idee",
+    "une question": "eine Frage",
+    "un rendez-vous": "einen Termin",
+    "des amis à Paris": {
+     "deu": "Freunde in Paris",
+     "deu_neg": {
+      "nicht": "keine Freunde in Paris",
+      "nicht mehr": "keine Freunde mehr in Paris",
+      "nie": "nie Freunde in Paris"
+     }
+    },
+    "rendez-vous au Mistral": "einen Termin im Mistral",
+    "un message de Romy": "eine Nachricht von Romy",
+    "une idée pour Gus": "eine Idee für Gus"
+   }
+  },
+  "aller": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "modal": "futur",
+   "comps": {
+    "au marché": "zum Markt",
+    "à la gare": "zum Bahnhof",
+    "au Mistral": "ins Mistral",
+    "à la brocante": "zum Flohmarkt",
+    "au cinéma": "ins Kino",
+    "chez Lila": "zu Lila",
+    "à la boulangerie": "zur Bäckerei",
+    "au parc": "in den Park",
+    "au marché du canal": "zum Markt am Kanal",
+    "à la rédaction": "in die Redaktion"
+   }
+  },
+  "venir": {
+   "inf": "kommen",
+   "prt": "kam",
+   "pp": "gekommen",
+   "aux": "sein",
+   "comps": {
+    "au Mistral": "ins Mistral",
+    "avec nous": "mit uns",
+    "chez Marin": "zu Marin",
+    "à la fête": "zur Party",
+    "à la brocante": "zum Flohmarkt",
+    "en métro": "mit der U-Bahn",
+    "à la rédaction": "in die Redaktion"
+   }
+  },
+  "faire": {
+   "inf": "machen",
+   "comps": {
+    "la cuisine": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "kochen"
+     }
+    },
+    "les courses": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "einkaufen",
+      "sep": "ein"
+     }
+    },
+    "du sport": {
+     "deu": "Sport",
+     "deu_verb": {
+      "inf": "treiben",
+      "prt": "trieb",
+      "pp": "getrieben"
+     },
+     "deu_neg": {
+      "nicht": "keinen Sport",
+      "nicht mehr": "keinen Sport mehr",
+      "nie": "nie Sport"
+     }
+    },
+    "du vélo": {
+     "deu": "Rad",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     },
+     "deu_neg": "{neg} Rad"
+    },
+    "de la natation": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "schwimmen",
+      "prt": "schwamm",
+      "pp": "geschwommen",
+      "aux": "sein"
+     }
+    },
+    "du yoga": {
+     "deu": "Yoga",
+     "deu_neg": {
+      "nicht": "kein Yoga",
+      "nicht mehr": "kein Yoga mehr",
+      "nie": "nie Yoga"
+     }
+    },
+    "de la musique": {
+     "deu": "Musik",
+     "deu_neg": {
+      "nicht": "keine Musik",
+      "nicht mehr": "keine Musik mehr",
+      "nie": "nie Musik"
+     }
+    },
+    "une promenade": {
+     "deu": "spazieren",
+     "deu_verb": {
+      "inf": "gehen",
+      "prt": "ging",
+      "pp": "gegangen",
+      "aux": "sein"
+     }
+    },
+    "un gâteau": {
+     "deu": "einen Kuchen",
+     "deu_verb": {
+      "inf": "backen",
+      "prt": "backte",
+      "pp": "gebacken"
+     }
+    },
+    "les courses au marché du canal": {
+     "deu": "auf dem Markt am Kanal",
+     "deu_verb": {
+      "inf": "einkaufen",
+      "sep": "ein"
+     }
+    },
+    "un gâteau pour Lila": {
+     "deu": "einen Kuchen für Lila",
+     "deu_verb": {
+      "inf": "backen",
+      "prt": "backte",
+      "pp": "gebacken"
+     }
+    },
+    "une promenade le long du canal": {
+     "deu": "am Kanal spazieren",
+     "deu_verb": {
+      "inf": "gehen",
+      "prt": "ging",
+      "pp": "gegangen",
+      "aux": "sein"
+     }
+    }
+   }
+  },
+  "prendre": {
+   "inf": "nehmen",
+   "pres2": "nimmst",
+   "pres3": "nimmt",
+   "prt": "nahm",
+   "pp": "genommen",
+   "imp": "nimm",
+   "comps": {
+    "le métro": "die U-Bahn",
+    "le bus": "den Bus",
+    "un café": "einen Kaffee",
+    "le train": "den Zug",
+    "un taxi": "ein Taxi",
+    "une photo": {
+     "deu": "ein Foto",
+     "deu_verb": {
+      "inf": "machen"
+     }
+    },
+    "le petit-déjeuner": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "frühstücken",
+      "pp": "gefrühstückt"
+     }
+    },
+    "une douche": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "duschen"
+     }
+    },
+    "mon vélo": "mein Fahrrad",
+    "un thé": "einen Tee",
+    "un café au Mistral": "im Mistral einen Kaffee",
+    "le métro avec Romy": "mit Romy die U-Bahn",
+    "une photo de Lila": {
+     "deu": "ein Foto von Lila",
+     "deu_verb": {
+      "inf": "machen"
+     }
+    }
+   }
+  },
+  "pouvoir": {
+   "inf": "können",
+   "pres": [
+    "kann",
+    "kannst",
+    "kann",
+    "können",
+    "könnt",
+    "können"
+   ],
+   "prt": "konnte",
+   "pp": "gekonnt",
+   "konj": "könnte",
+   "modal": "can"
+  },
+  "vouloir": {
+   "inf": "wollen",
+   "pres": [
+    "will",
+    "willst",
+    "will",
+    "wollen",
+    "wollt",
+    "wollen"
+   ],
+   "prt": "wollte",
+   "pp": "gewollt",
+   "konj": "möchte",
+   "modal": "want"
+  },
+  "devoir": {
+   "inf": "müssen",
+   "pres": [
+    "muss",
+    "musst",
+    "muss",
+    "müssen",
+    "müsst",
+    "müssen"
+   ],
+   "prt": "musste",
+   "pp": "gemusst",
+   "konj": "sollte",
+   "modal": "must"
+  },
+  "savoir": {
+   "inf": "wissen",
+   "pres": [
+    "weiß",
+    "weißt",
+    "weiß",
+    "wissen",
+    "wisst",
+    "wissen"
+   ],
+   "prt": "wusste",
+   "pp": "gewusst",
+   "konj": "wüsste"
+  },
+  "voir": {
+   "inf": "sehen",
+   "pres2": "siehst",
+   "pres3": "sieht",
+   "prt": "sah",
+   "pp": "gesehen",
+   "imp": "sieh",
+   "comps": {
+    "le film": "den Film",
+    "Romy au Mistral": "Romy im Mistral",
+    "les photos": "die Fotos",
+    "la mer": "das Meer",
+    "le canal": "den Kanal",
+    "l'exposition": "die Ausstellung"
+   }
+  },
+  "boire": {
+   "inf": "trinken",
+   "prt": "trank",
+   "pp": "getrunken",
+   "comps": {
+    "un café": "einen Kaffee",
+    "de l'eau": {
+     "deu": "Wasser",
+     "deu_neg": {
+      "nicht": "kein Wasser",
+      "nicht mehr": "kein Wasser mehr",
+      "nie": "nie Wasser"
+     }
+    },
+    "un thé": "einen Tee",
+    "un verre de vin": "ein Glas Wein",
+    "du jus d'orange": {
+     "deu": "Orangensaft",
+     "deu_neg": {
+      "nicht": "keinen Orangensaft",
+      "nicht mehr": "keinen Orangensaft mehr",
+      "nie": "nie Orangensaft"
+     }
+    },
+    "une limonade": "eine Limonade",
+    "un café au Mistral": "im Mistral einen Kaffee",
+    "un verre avec Gus": "mit Gus ein Glas"
+   }
+  },
+  "lire": {
+   "inf": "lesen",
+   "pres2": "liest",
+   "pres3": "liest",
+   "prt": "las",
+   "pp": "gelesen",
+   "imp": "lies",
+   "comps": {
+    "le journal": "die Zeitung",
+    "un roman": "einen Roman",
+    "les messages": "die Nachrichten",
+    "l'article de Romy": "Romys Artikel",
+    "une lettre": "einen Brief",
+    "la carte": "die Speisekarte",
+    "le carnet de Gus": "Gus' Notizbuch"
+   }
+  },
+  "écrire": {
+   "inf": "schreiben",
+   "prt": "schrieb",
+   "pp": "geschrieben",
+   "comps": {
+    "une lettre": "einen Brief",
+    "un message": "eine Nachricht",
+    "un article": "einen Artikel",
+    "un roman": "einen Roman",
+    "une carte postale": "eine Postkarte",
+    "un e-mail": "eine E-Mail",
+    "un message à Romy": {
+     "deu": "Romy eine Nachricht",
+     "deu_neg": {
+      "nicht": "Romy keine Nachricht",
+      "nicht mehr": "Romy keine Nachricht mehr",
+      "nie": "Romy nie eine Nachricht"
+     }
+    },
+    "un article pour la rédaction": "einen Artikel für die Redaktion"
+   }
+  },
+  "dire": {
+   "inf": "sagen",
+   "comps": {
+    "bonjour": {
+     "deu": "Hallo",
+     "deu_neg": "{neg} Hallo"
+    },
+    "la vérité": "die Wahrheit",
+    "merci": {
+     "deu": "danke",
+     "deu_neg": "{neg} danke"
+    },
+    "non": {
+     "deu": "nein",
+     "deu_neg": "{neg} nein"
+    },
+    "au revoir": {
+     "deu": "auf Wiedersehen",
+     "deu_neg": "{neg} auf Wiedersehen"
+    },
+    "bonjour à Margaux": {
+     "deu": "Margaux Hallo",
+     "deu_neg": "Margaux {neg} Hallo"
+    }
+   }
+  },
+  "mettre": {
+   "inf": "legen",
+   "comps": {
+    "la table": {
+     "deu": "den Tisch",
+     "deu_verb": {
+      "inf": "decken"
+     }
+    },
+    "une veste": {
+     "deu": "eine Jacke",
+     "deu_verb": {
+      "inf": "anziehen",
+      "sep": "an",
+      "prt": "zog",
+      "pp": "angezogen"
+     }
+    },
+    "les clés sur la table": {
+     "deu": "die Schlüssel auf den Tisch",
+     "deu_neg": "die Schlüssel {neg} auf den Tisch"
+    },
+    "du sucre dans le café": {
+     "deu": "Zucker in den Kaffee",
+     "deu_verb": {
+      "inf": "tun",
+      "pres": [
+       "tue",
+       "tust",
+       "tut",
+       "tun",
+       "tut",
+       "tun"
+      ],
+      "prt": "tat",
+      "pp": "getan"
+     },
+     "deu_neg": {
+      "nicht": "keinen Zucker in den Kaffee",
+      "nicht mehr": "keinen Zucker mehr in den Kaffee",
+      "nie": "nie Zucker in den Kaffee"
+     }
+    }
+   }
+  },
+  "connaître": {
+   "inf": "kennen",
+   "prt": "kannte",
+   "pp": "gekannt",
+   "comps": {
+    "Margaux": "Margaux",
+    "le quartier": "das Viertel",
+    "un bon restaurant": "ein gutes Restaurant",
+    "cette chanson": "dieses Lied",
+    "Paris": "Paris"
+   }
+  },
+  "ouvrir": {
+   "inf": "öffnen",
+   "comps": {
+    "la fenêtre": "das Fenster",
+    "la porte": "die Tür",
+    "le café à sept heures": {
+     "deu": "das Café um sieben Uhr",
+     "deu_neg": "das Café {neg} um sieben Uhr"
+    },
+    "une lettre": "einen Brief",
+    "la valise": "den Koffer",
+    "le carton de Romy": "Romys Karton"
+   }
+  },
+  "finir": {
+   "inf": "beenden",
+   "intrans": {
+    "inf": "aufhören",
+    "sep": "auf"
+   },
+   "comps": {
+    "le travail": "die Arbeit",
+    "à cinq heures": {
+     "deu": "um fünf Uhr",
+     "deu_verb": {
+      "inf": "aufhören",
+      "sep": "auf"
+     }
+    },
+    "le rapport": "den Bericht",
+    "le livre": "das Buch",
+    "tard": {
+     "deu": "spät",
+     "deu_verb": {
+      "inf": "aufhören",
+      "sep": "auf"
+     }
+    },
+    "le dossier": "die Akte",
+    "l'article de Romy": "Romys Artikel"
+   }
+  },
+  "choisir": {
+   "inf": "aussuchen",
+   "sep": "aus",
+   "comps": {
+    "un dessert": "einen Nachtisch",
+    "la table près de la fenêtre": "den Tisch am Fenster",
+    "un film": "einen Film",
+    "le menu du jour": "das Tagesmenü",
+    "une robe": "ein Kleid",
+    "une table au Mistral": "im Mistral einen Tisch",
+    "un tableau de Lila": "ein Bild von Lila"
+   }
+  },
+  "partir": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "comps": {
+    "à huit heures": "um acht Uhr",
+    "en vacances": {
+     "deu": "in den Urlaub",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     }
+    },
+    "tôt": "früh",
+    "pour Lyon": {
+     "deu": "nach Lyon",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     }
+    },
+    "demain matin": "morgen früh",
+    "avant la fin du film": "vor dem Ende des Films",
+    "avec Gus": "mit Gus"
+   }
+  },
+  "sortir": {
+   "inf": "ausgehen",
+   "sep": "aus",
+   "prt": "ging",
+   "pp": "ausgegangen",
+   "aux": "sein",
+   "comps": {
+    "avec Lila": "mit Lila",
+    "tard": "spät",
+    "du bureau": {
+     "deu": "aus dem Büro",
+     "deu_verb": {
+      "inf": "kommen",
+      "prt": "kam",
+      "pp": "gekommen",
+      "aux": "sein"
+     }
+    },
+    "avec des amis": "mit Freunden",
+    "en ville": {
+     "deu": "in die Stadt",
+     "deu_verb": {
+      "inf": "gehen",
+      "prt": "ging",
+      "pp": "gegangen",
+      "aux": "sein"
+     }
+    },
+    "du Mistral": {
+     "deu": "aus dem Mistral",
+     "deu_verb": {
+      "inf": "kommen",
+      "prt": "kam",
+      "pp": "gekommen",
+      "aux": "sein"
+     }
+    }
+   }
+  },
+  "dormir": {
+   "inf": "schlafen",
+   "pres2": "schläfst",
+   "pres3": "schläft",
+   "prt": "schlief",
+   "pp": "geschlafen",
+   "comps": {
+    "bien": "gut",
+    "chez Lila": "bei Lila",
+    "dans le salon": "im Wohnzimmer",
+    "huit heures": "acht Stunden",
+    "jusqu'à midi": "bis Mittag"
+   }
+  },
+  "attendre": {
+   "inf": "warten",
+   "nobody": "auf niemanden",
+   "oprep": "auf",
+   "comps": {
+    "le bus": "auf den Bus",
+    "Margaux": "auf Margaux",
+    "le train": "auf den Zug",
+    "un message": "auf eine Nachricht",
+    "la réponse": "auf die Antwort",
+    "Romy devant le Mistral": "vor dem Mistral auf Romy",
+    "Gus au Mistral": "im Mistral auf Gus"
+   }
+  },
+  "répondre": {
+   "inf": "antworten",
+   "comps": {
+    "au message": "auf die Nachricht",
+    "à Romy": "Romy",
+    "vite": "schnell",
+    "à la question": "auf die Frage",
+    "au téléphone": {
+     "deu": "ans Telefon",
+     "deu_verb": {
+      "inf": "gehen",
+      "prt": "ging",
+      "pp": "gegangen",
+      "aux": "sein"
+     }
+    }
+   }
+  },
+  "vendre": {
+   "inf": "verkaufen",
+   "comps": {
+    "des tableaux": {
+     "deu": "Bilder",
+     "deu_neg": {
+      "nicht": "keine Bilder",
+      "nicht mehr": "keine Bilder mehr",
+      "nie": "nie Bilder"
+     }
+    },
+    "un vieux vélo": "ein altes Fahrrad",
+    "des livres à la brocante": {
+     "deu": "Bücher auf dem Flohmarkt",
+     "deu_neg": {
+      "nicht": "keine Bücher auf dem Flohmarkt",
+      "nicht mehr": "keine Bücher mehr auf dem Flohmarkt",
+      "nie": "nie Bücher auf dem Flohmarkt"
+     }
+    },
+    "la voiture": "das Auto",
+    "des fleurs": {
+     "deu": "Blumen",
+     "deu_neg": {
+      "nicht": "keine Blumen",
+      "nicht mehr": "keine Blumen mehr",
+      "nie": "nie Blumen"
+     }
+    },
+    "un tableau de Lila": "ein Bild von Lila"
+   }
+  },
+  "entendre": {
+   "inf": "hören",
+   "comps": {
+    "la musique": "die Musik",
+    "le train": "den Zug",
+    "Marin": "Marin",
+    "un bruit": "ein Geräusch",
+    "la pluie": "den Regen"
+   }
+  },
+  "descendre": {
+   "inf": "hinuntergehen",
+   "sep": "hinunter",
+   "prt": "ging",
+   "pp": "hinuntergegangen",
+   "aux": "sein",
+   "comps": {
+    "dans le métro": "in die U-Bahn",
+    "au rez-de-chaussée": "ins Erdgeschoss",
+    "vers le canal": "zum Kanal",
+    "à la cave": "in den Keller",
+    "au Mistral": "ins Mistral"
+   }
+  },
+  "perdre": {
+   "inf": "verlieren",
+   "prt": "verlor",
+   "pp": "verloren",
+   "comps": {
+    "les clés": "die Schlüssel",
+    "le match": "das Spiel",
+    "du temps": {
+     "deu": "Zeit",
+     "deu_neg": {
+      "nicht": "keine Zeit",
+      "nicht mehr": "keine Zeit mehr",
+      "nie": "nie Zeit"
+     }
+    },
+    "un gant": "einen Handschuh",
+    "le carnet de Gus": "Gus' Notizbuch"
+   }
+  },
+  "parler": {
+   "inf": "sprechen",
+   "pres2": "sprichst",
+   "pres3": "spricht",
+   "prt": "sprach",
+   "pp": "gesprochen",
+   "imp": "sprich",
+   "comps": {
+    "français": {
+     "deu": "Französisch",
+     "deu_neg": {
+      "nicht": "kein Französisch",
+      "nicht mehr": "kein Französisch mehr",
+      "nie": "nie Französisch"
+     }
+    },
+    "anglais": {
+     "deu": "Englisch",
+     "deu_neg": {
+      "nicht": "kein Englisch",
+      "nicht mehr": "kein Englisch mehr",
+      "nie": "nie Englisch"
+     }
+    },
+    "avec Margaux": "mit Margaux",
+    "au téléphone": "am Telefon",
+    "doucement": "leise",
+    "avec Lila au Mistral": "im Mistral mit Lila"
+   }
+  },
+  "habiter": {
+   "inf": "wohnen",
+   "comps": {
+    "à Paris": "in Paris",
+    "près du canal": "am Kanal",
+    "dans le dixième": "im zehnten Arrondissement",
+    "au sixième étage": "im sechsten Stock",
+    "à côté du Mistral": "neben dem Mistral",
+    "avec Romy": "mit Romy",
+    "près de la rédaction": "in der Nähe der Redaktion"
+   }
+  },
+  "travailler": {
+   "inf": "arbeiten",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "à la rédaction": "in der Redaktion",
+    "le samedi": "samstags",
+    "beaucoup": "viel",
+    "à la maison": "zu Hause",
+    "avec Gus": "mit Gus"
+   }
+  },
+  "aimer": {
+   "inf": "mögen",
+   "pres": [
+    "mag",
+    "magst",
+    "mag",
+    "mögen",
+    "mögt",
+    "mögen"
+   ],
+   "prt": "mochte",
+   "pp": "gemocht",
+   "comps": {
+    "le café": {
+     "deu": "Kaffee",
+     "deu_neg": {
+      "nicht": "keinen Kaffee",
+      "nicht mehr": "keinen Kaffee mehr",
+      "nie": "nie Kaffee"
+     }
+    },
+    "la musique": {
+     "deu": "Musik",
+     "deu_neg": {
+      "nicht": "keine Musik",
+      "nicht mehr": "keine Musik mehr",
+      "nie": "nie Musik"
+     }
+    },
+    "les chats": {
+     "deu": "Katzen",
+     "deu_neg": {
+      "nicht": "keine Katzen",
+      "nicht mehr": "keine Katzen mehr",
+      "nie": "nie Katzen"
+     }
+    },
+    "le cinéma": "das Kino",
+    "danser": {
+     "deu": "gern",
+     "deu_verb": {
+      "inf": "tanzen"
+     }
+    },
+    "les marchés": {
+     "deu": "Märkte",
+     "deu_neg": {
+      "nicht": "keine Märkte",
+      "nicht mehr": "keine Märkte mehr",
+      "nie": "nie Märkte"
+     }
+    },
+    "les tableaux de Lila": "Lilas Bilder"
+   }
+  },
+  "regarder": {
+   "inf": "ansehen",
+   "sep": "an",
+   "pres2": "siehst",
+   "pres3": "sieht",
+   "prt": "sah",
+   "pp": "angesehen",
+   "imp": "sieh",
+   "comps": {
+    "un film": "einen Film",
+    "la télé": {
+     "deu": "",
+     "deu_verb": {
+      "inf": "fernsehen",
+      "sep": "fern",
+      "pres2": "siehst",
+      "pres3": "sieht",
+      "prt": "sah",
+      "pp": "ferngesehen",
+      "imp": "sieh"
+     }
+    },
+    "le match": "das Spiel",
+    "une série": "eine Serie",
+    "les photos": "die Fotos",
+    "les bateaux": "die Boote",
+    "les tableaux de Lila": "Lilas Bilder"
+   }
+  },
+  "écouter": {
+   "inf": "hören",
+   "comps": {
+    "la radio": {
+     "deu": "Radio",
+     "deu_neg": {
+      "nicht": "kein Radio",
+      "nicht mehr": "kein Radio mehr",
+      "nie": "nie Radio"
+     }
+    },
+    "de la musique": {
+     "deu": "Musik",
+     "deu_neg": {
+      "nicht": "keine Musik",
+      "nicht mehr": "keine Musik mehr",
+      "nie": "nie Musik"
+     }
+    },
+    "Lila": {
+     "deu": "Lila",
+     "deu_verb": {
+      "inf": "zuhören",
+      "sep": "zu"
+     }
+    },
+    "un podcast": "einen Podcast",
+    "le prof": {
+     "deu": "dem Lehrer",
+     "deu_verb": {
+      "inf": "zuhören",
+      "sep": "zu"
+     }
+    },
+    "Romy à la radio": "Romy im Radio"
+   }
+  },
+  "chercher": {
+   "inf": "suchen",
+   "comps": {
+    "un appartement": "eine Wohnung",
+    "les clés": "die Schlüssel",
+    "un travail": "eine Arbeit",
+    "Gus": "Gus",
+    "la gare": "den Bahnhof",
+    "une solution": "eine Lösung",
+    "la bague de Marin": "Marins Ring",
+    "le carnet de Gus": "Gus' Notizbuch"
+   }
+  },
+  "manger": {
+   "inf": "essen",
+   "pres2": "isst",
+   "pres3": "isst",
+   "prt": "aß",
+   "pp": "gegessen",
+   "imp": "iss",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "une pizza": "eine Pizza",
+    "trop vite": "zu schnell",
+    "chez Lila": "bei Lila",
+    "à midi": "mittags",
+    "des crêpes": {
+     "deu": "Crêpes",
+     "deu_neg": {
+      "nicht": "keine Crêpes",
+      "nicht mehr": "keine Crêpes mehr",
+      "nie": "nie Crêpes"
+     }
+    },
+    "avec Romy": "mit Romy"
+   }
+  },
+  "jouer": {
+   "inf": "spielen",
+   "comps": {
+    "au tennis": {
+     "deu": "Tennis",
+     "deu_neg": {
+      "nicht": "kein Tennis",
+      "nicht mehr": "kein Tennis mehr",
+      "nie": "nie Tennis"
+     }
+    },
+    "aux cartes": {
+     "deu": "Karten",
+     "deu_neg": {
+      "nicht": "keine Karten",
+      "nicht mehr": "keine Karten mehr",
+      "nie": "nie Karten"
+     }
+    },
+    "de la guitare": {
+     "deu": "Gitarre",
+     "deu_neg": {
+      "nicht": "keine Gitarre",
+      "nicht mehr": "keine Gitarre mehr",
+      "nie": "nie Gitarre"
+     }
+    },
+    "avec les enfants": "mit den Kindern",
+    "au foot": {
+     "deu": "Fußball",
+     "deu_neg": {
+      "nicht": "keinen Fußball",
+      "nicht mehr": "keinen Fußball mehr",
+      "nie": "nie Fußball"
+     }
+    },
+    "aux cartes avec Gus": {
+     "deu": "mit Gus Karten",
+     "deu_neg": {
+      "nicht": "mit Gus keine Karten",
+      "nicht mehr": "mit Gus keine Karten mehr",
+      "nie": "nie mit Gus Karten"
+     }
+    }
+   }
+  },
+  "danser": {
+   "inf": "tanzen",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "toute la nuit": "die ganze Nacht",
+    "avec Marin": "mit Marin",
+    "le samedi soir": "samstagabends",
+    "dans la cuisine": "in der Küche",
+    "avec Lila": "mit Lila"
+   }
+  },
+  "chanter": {
+   "inf": "singen",
+   "prt": "sang",
+   "pp": "gesungen",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "sous la douche": "unter der Dusche",
+    "une chanson": "ein Lied",
+    "avec Lila": "mit Lila",
+    "très fort": "sehr laut"
+   }
+  },
+  "cuisiner": {
+   "inf": "kochen",
+   "comps": {
+    "pour des amis": "für Freunde",
+    "le dimanche": "sonntags",
+    "avec Marin": "mit Marin",
+    "des crêpes": {
+     "deu": "Crêpes",
+     "deu_verb": {
+      "inf": "machen"
+     },
+     "deu_neg": {
+      "nicht": "keine Crêpes",
+      "nicht mehr": "keine Crêpes mehr",
+      "nie": "nie Crêpes"
+     }
+    },
+    "pour Lila": "für Lila"
+   }
+  },
+  "arriver": {
+   "inf": "ankommen",
+   "sep": "an",
+   "prt": "kam",
+   "pp": "angekommen",
+   "aux": "sein",
+   "comps": {
+    "à la gare": "am Bahnhof",
+    "au Mistral": "im Mistral",
+    "en retard": {
+     "deu": "zu spät",
+     "deu_verb": {
+      "inf": "kommen",
+      "prt": "kam",
+      "pp": "gekommen",
+      "aux": "sein"
+     }
+    },
+    "à huit heures": "um acht Uhr",
+    "à Paris": "in Paris",
+    "chez Lila": "bei Lila"
+   }
+  },
+  "rester": {
+   "inf": "bleiben",
+   "prt": "blieb",
+   "pp": "geblieben",
+   "aux": "sein",
+   "comps": {
+    "à la maison": "zu Hause",
+    "au Mistral": "im Mistral",
+    "chez Lila": "bei Lila",
+    "à Paris": "in Paris",
+    "au lit": "im Bett"
+   }
+  },
+  "entrer": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "comps": {
+    "dans le café": "ins Café",
+    "dans la salle": "in den Saal",
+    "au musée": "ins Museum",
+    "dans le métro": "in die U-Bahn",
+    "au Mistral": "ins Mistral"
+   }
+  },
+  "rentrer": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "tail": "nach Hause",
+   "comps": {
+    "tard": "spät",
+    "à minuit": "um Mitternacht",
+    "en taxi": {
+     "deu": "mit dem Taxi",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein",
+      "tail": "nach Hause"
+     }
+    },
+    "à pied": "zu Fuß",
+    "avec Romy": "mit Romy",
+    "avec Gus": "mit Gus"
+   }
+  },
+  "tomber": {
+   "inf": "fallen",
+   "pres2": "fällst",
+   "pres3": "fällt",
+   "prt": "fiel",
+   "pp": "gefallen",
+   "aux": "sein",
+   "comps": {
+    "dans l'escalier": "auf der Treppe",
+    "du vélo": "vom Fahrrad",
+    "dans la rue": "auf der Straße"
+   }
+  },
+  "monter": {
+   "inf": "hinaufgehen",
+   "sep": "hinauf",
+   "prt": "ging",
+   "pp": "hinaufgegangen",
+   "aux": "sein",
+   "comps": {
+    "au sixième étage": "in den sechsten Stock",
+    "à Montmartre": "nach Montmartre",
+    "sur le toit": "aufs Dach"
+   }
+  },
+  "passer": {
+   "inf": "vorbeigehen",
+   "sep": "vorbei",
+   "prt": "ging",
+   "pp": "vorbeigegangen",
+   "aux": "sein",
+   "comps": {
+    "chez Lila": "bei Lila",
+    "au Mistral": "beim Mistral",
+    "à la boulangerie": "bei der Bäckerei",
+    "à la rédaction": "bei der Redaktion",
+    "au marché du canal": "beim Markt am Kanal"
+   }
+  },
+  "donner": {
+   "inf": "geben",
+   "pres2": "gibst",
+   "pres3": "gibt",
+   "prt": "gab",
+   "pp": "gegeben",
+   "imp": "gib",
+   "comps": {
+    "un livre à Romy": {
+     "deu": "Romy ein Buch",
+     "deu_neg": {
+      "nicht": "Romy kein Buch",
+      "nicht mehr": "Romy kein Buch mehr",
+      "nie": "Romy nie ein Buch"
+     }
+    },
+    "des fleurs à Lila": {
+     "deu": "Lila Blumen",
+     "deu_neg": {
+      "nicht": "Lila keine Blumen",
+      "nicht mehr": "Lila keine Blumen mehr",
+      "nie": "Lila nie Blumen"
+     }
+    },
+    "un conseil à Gus": {
+     "deu": "Gus einen Rat",
+     "deu_neg": {
+      "nicht": "Gus keinen Rat",
+      "nicht mehr": "Gus keinen Rat mehr",
+      "nie": "Gus nie einen Rat"
+     }
+    },
+    "les clés à Margaux": "Margaux die Schlüssel"
+   }
+  },
+  "téléphoner": {
+   "inf": "telefonieren",
+   "comps": {
+    "à Marin": "mit Marin",
+    "au propriétaire": "mit dem Vermieter",
+    "à la banque": "mit der Bank",
+    "à Lila": "mit Lila"
+   }
+  },
+  "visiter": {
+   "inf": "besichtigen",
+   "comps": {
+    "le musée": "das Museum",
+    "Paris": "Paris",
+    "le quartier": "das Viertel",
+    "un appartement": "eine Wohnung",
+    "la ville": "die Stadt",
+    "la rédaction": "die Redaktion"
+   }
+  },
+  "fermer": {
+   "inf": "schließen",
+   "prt": "schloss",
+   "pp": "geschlossen",
+   "comps": {
+    "la fenêtre": "das Fenster",
+    "la porte": "die Tür",
+    "le café": "das Café",
+    "la valise": "den Koffer",
+    "le Mistral": "das Mistral"
+   }
+  },
+  "inviter": {
+   "inf": "einladen",
+   "sep": "ein",
+   "pres2": "lädst",
+   "pres3": "lädt",
+   "prt": "lud",
+   "pp": "eingeladen",
+   "imp": "lade",
+   "comps": {
+    "Lila": "Lila",
+    "des amis": {
+     "deu": "Freunde",
+     "deu_neg": {
+      "nicht": "keine Freunde",
+      "nicht mehr": "keine Freunde mehr",
+      "nie": "nie Freunde"
+     }
+    },
+    "les voisins": "die Nachbarn",
+    "Romy au cinéma": {
+     "deu": "Romy ins Kino",
+     "deu_neg": "Romy {neg} ins Kino"
+    }
+   }
+  },
+  "aider": {
+   "inf": "helfen",
+   "pres2": "hilfst",
+   "pres3": "hilft",
+   "prt": "half",
+   "pp": "geholfen",
+   "imp": "hilf",
+   "ocase": "dat",
+   "nobody": "niemandem",
+   "comps": {
+    "Marin": "Marin",
+    "les voisins": "den Nachbarn",
+    "Margaux au bar": {
+     "deu": "Margaux an der Bar",
+     "deu_neg": "Margaux {neg} an der Bar"
+    }
+   }
+  },
+  "trouver": {
+   "inf": "finden",
+   "prt": "fand",
+   "pp": "gefunden",
+   "comps": {
+    "un appartement": "eine Wohnung",
+    "les clés": "die Schlüssel",
+    "une solution": "eine Lösung",
+    "un bon café": "ein gutes Café",
+    "du travail": {
+     "deu": "Arbeit",
+     "deu_neg": {
+      "nicht": "keine Arbeit",
+      "nicht mehr": "keine Arbeit mehr",
+      "nie": "nie Arbeit"
+     }
+    },
+    "la bague de Marin": "Marins Ring"
+   }
+  },
+  "oublier": {
+   "inf": "vergessen",
+   "pres2": "vergisst",
+   "pres3": "vergisst",
+   "prt": "vergaß",
+   "pp": "vergessen",
+   "imp": "vergiss",
+   "comps": {
+    "les clés": "die Schlüssel",
+    "le rendez-vous": "den Termin",
+    "l'adresse": "die Adresse",
+    "le nom de la rue": "den Namen der Straße",
+    "le rendez-vous avec Gus": "den Termin mit Gus"
+   }
+  },
+  "réserver": {
+   "inf": "reservieren",
+   "comps": {
+    "une table": "einen Tisch",
+    "un billet": "ein Ticket",
+    "une chambre": "ein Zimmer",
+    "deux places": {
+     "deu": "zwei Plätze",
+     "deu_neg": {
+      "nicht": "keine zwei Plätze",
+      "nicht mehr": "nicht mehr zwei Plätze",
+      "nie": "nie zwei Plätze"
+     }
+    },
+    "une table au Mistral": "im Mistral einen Tisch"
+   }
+  },
+  "marcher": {
+   "inf": "laufen",
+   "pres2": "läufst",
+   "pres3": "läuft",
+   "prt": "lief",
+   "pp": "gelaufen",
+   "aux": "sein",
+   "comps": {
+    "le long du canal": "am Kanal entlang",
+    "jusqu'au Mistral": "bis zum Mistral",
+    "vite": "schnell",
+    "dans le parc": "im Park"
+   }
+  },
+  "dîner": {
+   "inf": "essen",
+   "pres2": "isst",
+   "pres3": "isst",
+   "prt": "aß",
+   "pp": "gegessen",
+   "imp": "iss",
+   "tail": "zu Abend",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "chez Lila": "bei Lila",
+    "tard": "spät",
+    "avec Gus": "mit Gus"
+   }
+  },
+  "déjeuner": {
+   "inf": "essen",
+   "pres2": "isst",
+   "pres3": "isst",
+   "prt": "aß",
+   "pp": "gegessen",
+   "imp": "iss",
+   "tail": "zu Mittag",
+   "comps": {
+    "au bureau": "im Büro",
+    "au parc": "im Park",
+    "avec Romy": "mit Romy",
+    "vers midi": "gegen zwölf Uhr"
+   }
+  },
+  "étudier": {
+   "inf": "lernen",
+   "comps": {
+    "le français": {
+     "deu": "Französisch",
+     "deu_neg": {
+      "nicht": "kein Französisch",
+      "nicht mehr": "kein Französisch mehr",
+      "nie": "nie Französisch"
+     }
+    },
+    "à la bibliothèque": "in der Bibliothek",
+    "le soir": "abends",
+    "avec Lila": "mit Lila",
+    "au Mistral": "im Mistral"
+   }
+  },
+  "nager": {
+   "inf": "schwimmen",
+   "prt": "schwamm",
+   "pp": "geschwommen",
+   "aux": "sein",
+   "comps": {
+    "à la piscine": "im Schwimmbad",
+    "dans la mer": "im Meer",
+    "le matin": "morgens",
+    "le dimanche": "sonntags",
+    "avec Romy": "mit Romy"
+   }
+  },
+  "voyager": {
+   "inf": "reisen",
+   "aux": "sein",
+   "comps": {
+    "en train": "mit dem Zug",
+    "avec Romy": "mit Romy",
+    "en Italie": "nach Italien",
+    "beaucoup": "viel",
+    "avec Gus": "mit Gus"
+   }
+  },
+  "commander": {
+   "inf": "bestellen",
+   "comps": {
+    "un café": "einen Kaffee",
+    "une pizza": "eine Pizza",
+    "un taxi": "ein Taxi",
+    "deux thés": {
+     "deu": "zwei Tee",
+     "deu_neg": {
+      "nicht": "keine zwei Tee",
+      "nicht mehr": "nicht mehr zwei Tee",
+      "nie": "nie zwei Tee"
+     }
+    },
+    "le dessert": "den Nachtisch",
+    "un café à Margaux": "bei Margaux einen Kaffee"
+   }
+  },
+  "goûter": {
+   "inf": "probieren",
+   "comps": {
+    "la soupe": "die Suppe",
+    "le gâteau": "den Kuchen",
+    "la tarte de Margaux": "Margaux' Tarte"
+   }
+  },
+  "préparer": {
+   "inf": "vorbereiten",
+   "sep": "vor",
+   "comps": {
+    "le dîner": {
+     "deu": "das Abendessen",
+     "deu_verb": {
+      "inf": "machen"
+     }
+    },
+    "un gâteau": {
+     "deu": "einen Kuchen",
+     "deu_verb": {
+      "inf": "backen",
+      "prt": "backte",
+      "pp": "gebacken"
+     }
+    },
+    "la valise": {
+     "deu": "den Koffer",
+     "deu_verb": {
+      "inf": "packen"
+     }
+    },
+    "l'examen": {
+     "deu": "für die Prüfung",
+     "deu_verb": {
+      "inf": "lernen"
+     }
+    },
+    "une surprise": "eine Überraschung",
+    "un gâteau pour Lila": {
+     "deu": "einen Kuchen für Lila",
+     "deu_verb": {
+      "inf": "backen",
+      "prt": "backte",
+      "pp": "gebacken"
+     }
+    }
+   }
+  },
+  "acheter": {
+   "inf": "kaufen",
+   "comps": {
+    "du pain": {
+     "deu": "Brot",
+     "deu_neg": {
+      "nicht": "kein Brot",
+      "nicht mehr": "kein Brot mehr",
+      "nie": "nie Brot"
+     }
+    },
+    "un billet": "ein Ticket",
+    "des fleurs": {
+     "deu": "Blumen",
+     "deu_neg": {
+      "nicht": "keine Blumen",
+      "nicht mehr": "keine Blumen mehr",
+      "nie": "nie Blumen"
+     }
+    },
+    "une veste": "eine Jacke",
+    "le journal": "die Zeitung",
+    "un tableau à la brocante": "auf dem Flohmarkt ein Bild",
+    "du fromage au marché du canal": {
+     "deu": "auf dem Markt am Kanal Käse",
+     "deu_neg": {
+      "nicht": "auf dem Markt am Kanal keinen Käse",
+      "nicht mehr": "auf dem Markt am Kanal keinen Käse mehr",
+      "nie": "nie Käse auf dem Markt am Kanal"
+     }
+    }
+   }
+  },
+  "préférer": {
+   "inf": "bevorzugen",
+   "comps": {
+    "le thé": "Tee",
+    "la mer": "das Meer",
+    "le métro": "die U-Bahn",
+    "rester ici": {
+     "deu": "lieber hier",
+     "deu_verb": {
+      "inf": "bleiben",
+      "prt": "blieb",
+      "pp": "geblieben",
+      "aux": "sein"
+     }
+    },
+    "le Mistral": "das Mistral"
+   }
+  },
+  "appeler": {
+   "inf": "anrufen",
+   "sep": "an",
+   "prt": "rief",
+   "pp": "angerufen",
+   "imp": "ruf",
+   "comps": {
+    "Marin": "Marin",
+    "le propriétaire": "den Vermieter",
+    "un taxi": {
+     "deu": "ein Taxi",
+     "deu_verb": {
+      "inf": "rufen",
+      "prt": "rief",
+      "pp": "gerufen"
+     }
+    },
+    "la banque": "die Bank"
+   }
+  },
+  "envoyer": {
+   "inf": "schicken",
+   "comps": {
+    "un message à Romy": {
+     "deu": "Romy eine Nachricht",
+     "deu_neg": {
+      "nicht": "Romy keine Nachricht",
+      "nicht mehr": "Romy keine Nachricht mehr",
+      "nie": "Romy nie eine Nachricht"
+     }
+    },
+    "une lettre": "einen Brief",
+    "des photos": {
+     "deu": "Fotos",
+     "deu_neg": {
+      "nicht": "keine Fotos",
+      "nicht mehr": "keine Fotos mehr",
+      "nie": "nie Fotos"
+     }
+    },
+    "un e-mail": "eine E-Mail"
+   }
+  },
+  "commencer": {
+   "inf": "anfangen",
+   "sep": "an",
+   "pres2": "fängst",
+   "pres3": "fängt",
+   "prt": "fing",
+   "pp": "angefangen",
+   "imp": "fang",
+   "comps": {
+    "à huit heures": "um acht Uhr",
+    "le travail": "mit der Arbeit",
+    "un nouveau livre": "mit einem neuen Buch",
+    "le cours": "mit dem Kurs",
+    "le roman de Marin": "mit Marins Roman"
+   }
+  },
+  "porter": {
+   "inf": "tragen",
+   "pres2": "trägst",
+   "pres3": "trägt",
+   "prt": "trug",
+   "pp": "getragen",
+   "comps": {
+    "une veste": "eine Jacke",
+    "un chapeau": "einen Hut",
+    "une robe rouge": "ein rotes Kleid",
+    "des lunettes": {
+     "deu": "eine Brille",
+     "deu_neg": {
+      "nicht": "keine Brille",
+      "nicht mehr": "keine Brille mehr",
+      "nie": "nie eine Brille"
+     }
+    },
+    "la veste de Gus": "Gus' Jacke"
+   }
+  },
+  "penser": {
+   "inf": "denken",
+   "prt": "dachte",
+   "pp": "gedacht"
+  },
+  "se_lever": {
+   "inf": "aufstehen",
+   "sep": "auf",
+   "prt": "stand",
+   "pp": "aufgestanden",
+   "aux": "sein",
+   "comps": {
+    "à sept heures": "um sieben Uhr",
+    "tôt": "früh",
+    "tard": "spät",
+    "à six heures": "um sechs Uhr"
+   }
+  },
+  "se_coucher": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "tail": "ins Bett",
+   "comps": {
+    "tard": "spät",
+    "à minuit": "um Mitternacht",
+    "tôt": "früh",
+    "après le film": "nach dem Film",
+    "après le Mistral": "nach dem Abend im Mistral"
+   }
+  },
+  "s_habiller": {
+   "inf": "anziehen",
+   "sep": "an",
+   "prt": "zog",
+   "pp": "angezogen",
+   "refl": "acc",
+   "comps": {
+    "vite": "schnell",
+    "en noir": "schwarz",
+    "pour la fête": "für die Party",
+    "avant le petit-déjeuner": "vor dem Frühstück",
+    "pour le Mistral": "fürs Mistral"
+   }
+  },
+  "se_reposer": {
+   "inf": "ausruhen",
+   "sep": "aus",
+   "refl": "acc",
+   "comps": {
+    "le dimanche": "sonntags",
+    "au parc": "im Park",
+    "après le travail": "nach der Arbeit",
+    "un peu": "ein bisschen",
+    "chez Lila": "bei Lila"
+   }
+  },
+  "se_depecher": {
+   "inf": "beeilen",
+   "refl": "acc",
+   "comps": {
+    "le matin": "morgens",
+    "vers la gare": "zum Bahnhof"
+   }
+  },
+  "s_amuser": {
+   "inf": "haben",
+   "pres": [
+    "habe",
+    "hast",
+    "hat",
+    "haben",
+    "habt",
+    "haben"
+   ],
+   "prt": "hatte",
+   "pp": "gehabt",
+   "konj": "hätte",
+   "imp": "hab",
+   "tail": "Spaß",
+   "comps": {
+    "au Mistral": "im Mistral",
+    "à la fête": "auf der Party",
+    "avec des amis": "mit Freunden",
+    "beaucoup": "viel"
+   }
+  },
+  "se_reveiller": {
+   "inf": "aufwachen",
+   "sep": "auf",
+   "aux": "sein",
+   "comps": {
+    "à sept heures": "um sieben Uhr",
+    "tôt": "früh",
+    "tard": "spät",
+    "avant le réveil": "vor dem Wecker"
+   }
+  },
+  "se_promener": {
+   "inf": "gehen",
+   "prt": "ging",
+   "pp": "gegangen",
+   "aux": "sein",
+   "tail": "spazieren",
+   "comps": {
+    "le long du canal": "am Kanal entlang",
+    "au parc": "im Park",
+    "le dimanche": "sonntags",
+    "avec Marin": "mit Marin"
+   }
+  },
+  "se_preparer": {
+   "inf": "machen",
+   "refl": "acc",
+   "tail": "fertig",
+   "comps": {
+    "pour la fête": "für die Party",
+    "vite": "schnell",
+    "pour l'examen": {
+     "deu": "auf die Prüfung",
+     "deu_verb": {
+      "inf": "vorbereiten",
+      "sep": "vor",
+      "refl": "acc"
+     }
+    }
+   }
+  },
+  "besoin": {
+   "inf": "brauchen"
+  },
+  "parler_a": {
+   "inf": "sprechen",
+   "pres2": "sprichst",
+   "pres3": "spricht",
+   "prt": "sprach",
+   "pp": "gesprochen",
+   "pobj": "mit {dat}"
+  },
+  "telephoner_a": {
+   "inf": "anrufen",
+   "sep": "an",
+   "prt": "rief",
+   "pp": "angerufen",
+   "pobj": "{acc}"
+  },
+  "repondre_a": {
+   "inf": "antworten",
+   "pobj": "{dat}"
+  },
+  "ecrire_a": {
+   "inf": "schreiben",
+   "prt": "schrieb",
+   "pp": "geschrieben",
+   "pobj": "{dat}"
+  },
+  "sonner": {
+   "inf": "klingeln",
+   "pres": [
+    "klingle",
+    "klingelst",
+    "klingelt",
+    "klingeln",
+    "klingelt",
+    "klingeln"
+   ]
+  },
+  "conduire": {
+   "inf": "fahren",
+   "pres2": "fährst",
+   "pres3": "fährt",
+   "prt": "fuhr",
+   "pp": "gefahren",
+   "aux": "haben",
+   "comps": {
+    "la voiture de Gus": "Gus' Auto",
+    "dans Paris": {
+     "deu": "in Paris",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     }
+    },
+    "la nuit": {
+     "deu": "nachts",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     }
+    },
+    "jusqu'à Lyon": {
+     "deu": "bis nach Lyon",
+     "deu_verb": {
+      "inf": "fahren",
+      "pres2": "fährst",
+      "pres3": "fährt",
+      "prt": "fuhr",
+      "pp": "gefahren",
+      "aux": "sein"
+     }
+    },
+    "Romy à la rédaction": "Romy zur Redaktion"
+   }
+  },
+  "expliquer": {
+   "inf": "erklären",
+   "comps": {
+    "la règle": "die Regel",
+    "le problème": "das Problem",
+    "le plan": "den Plan",
+    "la situation": "die Situation",
+    "la Méthode de Gus": "Gus' Methode"
+   }
+  }
+ },
+ "nouns": {
+  "pain": {
+   "deu": "Brot",
+   "dg": "n",
+   "dpl": "Brote"
+  },
+  "fromage": {
+   "deu": "Käse",
+   "dg": "m",
+   "dpl": "Käse"
+  },
+  "eau": {
+   "deu": "Wasser",
+   "dg": "n"
+  },
+  "café_boisson": {
+   "deu": "Kaffee",
+   "dg": "m",
+   "dpl": "Kaffees"
+  },
+  "thé": {
+   "deu": "Tee",
+   "dg": "m",
+   "dpl": "Tees"
+  },
+  "lait": {
+   "deu": "Milch",
+   "dg": "f"
+  },
+  "soupe": {
+   "deu": "Suppe",
+   "dg": "f",
+   "dpl": "Suppen"
+  },
+  "viande": {
+   "deu": "Fleisch",
+   "dg": "n"
+  },
+  "confiture": {
+   "deu": "Marmelade",
+   "dg": "f"
+  },
+  "beurre": {
+   "deu": "Butter",
+   "dg": "f"
+  },
+  "sucre": {
+   "deu": "Zucker",
+   "dg": "m"
+  },
+  "riz": {
+   "deu": "Reis",
+   "dg": "m"
+  },
+  "chocolat": {
+   "deu": "Schokolade",
+   "dg": "f"
+  },
+  "poisson": {
+   "deu": "Fisch",
+   "dg": "m",
+   "dpl": "Fische"
+  },
+  "vin": {
+   "deu": "Wein",
+   "dg": "m",
+   "dpl": "Weine"
+  },
+  "jus d'orange": {
+   "deu": "Orangensaft",
+   "dg": "m"
+  },
+  "huile d'olive": {
+   "deu": "Olivenöl",
+   "dg": "n"
+  },
+  "farine": {
+   "deu": "Mehl",
+   "dg": "n"
+  },
+  "limonade": {
+   "deu": "Limonade",
+   "dg": "f",
+   "dpl": "Limonaden"
+  },
+  "salade": {
+   "deu": "Salat",
+   "dg": "m",
+   "dpl": "Salate"
+  },
+  "glace": {
+   "deu": "Eis",
+   "dg": "n"
+  },
+  "musique": {
+   "deu": "Musik",
+   "dg": "f"
+  },
+  "pomme": {
+   "deu": "Apfel",
+   "dg": "m",
+   "dpl": "Äpfel"
+  },
+  "croissant": {
+   "deu": "Croissant",
+   "dg": "n",
+   "dpl": "Croissants"
+  },
+  "gâteau": {
+   "deu": "Kuchen",
+   "dg": "m",
+   "dpl": "Kuchen"
+  },
+  "tarte": {
+   "deu": "Tarte",
+   "dg": "f",
+   "dpl": "Tartes"
+  },
+  "orange": {
+   "deu": "Orange",
+   "dg": "f",
+   "dpl": "Orangen"
+  },
+  "banane": {
+   "deu": "Banane",
+   "dg": "f",
+   "dpl": "Bananen"
+  },
+  "tomate": {
+   "deu": "Tomate",
+   "dg": "f",
+   "dpl": "Tomaten"
+  },
+  "œuf": {
+   "deu": "Ei",
+   "dg": "n",
+   "dpl": "Eier"
+  },
+  "baguette": {
+   "deu": "Baguette",
+   "dg": "n",
+   "dpl": "Baguettes"
+  },
+  "sandwich": {
+   "deu": "Sandwich",
+   "dg": "n",
+   "dpl": "Sandwiches"
+  },
+  "carotte": {
+   "deu": "Karotte",
+   "dg": "f",
+   "dpl": "Karotten"
+  },
+  "citron": {
+   "deu": "Zitrone",
+   "dg": "f",
+   "dpl": "Zitronen"
+  },
+  "fraise": {
+   "deu": "Erdbeere",
+   "dg": "f",
+   "dpl": "Erdbeeren"
+  },
+  "biscuit": {
+   "deu": "Keks",
+   "dg": "m",
+   "dpl": "Kekse"
+  },
+  "crêpe": {
+   "deu": "Crêpe",
+   "dg": "f",
+   "dpl": "Crêpes"
+  },
+  "pizza": {
+   "deu": "Pizza",
+   "dg": "f",
+   "dpl": "Pizzas"
+  },
+  "poire": {
+   "deu": "Birne",
+   "dg": "f",
+   "dpl": "Birnen"
+  },
+  "oignon": {
+   "deu": "Zwiebel",
+   "dg": "f",
+   "dpl": "Zwiebeln"
+  },
+  "table": {
+   "deu": "Tisch",
+   "dg": "m",
+   "dpl": "Tische"
+  },
+  "chaise": {
+   "deu": "Stuhl",
+   "dg": "m",
+   "dpl": "Stühle"
+  },
+  "livre": {
+   "deu": "Buch",
+   "dg": "n",
+   "dpl": "Bücher"
+  },
+  "clé": {
+   "deu": "Schlüssel",
+   "dg": "m",
+   "dpl": "Schlüssel"
+  },
+  "téléphone": {
+   "deu": "Handy",
+   "dg": "n",
+   "dpl": "Handys"
+  },
+  "sac": {
+   "deu": "Tasche",
+   "dg": "f",
+   "dpl": "Taschen"
+  },
+  "parapluie": {
+   "deu": "Regenschirm",
+   "dg": "m",
+   "dpl": "Regenschirme"
+  },
+  "carte": {
+   "deu": "Karte",
+   "dg": "f",
+   "dpl": "Karten"
+  },
+  "lettre": {
+   "deu": "Brief",
+   "dg": "m",
+   "dpl": "Briefe"
+  },
+  "vélo": {
+   "deu": "Fahrrad",
+   "dg": "n",
+   "dpl": "Fahrräder"
+  },
+  "voiture": {
+   "deu": "Auto",
+   "dg": "n",
+   "dpl": "Autos"
+  },
+  "ordinateur": {
+   "deu": "Computer",
+   "dg": "m",
+   "dpl": "Computer"
+  },
+  "lampe": {
+   "deu": "Lampe",
+   "dg": "f",
+   "dpl": "Lampen"
+  },
+  "stylo": {
+   "deu": "Stift",
+   "dg": "m",
+   "dpl": "Stifte"
+  },
+  "carnet": {
+   "deu": "Notizbuch",
+   "dg": "n",
+   "dpl": "Notizbücher"
+  },
+  "journal": {
+   "deu": "Zeitung",
+   "dg": "f",
+   "dpl": "Zeitungen"
+  },
+  "photo": {
+   "deu": "Foto",
+   "dg": "n",
+   "dpl": "Fotos"
+  },
+  "veste": {
+   "deu": "Jacke",
+   "dg": "f",
+   "dpl": "Jacken"
+  },
+  "robe": {
+   "deu": "Kleid",
+   "dg": "n",
+   "dpl": "Kleider"
+  },
+  "manteau": {
+   "deu": "Mantel",
+   "dg": "m",
+   "dpl": "Mäntel"
+  },
+  "montre": {
+   "deu": "Uhr",
+   "dg": "f",
+   "dpl": "Uhren"
+  },
+  "billet": {
+   "deu": "Ticket",
+   "dg": "n",
+   "dpl": "Tickets"
+  },
+  "bague": {
+   "deu": "Ring",
+   "dg": "m",
+   "dpl": "Ringe"
+  },
+  "tableau": {
+   "deu": "Bild",
+   "dg": "n",
+   "dpl": "Bilder"
+  },
+  "fenêtre": {
+   "deu": "Fenster",
+   "dg": "n",
+   "dpl": "Fenster"
+  },
+  "porte": {
+   "deu": "Tür",
+   "dg": "f",
+   "dpl": "Türen"
+  },
+  "lit": {
+   "deu": "Bett",
+   "dg": "n",
+   "dpl": "Betten"
+  },
+  "affiche": {
+   "deu": "Plakat",
+   "dg": "n",
+   "dpl": "Plakate"
+  },
+  "valise": {
+   "deu": "Koffer",
+   "dg": "m",
+   "dpl": "Koffer"
+  },
+  "assiette": {
+   "deu": "Teller",
+   "dg": "m",
+   "dpl": "Teller"
+  },
+  "tasse": {
+   "deu": "Tasse",
+   "dg": "f",
+   "dpl": "Tassen"
+  },
+  "verre": {
+   "deu": "Glas",
+   "dg": "n",
+   "dpl": "Gläser"
+  },
+  "guitare": {
+   "deu": "Gitarre",
+   "dg": "f",
+   "dpl": "Gitarren"
+  },
+  "chapeau": {
+   "deu": "Hut",
+   "dg": "m",
+   "dpl": "Hüte"
+  },
+  "écharpe": {
+   "deu": "Schal",
+   "dg": "m",
+   "dpl": "Schals"
+  },
+  "horloge": {
+   "deu": "Uhr",
+   "dg": "f",
+   "dpl": "Uhren"
+  },
+  "miroir": {
+   "deu": "Spiegel",
+   "dg": "m",
+   "dpl": "Spiegel"
+  },
+  "canapé": {
+   "deu": "Sofa",
+   "dg": "n",
+   "dpl": "Sofas"
+  },
+  "radiateur": {
+   "deu": "Heizkörper",
+   "dg": "m",
+   "dpl": "Heizkörper"
+  },
+  "appareil photo": {
+   "deu": "Kamera",
+   "dg": "f",
+   "dpl": "Kameras"
+  },
+  "arbre": {
+   "deu": "Baum",
+   "dg": "m",
+   "dpl": "Bäume"
+  },
+  "album": {
+   "deu": "Album",
+   "dg": "n",
+   "dpl": "Alben"
+  },
+  "anniversaire": {
+   "deu": "Geburtstag",
+   "dg": "m",
+   "dpl": "Geburtstage"
+  },
+  "film": {
+   "deu": "Film",
+   "dg": "m",
+   "dpl": "Filme"
+  },
+  "chanson": {
+   "deu": "Lied",
+   "dg": "n",
+   "dpl": "Lieder"
+  },
+  "message": {
+   "deu": "Nachricht",
+   "dg": "f",
+   "dpl": "Nachrichten"
+  },
+  "article": {
+   "deu": "Artikel",
+   "dg": "m",
+   "dpl": "Artikel"
+  },
+  "roman": {
+   "deu": "Roman",
+   "dg": "m",
+   "dpl": "Romane"
+  },
+  "série": {
+   "deu": "Serie",
+   "dg": "f",
+   "dpl": "Serien"
+  },
+  "émission": {
+   "deu": "Sendung",
+   "dg": "f",
+   "dpl": "Sendungen"
+  },
+  "match": {
+   "deu": "Spiel",
+   "dg": "n",
+   "dpl": "Spiele"
+  },
+  "concert": {
+   "deu": "Konzert",
+   "dg": "n",
+   "dpl": "Konzerte"
+  },
+  "projet": {
+   "deu": "Projekt",
+   "dg": "n",
+   "dpl": "Projekte"
+  },
+  "voyage": {
+   "deu": "Reise",
+   "dg": "f",
+   "dpl": "Reisen"
+  },
+  "travail": {
+   "deu": "Arbeit",
+   "dg": "f"
+  },
+  "week-end": {
+   "deu": "Wochenende",
+   "dg": "n",
+   "dpl": "Wochenenden"
+  },
+  "exposition": {
+   "deu": "Ausstellung",
+   "dg": "f",
+   "dpl": "Ausstellungen"
+  },
+  "spectacle": {
+   "deu": "Vorstellung",
+   "dg": "f",
+   "dpl": "Vorstellungen"
+  },
+  "dossier": {
+   "deu": "Akte",
+   "dg": "f",
+   "dpl": "Akten"
+  },
+  "réunion": {
+   "deu": "Besprechung",
+   "dg": "f",
+   "dpl": "Besprechungen"
+  },
+  "examen": {
+   "deu": "Prüfung",
+   "dg": "f",
+   "dpl": "Prüfungen"
+  },
+  "histoire": {
+   "deu": "Geschichte",
+   "dg": "f",
+   "dpl": "Geschichten"
+  },
+  "radio": {
+   "deu": "Radio",
+   "dg": "n",
+   "dpl": "Radios"
+  },
+  "podcast": {
+   "deu": "Podcast",
+   "dg": "m",
+   "dpl": "Podcasts"
+  },
+  "rapport": {
+   "deu": "Bericht",
+   "dg": "m",
+   "dpl": "Berichte"
+  },
+  "problème": {
+   "deu": "Problem",
+   "dg": "n",
+   "dpl": "Probleme"
+  },
+  "fête": {
+   "deu": "Party",
+   "dg": "f",
+   "dpl": "Partys"
+  },
+  "idée": {
+   "deu": "Idee",
+   "dg": "f",
+   "dpl": "Ideen"
+  },
+  "question": {
+   "deu": "Frage",
+   "dg": "f",
+   "dpl": "Fragen"
+  },
+  "marché": {
+   "deu": "Markt",
+   "dg": "m",
+   "dpl": "Märkte",
+   "deu_at": "auf dem Markt",
+   "deu_to": "zum Markt",
+   "deu_from": "vom Markt"
+  },
+  "gare": {
+   "deu": "Bahnhof",
+   "dg": "m",
+   "dpl": "Bahnhöfe",
+   "deu_at": "am Bahnhof",
+   "deu_to": "zum Bahnhof",
+   "deu_from": "vom Bahnhof"
+  },
+  "café_lieu": {
+   "deu": "Café",
+   "dg": "n",
+   "dpl": "Cafés",
+   "deu_at": "im Café",
+   "deu_to": "ins Café",
+   "deu_from": "aus dem Café"
+  },
+  "boulangerie": {
+   "deu": "Bäckerei",
+   "dg": "f",
+   "dpl": "Bäckereien",
+   "deu_at": "in der Bäckerei",
+   "deu_to": "zur Bäckerei",
+   "deu_from": "aus der Bäckerei"
+  },
+  "bureau": {
+   "deu": "Büro",
+   "dg": "n",
+   "dpl": "Büros",
+   "deu_at": "im Büro",
+   "deu_to": "ins Büro",
+   "deu_from": "aus dem Büro"
+  },
+  "cinéma": {
+   "deu": "Kino",
+   "dg": "n",
+   "dpl": "Kinos",
+   "deu_at": "im Kino",
+   "deu_to": "ins Kino",
+   "deu_from": "aus dem Kino"
+  },
+  "parc": {
+   "deu": "Park",
+   "dg": "m",
+   "dpl": "Parks",
+   "deu_at": "im Park",
+   "deu_to": "in den Park",
+   "deu_from": "aus dem Park"
+  },
+  "musée": {
+   "deu": "Museum",
+   "dg": "n",
+   "dpl": "Museen",
+   "deu_at": "im Museum",
+   "deu_to": "ins Museum",
+   "deu_from": "aus dem Museum"
+  },
+  "école": {
+   "deu": "Schule",
+   "dg": "f",
+   "dpl": "Schulen",
+   "deu_at": "in der Schule",
+   "deu_to": "zur Schule",
+   "deu_from": "aus der Schule"
+  },
+  "restaurant": {
+   "deu": "Restaurant",
+   "dg": "n",
+   "dpl": "Restaurants",
+   "deu_at": "im Restaurant",
+   "deu_to": "ins Restaurant",
+   "deu_from": "aus dem Restaurant"
+  },
+  "pharmacie": {
+   "deu": "Apotheke",
+   "dg": "f",
+   "dpl": "Apotheken",
+   "deu_at": "in der Apotheke",
+   "deu_to": "zur Apotheke",
+   "deu_from": "aus der Apotheke"
+  },
+  "poste": {
+   "deu": "Post",
+   "dg": "f",
+   "dpl": "Postämter",
+   "deu_at": "auf der Post",
+   "deu_to": "zur Post",
+   "deu_from": "von der Post"
+  },
+  "bibliothèque": {
+   "deu": "Bibliothek",
+   "dg": "f",
+   "dpl": "Bibliotheken",
+   "deu_at": "in der Bibliothek",
+   "deu_to": "in die Bibliothek",
+   "deu_from": "aus der Bibliothek"
+  },
+  "supermarché": {
+   "deu": "Supermarkt",
+   "dg": "m",
+   "dpl": "Supermärkte",
+   "deu_at": "im Supermarkt",
+   "deu_to": "in den Supermarkt",
+   "deu_from": "aus dem Supermarkt"
+  },
+  "hôpital": {
+   "deu": "Krankenhaus",
+   "dg": "n",
+   "dpl": "Krankenhäuser",
+   "deu_at": "im Krankenhaus",
+   "deu_to": "ins Krankenhaus",
+   "deu_from": "aus dem Krankenhaus"
+  },
+  "aéroport": {
+   "deu": "Flughafen",
+   "dg": "m",
+   "dpl": "Flughäfen",
+   "deu_at": "am Flughafen",
+   "deu_to": "zum Flughafen",
+   "deu_from": "vom Flughafen"
+  },
+  "banque": {
+   "deu": "Bank",
+   "dg": "f",
+   "dpl": "Banken",
+   "deu_at": "in der Bank",
+   "deu_to": "zur Bank",
+   "deu_from": "von der Bank"
+  },
+  "piscine": {
+   "deu": "Schwimmbad",
+   "dg": "n",
+   "dpl": "Schwimmbäder",
+   "deu_at": "im Schwimmbad",
+   "deu_to": "ins Schwimmbad",
+   "deu_from": "aus dem Schwimmbad"
+  },
+  "théâtre": {
+   "deu": "Theater",
+   "dg": "n",
+   "dpl": "Theater",
+   "deu_at": "im Theater",
+   "deu_to": "ins Theater",
+   "deu_from": "aus dem Theater"
+  },
+  "plage": {
+   "deu": "Strand",
+   "dg": "m",
+   "dpl": "Strände",
+   "deu_at": "am Strand",
+   "deu_to": "an den Strand",
+   "deu_from": "vom Strand"
+  },
+  "église": {
+   "deu": "Kirche",
+   "dg": "f",
+   "dpl": "Kirchen",
+   "deu_at": "in der Kirche",
+   "deu_to": "in die Kirche",
+   "deu_from": "aus der Kirche"
+  },
+  "hôtel": {
+   "deu": "Hotel",
+   "dg": "n",
+   "dpl": "Hotels",
+   "deu_at": "im Hotel",
+   "deu_to": "ins Hotel",
+   "deu_from": "aus dem Hotel"
+  },
+  "appartement": {
+   "deu": "Wohnung",
+   "dg": "f",
+   "dpl": "Wohnungen",
+   "deu_at": "in der Wohnung",
+   "deu_to": "in die Wohnung",
+   "deu_from": "aus der Wohnung"
+  },
+  "immeuble": {
+   "deu": "Gebäude",
+   "dg": "n",
+   "dpl": "Gebäude",
+   "deu_at": "im Gebäude",
+   "deu_to": "ins Gebäude",
+   "deu_from": "aus dem Gebäude"
+  },
+  "quartier": {
+   "deu": "Viertel",
+   "dg": "n",
+   "dpl": "Viertel",
+   "deu_at": "im Viertel",
+   "deu_to": "ins Viertel",
+   "deu_from": "aus dem Viertel"
+  },
+  "rue": {
+   "deu": "Straße",
+   "dg": "f",
+   "dpl": "Straßen",
+   "deu_at": "auf der Straße",
+   "deu_to": "auf die Straße",
+   "deu_from": "von der Straße"
+  },
+  "ville": {
+   "deu": "Stadt",
+   "dg": "f",
+   "dpl": "Städte",
+   "deu_at": "in der Stadt",
+   "deu_to": "in die Stadt",
+   "deu_from": "aus der Stadt"
+  },
+  "jardin": {
+   "deu": "Garten",
+   "dg": "m",
+   "dpl": "Gärten",
+   "deu_at": "im Garten",
+   "deu_to": "in den Garten",
+   "deu_from": "aus dem Garten"
+  },
+  "cuisine": {
+   "deu": "Küche",
+   "dg": "f",
+   "dpl": "Küchen",
+   "deu_at": "in der Küche",
+   "deu_to": "in die Küche",
+   "deu_from": "aus der Küche"
+  },
+  "salon": {
+   "deu": "Wohnzimmer",
+   "dg": "n",
+   "dpl": "Wohnzimmer",
+   "deu_at": "im Wohnzimmer",
+   "deu_to": "ins Wohnzimmer",
+   "deu_from": "aus dem Wohnzimmer"
+  },
+  "chambre": {
+   "deu": "Schlafzimmer",
+   "dg": "n",
+   "dpl": "Schlafzimmer",
+   "deu_at": "im Schlafzimmer",
+   "deu_to": "ins Schlafzimmer",
+   "deu_from": "aus dem Schlafzimmer"
+  },
+  "magasin": {
+   "deu": "Laden",
+   "dg": "m",
+   "dpl": "Läden",
+   "deu_at": "im Laden",
+   "deu_to": "in den Laden",
+   "deu_from": "aus dem Laden"
+  },
+  "librairie": {
+   "deu": "Buchhandlung",
+   "dg": "f",
+   "dpl": "Buchhandlungen",
+   "deu_at": "in der Buchhandlung",
+   "deu_to": "in die Buchhandlung",
+   "deu_from": "aus der Buchhandlung"
+  },
+  "mistral": {
+   "deu": "Mistral",
+   "dg": "n",
+   "deu_at": "im Mistral",
+   "deu_to": "ins Mistral",
+   "deu_from": "aus dem Mistral"
+  },
+  "marche_canal": {
+   "deu": "Markt am Kanal",
+   "dg": "m",
+   "deu_at": "auf dem Markt am Kanal",
+   "deu_to": "zum Markt am Kanal",
+   "deu_from": "vom Markt am Kanal"
+  },
+  "redaction": {
+   "deu": "Redaktion",
+   "dg": "f",
+   "dpl": "Redaktionen",
+   "deu_at": "in der Redaktion",
+   "deu_to": "in die Redaktion",
+   "deu_from": "aus der Redaktion"
+  },
+  "brocante": {
+   "deu": "Flohmarkt",
+   "dg": "m",
+   "dpl": "Flohmärkte",
+   "deu_at": "auf dem Flohmarkt",
+   "deu_to": "zum Flohmarkt",
+   "deu_from": "vom Flohmarkt"
+  },
+  "canal": {
+   "deu": "Kanal",
+   "dg": "m",
+   "dpl": "Kanäle",
+   "deu_at": "am Kanal",
+   "deu_to": "zum Kanal",
+   "deu_from": "vom Kanal"
+  },
+  "ngo_office": {
+   "deu": "Büro der NGO",
+   "dg": "n",
+   "deu_at": "im Büro der NGO",
+   "deu_to": "ins Büro der NGO",
+   "deu_from": "aus dem Büro der NGO"
+  },
+  "maison": {
+   "deu": "Haus",
+   "dg": "n",
+   "dpl": "Häuser",
+   "deu_at": "im Haus",
+   "deu_to": "ins Haus",
+   "deu_from": "aus dem Haus"
+  },
+  "ami": {
+   "deu": "Freund",
+   "dg": "m",
+   "dpl": "Freunde"
+  },
+  "amie": {
+   "deu": "Freundin",
+   "dg": "f",
+   "dpl": "Freundinnen"
+  },
+  "voisin": {
+   "deu": "Nachbar",
+   "dg": "m",
+   "dpl": "Nachbarn",
+   "dweak": "Nachbarn"
+  },
+  "voisine": {
+   "deu": "Nachbarin",
+   "dg": "f",
+   "dpl": "Nachbarinnen"
+  },
+  "collègue_m": {
+   "deu": "Kollege",
+   "dg": "m",
+   "dpl": "Kollegen",
+   "dweak": "Kollegen"
+  },
+  "collègue_f": {
+   "deu": "Kollegin",
+   "dg": "f",
+   "dpl": "Kolleginnen"
+  },
+  "étudiant": {
+   "deu": "Student",
+   "dg": "m",
+   "dpl": "Studenten",
+   "dweak": "Studenten"
+  },
+  "étudiante": {
+   "deu": "Studentin",
+   "dg": "f",
+   "dpl": "Studentinnen"
+  },
+  "cousin": {
+   "deu": "Cousin",
+   "dg": "m",
+   "dpl": "Cousins"
+  },
+  "cousine": {
+   "deu": "Cousine",
+   "dg": "f",
+   "dpl": "Cousinen"
+  },
+  "frère": {
+   "deu": "Bruder",
+   "dg": "m",
+   "dpl": "Brüder"
+  },
+  "sœur": {
+   "deu": "Schwester",
+   "dg": "f",
+   "dpl": "Schwestern"
+  },
+  "serveur": {
+   "deu": "Kellner",
+   "dg": "m",
+   "dpl": "Kellner"
+  },
+  "serveuse": {
+   "deu": "Kellnerin",
+   "dg": "f",
+   "dpl": "Kellnerinnen"
+  },
+  "enfant": {
+   "deu": "Kind",
+   "dg": "n",
+   "dpl": "Kinder"
+  },
+  "propriétaire": {
+   "deu": "Vermieter",
+   "dg": "m",
+   "dpl": "Vermieter"
+  },
+  "chat": {
+   "deu": "Katze",
+   "dg": "f",
+   "dpl": "Katzen"
+  },
+  "chien": {
+   "deu": "Hund",
+   "dg": "m",
+   "dpl": "Hunde"
+  },
+  "professeur": {
+   "deu": "Lehrer",
+   "dg": "m",
+   "dpl": "Lehrer"
+  },
+  "micro": {
+   "deu": "Mikrofon",
+   "dg": "n",
+   "dpl": "Mikrofone"
+  },
+  "carton": {
+   "deu": "Karton",
+   "dg": "m",
+   "dpl": "Kartons"
+  },
+  "plante": {
+   "deu": "Pflanze",
+   "dg": "f",
+   "dpl": "Pflanzen"
+  }
+ },
+ "adjectives": {
+  "petit": {
+   "deu": "klein"
+  },
+  "grand": {
+   "deu": "groß",
+   "deu_cmp": "größer",
+   "deu_sup": "größt"
+  },
+  "grand_p": {
+   "deu": "groß",
+   "deu_cmp": "größer",
+   "deu_sup": "größt"
+  },
+  "joli": {
+   "deu": "hübsch",
+   "deu_sup": "hübschest"
+  },
+  "jeune": {
+   "deu": "jung",
+   "deu_cmp": "jünger",
+   "deu_sup": "jüngst"
+  },
+  "nouveau": {
+   "deu": "neu",
+   "deu_sup": "neuest"
+  },
+  "vieux": {
+   "deu": "alt",
+   "deu_cmp": "älter",
+   "deu_sup": "ältest"
+  },
+  "beau": {
+   "deu": "schön"
+  },
+  "bon": {
+   "deu": "gut",
+   "deu_cmp": "besser",
+   "deu_sup": "best"
+  },
+  "blanc": {
+   "deu": "weiß"
+  },
+  "noir": {
+   "deu": "schwarz"
+  },
+  "rouge": {
+   "deu": "rot"
+  },
+  "bleu": {
+   "deu": "blau"
+  },
+  "vert": {
+   "deu": "grün"
+  },
+  "gris": {
+   "deu": "grau"
+  },
+  "jaune": {
+   "deu": "gelb"
+  },
+  "français": {
+   "deu": "aus Frankreich",
+   "deu_att": "französisch"
+  },
+  "italien": {
+   "deu": "aus Italien",
+   "deu_att": "italienisch"
+  },
+  "anglais": {
+   "deu": "aus England",
+   "deu_att": "englisch"
+  },
+  "cher": {
+   "deu": "teuer",
+   "deu_att": "teur",
+   "deu_cmp": "teurer",
+   "deu_sup": "teuerst"
+  },
+  "calme": {
+   "deu": "ruhig"
+  },
+  "drôle": {
+   "deu": "lustig"
+  },
+  "sympa": {
+   "deu": "nett"
+  },
+  "gentil": {
+   "deu": "nett"
+  },
+  "sérieux": {
+   "deu": "ernst",
+   "deu_sup": "ernstest"
+  },
+  "timide": {
+   "deu": "schüchtern"
+  },
+  "bavard": {
+   "deu": "gesprächig"
+  },
+  "patient": {
+   "deu": "geduldig"
+  },
+  "content": {
+   "deu": "zufrieden"
+  },
+  "fatigué": {
+   "deu": "müde"
+  },
+  "heureux": {
+   "deu": "glücklich"
+  },
+  "occupé": {
+   "deu": "beschäftigt"
+  },
+  "malade": {
+   "deu": "krank",
+   "deu_cmp": "kränker",
+   "deu_sup": "kränkst"
+  },
+  "prêt": {
+   "deu": "fertig"
+  },
+  "intelligent": {
+   "deu": "klug",
+   "deu_cmp": "klüger",
+   "deu_sup": "klügst"
+  },
+  "rapide": {
+   "deu": "schnell"
+  },
+  "lent": {
+   "deu": "langsam"
+  },
+  "confortable": {
+   "deu": "bequem"
+  },
+  "moderne": {
+   "deu": "modern"
+  },
+  "propre": {
+   "deu": "sauber",
+   "deu_att": "sauber"
+  },
+  "froid": {
+   "deu": "kalt",
+   "deu_cmp": "kälter",
+   "deu_sup": "kältest"
+  },
+  "chaud": {
+   "deu": "warm",
+   "deu_cmp": "wärmer",
+   "deu_sup": "wärmst"
+  },
+  "délicieux": {
+   "deu": "lecker",
+   "deu_att": "lecker"
+  },
+  "frais": {
+   "deu": "frisch",
+   "deu_sup": "frischest"
+  },
+  "bruyant": {
+   "deu": "laut",
+   "deu_sup": "lautest"
+  },
+  "animé": {
+   "deu": "lebhaft",
+   "deu_sup": "lebhaftest"
+  },
+  "petit_p": {
+   "deu": "klein"
+  },
+  "étrange": {
+   "deu": "seltsam"
+  },
+  "pratique": {
+   "deu": "praktisch"
+  },
+  "tranquille": {
+   "deu": "ruhig"
+  }
+ },
+ "cast": {
+  "marin": "Marin",
+  "lila": "Lila",
+  "gus": "Gus",
+  "romy": "Romy",
+  "margaux": "Margaux",
+  "marin_lila": "Marin und Lila",
+  "romy_margaux": "Romy und Margaux",
+  "lila_romy": "Lila und Romy",
+  "gus_marin": "Gus und Marin"
+ },
+ "pools": {
+  "time_future": {
+   "demain": "morgen",
+   "ce soir": "heute Abend",
+   "samedi": "am Samstag",
+   "la semaine prochaine": "nächste Woche",
+   "ce week-end": "dieses Wochenende",
+   "après le travail": "nach der Arbeit",
+   "cet été": "diesen Sommer",
+   "lundi prochain": "nächsten Montag"
+  },
+  "time_past": {
+   "Hier": "gestern",
+   "Hier soir": "gestern Abend",
+   "Ce matin": "heute Morgen",
+   "Samedi dernier": "letzten Samstag",
+   "La semaine dernière": "letzte Woche",
+   "L'été dernier": "letzten Sommer",
+   "Avant-hier": "vorgestern"
+  },
+  "time_past_end": {
+   "hier": "gestern",
+   "hier soir": "gestern Abend",
+   "ce matin": "heute Morgen",
+   "samedi dernier": "letzten Samstag",
+   "la semaine dernière": "letzte Woche"
+  },
+  "time_habit": {
+   "Avant": "früher",
+   "Enfant": "als Kind",
+   "À l'époque": "damals",
+   "Tous les étés": "jeden Sommer",
+   "Autrefois": "früher",
+   "À vingt ans": "mit zwanzig"
+  },
+  "geo": {
+   "Paris": {
+    "deu": "Paris",
+    "deu_in": "in Paris",
+    "deu_to": "nach Paris",
+    "deu_from": "aus Paris"
+   },
+   "Lyon": {
+    "deu": "Lyon",
+    "deu_in": "in Lyon",
+    "deu_to": "nach Lyon",
+    "deu_from": "aus Lyon"
+   },
+   "Marseille": {
+    "deu": "Marseille",
+    "deu_in": "in Marseille",
+    "deu_to": "nach Marseille",
+    "deu_from": "aus Marseille"
+   },
+   "Bordeaux": {
+    "deu": "Bordeaux",
+    "deu_in": "in Bordeaux",
+    "deu_to": "nach Bordeaux",
+    "deu_from": "aus Bordeaux"
+   },
+   "Lille": {
+    "deu": "Lille",
+    "deu_in": "in Lille",
+    "deu_to": "nach Lille",
+    "deu_from": "aus Lille"
+   },
+   "Nice": {
+    "deu": "Nizza",
+    "deu_in": "in Nizza",
+    "deu_to": "nach Nizza",
+    "deu_from": "aus Nizza"
+   },
+   "Nantes": {
+    "deu": "Nantes",
+    "deu_in": "in Nantes",
+    "deu_to": "nach Nantes",
+    "deu_from": "aus Nantes"
+   },
+   "Toulouse": {
+    "deu": "Toulouse",
+    "deu_in": "in Toulouse",
+    "deu_to": "nach Toulouse",
+    "deu_from": "aus Toulouse"
+   },
+   "Berlin": {
+    "deu": "Berlin",
+    "deu_in": "in Berlin",
+    "deu_to": "nach Berlin",
+    "deu_from": "aus Berlin"
+   },
+   "Londres": {
+    "deu": "London",
+    "deu_in": "in London",
+    "deu_to": "nach London",
+    "deu_from": "aus London"
+   },
+   "Rome": {
+    "deu": "Rom",
+    "deu_in": "in Rom",
+    "deu_to": "nach Rom",
+    "deu_from": "aus Rom"
+   },
+   "Madrid": {
+    "deu": "Madrid",
+    "deu_in": "in Madrid",
+    "deu_to": "nach Madrid",
+    "deu_from": "aus Madrid"
+   },
+   "Bruxelles": {
+    "deu": "Brüssel",
+    "deu_in": "in Brüssel",
+    "deu_to": "nach Brüssel",
+    "deu_from": "aus Brüssel"
+   },
+   "Genève": {
+    "deu": "Genf",
+    "deu_in": "in Genf",
+    "deu_to": "nach Genf",
+    "deu_from": "aus Genf"
+   },
+   "Montréal": {
+    "deu": "Montreal",
+    "deu_in": "in Montreal",
+    "deu_to": "nach Montreal",
+    "deu_from": "aus Montreal"
+   },
+   "Munich": {
+    "deu": "München",
+    "deu_in": "in München",
+    "deu_to": "nach München",
+    "deu_from": "aus München"
+   },
+   "Vienne": {
+    "deu": "Wien",
+    "deu_in": "in Wien",
+    "deu_to": "nach Wien",
+    "deu_from": "aus Wien"
+   },
+   "France": {
+    "deu": "Frankreich",
+    "deu_in": "in Frankreich",
+    "deu_to": "nach Frankreich",
+    "deu_from": "aus Frankreich"
+   },
+   "Allemagne": {
+    "deu": "Deutschland",
+    "deu_in": "in Deutschland",
+    "deu_to": "nach Deutschland",
+    "deu_from": "aus Deutschland"
+   },
+   "Espagne": {
+    "deu": "Spanien",
+    "deu_in": "in Spanien",
+    "deu_to": "nach Spanien",
+    "deu_from": "aus Spanien"
+   },
+   "Italie": {
+    "deu": "Italien",
+    "deu_in": "in Italien",
+    "deu_to": "nach Italien",
+    "deu_from": "aus Italien"
+   },
+   "Angleterre": {
+    "deu": "England",
+    "deu_in": "in England",
+    "deu_to": "nach England",
+    "deu_from": "aus England"
+   },
+   "Belgique": {
+    "deu": "Belgien",
+    "deu_in": "in Belgien",
+    "deu_to": "nach Belgien",
+    "deu_from": "aus Belgien"
+   },
+   "Chine": {
+    "deu": "China",
+    "deu_in": "in China",
+    "deu_to": "nach China",
+    "deu_from": "aus China"
+   },
+   "Grèce": {
+    "deu": "Griechenland",
+    "deu_in": "in Griechenland",
+    "deu_to": "nach Griechenland",
+    "deu_from": "aus Griechenland"
+   },
+   "Autriche": {
+    "deu": "Österreich",
+    "deu_in": "in Österreich",
+    "deu_to": "nach Österreich",
+    "deu_from": "aus Österreich"
+   },
+   "Irlande": {
+    "deu": "Irland",
+    "deu_in": "in Irland",
+    "deu_to": "nach Irland",
+    "deu_from": "aus Irland"
+   },
+   "Inde": {
+    "deu": "Indien",
+    "deu_in": "in Indien",
+    "deu_to": "nach Indien",
+    "deu_from": "aus Indien"
+   },
+   "Israël": {
+    "deu": "Israel",
+    "deu_in": "in Israel",
+    "deu_to": "nach Israel",
+    "deu_from": "aus Israel"
+   },
+   "Canada": {
+    "deu": "Kanada",
+    "deu_in": "in Kanada",
+    "deu_to": "nach Kanada",
+    "deu_from": "aus Kanada"
+   },
+   "Japon": {
+    "deu": "Japan",
+    "deu_in": "in Japan",
+    "deu_to": "nach Japan",
+    "deu_from": "aus Japan"
+   },
+   "Portugal": {
+    "deu": "Portugal",
+    "deu_in": "in Portugal",
+    "deu_to": "nach Portugal",
+    "deu_from": "aus Portugal"
+   },
+   "Maroc": {
+    "deu": "Marokko",
+    "deu_in": "in Marokko",
+    "deu_to": "nach Marokko",
+    "deu_from": "aus Marokko"
+   },
+   "Brésil": {
+    "deu": "Brasilien",
+    "deu_in": "in Brasilien",
+    "deu_to": "nach Brasilien",
+    "deu_from": "aus Brasilien"
+   },
+   "Mexique": {
+    "deu": "Mexiko",
+    "deu_in": "in Mexiko",
+    "deu_to": "nach Mexiko",
+    "deu_from": "aus Mexiko"
+   },
+   "Québec": {
+    "deu": "Québec",
+    "deu_in": "in Québec",
+    "deu_to": "nach Québec",
+    "deu_from": "aus Québec"
+   },
+   "Luxembourg": {
+    "deu": "Luxemburg",
+    "deu_in": "in Luxemburg",
+    "deu_to": "nach Luxemburg",
+    "deu_from": "aus Luxemburg"
+   },
+   "Danemark": {
+    "deu": "Dänemark",
+    "deu_in": "in Dänemark",
+    "deu_to": "nach Dänemark",
+    "deu_from": "aus Dänemark"
+   },
+   "Sénégal": {
+    "deu": "Senegal",
+    "deu_in": "in Senegal",
+    "deu_to": "nach Senegal",
+    "deu_from": "aus Senegal"
+   },
+   "Suisse": {
+    "deu": "die Schweiz",
+    "deu_in": "in der Schweiz",
+    "deu_to": "in die Schweiz",
+    "deu_from": "aus der Schweiz"
+   },
+   "Iran": {
+    "deu": "der Iran",
+    "deu_in": "im Iran",
+    "deu_to": "in den Iran",
+    "deu_from": "aus dem Iran"
+   },
+   "Liban": {
+    "deu": "der Libanon",
+    "deu_in": "im Libanon",
+    "deu_to": "in den Libanon",
+    "deu_from": "aus dem Libanon"
+   },
+   "États-Unis": {
+    "deu": "die USA",
+    "deu_in": "in den USA",
+    "deu_to": "in die USA",
+    "deu_from": "aus den USA"
+   },
+   "Pays-Bas": {
+    "deu": "die Niederlande",
+    "deu_in": "in den Niederlanden",
+    "deu_to": "in die Niederlande",
+    "deu_from": "aus den Niederlanden"
+   }
+  },
+  "activity": {
+   "sport": {
+    "deu": "Sport",
+    "deu_verb": {
+     "inf": "treiben",
+     "prt": "trieb",
+     "pp": "getrieben"
+    }
+   },
+   "natation": {
+    "deu": "",
+    "deu_verb": {
+     "inf": "schwimmen",
+     "prt": "schwamm",
+     "pp": "geschwommen",
+     "aux": "sein"
+    }
+   },
+   "yoga": {
+    "deu": "Yoga",
+    "deu_verb": {
+     "inf": "machen"
+    }
+   },
+   "danse": {
+    "deu": "",
+    "deu_verb": {
+     "inf": "tanzen"
+    }
+   },
+   "piano": {
+    "deu": "Klavier",
+    "deu_verb": {
+     "inf": "spielen"
+    }
+   },
+   "guitare": {
+    "deu": "Gitarre",
+    "deu_verb": {
+     "inf": "spielen"
+    }
+   },
+   "ski": {
+    "deu": "Ski",
+    "deu_verb": {
+     "inf": "fahren",
+     "pres2": "fährst",
+     "pres3": "fährt",
+     "prt": "fuhr",
+     "pp": "gefahren",
+     "aux": "sein"
+    }
+   },
+   "randonnée": {
+    "deu": "wandern",
+    "deu_verb": {
+     "inf": "gehen",
+     "prt": "ging",
+     "pp": "gegangen",
+     "aux": "sein"
+    }
+   },
+   "escalade": {
+    "deu": "klettern",
+    "deu_verb": {
+     "inf": "gehen",
+     "prt": "ging",
+     "pp": "gegangen",
+     "aux": "sein"
+    }
+   },
+   "judo": {
+    "deu": "Judo",
+    "deu_verb": {
+     "inf": "machen"
+    }
+   },
+   "théâtre": {
+    "deu": "Theater",
+    "deu_verb": {
+     "inf": "spielen"
+    }
+   },
+   "photo": {
+    "deu": "Fotos",
+    "deu_verb": {
+     "inf": "machen"
+    }
+   },
+   "vélo": {
+    "deu": "Rad",
+    "deu_verb": {
+     "inf": "fahren",
+     "pres2": "fährst",
+     "pres3": "fährt",
+     "prt": "fuhr",
+     "pp": "gefahren",
+     "aux": "sein"
+    }
+   },
+   "cuisine": {
+    "deu": "",
+    "deu_verb": {
+     "inf": "kochen"
+    }
+   }
+  },
+  "avoir_state": {
+   "faim": {
+    "deu": "Hunger",
+    "deu_verb": {
+     "inf": "haben",
+     "pres": [
+      "habe",
+      "hast",
+      "hat",
+      "haben",
+      "habt",
+      "haben"
+     ],
+     "prt": "hatte",
+     "pp": "gehabt",
+     "konj": "hätte",
+     "imp": "hab"
+    }
+   },
+   "soif": {
+    "deu": "Durst",
+    "deu_verb": {
+     "inf": "haben",
+     "pres": [
+      "habe",
+      "hast",
+      "hat",
+      "haben",
+      "habt",
+      "haben"
+     ],
+     "prt": "hatte",
+     "pp": "gehabt",
+     "konj": "hätte",
+     "imp": "hab"
+    }
+   },
+   "froid": {
+    "deu": "",
+    "deu_verb": {
+     "inf": "frieren",
+     "prt": "fror",
+     "pp": "gefroren"
+    }
+   },
+   "sommeil": {
+    "deu": "müde",
+    "deu_verb": {
+     "inf": "sein",
+     "pres": [
+      "bin",
+      "bist",
+      "ist",
+      "sind",
+      "seid",
+      "sind"
+     ],
+     "prt": "war",
+     "pp": "gewesen",
+     "aux": "sein",
+     "konj": "wäre",
+     "imp": "sei"
+    }
+   },
+   "peur": {
+    "deu": "Angst",
+    "deu_verb": {
+     "inf": "haben",
+     "pres": [
+      "habe",
+      "hast",
+      "hat",
+      "haben",
+      "habt",
+      "haben"
+     ],
+     "prt": "hatte",
+     "pp": "gehabt",
+     "konj": "hätte",
+     "imp": "hab"
+    }
+   },
+   "raison": {
+    "deu": "recht",
+    "deu_verb": {
+     "inf": "haben",
+     "pres": [
+      "habe",
+      "hast",
+      "hat",
+      "haben",
+      "habt",
+      "haben"
+     ],
+     "prt": "hatte",
+     "pp": "gehabt",
+     "konj": "hätte",
+     "imp": "hab"
+    }
+   },
+   "tort": {
+    "deu": "unrecht",
+    "deu_verb": {
+     "inf": "haben",
+     "pres": [
+      "habe",
+      "hast",
+      "hat",
+      "haben",
+      "habt",
+      "haben"
+     ],
+     "prt": "hatte",
+     "pp": "gehabt",
+     "konj": "hätte",
+     "imp": "hab"
+    }
+   }
+  },
+  "job": {
+   "job_serveur": {
+    "deu": "Kellner",
+    "deu_f": "Kellnerin"
+   },
+   "job_journaliste": {
+    "deu": "Journalist",
+    "deu_f": "Journalistin"
+   },
+   "job_étudiant": {
+    "deu": "Student",
+    "deu_f": "Studentin"
+   },
+   "job_médecin": {
+    "deu": "Arzt",
+    "deu_f": "Ärztin"
+   },
+   "job_avocat": {
+    "deu": "Anwalt",
+    "deu_f": "Anwältin"
+   },
+   "job_boulanger": {
+    "deu": "Bäcker",
+    "deu_f": "Bäckerin"
+   },
+   "job_architecte": {
+    "deu": "Architekt",
+    "deu_f": "Architektin"
+   },
+   "job_musicien": {
+    "deu": "Musiker",
+    "deu_f": "Musikerin"
+   },
+   "job_acteur": {
+    "deu": "Schauspieler",
+    "deu_f": "Schauspielerin"
+   },
+   "job_infirmier": {
+    "deu": "Krankenpfleger",
+    "deu_f": "Krankenpflegerin"
+   },
+   "job_vendeur": {
+    "deu": "Verkäufer",
+    "deu_f": "Verkäuferin"
+   },
+   "job_peintre": {
+    "deu": "Maler",
+    "deu_f": "Malerin"
+   },
+   "job_professeur": {
+    "deu": "Lehrer",
+    "deu_f": "Lehrerin"
+   },
+   "job_cuisinier": {
+    "deu": "Koch",
+    "deu_f": "Köchin"
+   },
+   "job_photographe": {
+    "deu": "Fotograf",
+    "deu_f": "Fotografin"
+   },
+   "job_ingénieur": {
+    "deu": "Ingenieur",
+    "deu_f": "Ingenieurin"
+   },
+   "job_patron_de_café": {
+    "deu": "Cafébesitzer",
+    "deu_f": "Cafébesitzerin"
+   },
+   "job_écologiste": {
+    "deu": "Umweltschützer",
+    "deu_f": "Umweltschützerin"
+   },
+   "job_consultant": {
+    "deu": "Berater",
+    "deu_f": "Beraterin"
+   }
+  },
+  "freq_adv": {
+   "toujours": "immer",
+   "souvent": "oft",
+   "parfois": "manchmal",
+   "rarement": "selten"
+  },
+  "freq_phrase": {
+   "tous les jours": "jeden Tag",
+   "toutes les semaines": "jede Woche",
+   "une fois par semaine": "einmal pro Woche",
+   "deux fois par jour": "zweimal am Tag",
+   "trois fois par mois": "dreimal im Monat",
+   "deux fois par semaine": "zweimal pro Woche"
+  },
+  "loc": {
+   "à côté": {
+    "deu": "neben",
+    "deu_case": "dat"
+   },
+   "en face": {
+    "deu": "gegenüber",
+    "deu_case": "dat"
+   },
+   "près": {
+    "deu": "in der Nähe",
+    "deu_case": "gen"
+   },
+   "loin": {
+    "deu": "weit weg von",
+    "deu_case": "dat"
+   }
+  },
+  "qty": {
+   "beaucoup": {
+    "deu": "viel",
+    "deu_count": "viele"
+   },
+   "trop": {
+    "deu": "zu viel",
+    "deu_count": "zu viele"
+   },
+   "assez": "genug",
+   "un kilo": "ein Kilo",
+   "un peu": "ein bisschen",
+   "cinq cents grammes": "fünfhundert Gramm"
+  },
+  "qty_drink": {
+   "une bouteille": "eine Flasche",
+   "un verre": "ein Glas",
+   "une tasse": "eine Tasse",
+   "un litre": "einen Liter"
+  },
+  "dur": {
+   "deux ans": {
+    "deu": "zwei Jahre",
+    "deu_dat": "zwei Jahren"
+   },
+   "trois mois": {
+    "deu": "drei Monate",
+    "deu_dat": "drei Monaten"
+   },
+   "dix minutes": {
+    "deu": "zehn Minuten",
+    "deu_dat": "zehn Minuten"
+   },
+   "une semaine": {
+    "deu": "eine Woche",
+    "deu_dat": "einer Woche"
+   },
+   "cinq jours": {
+    "deu": "fünf Tage",
+    "deu_dat": "fünf Tagen"
+   },
+   "vingt minutes": {
+    "deu": "zwanzig Minuten",
+    "deu_dat": "zwanzig Minuten"
+   },
+   "six mois": {
+    "deu": "sechs Monate",
+    "deu_dat": "sechs Monaten"
+   },
+   "un an": {
+    "deu": "ein Jahr",
+    "deu_dat": "einem Jahr"
+   },
+   "deux heures": {
+    "deu": "zwei Stunden",
+    "deu_dat": "zwei Stunden"
+   },
+   "trois semaines": {
+    "deu": "drei Wochen",
+    "deu_dat": "drei Wochen"
+   },
+   "quarante minutes": {
+    "deu": "vierzig Minuten",
+    "deu_dat": "vierzig Minuten"
+   },
+   "quinze jours": {
+    "deu": "zwei Wochen",
+    "deu_dat": "zwei Wochen"
+   }
+  },
+  "reason_avoir": {
+   "un rendez-vous": "einen Termin",
+   "un examen demain": "morgen eine Prüfung",
+   "du travail": "Arbeit",
+   "un train à prendre": "einen Zug zu erwischen",
+   "mal à la tête": "Kopfschmerzen",
+   "une réunion à neuf heures": "um neun Uhr eine Besprechung"
+  },
+  "rel_clause": {
+   "parle trois langues": "drei Sprachen spricht",
+   "travaille au Mistral": "im Mistral arbeitet",
+   "habite près du canal": "am Kanal wohnt",
+   "cuisine très bien": "sehr gut kocht",
+   "adore la musique": "Musik liebt",
+   "arrive demain": "morgen ankommt",
+   "joue de la guitare": "Gitarre spielt",
+   "connaît tout le quartier": "das ganze Viertel kennt"
+  },
+  "weather": {
+   "il pleuvait": "regnete es",
+   "il faisait froid": "war es kalt",
+   "il faisait beau": "war das Wetter schön",
+   "il neigeait": "schneite es",
+   "il faisait nuit": "war es dunkel",
+   "il y avait du monde": "war viel los"
+  },
+  "time_noun": {
+   "du jour": "an den Tag",
+   "du soir": "an den Abend",
+   "du matin": "an den Morgen",
+   "du week-end": "an das Wochenende",
+   "de la semaine": "an die Woche",
+   "du moment": "an den Moment"
+  },
+  "adv_ment": {
+   "lentement": "langsam",
+   "doucement": "leise",
+   "rapidement": "schnell",
+   "sérieusement": "ernsthaft",
+   "facilement": "leicht",
+   "simplement": "einfach",
+   "poliment": "höflich",
+   "gentiment": "freundlich",
+   "patiemment": "geduldig",
+   "prudemment": "vorsichtig",
+   "tranquillement": "in Ruhe",
+   "clairement": "deutlich",
+   "régulièrement": "regelmäßig",
+   "vraiment": "wirklich gut"
+  },
+  "adj_rien": {
+   "prêt": "fertig",
+   "simple": "einfach",
+   "facile": "leicht",
+   "cher": "teuer",
+   "fermé": "geschlossen",
+   "gratuit": "umsonst",
+   "parfait": "perfekt",
+   "impossible": "unmöglich"
+  },
+  "adj_qc": {
+   "chaud": "Warmes",
+   "froid": "Kaltes",
+   "bon": "Gutes",
+   "nouveau": "Neues",
+   "simple": "Einfaches",
+   "sucré": "Süßes",
+   "léger": "Leichtes",
+   "original": "Originelles",
+   "drôle": "Lustiges"
+  },
+  "few": {
+   "deux": "zwei",
+   "trois": "drei",
+   "quatre": "vier",
+   "cinq": "fünf",
+   "six": "sechs",
+   "dix": "zehn",
+   "douze": "zwölf"
+  },
+  "prep_tonic": {
+   "chez": {
+    "deu": "bei",
+    "deu_case": "dat"
+   },
+   "avec": {
+    "deu": "mit",
+    "deu_case": "dat"
+   },
+   "pour": {
+    "deu": "für",
+    "deu_case": "acc"
+   },
+   "sans": {
+    "deu": "ohne",
+    "deu_case": "acc"
+   },
+   "après": {
+    "deu": "nach",
+    "deu_case": "dat"
+   },
+   "à côté de": {
+    "deu": "neben",
+    "deu_case": "dat"
+   }
+  },
+  "nobody": {
+   "personne": {
+    "deu": "niemand",
+    "deu_p": 2
+   }
+  },
+  "someone": {
+   "quelqu'un": {
+    "deu": "jemand",
+    "deu_p": 2
+   }
+  },
+  "negword": {
+   "plus": "nicht mehr",
+   "jamais": "nie"
+  },
+  "play": {
+   "tennis": "Tennis",
+   "foot": "Fußball",
+   "cartes": "Karten",
+   "échecs": "Schach",
+   "basket": "Basketball",
+   "rugby": "Rugby",
+   "piano": "Klavier",
+   "guitare": "Gitarre",
+   "violon": "Geige",
+   "batterie": "Schlagzeug",
+   "flûte": "Flöte",
+   "accordéon": "Akkordeon"
+  },
+  "tout_time": {
+   "tous les jours": "jeden Tag",
+   "toute la journée": "den ganzen Tag",
+   "tous les lundis": "jeden Montag",
+   "toute la nuit": "die ganze Nacht",
+   "tout le week-end": "das ganze Wochenende",
+   "toutes les semaines": "jede Woche",
+   "toute la soirée": "den ganzen Abend",
+   "tous les matins": "jeden Morgen",
+   "tous les soirs": "jeden Abend"
+  },
+  "pl_noun": {
+   "pl_gateau": {
+    "deu": "Kuchen",
+    "dg": "m",
+    "dpl": "Kuchen"
+   },
+   "pl_tableau": {
+    "deu": "Bild",
+    "dg": "n",
+    "dpl": "Bilder"
+   },
+   "pl_chapeau": {
+    "deu": "Hut",
+    "dg": "m",
+    "dpl": "Hüte"
+   },
+   "pl_manteau": {
+    "deu": "Mantel",
+    "dg": "m",
+    "dpl": "Mäntel"
+   },
+   "pl_couteau": {
+    "deu": "Messer",
+    "dg": "n",
+    "dpl": "Messer"
+   },
+   "pl_bijou": {
+    "deu": "Schmuckstück",
+    "dg": "n",
+    "dpl": "Schmuckstücke"
+   },
+   "pl_jeu": {
+    "deu": "Spiel",
+    "dg": "n",
+    "dpl": "Spiele"
+   },
+   "pl_journal": {
+    "deu": "Zeitung",
+    "dg": "f",
+    "dpl": "Zeitungen"
+   },
+   "pl_cadeau": {
+    "deu": "Geschenk",
+    "dg": "n",
+    "dpl": "Geschenke"
+   },
+   "pl_colis": {
+    "deu": "Paket",
+    "dg": "n",
+    "dpl": "Pakete"
+   },
+   "pl_bateau": {
+    "deu": "Boot",
+    "dg": "n",
+    "dpl": "Boote"
+   },
+   "pl_oiseau": {
+    "deu": "Vogel",
+    "dg": "m",
+    "dpl": "Vögel"
+   },
+   "pl_tapis": {
+    "deu": "Teppich",
+    "dg": "m",
+    "dpl": "Teppiche"
+   },
+   "pl_bus": {
+    "deu": "Bus",
+    "dg": "m",
+    "dpl": "Busse"
+   },
+   "pl_train": {
+    "deu": "Zug",
+    "dg": "m",
+    "dpl": "Züge"
+   },
+   "pl_carnet": {
+    "deu": "Notizbuch",
+    "dg": "n",
+    "dpl": "Notizbücher"
+   },
+   "pl_carton": {
+    "deu": "Karton",
+    "dg": "m",
+    "dpl": "Kartons"
+   },
+   "pl_plante": {
+    "deu": "Pflanze",
+    "dg": "f",
+    "dpl": "Pflanzen"
+   },
+   "pl_tasse": {
+    "deu": "Tasse",
+    "dg": "f",
+    "dpl": "Tassen"
+   },
+   "pl_affiche": {
+    "deu": "Plakat",
+    "dg": "n",
+    "dpl": "Plakate"
+   },
+   "pl_cle": {
+    "deu": "Schlüssel",
+    "dg": "m",
+    "dpl": "Schlüssel"
+   },
+   "pl_bague": {
+    "deu": "Ring",
+    "dg": "m",
+    "dpl": "Ringe"
+   },
+   "pl_croissant": {
+    "deu": "Croissant",
+    "dg": "n",
+    "dpl": "Croissants"
+   },
+   "pl_livre": {
+    "deu": "Buch",
+    "dg": "n",
+    "dpl": "Bücher"
+   }
+  },
+  "pl_q": {
+   "plq_2": "zwei",
+   "plq_3": "drei",
+   "plq_4": "vier",
+   "plq_some": "ein paar",
+   "plq_several": "mehrere"
+  },
+  "excl_event": {
+   "ev_flat": {
+    "deu": "hat eine Wohnung am Kanal gefunden",
+    "deu_2": "Du hast eine Wohnung am Kanal gefunden"
+   },
+   "ev_tickets": {
+    "deu": "hat zwei Karten für das Konzert gewonnen",
+    "deu_2": "Du hast zwei Karten für das Konzert gewonnen"
+   },
+   "ev_ring": {
+    "deu": "hat den Ring auf dem Flohmarkt wiedergefunden",
+    "deu_2": "Du hast den Ring auf dem Flohmarkt wiedergefunden"
+   },
+   "ev_painting": {
+    "deu": "hat auf dem Flohmarkt ein Bild verkauft",
+    "deu_2": "Du hast auf dem Flohmarkt ein Bild verkauft"
+   },
+   "ev_notcoming": {
+    "deu": "kommt heute Abend nicht",
+    "deu_2": "Du kommst heute Abend nicht"
+   },
+   "ev_metro": {
+    "deu": "hat die letzte U-Bahn verpasst",
+    "deu_2": "Du hast die letzte U-Bahn verpasst"
+   },
+   "ev_notebook": {
+    "deu": "hat Gus' Notizbuch verloren",
+    "deu_2": "Du hast Gus' Notizbuch verloren"
+   },
+   "ev_closed": {
+    "deu": "hat das Mistral geschlossen vorgefunden",
+    "deu_2": "Du hast das Mistral geschlossen vorgefunden"
+   },
+   "ev_leaving": {
+    "deu": "zieht im Juni aus dem Viertel weg",
+    "deu_2": "Du ziehst im Juni aus dem Viertel weg"
+   },
+   "ev_flowers": {
+    "deu": "kommt mit einem Kuchen ins Mistral",
+    "deu_2": "Du kommst mit einem Kuchen ins Mistral"
+   },
+   "ev_building": {
+    "deu": "wohnt auch im Gebäude",
+    "deu_2": "Du wohnst auch im Gebäude"
+   },
+   "ev_samebook": {
+    "deu": "liest Marins Roman",
+    "deu_2": "Du liest Marins Roman"
+   },
+   "ev_cousin": {
+    "deu": "kennt Romys Bruder",
+    "deu_2": "Du kennst Romys Bruder"
+   },
+   "ev_picnic": {
+    "deu": "schlägt ein Picknick am Kanal vor",
+    "deu_2": "Du schlägst ein Picknick am Kanal vor"
+   },
+   "ev_party": {
+    "deu": "will im Mistral eine Party machen",
+    "deu_2": "Du willst im Mistral eine Party machen"
+   },
+   "ev_cinema": {
+    "deu": "schlägt vor, ins Kino zu gehen",
+    "deu_2": "Du schlägst vor, ins Kino zu gehen"
+   },
+   "ev_keys": {
+    "deu": "hat die Schlüssel vom Mistral verloren",
+    "deu_2": "Du hast die Schlüssel vom Mistral verloren"
+   },
+   "ev_midnight": {
+    "deu": "hat bis Mitternacht gearbeitet",
+    "deu_2": "Du hast bis Mitternacht gearbeitet"
+   },
+   "ev_boxes": {
+    "deu": "hat überall Kartons stehen lassen",
+    "deu_2": "Du hast überall Kartons stehen lassen"
+   },
+   "ev_cups": {
+    "deu": "hat überall Tassen stehen lassen",
+    "deu_2": "Du hast überall Tassen stehen lassen"
+   },
+   "ev_guitar": {
+    "deu": "spielt um Mitternacht Gitarre",
+    "deu_2": "Du spielst um Mitternacht Gitarre"
+   },
+   "ev_radiator": {
+    "deu": "klopft auf den Heizkörper",
+    "deu_2": "Du klopfst auf den Heizkörper"
+   },
+   "ev_window": {
+    "deu": "hat ein Fenster zum Kanal",
+    "deu_2": "Du hast ein Fenster zum Kanal"
+   },
+   "ev_roof": {
+    "deu": "hat eine Dachterrasse",
+    "deu_2": "Du hast eine Dachterrasse"
+   },
+   "ev_job": {
+    "deu": "hat eine neue Arbeit",
+    "deu_2": "Du hast eine neue Arbeit"
+   },
+   "ev_novel": {
+    "deu": "hat den Roman beendet",
+    "deu_2": "Du hast den Roman beendet"
+   },
+   "evp_flowers": {
+    "deu": "hat Blumen mitgebracht",
+    "deu_2": "Du hast Blumen mitgebracht"
+   },
+   "evp_paintings": {
+    "deu": "hat Bilder für das Mistral gemalt",
+    "deu_2": "Du hast Bilder für das Mistral gemalt"
+   },
+   "evp_crepes": {
+    "deu": "hat Crêpes gemacht",
+    "deu_2": "Du hast Crêpes gemacht"
+   },
+   "evp_chairs": {
+    "deu": "hat auf dem Flohmarkt Stühle gefunden",
+    "deu_2": "Du hast auf dem Flohmarkt Stühle gefunden"
+   },
+   "evp_photos": {
+    "deu": "hat Fotos vom Kanal gemacht",
+    "deu_2": "Du hast Fotos vom Kanal gemacht"
+   }
+  },
+  "excl_noun": {
+   "ex_surprise": "Was für eine Überraschung",
+   "ex_belle_surprise": "Was für eine schöne Überraschung",
+   "ex_chance": "Was für ein Glück",
+   "ex_bonne_nouvelle": "Was für eine gute Nachricht",
+   "ex_dommage": "Wie schade",
+   "ex_catastrophe": "Was für eine Katastrophe",
+   "ex_coincidence": "Was für ein Zufall",
+   "ex_bonne_idee": "Was für eine gute Idee",
+   "ex_super_idee": "Was für eine geniale Idee",
+   "ex_journee": "Was für ein Tag",
+   "ex_bazar": "Was für ein Durcheinander",
+   "ex_desordre": "Was für eine Unordnung",
+   "ex_bruit": "Was für ein Lärm",
+   "ex_vacarme": "Was für ein Krach",
+   "ex_belle_vue": "Was für eine schöne Aussicht",
+   "ex_chance_incroyable": "Was für ein unglaubliches Glück",
+   "ex_fleurs": "Was für schöne Blumen",
+   "ex_jolies_fleurs": "Was für hübsche Blumen",
+   "ex_tableaux": "Was für schöne Bilder",
+   "ex_couleurs": "Was für schöne Farben",
+   "ex_crepes": "Was für gute Crêpes",
+   "ex_chaises": "Was für hübsche Stühle",
+   "ex_photos": "Was für schöne Fotos",
+   "ex_beaux_meubles": "Was für schöne Möbel"
+  },
+  "excl_adj_event": {
+   "eva_paint": "hat den Kanal bei Sonnenuntergang gemalt",
+   "eva_sing": "singt ein Lied von Piaf",
+   "eva_photo": "zeigt die Fotos vom Kanal",
+   "eva_imitate": "macht den Vermieter nach",
+   "eva_hat": "trägt Gus' Hut",
+   "eva_story": "erzählt eine Geschichte über das Mistral",
+   "eva_tart": "hat einen Apfelkuchen gebacken",
+   "eva_soup": "hat eine Käsesuppe gemacht",
+   "eva_lamp": "hat zweihundert Euro für eine Lampe bezahlt",
+   "eva_rent": "zahlt tausend Euro Miete",
+   "eva_coffee": "hat dir einen Kaffee gebracht",
+   "eva_help": "hilft dir, die Kartons zu tragen",
+   "eva_quit": "verlässt morgen Paris",
+   "eva_letters": "findet Briefe ohne Unterschrift",
+   "eva_radiator": "hört Stimmen im Heizkörper"
+  },
+  "excl_adj": {
+   "exa_beau": "Wie schön",
+   "exa_joli": "Wie hübsch",
+   "exa_drole": "Wie lustig",
+   "exa_bon": "Wie gut",
+   "exa_delicieux": "Wie lecker",
+   "exa_cher": "Wie teuer",
+   "exa_gentil": "Wie nett",
+   "exa_triste": "Wie traurig",
+   "exa_bizarre": "Wie seltsam"
+  },
+  "conn_obj": {
+   "co_0": "Margaux",
+   "co_1": "Marin",
+   "co_2": "das Viertel",
+   "co_3": "ein gutes Restaurant hier in der Nähe",
+   "co_4": "den Vermieter",
+   "co_5": "dieses Lied",
+   "co_6": "den Markt am Kanal",
+   "co_7": "Lyon",
+   "co_8": "Romys Freunde",
+   "co_9": "Gus' Bruder",
+   "co_10": "den Sonntagsflohmarkt",
+   "co_11": "einen guten Arzt",
+   "co_12": "alle Cafés im Viertel",
+   "co_13": "Marins Roman"
+  },
+  "know_clause": {
+   "kc_0": "wo Lila wohnt",
+   "kc_1": "ob Gus heute Abend kommt",
+   "kc_2": "dass Romy Journalistin ist",
+   "kc_3": "wie man zum Kanal kommt",
+   "kc_4": "warum Marin zu spät ist",
+   "kc_5": "wann der Markt am Kanal aufmacht",
+   "kc_6": "wer den Ring genommen hat",
+   "kc_7": "wie viel das Ticket kostet",
+   "kc_8": "wo die Schlüssel sind",
+   "kc_9": "wie der Nachbar heißt",
+   "kc_10": "dass das Mistral um Mitternacht schließt",
+   "kc_11": "ob Margaux morgen arbeitet",
+   "kc_12": "wer im dritten Stock wohnt",
+   "kc_13": "warum der Heizkörper Geräusche macht"
+  },
+  "skill": {
+   "sk_0": "schwimmen",
+   "sk_1": "Auto fahren",
+   "sk_2": "kochen",
+   "sk_3": "Gitarre spielen",
+   "sk_4": "Italienisch sprechen",
+   "sk_5": "Rad fahren",
+   "sk_6": "eine Karte lesen",
+   "sk_7": "Tango tanzen",
+   "sk_8": "ein Fahrrad reparieren"
+  },
+  "peur_of": {
+   "po_0": "vor dem Hund",
+   "po_1": "vor der Dunkelheit",
+   "po_2": "vor dem Vermieter",
+   "po_3": "vor der Prüfung",
+   "po_4": "vor den Nachbarn",
+   "po_5": "vor Gus",
+   "po_6": "vor dem Gewitter",
+   "po_7": "vor dem Heizkörper",
+   "po_8": "vor der Besprechung"
+  },
+  "imp_soyez": {
+   "sy_0": "pünktlich im Mistral",
+   "sy_1": "um acht Uhr auf dem Markt am Kanal",
+   "sy_2": "um zwölf Uhr vor dem Gebäude",
+   "sy_3": "um neun Uhr am Bahnhof",
+   "sy_4": "um sieben Uhr fertig",
+   "sy_5": "um zehn Uhr in der Redaktion"
+  },
+  "imp_ayez": {
+   "ay_0": "Ihr Ticket in der Hand",
+   "ay_1": "ein bisschen Geduld",
+   "ay_2": "Ihre Schlüssel dabei",
+   "ay_3": "Ihre Karte dabei"
+  },
+  "imp_sache": {
+   "sa_0": "ich für dich da bin",
+   "sa_1": "die Tür offen bleibt",
+   "sa_2": "das Mistral um Mitternacht schließt",
+   "sa_3": "alle auf dich warten",
+   "sa_4": "Gus alles gehört hat",
+   "sa_5": "Romy einen Artikel über uns schreibt"
+  },
+  "notice": {
+   "nt_0": "Notiz von Herrn Marchand",
+   "nt_1": "Schild im Treppenhaus",
+   "nt_2": "Aushang im Mistral",
+   "nt_3": "Tafel im Mistral",
+   "nt_4": "Mail aus der Redaktion",
+   "nt_5": "Schild auf dem Markt am Kanal"
+  },
+  "imp_veuillez": {
+   "vz_0": "die Haustür schließen",
+   "vz_1": "keine Fahrräder im Eingang abstellen",
+   "vz_2": "die Miete vor dem Fünften zahlen",
+   "vz_3": "dienstags den Müll rausbringen",
+   "vz_4": "nach Mitternacht leiser sprechen",
+   "vz_5": "warten",
+   "vz_6": "an der Theke bestellen",
+   "vz_7": "die Tassen an der Theke abgeben",
+   "vz_8": "bar zahlen",
+   "vz_9": "die Artikel vor zwölf Uhr schicken",
+   "vz_10": "in Besprechungen still sein",
+   "vz_11": "das Obst nicht anfassen"
+  },
+  "cond_ctx": {
+   "cc_ideal": "in einer idealen Welt",
+   "cc_million": "mit einer Million Euro",
+   "cc_life": "in einem anderen Leben",
+   "cc_nowork": "ohne diese Arbeit",
+   "cc_dream": "in meinen Träumen",
+   "cc_possible": "wenn es möglich wäre,"
+  },
+  "er_spell": {
+   "sp_manger_1p": {
+    "deu_verb": {
+     "inf": "essen",
+     "pres2": "isst",
+     "pres3": "isst",
+     "prt": "aß",
+     "pp": "gegessen",
+     "imp": "iss"
+    },
+    "comps": {
+     "au Mistral": "im Mistral",
+     "à midi": "mittags",
+     "des crêpes": "Crêpes",
+     "chez Lila": "bei Lila",
+     "ensemble": "zusammen",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_manger_1s": {
+    "deu_verb": {
+     "inf": "essen",
+     "pres2": "isst",
+     "pres3": "isst",
+     "prt": "aß",
+     "pp": "gegessen",
+     "imp": "iss"
+    },
+    "comps": {
+     "au Mistral": "im Mistral",
+     "à midi": "mittags",
+     "des crêpes": "Crêpes",
+     "chez Lila": "bei Lila",
+     "ensemble": "zusammen",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_manger_3s": {
+    "deu_verb": {
+     "inf": "essen",
+     "pres2": "isst",
+     "pres3": "isst",
+     "prt": "aß",
+     "pp": "gegessen",
+     "imp": "iss"
+    },
+    "comps": {
+     "au Mistral": "im Mistral",
+     "à midi": "mittags",
+     "des crêpes": "Crêpes",
+     "chez Lila": "bei Lila",
+     "ensemble": "zusammen",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_manger_3p": {
+    "deu_verb": {
+     "inf": "essen",
+     "pres2": "isst",
+     "pres3": "isst",
+     "prt": "aß",
+     "pp": "gegessen",
+     "imp": "iss"
+    },
+    "comps": {
+     "au Mistral": "im Mistral",
+     "à midi": "mittags",
+     "des crêpes": "Crêpes",
+     "chez Lila": "bei Lila",
+     "ensemble": "zusammen",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_voyager_1p": {
+    "deu_verb": {
+     "inf": "reisen",
+     "aux": "sein"
+    },
+    "comps": {
+     "en train": "mit dem Zug",
+     "avec Gus": "mit Gus",
+     "beaucoup": "viel",
+     "en Italie": "nach Italien",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_voyager_1s": {
+    "deu_verb": {
+     "inf": "reisen",
+     "aux": "sein"
+    },
+    "comps": {
+     "en train": "mit dem Zug",
+     "avec Gus": "mit Gus",
+     "beaucoup": "viel",
+     "en Italie": "nach Italien",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_voyager_3s": {
+    "deu_verb": {
+     "inf": "reisen",
+     "aux": "sein"
+    },
+    "comps": {
+     "en train": "mit dem Zug",
+     "avec Gus": "mit Gus",
+     "beaucoup": "viel",
+     "en Italie": "nach Italien",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_voyager_3p": {
+    "deu_verb": {
+     "inf": "reisen",
+     "aux": "sein"
+    },
+    "comps": {
+     "en train": "mit dem Zug",
+     "avec Gus": "mit Gus",
+     "beaucoup": "viel",
+     "en Italie": "nach Italien",
+     "avec Romy": "mit Romy"
+    }
+   },
+   "sp_nager_1p": {
+    "deu_verb": {
+     "inf": "schwimmen",
+     "prt": "schwamm",
+     "pp": "geschwommen",
+     "aux": "sein"
+    },
+    "comps": {
+     "à la piscine": "im Schwimmbad",
+     "le dimanche": "sonntags",
+     "dans la mer": "im Meer",
+     "avec Romy": "mit Romy",
+     "le matin": "morgens"
+    }
+   },
+   "sp_nager_1s": {
+    "deu_verb": {
+     "inf": "schwimmen",
+     "prt": "schwamm",
+     "pp": "geschwommen",
+     "aux": "sein"
+    },
+    "comps": {
+     "à la piscine": "im Schwimmbad",
+     "le dimanche": "sonntags",
+     "dans la mer": "im Meer",
+     "avec Romy": "mit Romy",
+     "le matin": "morgens"
+    }
+   },
+   "sp_nager_3s": {
+    "deu_verb": {
+     "inf": "schwimmen",
+     "prt": "schwamm",
+     "pp": "geschwommen",
+     "aux": "sein"
+    },
+    "comps": {
+     "à la piscine": "im Schwimmbad",
+     "le dimanche": "sonntags",
+     "dans la mer": "im Meer",
+     "avec Romy": "mit Romy",
+     "le matin": "morgens"
+    }
+   },
+   "sp_nager_3p": {
+    "deu_verb": {
+     "inf": "schwimmen",
+     "prt": "schwamm",
+     "pp": "geschwommen",
+     "aux": "sein"
+    },
+    "comps": {
+     "à la piscine": "im Schwimmbad",
+     "le dimanche": "sonntags",
+     "dans la mer": "im Meer",
+     "avec Romy": "mit Romy",
+     "le matin": "morgens"
+    }
+   },
+   "sp_partager_1p": {
+    "deu_verb": {
+     "inf": "teilen"
+    },
+    "comps": {
+     "l'appartement": "die Wohnung",
+     "une pizza": "eine Pizza",
+     "un taxi": "ein Taxi",
+     "le loyer": "die Miete",
+     "une table au Mistral": "im Mistral einen Tisch"
+    }
+   },
+   "sp_partager_1s": {
+    "deu_verb": {
+     "inf": "teilen"
+    },
+    "comps": {
+     "l'appartement": "die Wohnung",
+     "une pizza": "eine Pizza",
+     "un taxi": "ein Taxi",
+     "le loyer": "die Miete",
+     "une table au Mistral": "im Mistral einen Tisch"
+    }
+   },
+   "sp_partager_3s": {
+    "deu_verb": {
+     "inf": "teilen"
+    },
+    "comps": {
+     "l'appartement": "die Wohnung",
+     "une pizza": "eine Pizza",
+     "un taxi": "ein Taxi",
+     "le loyer": "die Miete",
+     "une table au Mistral": "im Mistral einen Tisch"
+    }
+   },
+   "sp_partager_3p": {
+    "deu_verb": {
+     "inf": "teilen"
+    },
+    "comps": {
+     "l'appartement": "die Wohnung",
+     "une pizza": "eine Pizza",
+     "un taxi": "ein Taxi",
+     "le loyer": "die Miete",
+     "une table au Mistral": "im Mistral einen Tisch"
+    }
+   },
+   "sp_ranger_1p": {
+    "deu_verb": {
+     "inf": "aufräumen",
+     "sep": "auf"
+    },
+    "comps": {
+     "les cartons de Gus": "Gus' Kartons",
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral"
+    }
+   },
+   "sp_ranger_1s": {
+    "deu_verb": {
+     "inf": "aufräumen",
+     "sep": "auf"
+    },
+    "comps": {
+     "les cartons de Gus": "Gus' Kartons",
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral"
+    }
+   },
+   "sp_ranger_3s": {
+    "deu_verb": {
+     "inf": "aufräumen",
+     "sep": "auf"
+    },
+    "comps": {
+     "les cartons de Gus": "Gus' Kartons",
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral"
+    }
+   },
+   "sp_ranger_3p": {
+    "deu_verb": {
+     "inf": "aufräumen",
+     "sep": "auf"
+    },
+    "comps": {
+     "les cartons de Gus": "Gus' Kartons",
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral"
+    }
+   },
+   "sp_changer_1p": {
+    "deu_verb": {
+     "inf": "wechseln",
+     "pres": [
+      "wechsle",
+      "wechselst",
+      "wechselt",
+      "wechseln",
+      "wechselt",
+      "wechseln"
+     ]
+    },
+    "comps": {
+     "de table": {
+      "deu": "den Tisch"
+     },
+     "de quartier": {
+      "deu": "das Viertel"
+     },
+     "d'avis": {
+      "deu": "unsere Meinung",
+      "deu_verb": {
+       "inf": "ändern",
+       "pres": [
+        "ändere",
+        "änderst",
+        "ändert",
+        "ändern",
+        "ändert",
+        "ändern"
+       ]
+      }
+     },
+     "de métro à Bastille": {
+      "deu": "an der Bastille die Linie",
+      "deu_verb": {
+       "inf": "wechseln",
+       "pres": [
+        "wechsle",
+        "wechselst",
+        "wechselt",
+        "wechseln",
+        "wechselt",
+        "wechseln"
+       ]
+      }
+     }
+    }
+   },
+   "sp_changer_1s": {
+    "deu_verb": {
+     "inf": "wechseln",
+     "pres": [
+      "wechsle",
+      "wechselst",
+      "wechselt",
+      "wechseln",
+      "wechselt",
+      "wechseln"
+     ]
+    },
+    "comps": {
+     "de table": {
+      "deu": "den Tisch"
+     },
+     "de quartier": {
+      "deu": "das Viertel"
+     },
+     "d'avis": {
+      "deu": "unsere Meinung",
+      "deu_verb": {
+       "inf": "ändern",
+       "pres": [
+        "ändere",
+        "änderst",
+        "ändert",
+        "ändern",
+        "ändert",
+        "ändern"
+       ]
+      }
+     },
+     "de métro à Bastille": {
+      "deu": "an der Bastille die Linie",
+      "deu_verb": {
+       "inf": "wechseln",
+       "pres": [
+        "wechsle",
+        "wechselst",
+        "wechselt",
+        "wechseln",
+        "wechselt",
+        "wechseln"
+       ]
+      }
+     }
+    }
+   },
+   "sp_changer_3s": {
+    "deu_verb": {
+     "inf": "wechseln",
+     "pres": [
+      "wechsle",
+      "wechselst",
+      "wechselt",
+      "wechseln",
+      "wechselt",
+      "wechseln"
+     ]
+    },
+    "comps": {
+     "de table": {
+      "deu": "den Tisch"
+     },
+     "de quartier": {
+      "deu": "das Viertel"
+     },
+     "d'avis": {
+      "deu": "unsere Meinung",
+      "deu_verb": {
+       "inf": "ändern",
+       "pres": [
+        "ändere",
+        "änderst",
+        "ändert",
+        "ändern",
+        "ändert",
+        "ändern"
+       ]
+      }
+     },
+     "de métro à Bastille": {
+      "deu": "an der Bastille die Linie",
+      "deu_verb": {
+       "inf": "wechseln",
+       "pres": [
+        "wechsle",
+        "wechselst",
+        "wechselt",
+        "wechseln",
+        "wechselt",
+        "wechseln"
+       ]
+      }
+     }
+    }
+   },
+   "sp_changer_3p": {
+    "deu_verb": {
+     "inf": "wechseln",
+     "pres": [
+      "wechsle",
+      "wechselst",
+      "wechselt",
+      "wechseln",
+      "wechselt",
+      "wechseln"
+     ]
+    },
+    "comps": {
+     "de table": {
+      "deu": "den Tisch"
+     },
+     "de quartier": {
+      "deu": "das Viertel"
+     },
+     "d'avis": {
+      "deu": "unsere Meinung",
+      "deu_verb": {
+       "inf": "ändern",
+       "pres": [
+        "ändere",
+        "änderst",
+        "ändert",
+        "ändern",
+        "ändert",
+        "ändern"
+       ]
+      }
+     },
+     "de métro à Bastille": {
+      "deu": "an der Bastille die Linie",
+      "deu_verb": {
+       "inf": "wechseln",
+       "pres": [
+        "wechsle",
+        "wechselst",
+        "wechselt",
+        "wechseln",
+        "wechselt",
+        "wechseln"
+       ]
+      }
+     }
+    }
+   },
+   "sp_acheter_1p": {
+    "deu_verb": {
+     "inf": "kaufen"
+    },
+    "comps": {
+     "du pain au marché du canal": "auf dem Markt am Kanal Brot",
+     "des fleurs pour Lila": "Blumen für Lila",
+     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "le journal": "die Zeitung",
+     "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
+    }
+   },
+   "sp_acheter_1s": {
+    "deu_verb": {
+     "inf": "kaufen"
+    },
+    "comps": {
+     "du pain au marché du canal": "auf dem Markt am Kanal Brot",
+     "des fleurs pour Lila": "Blumen für Lila",
+     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "le journal": "die Zeitung",
+     "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
+    }
+   },
+   "sp_acheter_3s": {
+    "deu_verb": {
+     "inf": "kaufen"
+    },
+    "comps": {
+     "du pain au marché du canal": "auf dem Markt am Kanal Brot",
+     "des fleurs pour Lila": "Blumen für Lila",
+     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "le journal": "die Zeitung",
+     "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
+    }
+   },
+   "sp_acheter_3p": {
+    "deu_verb": {
+     "inf": "kaufen"
+    },
+    "comps": {
+     "du pain au marché du canal": "auf dem Markt am Kanal Brot",
+     "des fleurs pour Lila": "Blumen für Lila",
+     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "le journal": "die Zeitung",
+     "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
+    }
+   },
+   "sp_appeler_1p": {
+    "deu_verb": {
+     "inf": "anrufen",
+     "sep": "an",
+     "prt": "rief",
+     "pp": "angerufen"
+    },
+    "comps": {
+     "Marin": "Marin",
+     "le propriétaire": "den Vermieter",
+     "un taxi": {
+      "deu": "ein Taxi",
+      "deu_verb": {
+       "inf": "rufen",
+       "prt": "rief",
+       "pp": "gerufen"
+      }
+     },
+     "la banque": "die Bank",
+     "Romy": "Romy"
+    }
+   },
+   "sp_appeler_1s": {
+    "deu_verb": {
+     "inf": "anrufen",
+     "sep": "an",
+     "prt": "rief",
+     "pp": "angerufen"
+    },
+    "comps": {
+     "Marin": "Marin",
+     "le propriétaire": "den Vermieter",
+     "un taxi": {
+      "deu": "ein Taxi",
+      "deu_verb": {
+       "inf": "rufen",
+       "prt": "rief",
+       "pp": "gerufen"
+      }
+     },
+     "la banque": "die Bank",
+     "Romy": "Romy"
+    }
+   },
+   "sp_appeler_3s": {
+    "deu_verb": {
+     "inf": "anrufen",
+     "sep": "an",
+     "prt": "rief",
+     "pp": "angerufen"
+    },
+    "comps": {
+     "Marin": "Marin",
+     "le propriétaire": "den Vermieter",
+     "un taxi": {
+      "deu": "ein Taxi",
+      "deu_verb": {
+       "inf": "rufen",
+       "prt": "rief",
+       "pp": "gerufen"
+      }
+     },
+     "la banque": "die Bank",
+     "Romy": "Romy"
+    }
+   },
+   "sp_appeler_3p": {
+    "deu_verb": {
+     "inf": "anrufen",
+     "sep": "an",
+     "prt": "rief",
+     "pp": "angerufen"
+    },
+    "comps": {
+     "Marin": "Marin",
+     "le propriétaire": "den Vermieter",
+     "un taxi": {
+      "deu": "ein Taxi",
+      "deu_verb": {
+       "inf": "rufen",
+       "prt": "rief",
+       "pp": "gerufen"
+      }
+     },
+     "la banque": "die Bank",
+     "Romy": "Romy"
+    }
+   },
+   "sp_jeter_1p": {
+    "deu_verb": {
+     "inf": "wegwerfen",
+     "sep": "weg",
+     "pres2": "wirfst",
+     "pres3": "wirft",
+     "prt": "warf",
+     "pp": "weggeworfen"
+    },
+    "comps": {
+     "les vieux journaux": "die alten Zeitungen",
+     "les cartons": "die Kartons",
+     "le vieux tapis": "den alten Teppich",
+     "les fleurs fanées": "die verwelkten Blumen"
+    }
+   },
+   "sp_jeter_1s": {
+    "deu_verb": {
+     "inf": "wegwerfen",
+     "sep": "weg",
+     "pres2": "wirfst",
+     "pres3": "wirft",
+     "prt": "warf",
+     "pp": "weggeworfen"
+    },
+    "comps": {
+     "les vieux journaux": "die alten Zeitungen",
+     "les cartons": "die Kartons",
+     "le vieux tapis": "den alten Teppich",
+     "les fleurs fanées": "die verwelkten Blumen"
+    }
+   },
+   "sp_jeter_3s": {
+    "deu_verb": {
+     "inf": "wegwerfen",
+     "sep": "weg",
+     "pres2": "wirfst",
+     "pres3": "wirft",
+     "prt": "warf",
+     "pp": "weggeworfen"
+    },
+    "comps": {
+     "les vieux journaux": "die alten Zeitungen",
+     "les cartons": "die Kartons",
+     "le vieux tapis": "den alten Teppich",
+     "les fleurs fanées": "die verwelkten Blumen"
+    }
+   },
+   "sp_jeter_3p": {
+    "deu_verb": {
+     "inf": "wegwerfen",
+     "sep": "weg",
+     "pres2": "wirfst",
+     "pres3": "wirft",
+     "prt": "warf",
+     "pp": "weggeworfen"
+    },
+    "comps": {
+     "les vieux journaux": "die alten Zeitungen",
+     "les cartons": "die Kartons",
+     "le vieux tapis": "den alten Teppich",
+     "les fleurs fanées": "die verwelkten Blumen"
+    }
+   },
+   "sp_envoyer_1p": {
+    "deu_verb": {
+     "inf": "schicken"
+    },
+    "comps": {
+     "un message à Romy": "Romy eine Nachricht",
+     "une lettre au propriétaire": "dem Vermieter einen Brief",
+     "des photos à Lila": "Lila Fotos",
+     "un e-mail à Gus": "Gus eine E-Mail"
+    }
+   },
+   "sp_envoyer_1s": {
+    "deu_verb": {
+     "inf": "schicken"
+    },
+    "comps": {
+     "un message à Romy": "Romy eine Nachricht",
+     "une lettre au propriétaire": "dem Vermieter einen Brief",
+     "des photos à Lila": "Lila Fotos",
+     "un e-mail à Gus": "Gus eine E-Mail"
+    }
+   },
+   "sp_envoyer_3s": {
+    "deu_verb": {
+     "inf": "schicken"
+    },
+    "comps": {
+     "un message à Romy": "Romy eine Nachricht",
+     "une lettre au propriétaire": "dem Vermieter einen Brief",
+     "des photos à Lila": "Lila Fotos",
+     "un e-mail à Gus": "Gus eine E-Mail"
+    }
+   },
+   "sp_envoyer_3p": {
+    "deu_verb": {
+     "inf": "schicken"
+    },
+    "comps": {
+     "un message à Romy": "Romy eine Nachricht",
+     "une lettre au propriétaire": "dem Vermieter einen Brief",
+     "des photos à Lila": "Lila Fotos",
+     "un e-mail à Gus": "Gus eine E-Mail"
+    }
+   },
+   "sp_nettoyer_1p": {
+    "deu_verb": {
+     "inf": "putzen"
+    },
+    "comps": {
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral",
+     "le radiateur": "den Heizkörper"
+    }
+   },
+   "sp_nettoyer_1s": {
+    "deu_verb": {
+     "inf": "putzen"
+    },
+    "comps": {
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral",
+     "le radiateur": "den Heizkörper"
+    }
+   },
+   "sp_nettoyer_3s": {
+    "deu_verb": {
+     "inf": "putzen"
+    },
+    "comps": {
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral",
+     "le radiateur": "den Heizkörper"
+    }
+   },
+   "sp_nettoyer_3p": {
+    "deu_verb": {
+     "inf": "putzen"
+    },
+    "comps": {
+     "la cuisine": "die Küche",
+     "le salon": "das Wohnzimmer",
+     "les tasses du Mistral": "die Tassen vom Mistral",
+     "le radiateur": "den Heizkörper"
+    }
+   },
+   "sp_s_ennuyer_1p": {
+    "deu_verb": {
+     "inf": "langweilen",
+     "refl": "acc"
+    },
+    "comps": {
+     "au bureau": "im Büro",
+     "sans Lila": "ohne Lila",
+     "le dimanche": "sonntags",
+     "à la réunion": "in der Besprechung"
+    }
+   },
+   "sp_s_ennuyer_1s": {
+    "deu_verb": {
+     "inf": "langweilen",
+     "refl": "acc"
+    },
+    "comps": {
+     "au bureau": "im Büro",
+     "sans Lila": "ohne Lila",
+     "le dimanche": "sonntags",
+     "à la réunion": "in der Besprechung"
+    }
+   },
+   "sp_s_ennuyer_3s": {
+    "deu_verb": {
+     "inf": "langweilen",
+     "refl": "acc"
+    },
+    "comps": {
+     "au bureau": "im Büro",
+     "sans Lila": "ohne Lila",
+     "le dimanche": "sonntags",
+     "à la réunion": "in der Besprechung"
+    }
+   },
+   "sp_s_ennuyer_3p": {
+    "deu_verb": {
+     "inf": "langweilen",
+     "refl": "acc"
+    },
+    "comps": {
+     "au bureau": "im Büro",
+     "sans Lila": "ohne Lila",
+     "le dimanche": "sonntags",
+     "à la réunion": "in der Besprechung"
+    }
+   },
+   "sp_essuyer_1p": {
+    "deu_verb": {
+     "inf": "abwischen",
+     "sep": "ab"
+    },
+    "comps": {
+     "les tables du Mistral": "die Tische im Mistral",
+     "les verres": "die Gläser",
+     "le comptoir": "die Theke"
+    }
+   },
+   "sp_essuyer_1s": {
+    "deu_verb": {
+     "inf": "abwischen",
+     "sep": "ab"
+    },
+    "comps": {
+     "les tables du Mistral": "die Tische im Mistral",
+     "les verres": "die Gläser",
+     "le comptoir": "die Theke"
+    }
+   },
+   "sp_essuyer_3s": {
+    "deu_verb": {
+     "inf": "abwischen",
+     "sep": "ab"
+    },
+    "comps": {
+     "les tables du Mistral": "die Tische im Mistral",
+     "les verres": "die Gläser",
+     "le comptoir": "die Theke"
+    }
+   },
+   "sp_essuyer_3p": {
+    "deu_verb": {
+     "inf": "abwischen",
+     "sep": "ab"
+    },
+    "comps": {
+     "les tables du Mistral": "die Tische im Mistral",
+     "les verres": "die Gläser",
+     "le comptoir": "die Theke"
+    }
+   }
+  }
+ }
+}

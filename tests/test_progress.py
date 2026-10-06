@@ -534,6 +534,11 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
     headers = {"Authorization": f"Bearer {token}"}
     user = db_session.query(User).filter(User.email == "progress-vocab-recs@example.com").one()
     user.target_language = "fr"
+    # The summary counts every unseen fr_to_de card, and the run shares one catalogue:
+    # other suites leave their own («abaisser», «venir»…), so «new» read 2 or more in
+    # some orders. The test's cards sit in a deck of their own and the request
+    # filters on it.
+    DECK = "French 5000 · recommendations test"  # noqa: N806
 
     due_word = VocabularyWord(
         language="fr",
@@ -542,7 +547,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
         frequency_rank=70,
         german_translation="ankommen",
         direction="fr_to_de",
-        deck_name="French 5000",
+        deck_name=DECK,
         is_anki_card=True,
     )
     fragile_word = VocabularyWord(
@@ -552,7 +557,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
         frequency_rank=120,
         german_translation="vorsehen",
         direction="fr_to_de",
-        deck_name="French 5000",
+        deck_name=DECK,
         is_anki_card=True,
     )
     new_word = VocabularyWord(
@@ -562,7 +567,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
         frequency_rank=30,
         german_translation="Haus",
         direction="fr_to_de",
-        deck_name="French 5000",
+        deck_name=DECK,
         is_anki_card=True,
     )
     stopword = VocabularyWord(
@@ -572,7 +577,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
         frequency_rank=1,
         german_translation="der",
         direction="fr_to_de",
-        deck_name="French 5000",
+        deck_name=DECK,
         is_anki_card=True,
     )
     db_session.add_all([due_word, fragile_word, new_word, stopword])
@@ -628,6 +633,7 @@ def test_vocabulary_recommendations_rank_due_fragile_and_new_cards(
             "fragile_limit": 1,
             "new_limit": 1,
             "direction": "fr_to_de",
+            "deck_name": DECK,
         },
     )
 
@@ -797,17 +803,26 @@ def test_learning_queue_includes_non_anki_words_for_target_language(db_session) 
     db_session.add_all([due_word, new_word, other_language_word])
     db_session.flush()
 
+    # One clock for the row and the query: `date.today()` is the local date while the
+    # queue compares against the UTC one, so the word was not due between local
+    # midnight and UTC midnight.
+    now = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
     db_session.add(
         UserVocabularyProgress(
             user_id=user.id,
             word_id=due_word.id,
-            due_date=date.today(),
+            due_date=now.date(),
             state="learning",
         )
     )
     db_session.commit()
 
-    queue = ProgressService(db_session).get_learning_queue(user=user, limit=3)
+    # The catalogue is shared by the whole run and new words are ranked by frequency;
+    # with limit=3 any two ranked French words another suite left behind crowded the
+    # unranked «croissant» out. The limit covers the whole French catalogue, so the
+    # test asks only what it means to: is a non-Anki target-language word eligible.
+    french = db_session.query(VocabularyWord).filter(VocabularyWord.language == "fr").count()
+    queue = ProgressService(db_session).get_learning_queue(user=user, limit=french + 1, now=now)
     queued_words = {item.word.word for item in queue}
 
     assert "baguette" in queued_words

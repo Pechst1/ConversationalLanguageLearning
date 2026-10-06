@@ -121,6 +121,13 @@ export function ProgressRule({ value, max, label, caption }: ProgressRuleProps) 
 export type StepSegment = {
   id: string;
   state: 'done' | 'active' | 'pending' | 'skipped';
+  /**
+   * WP-D3: the step's shape (the WP-D1 step → shape mapping). When every
+   * segment carries one, the rail is drawn as shape tokens instead of bars.
+   */
+  shape?: ShapeKind;
+  /** WP-D3: the active token's verdict face, shown for ~600 ms then settled. */
+  face?: 'grin' | 'frown' | null;
 };
 
 export type StepProgressProps = {
@@ -139,6 +146,10 @@ export type StepProgressProps = {
 export function StepProgress({ steps, label, caption }: StepProgressProps) {
   if (steps.length === 0) return null;
   const done = steps.filter((s) => s.state === 'done' || s.state === 'skipped').length;
+
+  if (steps.every((step) => step.shape)) {
+    return <StepTokens steps={steps} label={label} caption={caption} done={done} />;
+  }
 
   return (
     <div className="av2-progress">
@@ -161,6 +172,125 @@ export function StepProgress({ steps, label, caption }: StepProgressProps) {
       </div>
       {caption && <span className="av2-progress__count">{caption}</span>}
     </div>
+  );
+}
+
+/**
+ * WP-D3 — progress tokens with faces. One shape per step: done is ink (ink =
+ * done), the active step is its own shape in its own colour with two eyes,
+ * the rest are ghosts in `--av2-line`. Flat fills, never a stroke around the
+ * shape. On a verdict the active token grins or frowns for ~600 ms and
+ * settles; Reduce Motion skips it. Faces live here and nowhere else.
+ */
+function StepTokens({
+  steps,
+  label,
+  caption,
+  done,
+}: StepProgressProps & { done: number }) {
+  const activeIndex = steps.findIndex((step) => step.state === 'active');
+  const position = activeIndex >= 0 ? activeIndex + 1 : Math.min(steps.length, done + 1);
+  const valueText = caption || `Étape ${position} sur ${steps.length}`;
+
+  return (
+    <div className="av2-progress" data-variant="tokens">
+      <div
+        className="av2-progress__tokens"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={steps.length}
+        aria-valuenow={done}
+        aria-valuetext={valueText}
+      >
+        {groupStepTokens(steps).map((group) => (
+          <React.Fragment key={group.step.id}>
+            <StepToken step={group.step} />
+            {group.count > 1 && group.step.state === 'active' && (
+              <span className="av2-token-count" aria-hidden="true">
+                {group.position}/{group.count}
+              </span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      {/* The count stays for screen readers; the tokens already show it. */}
+      {caption && <span className="av2-progress__count av2-sr">{caption}</span>}
+    </div>
+  );
+}
+
+/** More tokens than this and a longer rhythm's run of steps collapses (WP-L6). */
+export const STEP_TOKENS_MAX = 9;
+
+type StepTokenGroup = { step: StepSegment; count: number; position: number };
+
+/**
+ * WP-L6: a Régulier day has ~30 steps, far more than a phone row holds. Up to
+ * STEP_TOKENS_MAX the rail is one token per step; beyond it, consecutive steps
+ * of one shape are one token (the day's movements), done when all are done,
+ * active while one is, with «4/14» beside the active run.
+ */
+export function groupStepTokens(steps: StepSegment[]): StepTokenGroup[] {
+  if (steps.length <= STEP_TOKENS_MAX) return steps.map((step) => ({ step, count: 1, position: 1 }));
+  const groups: { steps: StepSegment[] }[] = [];
+  for (const step of steps) {
+    const last = groups[groups.length - 1];
+    if (last && last.steps[0].shape === step.shape) last.steps.push(step);
+    else groups.push({ steps: [step] });
+  }
+  return groups.map(({ steps: run }) => {
+    const activeAt = run.findIndex((step) => step.state === 'active');
+    const finished = run.every((step) => step.state === 'done' || step.state === 'skipped');
+    const doneCount = run.filter((step) => step.state === 'done' || step.state === 'skipped').length;
+    const state: StepSegment['state'] = activeAt >= 0 ? 'active' : finished ? 'done' : 'pending';
+    const face = activeAt >= 0 ? run[activeAt].face ?? null : null;
+    return {
+      step: { ...run[0], state, face },
+      count: run.length,
+      position: activeAt >= 0 ? activeAt + 1 : doneCount,
+    };
+  });
+}
+
+function StepToken({ step }: { step: StepSegment }) {
+  const kind = step.shape ?? 'story';
+  const active = step.state === 'active';
+  const face = active ? step.face ?? null : null;
+  const triangle = kind === 'action';
+  const eyeY = triangle ? 11 : 8;
+  const mouthY = triangle ? 14 : 12;
+
+  return (
+    <svg
+      className="av2-token"
+      viewBox="0 0 18 18"
+      data-kind={kind}
+      data-state={step.state}
+      data-face={face ?? undefined}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {kind === 'story' ? (
+        <circle className="av2-token__body" cx="9" cy="9" r="9" />
+      ) : triangle ? (
+        <path className="av2-token__body" d="M9 0.5L18 17.5H0Z" />
+      ) : (
+        <rect className="av2-token__body" x="0" y="0" width="18" height="18" rx="3" />
+      )}
+      {active && (
+        <g className="av2-token__face">
+          <circle cx="6.4" cy={eyeY} r="1.4" />
+          <circle cx="11.6" cy={eyeY} r="1.4" />
+          {face === 'grin' && (
+            <path className="av2-token__mouth" d={`M6 ${mouthY - 1}Q9 ${mouthY + 1.8} 12 ${mouthY - 1}`} />
+          )}
+          {face === 'frown' && (
+            <path className="av2-token__mouth" d={`M6 ${mouthY + 0.8}Q9 ${mouthY - 1.8} 12 ${mouthY + 0.8}`} />
+          )}
+        </g>
+      )}
+    </svg>
   );
 }
 

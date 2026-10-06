@@ -80,6 +80,13 @@ def test_revision_identifiers_are_the_assigned_ones() -> None:
     assert 'down_revision = "d1e2f3a4b5c6"' in source
 
 
+#: Columns later migrations add to these tables; this one never created them.
+LATER_COLUMNS: dict[str, set[str]] = {
+    # WP-L9 (e1f3a5b7c9d2): when each step started.
+    "daily_journey_steps": {"started_at"},
+}
+
+
 @pytest.mark.parametrize(
     ("table", "model"),
     [
@@ -91,7 +98,8 @@ def test_revision_identifiers_are_the_assigned_ones() -> None:
 def test_migration_columns_match_the_model(
     replayed: RecordingOp, table: str, model: Any
 ) -> None:
-    assert _columns(replayed, table) == set(model.__table__.columns.keys())
+    expected = set(model.__table__.columns.keys()) - LATER_COLUMNS.get(table, set())
+    assert _columns(replayed, table) == expected
 
 
 def test_the_migration_is_additive(replayed: RecordingOp) -> None:

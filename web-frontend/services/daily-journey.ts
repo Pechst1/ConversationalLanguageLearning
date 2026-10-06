@@ -9,6 +9,11 @@
  */
 
 import apiService from '@/services/api';
+import {
+  createClipLoader,
+  createLineAudioResolver,
+  recallClipId,
+} from '@/components/atelier-v2/journey/line-audio';
 import type {
   AdvanceBody,
   AttemptBody,
@@ -25,6 +30,7 @@ import type {
   JourneyErrorDetail,
   JourneyHttpResult,
   JourneySnapshot,
+  LineAudioBody,
   PublicStep,
   RespondStep,
   TodayEnvelope,
@@ -170,7 +176,7 @@ export const dailyJourneyService = {
     const body: CreateJourneyBody = {
       mutation_id: options.mutationId ?? mutationId(),
       timezone: options.timezone ?? resolveTimezone(),
-      budget_seconds: DAILY_JOURNEY_BUDGET_SECONDS,
+      // WP-L6: no budget — the server sizes the day from the learner's rhythm.
       preferred_input_mode: options.preferredInputMode ?? 'text',
     };
     return apiService.createDailyJourney(body);
@@ -269,9 +275,64 @@ export const dailyJourneyService = {
 export default dailyJourneyService;
 
 
+/**
+ * WP-32 §9.1 (applied by WP-37) — the radio episode's transport, in the facade.
+ *
+ * `useEpisodeAudio.ts` and `StoryEpisodeStep.tsx` reach `apiService` directly
+ * because this file was outside WP-32's lease; these are the entries that let
+ * them stop. Behaviour-neutral: each is the same call the hook already makes.
+ *
+ * None of this is reward or mutation authority. The prediction check is stored
+ * beside the reading position and is deliberately **measurement, not marking**
+ * — it never reaches a `DailyJourneyStep` or the capability rubric (WP-32 §3),
+ * which is why it sits down here with the reader calls and not in
+ * `dailyJourneyService` above.
+ */
+export const getEpisodeAudio = (sceneId: string) => apiService.getEpisodeAudio(sceneId);
+export const synthesizeEpisodeAudio = (sceneId: string) =>
+  apiService.synthesizeEpisodeAudio(sceneId);
+export const getEpisodeAudioClip = (sceneId: string, clipId: string) =>
+  apiService.getEpisodeAudioClip(sceneId, clipId);
+export const recordEpisodePrediction = (
+  sceneId: string,
+  body: { guess: string; verdict: string; supported?: string | null },
+) => apiService.recordEpisodePrediction(sceneId, body);
+
 /** Reader navigation is separate from the journey mutation/reward authority. */
 export const getStoryEpisodes = (before?: string) => apiService.getStoryEpisodes(before);
 export const getStoryEpisode = (sceneId: string) => apiService.getStoryEpisode(sceneId);
 export const getStoryEpisodeForJourney = (journeyId: string) => apiService.getStoryEpisodeForJourney(journeyId);
 export const saveStoryReadingPosition = (sceneId: string, panelIndex: number) =>
   apiService.saveStoryReadingPosition(sceneId, panelIndex);
+
+/**
+ * WP-91 «Les voix» — a character's line of a journey step, in their voice.
+ *
+ * `journeyLineResolver(journeyId, stepId)` is what `useLineVoice({ resolve })`
+ * takes: it asks for the line (`POST …/line-audio`), fetches the clip with the
+ * session, and keeps the bytes for the session per character and text, so a
+ * second play costs nothing. `disabled`, a 404 or no network → `null`, and the
+ * device's French voice reads the line (`line-audio.ts`).
+ */
+export const requestLineAudio = (journeyId: string, stepId: string, body: LineAudioBody) =>
+  apiService.requestDailyJourneyLineAudio(journeyId, stepId, body);
+export const getLineAudioClip = (clipId: string) => apiService.getDailyJourneyLineAudio(clipId);
+
+export function journeyLineResolver(journeyId: string, stepId: string) {
+  return createLineAudioResolver({
+    request: (body) => requestLineAudio(journeyId, stepId, body),
+    fetchClip: getLineAudioClip,
+  });
+}
+
+const recallClips = createClipLoader(getLineAudioClip);
+
+/**
+ * WP-91: the bytes behind a listen_tap or dictation prompt's `audio_url`
+ * (`/api/v1/daily-journeys/line-audio/{clip_id}`), cached for the session.
+ * `null` when the path is not a line clip or cannot be fetched.
+ */
+export function loadRecallClip(audioUrl: string | null | undefined): Promise<Blob | null> {
+  const clipId = recallClipId(audioUrl);
+  return clipId ? recallClips(clipId) : Promise.resolve(null);
+}

@@ -16,7 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from app.db.models.grammar import GrammarConcept
 from app.db.session import SessionLocal
 from app.services.atelier_assets import AtelierAssetService
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 COLOR_MAP = {
     "paper": "#efe8dc",
@@ -101,7 +101,7 @@ def main() -> None:
             .filter(
                 GrammarConcept.language == "fr",
                 GrammarConcept.active.is_(True),
-                GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+                GrammarConcept.catalog_version == active_catalog_version(),
             )
             .order_by(GrammarConcept.level, GrammarConcept.difficulty_order, GrammarConcept.id)
             .all()

@@ -17,6 +17,7 @@
 
 import React, { useState } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 import {
   Action,
@@ -48,8 +49,35 @@ import {
   WordTiles,
   type TabKey,
 } from '@/components/atelier-v2/ui';
-import { atelierCopy, CONTROL_LANGUAGES } from '@/lib/atelier-v2-copy';
-import type { ControlLanguage } from '@/types/daily-journey';
+import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
+import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
+import { SeasonReturnGallerySections } from '@/components/atelier-v2/__fixtures__/SeasonReturnGallery';
+import { TestFeedbackGallerySections } from '@/components/atelier-v2/__fixtures__/TestFeedbackGallery';
+import { RuleCardGallerySections } from '@/components/atelier-v2/__fixtures__/RuleCardGallery';
+import { BandCheckGallerySections } from '@/components/atelier-v2/__fixtures__/BandCheckGallery';
+import { ErrataReviewSheet } from '@/components/atelier-v2/errata/ErrataReviewSheet';
+import {
+  CrCorrespondent,
+  CrDebrief,
+  CrLapsedNotice,
+  CrLetterRow,
+} from '@/components/courrier/Correspondance';
+import type { AtelierErrataAttemptResult } from '@/services/api';
+import { atelierCopy, CONTROL_LANGUAGES, normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import {
+  isReaderGalleryState,
+  ReaderGalleryFrames,
+  ReaderGalleryScreen,
+} from '@/components/feuilleton/reader/__fixtures__/ReaderGallery';
+import { JourneyFeedbackView, RespondStepView } from '@/components/atelier-v2/journey/JourneySteps';
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import type {
+  AttemptResult,
+  ControlLanguage,
+  JourneyCorrection,
+  RespondPrompt,
+  RespondStep,
+} from '@/types/daily-journey';
 
 export async function getStaticProps() {
   if (process.env.NODE_ENV === 'production') {
@@ -57,6 +85,11 @@ export async function getStaticProps() {
   }
   return { props: {} };
 }
+
+/* Fixed dates, so the soft-deadline line on this page is the same sentence at
+   every review and never drifts with the wall clock. */
+const GALLERY_TODAY = new Date('2026-09-21T10:00:00Z');
+const GALLERY_DEADLINE = '2026-09-24T16:00:00Z';
 
 const OPTIONS = [
   { id: 'a', textFr: 'elle réussira' },
@@ -72,6 +105,149 @@ const TILES = [
   { id: 't5', textFr: 'ira' },
 ];
 
+const ERRATA_TASK = {
+  error_id: 'gallery',
+  display_label: 'Phrase : locution adverbiale',
+  review_mode: 'grammar',
+  review_mode_label: 'Grammaire',
+  source_type: 'mission',
+  source_label: 'Le courrier',
+  instruction: 'Réécrivez la forme correcte de mémoire.',
+  prompt: 'Reprenez cette faute de grammaire : toute de suites',
+  placeholder: 'La phrase corrigée',
+  learner_text: 'toute de suites',
+  why_wrong: "Locution figée : l'expression correcte est `tout de suite`, sans accord.",
+  repair_hint: null,
+  occurrences: 2,
+  lapses: 0,
+  next_review_date: null,
+};
+
+/* WP-89 «Le fil» specimens: Margaux at the counter, a three-exchange
+   conversation. The learner lines are the walk's own (W7/W8). */
+const FIL_OPENING = 'Bonjour ! Qu’est-ce que je vous sers ?';
+const FIL_SLIP: JourneyCorrection = {
+  span_fr: 'un café noire',
+  corrected_fr: 'un café noir',
+  note_native: '«Café» is masculine, so «noir» takes no -e.',
+};
+
+function filPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
+  return {
+    choices: [],
+    turn_index: 0,
+    max_turns: 3,
+    repair_allowed: true,
+    character_id: 'margaux_barman',
+    character_name: 'Margaux',
+    character_line_fr: FIL_OPENING,
+    character_line_audio_url: null,
+    objective_native: 'Order a drink and choose where to sit.',
+    input_modes: ['text'],
+    targets: [],
+    help_available: ['hint'],
+    letter: null,
+    thread: [],
+    ...extra,
+  };
+}
+
+function filStep(id: string, extra: Partial<RespondPrompt>): RespondStep {
+  return {
+    id,
+    ordinal: 3,
+    kind: 'respond',
+    status: 'active',
+    estimated_seconds: 120,
+    assistance_used: [],
+    prompt: filPrompt(extra),
+  };
+}
+
+const FIL_TURN_ONE = filStep('gallery-fil-1', {
+  turn_index: 1,
+  character_line_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour ! Un café, s’il vous plaît.',
+      character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+      correction: null,
+      character_lines: [],
+    },
+  ],
+});
+
+const FIL_MARKED = filStep('gallery-fil-2', {
+  turn_index: 1,
+  character_line_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour, un café noire, s’il vous plaît.',
+      character_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
+      correction: FIL_SLIP,
+      character_lines: [],
+    },
+  ],
+});
+
+const FIL_CLOSING = filStep('gallery-fil-3', {
+  turn_index: 2,
+  character_line_fr: 'Et avec ça ?',
+  thread: [
+    {
+      learner_fr: 'Bonjour ! Un café, s’il vous plaît.',
+      character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
+      correction: null,
+      character_lines: [],
+    },
+    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
+  ],
+});
+
+/* The device's own copy of the thread (what a reload repaints): it is where
+   the opening line lives, which the server's thread does not repeat. */
+function filDraft(step: RespondStep, extra: Record<string, string> = {}) {
+  const local = JSON.stringify({
+    v: 1,
+    exchanges: (step.prompt.thread ?? []).map((exchange, turn) => ({
+      ...exchange,
+      turn,
+      prompt_fr: turn === 0 ? FIL_OPENING : null,
+    })),
+  });
+  return {
+    get: (key: string) => (key === `${step.id}:thread` ? local : extra[key] ?? ''),
+    set: () => {},
+  };
+}
+
+/* Only the fields the respond view reads; a gallery never holds a snapshot. */
+const FIL_CLOSING_RESULT = {
+  contract_version: 1,
+  evidence_ref: 'gallery',
+  task_outcome: 'met',
+  assistance_level: 'none',
+  correction: null,
+  character_reply_fr: 'Un croissant, avec plaisir. Installez-vous.',
+  reply_source: 'model',
+  next_turn: null,
+  pending: false,
+  journey: null,
+} as unknown as AttemptResult;
+
+const FIL_CLOSING_FEEDBACK = {
+  kind: 'graded' as const,
+  verdict: 'correct' as const,
+  result: FIL_CLOSING_RESULT,
+  replySource: 'model' as const,
+};
+
+const FIL_CLOSING_DRAFT = filDraft(FIL_CLOSING, {
+  [`${FIL_CLOSING.id}:2`]: 'Un croissant aussi, s’il vous plaît.',
+});
+const FIL_TURN_ONE_DRAFT = filDraft(FIL_TURN_ONE);
+const FIL_MARKED_DRAFT = filDraft(FIL_MARKED);
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="gal-section">
@@ -86,17 +262,41 @@ export default function AtelierV2Gallery() {
   const [language, setLanguage] = useState<ControlLanguage>('en');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // The repair card («Reprise de langue») as the Séance route mounts it.
+  const [errataOpen, setErrataOpen] = useState(false);
+  const [errataAnswer, setErrataAnswer] = useState('');
+  const [errataResult, setErrataResult] = useState<AtelierErrataAttemptResult | null>(null);
   const [choice, setChoice] = useState<string | null>('a');
   const [placed, setPlaced] = useState<string[]>(['t1', 't2']);
   const [text, setText] = useState('');
   const [tab, setTab] = useState<TabKey>('atelier');
 
   const copy = atelierCopy(language);
+  // The journey renderers take the merged table, as JourneySession hands it.
+  const filCopy = { ...copy, ...journeyCopy(language) };
   const statusLabels = {
     selected: copy.status_selected,
     correct: copy.status_correct,
     wrong: copy.status_wrong,
   };
+
+  // WP-90: one story-reader state, full-screen, for the frames below.
+  const router = useRouter();
+  const readerState = router.query.reader;
+  if (isReaderGalleryState(readerState)) {
+    return (
+      <>
+        <Head>
+          <title>{`Reader · ${readerState} (dev)`}</title>
+          <meta name="robots" content="noindex" />
+        </Head>
+        <ReaderGalleryScreen
+          state={readerState}
+          language={normalizeControlLanguage(router.query.lang ?? 'en')}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -267,6 +467,62 @@ export default function AtelierV2Gallery() {
             <FeedbackBand tone="neutral" title={copy.still_grading} />
           </Section>
 
+          <Section title="La planche — the story reader (WP-90)">
+            <p className="av2-body">
+              The plate on the press (duotone and folio ribbon), a drawing arriving, drawn, the
+              running head with three lines at 375×812, a translated line, and the ending as the
+              last panel — settled and still being written.
+            </p>
+            <ReaderGalleryFrames language={language} />
+          </Section>
+
+          <Section title="Le fil — the conversation (WP-89)">
+            <p className="av2-label">Turn 1 of 3 — the field under the current line</p>
+            <RespondStepView
+              step={FIL_TURN_ONE}
+              copy={filCopy}
+              busy={false}
+              feedback={{ kind: 'idle' }}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_TURN_ONE_DRAFT}
+            />
+            <p className="av2-label">A slip mid-conversation — a proofreader’s mark, tap it</p>
+            <RespondStepView
+              step={FIL_MARKED}
+              copy={filCopy}
+              busy={false}
+              feedback={{ kind: 'idle' }}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_MARKED_DRAFT}
+            />
+            <p className="av2-label">The closing turn — the one verdict</p>
+            <RespondStepView
+              step={FIL_CLOSING}
+              copy={filCopy}
+              busy={false}
+              feedback={FIL_CLOSING_FEEDBACK}
+              help={null}
+              onHelp={() => {}}
+              onSubmit={() => {}}
+              onContinue={() => {}}
+              draft={FIL_CLOSING_DRAFT}
+            />
+            <JourneyFeedbackView
+              feedback={FIL_CLOSING_FEEDBACK}
+              copy={filCopy}
+              onContinue={() => {}}
+              onRetry={() => {}}
+              onDismiss={() => {}}
+              speaker={{ id: 'margaux_barman', name: 'Margaux' }}
+            />
+          </Section>
+
           <Section title="Notices — never a verdict">
             <Notice shape="story">
               <p>{copy.retrying}</p>
@@ -347,8 +603,92 @@ export default function AtelierV2Gallery() {
               <Action tone="secondary" inline onClick={() => setDialogOpen(true)}>
                 Open dialog
               </Action>
+              <Action
+                tone="secondary"
+                inline
+                onClick={() => {
+                  setErrataAnswer('');
+                  setErrataResult(null);
+                  setErrataOpen(true);
+                }}
+              >
+                Open reprise (errata) sheet
+              </Action>
             </div>
           </Section>
+
+          {/* WP-65 — Le Courrier · la correspondance. Every state of the four
+              new surfaces, including the ones no artboard draws: a chain
+              instalment with a soft deadline, a letter that lapsed, the honest
+              debrief for each of the four outcomes, and the waiting-letter row
+              as La Une and the Feuilleton print it. The sample letters are
+              invented for this page and are visibly not a learner's data. */}
+          <Section title="Le Courrier — la correspondance (WP-65)">
+            <CrCorrespondent
+              correspondent={{
+                id: 'samira',
+                name: 'Samira',
+                role: 'boulangère',
+                mood_line: 'Un peu distant(e) en ce moment.',
+              }}
+              chain={{ id: 'chain:samira', index: 2, total: 3 }}
+              expiresAt={GALLERY_DEADLINE}
+              now={GALLERY_TODAY}
+              history={[
+                {
+                  mission_id: 'g1',
+                  summary_fr: 'Le pain mis de côté pour samedi',
+                  outcome: 'kept',
+                  at: '2026-09-12T09:00:00Z',
+                },
+                {
+                  mission_id: 'g2',
+                  summary_fr: 'La commande à changer d’heure',
+                  outcome: 'partial',
+                  at: '2026-09-16T09:00:00Z',
+                },
+              ]}
+            />
+            <CrLapsedNotice name="Samira" />
+            {(['kept', 'partial', 'missed'] as const).map((outcome) => (
+              <CrDebrief
+                key={outcome}
+                outcome={outcome}
+                measured={{
+                  objectives_met: outcome === 'kept' ? 2 : 1,
+                  objectives_total: 2,
+                  repairs: 1,
+                  phrases_saved: 2,
+                  words_written: 64,
+                }}
+                correspondent={{ name: 'Samira', mood_line: 'De bonne humeur avec vous.' }}
+                storySummary="Vous avez promis de passer samedi matin."
+              />
+            ))}
+            <CrLetterRow name="Samira" hint="2ᵉ lettre sur 3, de Samira · répondez avant jeudi" />
+            <CrLetterRow name="Romy" hint="Romy vous écrit après l’épisode." />
+          </Section>
+
+          {/* WP-94 «Numéro spécial» + WP-95 «Le Carnet». */}
+          <CanDoGallerySections language={language} Section={Section} />
+
+          {/* WP-96 «Archives du journal» + WP-97 «Les suites». */}
+          <ArchiveGallerySections language={language} Section={Section} />
+
+          {/* WP-98 «La saison suivante» + WP-99 «Le facteur et les dépêches». */}
+          <SeasonReturnGallerySections language={language} Section={Section} />
+
+          {/* WP-103 «Retour d'essai»: the goal line, «Afficher le texte», the printed
+              corrections, the exchange cue, «Je relis…» and «Corrigez la phrase». */}
+          <TestFeedbackGallerySections language={language} Section={Section} />
+
+          {/* F-1: the rule card v2+ (colour key, «More», steps, examples, traps,
+              «Compare with») and the x-ray sentence, on real A1.1–B1.1 units. */}
+          <RuleCardGallerySections language={language} Section={Section} />
+
+          {/* SPEED-1 «Vérification du lexique»: entry points, intro, a question,
+              the send, and the three result cards. */}
+          <BandCheckGallerySections language={language} Section={Section} />
 
           <Section title="Navigation">
             <TabBar
@@ -383,6 +723,29 @@ export default function AtelierV2Gallery() {
             </Action>
           </div>
         </BottomSheet>
+
+        {errataOpen && (
+          <ErrataReviewSheet
+            task={ERRATA_TASK}
+            answer={errataAnswer}
+            setAnswer={setErrataAnswer}
+            result={errataResult}
+            submitting={false}
+            onSubmit={() =>
+              setErrataResult({
+                verdict: 'needs_repair',
+                score_0_4: 1,
+                is_correct: false,
+                answer_text: errataAnswer,
+                target_answer: 'tout de suite',
+                feedback: 'Pas encore : « tout de suite » est une locution figée, sans accord.',
+                erratum: {} as AtelierErrataAttemptResult['erratum'],
+                task: ERRATA_TASK,
+              })
+            }
+            onClose={() => setErrataOpen(false)}
+          />
+        )}
 
         <Dialog
           open={dialogOpen}

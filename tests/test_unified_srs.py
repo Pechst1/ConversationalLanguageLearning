@@ -218,7 +218,9 @@ def test_completing_error_item_credits_linked_grammar_and_vocabulary(db_session)
         .one()
     )
 
-    assert result["state"] == "review"
+    # WP-L3: errata go through the one lifecycle (open → repairing → mastered).
+    assert result["state"] == "repairing"
+    assert error.stability > 0
     assert error.next_review_date is not None
     assert grammar_progress.last_review is not None
     assert grammar_progress.notes and "unified_srs" in grammar_progress.notes

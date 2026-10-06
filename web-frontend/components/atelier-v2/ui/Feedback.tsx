@@ -13,9 +13,13 @@
  * keeps it true in the pixels.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
+import { faceSrcFor } from '@/lib/cast-faces';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
+import type { FaceMood } from '@/lib/onboarding-portraits';
 
 import { CheckIcon, PendingIcon, RepairIcon, ShapeToken, type ShapeKind } from './Shapes';
 
@@ -28,13 +32,19 @@ export type FeedbackBandProps = {
   /** One supporting line. The character's reply, or why it was supported. */
   detail?: React.ReactNode;
   children?: React.ReactNode;
+  /**
+   * WP-77: the character's face reacting to the answer. Decorative — the
+   * verdict word and the icon already carry the meaning.
+   */
+  face?: React.ReactNode;
 };
 
-export function FeedbackBand({ tone, title, detail, children }: FeedbackBandProps) {
+export function FeedbackBand({ tone, title, detail, children, face }: FeedbackBandProps) {
   return (
     <div
       className="av2-feedback"
       data-tone={tone}
+      data-face={face ? 'true' : undefined}
       role="status"
       // The verdict must be announced as one unit; assertive would interrupt
       // the learner mid-sentence if they are still typing elsewhere.
@@ -51,6 +61,11 @@ export function FeedbackBand({ tone, title, detail, children }: FeedbackBandProp
         {detail && <p className="av2-feedback__sub">{detail}</p>}
         {children}
       </div>
+      {face && (
+        <span className="av2-feedback__face" aria-hidden="true">
+          {face}
+        </span>
+      )}
     </div>
   );
 }
@@ -60,10 +75,16 @@ export type CorrectionProps = {
   spanFr: string;
   correctedFr: string;
   noteNative?: string | null;
+  /**
+   * WP-103: one note per issue, already deduplicated. When given (and not
+   * empty) it replaces `noteNative`; each note is its own line.
+   */
+  notesNative?: string[] | null;
 };
 
 /** At most one correction, under the verdict, never a second headline. */
-export function Correction({ label, spanFr, correctedFr, noteNative }: CorrectionProps) {
+export function Correction({ label, spanFr, correctedFr, noteNative, notesNative }: CorrectionProps) {
+  const notes = (notesNative ?? []).filter((note) => typeof note === 'string' && note.trim());
   return (
     <div className="av2-correction">
       <p className="av2-label">{label}</p>
@@ -76,7 +97,15 @@ export function Correction({ label, spanFr, correctedFr, noteNative }: Correctio
           {correctedFr}
         </span>
       </p>
-      {noteNative && <p style={{ margin: '6px 0 0' }}>{noteNative}</p>}
+      {notes.length > 0 ? (
+        <ul className="av2-correction__notes">
+          {notes.map((note, index) => (
+            <li key={index}>{note}</li>
+          ))}
+        </ul>
+      ) : (
+        noteNative && <p style={{ margin: '6px 0 0' }}>{noteNative}</p>
+      )}
     </div>
   );
 }
@@ -109,11 +138,21 @@ export function Notice({ tone = 'plain', live = 'status', shape, children }: Not
 // ---------------------------------------------------------------------------
 
 export type ArtworkProps = {
+  /** WP-83: the screen's hero (Home's day card) loads eagerly, at high priority. */
+  eager?: boolean;
   url: string | null | undefined;
   /** Empty string marks the image decorative; otherwise a real description. */
   alt: string;
   /** Shown in place of a failed or absent image. */
   fallbackLabel: string;
+  /**
+   * WP-43: render nothing at all when there is no image to show. The Home
+   * episode card has a title, a byline and an action to carry it; an empty
+   * striped plate above them is the one thing the nouvelles-pages artboard
+   * forbids. The reader keeps the plate, because a panel without its art
+   * needs the frame to keep its place.
+   */
+  collapseWhenAbsent?: boolean;
 };
 
 /**
@@ -122,11 +161,12 @@ export type ArtworkProps = {
  * to a browser's broken-image glyph, and it reserves 16:9 either way so the
  * step does not reflow when the image resolves.
  */
-export function Artwork({ url, alt, fallbackLabel }: ArtworkProps) {
+export function Artwork({ url, alt, fallbackLabel, collapseWhenAbsent = false, eager = false }: ArtworkProps) {
   const [failed, setFailed] = useState(false);
   const resolved = url ? resolveMediaUrl(url) || url : null;
 
   if (!resolved || failed) {
+    if (collapseWhenAbsent) return null;
     return (
       <div className="av2-art__fallback" role="img" aria-label={fallbackLabel}>
         <ShapeToken kind="story" size="lg" />
@@ -141,7 +181,9 @@ export function Artwork({ url, alt, fallbackLabel }: ArtworkProps) {
       src={resolved}
       alt={alt}
       onError={() => setFailed(true)}
-      loading="lazy"
+      loading={eager ? 'eager' : 'lazy'}
+      // React 18 warns on the camelCase prop; the lowercase attribute is what browsers read.
+      {...(eager ? { fetchpriority: 'high' } : {})}
       decoding="async"
     />
   );
@@ -181,30 +223,62 @@ export function characterAccent(name: string | null | undefined): string | undef
 export type PortraitProps = {
   /** The character's name, as the server sent it. Its initial is drawn. */
   name: string;
+  /**
+   * WP-77: the character's id, when the payload has one. With it (or with a
+   * name that resolves to the drawn cast) the disc shows their face instead of
+   * the initial; anyone outside the cast keeps the initial.
+   */
+  characterId?: string | null;
+  mood?: FaceMood;
   size?: 'sm' | 'md';
 };
 
-export function Portrait({ name, size = 'md' }: PortraitProps) {
+export function Portrait({ name, characterId = null, mood = 'neutral', size = 'md' }: PortraitProps) {
   const accent = characterAccent(name);
   const initial = name.trim().charAt(0).toUpperCase() || '·';
+  const face = faceSrcFor([characterId, name], mood);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [face]);
+  const showFace = Boolean(face) && !failed;
+  // WP-116: the drawn art set puts the character's rig in the disc.
+  const drawn = useArtSet() === 'drawn' && drawnFaceId(characterId, name) !== null;
   return (
     <span
       className={['av2-portrait', size === 'sm' ? 'av2-portrait--sm' : null]
         .filter(Boolean)
         .join(' ')}
       style={accent ? ({ ['--av2-char' as string]: accent } as React.CSSProperties) : undefined}
+      data-face={drawn || showFace ? mood : undefined}
+      data-art={drawn ? 'drawn' : undefined}
       aria-hidden="true"
     >
-      {initial}
+      {drawn ? (
+        <CastFace seeds={[characterId, name]} mood={mood} size={size === 'sm' ? 28 : 40} />
+      ) : showFace ? (
+        // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
+        <img key={face} src={face as string} alt="" decoding="async" onError={() => setFailed(true)} />
+      ) : (
+        initial
+      )}
     </span>
   );
 }
 
 /** Portrait + name, as one labelled unit. */
-export function Byline({ name, meta }: { name: string; meta?: React.ReactNode }) {
+export function Byline({
+  name,
+  meta,
+  characterId = null,
+  mood = 'neutral',
+}: {
+  name: string;
+  meta?: React.ReactNode;
+  characterId?: string | null;
+  mood?: FaceMood;
+}) {
   return (
     <span className="av2-byline">
-      <Portrait name={name} size="sm" />
+      <Portrait name={name} characterId={characterId} mood={mood} size="sm" />
       <span className="av2-label">
         {name}
         {meta ? <> · {meta}</> : null}

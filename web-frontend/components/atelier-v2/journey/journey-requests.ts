@@ -15,10 +15,27 @@
  * unchanged because it reuses the same hook.
  */
 
+import {
+  stagesReplyFirst,
+  verdictDelayMs,
+  type ReplySequencer,
+  type RevealOptions,
+} from '@/lib/journey-reply-reveal';
 import { journeyErrorCode, journeyErrorDetail, mutationId } from '@/services/daily-journey';
-import type { JourneyErrorCode, JourneyErrorDetail } from '@/types/daily-journey';
+import type {
+  AttemptResult,
+  JourneyErrorCode,
+  JourneyErrorDetail,
+  StepKind,
+} from '@/types/daily-journey';
 
-import { detailOfPayload, isReconcileCode } from './journey-state';
+import {
+  detailOfPayload,
+  feedbackFromAttempt,
+  isReconcileCode,
+  replyingOf,
+  type JourneyFeedback,
+} from './journey-state';
 
 /** Bounded replay of one `processing` request before the learner is asked. */
 export const PROCESSING_MAX_RETRIES = 4;
@@ -185,6 +202,9 @@ export function planFailure(
   error: unknown,
   fallbackMessage = 'transport_error',
 ): FailurePlan {
+  if ((error as { response?: { status?: number } } | null)?.response?.status === 401) {
+    return { kind: 'error', message: 'session_expired', retryable: false };
+  }
   const code = detail?.code ?? journeyErrorCode(error);
   const message = detail?.message || journeyErrorDetail(error)?.message || fallbackMessage;
 
@@ -197,4 +217,171 @@ export function planFailure(
   // An exhausted `processing` replay has produced no `AttemptResult`, so it is
   // a retryable transport state rather than a grade.
   return { kind: 'error', message, retryable: true };
+}
+
+// ---------------------------------------------------------------------------
+// WP-26 — the wait, and the end of the wait
+// ---------------------------------------------------------------------------
+
+/**
+ * How long a request may take before the learner is told it is working.
+ *
+ * A draft served from the server's prefetch returns in tens of milliseconds. A
+ * spinner that appears for 40 ms and vanishes is worse than no spinner: it reads
+ * as a stutter. So the wait state is *delayed* rather than immediate — a warm
+ * draft never shows one at all, and a cold draft still gets the honest copy
+ * within half a second.
+ */
+export const WAIT_HINT_DELAY_MS = 400;
+
+/**
+ * The same delay when the server has *said* the draft is warm
+ * (`TodayEnvelope.is_warm`, WP-26 open item 3, wired by WP-28).
+ *
+ * Warmth used to be inferred from the answer arriving fast, which is only ever
+ * knowable after the fact. Now the envelope says so up front, and the wait copy
+ * is held back long enough that a served prefetch never flashes one — but it is
+ * never suppressed: a warm scene whose preconditions changed is discarded
+ * server-side and generated like any other, and that learner still gets told
+ * what is happening.
+ */
+export const WARM_WAIT_HINT_DELAY_MS = 2_000;
+
+/**
+ * The hard end of any single mutation.
+ *
+ * The server's own generation budget is 75 s and its provider window 35 s, so a
+ * request still open after this has lost its answer, not merely delayed it.
+ * WP-69: it was 60 s — *under* that budget — so a slow but healthy draft was
+ * abandoned client-side at 60 s while the server finished it at 70. It now sits
+ * above the server budget with room for planning and the round trip.
+ * Without this bound a hung socket leaves the journey `busy` forever with no
+ * button to press — the dead end WP-26 §4 forbids. Crossing it produces a
+ * *retryable* failure, never a verdict, and the mutation id is unchanged: the
+ * retry is the same request, so the server's receipt still de-duplicates it.
+ */
+export const MUTATION_DEADLINE_MS = 90_000;
+
+/** The message a timed-out mutation carries into `planFailure`. */
+export const TIMEOUT_MESSAGE = 'request_timed_out';
+
+export class JourneyTimeoutError extends Error {
+  readonly isJourneyTimeout = true;
+
+  constructor(message: string = TIMEOUT_MESSAGE) {
+    super(message);
+    this.name = 'JourneyTimeoutError';
+  }
+}
+
+export function isJourneyTimeout(error: unknown): boolean {
+  return Boolean((error as { isJourneyTimeout?: boolean } | null)?.isJourneyTimeout);
+}
+
+export type WaitHintOptions = {
+  /** Told `true` once the request is slow enough to deserve copy, then `false`. */
+  onWait?: (waiting: boolean) => void;
+  delayMs?: number;
+  /** `0` disables the deadline (a test that drives its own clock). */
+  deadlineMs?: number;
+  /** Injected for tests; defaults to real timers. */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
+};
+
+/**
+ * Run one request with a delayed wait hint and a hard deadline.
+ *
+ * `onWait(false)` is guaranteed on every exit — resolve, reject or timeout — so
+ * no path can leave the learner looking at a permanent spinner.
+ */
+export async function runWithWaitHint<T>(
+  run: () => Promise<T>,
+  options: WaitHintOptions = {},
+): Promise<T> {
+  const {
+    onWait,
+    delayMs = WAIT_HINT_DELAY_MS,
+    deadlineMs = MUTATION_DEADLINE_MS,
+  } = options;
+  const setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+  const clearTimer = options.clearTimer ?? ((handle) => clearTimeout(handle as never));
+
+  let hintTimer: unknown = null;
+  let deadlineTimer: unknown = null;
+  let settled = false;
+  const stop = () => {
+    if (hintTimer !== null) clearTimer(hintTimer);
+    if (deadlineTimer !== null) clearTimer(deadlineTimer);
+    hintTimer = null;
+    deadlineTimer = null;
+  };
+
+  const promises: Promise<T>[] = [
+    (async () => {
+      try {
+        return await run();
+      } finally {
+        settled = true;
+      }
+    })(),
+  ];
+  if (deadlineMs > 0) {
+    promises.push(
+      new Promise<T>((_resolve, reject) => {
+        deadlineTimer = setTimer(() => {
+          // The in-flight request is not cancelled: the server may still be
+          // committing it, and its receipt makes the retry safe either way.
+          if (!settled) reject(new JourneyTimeoutError());
+        }, deadlineMs);
+      }),
+    );
+  }
+
+  if (onWait && delayMs >= 0) {
+    hintTimer = setTimer(() => {
+      if (!settled) onWait(true);
+    }, delayMs);
+  }
+
+  try {
+    return await Promise.race(promises);
+  } finally {
+    stop();
+    onWait?.(false);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WP-76 — reply first, verdict second
+// ---------------------------------------------------------------------------
+
+/**
+ * Turn a scored `AttemptResult` into what the learner sees, in order.
+ *
+ * A respond turn with a reply is staged: `replying` (the reply types in, the
+ * verdict is held) and then `graded` once the reply has been read in — the
+ * same result, the same verdict, nothing re-derived. Every other result goes
+ * straight to its feedback. Returns the cancel for the pending verdict, which
+ * a newer attempt or an unmount must call.
+ */
+export function stageAttemptFeedback(
+  result: AttemptResult,
+  stepKind: StepKind | null | undefined,
+  sequencer: ReplySequencer,
+  apply: (feedback: JourneyFeedback) => void,
+  options: RevealOptions = {},
+): () => void {
+  const graded = feedbackFromAttempt(result);
+  if (graded.kind !== 'graded' || !stagesReplyFirst(result, stepKind)) {
+    sequencer.cancel();
+    apply(graded);
+    return sequencer.cancel;
+  }
+  return sequencer.stage(
+    replyingOf(graded),
+    graded,
+    verdictDelayMs(result.character_reply_fr, options),
+    apply,
+  );
 }

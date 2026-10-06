@@ -24,6 +24,8 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { replyTaskLine } from './reply-task';
+import { reconnectWebSession, sessionExpiredCopy } from '@/lib/session-recovery';
 
 import {
   Action,
@@ -41,28 +43,108 @@ import {
   Surface,
   WordTiles,
   textAnswerField,
+  useControlLanguage,
   type ChoiceOption,
 } from '@/components/atelier-v2/ui';
+import { crLetterHeadline } from '@/components/courrier/courrier-copy';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleTestOut } from './RuleTestOut';
+import { ruleTestOutCopy } from './rule-test-out';
+import {
+  checkAnswerLocally,
+  correctOptionLocally,
+  promptHasAnswerKey,
+  shownVerdict,
+  type LocalVerdict,
+} from '@/lib/answer-key';
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
+import { feel, markVerdictFelt } from '@/lib/feel';
+import { frenchSpacing } from '@/lib/french-typography';
+import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
+import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
+  AttemptResult,
+  ControlLanguage,
+  ForgeStep,
   HelpKind,
   HelpResult,
+  JourneySnapshot,
   RecallStep,
   RespondStep,
   ResolutionStep,
+  RuleStep,
   SceneStep,
 } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
+import { journeyCopy } from './journey-copy';
+import type { JourneySpeaker } from './journey-faces';
 import {
   answerIsBlank,
+  chapterRecapOf,
+  letterOf,
+  recallAttempt,
+  recallIsPicked,
+  registerNoteOf,
+  resolutionAwaitsStory,
+  sceneOpensOnAudio,
   textOffered,
+  verdictTitleKey,
+  showsVerdict,
   voiceOffered,
+  wordBankHasSpareChips,
   type JourneyFeedback,
-  type ReplyProvenance,
 } from './journey-state';
-import type { VoiceState } from './useDailyJourney';
+import {
+  FAILURE_COPY_KEY,
+  micRefusalExplained,
+  readAnswerMode,
+  rememberMicRefusalExplained,
+  submittedMode,
+  voiceIsBusy,
+  writeAnswerMode,
+  type AnswerMode,
+} from './voice-answer';
+import { useVoiceAnswer } from './useVoiceAnswer';
+import { MatchPairs } from './MatchPairs';
+import { WhoSaid } from './WhoSaid';
+import { listenTapHasAudio, optionLang } from './practice-formats';
+import { Dictation } from './Dictation';
+import { isDictation } from './dictation-model';
+import { HeardLine } from './HeardLine';
+import {
+  CharacterSmiles,
+  CharacterTyping,
+  StoryWriting,
+  TypedReply,
+  respondSpeaker,
+  useTypedText,
+} from './ReplyStage';
+import { ExchangeTokens, RespondThread } from './RespondThread';
+import { drillGoalLine, recallMetLine, type DrillGoal } from './drill-frame';
+import { StoryEpisodeReader } from './StoryEpisodeReader';
+import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
+import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import { getStoryEpisodeForJourney } from '@/services/daily-journey';
+import { listenLabel, useStepVoice } from './useStepVoice';
+import {
+  closesConversation,
+  continuesConversation,
+  correctionNotes,
+  exchangeFromResult,
+  exchangeProgress,
+  parseLocalThread,
+  recordExchange,
+  serializeLocalThread,
+  threadBubbles,
+  threadDraftKey,
+  type InFlightExchange,
+  type LocalThread,
+  type SentTurn,
+} from './respond-thread';
 
 /**
  * The renderers take the copy table as a prop, exactly as they did in the
@@ -122,6 +204,8 @@ export type StepViewCommonProps = {
    * and it never carries a grade.
    */
   draft?: { get: (key: string) => string; set: (key: string, text: string) => void };
+  /** WP-91: the journey whose lines the server may speak (line-audio route). */
+  journeyId?: string | null;
 };
 
 const HELP_LABEL: Record<HelpKind, keyof JourneyCopy> = {
@@ -146,19 +230,50 @@ function StepFrame({
   label,
   headline,
   headlineLang,
+  speaker = null,
+  speakerMood = 'neutral',
   children,
 }: {
   label: React.ReactNode;
   headline: React.ReactNode;
   headlineLang?: string;
+  /** WP-D2: the headline is this character's line, said in a bubble beside their face. */
+  speaker?: JourneySpeaker | null;
+  speakerMood?: PortraitMood;
   children: React.ReactNode;
 }) {
+  // WP-82: a French headline (or bubble) keeps « ? ! » on its word's line.
+  const shown = headlineLang === 'fr' && typeof headline === 'string' ? frenchSpacing(headline) : headline;
+  const title = (
+    <h2 className="av2-headline" lang={headlineLang}>
+      {shown}
+    </h2>
+  );
   return (
     <section className="av2-stack av2-step">
       <p className="av2-label av2-label--story">{label}</p>
-      <h2 className="av2-headline" lang={headlineLang}>
-        {headline}
-      </h2>
+      {speaker ? (
+        <div className="av2-speech" data-mood={speakerMood}>
+          {/* Keyed on the mood, so the verdict's face pops in (at-pop). */}
+          <span key={speakerMood} className="av2-speech__face">
+            <CastPortrait
+              characterId={speaker.id || ''}
+              name={speaker.name}
+              mood={speakerMood}
+              size="md"
+              ring
+            />
+          </span>
+          <div
+            className="av2-speech__bubble"
+            data-long={typeof headline === 'string' && headline.length > 48 ? 'true' : undefined}
+          >
+            {title}
+          </div>
+        </div>
+      ) : (
+        title
+      )}
       {children}
     </section>
   );
@@ -187,7 +302,7 @@ export function HelpRow({
   help: HelpResult | null;
   onHelp: (kind: HelpKind) => void;
 }) {
-  if (!available.length) return null;
+  if (!available.length && !help) return null;
   const wide = widenCopy(copy);
 
   return (
@@ -207,7 +322,8 @@ export function HelpRow({
 
       {used.length > 0 && (
         <p className="av2-label">
-          {copy.assistance_used}: {used.join(', ')}
+          {copy.assistance_used}:{' '}
+          {used.map((level) => copy[HELP_LABEL[level as HelpKind]] ?? level).join(', ')}
         </p>
       )}
 
@@ -216,7 +332,7 @@ export function HelpRow({
           <p className="av2-label">{copy[HELP_LABEL[help.help_kind]]}</p>
           {help.content_fr && (
             <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-              {help.content_fr}
+              {frenchSpacing(help.content_fr)}
             </p>
           )}
           {help.content_native && <p className="av2-body av2-body--lg">{help.content_native}</p>}
@@ -230,15 +346,54 @@ export function HelpRow({
 // Scene
 // ---------------------------------------------------------------------------
 
+/**
+ * WP-77: a line a character says, with their face. Anyone outside the drawn
+ * cast keeps the round initial; the words are the same either way.
+ */
+export function SpokenLine({
+  speaker,
+  mood = 'neutral',
+  children,
+}: {
+  speaker: JourneySpeaker | null | undefined;
+  mood?: PortraitMood;
+  children: React.ReactNode;
+}) {
+  if (!speaker) return <>{children}</>;
+  return (
+    <div className="av2-said" data-face={castIdFor(speaker.id, speaker.name) ? 'true' : undefined}>
+      <CastPortrait characterId={speaker.id || ''} name={speaker.name} mood={mood} size="sm" />
+      <div className="av2-said__body">
+        <p className="av2-label">{speaker.name}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function SceneStepView({
   step,
   copy,
   busy,
   onContinue,
-}: { step: SceneStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  speaker = null,
+}: { step: SceneStep; speaker?: JourneySpeaker | null } & Pick<
+  StepViewCommonProps,
+  'copy' | 'busy' | 'onContinue'
+>) {
   const wide = widenCopy(copy);
   return (
     <StepFrame label={copy.today_eyebrow} headline={step.prompt.setup_fr} headlineLang="fr">
+      {/* WP-66 «jour d'écoute». The planner dealt a listening day, so the
+          learner is told the order before they start reading past it. The
+          server withdraws the flag when the deployment cannot speak, so this
+          never promises audio that will not arrive. */}
+      {sceneOpensOnAudio(step.prompt) && (
+        <p className="av2-label" data-state="listen-first-day">
+          {wide.listen_first_day}
+        </p>
+      )}
+
       {step.prompt.image_url && (
         <Surface shape="hero" aria-hidden={false}>
           <Artwork
@@ -254,15 +409,16 @@ export function SceneStepView({
 
       {step.prompt.character_line_fr && (
         <Surface>
-          <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
-            {step.prompt.character_line_fr}
-          </p>
+          <SpokenLine speaker={speaker}>
+            <p className="av2-fr av2-headline av2-headline--rule" lang="fr">
+              {frenchSpacing(step.prompt.character_line_fr)}
+            </p>
+          </SpokenLine>
         </Surface>
       )}
 
-      <p className="av2-label">
-        {copy.objective}: {step.prompt.objective_native}
-      </p>
+      {/* WP-82 (appendix A): the objective is printed once, on the reply
+          step where it is asked for — not here as «What you need to do: …». */}
 
       <Action
         tone="primary"
@@ -280,6 +436,29 @@ export function SceneStepView({
 // Recall
 // ---------------------------------------------------------------------------
 
+/**
+ * WP-103 T3. What the drill asks for, right under its instruction: the goal in
+ * the learner's language («Build: "A small white table is in the kitchen."»),
+ * or, when the server sent none, the scene line the item is cut from.
+ */
+export function DrillGoalLine({ goal, copy }: { goal: DrillGoal; copy: Pick<JourneyCopy, 'drill_from_scene'> }) {
+  if (goal.kind === 'goal') {
+    return (
+      <p className="av2-goal" data-goal="goal">
+        {goal.text}
+      </p>
+    );
+  }
+  return (
+    <div className="av2-goal" data-goal="source">
+      <p className="av2-label">{copy.drill_from_scene}</p>
+      <p className="av2-fr av2-goal__fr" lang="fr">
+        {frenchSpacing(goal.text)}
+      </p>
+    </div>
+  );
+}
+
 export function RecallStepView({
   step,
   copy,
@@ -296,58 +475,180 @@ export function RecallStepView({
   // A recall draft is keyed by the step: one step, one written answer.
   const draftKey = step.id;
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
+  // WP-91: a clip that cannot play turns a listening item back into reading.
+  const [clipFailed, setClipFailed] = useState(false);
+  // WP-76: the verdict the hashed key gave on the device, before the server's.
+  const [local, setLocal] = useState<{
+    stepId: string;
+    verdict: LocalVerdict;
+    correctOptionId: string | null;
+  } | null>(null);
+  const currentStep = useRef(step.id);
+  currentStep.current = step.id;
   const graded = feedback.kind === 'graded';
-  const locked = busy || graded || feedback.kind === 'submitting';
+  const localHere = local && local.stepId === step.id ? local : null;
+  // A pick graded on the device is committed: it is the answer being sent.
+  const locked = busy || graded || feedback.kind === 'submitting' || Boolean(localHere);
 
   useEffect(() => {
     // A new step is a new answer; the same step keeps what the learner picked,
     // and a cold start gets back whatever was typed before the interruption.
     setChoice(null);
     setTiles([]);
+    setLocal(null);
+    setClipFailed(false);
     setText(draft?.get(draftKey) ?? '');
   }, [draft, draftKey, step.id]);
 
+  // The server's verdict is final. When it disagrees with the device, the
+  // colours simply follow it — no second sound, no second buzz (`lib/feel`).
+  const serverVerdict = graded ? feedback.verdict : null;
+  const shown = shownVerdict(localHere?.verdict ?? null, serverVerdict);
+  const serverSaysRight = serverVerdict === 'correct' || serverVerdict === 'supported';
+
   const options = useMemo<ChoiceOption[]>(
     () =>
-      step.prompt.options.map((option) => ({
-        id: option.id,
-        textFr: option.text_fr,
-      })),
-    [step.prompt.options],
+      step.prompt.options.map((option) => {
+        let state: ChoiceOption['state'];
+        if (shown && option.id === choice) state = shown;
+        else if (
+          shown === 'wrong' &&
+          !serverSaysRight &&
+          localHere?.correctOptionId === option.id
+        ) {
+          // The learner has committed; showing the right card is feedback.
+          state = 'correct';
+        }
+        // WP-78: a meaning card is in the learner's language, not French.
+        return { id: option.id, textFr: option.text_fr, state, lang: optionLang(option) ?? null };
+      }),
+    [step.prompt.options, shown, choice, serverSaysRight, localHere?.correctOptionId],
   );
 
-  const ready =
-    step.prompt.task_type === 'choice'
-      ? Boolean(choice)
-      : step.prompt.task_type === 'tiles'
-        ? tiles.length > 0
-        : !answerIsBlank(text);
-
+  // WP-66: six formats, three input surfaces. `recallAttempt` owns the mapping
+  // in `journey-state.ts`, so "what the learner sees" and "what gets posted"
+  // cannot drift apart — and a format this build has never heard of falls back
+  // to a written answer rather than to a dead Check button.
+  const attempt = recallAttempt(step.prompt, { choice, tiles, text });
+  const ready = attempt !== null;
+  const picks = recallIsPicked(step.prompt.task_type);
   const submit = () => {
-    if (step.prompt.task_type === 'choice' && choice) {
-      onSubmit({ mode: 'choice', option_id: choice });
-      return;
+    if (!attempt) return;
+    const stepId = step.id;
+    const prompt = step.prompt;
+    if (promptHasAnswerKey(prompt) && (attempt.mode === 'choice' || attempt.mode === 'tiles')) {
+      const answer =
+        attempt.mode === 'choice' ? { optionId: attempt.option_id } : { tileIds: attempt.tile_ids };
+      // One SHA-256 of a short string: well inside the 100 ms budget. The
+      // attempt below is posted either way; this only colours the pick.
+      void checkAnswerLocally(prompt, answer).then(async (verdict) => {
+        if (!verdict || currentStep.current !== stepId) return;
+        setLocal({ stepId, verdict, correctOptionId: null });
+        markVerdictFelt(stepId, verdict);
+        feel(verdict);
+        if (verdict === 'wrong' && attempt.mode === 'choice') {
+          const right = await correctOptionLocally(prompt);
+          if (right && currentStep.current === stepId) {
+            setLocal((current) =>
+              current && current.stepId === stepId ? { ...current, correctOptionId: right } : current,
+            );
+          }
+        }
+      });
     }
-    if (step.prompt.task_type === 'tiles' && tiles.length) {
-      onSubmit({ mode: 'tiles', tile_ids: tiles });
-      return;
-    }
-    onSubmit({ mode: 'text', text });
+    onSubmit(attempt);
   };
+
+  // WP-78. A matching grid posts itself when its last pair lands: the pairs
+  // were graded one by one on the device already, so a Check would be a
+  // second tap for nothing. A clean grid is coloured correct at once; one with
+  // a slip waits for the server, which grades the target's first pairing.
+  const isMatch = step.prompt.task_type === 'match_pairs';
+  const completeMatch = React.useCallback(
+    (pairs: string[], clean: boolean) => {
+      const stepId = step.id;
+      setTiles(pairs);
+      if (clean) {
+        setLocal({ stepId, verdict: 'correct', correctOptionId: null });
+        markVerdictFelt(stepId, 'correct');
+        feel('correct');
+      }
+      onSubmit({ mode: 'tiles', tile_ids: pairs });
+    },
+    [onSubmit, step.id],
+  );
+  // WP-78. Read-and-tap until a clip exists: the phrase is the headline. With
+  // a clip, the phrase stays unprinted until the answer is graded.
+  const dictating = isDictation(step.prompt);
+  const heard = !dictating && listenTapHasAudio(step.prompt) && !clipFailed;
+  const headline =
+    heard && !graded
+      ? step.prompt.instruction_native
+      : step.prompt.prompt_fr || step.prompt.instruction_native;
+  // A listening item keeps its phrase unprinted until graded: no goal that could print it.
+  const goal = (heard || dictating) && !graded ? null : drillGoalLine(step.prompt);
 
   return (
     <StepFrame
       label={copy.today_eyebrow}
-      headline={step.prompt.prompt_fr || step.prompt.instruction_native}
-      headlineLang={step.prompt.prompt_fr ? 'fr' : undefined}
+      headline={headline}
+      headlineLang={headline === step.prompt.prompt_fr && step.prompt.prompt_fr ? 'fr' : undefined}
     >
-      {step.prompt.prompt_fr && (
+      {step.prompt.prompt_fr && headline !== step.prompt.instruction_native && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
       )}
+      {!step.prompt.prompt_fr && isMatch && (
+        <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
+      )}
+      {/* WP-121 A.4: a word kept in a Papier says where it was met — the muted
+          context line the journey uses for a scene reference. */}
+      {recallMetLine(step.prompt) && (
+        <p className="av2-label" data-state="met-place" lang="fr">
+          {recallMetLine(step.prompt)}
+        </p>
+      )}
+      {/* WP-103 T3: every drill says what it asks for. */}
+      {goal && <DrillGoalLine goal={goal} copy={copy} />}
+      {heard && (
+        <HeardLine audioUrl={step.prompt.audio_url} copy={copy} onUnavailable={() => setClipFailed(true)} />
+      )}
+      {clipFailed && !dictating && !graded && <p className="av2-label">{copy.listen_unavailable_read}</p>}
+      {dictating && !graded && (
+        <Dictation
+          prompt={step.prompt}
+          copy={copy}
+          value={text}
+          disabled={locked}
+          invalid={feedback.kind === 'empty'}
+          onChange={(next) => {
+            setText(next);
+            draft?.set(draftKey, next);
+          }}
+        />
+      )}
 
-      {step.prompt.task_type === 'choice' && (
-        <ChoiceList
-          options={options}
+      {/* A transform prints the sentence being rewritten, so the learner knows
+          the headline above is the source and not their answer. */}
+      {step.prompt.task_type === 'transform' && step.prompt.prompt_fr && (
+        <p className="av2-label" data-state="transform-source">
+          {wide.transform_source_label}
+        </p>
+      )}
+
+      {isMatch && (
+        <MatchPairs
+          key={step.id}
+          prompt={step.prompt}
+          disabled={locked}
+          onComplete={completeMatch}
+        />
+      )}
+
+      {/* WP-86: «Qui a dit ça ?» — the line is the headline, the faces the cards. */}
+      {step.prompt.task_type === 'who_said' && (
+        <WhoSaid
+          options={step.prompt.options}
+          states={options}
           selectedId={choice}
           label={step.prompt.instruction_native}
           disabled={locked}
@@ -360,7 +661,40 @@ export function RecallStepView({
         />
       )}
 
-      {step.prompt.task_type === 'tiles' && (
+      {(step.prompt.task_type === 'choice' ||
+        step.prompt.task_type === 'classify' ||
+        step.prompt.task_type === 'listen_tap') && (
+        <ChoiceList
+          options={options}
+          selectedId={choice}
+          label={
+            step.prompt.task_type === 'classify'
+              ? wide.classify_label
+              : step.prompt.instruction_native
+          }
+          disabled={locked}
+          onSelect={setChoice}
+          statusLabels={{
+            selected: wide.status_selected,
+            correct: wide.status_correct,
+            wrong: wide.status_wrong,
+          }}
+        />
+      )}
+
+      {/* A word bank is tiles whose chip row is *not* the answer in the wrong
+          order. Saying so is the difference between a puzzle and a count. */}
+      {wordBankHasSpareChips(step.prompt) && (
+        <p className="av2-label" data-state="word-bank-spare">
+          {wide.word_bank_spare_chips}
+        </p>
+      )}
+
+      {/* One bank for both formats (WP-76: a second copy used to render for
+          plain tiles). */}
+      {(step.prompt.task_type === 'tiles' ||
+        step.prompt.task_type === 'word_bank' ||
+        step.prompt.task_type === 'unscramble') && (
         <WordTiles
           options={options}
           placed={tiles}
@@ -370,10 +704,15 @@ export function RecallStepView({
           disabled={locked}
           onPlace={(id) => setTiles((current) => [...current, id])}
           onRemoveLast={() => setTiles((current) => current.slice(0, -1))}
+          verdict={tiles.length ? shown : null}
+          verdictLabel={shown === 'correct' ? wide.status_correct : wide.status_wrong}
         />
       )}
 
-      {step.prompt.task_type === 'short_answer' &&
+      {/* Anything that is not picked is written: short answer, transform, and
+          whatever a newer server deals that this build has not met yet. */}
+      {!picks &&
+        !(dictating && !graded) &&
         (graded ? (
           <SentAnswer label={copy.answer_label} text={text} />
         ) : (
@@ -398,15 +737,17 @@ export function RecallStepView({
           graded; checking again and asking for a hint are both spent. */}
       {!graded && (
         <>
-          <Action
-            tone="primary"
-            disabled={locked || !ready}
-            pending={feedback.kind === 'submitting'}
-            pendingLabel={copy.sending}
-            onClick={submit}
-          >
-            {copy.check}
-          </Action>
+          {!isMatch && (
+            <Action
+              tone="primary"
+              disabled={locked || !ready}
+              pending={feedback.kind === 'submitting'}
+              pendingLabel={copy.sending}
+              onClick={submit}
+            >
+              {copy.check}
+            </Action>
+          )}
 
           <HelpRow
             available={step.prompt.help_available}
@@ -426,43 +767,65 @@ export function RecallStepView({
 // Respond
 // ---------------------------------------------------------------------------
 
+/** Which chrome language a journey copy table is (no hook: the step views
+ *  also render outside a React tree in tests). French when it is none of them. */
+function copyLanguage(copy: JourneyCopy): 'en' | 'de' | 'fr' {
+  return (['en', 'de', 'fr'] as const).find((language) => journeyCopy(language) === copy) ?? 'fr';
+}
+
 export function RespondStepView({
   step,
   copy,
   busy,
   feedback,
   help,
-  voice,
   onHelp,
   onSubmit,
-  onStartRecording,
-  onStopRecording,
-  onResetVoice,
+  onContinue,
   draft,
-}: { step: RespondStep; voice: VoiceState } & StepViewCommonProps & {
-    onStartRecording: () => void;
-    onStopRecording: () => void;
-    onResetVoice: () => void;
-  }) {
-  const wide = widenCopy(copy);
+  journeyId = null,
+}: { step: RespondStep } & StepViewCommonProps) {
+  // WP-91: one voice for the whole conversation, backed by the server's clips.
+  const lineVoice = useStepVoice(journeyId, step.id);
   // A respond step can hold more than one turn, and each turn is its own
   // answer, so the turn is part of the key: a new turn starts clean rather
   // than reopening with the sentence the learner already sent.
   const draftKey = `${step.id}:${step.prompt.turn_index}`;
+  // WP-89: the conversation so far is kept beside the drafts, so a reload
+  // repaints the column (servers that send `prompt.thread` make it redundant).
+  const threadKey = threadDraftKey(step.id);
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
-  const [mode, setMode] = useState<'text' | 'voice'>('text');
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [local, setLocal] = useState<LocalThread>(() => parseLocalThread(draft?.get(threadKey)));
+  const [openNote, setOpenNote] = useState<string | null>(null);
+  const [hintOpen, setHintOpen] = useState(false);
+  // What was sent, captured at the tap: the snapshot moves to the next turn
+  // (and the field empties) the moment the reply lands.
+  const sentRef = useRef<SentTurn | null>(null);
   const canSpeak = voiceOffered(step.prompt);
   const canType = textOffered(step.prompt);
-  // A graded turn is closed until the learner continues: re-submitting into a
-  // completed step would only earn a 409 `step_not_active`.
-  const graded = feedback.kind === 'graded';
-  const locked =
-    busy ||
-    feedback.kind === 'submitting' ||
-    graded ||
-    voice.kind === 'recording' ||
-    voice.kind === 'transcribing';
+  // WP-27: speaking is the default output. The first render agrees with the
+  // server (text whenever the step offers it) and the remembered preference
+  // is applied in an effect, so a learner who chose voice keeps it without
+  // a hydration mismatch.
+  const [mode, setMode] = useState<AnswerMode>(canType ? 'text' : 'voice');
+  const [explainRefusal, setExplainRefusal] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const voice = useVoiceAnswer();
+  const voiceState = voice.state;
+  // WP-89 — verdict only at the close. A turn the server answered with another
+  // turn (`next_turn`) is the conversation going on: its reply types in and the
+  // field reopens by itself. Only the closing turn is judged, and a judged turn
+  // is closed until the learner continues (re-submitting would earn a 409).
+  const continuing = continuesConversation(feedback);
+  const closing = closesConversation(feedback);
+  const graded = closing || (continuing && feedback.kind === 'replying');
+  const busyVoice = voiceIsBusy(voiceState);
+  const locked = busy || feedback.kind === 'submitting' || graded || busyVoice;
+  // WP-76: the one who answers — typing while the answer is read, then speaking.
+  const replier = respondSpeaker(step.prompt);
+  const waitingForReply = feedback.kind === 'submitting' || feedback.kind === 'retrying';
+  const result = continuing || closing ? (feedback as { result: AttemptResult }).result : null;
+  const reply = result?.character_reply_fr ? result.character_reply_fr : null;
 
   useEffect(() => {
     // A new turn starts empty but keeps the same mounted field, so focus and
@@ -472,126 +835,418 @@ export function RespondStepView({
   }, [draft, draftKey]);
 
   useEffect(() => {
-    if (!canSpeak && mode === 'voice') setMode('text');
-  }, [canSpeak, mode]);
+    setLocal(parseLocalThread(draft?.get(threadKey)));
+    setOpenNote(null);
+  }, [draft, threadKey]);
 
-  return (
-    <StepFrame
-      label={<Byline name={step.prompt.character_name} />}
-      headline={step.prompt.character_line_fr}
-      headlineLang="fr"
+  useEffect(() => {
+    // Keep the exchange the server just settled (idempotent per turn: the
+    // staged `replying` → `graded` pair and a replayed receipt keep it once).
+    if (!result) return;
+    const exchange = exchangeFromResult({
+      result,
+      prompt: step.prompt,
+      sent: sentRef.current,
+      fallbackText: text,
+    });
+    if (!exchange) return;
+    const next = recordExchange(local, exchange);
+    if (next === local) return;
+    setLocal(next);
+    draft?.set(threadKey, serializeLocalThread(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  // The field reopens for the next exchange once the reply has typed in: the
+  // continuing turn is acknowledged on the learner's behalf — there is nothing
+  // to read in between, so there is nothing to tap.
+  const continuedRef = useRef<unknown>(null);
+  const refocusRef = useRef(false);
+  useEffect(() => {
+    if (feedback.kind !== 'graded' || !continuing) return;
+    if (continuedRef.current === feedback.result) return;
+    continuedRef.current = feedback.result;
+    refocusRef.current = true;
+    onContinue();
+  }, [continuing, feedback, onContinue]);
+
+  useEffect(() => {
+    if (locked || !refocusRef.current) return;
+    refocusRef.current = false;
+    try {
+      inputRef.current?.focus({ preventScroll: true });
+    } catch {
+      /* an engine without the options bag keeps the field open anyway */
+    }
+  }, [locked]);
+
+  useEffect(() => {
+    if (!canSpeak) {
+      setMode('text');
+      return;
+    }
+    if (!canType) {
+      setMode('voice');
+      return;
+    }
+    setMode(readAnswerMode('text'));
+  }, [canSpeak, canType]);
+
+  const chooseMode = (next: AnswerMode) => {
+    setMode(next);
+    writeAnswerMode(next);
+    if (next === 'text') voice.reset();
+  };
+
+  useEffect(() => {
+    // A device that refuses the microphone is a fact about the device, not a
+    // thing to ask about every turn: the learner is put on the text path, told
+    // once why, and the preference remembers it.
+    if (voiceState.kind !== 'failed') return;
+    if (voiceState.reason !== 'permission' && voiceState.reason !== 'unsupported') return;
+    setMode('text');
+    writeAnswerMode('text');
+    if (!micRefusalExplained()) {
+      setExplainRefusal(true);
+      rememberMicRefusalExplained();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceState.kind, (voiceState as { reason?: string }).reason]);
+
+  const setAnswer = (next: string) => {
+    setText(next);
+    draft?.set(draftKey, next);
+  };
+
+  useEffect(() => {
+    // The transcript is a draft, never a submission: it lands in the field so
+    // the learner can fix a misheard word before anything is graded.
+    if (voiceState.kind === 'transcript') setAnswer(voiceState.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceState.kind, voiceState.kind === 'transcript' ? voiceState.text : null]);
+
+  const failureNotice =
+    voiceState.kind === 'failed'
+      ? (copy as Record<string, string>)[FAILURE_COPY_KEY[voiceState.reason]] || copy.voice_failed
+      : null;
+
+  const submit = () => {
+    sentRef.current = {
+      turn: step.prompt.turn_index,
+      text,
+      prompt_fr: step.prompt.character_line_fr || null,
+    };
+    setOpenNote(null);
+    onSubmit({ mode: submittedMode(voiceState, text), text });
+  };
+
+  const sendAction = (
+    <Action
+      tone="primary"
+      disabled={locked || answerIsBlank(text)}
+      pending={feedback.kind === 'submitting'}
+      pendingLabel={copy.sending}
+      onClick={submit}
     >
-      <p className="av2-body av2-body--lg">{step.prompt.objective_native}</p>
+      {copy.send}
+    </Action>
+  );
 
-      {step.prompt.targets.length > 0 && (
-        <div className="av2-help__actions">
-          {step.prompt.targets.map((target) => (
-            <Chip key={`${target.kind}:${target.id}`} icon={<ShapeToken kind="reward" size="sm" />}>
-              <span lang="fr">{target.label_fr}</span>
-            </Chip>
-          ))}
-        </div>
-      )}
+  // WP-66 «jour de lettre»: the turn is a reply to a Courrier letter rather
+  // than to a spoken line. Absent on every other shape, so the ordinary
+  // respond step is untouched — and `letterOf` refuses half a letter, so a
+  // letter block can never replace the character's line with a blank one.
+  const letter = letterOf(step.prompt);
+  // A letter's subject is its French headline; the server's fallback
+  // («Une lettre du Courrier.») is chrome and is said in the chrome language —
+  // the language of the copy table this step was handed.
+  const letterHeadline = letter
+    ? crLetterHeadline({ summary_fr: letter.subject_fr }, copyLanguage(copy))
+    : null;
+  const wide = widenCopy(copy);
+  // WP-D2 / WP-89: the latest line is said beside the face, which reacts only
+  // to the closing verdict — mid-conversation it never frowns.
+  // QA-STORY: a story reply is never graded, so the face never reacts to a verdict.
+  const sayingMood: FaceMood =
+    closing && feedback.kind === 'graded' && showsVerdict(step.kind)
+      ? expressionForVerdict(feedback.verdict)
+      : 'neutral';
 
-      {canSpeak && canType && !graded && (
-        <div className="av2-help__actions" role="group" aria-label={copy.answer_label}>
-          <Chip
-            tone={mode === 'text' ? 'story' : 'plain'}
-            aria-pressed={mode === 'text'}
-            onClick={() => {
-              setMode('text');
-              onResetVoice();
-            }}
-          >
-            {copy.use_text}
-          </Chip>
-          <Chip
-            tone={mode === 'voice' ? 'story' : 'plain'}
-            aria-pressed={mode === 'voice'}
-            onClick={() => setMode('voice')}
-          >
-            {copy.use_voice}
-          </Chip>
-        </div>
-      )}
+  // --- the thread (WP-89) ---------------------------------------------------
+  const sent = sentRef.current;
+  const nextIndex = result?.next_turn?.prompt?.turn_index;
+  const inFlight: InFlightExchange | null =
+    waitingForReply || result
+      ? {
+          turn:
+            sent?.turn ??
+            (typeof nextIndex === 'number' ? Math.max(0, nextIndex - 1) : step.prompt.turn_index),
+          prompt_fr: sent?.prompt_fr ?? null,
+          learner_fr: sent?.text ?? text,
+          character_fr: reply,
+          // WP-103 T6: every turn's corrected form is printed under its line,
+          // the closing turn's too; the verdict band adds the explanation.
+          correction: result?.correction ?? null,
+          character_lines: result?.character_lines ?? null,
+        }
+      : null;
+  // A reply several people say is drawn at once, one bubble each (no typing-in).
+  const manyVoiced = (result?.character_lines?.length ?? 0) > 1;
+  let bubbles = letter ? [] : threadBubbles({ prompt: step.prompt, local, inFlight });
+  // The reply that just arrived types in; whatever follows it waits for it.
+  const typingIndex =
+    reply && inFlight && !manyVoiced
+      ? bubbles.findIndex(
+          (bubble) => bubble.kind === 'character' && bubble.reply && bubble.turn === inFlight.turn,
+        )
+      : -1;
+  if (feedback.kind === 'replying' && typingIndex !== -1) {
+    bubbles = bubbles.slice(0, typingIndex + 1).map((bubble, index) =>
+      bubble.kind === 'character' ? { ...bubble, latest: index === typingIndex } : bubble,
+    );
+  }
+  const typingKey = typingIndex !== -1 ? bubbles[typingIndex]?.key ?? null : null;
+  const typedText = useTypedText(
+    typingKey && reply ? reply : '',
+    feedback.kind === 'replying',
+  );
+  const progress = exchangeProgress(step.prompt, closing);
+  // The tokens carry exchange progress; the thread itself shows whose turn it is.
 
-      {/* Text is always a full path, whatever the microphone is doing — until
-          the turn is graded, when the field, the send button, the microphone
-          and the help row all stop offering themselves and the verdict's
-          Continue is the only action left (WP-20 D-6). */}
-      {graded ? (
-        <SentAnswer label={copy.answer_label} text={text} />
-      ) : (
+  // WP-113 «Le choix»: when the question offers cards, the answer is a tap.
+  const cards = graded ? [] : step.prompt.choices ?? [];
+  const tapCard = (id: string) => {
+    const card = cards.find((row) => row.id === id);
+    if (!card || locked) return;
+    sentRef.current = {
+      turn: step.prompt.turn_index,
+      text: card.label_fr,
+      prompt_fr: step.prompt.character_line_fr || null,
+    };
+    setOpenNote(null);
+    onSubmit({ mode: 'text', text: card.label_fr });
+  };
+  const answerArea = graded ? (
+    // A letter keeps the sent answer in the field's block; in the thread the
+    // learner's line is already on the page, on the right.
+    letter ? <SentAnswer label={copy.answer_label} text={text} /> : null
+  ) : cards.length ? (
+    <div className="av2-respond__choices" data-choices="">
+      <ChoiceList
+        options={cards.map((card) => ({ id: card.id, textFr: card.label_fr }))}
+        selectedId={null}
+        label={step.prompt.objective_native}
+        disabled={locked}
+        onSelect={tapCard}
+        statusLabels={{ selected: wide.status_selected, correct: wide.status_correct, wrong: wide.status_wrong }}
+      />
+    </div>
+  ) : mode === 'voice' && canSpeak ? (
+    <>
+      {voiceState.kind === 'transcript' ? (
         <>
           {textAnswerField({
-            label: copy.answer_label,
+            label: copy.voice_transcript_label,
             value: text,
             rows: 3,
             disabled: locked,
             placeholder: copy.answer_placeholder,
             invalid: feedback.kind === 'empty',
             inputRef,
-            onChange: (next) => {
-              setText(next);
-              draft?.set(draftKey, next);
-            },
+            onChange: setAnswer,
           })}
-
+          <p className="av2-body">{copy.voice_transcript_hint}</p>
+          <div className="av2-respond__actions">
+            {sendAction}
+            <Action tone="quiet" disabled={locked} onClick={() => void voice.start()}>
+              {copy.voice_retry}
+            </Action>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* WP-82 (appendix A): no «say it out loud…» line — the mic says it. */}
           <div className="av2-respond__actions">
             <Action
               tone="primary"
-              disabled={locked || answerIsBlank(text)}
-              pending={feedback.kind === 'submitting'}
-              pendingLabel={copy.sending}
-              onClick={() => onSubmit({ mode: 'text', text })}
+              disabled={busy || feedback.kind === 'submitting'}
+              pending={voiceState.kind === 'transcribing'}
+              pendingLabel={copy.transcribing}
+              icon={voiceState.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
+              onClick={() => (voiceState.kind === 'recording' ? voice.stop() : void voice.start())}
             >
-              {copy.send}
+              {voiceState.kind === 'recording' ? copy.stop_recording : copy.speak}
             </Action>
-
-            {canSpeak && mode === 'voice' && (
-              <IconAction
-                label={voice.kind === 'recording' ? copy.stop_recording : copy.record}
-                tone={voice.kind === 'recording' ? 'recording' : 'action'}
-                pressable
-                pending={voice.kind === 'transcribing'}
-                onClick={() => (voice.kind === 'recording' ? onStopRecording() : onStartRecording())}
-              >
-                {voice.kind === 'recording' ? <StopIcon size={18} /> : <MicIcon size={18} />}
-              </IconAction>
+            {canType && (
+              <Action tone="quiet" disabled={busyVoice} onClick={() => chooseMode('text')}>
+                {copy.use_text}
+              </Action>
             )}
           </div>
         </>
       )}
+    </>
+  ) : (
+    <>
+      {textAnswerField({
+        label: copy.answer_label,
+        value: text,
+        rows: 3,
+        disabled: locked,
+        placeholder: copy.answer_placeholder,
+        invalid: feedback.kind === 'empty',
+        inputRef,
+        onChange: setAnswer,
+      })}
 
-      {voice.kind === 'recording' && (
+      <div className="av2-respond__actions">
+        {sendAction}
+      </div>
+    </>
+  );
+
+  // A letter's own objective is written by the mission generator as a statement about
+  // the story («Noémie sait que tu viens…»), not as a task: the chrome says the task.
+  const brief = (
+    <>
+      <p className="av2-body av2-body--lg">
+        {letter ? wide.letter_task : replyTaskLine(step.prompt.objective_native)}
+      </p>
+    </>
+  );
+
+  const aside = (
+    <>
+      {!graded && voiceState.kind === 'recording' && (
         <Notice shape="action">
           <p>{copy.record}</p>
         </Notice>
       )}
 
-      {voice.kind === 'transcribing' && (
+      {!graded && voiceState.kind === 'transcribing' && (
         <Notice shape="story">
           <p>{copy.transcribing}</p>
         </Notice>
       )}
 
-      {(voice.kind === 'failed' || voice.kind === 'unsupported') && (
+      {!graded && failureNotice && (
         <Notice shape="action">
-          <p>{copy.voice_failed}</p>
+          <p>{failureNotice}</p>
         </Notice>
       )}
 
-      {!graded && (
-        <HelpRow
-          available={step.prompt.help_available}
-          used={step.assistance_used.filter((level) => level !== 'none')}
-          copy={copy}
-          busy={busy}
-          help={help}
-          onHelp={onHelp}
-        />
+      {!graded && explainRefusal && (
+        <Notice shape="story">
+          <p>{copy.voice_permission}</p>
+        </Notice>
       )}
-    </StepFrame>
+
+      {!graded && (step.prompt.help_available.length > 0 || step.prompt.targets.length > 0 || canSpeak) && (
+        <div className="av2-stack av2-help">
+          {/* One entry point. Tapping «Indice» gives the hint itself (when the step has
+              one) and opens the other aids; the aids below never repeat «Indice». */}
+          <div className="av2-help__actions">
+            <Chip
+              disabled={busy}
+              onClick={() => {
+                const opening = !hintOpen;
+                setHintOpen(opening);
+                if (
+                  opening &&
+                  step.prompt.help_available.includes('hint') &&
+                  !step.assistance_used.includes('hint')
+                ) {
+                  onHelp('hint');
+                }
+              }}
+              aria-expanded={hintOpen}
+            >
+              {copy.help_hint}
+            </Chip>
+          </div>
+          {hintOpen && <>
+            {canSpeak && mode === 'text' && <Action tone="quiet" disabled={locked} onClick={() => chooseMode('voice')}>
+              {copy.use_voice}
+            </Action>}
+            {step.prompt.targets.length > 0 && <div className="av2-help__actions">
+              {step.prompt.targets.map((target) => <Chip key={`${target.kind}:${target.id}`}>
+                <span lang="fr">{target.label_fr}</span>
+              </Chip>)}
+            </div>}
+            <HelpRow
+              available={step.prompt.help_available.filter((kind) => kind !== 'hint')}
+              used={step.assistance_used.filter((level) => level !== 'none')}
+              copy={copy}
+              busy={busy}
+              help={help}
+              onHelp={onHelp}
+            />
+          </>}
+        </div>
+      )}
+    </>
+  );
+
+  if (letter) {
+    return (
+      <StepFrame
+        label={<Byline name={letter.correspondent_name || step.prompt.character_name} />}
+        headline={letterHeadline ? letterHeadline.text : step.prompt.character_line_fr}
+        headlineLang={letterHeadline ? letterHeadline.lang : 'fr'}
+      >
+        <Surface className="av2-letter">
+          <p className="av2-label">{wide.letter_from.replace('{name}', letter.correspondent_name)}</p>
+          <p className="av2-fr av2-body av2-body--lg" lang="fr">
+            {frenchSpacing(letter.body_fr)}
+          </p>
+        </Surface>
+        {brief}
+        {answerArea}
+        {/* WP-76: the wait has a face, and the reply is read before it is judged. */}
+        {waitingForReply && <CharacterTyping speaker={replier} />}
+        {reply && (
+          <TypedReply
+            speaker={replier}
+            reply={reply}
+            animate={feedback.kind === 'replying'}
+            journeyId={journeyId}
+            stepId={step.id}
+            voice={lineVoice}
+          />
+        )}
+        {aside}
+      </StepFrame>
+    );
+  }
+
+  // WP-89 «Le fil»: the name and the exchange tokens, the brief, the
+  // conversation with the current line last, and the field right under it.
+  return (
+    <section className="av2-stack av2-step av2-step--thread">
+      <div className="av2-thread__head">
+        <p className="av2-label av2-label--story">
+          {replier ? replier.name : <Byline name={step.prompt.character_name} />}
+        </p>
+        <ExchangeTokens progress={progress} copy={copy} />
+      </div>
+      <RespondThread
+        journeyId={journeyId}
+        stepId={step.id}
+        voice={lineVoice}
+        bubbles={bubbles}
+        speaker={replier}
+        mood={sayingMood}
+        copy={copy}
+        typingKey={typingKey}
+        typedText={typedText}
+        waiting={waitingForReply}
+        openNote={openNote}
+        onToggleNote={(key) => setOpenNote((current) => (current === key ? null : key))}
+      />
+      {!graded && !waitingForReply && brief}
+      {answerArea}
+      {aside}
+    </section>
   );
 }
 
@@ -599,47 +1254,287 @@ export function RespondStepView({
 // Resolution
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Rule — WP-L4 «Règle»
+// ---------------------------------------------------------------------------
+
+/**
+ * The day's new grammar unit, as its WP-L10 rule card in the `intro` variant:
+ * the French example is the screen's one Garamond line, the rule is one
+ * sentence in the learner's language, and «Essayer» is the one primary — it
+ * advances to the unit's guided items. The step is read, never answered.
+ *
+ * `language` is the chrome language (the learner's up to A2, French from B1),
+ * which is also the language the card's rule is picked in.
+ */
+export function RuleStepView({
+  step,
+  copy,
+  busy,
+  language,
+  onContinue,
+  journeyId = null,
+  initialCheck = 'card',
+}: {
+  step: RuleStep;
+  language: ControlLanguage;
+  journeyId?: string | null;
+  /** SPEED-3: where the step opens (`card` in the app; the tests open the others). */
+  initialCheck?: RuleCheckPhase;
+} & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  const card = step.prompt.rule_card;
+  // WP-92: the day's own line using the rule, when the scene carried it — the
+  // card's first anchor, said by its speaker (their voice when there is one).
+  const anchor = ruleSceneAnchor(step.prompt);
+  const voice = useStepVoice(journeyId, step.id);
+  // SPEED-3 «Je connais déjà — vérifier»: a short test-out instead of the card.
+  const [check, setCheck] = useState<RuleCheckPhase>(initialCheck);
+  const checkCopy = ruleTestOutCopy(language);
+  const proceed = () => {
+    if (!busy) onContinue();
+  };
+  if (check === 'running') {
+    return (
+      <RuleTestOut
+        conceptId={step.prompt.concept_id}
+        language={language}
+        onCancel={() => setCheck('card')}
+        onEnd={(end) => setCheck(end.outcome)}
+      />
+    );
+  }
+  if (check === 'passed') {
+    // A pass holds the unit: one confirmation, then the day goes on.
+    return (
+      <section className="av2-stack av2-step" data-step="rule" data-check="passed">
+        <p className="av2-label av2-label--story">{copy.today_eyebrow}</p>
+        <h2 className="av2-headline" lang={step.prompt.title_fr ? 'fr' : undefined}>
+          {step.prompt.title_fr ? frenchSpacing(step.prompt.title_fr) : step.prompt.title_native}
+        </h2>
+        <FeedbackBand tone="correct" title={checkCopy.passed_title} detail={checkCopy.passed_body} />
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.scene_continue}
+        </Action>
+      </section>
+    );
+  }
+  // The card is read after a fail (or a check that could not run), never re-offered.
+  const checkNote =
+    check === 'failed' ? checkCopy.failed : check === 'unavailable' ? checkCopy.unavailable : null;
+  // WP-129 (D7): a review in the page after the ending — no test-out, no «Essayer».
+  const review = Boolean(step.prompt.review);
+  const offerCheck = !review && check === 'card' && Number.isFinite(Number(step.prompt.concept_id));
+  if (!usableCard(card)) {
+    // A card the client cannot draw still lets the learner through.
+    return (
+      <StepFrame
+        label={copy.today_eyebrow}
+        headline={step.prompt.title_fr || step.prompt.title_native}
+        headlineLang={step.prompt.title_fr ? 'fr' : undefined}
+      >
+        <p className="av2-body av2-body--lg">{step.prompt.title_native}</p>
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.scene_continue}
+        </Action>
+      </StepFrame>
+    );
+  }
+  return (
+    <section className="av2-stack av2-step" data-step="rule" data-check={check}>
+      {checkNote ? <Notice>{checkNote}</Notice> : null}
+      <RuleCard
+        card={card}
+        language={language}
+        variant="intro"
+        review={review}
+        conceptId={step.prompt.concept_id}
+        onDone={proceed}
+        sceneAnchor={anchor}
+        sceneVoice={anchor ? voice : null}
+        sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}
+      />
+      {offerCheck ? (
+        // A quiet second way through: never competing with «Essayer».
+        <Action tone="quiet" disabled={busy} onClick={() => setCheck('running')}>
+          {checkCopy.action}
+        </Action>
+      ) : null}
+    </section>
+  );
+}
+
+/** SPEED-3: the Règle step's short test-out — offered, running, or settled. */
+export type RuleCheckPhase = 'card' | 'running' | 'passed' | 'failed' | 'unavailable';
+
+// ---------------------------------------------------------------------------
+// Forge — WP-S4 «La Forge», folded into a Soutenu/Intensif day
+// ---------------------------------------------------------------------------
+
+/**
+ * The hand-off to the forge block on today's rule. Before the block: the one
+ * primary opens it (`onOpen(href)`: the page navigates, and the séance's recap
+ * brings the learner back here) and a quiet «Not now» advances the day.
+ * After it (`forged`): one line and «Back to the scene», which advances.
+ *
+ * The step is never answered here; its minutes are the block's, measured
+ * between the step's start and its advance.
+ */
+export function ForgeStepView({
+  step,
+  copy,
+  busy,
+  onContinue,
+  onOpen,
+}: { step: ForgeStep; onOpen: (href: string) => void } & Pick<
+  StepViewCommonProps,
+  'copy' | 'busy' | 'onContinue'
+>) {
+  const prompt = step.prompt;
+  const minutes = Math.max(1, Math.round((prompt.budget_seconds || step.estimated_seconds || 300) / 60));
+  const eyebrow = copy.forge_eyebrow.replace('{n}', String(minutes));
+  const proceed = () => {
+    if (!busy) onContinue();
+  };
+  return (
+    <section className="av2-stack av2-step" data-step="forge" data-forged={prompt.forged ? 'true' : 'false'}>
+      <p className="av2-label av2-label--story">
+        <ShapeToken kind="reward" size="sm" /> {eyebrow}
+      </p>
+      <h2 className="av2-headline">{copy.forge_today}</h2>
+      {prompt.title_fr || prompt.title_native ? (
+        <p className="av2-body av2-body--lg" lang={prompt.title_fr ? 'fr' : undefined}>
+          {prompt.title_fr ? frenchSpacing(prompt.title_fr) : prompt.title_native}
+        </p>
+      ) : null}
+      <p className="av2-body">{prompt.forged ? copy.forge_done : copy.forge_body}</p>
+      {prompt.forged ? (
+        <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+          {copy.forge_back}
+        </Action>
+      ) : (
+        <>
+          <Action tone="primary" onClick={() => onOpen(prompt.href)}>
+            {copy.forge_today}
+          </Action>
+          <Action tone="quiet" pending={busy} pendingLabel={copy.sending} onClick={proceed}>
+            {copy.forge_later}
+          </Action>
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * WP-90 «La planche»: the ending is the page's last panel. The resolution
+ * renders inside the reader as the «case finale» (the red-triangle stage): its
+ * picture, the character's line with their face, what happened in the
+ * learner's language, then the chapter recap and the register note. The panels
+ * the learner just read are one swipe back.
+ *
+ * While the story lane is still writing the ending (WP-87), the finale shows
+ * the speaker's face writing it — and no primary at all, rather than a
+ * disabled one to stare at. The controller polls meanwhile.
+ */
 export function ResolutionStepView({
   step,
   copy,
   busy,
   onContinue,
-}: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'>) {
+  speaker = null,
+  journey = null,
+  onExit = null,
+}: { step: ResolutionStep } & Pick<StepViewCommonProps, 'copy' | 'busy' | 'onContinue'> & {
+  /** WP-77/90: whose face says the ending (and waits while it is written). */
+  speaker?: JourneySpeaker | null;
+  /** WP-90: the day, so the finale closes the page the learner just read. */
+  journey?: Pick<JourneySnapshot, 'id' | 'steps' | 'scenario'> | null;
+  /** The reader's ✕ (pause). */
+  onExit?: (() => void) | null;
+}) {
   const wide = widenCopy(copy);
+  const register = registerNoteOf(step.prompt);
+  const chapterRecap = chapterRecapOf(step.prompt);
+  const language = useControlLanguage();
+  const entry = useStoryEpisodeEntry(journey?.id ?? null);
+  // WP-91: the ending's line is a line of this step: its clip, or the device voice.
+  const lineVoice = useStepVoice(journey?.id ?? null, step.id);
+  const pending = resolutionAwaitsStory(step);
+  // WP-110: once the ending is written the day is one page with the learner's
+  // lines in it — the episode read at the scene step predates it, so it is read
+  // once more (a GET; the cached panels stay on screen meanwhile).
+  const reread = useRef<string | null>(null);
+  const journeyId = journey?.id ?? null;
+  useEffect(() => {
+    if (pending || !journeyId || reread.current === journeyId) return;
+    const cached = getStoryEpisodeEntry(journeyId);
+    if (cached?.kind === 'episode' && cached.episode.page) return;
+    reread.current = journeyId;
+    void loadStoryEpisode(journeyId, getStoryEpisodeForJourney);
+  }, [pending, journeyId]);
+  const page = journeyStoryPage(journey, entry?.kind === 'episode' ? entry.episode : null);
+  const finale = useMemo(
+    () => storyFinaleStage(step.id, step.prompt, speaker),
+    [step.id, step.prompt, speaker],
+  );
+  const episode = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+
+  const extra =
+    chapterRecap || register ? (
+      <>
+        {/* WP-66 «jour de reprise»: the chapter that just closed. French, because
+            it is story, and absent rather than empty when there is none. */}
+        {chapterRecap && (
+          <Surface shape="episode">
+            <p className="av2-label">{wide.chapter_recap_label}</p>
+            <p className="av2-fr av2-body" lang="fr">
+              {frenchSpacing(chapterRecap)}
+            </p>
+          </Surface>
+        )}
+
+        {/* WP-33 / WP-66: the register the learner has been graded on since
+            WP-33 and shown since never. One French line, and why it matters in
+            their own language. Nothing at all when it was not evaluated — which
+            is neither a pass nor a failure, and so is not a line. */}
+        {register && (
+          <Notice shape="story">
+            <p className="av2-label" data-state="register">
+              {wide.register_label}
+            </p>
+            <p className="av2-fr av2-body" lang="fr">
+              {frenchSpacing(register.lineFr)}
+            </p>
+            {register.reasonNative && <p className="av2-body">{register.reasonNative}</p>}
+          </Notice>
+        )}
+      </>
+    ) : null;
+
   return (
-    <StepFrame
-      label={copy.today_eyebrow}
-      headline={step.prompt.character_line_fr}
-      headlineLang="fr"
-    >
-      {step.prompt.image_url && (
-        <Surface shape="hero">
-          <Artwork
-            url={step.prompt.image_url}
-            alt={step.prompt.summary_native}
-            fallbackLabel={wide.artwork_unavailable}
-          />
-        </Surface>
-      )}
-
-      <p className="av2-body av2-body--lg">{step.prompt.summary_native}</p>
-
-      <Action tone="primary" pending={busy} pendingLabel={copy.sending} onClick={onContinue}>
-        {copy.continue}
-      </Action>
-    </StepFrame>
+    <StoryEpisodeReader
+      episode={episode}
+      mode="continue"
+      onExit={onExit ?? null}
+      onContinue={onContinue}
+      continuing={busy}
+      continueLabel={copy.continue}
+      language={language}
+      savePosition={false}
+      footLink={null}
+      lineVoice={lineVoice}
+      listenLabel={(name) => listenLabel(copy, name)}
+      finale={finale}
+      finaleExtra={extra}
+      finaleWait={pending ? <StoryWriting speaker={speaker} /> : null}
+      title={journey?.scenario?.title_fr || null}
+    />
   );
 }
 
 // ---------------------------------------------------------------------------
 // Feedback
 // ---------------------------------------------------------------------------
-
-function replyNote(source: ReplyProvenance, copy: JourneyCopy): string | undefined {
-  // Only an explicitly authored line is labelled. `unknown` says nothing rather
-  // than claiming the reply was generated live.
-  return source === 'authored' ? copy.reply_authored_note : undefined;
-}
 
 /**
  * Every non-idle feedback state, each visually distinct.
@@ -658,14 +1553,43 @@ export function JourneyFeedbackView({
   onContinue,
   onRetry,
   onDismiss,
+  speaker = null,
+  stepKind = null,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
   onContinue: () => void;
   onRetry: () => void;
   onDismiss: () => void;
+  /** WP-77: whose face reacts to the verdict. */
+  speaker?: JourneySpeaker | null;
+  /** QA-STORY: the step's kind — a story reply (`respond`) gets no verdict. */
+  stepKind?: string | null;
 }) {
   const wide = widenCopy(copy);
+  // WP-76: the verdict is a sheet pinned to the bottom of the screen. When it
+  // lands it is brought into view and focused, so a screen reader starts on it
+  // rather than on whatever the learner last touched.
+  const gradedRef = useRef<HTMLDivElement | null>(null);
+  const gradedResult = feedback.kind === 'graded' ? feedback.result : null;
+  useEffect(() => {
+    const node = gradedRef.current;
+    if (!gradedResult || !node) return;
+    const still =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    try {
+      node.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+      node.focus({ preventScroll: true });
+    } catch {
+      /* an old engine without the options bag still shows the band */
+    }
+  }, [gradedResult]);
+
+  // WP-89 — verdict only at the close. A turn the conversation continues past
+  // gets no band, no face, no «Continue»: the reply is the answer, and a slip
+  // is a proofreader's mark on the learner's own line in the thread.
+  if (continuesConversation(feedback)) return null;
 
   switch (feedback.kind) {
     case 'idle':
@@ -719,7 +1643,10 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{copy.transport_error}</p>
+            <p>{feedback.message === 'session_expired' ? sessionExpiredCopy[copyLanguage(copy)].message : copy.transport_error}</p>
+            {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
+              {sessionExpiredCopy[copyLanguage(copy)].action}
+            </Action>}
             {feedback.retryable && (
               <Action tone="secondary" inline onClick={onRetry}>
                 {copy.retry}
@@ -730,24 +1657,69 @@ export function JourneyFeedbackView({
       );
 
     case 'graded': {
-      const { result, verdict, replySource } = feedback;
-      const title =
-        verdict === 'correct' ? copy.correct : verdict === 'supported' ? copy.supported : copy.wrong;
-      const note = replyNote(replySource, copy);
-
-      return (
-        <div className="av2-graded" data-state={verdict}>
-          <FeedbackBand tone={verdict} title={title} detail={result.character_reply_fr || undefined}>
-            {note && <p className="av2-label">{note}</p>}
+      // WP-82 (text diet): the reply's provenance is no longer printed under
+      // the verdict — «Written reply from the script» told the learner nothing
+      // they could act on. The payload still carries `reply_source`.
+      const { result, verdict } = feedback;
+      if (!showsVerdict(stepKind)) {
+        // QA-STORY: a story reply is never «Richtig»: the scene answered it. What is
+        // left is the margin correction (if any) and the way on.
+        return (
+          <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
             {result.correction && (
               <Correction
                 label={copy.correction}
                 spanFr={result.correction.span_fr}
                 correctedFr={result.correction.corrected_fr}
                 noteNative={result.correction.note_native}
+                notesNative={correctionNotes(result.correction)}
               />
             )}
+            <Action tone="primary" onClick={onContinue}>
+              {wide.action_continue}
+            </Action>
+          </div>
+        );
+      }
+      // W7: «with help» only when help was really used.
+      const title = copy[verdictTitleKey(verdict, result.assistance_level)];
+      // WP-77: the character reacts to *your* answer — pleased or cross, small.
+      const face =
+        speaker && castIdFor(speaker.id, speaker.name) ? (
+          <CastPortrait
+            characterId={speaker.id || ''}
+            name={speaker.name}
+            mood={expressionForVerdict(verdict)}
+            size="sm"
+          />
+        ) : undefined;
+
+      return (
+        <div className="av2-graded" data-state={verdict} ref={gradedRef} tabIndex={-1}>
+          <FeedbackBand
+            tone={verdict}
+            title={title}
+            // The reply is the character's own speech now (RespondStepView types
+            // it in, WP-76); the verdict card no longer repeats it.
+            face={face}
+          >
+            {result.correction && (
+              <Correction
+                label={copy.correction}
+                spanFr={result.correction.span_fr}
+                correctedFr={result.correction.corrected_fr}
+                noteNative={result.correction.note_native}
+                // WP-103: one line per issue, never the same explanation twice.
+                notesNative={correctionNotes(result.correction)}
+              />
+            )}
+            {/* QA-CLOSE: a forgiven slip on a hit, named in one line. */}
+            {!result.correction && result.slip_note_native && (
+              <p className="av2-graded__slip">{result.slip_note_native}</p>
+            )}
           </FeedbackBand>
+          {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
+          {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}
