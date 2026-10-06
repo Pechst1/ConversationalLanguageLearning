@@ -29,19 +29,21 @@ from app.main import create_app
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _engine(revision: str | None) -> object:
+def _engine(revision: str | tuple[str, ...] | None) -> object:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     if revision is not None:
         with engine.begin() as conn:
             conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
-            if revision:
-                conn.execute(text("INSERT INTO alembic_version VALUES (:rev)"), {"rev": revision})
+            # A database just below a merge revision carries one row per merged head.
+            for rev in (revision,) if isinstance(revision, str) else revision:
+                if rev:
+                    conn.execute(text("INSERT INTO alembic_version VALUES (:rev)"), {"rev": rev})
     return engine
 
 
-def _previous_revision(head: str) -> str:
+def _previous_revision(head: str) -> str | tuple[str, ...]:
     return schema_guard._script_directory().get_revision(head).down_revision
 
 

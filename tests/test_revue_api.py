@@ -106,17 +106,22 @@ def start(client: TestClient, headers: dict[str, str], **body) -> dict:
 # ---------------------------------------------------------------------------
 
 
+# A fixed id: a uuid4() here gave every pytest-xdist worker different test ids, and
+# xdist refuses to run when its workers collect different tests.
+_ANY_SESSION = "00000000-0000-4000-8000-000000000119"
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("get", "/api/v1/revue/week"),
         ("post", "/api/v1/revue/match"),
         ("post", "/api/v1/revue/sessions"),
-        ("get", f"/api/v1/revue/sessions/{uuid.uuid4()}"),
-        ("post", f"/api/v1/revue/sessions/{uuid.uuid4()}/turns"),
-        ("get", f"/api/v1/revue/sessions/{uuid.uuid4()}/make"),
-        ("post", f"/api/v1/revue/sessions/{uuid.uuid4()}/make"),
-        ("post", f"/api/v1/revue/sessions/{uuid.uuid4()}/close"),
+        ("get", f"/api/v1/revue/sessions/{_ANY_SESSION}"),
+        ("post", f"/api/v1/revue/sessions/{_ANY_SESSION}/turns"),
+        ("get", f"/api/v1/revue/sessions/{_ANY_SESSION}/make"),
+        ("post", f"/api/v1/revue/sessions/{_ANY_SESSION}/make"),
+        ("post", f"/api/v1/revue/sessions/{_ANY_SESSION}/close"),
     ],
 )
 def test_every_route_is_404_while_the_flag_is_off(api: TestClient, revue_off, method: str, path: str) -> None:
