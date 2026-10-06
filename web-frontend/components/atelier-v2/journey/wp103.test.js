@@ -301,9 +301,9 @@ test('T3 · the header of a drill is «Rappel · Genre et nombre», in the chrom
   assert.equal(frame.drillHeaderLabel(step, 'en', EN), 'Recall · Gender and number');
   assert.equal(frame.drillHeaderLabel(step, 'de', DE), 'Wiederholung · Gender and number', 'native label as sent');
   assert.equal(frame.drillHeaderLabel(step, 'fr', FR), 'Rappel · Genre et nombre', 'French chrome names the unit in French');
-  const noNative = recallStep({}, { kind: 'vocabulary', id: 'v', label_fr: 'une table', label_native: null });
-  assert.equal(frame.drillHeaderLabel(noNative, 'en', EN), 'Recall · une table');
-  const noLabel = recallStep({}, { kind: 'vocabulary', id: 'v', label_fr: '', label_native: null });
+  const noNative = recallStep({}, { kind: 'grammar', id: 'g', label_fr: 'Les articles', label_native: null });
+  assert.equal(frame.drillHeaderLabel(noNative, 'en', EN), 'Recall · Les articles');
+  const noLabel = recallStep({}, { kind: 'grammar', id: 'g', label_fr: '', label_native: null });
   assert.equal(frame.drillHeaderLabel(noLabel, 'en', EN), 'Recall');
 
   const rule = {
@@ -316,6 +316,38 @@ test('T3 · the header of a drill is «Rappel · Genre et nombre», in the chrom
     prompt: { concept_id: 1, title_native: 'Past tense', title_fr: 'Le passé', budget_seconds: 300, href: '/x', forged: false },
   };
   assert.equal(frame.drillHeaderLabel(forge, 'en', EN), 'La Forge · Past tense');
+});
+
+test('WP-137 C-1 · no drill eyebrow names the answer or any option', () => {
+  // «Wiederholung · verkaufen» above «vendre — Was bedeutet das?» (day-1 walk).
+  const cards = [
+    { id: 'a', text_fr: 'verkaufen', side: 'native' },
+    { id: 'b', text_fr: 'die Wohnung', side: 'native' },
+    { id: 'c', text_fr: 'Schlüssel', side: 'native' },
+  ];
+  const items = [
+    recallStep({ task_type: 'choice', prompt_fr: 'vendre', options: cards },
+      { kind: 'vocabulary', id: '1', label_fr: 'vendre', label_native: 'verkaufen' }),
+    recallStep({ task_type: 'short_answer', prompt_fr: null, options: [] },
+      { kind: 'vocabulary', id: '2', label_fr: 'la clé', label_native: 'Schlüssel' }),
+    recallStep({ task_type: 'transform', options: [] },
+      { kind: 'error', id: '3', label_fr: 'je suis allé', label_native: 'être, not avoir' }),
+    recallStep({ task_type: 'choice', options: [{ id: 'a', text_fr: 'Le passé composé' }, { id: 'b', text_fr: "L'imparfait" }] },
+      { kind: 'grammar', id: '4', label_fr: 'Le passé composé', label_native: 'Le passé composé' }),
+  ];
+  for (const language of ['de', 'en', 'fr']) {
+    const copy = { de: DE, en: EN, fr: FR }[language];
+    for (const step of items) {
+      const label = frame.drillHeaderLabel(step, language, copy);
+      assert.equal(label, copy.drill_recall, `only the category: ${label}`);
+      const answers = [step.prompt.target.label_fr, step.prompt.target.label_native, ...step.prompt.options.map((o) => o.text_fr)];
+      for (const answer of answers.filter(Boolean)) {
+        assert.ok(!label.toLowerCase().includes(answer.toLowerCase()), `${label} names ${answer}`);
+      }
+    }
+  }
+  // A grammar unit's title stays when no card carries it.
+  assert.equal(frame.drillHeaderLabel(recallStep(), 'de', DE), 'Wiederholung · Gender and number');
 });
 
 test('T3 · the day’s reply objective belongs to the scene and the reply only', () => {
