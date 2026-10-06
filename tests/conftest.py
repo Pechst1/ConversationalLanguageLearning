@@ -45,23 +45,10 @@ except ImportError:  # pragma: no cover
     pytest_asyncio = None  # type: ignore[assignment]
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.compiler import compiles
-
-
-@compiles(PG_UUID, "sqlite")
-def _pg_uuid_as_text_on_sqlite(type_, compiler, **kw):  # noqa: ARG001
-    """Declare UUID columns CHAR(32) on the SQLite test engine.
-
-    SQLite gives a column typed ``UUID`` NUMERIC affinity, so an id whose hex looks
-    numeric (all digits, or digits and one «e») was stored as a number and read
-    back as a float. CHAR has TEXT affinity and keeps every id as written
-    (tests/test_sqlite_uuid_affinity.py). PostgreSQL is untouched.
-    """
-
-    return "CHAR(32)"
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.api.deps import get_db
 from app.db import models  # noqa: F401  # Imported for side effects
@@ -92,7 +79,6 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.episode_audio import EpisodeAudioClip
-from app.db.models.line_audio import LineAudioClip
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -109,7 +95,9 @@ from app.db.models.graphic_novel import (
 )
 from app.db.models.intake import LearnerArtefact
 from app.db.models.library import BookEpisode, UserBook
+from app.db.models.line_audio import LineAudioClip
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
+from app.db.models.password_reset_delivery import PasswordResetDelivery
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
@@ -126,6 +114,13 @@ from app.db.models.streak_day import StreakDay
 from app.db.models.vocabulary import UserDailyWordSlate
 from app.main import create_app
 from app.utils.cache import cache_backend
+
+
+@compiles(PG_UUID, "sqlite")
+def _pg_uuid_as_text_on_sqlite(type_, compiler, **kw):  # noqa: ARG001
+    """Keep UUIDs as text on SQLite; leave PostgreSQL's UUID type unchanged."""
+
+    return "CHAR(32)"
 
 
 @pytest.fixture(scope="session")
@@ -146,6 +141,7 @@ def db_engine():
         bind=engine,
         tables=[
             User.__table__,
+            PasswordResetDelivery.__table__,
             UserFeedbackReport.__table__,
             PushSubscription.__table__,
             RefreshToken.__table__,
@@ -262,6 +258,7 @@ def db_engine():
                 PushSubscription.__table__,
                 UserFeedbackReport.__table__,
                 User.__table__,
+                PasswordResetDelivery.__table__,
             ],
         )
 

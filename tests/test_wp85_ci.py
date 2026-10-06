@@ -50,7 +50,7 @@ def test_the_workflow_parses_and_every_job_can_fail_the_run() -> None:
     assert {"backend", "postgres", "frontend", "docker"} <= set(jobs)
     for name, job in jobs.items():
         assert "continue-on-error" not in job, name
-        for step in job["steps"]:
+        for step in job.get("steps", []):
             assert not step.get("continue-on-error"), (name, step.get("name"))
 
 

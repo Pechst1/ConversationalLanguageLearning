@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_user_or_demo, get_db
 from app.core.offload import off_event_loop
+from app.core.uploads import MAX_ANKI_UPLOAD_BYTES, read_bounded_upload
 from app.db.models.anki_import_record import AnkiImportRecord
 from app.db.models.user import User
 from app.schemas.anki import (
@@ -53,9 +54,9 @@ async def import_anki_cards(
             detail="File must be a CSV file"
         )
     
+    content = await read_bounded_upload(file, limit=MAX_ANKI_UPLOAD_BYTES)
     try:
         # Read file content
-        content = await file.read()
         csv_content = content.decode('utf-8')
         
         logger.info(f"Processing Anki import for user {current_user.id}: {file.filename}")
@@ -123,6 +124,8 @@ def import_anki_cards_text(
     Useful for smaller imports or when file upload is not convenient.
     """
     
+    if len(request.csv_content.encode("utf-8")) > MAX_ANKI_UPLOAD_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "CSV exceeds the import limit.")
     try:
         logger.info(f"Processing text-based Anki import for user {current_user.id}")
         

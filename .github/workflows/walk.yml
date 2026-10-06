@@ -4,7 +4,7 @@ name: Browser walk
 # throwaway database and the fake story provider — no paid call. The screenshots and a
 # contact sheet are attached as an artifact; a nightly run keeps the last 7 walks.
 on:
-  pull_request:
+  workflow_call:
   workflow_dispatch:
   schedule:
     - cron: '17 2 * * *'
@@ -65,10 +65,6 @@ jobs:
       - name: Walk
         id: walk
         working-directory: web-frontend
-        # Assertion failures are findings about the product. Until the first findings are
-        # triaged this step reports them without blocking the PR; delete
-        # `continue-on-error` to make them gate merges.
-        continue-on-error: true
         run: npm run walk -- --out e2e/out/ci
 
       - name: Summary

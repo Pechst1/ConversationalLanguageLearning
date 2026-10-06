@@ -159,7 +159,7 @@ class AuthService:
         self.db.refresh(user)
         return user
 
-    def users_with_email(self, email: str, *, active_only: bool = False) -> list[User]:
+    def users_with_email(self, email: str, *, active_only: bool = False, for_update: bool = False) -> list[User]:
         """Every account whose email matches without case, exact spelling first.
 
         Normally zero or one. Accounts created before WP-71 may differ only by
@@ -172,6 +172,10 @@ class AuthService:
         query = select(User).where(func.lower(User.email) == normalized)
         if active_only:
             query = query.where(User.is_active.is_(True))
+        if for_update:
+            # Lock legacy case-only duplicates in a stable order; refresh any
+            # identity-map copy loaded before another request committed.
+            query = query.order_by(User.id).with_for_update().execution_options(populate_existing=True)
         users = list(self.db.scalars(query).all())
         users.sort(key=lambda user: (user.email != normalized, str(user.created_at or "")))
         return users
@@ -192,7 +196,7 @@ class AuthService:
         learner's inbox is a dead end.
         """
 
-        candidates = self.users_with_email(email, active_only=True)
+        candidates = self.users_with_email(email, active_only=True, for_update=True)
         if not candidates:
             return PasswordResetRequestResult()
         user = candidates[0]
@@ -200,11 +204,11 @@ class AuthService:
         now = datetime.now(UTC)
         last_requested = _as_utc(user.password_reset_requested_at)
         if (
-            user.password_reset_code_hash
-            and last_requested
+            last_requested
             and now - last_requested < timedelta(seconds=PASSWORD_RESET_CODE_COOLDOWN_SECONDS)
         ):
             # The previous code is seconds old and still valid: no second email.
+            self.db.commit()
             return PasswordResetRequestResult()
 
         token = secrets.token_urlsafe(32)
@@ -215,10 +219,12 @@ class AuthService:
         user.password_reset_code_attempts = 0
         user.password_reset_requested_at = now
         self.db.add(user)
-        self.db.commit()
+        from app.services.password_reset_delivery import deliver_reset_email, enqueue_reset_email
 
         public_url = reset_url if self.reset_url_is_public() else None
-        self._deliver_password_reset(user, code=code, reset_url=public_url)
+        delivery = enqueue_reset_email(self.db, user, code=code, reset_url=public_url, now=now)
+        self.db.commit()
+        deliver_reset_email(self.db, delivery.id)
         if settings.PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE:
             return PasswordResetRequestResult(reset_token=token, reset_url=reset_url, reset_code=code)
         return PasswordResetRequestResult()
@@ -231,7 +237,7 @@ class AuthService:
             select(User).where(
                 User.password_reset_token_hash == token_hash,
                 User.is_active.is_(True),
-            ).limit(1)
+            ).with_for_update().execution_options(populate_existing=True).limit(1)
         )
         if not user or not self._password_reset_token_is_fresh(user.password_reset_requested_at):
             raise InvalidPasswordResetTokenError("Invalid or expired password reset link.")
@@ -241,9 +247,9 @@ class AuthService:
     def confirm_password_reset_code(self, email: str, code: str, new_password: str) -> User:
         """Consume a six-digit code: 15 minutes, five attempts, one use."""
 
-        now = datetime.now(UTC)
         code = (code or "").strip()
-        for user in self.users_with_email(email, active_only=True):
+        for user in self.users_with_email(email, active_only=True, for_update=True):
+            now = datetime.now(UTC)
             if not user.password_reset_code_hash:
                 continue
             requested_at = _as_utc(user.password_reset_requested_at)
@@ -253,7 +259,6 @@ class AuthService:
             )
             if expired or attempts >= PASSWORD_RESET_CODE_MAX_ATTEMPTS:
                 self._clear_reset_code(user)
-                self.db.commit()
                 continue
             if hmac.compare_digest(user.password_reset_code_hash, self.hash_reset_code(user, code)):
                 return self._complete_password_reset(user, new_password)
@@ -261,7 +266,7 @@ class AuthService:
             if user.password_reset_code_attempts >= PASSWORD_RESET_CODE_MAX_ATTEMPTS:
                 self._clear_reset_code(user)
             self.db.add(user)
-            self.db.commit()
+        self.db.commit()
         raise InvalidPasswordResetTokenError("Invalid or expired password reset code.")
 
     def _clear_reset_code(self, user: User) -> None:
@@ -280,8 +285,8 @@ class AuthService:
         user.password_reset_requested_at = None
         user.auth_version = int(user.auth_version or 0) + 1
         self.db.add(user)
+        self.revoke_all_refresh_tokens(user, commit=False)
         self.db.commit()
-        self.revoke_all_refresh_tokens(user)
         return user
 
     @staticmethod
@@ -388,8 +393,9 @@ class AuthService:
                 if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(message)
-        except Exception:  # pragma: no cover - network/email provider failure
-            logger.exception("Password reset email delivery failed for %s", user.email)
+        except Exception as exc:  # pragma: no cover - network/email provider failure
+            # SMTP exceptions and trace locals can contain the message/code.
+            logger.error("Password reset email delivery failed for user %s (%s)", user.id, type(exc).__name__)
             return False
         return True
 
@@ -469,7 +475,9 @@ class AuthService:
         if payload.get("type") != "refresh":
             raise InvalidCredentialsError("Refresh token required")
         user_id = uuid.UUID(str(payload.get("sub")))
-        user = self.db.get(User, user_id)
+        user = self.db.scalar(
+            select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True)
+        )
         if not user or not user.is_active:
             raise InvalidCredentialsError("Invalid refresh token")
         token_version = int(payload.get("av") or 0)
@@ -592,7 +600,7 @@ class AuthService:
             self.db.add(token_record)
             self.db.commit()
 
-    def revoke_all_refresh_tokens(self, user: User) -> None:
+    def revoke_all_refresh_tokens(self, user: User, *, commit: bool = True) -> None:
         """Invalidate every active refresh token for a user."""
 
         now = datetime.now(UTC)
@@ -605,7 +613,8 @@ class AuthService:
         for token in tokens:
             token.revoked_at = now
             self.db.add(token)
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
 
 def handle_email_exists(error: EmailAlreadyExistsError) -> None:

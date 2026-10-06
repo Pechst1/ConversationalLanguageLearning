@@ -224,8 +224,9 @@ GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:lat
 
 ```bash
 cp .env.prod.example .env.prod  # populate every placeholder with production secrets
-docker compose -f docker/docker-compose.prod.yml pull
-docker compose -f docker/docker-compose.prod.yml up -d
+export APP_IMAGE=ghcr.io/pechst1/conversational-language-learning:sha-<tested-40-character-commit>
+bash scripts/production_compose.sh pull
+bash scripts/production_compose.sh up -d
 ```
 
 The production stack runs one API instance plus the Celery worker and persistent
@@ -420,7 +421,7 @@ time the episode is read.
 
 **Production:**
 ```bash
-docker compose -f docker/docker-compose.prod.yml up -d worker
+bash scripts/production_compose.sh up -d worker  # APP_IMAGE must be set to the tested image
 ```
 
 The production `worker` embeds Celery beat with `-B`; do not start a second
@@ -537,11 +538,14 @@ merging.
 
 ## Deployment Runbook
 
-1. Build and push the container image: `docker build . -t ghcr.io/<org>/conversational-language-learning:TAG`.
-2. Publish the image with `docker push` and update the staging Compose file if the tag changes.
+1. Let CI validate the commit; image publication runs only after every check, including the browser walk, passes.
+2. Select its published full `sha-<commit>` image reference and update the staging Compose file if the tag changes.
 3. Deploy to staging via `docker compose -f docker/docker-compose.staging.yml up -d` and run smoke tests (basic API calls plus a sample conversational session).
-4. Promote to production by pulling the new tag and running `docker compose -f docker/docker-compose.prod.yml up -d`.
+4. Set `APP_IMAGE` to that tested image, then run `bash scripts/production_compose.sh pull` and `bash scripts/production_compose.sh up -d`.
 5. Monitor Redis/DB metrics and review the analytics endpoints for anomalies after rollout.
+
+See [production hardening](docs/production-hardening.md) for password-recovery email retries,
+the backup restore contract, rollback commands, and required hosting settings.
 
 ## Next Steps
 

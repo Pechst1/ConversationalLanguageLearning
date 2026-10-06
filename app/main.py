@@ -20,6 +20,7 @@ from app.api.deps import get_db
 from app.api.openapi import install_projection_schemas
 from app.api.v1 import api_router
 from app.config import settings
+from app.core.uploads import ImportBodyLimitMiddleware
 from app.services import story_correspondence
 
 tags_metadata: list[dict[str, str]] = [
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(ImportBodyLimitMiddleware, api_prefix=settings.API_V1_STR)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,

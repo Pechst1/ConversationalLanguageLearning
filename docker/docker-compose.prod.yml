@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/pechst1/conversational-language-learning:latest
+    image: ${APP_IMAGE:?Set APP_IMAGE to a tested sha tag or image digest}
     env_file:
       - ../.env.prod
     environment:
@@ -29,7 +29,7 @@ services:
   # notifications. -B embeds the beat scheduler (fine at single-worker scale;
   # split beat into its own service before scaling workers past 1).
   worker:
-    image: ghcr.io/pechst1/conversational-language-learning:latest
+    image: ${APP_IMAGE:?Set APP_IMAGE to a tested sha tag or image digest}
     command: ["celery", "-A", "app.celery_app", "worker", "-B", "--loglevel=info"]
     env_file:
       - ../.env.prod

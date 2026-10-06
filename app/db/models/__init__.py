@@ -39,6 +39,7 @@ from app.db.models.library import BookEpisode, UserBook
 from app.db.models.line_audio import LineAudioClip
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
+from app.db.models.password_reset_delivery import PasswordResetDelivery
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
@@ -69,6 +70,7 @@ __all__ = [
     "RevuePlace",
     "RevuePictogram",
     "RevueVignette",
+    "PasswordResetDelivery",
     "User",
     "StreakDay",
     "RefreshToken",

@@ -63,10 +63,10 @@ if (!isNativeStaticExport) {
           },
         ]
       : []),
-    {
+    ...(process.env.NODE_ENV !== 'production' ? [{
       source: '/anki-connect',
       destination: 'http://127.0.0.1:8765',
-    },
+    }] : []),
   ];
 
   nextConfig.redirects = async () => [

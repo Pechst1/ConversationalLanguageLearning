@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.config import settings
 from app.core.offload import off_event_loop
+from app.core.uploads import MAX_BOOK_UPLOAD_BYTES, read_bounded_upload
 from app.db.models.library import UserBook
 from app.db.models.user import User
 from app.schemas.story import (
@@ -164,13 +165,7 @@ async def upload_book(
             detail=f"Unsupported file format: {extension}. Use TXT, EPUB, PDF, or HTML.",
         )
     
-    content = await file.read()
-    
-    if len(content) > 10_000_000:  # 10MB limit
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum size is 10MB.",
-        )
+    content = await read_bounded_upload(file, limit=MAX_BOOK_UPLOAD_BYTES)
     task_id = str(uuid.uuid4())
     target_level = _first_target_level(target_levels)
     _ = max_chapters
@@ -225,9 +220,7 @@ async def upload_library_book(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file format: {extension}. Use TXT, EPUB, PDF, or HTML.",
         )
-    content = await file.read()
-    if len(content) > 10_000_000:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large. Maximum size is 10MB.")
+    content = await read_bounded_upload(file, limit=MAX_BOOK_UPLOAD_BYTES)
 
     return _start_library_upload(
         db_session=db,

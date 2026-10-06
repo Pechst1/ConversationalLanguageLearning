@@ -33,6 +33,7 @@ celery_app = Celery(
         "app.tasks.book_library",
         "app.tasks.journey_prefetch",
         "app.tasks.health",
+        "app.tasks.password_reset_delivery",
         "app.tasks.revue",
     ],
 )
@@ -55,6 +56,10 @@ celery_app.conf.update(
 )
 
 celery_app.conf.beat_schedule = {
+    "retry-password-reset-email": {
+        "task": "app.tasks.password_reset_delivery.deliver_due",
+        "schedule": 30.0,
+    },
     "generate-daily-analytics": {
         "task": "app.tasks.analytics.generate_daily_snapshots",
         "schedule": crontab(hour=2, minute=0),

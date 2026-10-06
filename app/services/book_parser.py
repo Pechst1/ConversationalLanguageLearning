@@ -385,9 +385,20 @@ class BookParserService:
     
     def _extract_epub_text(self, content: bytes) -> str:
         """Extract plain text from EPUB file."""
-        try:
-            from io import BytesIO
+        from io import BytesIO
+        from zipfile import BadZipFile, ZipFile
 
+        # Compressed upload size alone cannot bound EPUB memory use.
+        try:
+            with ZipFile(BytesIO(content)) as archive:
+                entries = archive.infolist()
+                if len(entries) > 2000 or sum(entry.file_size for entry in entries) > 40_000_000:
+                    raise ValueError("EPUB exceeds the unpacked size or file count limit.")
+                if any(entry.flag_bits & 1 for entry in entries):
+                    raise ValueError("Encrypted EPUB files are not supported.")
+        except BadZipFile as exc:
+            raise ValueError("Invalid EPUB archive.") from exc
+        try:
             import ebooklib
             from bs4 import BeautifulSoup
             from ebooklib import epub

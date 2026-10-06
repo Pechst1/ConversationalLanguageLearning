@@ -12,6 +12,7 @@
 services:
   - type: web
     name: atelier-api
+    autoDeployTrigger: checksPass
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
@@ -57,6 +58,10 @@ services:
       # provider's credentials. SMTP_PORT (587) and SMTP_USE_TLS (true) default.
       - key: SMTP_HOST
         sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USE_TLS
+        value: "true"
       - key: SMTP_FROM_EMAIL
         sync: false
       - key: SMTP_USERNAME
@@ -195,6 +200,7 @@ services:
 
   - type: worker
     name: atelier-worker
+    autoDeployTrigger: checksPass
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
@@ -219,6 +225,19 @@ services:
       - key: SENTRY_ENVIRONMENT
         value: production
       # --- WP-73 observability (end) -----------------------------------
+      # Password recovery outbox retries run in the worker as well as the API.
+      - key: SMTP_HOST
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_HOST}
+      - key: SMTP_PORT
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_PORT}
+      - key: SMTP_USE_TLS
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_USE_TLS}
+      - key: SMTP_FROM_EMAIL
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_FROM_EMAIL}
+      - key: SMTP_USERNAME
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_USERNAME}
+      - key: SMTP_PASSWORD
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_PASSWORD}
       - key: SECRET_KEY
         fromService:
           type: web

@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
 
 # A newer push to the same branch makes the older run moot.
 concurrency:
@@ -11,6 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  browser-walk:
+    name: Browser release checks
+    uses: ./.github/workflows/walk.yml
+
+  publish:
+    name: Publish verified image
+    needs: [generated-types, backend, learner-walk, postgres, frontend, docker, browser-walk]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish-image.yml
+
   generated-types:
     name: OpenAPI · generated types are current
     runs-on: ubuntu-latest
@@ -220,10 +237,13 @@ jobs:
         env:
           WP69_PG_URL: ${{ env.DATABASE_URL }}
           WP18_HEALTH_DATABASE_URL: ${{ env.DATABASE_URL }}
+          PRODUCTION_READINESS_PG_URL: ${{ env.DATABASE_URL }}
         run: >-
           pytest -q -p no:cacheprovider
           tests/test_wp69_never_lose_a_day.py::test_best_effort_on_real_postgres
           tests/test_rollout_scripts.py::test_every_query_executes_against_a_real_database
+          tests/test_production_auth_pg.py
+          tests/test_production_recovery_pg.py
 
       - name: Story-engine row locks under concurrent requests
         run: |

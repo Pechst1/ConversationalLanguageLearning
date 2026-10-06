@@ -36,6 +36,7 @@ MAX_ROWS_PER_TABLE = 1000
 
 #: User-linked tables deliberately left out, with the reason.
 EXCLUDED_USER_TABLES: dict[str, str] = {
+    "password_reset_deliveries": "encrypted authentication messages; credentials, not learner content",
     "refresh_tokens": "authentication secrets (token hashes); not learner content",
     "push_subscriptions": "device push endpoint and encryption keys; credentials, not learner content",
 }
