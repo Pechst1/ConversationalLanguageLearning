@@ -60,7 +60,10 @@ def test_notification_subscribe_persists_current_user_subscription(client: TestC
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
-    subscription = db_session.scalar(select(PushSubscription))
+    # Scoped to this learner: the suite shares one database, and other suites'
+    # subscriptions are already there when they run first.
+    user = db_session.scalar(select(User).where(User.email == "push@example.com"))
+    subscription = db_session.scalar(select(PushSubscription).where(PushSubscription.user_id == user.id))
     assert subscription is not None
     assert subscription.endpoint == "https://push.example.test/device-1"
     assert subscription.keys["p256dh"] == "test-p256dh-key"
@@ -133,7 +136,11 @@ def test_native_notification_subscribe_persists_apns_token(client: TestClient, d
 
     assert response.status_code == 200
     subscription = db_session.scalar(
-        select(PushSubscription).where(PushSubscription.endpoint.like("apns://%"))
+        select(PushSubscription).where(
+            PushSubscription.endpoint.like("apns://%"),
+            PushSubscription.user_id
+            == select(User.id).where(User.email == "native-push@example.com").scalar_subquery(),
+        )
     )
     assert subscription is not None
     assert subscription.endpoint == "apns://sandbox/apple-device-token"

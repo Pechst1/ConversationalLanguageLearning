@@ -25,9 +25,14 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # visitors get a single "Ouvrir votre édition" action instead of a silent
     # redirect, and the signed-out pair is French.
     assert "const authed = status === 'authenticated';" in home
-    assert "Ouvrir votre édition" in home
+    # 2026-09-24: the button follows the onboarding language (one-language rule).
+    assert "{TASTE_NAV[language].open_edition}" in home
+    assert "open_edition: 'Ouvrir votre édition'" in read(WEB / "lib" / "onboarding-taste.ts")
+    # WP-75: «Commencer» plays the taste on this page; the taste's last button
+    # opens sign-up, and «J'ai déjà un compte» is the quiet way to sign in.
     assert 'href="/auth/signin"' in home
-    assert 'href="/auth/signup"' in home
+    assert "router.push('/auth/signup')" in home
+    assert "<Taste " in home
     assert "~15 min" not in home
     assert "Learning hub" not in home
 
@@ -45,23 +50,23 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
     assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
 
-    # French since 2026-09-10; the contract is that the rule is stated, not the
-    # language it is stated in.
-    assert "Au moins 8 caractères" in signup
+    # WP-75: one screen in the learner's language (en/de/fr); the rules are
+    # stated in the copy table, the payload is the backend contract.
+    signup_copy = read(WEB / "lib" / "onboarding-signup.ts")
+    assert "Au moins 8 caractères" in signup_copy
     assert "function authErrorMessage" in signup
     assert "Array.isArray(detail)" in signup
-    assert "defaultValues" in signup
-    assert "nativeLanguage: 'en'" in signup
-    assert "targetLanguage: 'fr'" in signup
-    assert "proficiencyLevel: 'A1'" in signup
-    # The extra profile fields used to hide behind a <details>; they are step
-    # two of a two-step form now. Same contract — not everything at once — with
-    # a mechanism a learner can see the shape of.
-    assert "AuthSteps" in signup and "step === 1" in signup
-    assert "apiService.register" in signup
-    assert "full_name: data.name" in signup
-    assert "interests: selectedTopics.join(',')" in signup
-    assert "router.push({ pathname: '/auth/signin', query: callbackQuery })" in signup
+    assert "useOnboardingLanguage()" in signup
+    assert "AuthSteps" not in signup
+    assert "buildRegisterPayload(data)" in signup
+    assert "apiService.post('/auth/register', payload)" in signup
+    # WP-47 re-pin: the new account is signed in with what was just typed and
+    # lands directly; the sign-in form is the fallback, with the address kept.
+    # WP-75 re-pin: it lands in today's scene, never on the placement.
+    assert "auth.signInWithCredentials(payload.email, data.password)" in signup
+    assert "router.replace(landing);" in signup
+    assert "query: { callbackUrl: landing, email: payload.email }" in signup
+    assert "const landing = afterSignUpDestination(destination);" in signup
 
 
 def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> None:
@@ -101,7 +106,10 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "<VocabularyPage embedded />" in notebook
     assert "api.getCefrProgress()" in notebook
     # CEFR progression now rides in the Cahiers masthead folio, not a dashboard grid.
-    assert "cefr?.estimate ? `${cefr.estimate} en cours`" in notebook
+    # WP-82: the line is chrome, read from the Cahier copy table.
+    assert "cefr?.estimate ? fill(t.notebook.cefr_line, { level: cefr.estimate })" in notebook
+    cahier_copy = read(WEB / "components" / "cahiers" / "cahier-copy.ts")
+    assert "cefr_line: '{level} en cours'" in cahier_copy
 
 
 def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
@@ -121,13 +129,20 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "void router.push(`/missions${action.query}`);" in atelier
     assert "void router.push(`/graphic-novel${action.query}`);" in atelier
     assert "session_id: result.session_id" in atelier
-    assert "printed-hook" in atelier
+    # (A `printed-hook` pin lived here: by WP-85 it matched only a CSS rule
+    # whose class no markup rendered, and the rule went with the dead styles.)
 
-    # The deck's aria labels and end-of-deck copy are French now; "Vocabulary
-    # review" / "Queue claire" were the last English strings on the surface.
-    assert 'aria-label="Progression de la révision"' in vocabulary_review
+    # The deck's aria labels and end-of-deck copy were the last hard-coded
+    # English strings on the surface ("Vocabulary review" / "Queue claire").
+    # WP-82: they now come from the Lexique copy table in the chrome language
+    # (the learner's up to A2, French from B1), with the French voice kept.
+    lexique_copy = read(WEB / "components" / "lexique" / "lexique-copy.ts")
+    assert "aria-label={t.progress_aria}" in vocabulary_review
+    assert "progress_aria: 'Progression de la révision'" in lexique_copy
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "Paquet vidé" in vocabulary_review
+    assert "{t.done_title}" in vocabulary_review
+    assert "done_title: 'Paquet vidé'" in lexique_copy
+    assert "Vocabulary review" not in vocabulary_review + lexique_copy
     assert "onReturn" in vocabulary_review
     assert "onRefresh" in vocabulary_review
     assert "href={`/vocabulary?word=${wordId}`}" in vocabulary_review
@@ -143,8 +158,11 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "apiService.completeMission(mission.id)" in missions
     assert "setCompletedNextSerial(result.next_serial || null)" in missions
     # Completion stays on the recap; the learner explicitly chooses Atelier or the next act.
-    assert "Lire l’acte suivant" in missions
-    assert "Retour à l’Atelier" in missions
+    copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "next_act: 'Lire l’acte suivant'" in copy
+    assert "{t.next_act}</CrGhost>" in missions
+    assert "back_atelier: 'Retour à l’Atelier'" in copy
+    assert "{t.back_atelier}</CrGhost>" in missions
     assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions
     # "Le Courrier" correspondence-desk surface: shell, desk header, slip thread,
@@ -154,8 +172,10 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "className=\"cr-thread\"" in missions
     assert "<CrComposer" in missions
     assert "className=\"cr-resolve\"" in missions
-    assert "Compte rendu de mission" in missions
-    assert "Jeton frappé" in missions
+    # Appendix A: the answered letter is one seal; the minted token rides on it.
+    assert "<CrSeal" in missions
+    assert "token={mintedToken ? <LogoToken pop /> : undefined}" in missions
+    assert "token_minted: 'Jeton frappé'" in copy
     # Format-aware composer + voice + archive.
     assert "function missionFormat(" in missions
     assert "missionFormatPayload(mission)" in missions
@@ -182,15 +202,20 @@ def test_feuilleton_scene_flow_has_creation_tasks_completion_and_context_returns
     assert "apiService.createGraphicNovelScene" in feuilleton
     assert "apiService.submitGraphicNovelAttempt(scene.id" in feuilleton
     assert "apiService.completeGraphicNovelScene(scene.id)" in feuilleton
-    assert 'aria-label="Composer une nouvelle scène du Feuilleton"' in feuilleton
-    assert 'aria-label="Mode Feuilleton"' in feuilleton
+    # WP-82: the aria-labels are chrome and come from the Feuilleton copy table.
+    copy = read(WEB / "components" / "feuilleton" / "feuilleton-copy.ts")
+    assert "aria-label={t.compose_aria}" in feuilleton
+    assert "compose_aria: 'Composer une nouvelle scène du Feuilleton'" in copy
+    assert "aria-label={t.feuilleton}" in feuilleton
     assert "apiService.getSerialToday()" in feuilleton
-    assert 'aria-label="Prochain acte du Feuilleton"' in feuilleton
-    assert 'aria-label="Actions de lecture du Feuilleton"' in feuilleton
+    assert "aria-label={t.mission_aria}" in feuilleton
+    assert "mission_aria: 'Prochain acte du Feuilleton'" in copy
+    assert "aria-label={t.actions_aria}" in feuilleton
     # Reader rebuild: the final task is one inline action, and the end of the
     # episode is one section instead of a completion card + continuation card.
     assert "<FeuilletonReader" in feuilleton  # the final task is the reader's resolution stage
-    assert 'aria-label="Fin de l’épisode"' in feuilleton
+    assert "aria-label={t.end_aria}" in feuilleton
+    assert "end_aria: 'Fin de l’épisode'" in copy
     assert "function FeuilletonEnd" in feuilleton
     assert "routeWithQuery('/missions', missionPairs)" in feuilleton
     assert "routeWithQuery('/graphic-novel', readerPairs)" in feuilleton
