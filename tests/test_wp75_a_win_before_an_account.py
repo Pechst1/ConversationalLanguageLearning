@@ -367,7 +367,13 @@ def test_the_first_journey_is_authored_instant_and_makes_no_provider_call(
     # Required quick wins: B1 writes the phrase, A1/A2 recognize or arrange it.
     recalls = [step for step in journey["steps"] if step["kind"] == "recall"]
     assert all(not step["prompt"]["optional"] for step in recalls)
-    assert {step["prompt"]["task_type"] for step in recalls} == ({"short_answer"} if band == "B1" else {"choice", "tiles"})
+    # Which recognition format each word gets depends on the day's words (a multi-word
+    # answer is tiles); the contract is only that A1/A2 never type a recall on day one.
+    task_types = {step["prompt"]["task_type"] for step in recalls}
+    if band == "B1":
+        assert task_types == {"short_answer"}
+    else:
+        assert task_types and task_types <= {"choice", "tiles"}
     assert driver.private_leaks == []
 
     cast = journey["cast_intro"]
