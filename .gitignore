@@ -91,3 +91,8 @@ var/
 # lives as an Artifact; only the sources belong in git.
 docs/design-reference/canvas/**/*-out.html
 docs/design-reference/canvas/atelier-auth/atelier-ecrans-hors-systeme.html
+
+# E-3 walk harness
+web-frontend/.next-walk*/
+web-frontend/e2e/out/
+tmp-walk/

@@ -17,6 +17,9 @@ const isStoryFeatureVisible = Boolean(launchFlags.storyFeatureVisible);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // E-3: the walk harness runs its own dev server beside the owner's; a separate
+  // build directory keeps the two from overwriting each other's manifests.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   swcMinify: true,
   output: isNativeStaticExport ? 'export' : undefined,
@@ -60,10 +63,10 @@ if (!isNativeStaticExport) {
           },
         ]
       : []),
-    {
+    ...(process.env.NODE_ENV !== 'production' ? [{
       source: '/anki-connect',
       destination: 'http://127.0.0.1:8765',
-    },
+    }] : []),
   ];
 
   nextConfig.redirects = async () => [
