@@ -20,6 +20,8 @@
 > | Artwork on account deletion | Fixed: best-effort S3 and local purge of the user's scene artwork. |
 > | Walk French-only failures | Forge rule card now follows the Forge's language (product fix); Settings follows the native language by WP-46 (walk assertion fixed). |
 > | Legal contact e-mail | Still open; the owner must supply it. |
+>
+> Checks on `fix/1007-integration`: frontend 924/924, `tsc` and lint pass (one existing notebook hook warning), Ruff passes. Backend full parallel run: 6,754 passed. Five to eight tests fail per run, and which ones changes from run to run. Every affected file passes on its own, and the release candidate shows the same kind of cross-file test pollution (E-2). The 12-minute browser walk was not rerun.
 
 **Assessment: a substantial, visually coherent app that needs a focused stabilization and deployment pass before a reliable personal production pilot.** Feature breadth is sufficient to start learning from daily use. The immediate priority is preserving story continuity, trustworthy grading, saved learning progress, and an appropriate level.
 
