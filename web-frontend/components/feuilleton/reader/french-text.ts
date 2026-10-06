@@ -78,3 +78,40 @@ export function sentenceAround(text: string, term: string): string {
   const hit = parts.find((part) => tokenizeFrench(part).some((token) => token.term === needle));
   return (hit || parts[0]).trim();
 }
+
+/**
+ * WP-90: roving focus inside one French line.
+ *
+ * A line is one Tab stop, labelled with the whole sentence; its words are
+ * reached with the arrow keys from there, so a keyboard learner does not Tab
+ * through every word of every line. Given the key pressed, the word that has
+ * focus (`-1` for the line itself) and how many words there are, this says
+ * where focus goes: a word index, `-1` back to the line, or `null` to leave the
+ * key alone (Tab, letters — and a page turn, which the reader handles).
+ */
+export function rovingWordTarget(key: string, current: number, count: number): number | null {
+  if (count <= 0) return null;
+  const last = count - 1;
+  if (current < 0) {
+    if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'Enter' || key === ' ') return 0;
+    if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'End') return key === 'End' ? last : null;
+    if (key === 'Home') return 0;
+    return null;
+  }
+  switch (key) {
+    case 'ArrowRight':
+    case 'ArrowDown':
+      return Math.min(current + 1, last);
+    case 'ArrowLeft':
+    case 'ArrowUp':
+      return Math.max(current - 1, 0);
+    case 'Home':
+      return 0;
+    case 'End':
+      return last;
+    case 'Escape':
+      return -1;
+    default:
+      return null;
+  }
+}
