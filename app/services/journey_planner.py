@@ -977,6 +977,49 @@ def _distractors(
     return pool[:limit]
 
 
+def _choice_distractors(
+    target: TargetRef,
+    scenario: ScenarioBrief,
+    affordances: list[str],
+    genders: dict[str, str],
+    limit: int = 2,
+) -> list[str]:
+    """WP-137 C-3: at A1–A2 a multiple choice's wrong cards are core words of the
+    learner's band with the answer's part of speech, in the answer's shape; the
+    scene's phrases (today's other answers) fill in only when the lexicon cannot,
+    and never with another part of speech («vendre» beside two nouns)."""
+
+    scene = _distractors(target, affordances, limit=len(affordances) or limit, genders=genders)
+    if _band_key(scenario.level_band) not in LOW_BANDS or len(scene) < limit:
+        # The format decision is the scene's: a word the scene cannot pose as a
+        # choice is still typed, never turned into a recognition item.
+        return scene[:limit]
+    pos = _part_of_speech(target.label_fr)
+    if pos is not None:
+        scene = [phrase for phrase in scene if _part_of_speech(phrase) in (None, pos)]
+    chosen: list[str] = []
+    seen = {_bare(target.label_fr)}
+    for card, gender in core_decoys(
+        target, band=scenario.level_band, language=str(scenario.control_language or ""),
+        count=limit + 2,
+    ):
+        shaped = _shaped_like(
+            target.label_fr or "", card.label_fr, {_fold(card.label_fr): gender} if gender else {}
+        )
+        if shaped and _bare(shaped) not in seen:
+            seen.add(_bare(shaped))
+            chosen.append(shaped)
+        if len(chosen) == limit:
+            return chosen
+    for phrase in scene:
+        if _bare(phrase) not in seen:
+            seen.add(_bare(phrase))
+            chosen.append(phrase)
+        if len(chosen) == limit:
+            break
+    return chosen
+
+
 def _hint_for(target: TargetRef, control_language: ControlLanguage) -> str:
     """The paid letter hint. A noun whose article the prompt does not ask for
     (:func:`journey_learning.article_optional`) is hinted by the noun itself."""
@@ -1076,7 +1119,7 @@ def build_recall_task(
         for entry in lexicon_of(scenario)
         if entry.get("surface_fr") and entry.get("gender") in ("m", "f")
     }
-    distractors = _distractors(target, affordances, genders=genders)
+    distractors = _choice_distractors(target, scenario, affordances, genders)
     prompt_fr: str | None = None
     instruction_override: str | None = None
 
@@ -1497,6 +1540,112 @@ def _gloss_partners(
     return partners
 
 
+# -- WP-137 C-3: one article policy per item, and decoys beyond today's words ---
+#
+# The 2026-10-06 day-1 walk: «die Wohnung» beside a bare «Schlüssel», and only
+# today's three words circulating, so every item fell to elimination (the verb
+# «vendre» was the only verb on the table). An item's cards now share one shape,
+# and at A1–A2 the wrong cards are core-lexicon words of the learner's band with
+# the answer's part of speech — words the item has not just shown as answers.
+
+#: Card prefix for a decoy drawn from the core lexicon (never a target).
+CORE_DECOY_PREFIX = "core:"
+
+
+def _one_article_policy(texts: list[str]) -> list[str]:
+    """The cards of one item all with their article, or all without.
+
+    Articles are dropped when the cards disagree (none can be added honestly to a
+    gloss); kept as they are when stripping would merge two cards or empty one."""
+
+    spaced = [" ".join(str(text or "").split()) for text in texts]
+    stripped = [_ANY_ARTICLE.sub("", text, count=1).strip() for text in spaced]
+    carries = [bare != text for bare, text in zip(stripped, spaced, strict=True)]
+    if all(carries) or not any(carries):
+        return spaced
+    if not all(stripped) or len({_fold(text) for text in stripped}) != len(stripped):
+        return spaced
+    return stripped
+
+
+def _first_meaning(gloss: str | None) -> str:
+    """«flat» from «flat, apartment», «die Wohnung» from «die Wohnung; das Heim»."""
+
+    text = re.sub(r"\([^)]*\)", " ", str(gloss or ""))
+    first = re.split(r"[;,/]", text, maxsplit=1)[0]
+    return " ".join(first.split())
+
+
+def _part_of_speech(label_fr: str | None) -> str | None:
+    """The core lexicon's part of speech for a card, or ``"noun"`` for an unlisted
+    word with an article; ``None`` when it cannot be told."""
+
+    from app.services.practice_level import core_entry
+
+    article, noun = split_article(label_fr)
+    entry = core_entry(noun)
+    if entry and entry.get("pos"):
+        return str(entry["pos"])
+    return "noun" if article else None
+
+
+def _meaning_words(text: str | None) -> set[str]:
+    return {word for word in re.findall(r"\w+", _bare(text)) if len(word) >= 4}
+
+
+def core_decoys(
+    target: TargetRef,
+    *,
+    band: str | None,
+    language: str | None,
+    count: int,
+) -> list[tuple[TargetRef, str | None]]:
+    """``count`` core-lexicon words with the target's part of speech, at the
+    learner's band, glossed in ``language`` — ``(card, gender)`` pairs, or ``[]``
+    above A2, in French chrome, or when the target's part of speech is unknown.
+
+    Deterministic per target. A decoy never shares a French side or a meaning
+    word with the target («kaufen» may stand beside «verkaufen»; «Wohnung» never
+    beside «die Wohnung»)."""
+
+    from app.services.practice_level import core_words
+
+    key = _band_key(band)
+    if key not in LOW_BANDS or language not in ("en", "de") or count <= 0:
+        return []
+    gloss = _glossed(target)
+    pos = _part_of_speech(target.label_fr)
+    if gloss is None or pos is None:
+        return []
+    taken_fr = {_bare(target.label_fr)}
+    taken_gloss = {_bare(gloss)}
+    target_words = _meaning_words(gloss)
+    chosen: list[tuple[TargetRef, str | None]] = []
+    ranked = sorted(core_words(key, pos), key=lambda row: _digest(target.id, "decoy", row[0]))
+    for lemma, gender, glosses in ranked:
+        meaning = _first_meaning(dict(glosses).get(language))
+        if not meaning or _bare(lemma) in taken_fr or _bare(meaning) in taken_gloss:
+            continue
+        if _meaning_words(meaning) & target_words:
+            continue
+        taken_fr.add(_bare(lemma))
+        taken_gloss.add(_bare(meaning))
+        chosen.append(
+            (
+                TargetRef(
+                    kind=TargetKind.VOCABULARY,
+                    id=CORE_DECOY_PREFIX + lemma,
+                    label_fr=lemma,
+                    label_native=meaning,
+                ),
+                gender,
+            )
+        )
+        if len(chosen) == count:
+            break
+    return chosen
+
+
 def build_match_pairs_task(
     *,
     target: TargetRef,
@@ -1520,15 +1669,18 @@ def build_match_pairs_task(
     if len(partners) < MATCH_PAIR_COUNT - 1:
         return None
     words = [target, *partners]
+    # WP-137 C-3: each column all with its article or all without.
+    fr_texts = _one_article_policy([word.label_fr.strip() for word in words])
+    native_texts = _one_article_policy([str(_glossed(word)) for word in words])
     fr_cards = [
         {"id": "mfr_" + _digest(target.id, "match-fr", target_identity(word))[:8],
-         "text_fr": word.label_fr.strip(), "side": "fr"}
-        for word in words
+         "text_fr": text, "side": "fr"}
+        for word, text in zip(words, fr_texts, strict=True)
     ]
     native_cards = [
         {"id": "mna_" + _digest(target.id, "match-na", target_identity(word))[:8],
-         "text_fr": str(_glossed(word)), "side": "native"}
-        for word in words
+         "text_fr": text, "side": "native"}
+        for word, text in zip(words, native_texts, strict=True)
     ]
     ids = [card["id"] for card in (*fr_cards, *native_cards)]
     if len(set(ids)) != len(ids):
@@ -1569,6 +1721,7 @@ def build_listen_tap_task(
     pool: list[TargetRef] | tuple[TargetRef, ...],
     optional: bool,
     control_language: ControlLanguage,
+    band: str | None = None,
 ) -> RecallTask | None:
     """A French phrase, three meanings in the learner's language, one tap.
 
@@ -1586,10 +1739,20 @@ def build_listen_tap_task(
     partners = _gloss_partners(target, pool, 2)
     if len(partners) < 2:
         return None
+    # WP-137 C-3: at A1–A2 the wrong meanings are core words of the learner's
+    # band with the answer's part of speech, not today's other answers. The
+    # format is still posed only when today's words could have posed it.
+    decoys = [card for card, _gender in core_decoys(
+        target, band=band, language=control_language, count=2
+    )]
+    if len(decoys) == 2:
+        partners = decoys
+    words = (target, *partners)
+    texts = _one_article_policy([str(_glossed(word)) for word in words])
     options = [
         {"id": "lt_" + _digest(target.id, "listen", target_identity(word))[:8],
-         "text_fr": str(_glossed(word)), "side": "native"}
-        for word in (target, *partners)
+         "text_fr": text, "side": "native"}
+        for word, text in zip(words, texts, strict=True)
     ]
     correct = options[0]["id"]
     shown = sorted(options, key=lambda option: _digest(target.id, "listen-order", option["id"]))
@@ -1872,7 +2035,8 @@ def build_recall_task_in_format(
         )
     if task_type == str(RecallFormat.LISTEN_TAP):
         return build_listen_tap_task(
-            target=target, pool=pool, optional=optional, control_language=language
+            target=target, pool=pool, optional=optional, control_language=language,
+            band=scenario.level_band,
         )
     if task_type == str(RecallFormat.UNSCRAMBLE):
         return build_unscramble_task(
@@ -4336,6 +4500,7 @@ def add_listening_items(
             pool=pool,
             optional=bool(entry.candidate.is_new),
             control_language=scenario.control_language,
+            band=scenario.level_band,
         )
 
     # -- listen-and-tap: the day's floor of heard words ------------------------

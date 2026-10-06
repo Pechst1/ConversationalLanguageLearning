@@ -198,7 +198,16 @@ def test_engine_day_choices_and_word_banks_come_from_the_scene() -> None:
         target=key.target, scenario=brief, affordances=affordances, optional=False
     )
     assert choice is not None and choice.task_type == "choice"
-    assert {o["text_fr"] for o in choice.options} <= set(affordances)
+    # WP-137 C-3: at A1–A2 the wrong cards are core words of the learner's band
+    # with the answer's part of speech and shape — never another scene's phrases.
+    from app.services.practice_level import core_entry
+
+    others = {o["text_fr"] for o in choice.options} - {"la clé"}
+    assert len(others) == 2 and "un chocolat chaud" not in others
+    for text in others:
+        _article, noun = planner.split_article(text)
+        assert text in affordances or (core_entry(noun) or {}).get("pos") == "noun", text
+        assert text.split()[0] in {"le", "la", "l'"} or text.startswith("l'"), text
     bank = planner.build_word_bank_task(
         target=_candidate(identifier="p", label_fr="dans ta poche", label_native="in your pocket").target,
         affordances=affordances,

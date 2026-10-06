@@ -2148,6 +2148,12 @@ class DailyJourneyService:
             self._settle_resolution_if_unsettled(user, journey)
             recap = self._build_recap(user, journey, payload.finish_kind)
             self._claim_revision(journey, payload.expected_revision)
+            # WP-137 C-2: a day stopped before a single step was done is not a
+            # practised day. Counted, it made a learner who opened day 1 for ten
+            # seconds «returning» three days later, still on N° 1.
+            practised = payload.finish_kind == "complete" or any(
+                StepStatus(step.status) is StepStatus.COMPLETED for step in journey.steps
+            )
             for step in journey.steps:
                 if StepStatus(step.status) not in (
                     StepStatus.COMPLETED,
@@ -2167,9 +2173,10 @@ class DailyJourneyService:
             # legacy loop applies and is a no-op once the day is marked, so a
             # learner who finishes the journey and then drills in
             # «Plus de pratique» gets one increment, not two.
-            record_daily_practice_streak(
-                self.db, user, on_date=local_date_for(journey.timezone)
-            )
+            if practised:
+                record_daily_practice_streak(
+                    self.db, user, on_date=local_date_for(journey.timezone)
+                )
             self._close_learning_session(journey, payload.finish_kind)
             self.db.flush()
         except HTTPException as exc:
