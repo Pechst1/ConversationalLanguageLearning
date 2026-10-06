@@ -15,7 +15,9 @@ export type KeepState =
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'kept'; already: boolean }
-  | { kind: 'refused'; message: string };
+  /** WP-138: `retryable` — a network or server failure (try again); otherwise the
+   *  word itself cannot be kept (no entry, no meaning in your language), for good. */
+  | { kind: 'refused'; message: string; retryable: boolean };
 
 export const KEEP_COPY = {
   action: 'Garder',
@@ -55,17 +57,72 @@ export function canKeep(glossKind: string, sentence: string | null | undefined):
   return glossKind === 'gloss' && Boolean((sentence || '').trim());
 }
 
-/** The server's French refusal when there is one, a calm generic line otherwise. */
-export function keepRefusalMessage(error: unknown, language?: ControlLanguage | null): string {
-  // The server's refusal is written in French; another chrome language
-  // keeps its own sentence rather than mixing two languages in one sheet.
-  if (language && language !== 'fr') return keepCopy(language).failed;
-  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-  if (detail && typeof detail === 'object') {
-    const message = (detail as { message?: unknown }).message;
-    if (typeof message === 'string' && message.trim()) return message;
+/**
+ * WP-138: why a word cannot be kept, per server code, in the sheet's language.
+ * Each of these is permanent — a property of the word, not of the moment — so
+ * none of them says «try again later».
+ */
+const KEEP_REFUSALS: Record<ControlLanguage, Record<string, string>> = {
+  fr: {
+    empty_term: 'Ce mot ne peut pas être gardé.',
+    no_sentence: 'Ce mot ne peut être gardé qu’avec sa phrase.',
+    not_in_lexicon: 'Ce mot n’est pas encore dans le lexique.',
+    no_gloss_in_learner_language: 'Pas encore de traduction dans votre langue pour ce mot.',
+    refused: 'Ce mot ne peut pas être gardé.',
+  },
+  en: {
+    empty_term: 'This word can’t be kept.',
+    no_sentence: 'A word can only be kept with the sentence it came from.',
+    not_in_lexicon: 'This word isn’t in the dictionary yet, so it can’t be kept.',
+    no_gloss_in_learner_language: 'There is no English translation for this word yet, so it can’t be kept.',
+    refused: 'This word can’t be kept.',
+  },
+  de: {
+    empty_term: 'Dieses Wort kann nicht gespeichert werden.',
+    no_sentence: 'Ein Wort kann nur mit seinem Satz gespeichert werden.',
+    not_in_lexicon: 'Dieses Wort steht noch nicht im Wörterbuch und kann nicht gespeichert werden.',
+    no_gloss_in_learner_language: 'Für dieses Wort gibt es noch keine deutsche Übersetzung, deshalb kann es nicht gespeichert werden.',
+    refused: 'Dieses Wort kann nicht gespeichert werden.',
+  },
+};
+
+type KeepError = { response?: { status?: number; data?: { detail?: unknown } } };
+
+/**
+ * What a failed keep means: the server's structured refusal (a permanent reason,
+ * said in the sheet's language) or a failure worth retrying (no answer, a server
+ * error, an expired session).
+ */
+export function keepRefusal(
+  error: unknown,
+  language?: ControlLanguage | null,
+): { message: string; retryable: boolean; code: string | null } {
+  const lang: ControlLanguage = (language && KEEP_REFUSALS[language] ? language : 'fr') as ControlLanguage;
+  const table = KEEP_REFUSALS[lang];
+  const response = (error as KeepError)?.response;
+  const status = response?.status;
+  const detail = response?.data?.detail;
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const { code, retryable, message } = detail as { code?: unknown; retryable?: unknown; message?: unknown };
+    if (typeof code === 'string' && code) {
+      if (retryable === true) return { message: keepCopy(lang).failed, retryable: true, code };
+      const known = table[code];
+      // An unknown code: the server's French line for the French reader, else the
+      // plain permanent refusal — never another language's sentence in this sheet.
+      const fallback = lang === 'fr' && typeof message === 'string' && message.trim() ? message : table.refused;
+      return { message: known || fallback, retryable: false, code };
+    }
   }
-  return KEEP_COPY.failed;
+  // A 4xx other than an expired session is the request itself: retrying sends it again.
+  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
+    return { message: table.refused, retryable: false, code: null };
+  }
+  return { message: keepCopy(lang).failed, retryable: true, code: null };
+}
+
+/** The refusal's line alone (see `keepRefusal`). */
+export function keepRefusalMessage(error: unknown, language?: ControlLanguage | null): string {
+  return keepRefusal(error, language).message;
 }
 
 /** What the sheet says once the keep has an answer. */

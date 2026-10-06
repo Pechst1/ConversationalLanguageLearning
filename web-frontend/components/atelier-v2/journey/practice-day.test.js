@@ -11,7 +11,7 @@
 //   4. a matching grid colours each pair, lets a wrong one go, and posts every
 //      pairing once the last pair lands;
 //   5. «Garder» is offered only for a real entry with its sentence, and a
-//      refusal is the server's French line.
+//      refusal says why in the sheet's language, permanent or worth a retry.
 
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -348,6 +348,34 @@ test('«Garder» is offered for a real entry with its sentence, and a refusal is
   assert.equal(kept.keepRefusalMessage(new Error('network')), kept.KEEP_COPY.failed);
   assert.equal(kept.keepStatusLine({ kind: 'kept', already: false }), kept.KEEP_COPY.kept);
   assert.equal(kept.KEEP_COPY.action, 'Garder', 'sentence case, French chrome');
+});
+
+test('WP-138: a refused keep says why, in the sheet’s language, and whether trying again helps', () => {
+  const refusal = (code, extra = {}) => ({
+    response: { status: 422, data: { detail: { code, retryable: false, message: 'Pas encore de traduction dans votre langue pour ce mot.', ...extra } } },
+  });
+  // Permanent: the content cannot be kept — no «try again later».
+  const en = kept.keepRefusal(refusal('no_gloss_in_learner_language'), 'en');
+  assert.equal(en.retryable, false);
+  assert.match(en.message, /no English translation/);
+  assert.doesNotMatch(en.message, /try again/i);
+  const de = kept.keepRefusal(refusal('not_in_lexicon'), 'de');
+  assert.equal(de.retryable, false);
+  assert.match(de.message, /Wörterbuch/);
+  assert.doesNotMatch(de.message, /später/);
+  assert.equal(kept.keepRefusal(refusal('no_gloss_in_learner_language'), 'fr').message, 'Pas encore de traduction dans votre langue pour ce mot.');
+  // An unknown code: never the server's French in an English sheet.
+  assert.equal(kept.keepRefusal(refusal('something_new'), 'en').message, 'This word can’t be kept.');
+  // A malformed request (the schema's own 422) is not worth retrying either.
+  const invalid = { response: { status: 422, data: { detail: [{ loc: ['body', 'term'], msg: 'too long' }] } } };
+  assert.deepEqual(kept.keepRefusal(invalid, 'en'), { message: 'This word can’t be kept.', retryable: false, code: null });
+  // Retryable: no answer, a server error, an expired session.
+  for (const error of [new Error('Network Error'), { response: { status: 500 } }, { response: { status: 401 } }]) {
+    const out = kept.keepRefusal(error, 'en');
+    assert.equal(out.retryable, true);
+    assert.equal(out.message, kept.keepCopy('en').failed);
+  }
+  assert.equal(kept.keepStatusLine({ kind: 'refused', message: en.message, retryable: false }, 'en'), en.message);
 });
 
 // ---------------------------------------------------------------------------
