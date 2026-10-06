@@ -50,7 +50,7 @@ dev = [
     "pytest-xdist>=3.5",
     "faker>=19.6",
     "httpx>=0.25",
-    "ruff>=0.1",
+    "ruff>=0.15,<0.16",  # CI lint gates publishing: a new minor must not fail it unseen
     "locust>=2.20"
 ]
 
