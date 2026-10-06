@@ -384,7 +384,13 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         line for panel in scene for line in panel.get("lines") or [] if line.get("kind") == "caption"
     ]
     premise = str((captions[0] if captions else {}).get("text_fr") or page["title_fr"])
-    premise_native = str((captions[0] if captions else {}).get("text_native") or "") or premise
+    # A page whose scene has no caption (every day B, the epilogue, some B1 day A)
+    # used to fall back to its French title as the «native» setup, so a German or
+    # English learner read «La lumière est fausse». The page's own can-do is already
+    # in the learner's language: it stands in. A French-chrome learner keeps the title.
+    premise_native = str((captions[0] if captions else {}).get("text_native") or "") or (
+        premise if today.language == "fr" else str(page.get("can_do_native") or premise)
+    )
     ending = hook_caption(page) or {}
     hooks = [
         str((hook_caption(page) or {}).get("text_fr") or page["title_fr"]),
