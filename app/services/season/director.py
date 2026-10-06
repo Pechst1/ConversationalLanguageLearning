@@ -24,7 +24,7 @@ import hashlib
 import re
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.services.season.clock import Position
 from app.services.season.flags import holds
@@ -51,6 +51,47 @@ class SeasonChecklist(BaseModel):
     #: for TOMORROW («Le radiateur est mort : pas de chauffage tant que Gus n'a pas
     #: la pièce»). Empty when no card was drawn.
     complication: str = Field(default="", max_length=240)
+
+    # LOSS-RATE 2026-10-06: the checklist is the director's own notes (the critic
+    # and tomorrow's obstacle read them; the learner never does). A fifth thread
+    # touched or a note one clause too long is cut, never a schema failure that
+    # loses the whole page (``invalid_story_output``).
+    @field_validator("threads", mode="before")
+    @classmethod
+    def _first_threads(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            return value
+        return [str(item) for item in value if str(item or "").strip()][:CHECKLIST_THREADS]
+
+    @field_validator("change_before", "change_after", "turn_want", "hook_fr", "complication", mode="before")
+    @classmethod
+    def _note(cls, value: Any) -> Any:
+        if value is None:
+            return ""
+        return cut_note(value, CHECKLIST_NOTE_CHARS)
+
+    @field_validator("premise_id", "small_moment_id", mode="before")
+    @classmethod
+    def _id(cls, value: Any) -> Any:
+        # «null», «none» or an empty id is no premise, not an id nobody holds.
+        text = str(value or "").strip()
+        return None if text.casefold() in ("", "null", "none") else text
+
+
+#: The checklist's caps (``SeasonChecklist``): how many threads, how long a note.
+CHECKLIST_THREADS = 4
+CHECKLIST_NOTE_CHARS = 240
+
+
+def cut_note(value: Any, limit: int) -> str:
+    """A note cut at a word under ``limit`` characters (whitespace folded)."""
+
+    text = " ".join(str(value).split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
 
 
 class StoryReview(BaseModel):
@@ -291,7 +332,9 @@ def gap_brief(
             "gates": rules.get("gates"),
         },
         "writing_rules": list(season.writing_rules),
-        "registers": {member.id: member.address for member in season.cast},
+        # Today's register, not the season's opening one: Gus's «vous» becomes «tu»
+        # at T3 (``register.<id>``), as the register guards read it (LOSS-RATE 2026-10-06).
+        "registers": {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast},
         "flags": {
             key: value
             for key, value in flags.items()
