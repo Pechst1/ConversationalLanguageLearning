@@ -788,7 +788,9 @@ character says at least one of those lines. grammar_plan.weave lists up to two f
 learner is practising: use each once where it fits. grammar_plan.allowed is grammar this
 learner already handles — lean on it; grammar_plan.avoid lists structures above the
 learner's level — do not use them. A plan never outranks the story: the form serves what
-the characters want to say.
+the characters want to say. The examples show the form, never the line: do not copy one
+into the page; each character keeps their own tu or vous with the learner, and nobody
+re-introduces themselves to a learner they already know.
 CAN-DOS (what the learner can do in French). can_dos.options lists the can-dos of the
 learner's current sub-band, least practised first; can_dos.prefer names the ones this
 learner has not shown yet. Build the objective so that it genuinely exercises ONE of
@@ -841,7 +843,12 @@ brief.today.premises or a day of your own inside brief.gap.threads (they may adv
 only as far as they say). Offer one of brief.today.small_moments when it fits.
 brief.writing_rules and brief.registers are the season's register: lines addressed to
 the learner never agree an adjective with them; Camille's lines never agree an adjective
-with Camille. Fill season_checklist: premise_id (or null), threads (the threads touched),
+with Camille. A cast member whose register is tu never says vous to the learner.
+After the finale there is no brief: season_script.after_finale holds the ending's facts,
+its rules and its registers, and after_finale.departed lists who has left — never on
+the page (no line, no panel, not the character_id); they may be mentioned or reach the
+learner from afar (a message, a letter, a postcard).
+Fill season_checklist: premise_id (or null), threads (the threads touched),
 change_before and change_after (the change, in one sentence each), turn_want (what the
 learner must want to say — never a grammar target), small_moment_id (or null), hook_fr
 (the «À suivre…» line, French), forbidden_respected (true), complication (when you
@@ -4612,6 +4619,28 @@ _SECOND_PERSON = (
 )
 
 
+# WP-133b (live read 2026-10-06, A1 day 3): «Vous êtes l'héritier ?» — a person noun
+# that marks the learner's gender, which the adjective list above never saw. Narrow on
+# purpose: only these nouns, only after «tu es / vous êtes / c'est toi / c'est vous»
+# (an adverb at most), only with a singular determiner — «il est l'héritier», «chez la
+# voisine» and «les nouveaux voisins» are not about the learner.
+_MASCULINE_PERSON_NOUNS = ("héritier", "voisin", "nouveau venu", "étranger", "invité")
+_FEMININE_PERSON_NOUNS = ("héritière", "voisine", "nouvelle venue", "étrangère", "invitée")
+_YOU_ARE = (
+    r"(?:tu (?:n )?es|t es|vous (?:n )?êtes|tu (?:n )?étais|vous (?:n )?étiez"
+    r"|c est (?:toi|vous)|ce n est pas (?:toi|vous))\s+"
+    r"(?:(?:pas|bien|donc|vraiment|sûrement|enfin|aussi|alors|déjà|encore|toujours|maintenant)\s+)?"
+)
+_PERSON_DETERMINER = (
+    r"(?:le|la|l|un|une|mon|ma|ton|ta|notre|votre|son|sa|ce|cet|cette)\s+"
+    r"(?:(?:nouveau|nouvel|nouvelle|petit|petite|jeune|vrai|vraie|fameux|fameuse|dernier|dernière)\s+)?"
+)
+
+
+def _person_noun_hits(folded: str, nouns: tuple[str, ...]) -> list[str]:
+    return [noun for noun in nouns if re.search(rf"\b{_YOU_ARE}{_PERSON_DETERMINER}{noun}\b", folded)]
+
+
 def _agreement_hits(folded: str, adjectives: tuple[str, ...]) -> list[str]:
     return [
         adjective
@@ -4680,11 +4709,18 @@ def learner_self_forms(learner_texts: list[str]) -> frozenset[str]:
     authored fallback because «Je suis un peu perdu ici» could not be answered."""
 
     folded = f" {_folded(' '.join(text for text in learner_texts if text))} "
-    return frozenset(
+    adjectives = {
         adjective
         for adjective in (*_MASCULINE_AGREEMENT, *_FEMININE_AGREEMENT)
         if re.search(rf"\b{_FIRST_PERSON}{adjective}\b", folded)
-    )
+    }
+    # WP-133b: «je suis la nouvelle voisine» gives the noun as well.
+    nouns = {
+        noun
+        for noun in (*_MASCULINE_PERSON_NOUNS, *_FEMININE_PERSON_NOUNS)
+        if re.search(rf"\b{_FIRST_PERSON}{noun}\b", folded)
+    }
+    return frozenset(adjectives | nouns)
 
 
 _GENDERED_FUNCTION_WORDS = frozenset(
@@ -4753,6 +4789,22 @@ def _check_address(texts: list[str], address: str | None, *, own: frozenset[str]
                 "without agreeing on them: \"ça te plaît\", \"tu as de la chance\", "
                 "\"ça y est\" — or write the sentence about the food, the room or the "
                 "other character instead."
+            ),
+        )
+    forbidden_nouns = {
+        "feminine": _MASCULINE_PERSON_NOUNS,
+        "masculine": _FEMININE_PERSON_NOUNS,
+    }.get(address or "neutral", _MASCULINE_PERSON_NOUNS + _FEMININE_PERSON_NOUNS)
+    nouns = [hit for hit in _person_noun_hits(folded, forbidden_nouns) if hit not in own]
+    if nouns:
+        raise StoryUnavailable(
+            "gendered_learner_noun",
+            hint=(
+                f"\"{nouns[0]}\" names the learner with a gender they never gave "
+                "(«vous êtes l'héritier», «tu es la nouvelle voisine»). Say it without a "
+                "gendered noun: «c'est toi, pour l'appartement d'Odile ?», «tu habites "
+                "au-dessus ?», or use the learner's name. The cast already knows who the "
+                "learner is: nobody asks it as if they were a stranger."
             ),
         )
 
@@ -4961,6 +5013,110 @@ def _check_scene_address_register(draft: SceneDraft) -> None:
                 "mistake to a learner who is being taught the difference."
             ),
         )
+
+
+# A «vous» that is not the learner's: two or more people at once.
+_PLURAL_VOUS = re.compile(
+    r"\bvous (?:deux|trois|quatre|tous|toutes|autres)\b|\btous les deux\b|\btoutes les deux\b"
+    r"|\btout le monde\b|\bles (?:amis|enfants|gars|filles)\b",
+    re.IGNORECASE,
+)
+
+
+def season_registers(context: dict) -> dict[str, str]:
+    """How each season cast member speaks to the learner today, ``{id: "tu"|"vous"}``:
+    the cast's ``address`` (season.json), overridden by its ``register.<id>`` flag
+    (Gus's «vous» until T3). Empty off a season."""
+
+    today = context.get(SEASON_TODAY_KEY)
+    season = getattr(today, "season", None)
+    if season is None:
+        return {}
+    flags = getattr(today, "flags", None) or {}
+    return {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast}
+
+
+def _check_season_register(draft: SceneDraft, context: dict) -> None:
+    """WP-133b: a season cast member who says «tu» to the learner never says «vous».
+
+    ``mixed_address_register`` only sees a scene that mixes the two; the live read of
+    2026-10-06 served Margaux — «tu» since T1 — asking «Je suis Margaux et vous
+    êtes… ?» in a scene that was «vous» throughout, and Romy «C'est vous, l'héritage ?».
+    The addressed character's own lines (and the opening line) are read together, as
+    the mixed check reads them: when they say only «vous» to someone whose season
+    register is «tu», the draft is refused. Lines that are plainly plural («vous
+    deux», «tout le monde») are not a register signal. Strangers and officials keep
+    their «vous»; a «tu» from a «vous» character is the season's own business (T3)."""
+
+    registers = season_registers(context)
+    if registers.get(draft.character_id) != "tu":
+        return
+    lines = [
+        text
+        for text in [
+            draft.opening_line_fr,
+            *[
+                line.text_fr
+                for panel in draft.panels
+                for line in panel.dialogue
+                if line.character_id == draft.character_id
+            ],
+        ]
+        if text and not _PLURAL_VOUS.search(text)
+    ]
+    if _address_register(lines) != "vous":
+        return
+    said = next((text for text in lines if _VOUS_MARKERS.search(text)), "")
+    names = _cast_names(context.get("world") or {})
+    name = names.get(draft.character_id, draft.character_id)
+    raise StoryUnavailable(
+        "season_register_vous",
+        hint=(
+            f"{name} says «tu» to the learner in this season, but here says «vous»: "
+            f"«{said[:100]}». Rewrite {name}'s lines with tu (tu, toi, ton, ta): from "
+            f"someone who knows the learner, a «vous» reads as a stranger's. Keep the "
+            "narration's address the same as theirs."
+        ),
+    )
+
+
+def _check_departed_cast(draft: SceneDraft, context: dict) -> None:
+    """WP-133b: after the finale, the cast the ending removed is never on the page.
+
+    ``season_script.after_finale.departed`` (``epilogue.departed_cast``: Lila in
+    Berlin after every ending, Margaux in Brittany after «Laisser partir») — the live
+    read of 2026-10-06 staged Lila on the quai «le matin après le départ de Lila».
+    Refused when a departed member is the addressed character, speaks a line, or is
+    shown in a panel; a mention, a memory or a message from afar passes. A second
+    refusal is a lost day, which the reprise re-reads (WP-124a/124b)."""
+
+    from app.services.season.epilogue import CARRIED_KEY, departed_hint, presence_on_page
+
+    departed = ((context.get("season_script") or {}).get(CARRIED_KEY) or {}).get("departed") or []
+    for member in departed:
+        member_id = str(member.get("id") or "")
+        if not member_id:
+            continue
+        evidence = None
+        if draft.character_id == member_id:
+            evidence = draft.opening_line_fr
+        for panel in draft.panels:
+            if evidence:
+                break
+            spoken = next((line.text_fr for line in panel.dialogue if line.character_id == member_id), None)
+            evidence = spoken or next(
+                (
+                    found
+                    for found in (
+                        presence_on_page(text, list(member.get("names") or []))
+                        for text in (panel.visual_direction, panel.narration_fr, panel.alt_native)
+                    )
+                    if found
+                ),
+                None,
+            )
+        if evidence:
+            raise StoryUnavailable("departed_cast_on_page", hint=departed_hint(member, evidence))
 
 
 def _variety_hint(variety: dict, what: str) -> str:
@@ -5426,6 +5582,8 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
+    _check_season_register(draft, context)
+    _check_departed_cast(draft, context)
     _check_season_gap(draft, context, learner_text)
     epreuve = context.get(EPREUVE_KEY)
     if not epreuve:

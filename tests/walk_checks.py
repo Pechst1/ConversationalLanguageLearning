@@ -640,6 +640,7 @@ def check_wishes_are_not_corrected(transcript: dict[str, Any]) -> list[str]:
 from tests.walk_checks_wp124a import check_lost_day_stays_in_season  # noqa: E402
 from tests.walk_checks_wp132b import check_no_old_serial_season  # noqa: E402
 from tests.walk_checks_wp133b import check_reply_lanes  # noqa: E402
+from tests.walk_checks_wp133b_director import check_gendered_learner_nouns  # noqa: E402
 
 CHECKS = (
     check_grading,
@@ -656,6 +657,7 @@ CHECKS = (
     check_lost_day_stays_in_season,
     check_no_old_serial_season,
     check_reply_lanes,
+    check_gendered_learner_nouns,
 )
 
 
@@ -722,8 +724,11 @@ def check_life(record: dict[str, Any]) -> list[str]:
                     problems.append(f"{label}: a level-{level} learner's letter asks for {objective!r} (3+ levels below)")
     # Wave 1 package checks (each in its own module, wired here by the orchestrator).
     from tests.walk_checks_wp125a import check_letter_omissions
+    from tests.walk_checks_wp133b_director import check_departed_after_finale, check_season_tu_register
 
     problems.extend(check_letter_omissions(record))
+    problems.extend(check_season_tu_register(record))
+    problems.extend(check_departed_after_finale(record))
     return problems
 
 
