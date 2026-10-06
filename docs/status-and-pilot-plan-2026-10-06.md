@@ -1,5 +1,26 @@
 # App assessment and proposed personal pilot — 6 October 2026
 
+> **Update 7 October 2026 (WP-138, branch `fix/1007-integration` on top of `release/rc-2026-10-06`).** Each point below was rechecked against the release candidate and fixed where it was still true:
+>
+> | Point | State on 7 October |
+> |---|---|
+> | 1 Release candidate | `release/rc-2026-10-06` exists, Ruff passes; this branch adds the fixes listed here. Pushing it is still the owner's call (E1-LANDING-PLAN). |
+> | 2 Failed day keeps the story | Season learners already got the WP-124 re-read/bridge path. A learner on a generated serial that had already started now gets an honest "unavailable, retry" rather than an unrelated scene. Authored scenes exist up to B1; B2/C1 get B1. |
+> | 3 Saved-word round trip | Fixed. Scene words no longer write a foreign gloss into the target-language column; lookup and keep share one row choice; refusals are structured (`code`, `retryable`) and localized. The walk syncs the core list and `keepAWord()` checks the save itself. Test: `tests/test_keep_word_round_trip.py`. |
+> | 4 Letter grading | Fixed. An unused grammar or repair target no longer becomes an erratum or a "partial" verdict (`_separate_target_practice`, prompt `mission-correction-v2`). |
+> | 5 Starting level | Already done: A1–C1 at signup, placement after day 1 or at any time from Settings. |
+> | 6 Config and access | `.env.prod.example` matches `render.yaml` (cohort included). `REGISTRATION_OPEN` / `REGISTRATION_ALLOWED_EMAILS` restrict sign-up; Render sets sign-up closed. APNs production on API and worker. The Compose API port is bound to localhost. |
+> | 7 Hosted verification | Owner action, not done. |
+> | Week-one 2 drill size | Intended: 8 per session plus «Encore N mots» (WP-131 owner decision 9). |
+> | Week-one 3 calibration | Already top-down (WP-127). |
+> | Week-one 4 held grammar | Fixed. "Held" needs an unaided spaced item at least 20 h after the previous contact with the rule. |
+> | Week-one 5 grammar review on milestone days | Already done (WP-129 tentpole review in context). |
+> | Week-one 6 Lila reaction | Already authored (WP-132A); a regression test was added. The epilogue is still open. |
+> | Next.js | 15.5.27; the 23 direct Next advisories are gone. Remaining audit items: next-auth, `@capacitor/ios` < 8.4.3, and smaller transitive packages. |
+> | Artwork on account deletion | Fixed: best-effort S3 and local purge of the user's scene artwork. |
+> | Walk French-only failures | Forge rule card now follows the Forge's language (product fix); Settings follows the native language by WP-46 (walk assertion fixed). |
+> | Legal contact e-mail | Still open; the owner must supply it. |
+
 **Assessment: a substantial, visually coherent app that needs a focused stabilization and deployment pass before a reliable personal production pilot.** Feature breadth is sufficient to start learning from daily use. The immediate priority is preserving story continuity, trustworthy grading, saved learning progress, and an appropriate level.
 
 This assessment covers the current working tree, including its existing uncommitted fixes. It does not establish what is deployed. No application source was changed, no real learner data was changed, and no paid AI or email calls were made for this review.
