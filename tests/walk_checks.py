@@ -357,50 +357,21 @@ def check_duplicates(transcript: dict[str, Any]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-@lru_cache(maxsize=1)
-def _lexicon_bands() -> dict[str, int]:
-    from app.services.answer_acceptance import strip_accents
-
-    data = json.loads((ROOT / "app/data/lexical/fr_core_lexicon.json").read_text(encoding="utf-8"))
-    del strip_accents
-    bands: dict[str, int] = {}
-
-    def keep(word: str, band: int) -> None:
-        bands[word] = min(band, bands.get(word, band))
-
-    lemmas = data.get("lemmas") or {}
-    for lemma, entry in lemmas.items():
-        if isinstance(entry, dict) and " " not in lemma:
-            keep(lemma.casefold(), _band(entry.get("band")))
-    lemma_band = dict(bands)
-    for form, lemma in (data.get("forms") or {}).items():
-        band = lemma_band.get(str(lemma).casefold())
-        if band is not None:
-            keep(form.casefold(), band)
-    return bands
-
-
 def item_words_above(text: str, cefr: str, *, slack: int = 1) -> list[str]:
-    """Words of ``text`` whose lexicon band is more than ``slack`` above ``cefr``."""
+    """Words of ``text`` whose lexicon band is more than ``slack`` above ``cefr``.
 
-    from app.services.answer_acceptance import fold_typography
+    The band of each word is the product's own (:func:`app.services.practice_band.word_band`):
+    the practice items and this check say the same thing about «above the band».
+    """
 
-    bands = _lexicon_bands()
-    limit = _band(cefr) + slack
+    from app.services.practice_band import level_rank, word_band
+
+    limit = level_rank(cefr) + slack
     words: list[str] = []
     for raw in re.findall(r"[^\W\d_]+(?:['-][^\W\d_]+)*", str(text or "")):
         if raw[:1].isupper() and raw in cast_names():
             continue
-        whole = fold_typography(raw).casefold()
-        token = whole.split("'")[-1]
-        # «d'abord», «aujourd'hui» are words of their own, not «abord», «hui».
-        band = bands.get(whole, bands.get(token))
-        # A participle («arrivé») is its verb's word, whatever its own adjective entry says.
-        for ending, infinitive in (("ées", "er"), ("és", "er"), ("ée", "er"), ("é", "er")):
-            if band is not None and token.endswith(ending):
-                verb = bands.get(token[: -len(ending)] + infinitive)
-                band = min(band, verb) if verb is not None else band
-                break
+        band = word_band(raw)
         if band is not None and band > limit:
             words.append(raw)
     return words
