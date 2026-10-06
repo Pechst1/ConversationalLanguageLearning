@@ -1,6 +1,8 @@
 """Pilot registration gate (WP-138): a journey cohort is not an invite list."""
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,25 +38,28 @@ def test_closed_registration_admits_only_the_allowlist(monkeypatch, allowed, ema
 
 
 def test_register_endpoint_refuses_an_uninvited_email(client: TestClient, db_session, monkeypatch) -> None:
+    tag = uuid4().hex[:10]
+    owner, stranger = f"owner-{tag}@example.com", f"stranger-{tag}@example.com"
     monkeypatch.setattr(settings, "REGISTRATION_OPEN", False)
-    monkeypatch.setattr(settings, "REGISTRATION_ALLOWED_EMAILS", "owner@example.com")
+    monkeypatch.setattr(settings, "REGISTRATION_ALLOWED_EMAILS", owner)
 
-    refused = client.post("/api/v1/auth/register", json=_payload("stranger@example.com"))
+    refused = client.post("/api/v1/auth/register", json=_payload(stranger))
     assert refused.status_code == 403
     assert "invitation" in refused.json()["detail"]
-    assert db_session.query(User).filter(User.email == "stranger@example.com").count() == 0
+    assert db_session.query(User).filter(User.email == stranger).count() == 0
 
-    admitted = client.post("/api/v1/auth/register", json=_payload("Owner@Example.com"))
+    admitted = client.post("/api/v1/auth/register", json=_payload(owner.upper()))
     assert admitted.status_code == 201
-    assert admitted.json()["email"] == "owner@example.com"
+    assert admitted.json()["email"] == owner
 
 
 def test_existing_accounts_still_sign_in_when_registration_closes(client: TestClient, monkeypatch) -> None:
-    assert client.post("/api/v1/auth/register", json=_payload("early@example.com")).status_code == 201
+    early = f"early-{uuid4().hex[:10]}@example.com"
+    assert client.post("/api/v1/auth/register", json=_payload(early)).status_code == 201
     monkeypatch.setattr(settings, "REGISTRATION_OPEN", False)
     monkeypatch.setattr(settings, "REGISTRATION_ALLOWED_EMAILS", "")
 
-    login = client.post("/api/v1/auth/login", json={"email": "early@example.com", "password": "securepassword"})
+    login = client.post("/api/v1/auth/login", json={"email": early, "password": "securepassword"})
     assert login.status_code == 200
 
 
@@ -63,6 +68,7 @@ def test_dev_auto_create_on_login_respects_the_gate(client: TestClient, db_sessi
     monkeypatch.setattr(settings, "REGISTRATION_OPEN", False)
     monkeypatch.setattr(settings, "REGISTRATION_ALLOWED_EMAILS", "")
 
-    response = client.post("/api/v1/auth/login", json={"email": "ghost@example.com", "password": "securepassword"})
+    ghost = f"ghost-{uuid4().hex[:10]}@example.com"
+    response = client.post("/api/v1/auth/login", json={"email": ghost, "password": "securepassword"})
     assert response.status_code == 401
-    assert db_session.query(User).filter(User.email == "ghost@example.com").count() == 0
+    assert db_session.query(User).filter(User.email == ghost).count() == 0
