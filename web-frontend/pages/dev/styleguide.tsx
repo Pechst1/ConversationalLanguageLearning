@@ -126,11 +126,15 @@ export default function AtelierStyleguidePage() {
           </div>
           <div className="press-row">
             <div className="press-cell">
-              <Seal variant="row" no={12} date="Vendredi 30 mai" />
+              <div className="av2 av2-seal-host">
+                <Seal variant="row" no={12} date="30 mai" />
+              </div>
               <small>Seal · En ligne</small>
             </div>
             <div className="press-cell">
-              <Seal variant="orbit" no={13} date="Samedi 31 mai" />
+              <div className="av2 av2-seal-host">
+                <Seal variant="orbit" no={13} date="31 mai" />
+              </div>
               <small>Seal · L&apos;orbite</small>
             </div>
             <div className="press-cell">
@@ -138,7 +142,7 @@ export default function AtelierStyleguidePage() {
               <small>Logo token</small>
             </div>
             <div className="press-cell">
-              <div className="press-trio">
+              <div className="press-trio av2 av2-seal-host">
                 <SealMini no={12} variant="row" state="earned" />
                 <SealMini variant="row" state="future" />
                 <SealMini variant="row" state="empty" />

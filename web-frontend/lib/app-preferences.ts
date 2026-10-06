@@ -21,10 +21,26 @@ function isFontSize(value: unknown): value is AppFontSize {
   return value === 'small' || value === 'medium' || value === 'large';
 }
 
+/** WP-83: the browser bar's colour per theme — the paper of each (`--app-paper`). */
+export const THEME_COLORS = { light: '#f1ece1', dark: '#171510' } as const;
+
 export function applyVisualSettings(theme: AppTheme = 'system', fontSize: AppFontSize = 'medium') {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.fontSize = fontSize;
+  syncThemeColor(theme);
+}
+
+/**
+ * `_document` ships one `theme-color` per colour scheme. A theme chosen in
+ * Réglages pins both to that theme's paper; `system` gives each its own back.
+ */
+export function syncThemeColor(theme: AppTheme) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    const scheme = (meta.getAttribute('media') || '').includes('dark') ? 'dark' : 'light';
+    meta.setAttribute('content', THEME_COLORS[theme === 'system' ? scheme : theme]);
+  });
 }
 
 export function readStoredVisualSettings(): VisualSettings {

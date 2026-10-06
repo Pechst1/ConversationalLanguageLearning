@@ -1,10 +1,19 @@
+import type { components } from '@/types/generated/api';
+import { rememberCastVariants } from '@/lib/cast-variants';
+import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
+import type { RuleCardData, XrayPayload } from '@/lib/rule-card';
+import type { ForgeCoach } from '@/lib/forge-coach';
+import type { EclairResult, EclairRound } from '@/lib/eclair';
+import type { GrammarMapPayload } from '@/lib/grammar-map';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
+import { getSession } from 'next-auth/react';
+import { SESSION_EXPIRED_EVENT, webSessionRecovery } from '@/lib/session-recovery';
 
 import { getAppAccessToken } from '@/lib/app-auth';
 import { audioUploadFilename } from '@/lib/audio-recording';
-import { clearNativeAuthSession, refreshNativeAccessToken } from '@/lib/native-auth';
+import { recoverNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import type {
   AdvanceBody,
@@ -17,11 +26,31 @@ import type {
   HelpResult,
   JourneyHttpResult,
   JourneySnapshot,
+  LineAudioBody,
+  LineAudioResult,
   RetryBody,
   RevisionBody,
   TodayEnvelope,
 } from '@/types/daily-journey';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
+
+/**
+ * WP-32 — the radio episode's manifest.
+ *
+ * `status` is the whole contract: `disabled` (the flag is off — read the scene
+ * as text), `absent` (nothing synthesized yet), `empty` (no speakable line),
+ * `ready`, or `failed`. A `failed` manifest carries no clips on purpose: half a
+ * scene played aloud is a comprehension test nobody can pass.
+ */
+export type EpisodeAudioClipRef = components['schemas']['EpisodeAudioClipRead'];
+
+export type EpisodeAudioManifest = components['schemas']['EpisodeAudioManifestRead'];
+
+export interface EpisodePredictionRecord {
+  guess: string;
+  verdict: string;
+  supported: string | null;
+}
 
 /**
  * How the story engine addresses the reader in French. 'neutral' is the default
@@ -98,6 +127,10 @@ export interface AtelierConcept {
   anchor_examples: string[];
   exercise_tags: string[];
   is_foundation: boolean;
+  /** WP-L10: the authored rule card (every learner language), or null. */
+  rule_card?: RuleCardData | null;
+  /** WP-S5: the cast member who teaches this rule (card and feedback face). */
+  coach?: ForgeCoach | null;
   role?: string | null;
   mastery: number;
   next_review?: string | null;
@@ -154,6 +187,14 @@ export interface AtelierToday {
     session_date: string;
     paru: boolean;
   } | null;
+  /** WP-L6 §2.2: the auto-throttle — «Cette semaine, on consolide.» */
+  intake?: {
+    consolidating: boolean;
+    factor: number;
+    reasons?: string[];
+    backlog_days?: number;
+    accuracy?: number | null;
+  } | null;
 }
 
 export interface AtelierDayProgress {
@@ -178,12 +219,435 @@ export interface AtelierDayProgress {
   }>;
 }
 
+/** WP-25 — the placement result the level payload carries, when there is one. */
+export interface PlacementPrior {
+  level: string;
+  confidence: number;
+  taken_at?: string | null;
+  graded_turns?: number;
+  version?: string;
+}
+
+/* ---- WP-25 placement (POST /placement/*) ---------------------------------- */
+
+export interface PlacementPromptView {
+  index: number;
+  band: string;
+  prompt_fr: string;
+  hint_fr: string;
+  /** The hint in fr/en/de (the prompt stays French). */
+  hint_by_language?: Partial<Record<string, string>>;
+  turns_so_far: number;
+  max_turns: number;
+}
+
+export interface PlacementEnvelope {
+  version: string;
+  session_id?: string | null;
+  /** 'none' | 'in_progress' | 'complete' | 'unassessed' | 'skipped' | 'abandoned' */
+  status: string;
+  /** True only while the learner has neither taken nor declined a placement. */
+  offer: boolean;
+  prompt?: PlacementPromptView | null;
+  estimate?: {
+    status: string;
+    level: string | null;
+    confidence: number;
+    graded_turns: number;
+    dimensions: Record<string, number>;
+    dimension_labels: Record<string, string>;
+    evidence: Array<Record<string, any>>;
+  } | null;
+  level?: string | null;
+  confidence: number;
+  prior?: PlacementPrior | null;
+}
+
+/* ---- WP-30 «Le journal de bord» (GET/POST /journal/*) ---------------------
+   The learner writes the recap from memory. The envelope's one load-bearing
+   omission: while `status` is 'offered' the entry carries `cue` — who, where,
+   how long ago — and NO scene text. `reveal` only ever arrives once the entry
+   has been written, which is why it is a separate object rather than fields on
+   the cue. Do not merge the two. */
+
+export interface JournalCue {
+  character_name?: string | null;
+  location_name?: string | null;
+  scene_date?: string | null;
+  days_ago?: number | null;
+}
+
+export interface JournalReveal {
+  title_fr?: string | null;
+  setup_fr?: string | null;
+  character_line_fr?: string | null;
+  callback_fr?: string | null;
+}
+
+export interface JournalCorrectionItem {
+  label: string;
+  span_fr: string;
+  corrected_fr: string;
+  note_native: string;
+  repair_hint?: string;
+  task_error_type?: string;
+}
+
+export interface JournalCorrection {
+  /** 'checked' — a real verdict. 'unavailable' — nobody graded it, and it says so. */
+  assessment_status: string;
+  assessment_truncated: boolean;
+  verdict?: string | null;
+  corrected_answer: string;
+  explanation_language?: string | null;
+  /** The one correction shown up front, chosen by the journey's own policy. */
+  foreground?: JournalCorrectionItem | null;
+  /** Every correction, for the "tout voir" disclosure. Never silently trimmed. */
+  errata: JournalCorrectionItem[];
+}
+
+export interface JournalContentRecall {
+  version: string;
+  /** 'scored' | 'no_facts' — a scene with nothing stored scores null, not zero. */
+  status: string;
+  score: number | null;
+  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  facts_total: number;
+}
+
+export interface JournalEntryView {
+  id: string;
+  /** 'offered' | 'written' | 'unavailable' | 'skipped' */
+  status: string;
+  scene_date: string;
+  offered_on: string;
+  followup_due_on: string;
+  cue: JournalCue;
+  prompt_fr: string;
+  entry_text?: string | null;
+  correction?: JournalCorrection | null;
+  content_recall?: JournalContentRecall | null;
+  reaction_fr?: string | null;
+  reveal?: JournalReveal | null;
+  vocabulary_credit?: { status?: string; credited?: string[]; skipped_flagged?: string[]; reason?: string } | null;
+  errata_recorded: number;
+}
+
+export interface JournalFollowup {
+  entry_id: string;
+  prompt_fr: string;
+  due_on: string;
+  answered: boolean;
+  text?: string | null;
+  /** 'used_again_later' | 'not_recalled' | null */
+  signal?: string | null;
+}
+
+export interface JournalEnvelope {
+  version: string;
+  /** 'none' | 'offered' | 'written' | 'unavailable' | 'skipped' */
+  status: string;
+  entry?: JournalEntryView | null;
+  followup?: JournalFollowup | null;
+  recall_offset_days: number;
+  followup_offset_days: number;
+  min_entry_words: number;
+}
+
+/* ---- WP-31 rehearsal (POST /rehearsals/*) ---------------------------------
+   «Répétition»: the learner's own real upcoming situation, rehearsed once and
+   then debriefed. Not story canon — the server keeps it in its own table and
+   never writes it into serial memory, and nothing here carries a story id. */
+
+export interface RehearsalBriefView {
+  goal_fr: string;
+  goal_native: string;
+  counterpart: string;
+  /** 'tu' | 'vous', decided by the server from who the counterpart is. */
+  register: string;
+  date_text: string;
+  date_iso?: string | null;
+  facts: string[];
+}
+
+export interface RehearsalSceneView {
+  title_fr: string;
+  place_fr: string;
+  setup_fr: string;
+  setup_native: string;
+  objective_fr: string;
+  objective_native: string;
+  opening_line_fr: string;
+  register: string;
+  level_band: string;
+  turns_total: number;
+  /** Empty until the learner asks for them: help is a request, not a panel. */
+  phrases: Array<{ fr: string; native: string }>;
+  phrases_revealed: boolean;
+  /** Null while the rehearsal is live — the private rubric is never a spoiler. */
+  rubric_native?: string | null;
+}
+
+export interface RehearsalTurnView {
+  index: number;
+  learner_text: string;
+  mode: string;
+  reply_fr?: string | null;
+  reply_source?: string | null;
+  correction?: { span_fr: string; corrected_fr: string; note_native: string } | null;
+  outcome?: string | null;
+  evidence_kind?: string | null;
+  assistance?: string | null;
+}
+
+export interface RehearsalView {
+  version: string;
+  id: string;
+  /** declared | ready | not_prepared | rehearsing | rehearsed | debriefed | abandoned */
+  status: string;
+  declaration: string;
+  brief: RehearsalBriefView;
+  scene?: RehearsalSceneView | null;
+  turns: RehearsalTurnView[];
+  turns_used: number;
+  turns_total: number;
+  result?: {
+    outcome: string;
+    points_total: number;
+    points_covered: number;
+    ending_key?: string | null;
+    ending_line_fr?: string | null;
+    ending_summary_fr?: string | null;
+  } | null;
+  event_date?: string | null;
+  debrief?: {
+    outcome: string;
+    free_line: string;
+    corrected_fr?: string | null;
+    note_fr?: string | null;
+    already_correct?: boolean | null;
+    /** False means the line was NOT checked — never that it was correct. */
+    correction_available: boolean;
+    recorded_at: string;
+  } | null;
+  outcome?: string | null;
+  debrief_available: boolean;
+}
+
+export interface RehearsalEnvelope {
+  version: string;
+  rehearsal?: RehearsalView | null;
+  debrief_due?: RehearsalView | null;
+  cap: { limit: number; used: number; remaining: number; next_slot_at?: string | null };
+  min_turns: number;
+  max_turns: number;
+}
+
+/* ---- WP-35 «Votre dossier» — the inspectable learner model ----------------
+   Every section carries the evidence that produced it (a journey id, a date),
+   because the page's whole claim is that the model can be checked. */
+
+export interface DossierEvidence {
+  /** journey | placement | declaration | in_app_counters | erratum | vocabulary_schedule */
+  kind: string;
+  on?: string | null;
+  journey_id?: string | null;
+  reference?: string | null;
+  detail?: string | null;
+}
+
+export interface DossierLevel {
+  available: boolean;
+  estimate?: string | null;
+  /** 'declared' | 'placement' | 'measured' — WP-25's own field, unchanged. */
+  estimate_source?: string | null;
+  declared_level?: string | null;
+  /** True only when in-app counters back the level; a placement does not. */
+  verified?: boolean;
+  status?: string | null;
+  /** `null` for a declaration: a dropdown has no confidence. */
+  confidence?: number | null;
+  breakdown?: Record<string, any>;
+  placement?: {
+    id: string;
+    level?: string | null;
+    confidence: number;
+    taken_at?: string | null;
+    graded_turns: number;
+    dimensions: Record<string, number>;
+    dimension_labels: Record<string, string>;
+  } | null;
+  target?: string | null;
+  next_level?: string | null;
+  evidence?: DossierEvidence | null;
+  reason?: string | null;
+  /** WP-L7: «A1.1 · 60 %», the band's coverage and its épreuve. */
+  level_label?: string | null;
+  coverage?: LevelCoverage | null;
+  checkpoint?: LevelCheckpoint | null;
+  /** WP-L8: always an estimate. */
+  forecast?: LevelForecast | null;
+}
+
+export interface DossierCapabilityEvidence {
+  on: string;
+  modality: string;
+  state: string;
+  context: string;
+  journey_id?: string | null;
+}
+
+export interface DossierCapability {
+  key: string;
+  title: string;
+  /** The CONTRACTS §8 rubric, produced by `build_capability_summary` alone. */
+  state: string;
+  rubric_version: string;
+  modalities: string[];
+  latest_qualifying_on?: string | null;
+  evidence: DossierCapabilityEvidence[];
+}
+
+export interface DossierErratum {
+  id: string;
+  label: string;
+  /** WP-24: open | repairing | mastered. */
+  state: string;
+  learner_text?: string | null;
+  corrected_target?: string | null;
+  why_wrong?: string | null;
+  occurrences: number;
+  lapses: number;
+  mastery_streak: number;
+  mastery_target: number;
+  next_review_date?: string | null;
+  claimable: boolean;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierErrata {
+  available: boolean;
+  mastery_target?: number;
+  counts?: Record<string, number>;
+  by_state?: Record<string, DossierErratum[]>;
+  reason?: string | null;
+}
+
+export interface DossierWord {
+  word_id: number;
+  word: string;
+  translation?: string | null;
+  bucket?: string | null;
+  claimable: boolean;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierVocabulary {
+  available: boolean;
+  known?: {
+    version: string;
+    band: string;
+    estimate_level: string;
+    estimate_source: string;
+    nailed_words: number;
+    core_words: number;
+    known_lemmas: number;
+  } | null;
+  nailed_rule?: { retrievability: number };
+  words: DossierWord[];
+}
+
+export interface DossierBecause {
+  kind: string;
+  reason?: string | null;
+  label: string;
+  example?: string | null;
+}
+
+export interface DossierToday {
+  has_journey: boolean;
+  journey_id?: string | null;
+  local_date?: string | null;
+  status?: string | null;
+  /** Read from the plan that produced today's scene, never recomputed. */
+  because?: DossierBecause | null;
+  evidence?: DossierEvidence | null;
+}
+
+export interface DossierClaim {
+  kind?: string | null;
+  target_id?: string | null;
+  stage?: string | null;
+  verdict?: string | null;
+  label?: string | null;
+  on?: string | null;
+}
+
+export interface DossierPayload {
+  version: string;
+  level: DossierLevel;
+  capabilities: DossierCapability[];
+  errata: DossierErrata;
+  vocabulary: DossierVocabulary;
+  today: DossierToday;
+  claims: DossierClaim[];
+}
+
+export interface DossierClaimItem {
+  index: number;
+  /** repair | cloze | production | meaning */
+  kind: string;
+  instruction_fr: string;
+  prompt_fr: string;
+  placeholder_fr: string;
+}
+
+export interface DossierClaimCheck {
+  kind: string;
+  target_id: string;
+  label: string;
+  verifiable: boolean;
+  items_required: number;
+  items: DossierClaimItem[];
+  reason?: string | null;
+  message_fr?: string | null;
+}
+
+export interface DossierClaimVerdict {
+  kind: string;
+  target_id: string;
+  /** verified | not_yet | unverifiable */
+  verdict: string;
+  items_correct: number;
+  items_total: number;
+  advanced: boolean;
+  message_fr: string;
+  next_review_date?: string | null;
+  state?: string | null;
+  results: { index: number; kind: string; is_correct: boolean }[];
+}
+
+export interface DossierEnvelope {
+  version: string;
+  dossier?: DossierPayload | null;
+  check?: DossierClaimCheck | null;
+  verdict?: DossierClaimVerdict | null;
+  items_required: number;
+  claim_kinds: string[];
+}
+
 export interface CEFRProgress {
   version: string;
   estimate: string;
-  /** 'declared' means the learner stated this level and the app has not verified it yet. */
-  estimate_source?: 'declared' | 'measured' | null;
+  /**
+   * 'declared'  — the learner stated this level and nothing has verified it.
+   * 'placement' — a graded five-minute placement measured it (WP-25).
+   * 'measured'  — enough in-app work exists to measure it directly.
+   */
+  estimate_source?: 'declared' | 'placement' | 'measured' | null;
   declared_level?: string | null;
+  placement?: PlacementPrior | null;
   computed_estimate?: string | null;
   target: string;
   next_level?: string | null;
@@ -191,9 +655,60 @@ export interface CEFRProgress {
   signals: Record<string, any>;
   thresholds: Record<string, Record<string, number>>;
   breakdown: Record<string, any>;
-  forecast?: Record<string, any> | null;
+  forecast?: LevelForecast | null;
+  rhythm?: string | null;
+  /** WP-L7: «A1.1 · 60 %» — the band in force and its coverage. */
+  level_label?: string | null;
+  coverage?: LevelCoverage | null;
+  checkpoint?: LevelCheckpoint | null;
+  release_floor?: string | null;
+  /** WP-95: the next can-do to stamp (Home's «Prochaine étape»). Absent on older servers. */
+  next_can_do?: { id: string; title_fr: string; title_native: string | null; band: string } | null;
+  can_dos_stamped?: number | null;
+  can_dos_total?: number | null;
+  /** WP-L8: each rhythm's planning prior for finishing A1 (Réglages' cards). */
+  rhythm_priors?: Record<string, { rhythm?: string; target?: string; range_days?: number[]; range_months?: number[] }> | null;
   today_delta?: Record<string, any>;
   generated_at?: string | null;
+}
+
+/** WP-L7 — a sub-band's coverage: units held, words known, against what the band asks. */
+export interface LevelCoverage {
+  band: string;
+  percent: number;
+  label: string;
+  units: { held: number; total: number; required: number; met: boolean };
+  words: { known: number; total: number; required: number; met: boolean };
+  coverage_met: boolean;
+  /** WP-95: the services agent may put the next can-do on the coverage instead. */
+  next_can_do?: { id: string; title_fr: string; title_native: string | null; band: string } | null;
+  can_dos_stamped?: number | null;
+  can_dos_total?: number | null;
+}
+
+/** WP-L7 — the band's épreuve (the story engine stages it once `checkpoint_ready`). */
+export interface LevelCheckpoint {
+  band: string;
+  state: 'locked' | 'ready' | 'failed' | 'passed' | 'credited';
+  checkpoint_ready: boolean;
+  attempts: number;
+  retry_after?: string | null;
+  passed_at?: string | null;
+}
+
+/** WP-L8 — always an estimate: `prior` before 7 active days, `available` (measured) after. */
+export interface LevelForecast {
+  status: 'prior' | 'available' | string;
+  kind?: 'estimate';
+  band?: string;
+  target?: string | null;
+  rhythm?: string;
+  base_days?: number;
+  range_days?: number[];
+  range_months?: number[];
+  projected_dates?: string[];
+  capped?: boolean;
+  basis?: Record<string, any>;
 }
 
 /** GET /analytics/summary — headline counters, all scoped to the signed-in learner. */
@@ -241,31 +756,6 @@ export interface UserAchievementProgress {
   unlocked_at?: string | null;
 }
 
-export interface UnifiedSRSItem {
-  id: string;
-  item_type: 'vocab' | 'grammar' | 'error' | string;
-  priority_score: number;
-  display_title: string;
-  display_subtitle: string;
-  level: string;
-  due_since_days: number;
-  estimated_seconds: number;
-  original_id?: string | number | null;
-  metadata: Record<string, any>;
-}
-
-export interface UnifiedSRSQueue {
-  summary: {
-    total_due: number;
-    total_new: number;
-    estimated_minutes: number;
-    by_type: Record<string, { due: number; new: number; minutes: number }>;
-  };
-  queue: UnifiedSRSItem[];
-  interleaving_mode: string;
-  time_budget_minutes?: number | null;
-}
-
 export interface VocabularyRecommendationSummary {
   due: number;
   fragile: number;
@@ -275,7 +765,7 @@ export interface VocabularyRecommendationSummary {
 
 export interface VocabularyRecommendationItem {
   bucket: 'due' | 'fragile' | 'new' | 'linked' | 'topic' | 'topic_compatible' | string;
-  recommendation_reason?: { text: string; signals: Record<string, any> };
+  recommendation_reason?: { text: string; text_by_language?: Partial<Record<string, string>>; signals: Record<string, any> };
   episodic_anchor?: {
     character_name?: string;
     portrait_url?: string;
@@ -304,6 +794,8 @@ export interface VocabularyRecommendationItem {
   is_new: boolean;
   deck_name?: string | null;
   part_of_speech?: string | null;
+  /** Stored noun gender ("m" / "f"); null when the catalogue does not know it. */
+  gender?: string | null;
   topic_tags?: string[];
   translations: {
     de?: string | null;
@@ -343,6 +835,9 @@ export interface VocabularyDueContext {
   topic_compatible_words: VocabularyRecommendationItem[];
   linked_words: VocabularyRecommendationItem[];
   algorithm: string;
+  /** WP-131: new words the day's allowance still holds after this deck; the
+   *  drill offers them as «Encore N mots». `null` on a review-only deck. */
+  new_words_left_today?: number | null;
 }
 
 export interface DailyWordEntry {
@@ -353,6 +848,8 @@ export interface DailyWordEntry {
   example_sentence?: string | null;
   example_translation?: string | null;
   anchor?: string | null;
+  part_of_speech?: string | null;
+  gender?: string | null;
   stamps?: Partial<Record<'lu' | 'retrouve' | 'place', string | null>>;
   triple?: boolean;
 }
@@ -373,28 +870,19 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   feuilleton_scene_id?: string;
 }
 
-export interface VocabularyWord {
-  id: number;
-  language: string;
-  word: string;
-  normalized_word: string;
-  part_of_speech?: string | null;
-  gender?: string | null;
-  frequency_rank?: number | null;
-  english_translation?: string | null;
-  definition?: string | null;
-  example_sentence?: string | null;
-  example_translation?: string | null;
-  usage_notes?: string | null;
-  difficulty_level?: number | null;
-  german_translation?: string | null;
-  french_translation?: string | null;
-  topic_tags: string[];
-  /** Resolved server-side for the signed-in learner — render this, not the raw
-   * columns above (see lib/glosses.ts). */
-  translation?: string | null;
-  translation_language?: string | null;
-}
+export type VocabularyWord = components['schemas']['VocabularyWordRead'];
+
+/* ---- SPEED-1 «Vérification du lexique» (/vocabulary/band-check) ---------- */
+export type BandCheckSubBand = components['schemas']['BandCheckSubBand'];
+export type BandCheckItem = components['schemas']['BandCheckItem'];
+export type BandCheckStart = components['schemas']['BandCheckStart'];
+export type BandCheckResult = components['schemas']['BandCheckResult'];
+/** WP-127: the top-down check — where it stands and the next band to check. */
+export type BandCheckLadder = components['schemas']['BandCheckLadder'];
+/** WP-126: whether to offer the placement now (from the first completed ending on). */
+export type PlacementOffer = components['schemas']['PlacementOffer'];
+/** item id → the chosen option's index, or null for «je ne sais pas». */
+export type BandCheckAnswers = Record<string, number | null>;
 
 export interface VocabularyBiographyOrigin {
   label: string;
@@ -455,6 +943,14 @@ export interface VocabularyBiography {
   linked_errata_count: number;
   context_event_count: number;
   timeline: VocabularyBiographyEvent[];
+  /** WP-93: the episodes that brought the word back, newest first (older payloads lack it). */
+  revisited_in?: VocabularyBiographyRevisit[] | null;
+}
+
+/** WP-93: one episode that reused the word — «Revu dans l’épisode du 12 sept.» */
+export interface VocabularyBiographyRevisit {
+  date: string;
+  scene_title_fr: string;
 }
 
 export interface VocabularyMasteryMapCell {
@@ -547,6 +1043,10 @@ export interface ConjugationReviewResponse {
   reps: number;
   lapses: number;
   next_review?: string | null;
+  /** QA-CLOSE: the server's verdict on `answer_text` (null for a self-rating). */
+  correct?: boolean | null;
+  expected?: string | null;
+  note_native?: string | null;
 }
 
 export interface WeeklyDossierStats {
@@ -628,6 +1128,75 @@ export interface AtelierSessionStart {
   learning_moments?: {
     adaptive_locks?: Record<string, Record<string, any>>;
   };
+  /** WP-S3 La Forge: the séance's composition and the item the learner is on. */
+  forge?: AtelierForgeView | Record<string, never>;
+}
+
+/** WP-S3 — the forge's next item: which rule, which rung, which payload item. */
+export interface AtelierForgeNext {
+  position: number;
+  length: number;
+  concept_id: number;
+  role: 'today' | 'due' | 'contrast';
+  rung: number;
+  rung_name: 'recognise' | 'discriminate' | 'build' | 'transform' | 'produce' | 'free_use';
+  round: 'recognize' | 'transform' | 'sentence' | 'speak' | 'conversation';
+  mode: string;
+  item_id: string;
+  item_index: number;
+  reprise?: boolean;
+  /** The item itself (a bank top-up is not in the set the page loaded). */
+  item?: Record<string, any> | null;
+  /** WP-S5: the rule's coach. */
+  coach?: ForgeCoach | null;
+}
+
+export interface AtelierForgeTestOutResult {
+  passed: boolean;
+  correct: number;
+  total: number;
+  production_correct: boolean;
+  placement_rung: number;
+  placement_rung_name: string;
+  /** WP-S7: the rare token a pass mints (once per rule). */
+  token?: { id: string; kind: string; source_kind: string; concept_id: number; rare: boolean } | null;
+}
+
+export interface AtelierForgeView {
+  mode: 'seance' | 'test_out';
+  length: number;
+  answered: number;
+  counted: number;
+  finished: boolean;
+  next: AtelierForgeNext | null;
+  result: AtelierForgeTestOutResult | null;
+  rules: Array<{
+    concept_id: number;
+    role: string;
+    rung: number;
+    rung_name: string;
+    served: number;
+    topped: boolean;
+    /** WP-S5: the rule's coach. */
+    coach?: ForgeCoach | null;
+  }>;
+  /** WP-S7: the run of checked right answers, and the best of the séance. */
+  combo?: { run: number; best: number } | null;
+  /** WP-S7: the owner's switches (each on by default). */
+  features?: { combo?: boolean; eclair?: boolean; grammar_map?: boolean; mastery_rewards?: boolean } | null;
+}
+
+export interface AtelierForgeRuleState {
+  concept_id: number;
+  external_id?: string | null;
+  title: string;
+  rung: number;
+  rung_name: string;
+  forged: boolean;
+  stage: 'new' | 'introduced' | 'practising' | 'held';
+  next_due: string | null;
+  held_at: string | null;
+  tested_out_at: string | null;
 }
 
 export interface AtelierAttemptResult {
@@ -637,6 +1206,7 @@ export interface AtelierAttemptResult {
   correction: Record<string, any>;
   ai_review?: Record<string, any>;
   minted_collectibles?: AtelierCollectible[];
+  forge?: AtelierForgeView | Record<string, never>;
 }
 
 export interface AtelierErrataReviewTask {
@@ -715,6 +1285,8 @@ export interface GrammarNotebookItem {
   motif?: Record<string, any>;
   blueprint_status?: string | null;
   blueprint_quality?: Record<string, any>;
+  /** F-1: the v2 sub-band («A2.1»); null for a v1 row. */
+  sub_band?: string | null;
 }
 
 export interface GrammarNotebookDetail extends GrammarNotebookItem {
@@ -729,6 +1301,10 @@ export interface GrammarNotebookDetail extends GrammarNotebookItem {
   due_errata: AtelierErratum[];
   recent_errata: AtelierErratum[];
   personal_notes?: string | null;
+  /** F-1: the authored rule card (every learner language; partners titled), or null. */
+  rule_card?: RuleCardData | null;
+  /** F-1: the unit's x-ray sentence and its marks, or null. */
+  xray?: XrayPayload | null;
 }
 
 export interface DueGrammarConcept {
@@ -895,9 +1471,64 @@ export interface SessionMessageList {
   total: number;
 }
 
+/* WP-64 → WP-65 — a letter is a fact in the story, so a mission now carries the
+   person on the other end of it. `serialize_mission` mirrors every field flat
+   *and* inside `courrier`; `outcome` lives only in the block, because the
+   top-level key is already the legacy serial state delta. */
+export type MissionLetterOutcome = 'kept' | 'partial' | 'missed' | 'ignored' | string;
+export type MissionLetterOrigin = 'courrier' | 'chain' | 'story_born' | string;
+
+export interface MissionCorrespondent {
+  id: string;
+  name: string;
+  role?: string | null;
+  initials?: string | null;
+  /** WP-61's feeling as one French line — absent when the story has no opinion. */
+  mood_line?: string | null;
+}
+
+export interface MissionChain {
+  id: string;
+  index: number;
+  total: number;
+}
+
+export interface MissionThreadLetter {
+  mission_id: string;
+  title?: string | null;
+  summary_fr?: string | null;
+  outcome?: MissionLetterOutcome | null;
+  stakes_level?: number | null;
+  chain_index?: number | null;
+  at?: string | null;
+}
+
+export interface MissionCourrier {
+  correspondent: MissionCorrespondent | null;
+  chain: MissionChain | null;
+  expires_at?: string | null;
+  thread_history?: MissionThreadLetter[];
+  outcome?: MissionLetterOutcome | null;
+  origin?: MissionLetterOrigin;
+}
+
+/** `recap.measured` — every figure counted, none of them a formula over word
+ *  count. It replaced `recap.readiness`, which is gone from the payload. */
+export interface MissionMeasured {
+  objectives_met: number;
+  objectives_total: number;
+  objectives_met_all: number;
+  objectives_all: number;
+  repairs: number;
+  phrases_saved: number;
+  replies: number;
+  words_written: number;
+}
+
 export interface RealWorldMission {
   id: string;
-  status: 'available' | 'in_progress' | 'completed' | string;
+  /** `lapsed`: an overdue letter that stopped waiting (WP-64). Never a failure. */
+  status: 'available' | 'in_progress' | 'completed' | 'lapsed' | string;
   cadence: 'weekly' | 'post_session' | 'ad_hoc' | string;
   mission_type: 'message' | 'explain_plan' | 'news_summary' | 'travel_work' | 'conversation' | string;
   mission_format?: 'chat_message' | 'voicemail_reply' | 'email_formal' | 'admin_form' | 'phone_call' | string;
@@ -918,7 +1549,12 @@ export interface RealWorldMission {
   prompt_payload: Record<string, any>;
   recap: VocabularyRecapPayload;
   outcome?: Record<string, any> | null;
-  recommendation_reason?: { text: string; signals: Record<string, any> };
+  correspondent?: MissionCorrespondent | null;
+  chain?: MissionChain | null;
+  expires_at?: string | null;
+  thread_history?: MissionThreadLetter[];
+  courrier?: MissionCourrier | null;
+  recommendation_reason?: { text: string; text_by_language?: Partial<Record<string, string>>; signals: Record<string, any> };
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
   created_at?: string | null;
@@ -931,6 +1567,84 @@ export interface MissionToday {
   post_session_recommendation: RealWorldMission | null;
   active_mission: RealWorldMission | null;
   recent_completed: RealWorldMission[];
+}
+
+/* WP-34 — «Apportez votre français». One envelope for every intake route, so
+   the page renders one state machine rather than five screens. An `unread`
+   artefact carries no `artefact` payload and no `task`: that is the honest
+   «non lu» state, not a rendering bug. */
+export interface IntakeGlossedWord {
+  word: string;
+  lemma?: string;
+  gloss?: string;
+  gloss_language?: string | null;
+  gloss_source?: 'vocabulary' | 'model' | 'none' | string;
+  example_fr?: string;
+  word_id?: number | null;
+}
+
+export interface IntakeArtefactPayload {
+  type?: string;
+  type_label_fr?: string;
+  /** Chrome (one-language rule): the type label as {fr, en, de}, and the one
+   *  the server resolved for the reader. */
+  type_label_by_language?: Partial<Record<string, string>>;
+  type_label?: string;
+  title_fr?: string;
+  summary_fr?: string;
+  summary_bounded?: boolean;
+  key_facts?: Array<{ label_fr: string; value_fr: string }>;
+  glossed_words?: IntakeGlossedWord[];
+  band?: string;
+  gloss_language?: string;
+}
+
+export interface IntakeArtefactTask {
+  kind?: 'reply' | 'decide' | 'ask' | string;
+  kind_label_fr?: string;
+  instruction_fr?: string;
+  counterpart_fr?: string;
+  register?: 'tu' | 'vous' | string;
+  success_fr?: string;
+  /** Chrome (one-language rule): {fr, en, de} tables beside the French. */
+  kind_label_by_language?: Partial<Record<string, string>>;
+  instruction_by_language?: Partial<Record<string, string>>;
+  success_by_language?: Partial<Record<string, string>>;
+  /** Only when the document named nobody and the counterpart is the fallback. */
+  counterpart_by_language?: Partial<Record<string, string>>;
+}
+
+export interface IntakeArtefact {
+  id: string;
+  version: string;
+  status: 'read' | 'unread' | string;
+  source_kind: 'text' | 'image' | string;
+  source_text: string;
+  artefact: IntakeArtefactPayload;
+  task: IntakeArtefactTask;
+  mission_id: string | null;
+  queued_word_count: number;
+  created_at?: string | null;
+}
+
+export interface IntakeCap {
+  limit: number;
+  used: number;
+  remaining: number;
+  spent_usd: number;
+  ceiling_usd: number;
+  enabled: boolean;
+}
+
+export interface IntakeEnvelope {
+  version: string;
+  artefact: IntakeArtefact | null;
+  mission: RealWorldMission | null;
+  artefacts: IntakeArtefact[];
+  cap: IntakeCap;
+  max_text_chars: number;
+  max_image_bytes: number;
+  max_unknown_words: number;
 }
 
 export interface SerialToday {
@@ -974,12 +1688,25 @@ export interface SerialCastMember {
   dynamic_with_user?: string | null;
   model_sheet_url?: string | null;
   accent_colour?: string | null;
+  /** WP-97: the engine's trust, 0..5 — it can fall. `null` before any exchange. */
+  trust?: number | null;
+  /** WP-97: what this character witnessed about the learner (dated, French). */
+  known_about_you?: Array<{ text_fr: string; date: string | null; scene_id: string | null }>;
+  register?: 'tu' | 'vous' | string;
+  /** WP-97: when the «tu» was accepted. */
+  tu_since?: { date: string; scene_id: string | null } | null;
   relationship: {
-    closeness: number;
+    /** Deprecated (WP-97): only ever went up; no longer shown. */
+    closeness?: number;
     register: string;
+    trust?: number | null;
+    known_about_you?: Array<{ text_fr: string; date: string | null; scene_id: string | null }>;
+    tu_since?: { date: string; scene_id: string | null } | null;
     register_switch_episode?: number | null;
     last_summary?: string;
     callbacks?: string[];
+    /** WP-61: -2..2, how the character feels about the learner; null before any exchange. */
+    mood?: number | null;
   };
   episodes?: Array<{
     episode_index: number;
@@ -1016,6 +1743,31 @@ export interface AtelierWorkshopProgress {
   available: number;
   progress: number;
   shortfall: number;
+}
+
+/** WP-D5 · «Vos sceaux»: one learner-local day of the streak calendar. */
+export type StreakDayState = 'completed' | 'relache' | 'missed' | 'today' | 'future';
+
+export interface StreakCalendarDay {
+  date: string;
+  state: StreakDayState;
+  completed: number;
+  is_today: boolean;
+  /** The day's journey was completed (an early stop presses no seal). */
+  sealed: boolean;
+  edition_no: number | null;
+  seal_variant: string | null;
+}
+
+/** `GET /analytics/streak`: the number and the grid, read from the same rows. */
+export interface StreakCalendar {
+  current_streak: number;
+  longest_streak: number;
+  today_done: boolean;
+  freeze_available: boolean;
+  today: string | null;
+  timezone: string | null;
+  calendar: StreakCalendarDay[];
 }
 
 export interface AtelierAlmanac {
@@ -1122,9 +1874,16 @@ export interface MissionCompleteResult {
 
 export interface PasswordResetRequestResponse {
   message: string;
+  // Dev/test only; production never returns these.
   reset_token?: string | null;
   reset_url?: string | null;
+  reset_code?: string | null;
 }
+
+/** A reset is confirmed with the emailed six-digit code, or an older link token. */
+export type PasswordResetConfirmPayload =
+  | { token: string; new_password: string }
+  | { email: string; code: string; new_password: string };
 
 export type FeedbackCategory =
   | 'bug'
@@ -1175,6 +1934,7 @@ type SilentRequestConfig = AxiosRequestConfig & {
   suppressGlobalError?: boolean;
   skipAuth?: boolean;
   _retryAuth?: boolean;
+  _retry429?: boolean;
 };
 
 function isUnauthorized(error: any): boolean {
@@ -1188,6 +1948,7 @@ function isUnauthorized(error: any): boolean {
  * that port on the developer's machine.
  */
 const SAME_ORIGIN_API_PROXY = '/api/backend';
+const refreshWebSession = webSessionRecovery(getSession);
 
 export function resolveBrowserApiBaseUrl() {
   const configured = normalizeApiBaseUrl(
@@ -1236,10 +1997,14 @@ class ApiService {
     this.api.interceptors.request.use(
       async (config) => {
         const requestConfig = config as SilentRequestConfig;
-        const token = requestConfig.skipAuth ? null : await getAppAccessToken();
+        // A replay must keep the freshly recovered token and the original body
+        // (including client_mutation_id), rather than reading a stale session again.
+        const token = requestConfig.skipAuth || requestConfig._retryAuth ? null : await getAppAccessToken();
         if (!requestConfig.skipAuth && token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // WP-73: one id per call, echoed by the API and bound into its logs and Sentry.
+        if (!config.headers['X-Request-ID']) config.headers['X-Request-ID'] = newRequestId();
         return config;
       },
       (error) => {
@@ -1254,25 +2019,71 @@ class ApiService {
         const detail = error.response?.data?.detail;
         const message = apiErrorMessage(error);
         const requestConfig = error.config as SilentRequestConfig | undefined;
+        if ((error.response?.status ?? 0) >= 500) {
+          // WP-73: a server failure is findable from both sides by its request id.
+          captureClientError(error, {
+            requestId: error.response?.headers?.['x-request-id'] || requestConfig?.headers?.['X-Request-ID'],
+            route: requestConfig?.url,
+          });
+        }
 
         if (isUnauthorized(error) && isNativePlatform() && requestConfig && !requestConfig.skipAuth && !requestConfig._retryAuth) {
           requestConfig._retryAuth = true;
-          const token = await refreshNativeAccessToken();
-          if (token) {
+          // WP-71: one shared refresh for every request that got this 401, and
+          // the keychain is cleared only when the server refuses the refresh
+          // token itself — never because the network dropped mid-refresh.
+          const sent = String(requestConfig.headers?.Authorization || '').replace(/^Bearer\s+/i, '');
+          const recovered = await recoverNativeAccessToken(sent || null);
+          if (recovered.status === 'refreshed') {
             requestConfig.headers = {
               ...(requestConfig.headers || {}),
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${recovered.accessToken}`,
             };
             return this.api.request(requestConfig);
           }
-          await clearNativeAuthSession();
-          if (typeof window !== 'undefined' && window.location.pathname !== '/auth/signin') {
-            window.location.assign('/auth/signin');
+          if (recovered.status === 'signed-out') {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/auth/signin') {
+              window.location.assign('/auth/signin');
+            }
           }
           return Promise.reject(error);
         }
 
+        if (isUnauthorized(error) && !isNativePlatform() && requestConfig && !requestConfig.skipAuth) {
+          if (!requestConfig._retryAuth) {
+            requestConfig._retryAuth = true;
+            const accessToken = await refreshWebSession();
+            if (accessToken) {
+              requestConfig.headers = { ...(requestConfig.headers || {}), Authorization: `Bearer ${accessToken}` };
+              return this.api.request(requestConfig);
+            }
+          }
+          if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+          return Promise.reject(error);
+        }
+
         if (detail?.code === 'feuilleton_generation_failed') {
+          return Promise.reject(error);
+        }
+
+        // WP-70: a 429 is never an auth problem — no refresh, no sign-out.
+        if (error.response?.status === 429) {
+          const code = detail?.code;
+          const waitSeconds = Math.max(1, Number(error.response?.headers?.['retry-after']) || 5);
+          const method = String(requestConfig?.method || 'get').toLowerCase();
+          if (code === 'rate_limited' && method === 'get' && requestConfig && !requestConfig._retry429 && waitSeconds <= 10) {
+            requestConfig._retry429 = true;
+            await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+            return this.api.request(requestConfig);
+          }
+          if (!requestConfig?.suppressGlobalError) {
+            toast(
+              code === 'daily_budget_reached'
+                ? 'C’est tout pour aujourd’hui. À demain !'
+                : `Doucement — réessayez dans ${waitSeconds} s.`,
+              { id: code || 'rate_limited' },
+            );
+          }
           return Promise.reject(error);
         }
 
@@ -1368,11 +2179,35 @@ class ApiService {
     }
   }
 
-  async translateToEnglish(text: string): Promise<string> {
+  /** French → the learner's own language (the server reads `native_language`). */
+  async translateForLearner(text: string): Promise<string> {
     const trimmed = (text || '').trim();
     if (!trimmed) return '';
-    const response = await this.atelierPost<{ translation: string }>('/atelier/translate', { text: trimmed });
+    const response = await this.atelierPost<{ translation: string; language?: string }>('/atelier/translate', { text: trimmed });
     return response.translation || '';
+  }
+
+  /**
+   * WP-78 «Garder»: keep a word tapped in the story, with the sentence it was
+   * in, in the learner's own Lexique. A 422 carries a French `detail.message`
+   * (no entry, no meaning in the learner's language) the sheet shows as is.
+   */
+  async keepWord(payload: {
+    term: string;
+    sentence: string;
+    surface?: string;
+    journey_id?: string | null;
+    /** WP-115a: where the word was met. */
+    speaker_id?: string | null;
+    panel_id?: string | null;
+    line_key?: string | null;
+  }): Promise<{ word_id: number; word: string; gloss: string; example_fr: string; already_kept: boolean }> {
+    return this.post('/vocabulary/keep', payload, { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** @deprecated the server no longer targets English; kept for old call sites. */
+  async translateToEnglish(text: string): Promise<string> {
+    return this.translateForLearner(text);
   }
 
   // Authentication endpoints
@@ -1416,7 +2251,7 @@ class ApiService {
     } as SilentRequestConfig);
   }
 
-  async confirmPasswordReset(data: { token: string; new_password: string }) {
+  async confirmPasswordReset(data: PasswordResetConfirmPayload) {
     return this.post<void>('/auth/password-reset/confirm', data, {
       skipAuth: true,
       suppressGlobalError: true,
@@ -1557,7 +2392,10 @@ class ApiService {
   async lookupVocabulary(word: string, language?: string) {
     const params = new URLSearchParams({ word });
     if (language) params.set('language', language);
-    return this.get(`/vocabulary/lookup?${params.toString()}`);
+    // 404 is the ordinary answer for a word outside the catalogue: the caller
+    // falls back to the sentence, and no global toast may interrupt the sheet.
+    const config: SilentRequestConfig = { suppressGlobalError: true };
+    return this.get(`/vocabulary/lookup?${params.toString()}`, config);
   }
 
   async listVocabulary(params?: { language?: string; limit?: number; offset?: number }) {
@@ -1567,14 +2405,6 @@ class ApiService {
   // Progress endpoints
   async getProgressQueue(params?: { direction?: string; limit?: number }) {
     return this.get('/progress/queue', { params });
-  }
-
-  async getUnifiedSRSQueue(params?: {
-    limit?: number;
-    time_budget_minutes?: number;
-    interleaving_mode?: 'random' | 'blocks' | 'priority';
-  }): Promise<UnifiedSRSQueue> {
-    return this.get('/progress/unified-queue', { params });
   }
 
   async getVocabularyRecommendations(params?: VocabularyRecommendationParams): Promise<VocabularyRecommendations> {
@@ -1587,6 +2417,33 @@ class ApiService {
 
   async getVocabularyCoverage(): Promise<VocabularyCoverage> {
     return this.atelierGet('/vocabulary/coverage');
+  }
+
+  /* SPEED-1 — a two-minute check that credits a whole sub-band below the
+     learner's level. WP-127: the sample is the attempt's (`attempt_id`), never
+     the day's, so a reload or midnight is the same check; the POST carries the
+     id back and a replay returns the stored result. */
+  async getBandChecks(): Promise<BandCheckSubBand[]> {
+    return this.atelierGet<BandCheckSubBand[]>('/vocabulary/band-check');
+  }
+
+  async getBandCheckLadder(): Promise<BandCheckLadder> {
+    return this.atelierGet<BandCheckLadder>('/vocabulary/band-check/ladder');
+  }
+
+  async startBandCheck(subBand: string): Promise<BandCheckStart> {
+    return this.atelierGet<BandCheckStart>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`);
+  }
+
+  async submitBandCheck(
+    subBand: string,
+    answers: BandCheckAnswers,
+    attemptId?: string | null,
+  ): Promise<BandCheckResult> {
+    return this.atelierPost<BandCheckResult>(`/vocabulary/band-check/${encodeURIComponent(subBand)}`, {
+      answers,
+      ...(attemptId ? { attempt_id: attemptId } : {}),
+    });
   }
 
   async getWordsOfTheDay(): Promise<DailyWordSlate> {
@@ -1602,6 +2459,9 @@ class ApiService {
     tense: string;
     rating: number;
     response_time_ms?: number;
+    /** QA-CLOSE: the person asked and the typed form — graded on the server. */
+    person?: string;
+    answer_text?: string;
   }): Promise<ConjugationReviewResponse> {
     return this.atelierPost('/vocabulary/conjugation/review', data);
   }
@@ -1626,7 +2486,15 @@ class ApiService {
     return this.post('/progress/review', data);
   }
 
-  async submitAnkiReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<AnkiReviewResponse> {
+  async submitAnkiReview(data: {
+    word_id: number;
+    rating: number;
+    response_time_ms?: number;
+    /** WP-115a: an answered card's format — the server earns the grade. */
+    format?: 'flashcard' | 'typed' | 'cloze' | 'audio' | 'choice' | 'spoken';
+    /** QA-CLOSE: what the learner typed or said; the server grades it (`correct` is not trusted). */
+    answer_text?: string;
+  }): Promise<AnkiReviewResponse> {
     return this.atelierPost('/anki/review', data);
   }
 
@@ -1643,8 +2511,8 @@ class ApiService {
     return this.get('/analytics/statistics', { params });
   }
 
-  async getStreakData() {
-    return this.get('/analytics/streak');
+  async getStreakData(windowDays = 28): Promise<StreakCalendar> {
+    return this.get('/analytics/streak', { params: { window_days: windowDays } });
   }
 
   async getVocabularyProgress() {
@@ -1762,7 +2630,20 @@ class ApiService {
     return this.atelierGet<CEFRProgress>('/progress/cefr');
   }
 
-  async startAtelierSession(data?: { concept_ids?: number[]; preferred_concept_id?: number; preferred_vocabulary_ids?: number[] }) {
+  /** WP-95 «Le Carnet»: every sub-band's can-dos, stamped or not. */
+  async getCanDos() {
+    return this.atelierGet<unknown>('/can-dos');
+  }
+
+  async startAtelierSession(data?: {
+    concept_ids?: number[];
+    preferred_concept_id?: number;
+    preferred_vocabulary_ids?: number[];
+    /** WP-S4 — La Forge: how the block was entered, its length, its day step. */
+    origin?: 'journey' | 'after_day' | 'practice';
+    budget_seconds?: number;
+    journey_step_id?: string;
+  }) {
     return this.atelierPost<AtelierSessionStart>('/atelier/sessions', data || {});
   }
 
@@ -1772,6 +2653,47 @@ class ApiService {
 
   async getAtelierSession(sessionId: string) {
     return this.atelierGet<AtelierSessionStart>(`/atelier/sessions/${sessionId}`);
+  }
+
+  /**
+   * WP-S3 — «Épreuve de la règle»: five mixed items; a pass holds the rule.
+   * SPEED-3: `short` is the journey's three-item check; `source` names the surface.
+   */
+  async startForgeTestOut(
+    conceptId: number,
+    options: { short?: boolean; source?: 'journey' | 'cahier' | 'forge' } = {},
+  ) {
+    return this.atelierPost<AtelierSessionStart>('/atelier/forge/test-out', { concept_id: conceptId, ...options });
+  }
+
+  /** WP-S3 — per rule: the forge rung, the stage, the next due date. */
+  async getForgeState(conceptIds?: number[]) {
+    const query = (conceptIds || []).map((id) => `concept_id=${encodeURIComponent(String(id))}`).join('&');
+    return this.atelierGet<{ rules: AtelierForgeRuleState[] }>(`/atelier/forge/state${query ? `?${query}` : ''}`);
+  }
+
+  /** WP-S7 — the grammar map: every rule's stage, the Éclair pairs, the switches. */
+  async getGrammarMap() {
+    return this.atelierGet<GrammarMapPayload>('/atelier/forge/map');
+  }
+
+  /** WP-S7 — pilot event: the grammar map was opened. Never throws. */
+  async recordGrammarMapOpened() {
+    try {
+      await this.atelierPost<void>('/atelier/forge/map/opened', {});
+    } catch {
+      /* instrumentation never costs the page */
+    }
+  }
+
+  /** WP-S7 — start an Éclair round for a pair (or a rule's first pair). */
+  async startEclair(data: { pair?: string; concept_id?: number }) {
+    return this.atelierPost<EclairRound>('/atelier/forge/eclair', data);
+  }
+
+  /** WP-S7 — file an Éclair round: the server re-grades by its keys. */
+  async finishEclair(eclairId: string, data: { answers: Array<{ id: string; answer: string }>; elapsed_ms?: number }) {
+    return this.atelierPost<EclairResult>(`/atelier/forge/eclair/${encodeURIComponent(eclairId)}/finish`, data);
   }
 
   async submitAtelierAttempt(
@@ -1825,6 +2747,11 @@ class ApiService {
 
   async completeAtelierSession(sessionId: string) {
     return this.atelierPost<{ session_id: string; recap: Record<string, any>; minted_collectibles?: AtelierCollectible[] }>(`/atelier/sessions/${sessionId}/complete`);
+  }
+
+  /** WP-S8: the learner closed an unfinished forge séance (`forge_abandoned`). */
+  async exitAtelierSession(sessionId: string) {
+    return this.atelierPost<void>(`/atelier/sessions/${sessionId}/exit`);
   }
 
   async reviewAtelierErratum(errorId: string, data?: { rating?: number; repaired?: boolean }) {
@@ -1882,6 +2809,34 @@ class ApiService {
     return response;
   }
 
+  // WP-34 — «Apportez votre français»: a real document the learner brought in.
+  // Every route answers the same envelope, so the page renders one state machine
+  // and never has to reconcile two shapes.
+  async getIntakeArtefacts() {
+    return this.atelierGet<IntakeEnvelope>('/intake');
+  }
+
+  async readIntakeText(text: string) {
+    return this.atelierPost<IntakeEnvelope>('/intake/text', { text });
+  }
+
+  async readIntakePhoto(photo: File | Blob, filename = 'document.jpg') {
+    const formData = new FormData();
+    formData.append('file', photo, filename);
+    return this.atelierPost<IntakeEnvelope>('/intake/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+
+  async getIntakeArtefact(artefactId: string) {
+    return this.atelierGet<IntakeEnvelope>(`/intake/${artefactId}`);
+  }
+
+  /** Deletes the document AND the Courrier task derived from it. */
+  async deleteIntakeArtefact(artefactId: string) {
+    return this.delete<void>(`/intake/${artefactId}`);
+  }
+
   async getSerialToday() {
     return this.atelierGet<SerialToday>('/serial/today');
   }
@@ -1906,10 +2861,6 @@ class ApiService {
       protagonist_mode: 'avatar' | 'pov' | string;
       user_character?: Record<string, any> | null;
     }>('/serial/threads/current/avatar', payload);
-  }
-
-  async markSerialOnboardingSeen() {
-    return this.atelierPost<{ serial_onboarding_seen: boolean }>('/serial/onboarding/seen');
   }
 
   async transcribeMissionAudio(audioBlob: Blob): Promise<string> {
@@ -2090,9 +3041,15 @@ class ApiService {
     return this.post<any>('/audio-session/end', data);
   }
 
-  async transcribeAudio(audioBlob: Blob): Promise<string> {
+  /**
+   * `surface` names where the learner was speaking (WP-27: `journey_respond`
+   * for the daily journey's default output). It is cost attribution only —
+   * nothing about the transcription itself changes with it.
+   */
+  async transcribeAudio(audioBlob: Blob, surface?: string): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
+    if (surface) formData.append('surface', surface);
 
     const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
       headers: {
@@ -2154,9 +3111,91 @@ class ApiService {
     return response.data;
   }
 
+  // WP-32 «Écouter d'abord» — the radio episode. Four additive calls; nothing
+  // below is reached unless the learner has switched listening-first on.
+
+  /** What is already spoken. Never starts a paid synthesis call. */
+  async getEpisodeAudio(sceneId: string): Promise<EpisodeAudioManifest> {
+    return this.get<EpisodeAudioManifest>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio`,
+      this.journeyConfig(),
+    );
+  }
+
+  /** Synthesize the episode, or hear honestly that it is not spoken. */
+  async synthesizeEpisodeAudio(sceneId: string): Promise<EpisodeAudioManifest> {
+    const response = await this.api.post<EpisodeAudioManifest>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio`,
+      {},
+      this.journeyConfig(),
+    );
+    return response.data;
+  }
+
+  /**
+   * One spoken line, as bytes.
+   *
+   * Fetched rather than handed to `<audio src>`: the clip route is
+   * authenticated with a bearer token and an audio element cannot carry a
+   * header. The caller owns the object URL it makes from this and must revoke
+   * it.
+   */
+  async getEpisodeAudioClip(sceneId: string, clipId: string): Promise<Blob> {
+    const response = await this.api.get<Blob>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio/${encodeURIComponent(clipId)}`,
+      { ...this.journeyConfig(), responseType: 'blob' },
+    );
+    return response.data;
+  }
+
+  /**
+   * WP-91 «Les voix»: one line of a journey step in its character's voice.
+   * `disabled` means the device voice reads it; 404, not a line of the step.
+   */
+  async requestDailyJourneyLineAudio(
+    journeyId: string,
+    stepId: string,
+    body: LineAudioBody,
+  ): Promise<LineAudioResult> {
+    const response = await this.api.post<LineAudioResult>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/line-audio`,
+      body,
+      this.journeyConfig(),
+    );
+    return response.data;
+  }
+
+  /** WP-91: a line clip's bytes (authenticated, so never an `<audio src>`). */
+  async getDailyJourneyLineAudio(clipId: string): Promise<Blob> {
+    const response = await this.api.get<Blob>(
+      `/daily-journeys/line-audio/${encodeURIComponent(clipId)}`,
+      { ...this.journeyConfig(), responseType: 'blob' },
+    );
+    return response.data;
+  }
+
+  /** Record the prediction check. Measurement, not marking: no score comes back. */
+  async recordEpisodePrediction(
+    sceneId: string,
+    body: { guess: string; verdict: string; supported?: string | null },
+  ): Promise<{ scene_id: string; prediction: EpisodePredictionRecord }> {
+    const response = await this.api.post<{
+      scene_id: string;
+      prediction: EpisodePredictionRecord;
+    }>(
+      `/story-engine/episodes/${encodeURIComponent(sceneId)}/audio/prediction`,
+      body,
+      this.journeyConfig(),
+    );
+    return response.data;
+  }
+
   async getDailyJourneyToday(timezone?: string): Promise<TodayEnvelope> {
     const query = timezone ? `?timezone=${encodeURIComponent(timezone)}` : '';
-    return this.get<TodayEnvelope>(`/daily-journeys/today${query}`, this.journeyConfig());
+    const envelope = await this.get<TodayEnvelope>(`/daily-journeys/today${query}`, this.journeyConfig());
+    // WP-116: the drawn cast's looks for this learner (Camille after T1 Day B).
+    rememberCastVariants((envelope?.headline as { cast_variants?: Record<string, string> } | null | undefined)?.cast_variants);
+    return envelope;
   }
 
   async getDailyJourney(journeyId: string): Promise<JourneySnapshot> {
@@ -2241,6 +3280,157 @@ class ApiService {
       `/daily-journeys/${encodeURIComponent(journeyId)}/retry`,
       body,
     );
+  }
+
+  /* ---- WP-25 placement --------------------------------------------------
+     Every call answers the same envelope, so the screen renders one state
+     machine. `respondToPlacement` carries the turn index: replaying it is a
+     no-op server-side, so a retried request never buys a second paid grading. */
+
+  async getPlacementState(): Promise<PlacementEnvelope> {
+    return this.atelierGet<PlacementEnvelope>('/placement/state');
+  }
+
+  async startPlacement(restart = false): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>('/placement/start', { restart });
+  }
+
+  async respondToPlacement(
+    sessionId: string,
+    answer: string,
+    turnIndex: number,
+  ): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>(
+      `/placement/${encodeURIComponent(sessionId)}/respond`,
+      { answer, turn_index: turnIndex },
+    );
+  }
+
+  async finishPlacement(sessionId: string): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>(
+      `/placement/${encodeURIComponent(sessionId)}/finish`,
+    );
+  }
+
+  async skipPlacement(): Promise<PlacementEnvelope> {
+    return this.atelierPost<PlacementEnvelope>('/placement/skip');
+  }
+
+  /** WP-126: the offer the day's ending shows (`resume` when one is open). */
+  async getPlacementOffer(): Promise<PlacementOffer> {
+    return this.atelierGet<PlacementOffer>('/placement/offer');
+  }
+
+  /* ---- WP-30 «Le journal de bord» ---------------------------------------
+     `getJournalState` is a GET that may create today's offer: idempotent, and
+     it stores no learner content, so an empty tab never becomes a mutation.
+     `writeJournalEntry` is a no-op server-side once the entry carries text, so
+     a retried request never buys a second paid correction. */
+
+  async getJournalState(): Promise<JournalEnvelope> {
+    return this.atelierGet<JournalEnvelope>('/journal/state');
+  }
+
+  async listJournalEntries(limit = 20): Promise<JournalEntryView[]> {
+    return this.atelierGet<JournalEntryView[]>(`/journal/entries?limit=${encodeURIComponent(String(limit))}`);
+  }
+
+  async writeJournalEntry(entryId: string, text: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(
+      `/journal/${encodeURIComponent(entryId)}/write`,
+      { text },
+    );
+  }
+
+  async skipJournalEntry(entryId: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(`/journal/${encodeURIComponent(entryId)}/skip`);
+  }
+
+  async answerJournalFollowup(entryId: string, text: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(
+      `/journal/${encodeURIComponent(entryId)}/followup`,
+      { text },
+    );
+  }
+  /* ---- WP-31 rehearsal --------------------------------------------------
+     One envelope per route, like the placement, so the page renders one state
+     machine. `sendRehearsalTurn` carries the turn index: replaying it is a
+     no-op server-side and buys no second grading. */
+
+  async getRehearsalState(): Promise<RehearsalEnvelope> {
+    return this.atelierGet<RehearsalEnvelope>('/rehearsals/state');
+  }
+
+  async declareRehearsal(declaration: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>('/rehearsals', { declaration });
+  }
+
+  async prepareRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/prepare`,
+    );
+  }
+
+  async revealRehearsalPhrases(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/phrases`,
+    );
+  }
+
+  async sendRehearsalTurn(
+    rehearsalId: string,
+    text: string,
+    turnIndex: number,
+    mode: 'text' | 'voice' = 'text',
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/turns`,
+      { text, turn_index: turnIndex, mode },
+    );
+  }
+
+  async debriefRehearsal(
+    rehearsalId: string,
+    outcome: 'done' | 'partly' | 'not_yet',
+    freeLine: string,
+  ): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/debrief`,
+      { outcome, free_line: freeLine },
+    );
+  }
+
+  async abandonRehearsal(rehearsalId: string): Promise<RehearsalEnvelope> {
+    return this.atelierPost<RehearsalEnvelope>(
+      `/rehearsals/${encodeURIComponent(rehearsalId)}/abandon`,
+    );
+  }
+  /* ---- WP-35 «Votre dossier» ---------------------------------------------
+     Three routes, one envelope. `openDossierClaim` records the claim and
+     returns its two questions; `verifyDossierClaim` grades them and returns the
+     refreshed model, so a verified claim needs no second read. */
+
+  async getDossier(): Promise<DossierEnvelope> {
+    return this.atelierGet<DossierEnvelope>('/dossier/state');
+  }
+
+  async openDossierClaim(kind: string, targetId: string): Promise<DossierEnvelope> {
+    return this.atelierPost<DossierEnvelope>('/dossier/claims', {
+      kind,
+      target_id: targetId,
+    });
+  }
+
+  async verifyDossierClaim(
+    kind: string,
+    targetId: string,
+    answers: string[],
+  ): Promise<DossierEnvelope> {
+    return this.atelierPost<DossierEnvelope>('/dossier/claims/verify', {
+      kind,
+      target_id: targetId,
+      answers,
+    });
   }
 }
 
