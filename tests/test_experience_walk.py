@@ -1,13 +1,27 @@
 """EXPERIENCE-REVIEW 2026-10-04 — thirty days of a whole learner life, every surface.
 
 Five personas × three qualities (strong, average, struggling), each a 30-day life
-through sign-up, placement, the vocabulary check, La Une, the day, the drill, the
-Courrier and the Cahier, with every app clock moved a day at a time. Runs with
-the long walk (``-m walk`` or ``WALK=1``); ``EXPERIENCE_OUT=<dir>`` writes one JSON
-per life plus ``summary.json`` (time by kind, intake, level) for the review.
+through sign-up, placement, the vocabulary check, La Une, the day, the drill, La
+Forge (WP-123b), the Courrier and the Cahier, with every app clock moved a day at a
+time. Runs with the long walk (``-m walk`` or ``WALK=1``); ``EXPERIENCE_OUT=<dir>``
+writes one JSON per life plus ``summary.json`` (time by kind, intake, level) for
+the review.
 
 The month is held to the learner-walk checks (:mod:`tests.walk_checks`) and to the
 life invariants of :func:`tests.walk_checks.check_life`.
+
+The command set (WP-123b; from the repository root, ``PY`` = the venv python):
+
+* all 15 lives — ``WALK=1 EXPERIENCE_OUT=<dir> $PY -m pytest tests/test_experience_walk.py -m walk``;
+* a pull request's three — ``… -k "a1-de-fresh-average or b1-en-struggling or c1-de-strong"``;
+* **a forced total outage** (every generated scene refused; WP-124b's checks run) —
+  ``WALK_FAIL_RATE=1 WALK=1 … -k "b1-en-average"``; ``WALK_FAIL_RATE=0.3`` loses
+  three days in ten instead. The Courrier always runs on its provider-off path in
+  this walk (``ATELIER_LLM_ENABLED`` is off in tests), so every letter is already an
+  outage letter;
+* **La Forge played** from the after-day chip at the drill's cadence — ``WALK_FORGE=1 …``
+  (opt-in until the La Forge defects in WP-123b-RESULTS.md are fixed; then the default);
+* a shorter life — ``LIFE_DAYS=<n>``.
 """
 from __future__ import annotations
 
@@ -23,6 +37,7 @@ from tests import experience_walk as life
 from tests import learner_walk as walk
 from tests import (
     walk_checks,
+    walk_checks_wp123b,
     walk_checks_wp124b,
     walk_checks_wp125b,
     walk_checks_wp126,
@@ -42,6 +57,11 @@ from tests.test_season_one import season_on  # noqa: F401 - fixture
 #: WP-124b: a forced outage — the share of days whose generated scene is lost
 #: (deterministic per life; 1 = every generated day). Off unless set.
 WALK_FAIL_RATE = float(os.environ.get("WALK_FAIL_RATE") or 0)
+#: WP-123b: the life plays La Forge when Home offers it (``WALK_FORGE=1``). Opt-in
+#: until three La Forge defects the Forge walk found are fixed (the 5-minute chip
+#: runs 5–14 minutes; English cues for German C1 learners; a give-up in a séance
+#: comes back as a journey repair): see docs/implementation/atelier-v2/WP-123b-RESULTS.md.
+WALK_FORGE = os.environ.get("WALK_FORGE", "0") == "1"
 
 
 @pytest.fixture
@@ -137,6 +157,14 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
         today["journey"] = transcript
         if quality != "struggling" or day % 2 == 1:
             today["drill"] = life.drill(client, db, headers, quality=quality, rng=rng)
+        # WP-123b: La Forge, when Home offers it after the day (the Léger/Régulier
+        # chip), played at the drill's cadence (WALK_FORGE=1).
+        today["forge_offer"] = life.forge_offer(client, headers)
+        offer_open = today["forge_offer"] and not today["forge_offer"].get("folded")
+        if WALK_FORGE and offer_open and life.plays_forge(quality, day):
+            today["forge"] = life.play_forge(
+                client, headers, today["forge_offer"], quality=quality, native=persona.native, rng=rng
+            )
         band = life.band_number(transcript.get("learner_level") or persona.cefr)
         today["courrier"] = life.courrier(client, headers, quality=quality, band=band, rng=rng, answered=answered)
         today["cahier"] = life.cahier(client, headers, full=day in (1, 7, 14, 30))
@@ -148,6 +176,7 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
             "journey": journey_clock.as_dict(),
             "steps": steps,
             "drill": life.time_drill(today.get("drill") or {}, level, quality).as_dict(),
+            "forge": life.time_forge(today.get("forge") or {}, level, quality).as_dict(),
             "letters": life.time_letters(today["courrier"], level, quality).as_dict(),
             "onboarding": life.time_onboarding(today, level, quality).as_dict(),
         }
@@ -191,6 +220,9 @@ def test_a_month_of_a_whole_life(
     problems += walk_checks_wp129.check_life_wp129(record)
     # WP-130 B: every held unit earned «Tenue» with unassisted, spaced evidence.
     problems += walk_checks_wp130b.check_held_evidence_chain(record)
+    # WP-123b: La Forge opens, grades, ends, seats the chip's rule, fits its budget,
+    # speaks the learner's language and never grades a give-up correct (WALK_FORGE=1).
+    problems += walk_checks_wp123b.check_life_wp123b(record)
     if WALK_FAIL_RATE:
         # WP-124b: under a forced outage, lost days never stall the season.
         problems += walk_checks_wp124b.check_life_wp124b(record)

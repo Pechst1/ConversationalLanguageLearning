@@ -12,12 +12,12 @@ shifted «now»; the journey's own clock fixture moved only the journey).
 Qualities (deterministic, seeded per learner and day):
 
 * ``strong`` — right on ≈95 % of items, the season's own example replies, the drill
-  every day, letters answered the day they arrive;
+  and La Forge every day, letters answered the day they arrive;
 * ``average`` — phone typography and accent slips on typed answers, one tap in four
-  wrong, clumsy-but-French replies, the drill every day;
+  wrong, clumsy-but-French replies, the drill and La Forge every day;
 * ``struggling`` — about half the items right, a first reply in the native language
-  now and then, the hint before replying, the drill every other day, one letter
-  in two left unanswered.
+  now and then, the hint before replying, the drill and La Forge every other day,
+  one letter in two left unanswered.
 
 Nothing calls a model: the story runs on the season suite's scripted provider, the
 placement on a grader that scores by the persona's *true* level, the Courrier on
@@ -416,6 +416,178 @@ def drill(client: TestClient, db: Session, headers: dict[str, str], *, quality: 
     # WP-131: what the day's allowance still held after this deck (the drill's
     # «Encore N mots» continuation; the walk records it, it does not take it).
     return {"summary": context.get("summary"), "cards": reviewed, "new_words_left_today": context.get("new_words_left_today")}
+
+
+def forge_offer(client: TestClient, headers: dict[str, str]) -> dict[str, Any] | None:
+    """WP-123b: the after-day La Forge entry Home shows once the day is done (``None``
+    when there is none). Régulier and Léger get it as a chip; Soutenu and Intensif
+    fold it into the day (``folded``), which the journey plays."""
+
+    response = client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": support.TZ})
+    if response.status_code != 200:
+        return None
+    return response.json().get("forge")
+
+
+#: WP-123b: how often each quality opens the after-day chip — as the drill: the
+#: strong and the average learner every day, the struggling one every other day.
+def plays_forge(quality: str, day: int) -> bool:
+    return quality != "struggling" or day % 2 == 1
+
+
+def _forge_item(session: dict[str, Any], nxt: dict[str, Any]) -> dict[str, Any] | None:
+    if isinstance(nxt.get("item"), dict):
+        return nxt["item"]
+    exercise_set = next((s for s in session.get("exercise_sets") or [] if s.get("concept_id") == nxt.get("concept_id")), None)
+    if exercise_set is None:
+        return None
+    payload = exercise_set.get("payload") or {}
+    try:
+        if nxt["round"] == "recognize":
+            items = payload["recognize"][nxt["mode"]]["items"]
+        elif nxt["round"] == "transform":
+            items = payload["transform"]["items"]
+        else:
+            items = payload["output_ladder"][nxt["round"]]["items"]
+        return items[nxt["item_index"]]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+#: A wrong answer per round: a tapped distractor reads as an unknown option, a
+#: typed one as an attempt in French that misses the form.
+FORGE_WRONG_TEXT = "je ne sais pas"
+
+
+def _forge_answer(item: dict[str, Any], nxt: dict[str, Any], right: bool) -> dict[str, Any]:
+    round_name, mode = nxt.get("round"), nxt.get("mode")
+    item_id = item.get("id")
+    if round_name == "recognize":
+        if mode == "word_bank":
+            tokens = list(item.get("answer_tokens") or [])
+            return {"answers": {item_id: tokens if right else list(reversed(tokens)) or ["zzz"]}}
+        if item.get("classify_kind") == "judgement":
+            # A judgement item: the wrong answer is the other label.
+            labels = list((item.get("label_l10n") or {}).get("fr") or {}) or ["correct", "incorrect"]
+            correct = item.get("correct_label")
+            other = next((label for label in labels if label != correct), "zzz")
+            return {"answers": {item_id: correct if right else other}}
+        options = [o for o in item.get("options") or [] if isinstance(o, (str, dict))]
+        correct = item.get("correct_answer") or item.get("correct_label")
+        wrong = next(
+            (o if isinstance(o, str) else o.get("id") or o.get("text") for o in options
+             if (o if isinstance(o, str) else o.get("id") or o.get("text")) != correct),
+            "zzz",
+        )
+        return {"answers": {item_id: correct if right else wrong}}
+    if round_name == "transform":
+        return {"answers": {item_id: item.get("expected_answer") if right else FORGE_WRONG_TEXT}}
+    text = str(item.get("example_answer") or item.get("example") or item.get("model_answer") or "")
+    return {"text": text if right else FORGE_WRONG_TEXT}
+
+
+#: The cue fields a learner reads in their own language on a forge item.
+FORGE_CUE_KEYS = ("goal_native", "instruction", "meaning_cue", "judge_question")
+
+
+def _forge_cues(item: dict[str, Any], native: str) -> list[str]:
+    cues = [str(item.get(key) or "") for key in FORGE_CUE_KEYS]
+    for key in ("prompt_l10n", "instruction_l10n"):
+        localized = item.get(key)
+        if isinstance(localized, dict):
+            cues.append(str(localized.get(native) or ""))
+    return [cue for cue in cues if cue]
+
+
+def play_forge(
+    client: TestClient,
+    headers: dict[str, str],
+    entry: dict[str, Any],
+    *,
+    quality: str,
+    native: str,
+    rng: random.Random,
+) -> dict[str, Any]:
+    """WP-123b: one La Forge séance from the after-day chip, as ``pages/atelier.tsx``
+    drives ``/atelier?mode=forge&concept=…``: start it with the chip's rule and
+    budget, answer every item the forge names (right at the quality's accuracy),
+    and file it. Records what the séance served and what it moved."""
+
+    request: dict[str, Any] = {"origin": "after_day"}
+    if entry.get("concept_id"):
+        request["preferred_concept_id"] = int(entry["concept_id"])
+    if entry.get("budget_seconds"):
+        request["budget_seconds"] = int(entry["budget_seconds"])
+    record: dict[str, Any] = {
+        "offered_concept_id": entry.get("concept_id"),
+        "budget_seconds": entry.get("budget_seconds"),
+        "items": [],
+    }
+    started = client.post("/api/v1/atelier/sessions", headers=headers, json=request)
+    record["start_status"] = started.status_code
+    if started.status_code not in (200, 201):
+        record["error"] = started.text[:200]
+        return record
+    session = started.json()
+    forge = session.get("forge") or {}
+    record["mode"] = forge.get("mode")
+    record["length"] = forge.get("length")
+    record["rules"] = [rule.get("concept_id") for rule in forge.get("rules") or []]
+    nxt = forge.get("next")
+    accuracy = ACCURACY[quality]
+    guard = int(forge.get("length") or 0) + 12
+    while nxt and len(record["items"]) < guard:
+        item = _forge_item(session, nxt)
+        if item is None:
+            record["error"] = f"the forge named an item the séance does not carry: {nxt}"
+            break
+        typed = nxt.get("round") != "recognize"
+        right = rng.random() < accuracy - (0.08 if typed else 0.0)
+        answer = _forge_answer(item, nxt, right)
+        response = client.post(
+            f"/api/v1/atelier/sessions/{session['session_id']}/attempts",
+            headers=headers,
+            json={
+                "concept_id": nxt["concept_id"],
+                "round": nxt["round"],
+                "mode": "rewrite" if nxt["round"] == "transform" else nxt["mode"],
+                "exercise_id": f"forge:{nxt['concept_id']}:{nxt['round']}:{nxt['item_id']}",
+                "answer_payload": answer,
+            },
+        )
+        body = response.json() if response.status_code == 200 else {}
+        correction = body.get("correction") or {}
+        record["items"].append(
+            {
+                "concept_id": nxt.get("concept_id"),
+                "round": nxt.get("round"),
+                "mode": nxt.get("mode"),
+                "rung": nxt.get("rung"),
+                "right": right,
+                "verdict": correction.get("verdict") or (body.get("attempt") or {}).get("verdict"),
+                "status_code": response.status_code,
+                "prompt_fr": item.get("prompt_fr") or item.get("sentence") or item.get("source_fr") or item.get("prompt"),
+                "options": [o if isinstance(o, str) else o.get("text") for o in item.get("options") or []][:6],
+                "answer": answer.get("text") or json.dumps(answer.get("answers"), ensure_ascii=False)[:120],
+                "cues": _forge_cues(item, native),
+                "notes_native": list(correction.get("notes_native") or [])[:3],
+            }
+        )
+        if response.status_code != 200:
+            break
+        after = body.get("forge") or {}
+        record["answered"] = after.get("answered")
+        record["finished"] = after.get("finished")
+        nxt = after.get("next")
+    done = client.post(f"/api/v1/atelier/sessions/{session['session_id']}/complete", headers=headers)
+    record["complete_status"] = done.status_code
+    if done.status_code == 200:
+        recap = (done.json().get("recap") or {}).get("forge") or {}
+        record["recap_rules"] = [
+            {key: rule.get(key) for key in ("concept_id", "rung_name", "stage_before", "stage", "next_due")}
+            for rule in recap.get("rules") or []
+        ]
+    return record
 
 
 #: What each quality writes back to a correspondent.
@@ -846,6 +1018,26 @@ def time_letters(record: dict[str, Any], cefr: str, quality: str) -> Clockwork:
     return clock
 
 
+def time_forge(record: dict[str, Any], cefr: str, quality: str) -> Clockwork:
+    """WP-123b: a La Forge séance, item by item, on the same clock as a practice item."""
+
+    timer = Timer(cefr, quality)
+    clock = Clockwork()
+    for item in record.get("items") or []:
+        clock.support += sum(timer.read_native(cue) for cue in item.get("cues") or [])
+        clock.fr_input += timer.read_fr(item.get("prompt_fr"))
+        if item.get("round") == "recognize":
+            clock.fr_input += sum(timer.read_fr(option) for option in item.get("options") or [])
+            clock.fr_output += TAP_DECIDE_SECONDS * timer.slow
+        else:
+            clock.fr_output += 3.0 * timer.slow + len(str(item.get("answer") or "")) * 0.35 * timer.slow
+        clock.explanation += sum(timer.read_native(note) for note in item.get("notes_native") or [])
+        clock.overhead += NAV_SECONDS
+    if record.get("items"):
+        clock.overhead += NAV_SECONDS * 2  # open the chip, read the recap
+    return clock
+
+
 def time_onboarding(day: dict[str, Any], cefr: str, quality: str) -> Clockwork:
     timer = Timer(cefr, quality)
     clock = Clockwork()
@@ -874,13 +1066,17 @@ __all__ = [
     "day_time_estimate",
     "director_down",
     "drill",
+    "forge_offer",
     "la_une",
     "outage_days",
+    "play_forge",
+    "plays_forge",
     "register_as_onboarding",
     "season_cursor",
     "take_band_checks",
     "take_placement",
     "time_drill",
+    "time_forge",
     "time_journey",
     "time_letters",
     "time_onboarding",
