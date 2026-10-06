@@ -46,6 +46,15 @@ services:
         value: "false"
       - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
         value: "false"
+      # WP-138: the private pilot. Sign-up is closed; only the emails listed in
+      # the dashboard (comma-separated, `sync: false` so no address is
+      # committed) can create an account. Existing accounts always sign in.
+      # The journey cohort below is NOT an invite gate: it only decides who
+      # gets the daily journey.
+      - key: REGISTRATION_OPEN
+        value: "false"
+      - key: REGISTRATION_ALLOWED_EMAILS
+        sync: false
       # WP-70: two workers fit the 512 MB starter plan (~184 MB each).
       - key: WEB_CONCURRENCY
         value: "2"
@@ -195,8 +204,11 @@ services:
         sync: false
       - key: APNS_BUNDLE_ID
         value: com.pixellab.feuilleton
+      # Production APNs: TestFlight and App Store builds register production
+      # device tokens (docs/testflight-production-flip-checklist.md §2). Set
+      # "true" on BOTH services only while testing a direct Xcode device build.
       - key: APNS_USE_SANDBOX
-        value: "true"
+        value: "false"
 
   - type: worker
     name: atelier-worker
@@ -352,6 +364,13 @@ services:
         sync: false
       - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
+      # Spend bounds read in the worker too (the journey prefetch beat skips a
+      # learner at the weekly guardrail): inherited so a dashboard edit on the
+      # API reaches both processes.
+      - key: USER_DAILY_SPEND_CAP_USD
+        fromService: {type: web, name: atelier-api, envVarKey: USER_DAILY_SPEND_CAP_USD}
+      - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
+        fromService: {type: web, name: atelier-api, envVarKey: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD}
       - key: APNS_TEAM_ID
         fromService:
           type: web
@@ -369,8 +388,9 @@ services:
           envVarKey: APNS_PRIVATE_KEY
       - key: APNS_BUNDLE_ID
         value: com.pixellab.feuilleton
+      # Production APNs, as on the API (the worker sends the morning pushes).
       - key: APNS_USE_SANDBOX
-        value: "true"
+        value: "false"
 
   - type: keyvalue
     name: atelier-redis
