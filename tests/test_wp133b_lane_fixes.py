@@ -216,3 +216,31 @@ def test_a_gendered_ending_falls_back_to_the_authored_one(
     assert "doit partir avant de répondre" in shown["character_line_fr"]
     _walk_to_end(d)
     assert d.finish("complete").status_code == 200
+
+
+# --- the walk check ---------------------------------------------------------
+
+
+def _day(reply: str, ending: str, source: str = "model") -> dict:
+    return {
+        "persona": "c1-de",
+        "day": 7,
+        "events": [
+            {
+                "step": {"kind": "respond"},
+                "answer": {"input": {"mode": "text", "text": SOUPE}},
+                "result": {"reply_source": source, "character_reply_fr": reply},
+            }
+        ],
+        "resolution": {"character_line_fr": ending, "summary_native": "Du bleibst heute Abend."},
+    }
+
+
+def test_the_walk_check_fires_on_the_live_read_lines_and_stays_quiet_on_good_ones():
+    from tests.walk_checks_wp133b import check_reply_lanes
+
+    bad = check_reply_lanes(_day(GELE, DECIDE)) + check_reply_lanes(_day(SOUPE_ECHO, "La soirée continue."))
+    assert len(bad) == 3 and any("gelé" in p for p in bad) and any("décidé" in p for p in bad)
+    assert any("echoes" in p for p in bad)
+    assert check_reply_lanes(_day("Tu as aimé la soupe ? Ça me rassure.", "Tu restes ce soir.")) == []
+    assert check_reply_lanes(_day(GELE, DECIDE, source="authored")) == []
