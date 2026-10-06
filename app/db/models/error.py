@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 
 class UserError(Base):
@@ -75,8 +76,8 @@ class UserError(Base):
     last_review_date = Column(DateTime(timezone=True))
     next_review_date = Column(DateTime(timezone=True), index=True)
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), onupdate=app_now)
 
     user = relationship("User", backref="errors")
     session = relationship("LearningSession")

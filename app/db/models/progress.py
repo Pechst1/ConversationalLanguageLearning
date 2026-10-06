@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 
 class UserVocabularyProgress(Base):
@@ -77,10 +78,10 @@ class UserVocabularyProgress(Base):
     # (``{panel_id}:l{index}``, the key episode audio stores its clip under).
     context = Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True)
 
-    first_seen_date = Column(DateTime(timezone=True), server_default=func.now())
+    first_seen_date = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
     mastered_date = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), onupdate=app_now)
 
     user = relationship("User", backref="vocabulary_progress")
     word = relationship("VocabularyWord")

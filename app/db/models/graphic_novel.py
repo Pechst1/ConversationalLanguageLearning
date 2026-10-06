@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 if TYPE_CHECKING:
     from app.db.models.atelier import AtelierSession
@@ -160,7 +161,7 @@ class GraphicNovelAttempt(Base):
     correction_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     verdict: Mapped[str] = mapped_column(String(30), default="needs_review", nullable=False)
     score_0_4: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False)
 
     scene: Mapped[GraphicNovelScene] = relationship("GraphicNovelScene", back_populates="attempts")
     panel: Mapped[GraphicNovelPanel | None] = relationship("GraphicNovelPanel")
