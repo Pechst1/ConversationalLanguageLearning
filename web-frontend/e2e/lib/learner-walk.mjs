@@ -102,10 +102,11 @@ export class LearnerWalk {
       this.findings.check('drill-shows-a-goal', goalText.length >= 8, `no goal/instruction on a ${kind} drill: «${s.text.slice(0, 100)}»`, w);
       if (kind === 'tiles') this.findings.check('tiles-drill-goal-line', s.goal.length > 0, `word bank without a [data-goal] line: «${s.text.slice(0, 100)}»`, w);
     }
-    // A way forward on every screen.
+    // A way forward on every screen. A screen that says it is waiting on the
+    // server (aria-busy) is not a dead end; the run loop's 45 s guard holds it.
     const forward = s.buttons.some((b) => !b.disabled && b.text && !/^(Pause|Stop|Hint|Translation|Show the answer|Tipp|Übersetzung|Indice|Traduction|Leave|Previous)/i.test(b.text));
     const inputs = s.choices || s.tiles || s.textarea || s.match || s.dictation;
-    if (!forward && !inputs && !s.buttons.some((b) => b.disabled)) {
+    if (!s.pending && !forward && !inputs && !s.buttons.some((b) => b.disabled)) {
       this.findings.check('a-way-forward', false, `nothing to do on «${s.text.slice(0, 100)}»`, w);
     }
     // Connection banner while typing.
@@ -344,8 +345,9 @@ export class LearnerWalk {
       }
       if (entry && !s.url.startsWith('/atelier')) break; // the loop led out of the page (e.g. to Courrier)
       if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
-      if (sameFor > 120) {
-        this.findings.check('a-way-forward', false, `no change for 30s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
+      // The 30 s cap must not undercut the server wait above.
+      if (sameFor > (s.pending ? 180 : 120)) {
+        this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
         await this.shoot('stuck');
         break;
       }
