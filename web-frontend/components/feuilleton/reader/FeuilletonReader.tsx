@@ -59,6 +59,8 @@ import {
 import { useArtSet } from '@/lib/art-set';
 import { PanelStage } from '@/components/cast/PanelStage';
 import { useMouth } from '@/components/cast/useMouth';
+import { VerticalPanel } from '@/components/atelier-v2/journey/vertical-page/VerticalPanel';
+import { VerticalPageStyles } from '@/components/atelier-v2/journey/vertical-page/vertical-page-styles';
 
 export type ReaderSubmitError = { taskId: string; message: string } | null;
 
@@ -138,6 +140,12 @@ export type FeuilletonReaderProps = {
   rayonsPast?: boolean;
   /** WP-92: the page is being re-read (a replay, or the READ step): the toggle is there at once. */
   rayonsReplay?: boolean;
+  /**
+   * WP-144: `vertical` draws each story panel full-bleed with its lines as
+   * balloons (`VerticalPanel`); `list` (the default) is the page as it was. Only
+   * the story reader (`panelVariant` given) has a vertical page.
+   */
+  layout?: 'list' | 'vertical';
 };
 
 function prefersReducedMotion(): boolean {
@@ -186,6 +194,7 @@ export function FeuilletonReader({
   rayonsTitle = null,
   rayonsPast = false,
   rayonsReplay = false,
+  layout = 'list',
 }: FeuilletonReaderProps) {
   const base = readerCopy(language);
   /* WP-91: the face's label comes from the journey's own table when it hands
@@ -328,6 +337,8 @@ export function FeuilletonReader({
   if (!stage) return null;
 
   const stageKey = stage.key;
+  const vertical = layout === 'vertical' && Boolean(panelVariant);
+  const verticalPanel = vertical && stage.kind === 'panel';
   const showTranslation = Boolean(translated[stageKey]);
   const hasEnglish =
     stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
@@ -398,10 +409,12 @@ export function FeuilletonReader({
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
        rule is written against; the reader itself stays the section. */
     <AtelierV2Root as="div" className="fr-scope" language={language ?? undefined}>
+    {vertical && <VerticalPageStyles />}
     <section
       className="fr-reader"
       aria-label={t.reader_label}
       data-story={panelVariant ? '1' : undefined}
+      data-layout={vertical ? 'vertical' : undefined}
       data-art={artProvenance || undefined}
       ref={rootRef}
     >
@@ -430,7 +443,8 @@ export function FeuilletonReader({
         </p>
       )}
 
-      {!folded && (
+      {/* WP-144: on the vertical page the first panel carries the headline as its establishing caption. */}
+      {!folded && !verticalPanel && (
         <div className="fr-head">
           {head.eyebrow && <p className="fr-eyebrow">{head.eyebrow}</p>}
           {/* the one Garamond italic headline on this screen */}
@@ -474,7 +488,19 @@ export function FeuilletonReader({
           </p>
         )}
 
-        {stage.kind === 'panel' ? (
+        {stage.kind === 'panel' && verticalPanel ? (
+          <VerticalPanel
+            key={stage.key}
+            stage={stage}
+            showTranslation={showTranslation}
+            onWord={openHelp}
+            voice={lineVoice}
+            marksFor={(line) => lineRayons(line, rayons)}
+            head={folded ? null : { eyebrow: head.eyebrow, title: head.title }}
+            topInset={readState === 'read' || stageLiveTask ? 36 : 0}
+            t={t}
+          />
+        ) : stage.kind === 'panel' ? (
           <PanelBody
             /* a new panel is a new plate: no crossfade between panels, only
                between a panel's plate and its own drawing */

@@ -39,6 +39,7 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
+import { useReaderLayout, type ReaderLayout } from '@/lib/reader-layout';
 import { saveStoryReadingPosition } from '@/services/daily-journey';
 import type { ReaderResolutionStage } from '@/components/feuilleton/reader/panel-model';
 import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
@@ -128,6 +129,11 @@ export type StoryEpisodeReaderProps = {
    * first panel its character speaks in), else at the page's end.
    */
   marginNotes?: ArchiveMarginNote[] | null;
+  /**
+   * WP-144: force the page layout (the gallery, the tests). Absent: the device's
+   * choice (`useReaderLayout`, `?readerLayout=vertical|list|default`), else the build default.
+   */
+  layout?: ReaderLayout | null;
 };
 
 const POSITION_DEBOUNCE_MS = 400;
@@ -152,7 +158,10 @@ export function StoryEpisodeReader({
   title = null,
   eyebrow = null,
   marginNotes = null,
+  layout = null,
 }: StoryEpisodeReaderProps) {
+  // WP-144: the vertical page or the current one, for the owner's blind A/B.
+  const deviceLayout = useReaderLayout();
   // WP-94: a «Numéro spécial» day names itself in the reader's kicker too.
   const specialKicker = useSpecialKicker();
   const reread = mode === 'reread';
@@ -275,6 +284,7 @@ export function StoryEpisodeReader({
         rayonsTitle={rayonsTitle}
         rayonsReplay={reread}
         rayonsPast={reread}
+        layout={layout ?? deviceLayout}
         renderStageMargin={margins ? renderStageMargin : undefined}
         /*
           WP-44. The «Décor de référence…» banner is gone. Reusing the
