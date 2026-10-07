@@ -1714,7 +1714,10 @@ def _approved(
                 if verdict is not None and not verdict.get("accepted", True):
                     critic_refusals += 1
                     feedback = list(dict.fromkeys([*feedback, *(verdict.get("issues") or ["story_critic_refused"])]))
-                    reason = "story_critic_refused"
+                    # WP-149: a correctness refusal keeps its own token, so a day it
+                    # costs is told apart from WP-114's storytelling refusals.
+                    correctness = verdict.get("class") == "correctness"
+                    reason = "story_critic_correctness" if correctness else "story_critic_refused"
                     _refused(
                         schema.__name__,
                         StoryUnavailable(reason, hint=" | ".join(verdict.get("issues") or [])),
@@ -1722,6 +1725,11 @@ def _approved(
                         proposal=proposal,
                         digest=digest,
                     )
+                    if correctness:
+                        # Never kept, never served: the next attempt carries the
+                        # critic's words; if none is left, an earlier storytelling-only
+                        # draft is served, else the day falls to the re-read (WP-124b).
+                        continue
                     if critic_refusals <= 1:
                         critic_kept = critic_kept or proposal
                         continue
@@ -5580,6 +5588,96 @@ def _check_season_register(draft: SceneDraft, context: dict) -> None:
     )
 
 
+#: WP-149: the canon's own «tu» from a «vous» character — Gus's first accidental tu
+#: in gap 1, his slip back on day «vous de Gus» — is staged by these small moments.
+_REGISTER_MOMENTS = frozenset({"tu_de_gus", "vous_de_gus"})
+
+
+def _check_canon_register(draft: SceneDraft, context: dict) -> None:
+    """WP-149 ``canon_register``: a season cast member who says «vous» to the learner
+    today never says only «tu» — Gus is on vous until T3 (``register.<id>``), M.
+    Marchand and Camille always.
+
+    The mirror of ``_check_season_register``. The C1 read of 2026-10-07 served g1.2
+    after the critic asked twice for «Gus uses vous until T3». Read as that check reads:
+    the addressed character's own lines and the opening line together; a passage that
+    mixes both (the canon's «first accidental tu, followed by a panicked return to
+    vous») is not a refusal, nor is a day that stages one of ``_REGISTER_MOMENTS``.
+    A «vous» character who is not the one addressed may say «tu» to someone else on
+    the page, so only the critic judges their lines (a correctness refusal)."""
+
+    registers = season_registers(context)
+    if registers.get(draft.character_id) != "vous":
+        return
+    checklist = draft.season_checklist
+    if checklist is not None and checklist.small_moment_id in _REGISTER_MOMENTS:
+        return
+    lines = [
+        text
+        for text in [
+            draft.opening_line_fr,
+            *[
+                line.text_fr
+                for panel in draft.panels
+                for line in panel.dialogue
+                if line.character_id == draft.character_id
+            ],
+        ]
+        if text
+    ]
+    if _address_register(lines) != "tu":
+        return
+    said = next((text for text in lines if _TU_MARKERS.search(text)), "")
+    names = _cast_names(context.get("world") or {})
+    name = names.get(draft.character_id, draft.character_id)
+    raise StoryUnavailable(
+        "canon_register",
+        hint=(
+            f"{name} says «vous» to the learner at this point of the season, but here "
+            f"says «tu»: «{said[:100]}». Rewrite {name}'s lines with vous (vous, votre, "
+            "vos), and the narration's address with them. The season decides when "
+            f"{name} moves to tu; a generated day never does."
+        ),
+    )
+
+
+def _check_flag_contradiction(draft: SceneDraft, context: dict, learner_text: list[str]) -> None:
+    """WP-149 ``flag_contradiction``: an object a flag puts in someone's hands is not
+    in anyone else's. The A1 read of 2026-10-07 served g1.3 with Margaux holding the
+    letter the learner had trusted to Marin (``s1.letter_trusted_to``); the critic
+    caught it twice and the page was served anyway. Read over everything the page
+    shows and says: the panels' descriptions (often English), narration, lines."""
+
+    block = context.get("season_script") or {}
+    brief = block.get("brief") or {}
+    today = context.get(SEASON_TODAY_KEY)
+    if not brief or today is None:
+        return
+    from app.services.season.canon_guards import flag_holder_hint, flag_holder_hits
+
+    chapter = context.get("chapter") or {}
+    closing = bool(chapter.get("resolved") or chapter.get("exhausted"))
+    shape = str(
+        (chapter.get("shape") if chapter and not closing else None)
+        or (context.get("chapter_shape") or {}).get("shape")
+        or ""
+    )
+    texts = [
+        *learner_text,
+        *[panel.visual_direction for panel in draft.panels],
+        *[panel.alt_native or "" for panel in draft.panels],
+    ]
+    hits = flag_holder_hits(
+        texts,
+        flags=getattr(today, "flags", None) or {},
+        gap_id=str((brief.get("gap") or {}).get("id") or ""),
+        cast=list(getattr(getattr(today, "season", None), "cast", None) or []),
+        learner_letter_day=shape == "letter",
+    )
+    if hits:
+        raise StoryUnavailable("flag_contradiction", hint=flag_holder_hint(hits))
+
+
 def _check_departed_cast(draft: SceneDraft, context: dict) -> None:
     """WP-133b: after the finale, the cast the ending removed is never on the page.
 
@@ -6120,7 +6218,9 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
     _check_season_register(draft, context)
+    _check_canon_register(draft, context)
     _check_departed_cast(draft, context)
+    _check_flag_contradiction(draft, context, learner_text)
     _check_season_gap(draft, context, learner_text)
     epreuve = context.get(EPREUVE_KEY)
     if not epreuve:
@@ -7778,6 +7878,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
     brief = block.get("brief")
     if not brief or not STORY_CRITIC_ENABLED:
         return None
+    from app.services.season.canon_guards import CORRECTNESS, STORYTELLING, review_class
     from app.services.season.director import (
         STORY_CRITIC,
         StoryReview,
@@ -7800,21 +7901,29 @@ def _season_story_review(context: dict, reviews: list[dict]):
             reviews.append({"accepted": True, "unavailable": str(exc), "final": final})
             return None
         accepted = review_verdict(verdict)
+        # WP-149: a refusal that names a correctness defect (the register canon, the
+        # flags, a spoiler) is never served — not on the final reading, not as the
+        # kept draft. A storytelling-only refusal keeps WP-114's rule: the second is
+        # accepted and logged, and the critic never costs a learner a day for it.
+        kind = None if accepted else review_class(verdict)
+        served = accepted or (final and kind == STORYTELLING)
         reviews.append(
             {
                 **verdict.model_dump(),
                 "accepted": accepted,
                 "final": final,
-                "override": bool(final and not accepted),
+                "class": kind,
+                "override": bool(final and served and not accepted),
                 "title_fr": proposal.title_fr,
             }
         )
-        return {"accepted": accepted or final, "issues": list(verdict.issues)}
+        return {"accepted": served, "issues": list(verdict.issues), "class": kind}
 
     def override() -> None:
-        """The refused draft is served after all: its reading is the override."""
+        """The refused draft is served after all: its reading is the override. Only a
+        storytelling refusal is ever served (WP-149)."""
         for row in reversed(reviews):
-            if not row.get("accepted", True):
+            if not row.get("accepted", True) and row.get("class") != CORRECTNESS:
                 row["override"] = True
                 return
 
