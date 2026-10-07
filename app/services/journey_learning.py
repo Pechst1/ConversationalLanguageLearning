@@ -3628,7 +3628,10 @@ def _give_back_schedule(db: Session, *, user: User, target: dict, now: datetime)
             .first()
         )
         if progress is not None:
-            progress.next_review = now
+            from app.core.srs.memory import Evidence, EvidenceFormat
+            from app.services.grammar import apply_grammar_evidence
+
+            apply_grammar_evidence(progress, Evidence(EvidenceFormat.PRODUCE), now=now, withdraw=True)
             db.add(progress)
 
 

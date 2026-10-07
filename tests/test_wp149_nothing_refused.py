@@ -466,7 +466,7 @@ def test_a_correctness_critic_refusal_falls_to_the_reread(
 
     def continuity_refusals(messages, **kwargs):
         if json.loads(messages[0]["content"])["output_schema"]["title"] == "StoryReview":
-            return SimpleNamespace(content=json.dumps(CONTINUITY), model="fake", fake="test", total_tokens=30, cost=0.0)
+            return SimpleNamespace(content=json.dumps(CONTINUITY), model="fake-season", provider="test", total_tokens=30, cost=0.0)
         return original(messages, **kwargs)
 
     monkeypatch.setattr(fake, "generate_chat_completion", continuity_refusals)
