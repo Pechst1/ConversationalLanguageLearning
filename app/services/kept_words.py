@@ -295,7 +295,11 @@ def keep_word(
         progress.provenance_ref = str(existing.id)
     if not progress.context:
         # WP-115a: the first meeting is the one a review brings back.
-        progress.context = met_context(sentence=sentence, journey_id=journey_id, met=met, now=now)
+        # WP-138: the form as printed, so a conjugated or plural keep finds its own
+        # line on the drill's «scene» rung (the lemma is not in it as written).
+        progress.context = met_context(
+            sentence=sentence, journey_id=journey_id, met={**(met or {}), "surface": surface}, now=now
+        )
     db.flush()
     return KeptWord(
         word_id=int(word.id),
