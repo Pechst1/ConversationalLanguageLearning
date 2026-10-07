@@ -278,8 +278,13 @@ function cards(node, found = []) {
   if (node.props) cards(node.props.children, found);
   return found;
 }
+// The answer key is checked with Web Crypto, whose digest resolves on the
+// thread pool: on a slow CI runner twenty immediates were not always enough, so
+// a short timer turn follows them (still far inside the 100 ms feel budget).
 const settle = async () => {
   for (let turn = 0; turn < 20; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 const tapText = (view, text) => {
   const card = cards(view.tree).find((node) => node.props.children === text);

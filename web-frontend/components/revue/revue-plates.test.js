@@ -61,8 +61,10 @@ test('RvStage shows the second plate after a switch and keeps the cast', () => {
   ]);
   const before = render(h(RvStage, { plateUrl: stage.plateUrl, size: 'band', cast, you: { outfit: 'coat' } }));
   const after = render(h(RvStage, { plateUrl: stagePlateUrl(stage, [GUEST_ENTERS]), size: 'band', cast, you: { outfit: 'coat' } }));
+  // A /media/ path is served by the API, so it may be absolute (the CI build
+  // sets an API base); the plate is identified by its path either way.
   assert.match(before, new RegExp(`src="${SITE}"`));
-  assert.match(after, new RegExp(`src="${SECOND.replace(/[.]/g, '\\.')}"`));
+  assert.match(after, new RegExp(`src="[^"]*${SECOND.replace(/[.]/g, '\\.')}"`));
   assert.doesNotMatch(after, new RegExp(SITE));
   // Everything but the plate is the same markup: the cast does not move.
   const strip = (html) => html.replace(/<img[^>]*class="rv-stage__plate[^"]*"[^>]*>/g, '');
