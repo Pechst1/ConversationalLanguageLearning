@@ -323,15 +323,23 @@ def forecast_payload(
 def static_band_unit_count(band: str) -> int:
     """Units in a band, from the active catalogue file (no DB): the card's prior."""
 
-    import math as _math
-
-    from app.services.grammar_catalog import (
-        FRENCH_CORE_CATALOG_V2_VERSION,
-        active_catalog_version,
-        catalog_rows,
-    )
+    from app.services.grammar_catalog import active_catalog_version, catalog_path
 
     version = active_catalog_version()
+    path = catalog_path(version)
+    return _band_unit_count(version, band, path.stat().st_mtime_ns if path.exists() else 0)
+
+
+@lru_cache(maxsize=64)
+def _band_unit_count(version: str, band: str, mtime_ns: int) -> int:  # noqa: ARG001 - cache key
+    """Counted once per catalogue file. `catalog_rows` hands out a deep copy of the
+    whole catalogue, and the planner asks for these counts dozens of times a day:
+    in the 100-day harness that copy was a third of the run."""
+
+    import math as _math
+
+    from app.services.grammar_catalog import FRENCH_CORE_CATALOG_V2_VERSION, catalog_rows
+
     rows = catalog_rows(version)
     if version == FRENCH_CORE_CATALOG_V2_VERSION:
         return sum(1 for row in rows if ((row.get("source_refs") or {}).get("syllabus") or {}).get("sub_band") == band)
