@@ -51,9 +51,16 @@ jobs:
         working-directory: web-frontend
 
   backend:
-    name: Backend · ruff + pytest
+    # The suite outgrew one 2-core runner (cancelled at 30 minutes, 80 % done):
+    # four shards, dealt by scripts/ci_test_shard.py. `needs: backend` waits
+    # for all of them.
+    name: Backend · ruff + pytest (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       # The suite itself runs on an in-memory SQLite engine (tests/conftest.py);
       # these stay so that nothing that reaches for the configured URLs finds a
@@ -98,6 +105,7 @@ jobs:
           python -m spacy download fr_core_news_sm
 
       - name: Check Python with Ruff
+        if: matrix.shard == 1
         run: ruff check .
 
       - name: Run backend tests
@@ -108,9 +116,9 @@ jobs:
         # "N passed, M failed" line; pytest exits non-zero on any failure.
         run: >-
           pytest -q -n auto --dist loadfile
-          --cov=app --cov-report=term
           --durations=15
           --junitxml=pytest-report.xml
+          $(python scripts/ci_test_shard.py ${{ matrix.shard }} 4)
 
       - name: Test count
         if: always()
@@ -126,7 +134,7 @@ jobs:
           line = f"pytest: {passed} passed, {failures} failed, {errors} errors, {skipped} skipped (of {tests})"
           print(line)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
-              out.write(f"### Backend\n\n{line}\n")
+              out.write(f"### Backend shard ${{ matrix.shard }}/4\n\n{line}\n")
           PY
 
   learner-walk:
