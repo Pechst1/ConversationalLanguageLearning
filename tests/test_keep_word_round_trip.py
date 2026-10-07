@@ -166,6 +166,21 @@ def test_a_scene_word_is_keepable_by_every_learner_the_scene_glossed_it_for(
         assert kept.json()["example_fr"] == LINE
 
 
+def test_a_learner_whose_own_language_is_french_keeps_the_labelled_fallback(
+    assembled_client: TestClient, db_session: Session
+) -> None:
+    """Owner call 2026-10-07: French has no French translation; the French-speaking
+    learner keeps the meaning the sheet showed (English first), labelled as such."""
+
+    headers, user = _learner(assembled_client, db_session, "fr")
+    _day_one_scene(db_session, user)
+    looked_up = assembled_client.get(f"/api/v1/vocabulary/lookup?word={WORD}", headers=headers).json()
+    kept = _keep(assembled_client, headers)
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["gloss"] == looked_up["translation"] == "flat, apartment"
+    assert kept.json()["example_fr"] == LINE
+
+
 def test_lookup_and_keep_read_the_same_row(assembled_client: TestClient, db_session: Session) -> None:
     """Two catalogue rows for one word (a scene row with one learner's gloss, the
     core row with all of them): the sheet's meaning and the kept meaning agree."""

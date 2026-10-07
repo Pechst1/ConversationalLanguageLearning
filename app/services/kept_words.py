@@ -232,7 +232,11 @@ def keep_word(
     if word is None:
         raise KeepRefused("not_in_lexicon")
     gloss, gloss_language = resolve_gloss(word, native)
-    if not gloss or gloss_language != native:
+    # WP-138 (owner call, 2026-10-07): a learner whose own language is the one
+    # they learn has no translation by definition; they keep the labelled
+    # fallback meaning the sheet showed them (English, then German).
+    own_language_is_target = normalize_language(language) == native
+    if not gloss or (gloss_language != native and not (own_language_is_target and gloss_language)):
         # A meaning in another language than the learner's would be a
         # placeholder by another name.
         raise KeepRefused("no_gloss_in_learner_language")
