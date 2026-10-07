@@ -67,7 +67,7 @@ def test_render_and_the_compose_template_agree_on_the_production_recipe():
 
     template = _env_template()
     api = _render_env("web")
-    for key in ("ATELIER_DAILY_JOURNEY_COHORT", "REGISTRATION_ALLOWED_EMAILS", "SMTP_HOST", "SMTP_FROM_EMAIL"):
+    for key in ("ATELIER_DAILY_JOURNEY_COHORT", "REGISTRATION_ALLOWED_EMAILS", "LEGAL_CONTACT_EMAIL", "SMTP_HOST", "SMTP_FROM_EMAIL"):
         assert template.get(key), key
         assert api[key].get("sync") is False, key
     for key, item in api.items():

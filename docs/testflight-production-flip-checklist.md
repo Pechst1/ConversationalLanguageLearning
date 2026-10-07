@@ -14,6 +14,8 @@ below is the repeatable release contract for `com.pixellab.feuilleton`.
   `PASSWORD_RESET_BASE_URL` unset until a public web reset page exists; once it
   is set, also complete one reset from the emailed link.
 - Set `ATELIER_DAILY_JOURNEY_COHORT` (blank refuses to boot in production).
+- Set `LEGAL_CONTACT_EMAIL` on the API and export `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL`
+  for the archive; both refuse to proceed with the placeholder.
 - Keep `REGISTRATION_OPEN=false` and list every pilot account in
   `REGISTRATION_ALLOWED_EMAILS`; production logs a warning while sign-up is open.
 - Review the spend bounds (`USER_DAILY_SPEND_CAP_USD`,

@@ -51,6 +51,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 "to nobody. Set '*' (everyone), a comma-separated list of emails or user ids, or "
                 "'none' (nobody, on purpose)."
             )
+        # WP-138: the privacy policy and the terms must name a real contact.
+        from app.api.legal import has_real_contact
+
+        if not has_real_contact():
+            raise RuntimeError(
+                "LEGAL_CONTACT_EMAIL is empty: the privacy policy and the terms would print "
+                "a placeholder contact. Set the operator's address."
+            )
         # WP-138: the cohort is not an invite gate. An open sign-up in production
         # is allowed (a public launch wants it) but never silent.
         if settings.REGISTRATION_OPEN:

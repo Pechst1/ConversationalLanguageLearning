@@ -35,6 +35,9 @@ included.
    - `REGISTRATION_ALLOWED_EMAILS` — your own email, plus the study accounts
      later. Sign-up is closed (`REGISTRATION_OPEN=false`), so an address not
      listed here cannot create an account; the cohort is not an invite gate.
+   - `LEGAL_CONTACT_EMAIL` — the address the privacy policy and the terms
+     print (the API refuses to start without it). Export the same address as
+     `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL` before `fastlane archive`.
    - Optional: `SENTRY_DSN`, the `APNS_*` key, the `GRAPHIC_NOVEL_IMAGE_*`
      S3 storage (needed before panel art can draw).
    The worker inherits the secrets from the API service, so each is entered

@@ -191,6 +191,14 @@ class Settings(BaseSettings):
             "always sign in."
         ),
     )
+    LEGAL_CONTACT_EMAIL: str = Field(
+        "",
+        description=(
+            "WP-138: the contact address the privacy policy and the terms print. "
+            "Kept out of the public repository; overrides legal_content.json's "
+            "placeholder. Required in production."
+        ),
+    )
     REGISTRATION_ALLOWED_EMAILS: str = Field(
         "",
         description=(

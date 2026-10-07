@@ -21,7 +21,10 @@ export type LegalDocument = { title: string; lead: string; sections: LegalSectio
 export const LEGAL_LANGUAGES: LegalLanguage[] = ['en', 'de', 'fr'];
 export const LEGAL_VERSION: string = content.version;
 export const LEGAL_OPERATOR: string = content.operator;
-export const LEGAL_CONTACT: string = content.contact_email;
+// WP-138: the address is build configuration (the repository is public); the
+// JSON's placeholder only shows in a local build without it.
+export const LEGAL_CONTACT: string =
+  (process.env.NEXT_PUBLIC_LEGAL_CONTACT_EMAIL || '').trim() || content.contact_email;
 
 /** First supported base language among the candidates, else English. */
 export function resolveLegalLanguage(...candidates: unknown[]): LegalLanguage {

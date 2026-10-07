@@ -55,6 +55,11 @@ services:
         value: "false"
       - key: REGISTRATION_ALLOWED_EMAILS
         sync: false
+      # WP-138: the contact the privacy policy and the terms print. Entered in
+      # the dashboard (the repository is public); the API refuses to start in
+      # production without it.
+      - key: LEGAL_CONTACT_EMAIL
+        sync: false
       # WP-70: two workers fit the 512 MB starter plan (~184 MB each).
       - key: WEB_CONCURRENCY
         value: "2"

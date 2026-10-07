@@ -51,6 +51,7 @@ The operator supplies (Render dashboard, `sync: false`; or `.env.prod`):
 | `SMTP_HOST`, `SMTP_FROM_EMAIL`, `SMTP_USERNAME`, `SMTP_PASSWORD` | host + from | Reset emails a six-digit code. |
 | `ATELIER_DAILY_JOURNEY_COHORT` | yes | Who gets the daily journey: emails/ids, `*` or `none`. |
 | `REGISTRATION_ALLOWED_EMAILS` | for sign-up | Only these emails can create an account. |
+| `LEGAL_CONTACT_EMAIL` | yes (boot) | The contact the privacy policy and the terms print; the repository only has a placeholder. The native release build needs the same address as `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL`. |
 | `SENTRY_DSN` | no | Sentry is off without it. |
 | `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY` | for push | |
 | `GRAPHIC_NOVEL_IMAGE_STORAGE=s3` + `GRAPHIC_NOVEL_IMAGE_S3_*` | for panel art | Panel art stays off without durable storage. |

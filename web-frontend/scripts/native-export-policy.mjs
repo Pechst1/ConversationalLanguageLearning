@@ -111,6 +111,7 @@ export function nativeBuildManifest(env = process.env, prefixes = excludedRouteP
     apnsEnvironment: env.NEXT_PUBLIC_APNS_ENVIRONMENT || null,
     allowLocalApi: env.ALLOW_LOCAL_NATIVE_API === 'true',
     allowPlaceholderApi: env.ALLOW_PLACEHOLDER_NATIVE_API === 'true',
+    legalContactEmail: env.NEXT_PUBLIC_LEGAL_CONTACT_EMAIL || null,
     excludedRoutePrefixes: prefixes,
     legalVersion: legalVersion(),
   };
@@ -145,6 +146,8 @@ export function releaseProblems(settings) {
       problems.push(error instanceof Error ? error.message : String(error));
     }
   }
+  const contact = String(settings.legalContactEmail ?? '').trim();
+  if (!contact.includes('@')) problems.push('NEXT_PUBLIC_LEGAL_CONTACT_EMAIL is not set: the privacy policy would print a placeholder.');
   if (settings.nativePushEnabled !== true) problems.push('NEXT_PUBLIC_NATIVE_PUSH_ENABLED is not "true".');
   if (settings.apnsEnvironment !== 'production') {
     problems.push(`NEXT_PUBLIC_APNS_ENVIRONMENT is "${settings.apnsEnvironment ?? ''}", not "production".`);
