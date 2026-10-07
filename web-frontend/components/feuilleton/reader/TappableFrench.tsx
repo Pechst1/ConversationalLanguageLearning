@@ -31,6 +31,7 @@ export function TappableFrench({
   wordLabel = DEFAULT_WORD_LABEL,
   roving = false,
   marks = null,
+  revealChars = null,
 }: {
   text: string;
   idPrefix: string;
@@ -45,6 +46,12 @@ export function TappableFrench({
    * snap to whole words, so a word button is marked whole, never split.
    */
   marks?: MarkRange[] | null;
+  /**
+   * WP-144: the words arrive with the voice. Only the tokens whose first
+   * character is within this many characters show; the rest keep their place
+   * (the line never reflows) but are invisible. Null shows the whole line.
+   */
+  revealChars?: number | null;
 }) {
   // WP-82: « ? ! » stay on their word's line (U+202F). The narrow space is a
   // non-word run, so the tappable words — and their lookup terms — are unchanged.
@@ -56,15 +63,24 @@ export function TappableFrench({
     [idPrefix, text, marks],
   );
   if (!tokens.length) return null;
+  let offset = 0;
+  const starts = tokens.map((token) => {
+    const start = offset;
+    offset += token.text.length;
+    return start;
+  });
+  const hidden = (index: number) =>
+    revealChars !== null && revealChars !== undefined && starts[index] > revealChars ? '' : undefined;
   return (
     <>
-      {tokens.map((token) =>
+      {tokens.map((token, index) =>
         token.word && !disabled ? (
           <button
             key={token.key}
             type="button"
             className="fr-word"
             data-word=""
+            data-unrevealed={hidden(index)}
             data-mark={token.marked ? 'rule' : undefined}
             tabIndex={roving ? -1 : undefined}
             onClick={() => onWord({ surface: token.text, term: token.term })}
@@ -73,7 +89,7 @@ export function TappableFrench({
             {token.text}
           </button>
         ) : (
-          <span key={token.key} data-mark={token.marked ? 'rule' : undefined}>
+          <span key={token.key} data-mark={token.marked ? 'rule' : undefined} data-unrevealed={hidden(index)}>
             {token.text}
           </span>
         ),
@@ -96,6 +112,7 @@ export function FrenchLine({
   marks = null,
   marksLabel = '',
   marksLang,
+  revealChars = null,
 }: {
   text: string;
   idPrefix: string;
@@ -111,6 +128,8 @@ export function FrenchLine({
   marksLabel?: string;
   /** The label's language (the reader's chrome); the line itself is French. */
   marksLang?: string;
+  /** WP-144: see `TappableFrench`. */
+  revealChars?: number | null;
 }) {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLParagraphElement>) => {
@@ -151,6 +170,7 @@ export function FrenchLine({
         wordLabel={wordLabel}
         roving
         marks={marks}
+        revealChars={revealChars}
       />
       {marked && (
         <span className="fr-sr" id={describedBy} lang={marksLang}>
