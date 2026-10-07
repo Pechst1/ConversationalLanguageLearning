@@ -140,13 +140,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
 
   // Keep the newest row in view.
   const rows = session.thread.length + (pendingMine ? 1 : 0) + (busy ? 1 : 0);
-  const mounted = useRef(false);
   useEffect(() => {
-    // Not on arrival: the stage and Romy's purpose are read from the top.
-    if (!mounted.current) {
-      mounted.current = true;
-      if (!hasSpoken) return;
-    }
+    // Not on arrival: the stage and Romy's purpose are read from the top until the
+    // learner has said something (WP-143 C-8: a first-mount flag was not enough —
+    // a second effect pass, as React's Strict Mode runs, scrolled Romy's face away).
+    if (!hasSpoken && !pendingMine && !closing && make.step === 'none') return;
     const node = endRef.current;
     if (!node || typeof node.scrollIntoView !== 'function') return;
     const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

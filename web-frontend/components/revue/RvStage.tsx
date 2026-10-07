@@ -12,6 +12,9 @@
  * plate changes (the guest's entrance, or `make`) the new plate fades in over
  * the old one in 320 ms, like the reader's art (at once under Reduce Motion);
  * the cast and the frame never move.
+ *
+ * WP-143 · the cast is graded and lit from the plate (PanelStage `plateUrl`), and laid
+ * out for this size's aspect so that no face leaves the frame.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -23,6 +26,9 @@ import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvStage as RvStageWire, RvThreadItem } from '@/lib/revue-types';
 
 const PLATE_FADE_MS = 320;
+
+/** WP-143 · each size's width ÷ height (styles/revue.css), so the stage frames its heads before it is measured. */
+export const RV_STAGE_ASPECT: Record<RvStageProps['size'], number> = { full: 4 / 3, band: 390 / 168, une: 16 / 9 };
 
 export type RvStageProps = {
   plateUrl: string | null;
@@ -65,7 +71,16 @@ export function RvStage({ plateUrl, size, cast, you = null, entering = null, pen
         <span className="rv-stage__fallback" aria-hidden="true" />
       )}
       <span className="rv-stage__ink" aria-hidden="true" />
-      <PanelStage members={members} you={you ? { crop: 'half' } : false} surface="revue" entering={entering} still={still} />
+      {/* WP-143: the cast stands in this plate's light (read once, cached); a pending plate is not read. */}
+      <PanelStage
+        members={members}
+        you={you ? { crop: 'half' } : false}
+        surface="revue"
+        entering={entering}
+        still={still}
+        aspect={RV_STAGE_ASPECT[size]}
+        plateUrl={pending ? null : src}
+      />
       {pending && <span className="rv-stage__folio">{pending.folio}</span>}
       {children}
     </div>
