@@ -334,7 +334,10 @@ export class LearnerWalk {
       } else sameFor += 1;
       if (kind === 'recap' || kind === 'home-done') break;
       const acted = await this.act(s, kind, state);
-      if (!acted && sameFor > 40 && !entry) {
+      // 10 s without change is stuck — unless the screen honestly says it is
+      // waiting on the server (a cold scene is budgeted at ~20 s, WP-76; several
+      // learners generating at once on one walk server take longer): 45 s then.
+      if (!acted && sameFor > (s.pending ? 180 : 40) && !entry) {
         this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
         await this.shoot('stuck');
         break;
