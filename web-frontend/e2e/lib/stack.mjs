@@ -139,6 +139,10 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       env: {
         ...process.env,
         DATABASE_URL: dbUrl,
+        // This checkout's `app` first: the venv's editable install points at
+        // whichever checkout installed it, so a worktree walk served the
+        // main checkout's backend.
+        PYTHONPATH: [REPO_ROOT, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
         ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
         BACKEND_CORS_ORIGINS: JSON.stringify([web, `http://127.0.0.1:${webPort}`]),
       },

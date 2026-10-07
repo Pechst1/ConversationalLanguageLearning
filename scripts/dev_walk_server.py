@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# This checkout's ``app``, never the venv's editable install (another checkout).
+sys.path.insert(1, str(Path(__file__).resolve().parent.parent))
 os.environ["ATELIER_TEST_CLOCK_ENABLED"] = "true"
 os.environ["APP_ENV"] = "development"
 os.environ.setdefault("ATELIER_DAILY_JOURNEY_COHORT", "*")

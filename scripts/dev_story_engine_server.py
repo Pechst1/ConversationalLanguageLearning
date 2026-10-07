@@ -29,7 +29,13 @@ import json
 import os
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
+
+# The checkout this file lives in, ahead of the venv's editable install: the
+# editable finder maps ``app`` to whichever checkout installed it, so a server
+# started from a worktree would otherwise serve another checkout's code.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 FAKE_CREDENTIAL = "dev-fake-key-not-a-real-credential"
 
