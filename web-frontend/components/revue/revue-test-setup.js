@@ -4,6 +4,12 @@ const path = require('node:path');
 const Module = require('node:module');
 
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
+// The revue tests describe the same-origin web build: media paths stay relative.
+// `lib/media-url` reads the API base once, at import, so a shell (or CI step)
+// that exports NEXT_PUBLIC_API_BASE_URL would turn `/media/…` into an absolute
+// URL and the markup assertions would depend on where the suite runs.
+delete process.env.NEXT_PUBLIC_API_BASE_URL;
+delete process.env.NEXT_PUBLIC_API_URL;
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/tsx'));
 

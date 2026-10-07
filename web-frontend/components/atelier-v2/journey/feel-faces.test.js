@@ -234,8 +234,15 @@ function find(node, predicate) {
   return find(node.props.children, predicate);
 }
 const byType = (type) => (element) => element.type === type;
-const settle = async () => {
-  for (let turn = 0; turn < 20; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+// The device grades with WebCrypto, whose digests finish on Node's thread pool:
+// a fixed number of event-loop turns is not "done" on a busy runner (CI ran the
+// test files in parallel and the right card's digest had not come back yet).
+// Wait for the state itself, with a ceiling far above any real budget.
+const settleUntil = async (ready, ceilingMs = 2000) => {
+  const started = performance.now();
+  while (!ready() && performance.now() - started < ceilingMs) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
 };
 
 function baseProps(step, extra = {}) {
@@ -261,14 +268,16 @@ test('a choice pick turns red on the device, the right card green, and the serve
 
   find(view.tree, byType(ui.ChoiceList)).props.onSelect('opt-a');
   const check = find(view.tree, (el) => el.type === ui.Action && el.props.children === EN.check);
-  const tapped = performance.now();
-  check.props.onClick();
-  await settle();
-  const coloured = performance.now() - tapped;
-
-  assert.deepEqual(sent, [{ mode: 'choice', option_id: 'opt-a' }], 'the attempt is still posted, once');
   const states = () =>
     Object.fromEntries(find(view.tree, byType(ui.ChoiceList)).props.options.map((o) => [o.id, o.state]));
+  const tapped = performance.now();
+  check.props.onClick();
+  await settleUntil(() => states()['opt-a'] === 'wrong');
+  const coloured = performance.now() - tapped;
+  // The right card follows from one more digest per option before it.
+  await settleUntil(() => states()['opt-b'] === 'correct');
+
+  assert.deepEqual(sent, [{ mode: 'choice', option_id: 'opt-a' }], 'the attempt is still posted, once');
   assert.deepEqual(states(), { 'opt-a': 'wrong', 'opt-b': 'correct', 'opt-c': undefined });
   assert.ok(coloured < 100, `coloured after ${coloured.toFixed(1)} ms`);
   assert.equal(find(view.tree, byType(ui.ChoiceList)).props.disabled, true, 'a graded pick is committed');
@@ -305,7 +314,7 @@ test('a word bank sentence is coloured on the device', async () => {
   tiles().props.onPlace('t1');
   tiles().props.onPlace('t2');
   find(view.tree, (el) => el.type === ui.Action && el.props.children === EN.check).props.onClick();
-  await settle();
+  await settleUntil(() => tiles().props.verdict != null);
   assert.equal(tiles().props.verdict, 'correct');
   assert.equal(tiles().props.disabled, true);
   const html = renderToStaticMarkup(React.createElement(ui.WordTiles, tiles().props));
