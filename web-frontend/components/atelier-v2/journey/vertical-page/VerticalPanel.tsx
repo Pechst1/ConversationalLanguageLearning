@@ -195,10 +195,14 @@ export function VerticalPanel({
     for (const entry of entries) {
       const el = measure.querySelector<HTMLElement>(`[data-measure="${CSS.escape(entry.key)}"]`);
       if (!el) continue;
+      // offsetWidth rounds to the nearest pixel: a balloon placed a fraction too
+      // narrow wraps its last word (or its « ! ») alone. Measure exactly, ceil, and
+      // keep a pixel of slack for the italic's overhang.
+      const rect = el.getBoundingClientRect();
       items.push({
         key: entry.key,
         kind: entry.kind as LayoutKind,
-        size: { w: Math.ceil(el.offsetWidth), h: Math.ceil(el.offsetHeight) },
+        size: { w: Math.ceil(rect.width) + 1, h: Math.ceil(rect.height) },
         anchor: entry.kind === 'speech' ? headIndexFor(nextHeads, entry.line) : -1,
       });
     }

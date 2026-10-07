@@ -186,6 +186,23 @@ test('three speakers read top to bottom in the order they speak', () => {
   assert.deepEqual([...tops].sort((a, b) => a - b), tops, 'each line no higher than the one before');
 });
 
+test('a later line beside an earlier one starts clearly lower, so it is read after it', () => {
+  // The gallery's third panel: Marin, Margaux, then «Vous» with no face on stage.
+  const panel = { w: 390, h: 650 };
+  const heads = stageHeadBoxes(CAST3.slice(0, 2), castBox(panel, 2));
+  const items = [
+    { key: 'cap', kind: 'caption', size: { w: 200, h: 40 }, anchor: -1 },
+    { key: 'l0', kind: 'speech', size: { w: 160, h: 62 }, anchor: 0 },
+    { key: 'l1', kind: 'speech', size: { w: 120, h: 62 }, anchor: 1 },
+    { key: 'l2', kind: 'speech', size: { w: 110, h: 62 }, anchor: -1 },
+  ];
+  const result = layoutPanel(panel, heads, items);
+  const spoken = result.placed.filter((entry) => entry.kind === 'speech');
+  for (let i = 1; i < spoken.length; i += 1) {
+    assert.ok(spoken[i].y - spoken[i - 1].y >= 24, `${spoken[i].key} starts clearly below ${spoken[i - 1].key}`);
+  }
+});
+
 test('the learner’s own line is the bottom-edge balloon, the point of view', () => {
   const panel = { w: 375, h: 620 };
   const result = layoutPanel(panel, [], [{ key: 'you', kind: 'you', size: { w: 220, h: 64 }, anchor: -1 }]);
