@@ -78,8 +78,13 @@ export class LearnerWalk {
     const w = this.where({ kind });
     this.findings.check('no-horizontal-scroll', s.scrollW <= s.innerW + 1, `scrollWidth ${s.scrollW} > ${s.innerW}`, w);
     if (this.level.startsWith('B') || this.level.startsWith('C')) {
-      const eng = englishWords(s.nonFrText);
-      this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${s.nonFrText.slice(0, 120)}»`, w);
+      // Réglages is not a French screen: the owner carved it out on 2026-09-17 and it
+      // follows the learner's native language (lib/settings-copy.ts). Every other
+      // screen keeps the check.
+      if (kind !== 'settings') {
+        const eng = englishWords(s.nonFrText);
+        this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${s.nonFrText.slice(0, 120)}»`, w);
+      }
       const englishLabels = /present condition|future result|imperative result|background\/habit|bounded event|article changes/i;
       this.findings.check('b1-classification-labels-are-french', !englishLabels.test(s.text), 'Classification labels and corrections must be French, including inside lang="fr".', w);
     }
