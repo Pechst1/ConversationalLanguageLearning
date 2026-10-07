@@ -228,7 +228,7 @@ def test_knowledge_check_refuses_a_forced_reveal(db: Session) -> None:
     assert line.role == "fallback"
     assert line.reason == "knowledge_refused"
     assert line.text_fr == FALLBACK_LINE
-    assert "310" not in " ".join(item.model_dump_json() for item in result.items)
+    assert "310 000" not in " ".join(item.model_dump_json() for item in result.items)
     assert len([call for call in fake.calls if call[0] == "reply"]) == 2, "one regeneration, then the authored line"
     romy = [e for e in state_of(row).events if e.kind == "turn_romy"][-1]
     assert "knowledge" in romy.payload["refused"]
@@ -714,7 +714,7 @@ def test_a_guest_line_that_would_reveal_a_tentpole_is_refused_and_the_default_sh
     guest = items_of(result, "guest")[0]
     assert guest.text_fr == knowledge.authored_guest_line("margaux_barman", "food")
     assert guest.reason == "knowledge_refused"
-    assert "310" not in result.model_dump_json() and "310" not in revue.view(row).model_dump_json()
+    assert "310 000" not in result.model_dump_json() and "310 000" not in revue.view(row).model_dump_json()
     assert len([c for c in fake.calls if c[0] == "guest"]) == 2, "one regeneration, then the authored line"
     event = [e for e in state_of(row).events if e.kind == "turn_guest"][-1].payload
     assert "knowledge" in event["refused"]

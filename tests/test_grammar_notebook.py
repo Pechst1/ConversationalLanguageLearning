@@ -377,6 +377,9 @@ def test_notebook_notes_hide_review_provenance_and_survive_a_seance(client: Test
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     user = _user_from_token(db_session, token)
+    # The catalogue this test reads is its own: it used to be whatever an earlier
+    # test in the same process had left behind (E-2), and alone it found none.
+    FrenchCoreGrammarCatalog(db_session).ensure_catalog(archive_legacy=True)
 
     concept = (
         db_session.query(GrammarConcept)

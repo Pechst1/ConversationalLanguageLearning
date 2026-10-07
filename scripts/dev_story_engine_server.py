@@ -32,10 +32,12 @@ import threading
 from pathlib import Path
 from types import SimpleNamespace
 
-# The checkout this file lives in, ahead of the venv's editable install: the
-# editable finder maps ``app`` to whichever checkout installed it, so a server
-# started from a worktree would otherwise serve another checkout's code.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Serve the checkout this script lives in. Run as `python scripts/…`, Python puts
+# scripts/ (not the repository) first on the path, so `import app` found an
+# installed copy instead — in CI a non-editable wheel without the package data
+# (the season world, the alembic directory): every scene was refused as "not in
+# this world" and the schema guard saw no migration heads.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 FAKE_CREDENTIAL = "dev-fake-key-not-a-real-credential"
 
@@ -60,10 +62,6 @@ def _guard_environment() -> None:
     os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
     os.environ.setdefault("ATELIER_DAILY_JOURNEY_ENABLED", "true")
     os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "true")
-    # Production (render.yaml) runs the serial world; its default is dark. Without
-    # it a learner's world has no cast and every scene draft is refused (CI has
-    # no developer .env to turn it on).
-    os.environ.setdefault("SERIAL_WORLD_ENABLED", "true")
     # The fake client below bypasses the provider flag on purpose; keep the real
     # provider path (and every other LLM feature) switched off.
     os.environ.setdefault("ATELIER_LLM_ENABLED", "false")

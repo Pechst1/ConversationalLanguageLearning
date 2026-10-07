@@ -33,6 +33,9 @@ output is visible to the next one.
 from __future__ import annotations
 
 import json
+import os
+import random
+import threading
 import uuid
 from collections import Counter
 from collections.abc import Iterator, Sequence
@@ -666,6 +669,21 @@ def _run_courrier_day(
     return notes
 
 
+class _SeededUrandom:
+    """`os` as the `uuid` module sees it, with `urandom` drawn from a seeded stream."""
+
+    def __init__(self, rng: random.Random) -> None:
+        self._rng = rng
+        self._lock = threading.Lock()
+
+    def urandom(self, size: int) -> bytes:
+        with self._lock:
+            return self._rng.randbytes(size)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(os, name)
+
+
 @contextmanager
 def horizon_run(
     db_engine, *, days: int = HORIZON_DAYS, labels: Sequence[str] = ("A", "B")
@@ -678,6 +696,16 @@ def horizon_run(
     """
 
     monkeypatch = pytest.MonkeyPatch()
+    # E-2: the dice of a life are seeded on its ids — the learner, the thread, each
+    # letter. With ids from os.urandom every run lived two different lives, and
+    # now and then (seen 1 run in 7) life A was never dealt a letter it could let
+    # go cold. The ids come from a seeded stream instead, reseeded per life (the
+    # background lanes of one life draw a varying number of ids, which must not
+    # move the next life's): the same two lives on every run, still two different
+    # lives. Only `uuid` reads it; every other use of os.urandom (password
+    # hashes, tokens) is untouched.
+    ids = random.Random()  # noqa: S311 - test ids, not secrets
+    monkeypatch.setattr(uuid, "os", _SeededUrandom(ids))
     session = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)()
     clock = support.Clock(START)
     _FrozenDateTime.clock = clock
@@ -739,6 +767,7 @@ def horizon_run(
             lives = []
             for label in labels:
                 clock.moment = START
+                ids.seed(f"long-horizon-evidence:{label}")
                 lives.append(
                     _play_life(
                         label=label,

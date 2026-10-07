@@ -1060,6 +1060,12 @@ class IntakeService:
             progress.provenance_ref = str(artefact.id)
             self.db.add(progress)
             queued.append(int(word.id))
+            # A word new to the catalogue was glossed before it had a row, so its
+            # gloss carried no id and the Courrier task never printed it on its
+            # ribbon (`missions.artefact_mission_payload` keeps only glossed words
+            # with an id). The row exists now; the gloss names it.
+            if item.get("word_id") is None:
+                item["word_id"] = int(word.id)
         return queued
 
     def _get_or_create_word(

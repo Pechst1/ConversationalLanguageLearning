@@ -338,6 +338,16 @@ class CuratedResolver:
         return tuple(out)
 
 
+@lru_cache(maxsize=65536)
+def _spacy_lemmas(nlp: Any, key: str) -> tuple[str, ...]:
+    """One word's spaCy lemmas, once per pipeline. A word's lemma does not change
+    between calls, and running the whole pipeline on a single word for every
+    token of every scene was a quarter of a long-horizon run. A pipeline that
+    raises is not cached: the caller's fallback stands, as before."""
+
+    return tuple(fold(getattr(token, "lemma_", "")) for token in nlp(key))
+
+
 @dataclass(frozen=True)
 class SpacyResolver:
     """The POS pipeline already loaded elsewhere in the app, used for lemmas.
@@ -356,9 +366,7 @@ class SpacyResolver:
         # scene: the curated candidates below are a complete answer on their
         # own, so spaCy failing is a quality loss, not an outage.
         with suppress(Exception):
-            doc = self.nlp(key)
-            for token in doc:
-                lemma = fold(getattr(token, "lemma_", ""))
+            for lemma in _spacy_lemmas(self.nlp, key):
                 if lemma and lemma not in out:
                     out.append(lemma)
         for candidate in self._curated.candidates(key):
