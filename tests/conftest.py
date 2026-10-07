@@ -1,7 +1,10 @@
 """Pytest fixtures for API tests."""
 
 import asyncio
+import itertools
 import os
+import sqlite3
+import threading
 from collections.abc import AsyncGenerator, Generator
 from typing import TYPE_CHECKING
 
@@ -44,7 +47,7 @@ try:  # pragma: no cover - optional dependency
 except ImportError:  # pragma: no cover
     pytest_asyncio = None  # type: ignore[assignment]
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
@@ -130,13 +133,95 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:  # pragma:
     loop.close()
 
 
+class SavepointLedger:
+    """Every transaction on the suite's one SQLite connection is a SAVEPOINT.
+
+    E-2. The suite shares one in-memory database per process (one per xdist
+    worker), and it used to keep every row any test committed: results depended on
+    which files had run before on the same worker. Now the data of a test, and of a
+    module-scoped fixture, is rolled back when it ends; the schema stays.
+
+    How: the engine's own COMMIT and ROLLBACK are switched off, and each
+    transaction SQLAlchemy begins — any session, any thread, any code path that
+    commits — becomes a SAVEPOINT on a stack. A commit RELEASEs it into the level
+    below; a rollback rolls back to it. Below every test sits a ``test`` level and
+    below every module a ``module`` level, both rolled back at teardown. Nothing in
+    the application changes: a session still commits, ``after_commit`` hooks
+    (``panel_art``, ``coulisses``, the story lanes) still fire, and what one
+    session committed is visible to the next, as on a real database.
+    """
+
+    def __init__(self, raw: sqlite3.Connection) -> None:
+        self.raw = raw
+        self.stack: list[str] = []
+        self.owners: dict[int, str] = {}
+        self.lock = threading.RLock()
+        self.counter = itertools.count()
+
+    def open(self, kind: str) -> str:
+        with self.lock:
+            name = f"e2_{kind}_{next(self.counter)}"
+            self.raw.execute(f"SAVEPOINT {name}")
+            self.stack.append(name)
+            return name
+
+    def _end(self, name: str, *, keep: bool) -> bool:
+        with self.lock:
+            if name not in self.stack:
+                return False
+            if not keep:
+                self.raw.execute(f"ROLLBACK TO SAVEPOINT {name}")
+            self.raw.execute(f"RELEASE SAVEPOINT {name}")
+            del self.stack[self.stack.index(name):]
+            return True
+
+    def release(self, name: str) -> bool:
+        return self._end(name, keep=True)
+
+    def rollback(self, name: str) -> bool:
+        return self._end(name, keep=False)
+
+    def rollback_level(self, name: str) -> None:
+        """End a test or module level; it must still be there."""
+
+        if not self.rollback(name):
+            raise AssertionError(
+                f"E-2 isolation: the savepoint {name} was released under the test "
+                f"(open levels: {self.stack}). Something ended a transaction that "
+                "began before this level — a session left open across tests?"
+            )
+
+    def watch(self, engine) -> None:
+        @event.listens_for(engine, "begin")
+        def _begin(conn) -> None:
+            self.owners[id(conn)] = self.open("tx")
+
+        @event.listens_for(engine, "commit")
+        def _commit(conn) -> None:
+            name = self.owners.pop(id(conn), None)
+            if name:
+                self.release(name)
+
+        @event.listens_for(engine, "rollback")
+        def _rollback(conn) -> None:
+            name = self.owners.pop(id(conn), None)
+            if name:
+                self.rollback(name)
+
+        # The savepoints above are the transactions; the DB-API connection's own
+        # commit/rollback (and the pool's reset-on-return) must not end them.
+        engine.dialect.do_commit = lambda dbapi_connection: None
+        engine.dialect.do_rollback = lambda dbapi_connection: None
+
+
 @pytest.fixture(scope="session")
 def db_engine():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    # isolation_level=None: the sqlite3 module issues no implicit BEGIN; every
+    # transaction is a savepoint the ledger opened.
+    raw = sqlite3.connect(":memory:", check_same_thread=False, isolation_level=None)
+    engine = create_engine("sqlite://", creator=lambda: raw, poolclass=StaticPool)
+    engine.savepoints = SavepointLedger(raw)
+    engine.savepoints.watch(engine)
     Base.metadata.create_all(
         bind=engine,
         tables=[
@@ -261,6 +346,28 @@ def db_engine():
                 PasswordResetDelivery.__table__,
             ],
         )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def module_data_rolls_back(db_engine) -> Generator[None, None, None]:
+    """What a module-scoped fixture committed (the 126-day harness) leaves with it."""
+
+    level = db_engine.savepoints.open("module")
+    try:
+        yield
+    finally:
+        db_engine.savepoints.rollback_level(level)
+
+
+@pytest.fixture(autouse=True)
+def test_data_rolls_back(module_data_rolls_back, db_engine) -> Generator[None, None, None]:
+    """What a test committed is gone before the next test starts."""
+
+    level = db_engine.savepoints.open("test")
+    try:
+        yield
+    finally:
+        db_engine.savepoints.rollback_level(level)
 
 
 @pytest.fixture()
