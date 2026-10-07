@@ -60,6 +60,10 @@ def _guard_environment() -> None:
     os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
     os.environ.setdefault("ATELIER_DAILY_JOURNEY_ENABLED", "true")
     os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "true")
+    # Production (render.yaml) runs the serial world; its default is dark. Without
+    # it a learner's world has no cast and every scene draft is refused (CI has
+    # no developer .env to turn it on).
+    os.environ.setdefault("SERIAL_WORLD_ENABLED", "true")
     # The fake client below bypasses the provider flag on purpose; keep the real
     # provider path (and every other LLM feature) switched off.
     os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
