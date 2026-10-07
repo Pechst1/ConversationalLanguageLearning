@@ -246,8 +246,10 @@ jobs:
           WP69_PG_URL: ${{ env.DATABASE_URL }}
           WP18_HEALTH_DATABASE_URL: ${{ env.DATABASE_URL }}
           PRODUCTION_READINESS_PG_URL: ${{ env.DATABASE_URL }}
+          WP138_PG_URL: ${{ env.DATABASE_URL }}
         run: >-
           pytest -q -p no:cacheprovider
+          tests/test_wp138_catalog_seeding_race.py::test_eight_concurrent_first_requests_seed_one_catalogue_on_real_postgres
           tests/test_wp69_never_lose_a_day.py::test_best_effort_on_real_postgres
           tests/test_rollout_scripts.py::test_every_query_executes_against_a_real_database
           tests/test_production_auth_pg.py

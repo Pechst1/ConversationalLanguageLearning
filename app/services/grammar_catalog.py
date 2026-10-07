@@ -331,11 +331,14 @@ class FrenchCoreGrammarCatalog:
         once more, now updating the rows the winner inserted.
         """
 
-        try:
-            return self._ensure_catalog(archive_legacy)
-        except IntegrityError:
-            self.db.rollback()
-            return self._ensure_catalog(archive_legacy)
+        for attempt in range(3):
+            try:
+                return self._ensure_catalog(archive_legacy)
+            except IntegrityError:
+                self.db.rollback()
+                if attempt == 2:
+                    raise
+        return []  # pragma: no cover - the loop returns or raises
 
     def _ensure_catalog(self, archive_legacy: bool) -> list[GrammarConcept]:
         rows = self.rows()

@@ -142,10 +142,13 @@ class AtelierAssetService:
             payload=payload,
             generation_metadata=metadata,
         )
-        self.db.add(pack)
-        self.db.commit()
-        self.db.refresh(pack)
-        return pack
+        winner = self._insert_or_existing(
+            pack,
+            lambda: self.db.query(AtelierLanguagePack)
+            .filter(AtelierLanguagePack.language_code == code, AtelierLanguagePack.version == ATELIER_LANGUAGE_PACK_VERSION)
+            .first(),
+        )
+        return winner
 
     def ensure_assets_for_catalog(self, language_code: str = "fr") -> None:
         """Safe against a concurrent first seeding, like the catalogue itself:
@@ -224,10 +227,34 @@ class AtelierAssetService:
             generation_metadata=metadata,
             source_hash=source_hash,
         )
-        self.db.add(blueprint)
+        return self._insert_or_existing(
+            blueprint,
+            lambda: self.db.query(AtelierConceptBlueprint)
+            .filter(
+                AtelierConceptBlueprint.concept_id == concept.id,
+                AtelierConceptBlueprint.language == language,
+                AtelierConceptBlueprint.asset_version == ATELIER_BLUEPRINT_VERSION,
+            )
+            .first(),
+        )
+
+    def _insert_or_existing(self, row, find):
+        """Insert ``row``, or — when a concurrent request inserted the same one
+        first (WP-138: five learners opening «Aujourd'hui» on a fresh database) —
+        return theirs. The savepoint keeps the rest of the transaction intact."""
+
+        try:
+            with self.db.begin_nested():
+                self.db.add(row)
+                self.db.flush()
+        except IntegrityError:
+            existing = find()
+            if existing is None:
+                raise
+            return existing
         self.db.commit()
-        self.db.refresh(blueprint)
-        return blueprint
+        self.db.refresh(row)
+        return row
 
     def approved_blueprint_payload(self, concept: GrammarConcept) -> dict[str, Any]:
         blueprint = (
