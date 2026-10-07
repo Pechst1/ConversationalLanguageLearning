@@ -477,6 +477,14 @@ def test_a_scene_line_is_spoken_once_and_replayed_for_free(
         db_session.get(DailyJourneyStep, uuid.UUID(scene["id"])).private_task["scenario_brief"]
     )
 
+    # The suite shares one database and clips are shared between learners: an
+    # earlier test's learner may already hold this line, which would (rightly)
+    # be served as cached. This test is about the first synthesis.
+    db_session.query(LineAudioClip).filter(
+        LineAudioClip.clip_id == clip_id_for(voice_for_character(brief["character_id"]), line)
+    ).delete(synchronize_session=False)
+    db_session.commit()
+
     first = _post_line(assembled_client, headers, driver, scene, line, brief["character_id"])
     assert first.status_code == 200, first.text
     body = first.json()
