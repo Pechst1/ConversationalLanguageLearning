@@ -47,3 +47,21 @@ Both lost days carry four `story_provider_failed` refusals. That is the harness'
 5. **The harness learner is canned.** It answers «C'est gentil. Je suis un peu perdu ici.» on many turns. The prose judgments here are about what the model writes around a weak learner, not about a real conversation.
 
 Raw output: `run*/` (`*.json`, `*.md`, `*.spend.json`, `pytest.log`).
+
+## Top-up and continuation (same day, US$0.115; WP-136 total US$0.78)
+
+The epilogue is now six authored days (60–65, Content program D8), so the first generated day after it is **day 66**, not 62. All three runs were dry-run first (`topup/dry-*`).
+
+| Run | Day | Served | Notes |
+|---|---|---|---|
+| A1.1 | 10 (g2.1) | yes, «Le carnet et l'omelette» | `gendered_agreement` refused twice («sûr» for a learner who never gave a gender), then **the refused draft was served** |
+| B1.1 | 32 (g4.6) | yes, «Le matin d'après» | critic and `mixed_address_register` refused twice, then served anyway |
+| B2.1 | 65 → **66** | yes, «La fenêtre allumée» | `departed_cast_on_page` **caught Lila** in the first draft; the retry kept her off the page. The guard works live. |
+
+**WP-136 totals:**
+- **0 of 19 generated days lost on merit**, including 6 of 6 first days of a gap.
+- The Lila guard is confirmed live.
+
+**What remains is not loss, it's the path that serves refused drafts.** When both attempts fail a soft check, the day is served with the refused draft so it is not lost. In this read that put a gendered agreement in front of an A1 learner, plus 8 critic-refused pages and 9 released replies the checker flagged afterwards. That trade-off is the next story-engine package.
+
+Day 66 also invents a continuity detail, «la nuit du 14 mars», that no canon supports. Romy's replies echo the canned learner lines.
