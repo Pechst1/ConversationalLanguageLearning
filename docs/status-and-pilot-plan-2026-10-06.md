@@ -16,10 +16,15 @@
 > | Week-one 4 held grammar | Fixed. "Held" needs an unaided spaced item at least 20 h after the previous contact with the rule. |
 > | Week-one 5 grammar review on milestone days | Already done (WP-129 tentpole review in context). |
 > | Week-one 6 Lila reaction | Already authored (WP-132A); a regression test was added. The epilogue is still open. |
-> | Next.js | 15.5.27; the 23 direct Next advisories are gone. Remaining audit items: next-auth, `@capacitor/ios` < 8.4.3, and smaller transitive packages. |
+> | Next.js and dependencies | Next 15.5.27, next-auth 4.24.15, Capacitor 8.4.3, transitive patches via `npm audit fix`. Production audit 11 → 2: postcss bundled inside Next, fixed only in Next 16, build-time only. |
 > | Artwork on account deletion | Fixed: best-effort S3 and local purge of the user's scene artwork. |
 > | Walk French-only failures | Forge rule card now follows the Forge's language (product fix); Settings follows the native language by WP-46 (walk assertion fixed). |
-> | Legal contact e-mail | Still open; the owner must supply it. |
+> | Legal contact e-mail | Now deployment configuration, because the repository is public: `LEGAL_CONTACT_EMAIL` (API) and `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL` (native release build). Production start-up, the release check and the fastlane archive refuse the placeholder. |
+> | French-speaking learner keeps a word | Decided 7 October: French has no French translation, so the learner keeps the labelled fallback meaning the sheet showed (English, then German). |
+> | Failed day for a learner on a generated serial | Decided 7 October: an honest "unavailable, retry" is enough for the owner pilot (the owner is a season learner, who already gets the re-read and bridge). A replay of the last generated page is deferred until a serial learner joins. |
+> | Overall spend bound | `SERVICE_DAILY_SPEND_CAP_USD` (Render: 5.00/UTC day, API and worker) covers every learner and panel art. The OpenAI project budget remains the monthly backstop. |
+> | Journey cohort | Unchanged in `render.yaml` (`sync: false`). Setting it to `*`, now that the sign-up allowlist is the gate, is left to the owner. |
+> | Drill reload stability | Found 7 October: with the core list present, a reload deals new story words, not the rest of the batch. Follow-up task (needs the batch stored). |
 >
 > Checks on `fix/1007-integration`: frontend 924/924, `tsc` and lint pass (one existing notebook hook warning), Ruff passes. Backend full parallel run: 6,754 passed. Five to eight tests fail per run, and which ones changes from run to run. Every affected file passes on its own, and the release candidate shows the same kind of cross-file test pollution (E-2). The 12-minute browser walk was not rerun.
 
