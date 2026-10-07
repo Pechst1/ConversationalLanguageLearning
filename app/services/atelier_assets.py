@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.atelier import AtelierConceptBlueprint, AtelierLanguagePack
@@ -147,6 +148,17 @@ class AtelierAssetService:
         return pack
 
     def ensure_assets_for_catalog(self, language_code: str = "fr") -> None:
+        """Safe against a concurrent first seeding, like the catalogue itself:
+        the loser rolls back (each blueprint commits anyway) and runs once more
+        over the winner's rows."""
+
+        try:
+            self._ensure_assets_for_catalog(language_code)
+        except IntegrityError:
+            self.db.rollback()
+            self._ensure_assets_for_catalog(language_code)
+
+    def _ensure_assets_for_catalog(self, language_code: str) -> None:
         code = (language_code or "fr").lower()
         self.ensure_language_pack(code)
         concepts = (

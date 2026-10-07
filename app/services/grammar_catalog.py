@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.error import UserError
@@ -322,6 +323,21 @@ class FrenchCoreGrammarCatalog:
         return catalog_rows(self.version)
 
     def ensure_catalog(self, archive_legacy: bool = True) -> list[GrammarConcept]:
+        """Seed/refresh the catalogue; safe against a concurrent first seeding.
+
+        Every "today" request runs this upsert, so on a fresh database the first
+        requests race to insert the same ``external_id`` rows. The loser rolls
+        back (the seeding commits anyway, so it owns the transaction) and runs
+        once more, now updating the rows the winner inserted.
+        """
+
+        try:
+            return self._ensure_catalog(archive_legacy)
+        except IntegrityError:
+            self.db.rollback()
+            return self._ensure_catalog(archive_legacy)
+
+    def _ensure_catalog(self, archive_legacy: bool) -> list[GrammarConcept]:
         rows = self.rows()
         concepts: list[GrammarConcept] = []
         active_external_ids = {row["external_id"] for row in rows}
