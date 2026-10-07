@@ -63,11 +63,7 @@ export type LayoutOptions = {
 
 const TAIL_MIN = 12;
 const TAIL_IDEAL = 26;
-/**
- * Two balloons side by side read left first. A line said earlier must start at
- * least this much higher than a line said after it, or a later line on the
- * left would be read before it.
- */
+/** A line said earlier starts at least this much higher than a line said after it. */
 const READ_STEP = 24;
 
 export function intersects(a: Box, b: Box, pad = 0): boolean {
@@ -192,8 +188,12 @@ function settle(placed: Placed[], ctx: Ctx): Placed[] {
       const below = out[j];
       const overlapsX = below.x < entry.x + entry.w + ctx.gap && entry.x < below.x + below.w + ctx.gap;
       if (overlapsX) limit = Math.min(limit, below.y - ctx.gap - entry.h);
-      // Reading order: clearly higher than any line said after it.
-      if (below.kind === 'speech') limit = Math.min(limit, below.y - READ_STEP);
+      // Reading order: clearly higher than any line said after it, and wholly
+      // above one that sits to its left (that one would be read first otherwise).
+      if (below.kind === 'speech') {
+        const leftOf = below.x + below.w / 2 < entry.x + entry.w / 2;
+        limit = Math.min(limit, leftOf ? below.y - ctx.gap - entry.h : below.y - READ_STEP);
+      }
     }
     const others = out.filter((_, index) => index !== i);
     let y = Math.max(entry.y, limit);
