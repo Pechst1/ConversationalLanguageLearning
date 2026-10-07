@@ -54,7 +54,7 @@ The epilogue is now six authored days (60–65, Content program D8), so the firs
 
 | Run | Day | Served | Notes |
 |---|---|---|---|
-| A1.1 | 10 (g2.1) | yes, «Le carnet et l'omelette» | `gendered_agreement` refused twice («sûr» for a learner who never gave a gender), then **the refused draft was served** |
+| A1.1 | 10 (g2.1) | yes, «Le carnet et l'omelette» | two drafts were blocked by `gendered_agreement` («sûr» for a learner who never gave a gender) and **never shown**. The page served is a third draft that passed every deterministic guard and was refused only by the LLM critic. |
 | B1.1 | 32 (g4.6) | yes, «Le matin d'après» | critic and `mixed_address_register` refused twice, then served anyway |
 | B2.1 | 65 → **66** | yes, «La fenêtre allumée» | `departed_cast_on_page` **caught Lila** in the first draft; the retry kept her off the page. The guard works live. |
 
@@ -62,6 +62,6 @@ The epilogue is now six authored days (60–65, Content program D8), so the firs
 - **0 of 19 generated days lost on merit**, including 6 of 6 first days of a gap.
 - The Lila guard is confirmed live.
 
-**What remains is not loss, it's the path that serves refused drafts.** When both attempts fail a soft check, the day is served with the refused draft so it is not lost. In this read that put a gendered agreement in front of an A1 learner, plus 8 critic-refused pages and 9 released replies the checker flagged afterwards. That trade-off is the next story-engine package.
+**What remains is not loss, it's the path that serves refused drafts.** When both attempts fail a soft check, the day is served with the refused draft so it is not lost. Correction (same day): no deterministic guard was overruled. Every served page passed them all, and the gendered drafts were blocked. What learners would see is 9 critic-refused pages (storytelling or continuity) and 9 released replies the checker flagged afterwards, 5 of them a false «met». That trade-off is the next story-engine package.
 
 Day 66 also invents a continuity detail, «la nuit du 14 mars», that no canon supports. Romy's replies echo the canned learner lines.
