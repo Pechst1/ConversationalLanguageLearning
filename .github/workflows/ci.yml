@@ -107,12 +107,16 @@ jobs:
       - name: Run backend tests
         # `-n auto --dist loadfile`: every xdist worker is its own process with its
         # own in-memory SQLite database, and a test file never leaves its worker,
-        # so module fixtures (the 126-day harness) are built once. `-q` (a single
-        # one — pyproject no longer adds another) keeps the final
-        # "N passed, M failed" line; pytest exits non-zero on any failure.
+        # so module fixtures (the 126-day harness) are built once. Each test's and
+        # each module's data is rolled back when it ends (tests/conftest.py,
+        # SavepointLedger), so the order is shuffled (pytest-randomly) with a seed
+        # named here: a red run replays with `-p randomly --randomly-seed=<run id>`.
+        # No coverage on the gate: it doubled the run (30 min, cancelled at 80 %)
+        # and had no threshold. `-q` (a single one — pyproject no longer adds
+        # another) keeps the final "N passed, M failed" line.
         run: >-
           pytest -q -n auto --dist loadfile
-          --cov=app --cov-report=term
+          -p randomly --randomly-seed=${{ github.run_id }}
           --durations=15
           --junitxml=pytest-report.xml
 
