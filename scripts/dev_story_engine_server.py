@@ -29,7 +29,15 @@ import json
 import os
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
+
+# Serve the checkout this script lives in. Run as `python scripts/…`, Python puts
+# scripts/ (not the repository) first on the path, so `import app` found an
+# installed copy instead — in CI a non-editable wheel without the package data
+# (the season world, the alembic directory): every scene was refused as "not in
+# this world" and the schema guard saw no migration heads.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 FAKE_CREDENTIAL = "dev-fake-key-not-a-real-credential"
 

@@ -43,7 +43,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web-frontend/package-lock.json
-      - run: pip install -c constraints.txt .
+      - run: pip install -c constraints.txt -e .
       - run: npm ci
         working-directory: web-frontend
       - name: Reject stale generated types
@@ -94,7 +94,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -c constraints.txt .[dev]
+          # Editable (-e): `app` must be the checkout under test. A plain install
+          # puts a wheel in site-packages without the package data (the season
+          # world, prompts, word lists), and every `python scripts/…` imports
+          # that copy, not this one.
+          pip install -c constraints.txt -e .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Check Python with Ruff
@@ -154,7 +158,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -c constraints.txt .[dev]
+          # Editable (-e): `app` must be the checkout under test. A plain install
+          # puts a wheel in site-packages without the package data (the season
+          # world, prompts, word lists), and every `python scripts/…` imports
+          # that copy, not this one.
+          pip install -c constraints.txt -e .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Run the long learner walk
@@ -218,7 +226,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -c constraints.txt .[dev]
+          # Editable (-e): `app` must be the checkout under test. A plain install
+          # puts a wheel in site-packages without the package data (the season
+          # world, prompts, word lists), and every `python scripts/…` imports
+          # that copy, not this one.
+          pip install -c constraints.txt -e .[dev]
           python -m spacy download fr_core_news_sm
 
       - name: Verify Alembic migrations
@@ -286,6 +298,18 @@ jobs:
       - name: Install frontend dependencies
         working-directory: web-frontend
         run: npm ci
+
+      # `npm test` includes scripts/generated-api-types.test.mjs, which exports the
+      # OpenAPI schema from the real app (`python scripts/export_openapi.py`). Without
+      # the backend installed it died on `No module named 'fastapi'`.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install the backend (for the OpenAPI export)
+        run: pip install -c constraints.txt -e .
 
       - name: Check frontend
         working-directory: web-frontend
