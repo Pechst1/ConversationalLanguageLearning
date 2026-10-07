@@ -75,7 +75,14 @@ default to open; production logs a warning while it is open.
 
 ### Provider spend bounds
 
-All per learner; `0` switches a bound off.
+`0` switches a bound off.
+
+- `SERVICE_DAILY_SPEND_CAP_USD` (5.00 on Render): the whole service's day,
+  every learner and every ledger (panel art included) since UTC midnight. At
+  the cap paid routes answer 429 `daily_budget_reached`, panels keep their
+  plates and the prefetch beat skips. Render passes it to the worker.
+
+Per learner:
 
 - `USER_DAILY_SPEND_CAP_USD` (0.50): paid routes answer 429
   `daily_budget_reached` past it per local day; a day already started is cut
@@ -89,9 +96,8 @@ All per learner; `0` switches a bound off.
 - `RATE_LIMIT_PAID_MAX_REQUESTS` (60 per `RATE_LIMIT_PAID_WINDOW_SECONDS`, 60):
   request volume on paid routes.
 
-There is no global (all-learner) cap in the app. With registration closed the
-number of learners bounds the total; also set a monthly budget/limit on the
-OpenAI project itself.
+The service cap bounds a day, not a month: also set a monthly budget/limit on
+the OpenAI project itself as the provider-side backstop.
 
 ### Account deletion and stored artwork
 

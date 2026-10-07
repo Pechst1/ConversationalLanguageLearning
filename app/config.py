@@ -127,6 +127,16 @@ class Settings(BaseSettings):
         ge=0,
         description="Per-learner spend per local day across the cost ledgers (panel art excluded: it has its own allowance); paid routes answer 429 daily_budget_reached beyond it. 0 = off. A normal day costs ~US$0.05.",
     )
+    SERVICE_DAILY_SPEND_CAP_USD: float = Field(
+        0.0,
+        ge=0,
+        description=(
+            "WP-138: what the whole service may spend per UTC day across every learner "
+            "and every ledger (panel art included). At the cap, paid routes answer 429 "
+            "daily_budget_reached, panels keep their plates and the prefetch beat skips. "
+            "0 = off. The per-learner cap alone cannot bound the bill."
+        ),
+    )
     USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER: float = Field(
         2.0,
         ge=1.0,

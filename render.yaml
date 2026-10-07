@@ -65,6 +65,10 @@ services:
         value: "2"
       - key: USER_DAILY_SPEND_CAP_USD
         value: "0.50"
+      # WP-138: the whole service's day (every learner, art included, UTC).
+      # About ten learners at their own cap; a normal day costs ~US$0.05 each.
+      - key: SERVICE_DAILY_SPEND_CAP_USD
+        value: "5.00"
       - key: RATE_LIMIT_TRUSTED_PROXY_HOPS
         value: "1"
       # Password reset emails a six-digit code typed in the app. SMTP_HOST and
@@ -374,6 +378,8 @@ services:
       # API reaches both processes.
       - key: USER_DAILY_SPEND_CAP_USD
         fromService: {type: web, name: atelier-api, envVarKey: USER_DAILY_SPEND_CAP_USD}
+      - key: SERVICE_DAILY_SPEND_CAP_USD
+        fromService: {type: web, name: atelier-api, envVarKey: SERVICE_DAILY_SPEND_CAP_USD}
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         fromService: {type: web, name: atelier-api, envVarKey: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD}
       - key: APNS_TEAM_ID
