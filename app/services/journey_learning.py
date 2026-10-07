@@ -3536,6 +3536,102 @@ class JourneyEvidenceRecord:
         return self.assistance is not None
 
 
+def correct_released_grading(
+    db: Session,
+    *,
+    user: User,
+    journey_id: UUID,
+    step_id: UUID,
+    outcome: TaskOutcome,
+    withdrawn_target_ids: Sequence[str] = (),
+    reason: str,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """WP-149 §A.2: the learning record of a reply whose grade was found false after
+    release (the story-lane critic's ``false_successful_grading`` /
+    ``incompatible_demonstrated_targets``). The line the learner saw stays; the record
+    does not keep what it wrongly claimed.
+
+    * Every ledger row of the step carries the corrected ``task_outcome`` (the
+      WP-09 rubric reads it), with ``task_outcome_corrected`` saying from what and why.
+    * A row for a withdrawn target loses its credit: ``srs_credit_applied`` is
+      cleared, ``result_payload.withdrawn`` names the reason (``read_journey_evidence``
+      skips it), and the schedule gives back the advance — the item is due now, so
+      the next review asks for it again rather than trusting the false success.
+
+    Writes through the caller's session; never commits. Returns what changed."""
+
+    now = now or datetime.now(UTC)
+    rows = (
+        db.query(SessionLearningMoment)
+        .filter(
+            SessionLearningMoment.user_id == user.id,
+            SessionLearningMoment.source_type == JOURNEY_SOURCE_TYPE,
+        )
+        .order_by(SessionLearningMoment.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    withdrawn = {str(value) for value in withdrawn_target_ids}
+    corrected: list[str] = []
+    retracted: list[str] = []
+    for moment in rows:
+        prompt = dict(moment.prompt_payload or {})
+        if str(prompt.get("journey_id")) != str(journey_id) or str(prompt.get("step_id")) != str(step_id):
+            continue
+        if prompt.get("task_outcome") and prompt.get("task_outcome") != str(outcome):
+            prompt["task_outcome_corrected"] = {
+                "from": prompt.get("task_outcome"), "reason": reason, "at": now.isoformat(),
+            }
+            prompt["task_outcome"] = str(outcome)
+            moment.prompt_payload = prompt
+            flag_modified(moment, "prompt_payload")
+            corrected.append(str(prompt.get("source_key") or moment.id))
+        target = dict(prompt.get("target") or {})
+        result = dict(moment.result_payload or {})
+        if str(target.get("id") or "") not in withdrawn or result.get("withdrawn"):
+            continue
+        if str(result.get("evidence_kind") or "") == str(EvidenceKind.NOT_YET):
+            continue  # a lapse is never withdrawn
+        if moment.srs_credit_applied:
+            _give_back_schedule(db, user=user, target=target, now=now)
+        moment.srs_credit_applied = False
+        result["withdrawn"] = {"reason": reason, "at": now.isoformat()}
+        moment.result_payload = result
+        flag_modified(moment, "result_payload")
+        retracted.append(str(target.get("id")))
+    db.flush()
+    return {"corrected_rows": len(corrected), "withdrawn_target_ids": retracted}
+
+
+def _give_back_schedule(db: Session, *, user: User, target: dict, now: datetime) -> None:
+    """The advance a false success bought is given back: the item is due now."""
+
+    kind, target_id = str(target.get("kind") or ""), str(target.get("id") or "")
+    if kind == str(TargetKind.VOCABULARY) and target_id.isdigit():
+        progress = (
+            db.query(UserVocabularyProgress)
+            .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == int(target_id))
+            .first()
+        )
+        if progress is not None:
+            progress.due_at = now
+            progress.next_review_date = now
+            progress.due_date = now.date()
+            db.add(progress)
+    elif kind == str(TargetKind.GRAMMAR) and target_id.isdigit():
+        from app.db.models.grammar import UserGrammarProgress
+
+        progress = (
+            db.query(UserGrammarProgress)
+            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == int(target_id))
+            .first()
+        )
+        if progress is not None:
+            progress.next_review = now
+            db.add(progress)
+
+
 _LEGACY_KIND_TO_TARGET: dict[str, TargetKind] = {
     "vocab_check": TargetKind.VOCABULARY,
     "vocab_boost": TargetKind.VOCABULARY,
@@ -3609,6 +3705,9 @@ def read_journey_evidence(
         is_journey = moment.source_type == JOURNEY_SOURCE_TYPE
 
         if is_journey and moment.kind == JOURNEY_CORRECTION_MOMENT_KIND:
+            continue
+        if is_journey and result.get("withdrawn"):
+            # WP-149: credit the story-lane critic found false after release.
             continue
         if is_journey and wanted is not None and str(prompt.get("journey_id")) not in wanted:
             continue
