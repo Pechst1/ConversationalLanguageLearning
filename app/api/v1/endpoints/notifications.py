@@ -14,12 +14,10 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 @router.get("/vapid-public-key")
 def get_vapid_public_key():
-    if not settings.VAPID_PUBLIC_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Push notifications are not configured.",
-        )
-    return {"publicKey": settings.VAPID_PUBLIC_KEY}
+    # WP-138: "not configured" is an answer, not an outage. The web app asks on
+    # every page load and both callers already read a null key as "no web push";
+    # a 503 here was a server error on every screen of an install without VAPID.
+    return {"publicKey": settings.VAPID_PUBLIC_KEY or None}
 
 
 @router.post("/subscribe")
