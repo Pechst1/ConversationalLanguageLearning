@@ -1,0 +1,1061 @@
+{
+  "id": "t3",
+  "number": 3,
+  "title_fr": "Deux promesses",
+  "intent": "This is the comedy episode before the fall, and every laugh should cost something later. Gus at the town hall is the funniest page of the season: the aristocrat asks for a form, and the stairs defeat him as they defeat Marchand. Marin's co-op pitch, with a leek for a pointer, is the tenderest. The learner is loved by both and cornered by both. The Convaincre is a real persuasion, and it is never gated by grammar.",
+  "state_in": [
+    "From gap 2: Marin has seen the notebook page «Le Mistral à nous» and built a spreadsheet.",
+    "From gap 2: Gus has heard about Solvel's offer. If s1.price_public, he knows the figure to the euro.",
+    "From gap 2: the group is planning «Les 25 ans du Mistral» for Saturday 5 December. Margaux says «pas de fête» twice a day.",
+    "From gap 2: Lila is painting upstairs in the mornings (if s1.lila_has_key).",
+    "Flags read: s1.gus_photo, s1.calendar_contradiction, s1.letter_trusted_to, s1.lila_path."
+  ],
+  "flags_read": ["s1.gus_photo", "s1.calendar_contradiction", "s1.letter_trusted_to", "s1.lila_path"],
+  "days": [
+    {
+      "day": "a",
+      "story_date_fr": "jeudi 26 novembre",
+      "title_fr": "Deux promesses",
+      "location_id": "mairie",
+      "minutes": 8,
+      "can_do": {
+        "en": "Make or refuse a promise; ask a question that challenges a story.",
+        "de": "Ein Versprechen geben oder ablehnen; eine Frage stellen, die eine Geschichte in Frage stellt.",
+        "fr": "Faire ou refuser une promesse ; poser une question qui remet une histoire en cause."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "promets",
+          "lemma": "promettre",
+          "gloss": {"en": "to promise", "de": "versprechen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "jamais",
+          "lemma": "jamais",
+          "gloss": {"en": "never, ever", "de": "nie, niemals"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "signe",
+          "lemma": "signer",
+          "gloss": {"en": "to sign", "de": "unterschreiben"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "propriétaire",
+          "lemma": "propriétaire",
+          "gloss": {"en": "owner", "de": "Eigentümer"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "pétition",
+          "lemma": "pétition",
+          "gloss": {"en": "petition", "de": "Petition"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "zinc",
+          "lemma": "zinc",
+          "gloss": {"en": "zinc (the bar counter)", "de": "Zink (die Theke)"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "je ne peux pas",
+          "lemma": "pouvoir",
+          "gloss": {"en": "I can't", "de": "ich kann nicht"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "j'essaie",
+          "lemma": "essayer",
+          "gloss": {"en": "I try", "de": "ich versuche es"},
+          "part_of_speech": "verb"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "a.p1",
+          "visual": "The Mairie du 10e, Thursday morning. Gus climbs the steps in his best navy three-piece, with a leather folder under his arm, which reads «LE MISTRAL · BISTROT HISTORIQUE». Toi follows two steps behind with a coffee Gus made Toi carry.",
+          "location_id": "mairie",
+          "in_frame": ["augustin_de_roncourt", "toi"],
+          "diegetic": ["LE MISTRAL · BISTROT HISTORIQUE"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Jeudi. Gus a besoin de toi. Il ne dit pas pourquoi.",
+                "b1": "Jeudi matin. Gus a besoin de toi, et il refuse de dire pourquoi.",
+                "native": {
+                  "en": "Thursday. Gus needs you. He doesn't say why.",
+                  "de": "Donnerstag. Gus braucht dich. Er sagt nicht, wozu."
+                }
+              }
+            },
+            {
+              "who": "augustin_de_roncourt",
+              "say": {
+                "a2": "Tu marches derrière moi. C'est plus élégant.",
+                "native": {"en": "You walk behind me. It's more elegant.", "de": "Du gehst hinter mir. Das ist eleganter."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p2",
+          "visual": "At a counter. Gus leans in toward a clerk, all theatre. The clerk does not look up from her screen. Toi stands at the edge of the frame holding the coffee.",
+          "location_id": "mairie",
+          "in_frame": ["augustin_de_roncourt", "clerk", "toi"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "say": {
+                "a2": "Madame, je viens sauver un morceau de Paris.",
+                "b1": "Madame, je viens sauver un morceau de l'âme de Paris.",
+                "native": {
+                  "en": "Madam, I have come to save a piece of Paris.",
+                  "de": "Madame, ich komme, um ein Stück Paris zu retten."
+                }
+              }
+            },
+            {
+              "who": "clerk",
+              "say": {
+                "a2": "Formulaire B-12. Deuxième étage.",
+                "native": {"en": "Form B-12. Second floor.", "de": "Formular B-12. Zweiter Stock."}
+              }
+            },
+            {
+              "who": "augustin_de_roncourt",
+              "say": {"a2": "Il y a un ascenseur ?", "native": {"en": "Is there a lift?", "de": "Gibt es einen Aufzug?"}}
+            },
+            {"who": "clerk", "say": {"a2": "Non.", "native": {"en": "No.", "de": "Nein."}}}
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p3",
+          "visual": "The second-floor counter. Gus is out of breath and his pocket square has moved. A second clerk reads the petition: 187 signatures, one of them «Mme Diallo, boulangère (et fière)». Gus turns, slowly, to Toi.",
+          "location_id": "mairie",
+          "in_frame": ["augustin_de_roncourt", "clerk_2", "toi"],
+          "diegetic": ["Mme Diallo, boulangère (et fière)"],
+          "lines": [
+            {
+              "who": "clerk_2",
+              "say": {
+                "a2": "Vous êtes le propriétaire ?",
+                "b1": "Vous êtes propriétaire des murs ?",
+                "native": {"en": "Are you the owner?", "de": "Sind Sie der Eigentümer?"}
+              }
+            },
+            {
+              "who": "augustin_de_roncourt",
+              "say": {"a2": "Moralement.", "native": {"en": "Morally.", "de": "Moralisch."}}
+            },
+            {
+              "who": "clerk_2",
+              "say": {
+                "a2": "Il faut un vrai propriétaire.",
+                "native": {"en": "It has to be a real owner.", "de": "Es braucht einen echten Eigentümer."}
+              }
+            }
+          ],
+          "note": "This is why he brought you. You own one floor of the building, and Gus has been using you as his only legal argument."
+        },
+        {
+          "kind": "panel",
+          "id": "a.p4",
+          "visual": "Outside, on the town-hall steps. Gus sits down on the stone in his good suit, which he never does. He looks across the rooftops toward the canal and the café. For one panel the costume is off.",
+          "location_id": "mairie",
+          "in_frame": ["augustin_de_roncourt"],
+          "silence": true
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn1",
+          "to": "augustin_de_roncourt",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p5",
+            "visual": "Gus stands up, straightens his cuffs, and holds out a fountain pen and the form. Toi's balloon.",
+            "location_id": "mairie",
+            "in_frame": ["augustin_de_roncourt", "toi"],
+            "lines": [
+              {
+                "who": "augustin_de_roncourt",
+                "say": {
+                  "a2": "Signe. Et promets-moi une chose : tu ne vends pas à Solvel. Jamais.",
+                  "b1": "Signe ici. Et promets-moi une chose : tu ne vendras jamais à Solvel.",
+                  "native": {
+                    "en": "Sign. And promise me one thing: you won't sell to Solvel. Ever.",
+                    "de": "Unterschreib. Und versprich mir eines: Du verkaufst nicht an Solvel. Niemals."
+                  }
+                }
+              },
+              {
+                "who": "augustin_de_roncourt",
+                "say": {
+                  "a2": "Mon arrière-grand-père a posé le zinc du Mistral. Avec ses mains.",
+                  "b1": "C'est mon arrière-grand-père qui a posé le zinc du Mistral. De ses propres mains.",
+                  "native": {
+                    "en": "My great-grandfather laid the zinc of Le Mistral. With his own hands.",
+                    "de": "Mein Urgroßvater hat die Zinktheke des Mistral gebaut. Mit seinen eigenen Händen."
+                  }
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer Gus. You can promise, refuse, or question what he has just told you.",
+            "de": "Antworte Gus. Du kannst versprechen, ablehnen oder in Frage stellen, was er dir gerade erzählt hat.",
+            "fr": "Réponds à Gus. Tu peux promettre, refuser, ou remettre en question ce qu'il vient de te dire."
+          },
+          "listens_for": "Whether the learner promises Gus not to sell to Solvel, does not promise, or half-promises. The grader classifies promise / no promise / half-promise and never requires a specific structure. It sets s1.promise_gus (yes / half / no).",
+          "fallback": "b",
+          "replies": [
+            {
+              "id": "a",
+              "label": "Promise",
+              "means": "The learner promises Gus not to sell to Solvel (s1.promise_gus = yes; leans promised_to = gus).",
+              "examples": ["Je promets."],
+              "sets": {"s1.promise_gus": "yes"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "direction": "radiant, then oddly serious",
+                      "say": {
+                        "a2": "Une promesse, c'est une promesse. Même à Paris.",
+                        "native": {
+                          "en": "A promise is a promise. Even in Paris.",
+                          "de": "Ein Versprechen ist ein Versprechen. Auch in Paris."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "Leans promised_to = gus."
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Refusal",
+              "means": "The learner cannot promise, or does not know yet (s1.promise_gus = no).",
+              "examples": ["Je ne peux pas promettre. Je ne sais pas encore."],
+              "sets": {"s1.promise_gus": "no"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "Tout le monde \"ne sait pas encore\". C'est comme ça qu'on perd les choses.",
+                        "b1": "\"Je ne sais pas encore.\" C'est exactement comme ça qu'on perd tout.",
+                        "native": {
+                          "en": "Everybody \"doesn't know yet\". That's how you lose things.",
+                          "de": "Alle \"wissen es noch nicht\". So verliert man Dinge."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Calling the bluff",
+              "means": "The learner questions Gus's story: his great-grandfather, or himself at fifteen? Only possible if the learner saw the Polaroid in T2 (s1.gus_photo is set). Read as no promise (s1.promise_gus = no) unless the same reply also promises, in which case it is a yes. Sets gus.costume_cracked.",
+              "examples": ["Ton arrière-grand-père ? Ou toi, à quinze ans ?"],
+              "sets": {"s1.promise_gus": "no", "gus.costume_cracked": true},
+              "when": {"s1.gus_photo": {"set": true}},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.c.r1",
+                  "visual": "Gus's «vulnerable» expression, the smile cracked.",
+                  "location_id": "mairie",
+                  "in_frame": ["augustin_de_roncourt", "toi"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.c.r2",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "Qui t'a dit ça ?",
+                        "native": {"en": "Who told you that?", "de": "Wer hat dir das gesagt?"}
+                      }
+                    },
+                    {
+                      "who": "augustin_de_roncourt",
+                      "direction": "the costume comes back on",
+                      "say": {
+                        "a2": "Mon cher, les photos mentent.",
+                        "native": {"en": "My dear fellow, photographs lie.", "de": "Mein Lieber, Fotos lügen."}
+                      }
+                    },
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "Promets quand même.",
+                        "native": {"en": "Promise anyway.", "de": "Versprich es trotzdem."}
+                      }
+                    }
+                  ],
+                  "note": "The costume cracks but does not fall. Gus's full truth belongs to T7. The learner now knows they can hurt him, and so does he."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Clumsy but sincere",
+              "means": "A halting «j'essaie»: no promise, but the learner tries and does not want Solvel either (s1.promise_gus = half; leans promised_to = half-Gus).",
+              "examples": ["Je… promets pas. Mais j'essaie ? Moi aussi, je veux pas Solvel. Enfin… je sais pas."],
+              "clumsy": true,
+              "sets": {"s1.promise_gus": "half"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {
+                        "a2": "\"J'essaie.\" C'est la phrase la plus faible de la langue française.",
+                        "native": {
+                          "en": "\"I'm trying.\" It's the weakest sentence in the French language.",
+                          "de": "\"Ich versuche es.\" Das ist der schwächste Satz der französischen Sprache."
+                        }
+                      }
+                    },
+                    {
+                      "who": "augustin_de_roncourt",
+                      "say": {"a2": "Je prends.", "native": {"en": "I'll take it.", "de": "Ich nehme es."}}
+                    }
+                  ],
+                  "note": "Leans promised_to = half-Gus."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p6",
+            "visual": "Walking back along the canal. Gus is ahead, talking to the pigeons about architecture. Toi's phone lights up with a message from Marin.",
+            "location_id": "quai_de_valmy",
+            "in_frame": ["augustin_de_roncourt", "toi"],
+            "lines": [
+              {
+                "who": "sms",
+                "say": {
+                  "a2": "Tu peux passer à l'ONG demain ? J'ai un truc à te montrer. Ne dis rien à Gus.",
+                  "native": {
+                    "en": "Can you drop by the NGO tomorrow? I've got something to show you. Don't say anything to Gus.",
+                    "de": "Kannst du morgen im NGO-Büro vorbeikommen? Ich muss dir etwas zeigen. Sag Gus nichts."
+                  }
+                }
+              },
+              {
+                "who": "augustin_de_roncourt",
+                "direction": "turning back",
+                "say": {"a2": "C'est qui ?", "native": {"en": "Who is it?", "de": "Wer ist das?"}}
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Deux amis. Deux secrets. Une seule réponse possible. À suivre…",
+                  "b1": "Deux amis, deux secrets, et une seule réponse possible. À suivre…",
+                  "native": {
+                    "en": "Two friends. Two secrets. Only one possible answer. To be continued…",
+                    "de": "Zwei Freunde. Zwei Geheimnisse. Nur eine mögliche Antwort. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "story_date_fr": "vendredi 27 novembre",
+      "title_fr": "Pour elle",
+      "location_id": "ngo_office",
+      "minutes": 9,
+      "can_do": {
+        "en": "Respond to a proposal; persuade someone with a reason that matters to them.",
+        "de": "Auf einen Vorschlag reagieren; jemanden mit einem Grund überzeugen, der ihm wichtig ist.",
+        "fr": "Répondre à une proposition ; convaincre quelqu'un avec une raison qui compte pour lui."
+      },
+      "previously": [
+        {"ref": "a.p5", "label": "Le stylo-plume de Gus."},
+        {"ref": "a.p5", "label": "« Jamais. »"},
+        {"ref": "a.p6", "label": "« Ne dis rien à Gus. »"}
+      ],
+      "lexicon": [
+        {
+          "surface_fr": "coop",
+          "lemma": "coopérative",
+          "gloss": {"en": "co-operative", "de": "Genossenschaft"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "parts",
+          "lemma": "part",
+          "gloss": {"en": "shares", "de": "Anteile"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "mille euros",
+          "lemma": "mille",
+          "gloss": {"en": "a thousand euros", "de": "tausend Euro"},
+          "part_of_speech": "numeral"
+        },
+        {
+          "surface_fr": "banque",
+          "lemma": "banque",
+          "gloss": {"en": "bank", "de": "Bank"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "invite",
+          "lemma": "inviter",
+          "gloss": {"en": "to invite", "de": "einladen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "pour elle",
+          "lemma": "pour elle",
+          "gloss": {"en": "for her", "de": "für sie"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "garde tes ennemis près de toi",
+          "lemma": "garder ses ennemis près de soi",
+          "gloss": {"en": "keep your enemies close", "de": "halte deine Feinde nah bei dir"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "parce que",
+          "lemma": "parce que",
+          "gloss": {"en": "because", "de": "weil"},
+          "part_of_speech": "conjunction"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "b.p1",
+          "visual": "Marin's NGO office, Friday afternoon, with protest posters and dying plants. Marin revives a fern with a spray bottle. A spreadsheet is projected on the wall: «LE MISTRAL À NOUS». Lila sits on a desk with a coffee and her school bag. She brought him the notebook.",
+          "location_id": "ngo_office",
+          "in_frame": ["marin_leveque", "lila_bonnet"],
+          "diegetic": ["LE MISTRAL À NOUS"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Entre, entre ! Attention à la fougère. Elle est fragile. Comme moi.",
+                "native": {
+                  "en": "Come in, come in! Careful with the fern. It's fragile. Like me.",
+                  "de": "Komm rein, komm rein! Vorsicht mit dem Farn. Er ist zerbrechlich. Wie ich."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p2",
+          "visual": "Marin presents, using a leek from the market as a pointer. Lila raises an eyebrow at the leek.",
+          "location_id": "ngo_office",
+          "in_frame": ["marin_leveque", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Deux cents personnes. Mille euros chacune. Une banque. Et le Mistral est à nous !",
+                "b1": "Deux cents sociétaires à mille euros, un prêt de la banque, et les murs du Mistral sont à nous !",
+                "native": {
+                  "en": "Two hundred people. A thousand euros each. A bank. And Le Mistral is ours!",
+                  "de": "Zweihundert Leute. Tausend Euro pro Person. Eine Bank. Und das Mistral gehört uns!"
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "À nous et à la banque.", "native": {"en": "Ours and the bank's.", "de": "Uns und der Bank."}}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p3",
+          "visual": "The café's floor plan on the wall. Long tables at the front marked «cantine le midi», the booth moved to the back, and the back room marked «ATELIER». Lila puts her finger on the booth.",
+          "location_id": "ngo_office",
+          "in_frame": ["marin_leveque", "lila_bonnet"],
+          "diegetic": ["cantine le midi", "ATELIER"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Tu as déplacé la banquette.",
+                "native": {"en": "You've moved the booth.", "de": "Du hast die Sitzbank verschoben."}
+              }
+            },
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Un peu. Au fond.",
+                "native": {"en": "A little. To the back.", "de": "Ein bisschen. Nach hinten."}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Gus va te tuer.", "native": {"en": "Gus is going to kill you.", "de": "Gus bringt dich um."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "direction": "standing up, bag on shoulder",
+              "say": {
+                "a2": "J'ai classe. Ne tuez personne.",
+                "native": {"en": "I've got class. Don't kill anyone.", "de": "Ich habe Unterricht. Bringt niemanden um."}
+              }
+            },
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Gus ne va rien savoir. Pas encore.",
+                "native": {"en": "Gus isn't going to know anything. Not yet.", "de": "Gus wird nichts erfahren. Noch nicht."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p4",
+          "visual": "Alone with Toi now. Marin takes a folded bank receipt out of his wallet and smooths it on the desk: 4 000 €, the first share. He does not say anything about it. He just lets Toi see.",
+          "location_id": "ngo_office",
+          "in_frame": ["marin_leveque", "toi"],
+          "silence": true,
+          "diegetic": ["4 000 €"]
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn1",
+          "to": "marin_leveque",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p5",
+            "visual": "Marin sitting opposite Toi, big hands around a mug, the plan behind him. Toi's balloon.",
+            "location_id": "ngo_office",
+            "in_frame": ["marin_leveque", "toi"],
+            "lines": [
+              {
+                "who": "marin_leveque",
+                "say": {
+                  "a2": "Et ton appartement… Tu le vends à la coop. Pas cher. Ça devient l'atelier, les réunions… Et samedi, à la fête, tu le dis. Devant tout le monde. Si toi tu le dis, ils vont suivre.",
+                  "b1": "Et ton appartement… tu pourrais le vendre à la coop, à prix d'ami. Ce serait l'atelier, la salle de réunion… Et samedi, à la fête, tu l'annonces devant tout le monde. Si c'est toi qui le dis, ils suivront.",
+                  "native": {
+                    "en": "And your flat… You sell it to the co-op. Cheap. It becomes the workshop, the meetings… And on Saturday, at the party, you say so. In front of everyone. If you say it, they'll follow.",
+                    "de": "Und deine Wohnung … Du verkaufst sie an die Genossenschaft. Günstig. Sie wird zur Werkstatt, zum Versammlungsraum … Und am Samstag, auf der Feier, sagst du es. Vor allen. Wenn du es sagst, folgen sie."
+                  }
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer Marin, knowing what you said to Gus yesterday.",
+            "de": "Antworte Marin – im Wissen, was du gestern zu Gus gesagt hast.",
+            "fr": "Réponds à Marin, en sachant ce que tu as dit à Gus hier."
+          },
+          "listens_for": "Whether the learner promises Marin to sell the flat to the co-op and say so at the party (yes, half or no). The grader combines this answer with Day A's to set s1.promised_to: gus · marin · both_half · neither (the engine derives it from s1.promise_gus and s1.promise_marin).",
+          "fallback": "c",
+          "replies": [
+            {
+              "id": "a",
+              "label": "Yes",
+              "means": "The learner agrees to sell to the co-op and to say so at the party (s1.promise_marin = yes).",
+              "examples": ["Oui. Je le dis à la fête."],
+              "sets": {"s1.promise_marin": "yes"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.a.r1",
+                  "visual": "Marin, a big man, lifts Toi off the ground in a hug.",
+                  "location_id": "ngo_office",
+                  "in_frame": ["marin_leveque", "toi"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.a.r2",
+                  "lines": [
+                    {
+                      "who": "marin_leveque",
+                      "say": {"a2": "Merci. Merci.", "native": {"en": "Thank you. Thank you.", "de": "Danke. Danke."}}
+                    },
+                    {
+                      "who": "marin_leveque",
+                      "direction": "putting Toi down",
+                      "say": {"a2": "…Et Gus ?", "native": {"en": "…And Gus?", "de": "…Und Gus?"}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Honest about the other promise",
+              "means": "The learner is honest: they promised Gus, and Gus does not want the change. No promise to Marin (s1.promise_marin = no).",
+              "examples": ["J'ai promis à Gus. Pas de Solvel. Mais changer le Mistral… Gus ne veut pas."],
+              "sets": {"s1.promise_marin": "no"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "marin_leveque",
+                      "say": {
+                        "a2": "Je sais. C'est pour ça que je te demande à toi. Moi, je n'ose pas.",
+                        "b1": "Je sais. C'est bien pour ça que je te le demande à toi. Moi, je n'ai pas le courage.",
+                        "native": {
+                          "en": "I know. That's why I'm asking you. I don't dare.",
+                          "de": "Ich weiß. Deshalb frage ich dich. Ich traue mich nicht."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "For Odile",
+              "means": "The learner does not know: it is Odile's flat (s1.promise_marin = no).",
+              "examples": ["Je ne sais pas. C'est l'appartement d'Odile."],
+              "sets": {"s1.promise_marin": "no"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.c.r1",
+                  "visual": "Marin shows Toi the notebook line, and then cries.",
+                  "location_id": "ngo_office",
+                  "in_frame": ["marin_leveque", "toi"],
+                  "diegetic": ["Marin — il dira oui en pleurant"],
+                  "lines": [
+                    {
+                      "who": "marin_leveque",
+                      "say": {
+                        "a2": "Justement. C'était son plan. Regarde.",
+                        "native": {"en": "Precisely. It was her plan. Look.", "de": "Eben. Es war ihr Plan. Schau."}
+                      }
+                    },
+                    {
+                      "who": "marin_leveque",
+                      "mood": "moved",
+                      "direction": "crying",
+                      "say": {"a2": "Elle me connaissait.", "native": {"en": "She knew me.", "de": "Sie kannte mich."}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: everybody wants the flat; the learner wants to understand first (s1.promise_marin = half).",
+              "examples": ["Tout le monde veut… mon appartement. Moi, je veux… comprendre. Avant."],
+              "clumsy": true,
+              "sets": {"s1.promise_marin": "half"},
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "marin_leveque",
+                      "say": {
+                        "a2": "Tu as raison. Pardon.",
+                        "native": {"en": "You're right. Sorry.", "de": "Du hast recht. Verzeihung."}
+                      }
+                    },
+                    {
+                      "who": "marin_leveque",
+                      "say": {
+                        "a2": "Ma grand-mère disait toujours : on ne vend pas le poisson avant de… de…",
+                        "native": {
+                          "en": "My grandmother always said: you don't sell the fish before… before…",
+                          "de": "Meine Großmutter hat immer gesagt: Man verkauft den Fisch nicht, bevor … bevor …"
+                        }
+                      }
+                    },
+                    {
+                      "who": "marin_leveque",
+                      "say": {
+                        "a2": "Je ne sais plus. Mais tu as raison.",
+                        "native": {
+                          "en": "I don't remember any more. But you're right.",
+                          "de": "Ich weiß es nicht mehr. Aber du hast recht."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p6",
+          "visual": "Marin, still at the desk, rubs his face.",
+          "location_id": "ngo_office",
+          "in_frame": ["marin_leveque", "toi"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Il y a un problème. Sans Marchand, rien ne marche. Il doit venir à la fête. Et c'est Gus qui fait les invitations.",
+                "native": {
+                  "en": "There's a problem. Without Marchand, nothing works. He has to come to the party. And Gus is the one doing the invitations.",
+                  "de": "Es gibt ein Problem. Ohne Marchand funktioniert nichts. Er muss zur Feier kommen. Und Gus macht die Einladungen."
+                }
+              }
+            },
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Moi, je ne peux pas lui demander. Toi, tu peux.",
+                "native": {"en": "I can't ask him. You can.", "de": "Ich kann ihn nicht fragen. Du kannst es."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p7",
+          "visual": "Le Mistral, that evening. Gus in the booth's corner seat writes invitation cards in careful calligraphy, surrounded by sixty finished ones. Margaux dries a dry glass and hears everything. Toi sits down opposite him.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "margaux_barman", "toi"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "direction": "without looking up",
+              "say": {
+                "a2": "Si tu viens pour une invitation, tu es déjà sur la liste. En premier.",
+                "native": {
+                  "en": "If you've come about an invitation, you're already on the list. First.",
+                  "de": "Wenn du wegen einer Einladung kommst, stehst du schon auf der Liste. Ganz oben."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "b.convaincre",
+          "mechanic": "convaincre",
+          "to": "augustin_de_roncourt",
+          "visual": "Le Mistral, that evening. Gus in the booth's corner seat writes invitation cards in careful calligraphy. Toi sits opposite him.",
+          "prompt": {
+            "a2": "Si tu viens pour une invitation, tu es déjà sur la liste. En premier.",
+            "native": {
+              "en": "If you've come about an invitation, you're already on the list. First.",
+              "de": "Wenn du wegen einer Einladung kommst, stehst du schon auf der Liste. Ganz oben."
+            }
+          },
+          "task": {
+            "en": "Persuade Gus to invite M. Marchand to the party. Any sincere argument that touches Gus lands.",
+            "de": "Überzeuge Gus, Herrn Marchand zur Feier einzuladen. Jedes aufrichtige Argument, das Gus berührt, kommt an.",
+            "fr": "Convaincs Gus d'inviter M. Marchand à la fête. Tout argument sincère qui touche Gus porte."
+          },
+          "flag": "s1.marchand_invited",
+          "default": "fail",
+          "objections": [
+            {
+              "a2": "Marchand ? Il veut fermer le Mistral !",
+              "b1": "Marchand ? L'homme qui veut fermer le Mistral ? À la fête de Margaux ?",
+              "native": {"en": "Marchand? He wants to close Le Mistral!", "de": "Marchand? Er will das Mistral schließen!"}
+            },
+            {
+              "a2": "C'est une fête. Pas une réunion.",
+              "b1": "C'est une fête, pas un conseil d'administration.",
+              "native": {"en": "It's a party. Not a meeting.", "de": "Das ist eine Feier. Keine Besprechung."}
+            },
+            {
+              "a2": "Et s'il vient, on lui dit quoi ?",
+              "b1": "Et s'il vient, qu'est-ce qu'on lui dit ? \"Bonsoir, vous êtes notre ennemi, un canapé ?\"",
+              "native": {"en": "And if he comes, what do we say to him?", "de": "Und wenn er kommt, was sagen wir ihm?"}
+            }
+          ],
+          "lands_means": "Any sincere argument that touches Gus lands, at any band: Margaux's wish, Odile and the Sundays, his own Méthode, saving the Mistral rather than being right, winning with Marchand rather than against him. Each argument that does not land gets the next objection, never a correction. The learner can also stop.",
+          "lands_examples": [
+            "Margaux voudrait ça.",
+            "Il connaissait Odile, le dimanche.",
+            "Règle numéro un de La Méthode : garde tes ennemis près de toi.",
+            "Tu veux sauver le Mistral ou avoir raison ?",
+            "On ne gagne pas contre lui. On gagne avec lui.",
+            "Odile… elle l'aime bien. Le dimanche. Je pense. Invite-le… pour elle ?"
+          ],
+          "lands": [
+            {
+              "kind": "panel",
+              "id": "b.convaincre.lands.r1",
+              "visual": "Gus stops writing.",
+              "location_id": "le_mistral",
+              "in_frame": ["augustin_de_roncourt", "toi"],
+              "silence": true
+            },
+            {
+              "kind": "panel",
+              "id": "b.convaincre.lands.r2",
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {"a2": "Pour elle.", "native": {"en": "For her.", "de": "Für sie."}}
+                },
+                {"who": "augustin_de_roncourt", "say": {"a2": "Bon.", "native": {"en": "Right.", "de": "Gut."}}}
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "b.convaincre.lands.r3",
+              "visual": "Gus writes the card with an enormous flourish.",
+              "location_id": "le_mistral",
+              "in_frame": ["augustin_de_roncourt"],
+              "lines": [
+                {
+                  "who": "card",
+                  "say": {
+                    "a2": "Monsieur Marchand… est prié de venir… en paix.",
+                    "native": {
+                      "en": "Monsieur Marchand… is requested to come… in peace.",
+                      "de": "Herr Marchand… wird gebeten, zu kommen… in Frieden."
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "b.convaincre.lands.r4",
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "direction": "from the zinc, not looking",
+                  "say": {
+                    "a2": "J'ai rien entendu.",
+                    "native": {"en": "I didn't hear anything.", "de": "Ich habe nichts gehört."}
+                  }
+                }
+              ],
+              "note": "Margaux's «J'ai rien entendu» is her blessing. The reader will learn in T6 that she knew about the Sundays all along."
+            }
+          ],
+          "fails": [
+            {
+              "kind": "panel",
+              "id": "b.convaincre.fails.r1",
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Non. C'est mon dernier mot.",
+                    "native": {"en": "No. That's my last word.", "de": "Nein. Das ist mein letztes Wort."}
+                  }
+                },
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Enfin, mon avant-dernier. Mais non.",
+                    "native": {"en": "Well, my second-to-last. But no.", "de": "Na ja, mein vorletztes. Aber nein."}
+                  }
+                }
+              ],
+              "note": "This is not a failure: T4 then happens with Romy instead of Marchand, and T6 opens colder."
+            }
+          ],
+          "give_up": {"a2": "Laisser tomber", "native": {"en": "Let it go", "de": "Lass es sein"}},
+          "sets_on_land": {"s1.marchand_invited": true},
+          "sets_on_fail": {"s1.marchand_invited": false}
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p8",
+            "visual": "Lila comes in late with her school bag and drops into the booth. She takes a Polaroid from her pocket and puts it on the table: the baker, flour on her nose.",
+            "location_id": "le_mistral",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Et pour la fête… les photos d'Odile. Au mur. Tout le quartier est dedans.",
+                  "b1": "Et si, pour la fête, on accrochait les photos d'Odile ? Tout le quartier est dedans.",
+                  "native": {
+                    "en": "And for the party… Odile's photos. On the wall. The whole neighbourhood is in them.",
+                    "de": "Und für die Feier … Odiles Fotos. An der Wand. Das ganze Viertel ist drauf."
+                  }
+                }
+              },
+              {
+                "who": "lila_bonnet",
+                "direction": "to Toi, quieter",
+                "say": {
+                  "a2": "Pas celle de Gus. Promis.",
+                  "native": {"en": "Not Gus's. Promise.", "de": "Nicht das von Gus. Versprochen."}
+                }
+              }
+            ],
+            "balloon": true,
+            "note": "The learner has agreed to show the photographs. «Your discovery implicates your grandmother» needs this consent, however light."
+          },
+          "task": {
+            "en": "Say yes, no, or how. Any answer is accepted.",
+            "de": "Sag ja, nein oder wie. Jede Antwort wird akzeptiert.",
+            "fr": "Dis oui, non, ou comment. Toute réponse est acceptée."
+          },
+          "listens_for": "Whether the learner agrees to show Odile's photographs on the wall at the party. Any answer is accepted: yes or how, the wall is agreed; no, the wall happens anyway, smaller (mistral.wall_agreed is set for everybody).",
+          "fallback": "yes",
+          "small": true,
+          "replies": [
+            {
+              "id": "yes",
+              "label": "Yes or how",
+              "means": "The learner agrees, or says how they would show the photographs. The wall is agreed."
+            },
+            {
+              "id": "no",
+              "label": "No",
+              "means": "The learner says no. The wall happens anyway, smaller.",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.no.r1",
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "D'accord. Juste celles du Mistral, alors.",
+                        "native": {"en": "All right. Only the Mistral ones, then.", "de": "Okay. Dann nur die vom Mistral."}
+                      }
+                    }
+                  ],
+                  "note": "The wall happens anyway, smaller."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1",
+          "visual": "After closing. Gus and Marin leave together, arguing happily about the playlist. Neither knows what Toi promised the other. Toi and Lila watch them from the zinc.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque", "lila_bonnet", "margaux_barman", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Ils sont mignons. Ils ne savent rien.",
+                "b1": "Regarde-les. Ils ne se doutent de rien.",
+                "native": {"en": "They're sweet. They don't know anything.", "de": "Die sind süß. Sie wissen von nichts."}
+              }
+            },
+            {
+              "who": "margaux_barman",
+              "direction": "she switches off the neon",
+              "say": {
+                "a2": "Toi non plus, tu ne sais pas tout.",
+                "native": {"en": "You don't know everything either.", "de": "Du weißt auch nicht alles."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre.invited",
+          "role": "a_suivre",
+          "when": {"s1.marchand_invited": true},
+          "panel": {
+            "kind": "panel",
+            "id": "b.last.invited",
+            "visual": "The second-floor landing. An envelope in Gus's calligraphy slides under an office door marked «Gérance Marchand». Inside, lit by one lamp, we see a camp bed among the filing cabinets. An old hand picks up the card.",
+            "location_id": "marchand_office",
+            "in_frame": ["landlord_marchand"],
+            "diegetic": ["Gérance Marchand"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Tu as fait deux promesses. Samedi, tout le monde est là. Même lui, peut-être. À suivre…",
+                  "b1": "Deux promesses, une fête, et peut-être un invité de trop. Samedi. À suivre…",
+                  "native": {
+                    "en": "You made two promises. On Saturday, everyone will be there. Even him, maybe. To be continued…",
+                    "de": "Du hast zwei Versprechen gegeben. Am Samstag sind alle da. Vielleicht sogar er. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre.blank",
+          "role": "a_suivre",
+          "when": {"s1.marchand_invited": {"not": true}},
+          "panel": {
+            "kind": "panel",
+            "id": "b.last.blank",
+            "visual": "Gus's sixty cards on the zinc. One is left blank, with an «M.» started and crossed out.",
+            "location_id": "le_mistral",
+            "diegetic": ["M."],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Tu as fait deux promesses. Samedi, tout le quartier est là. Presque tout. À suivre…",
+                  "native": {
+                    "en": "You made two promises. On Saturday, the whole neighbourhood will be there. Almost all of it. To be continued…",
+                    "de": "Du hast zwei Versprechen gegeben. Am Samstag ist das ganze Viertel da. Fast alle. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "state_out": {"mistral.wall_agreed": true, "marin.first_share": "4000", "register.augustin_de_roncourt": "tu"},
+  "for_next_gap": [
+    "The camp bed in Marchand's office has been seen once, from the landing. Nobody asks about it yet.",
+    "Nobody reads the backs of every Polaroid. Some are stuck together. Lila says: «Je les décolle samedi.»"
+  ]
+}

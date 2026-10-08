@@ -1,0 +1,587 @@
+{
+ "_note": "F-1 gallery fixture: verbatim copies of app/data/rule_cards/fr2_*.json cards (partners titled as the server does) and the units' x-ray from app/data/grammar_review. Regenerate by hand if the cards change.",
+ "units": [
+  {
+   "external_id": "FR2_A11_ADJ_AGREEMENT",
+   "sub_band": "A1.1",
+   "title_fr": "Les adjectifs : accord et place",
+   "rule_card": {
+    "speaker": "lila_bonnet",
+    "example": {
+     "fr": "Une petit[e] table blanch[e], près de la fenêtre.",
+     "tr": {
+      "en": "A small white table, by the window.",
+      "de": "Ein kleiner weißer Tisch, am Fenster."
+     }
+    },
+    "rule": {
+     "en": "The noun decides: the adjective takes -e for feminine and -s for plural, and usually comes after the noun.",
+     "de": "Das Nomen entscheidet: das Adjektiv bekommt -e für weiblich und -s für Plural und steht meist nach dem Nomen.",
+     "fr": "Le nom décide : l'adjectif prend -e au féminin, -s au pluriel, et se place souvent après le nom."
+    },
+    "pattern": {
+     "kind": "rows",
+     "rows": [
+      {
+       "shape": "square",
+       "label": "le",
+       "fr": "un peti{t} café noir"
+      },
+      {
+       "shape": "circle",
+       "label": "la",
+       "fr": "une petit[e] tasse noir[e]"
+      },
+      {
+       "shape": "circles",
+       "label": "les",
+       "fr": "des petite[s] tasse[s] noire[s]"
+      },
+      {
+       "shape": "none",
+       "label": "avant",
+       "fr": "un [bon] restaurant, une [belle] vue"
+      }
+     ]
+    },
+    "contrast": {
+     "wrong": "une maison blanc",
+     "right": "une maison blanch[e]"
+    },
+    "more": {
+     "en": "You often hear the feminine: petit /pəti/ → petite /pətit/, the t comes back. After être the adjective agrees too: elle est contente, ils sont prêts. A few short, common adjectives go before the noun: beau, joli, bon, mauvais, petit, grand, jeune, vieux, nouveau.",
+     "de": "Das Femininum hört man oft: petit /pəti/ → petite /pətit/, das t wird hörbar. Auch nach être passt sich das Adjektiv an, anders als im Deutschen: elle est contente, ils sont prêts. Ein paar kurze, häufige Adjektive stehen vor dem Nomen: beau, joli, bon, mauvais, petit, grand, jeune, vieux, nouveau.",
+     "fr": "On entend souvent le féminin : petit /pəti/ → petite /pətit/, le t revient. Après être aussi, l'adjectif s'accorde : elle est contente, ils sont prêts. Quelques adjectifs courts et fréquents se placent avant le nom : beau, joli, bon, mauvais, petit, grand, jeune, vieux, nouveau."
+    },
+    "how": {
+     "en": "1. Find the noun: masculine or feminine, singular or plural?\n2. Feminine: add -e (unless it already ends in -e). Plural: add -s.\n3. Put the adjective after the noun, unless it is one of the short ones (beau, bon, petit, grand, jeune, vieux, nouveau, joli).",
+     "de": "1. Finde das Nomen: männlich oder weiblich, Singular oder Plural?\n2. Weiblich: -e anhängen (außer es endet schon auf -e). Plural: -s anhängen.\n3. Das Adjektiv hinter das Nomen stellen, außer es ist eines der kurzen (beau, bon, petit, grand, jeune, vieux, nouveau, joli).",
+     "fr": "1. Trouvez le nom : masculin ou féminin, singulier ou pluriel ?\n2. Féminin : ajoutez -e (sauf s'il finit déjà par -e). Pluriel : ajoutez -s.\n3. Placez l'adjectif après le nom, sauf les adjectifs courts (beau, bon, petit, grand, jeune, vieux, nouveau, joli)."
+    },
+    "examples": [
+     {
+      "fr": "Elle est très content[e].",
+      "tr": {
+       "en": "She's very happy.",
+       "de": "Sie ist sehr zufrieden."
+      }
+     },
+     {
+      "fr": "C'est un [bon] restaurant italien.",
+      "tr": {
+       "en": "It's a good Italian restaurant.",
+       "de": "Das ist ein gutes italienisches Restaurant."
+      }
+     },
+     {
+      "fr": "Les rues sont calme[s].",
+      "tr": {
+       "en": "The streets are quiet.",
+       "de": "Die Straßen sind ruhig."
+      }
+     }
+    ],
+    "traps": [
+     {
+      "wrong": "un français film",
+      "right": "un film [français]",
+      "why": {
+       "en": "Nationality and colour adjectives always come after the noun.",
+       "de": "Adjektive für Nationalität und Farbe stehen immer nach dem Nomen.",
+       "fr": "Nationalité et couleur : toujours après le nom."
+      }
+     },
+     {
+      "wrong": "Elle est content.",
+      "right": "Elle est content[e].",
+      "why": {
+       "en": "After être the adjective still agrees with the subject.",
+       "de": "Auch nach être passt sich das Adjektiv an, anders als im Deutschen.",
+       "fr": "Après être aussi, l'adjectif s'accorde avec le sujet."
+      }
+     },
+     {
+      "wrong": "des chaises vert",
+      "right": "des chaises vert[es]",
+      "why": {
+       "en": "Feminine plural: -e and -s.",
+       "de": "Weiblich Plural: -e und -s.",
+       "fr": "Féminin pluriel : -e et -s."
+      }
+     }
+    ],
+    "contrast_with": [
+     {
+      "id": "FR2_A11_NOUN_PLURALS",
+      "note": {
+       "en": "The plural adjective follows the noun's plural: des gâteaux délicieux.",
+       "de": "Das Adjektiv geht mit dem Nomen in den Plural: des gâteaux délicieux.",
+       "fr": "L'adjectif suit le pluriel du nom : des gâteaux délicieux."
+      }
+     },
+     {
+      "id": "FR2_A22_ADJ_SPECIAL",
+      "note": {
+       "en": "Beau, nouveau, vieux have a special form before a vowel: un bel appartement (A2.2).",
+       "de": "Beau, nouveau, vieux haben vor einem Vokal eine eigene Form: un bel appartement (A2.2).",
+       "fr": "Beau, nouveau, vieux changent devant une voyelle : un bel appartement (A2.2)."
+      },
+      "title": {
+       "en": "Beau, nouveau, vieux: bel, nouvel, vieil",
+       "de": "Beau, nouveau, vieux: bel, nouvel, vieil",
+       "fr": "Beau, nouveau, vieux : bel, nouvel, vieil"
+      }
+     }
+    ]
+   },
+   "xray": {
+    "sentence": "Elle a une grande maison blanche.",
+    "marks": [
+     {
+      "token": "grande",
+      "role": "before_noun",
+      "explanation": "a short, frequent adjective: before the noun, and feminine like maison"
+     },
+     {
+      "token": "maison blanche",
+      "role": "agreement_marks",
+      "explanation": "after the noun; feminine, so blanc becomes blanche"
+     }
+    ]
+   }
+  },
+  {
+   "external_id": "FR2_A21_PC_ETRE",
+   "sub_band": "A2.1",
+   "title_fr": "Le passé composé avec être et l'accord",
+   "rule_card": {
+    "speaker": "romy_tremblay",
+    "example": {
+     "fr": "Elle [est] parti[e] à huit heures.",
+     "tr": {
+      "en": "She left at eight.",
+      "de": "Sie ist um acht Uhr gegangen."
+     }
+    },
+    "rule": {
+     "en": "Verbs of coming, going, staying and becoming take être, and the participle agrees with the subject like an adjective.",
+     "de": "Verben des Kommens, Gehens, Bleibens und Werdens nehmen être, und das Partizip passt sich wie ein Adjektiv dem Subjekt an.",
+     "fr": "Les verbes de mouvement et de changement d'état prennent être, et le participe s'accorde avec le sujet comme un adjectif."
+    },
+    "pattern": {
+     "kind": "rows",
+     "rows": [
+      {
+       "shape": "square",
+       "label": "il",
+       "fr": "il [est] allé"
+      },
+      {
+       "shape": "circle",
+       "label": "elle",
+       "fr": "elle [est] allé[e]"
+      },
+      {
+       "shape": "circles",
+       "label": "ils",
+       "fr": "ils [sont] allé[s]"
+      },
+      {
+       "shape": "circles",
+       "label": "elles",
+       "fr": "elles [sont] allé[es]"
+      }
+     ]
+    },
+    "contrast": {
+     "wrong": "Elle a arrivé hier.",
+     "right": "Elle [est] arrivé[e] hier."
+    },
+    "more": {
+     "en": "The être verbs: aller, venir, revenir, devenir, arriver, partir, entrer, rentrer, sortir, monter, descendre, naître, mourir, rester, tomber, retourner, passer. The agreement ending is usually silent (allé, allée and allés sound the same), but you must write it. With je and tu it follows the speaker: a woman writes je suis allée.",
+     "de": "Die être-Verben: aller, venir, revenir, devenir, arriver, partir, entrer, rentrer, sortir, monter, descendre, naître, mourir, rester, tomber, retourner, passer. Die Endung hört man meist nicht (allé, allée und allés klingen gleich), aber man muss sie schreiben. Bei je und tu richtet sie sich nach der Person: Eine Frau schreibt je suis allée.",
+     "fr": "Les verbes avec être : aller, venir, revenir, devenir, arriver, partir, entrer, rentrer, sortir, monter, descendre, naître, mourir, rester, tomber, retourner, passer. La terminaison de l'accord ne s'entend souvent pas (allé, allée, allés se prononcent pareil), mais on l'écrit. Avec je et tu, on accorde avec la personne : une femme écrit je suis allée."
+    },
+    "how": {
+     "en": "1. Check the verb: is it on the être list?\n2. Put être in the present: je suis, tu es, il est, nous sommes, vous êtes, ils sont.\n3. Add the participle and make it agree: + e (feminine), + s (plural), + es (feminine plural).",
+     "de": "1. Prüfe das Verb: Steht es auf der être-Liste?\n2. Setze être ins Präsens: je suis, tu es, il est, nous sommes, vous êtes, ils sont.\n3. Füge das Partizip an und gleiche es an: + e (weiblich), + s (Plural), + es (weiblich Plural).",
+     "fr": "1. Vérifie le verbe : est-il dans la liste des verbes avec être ?\n2. Mets être au présent : je suis, tu es, il est, nous sommes, vous êtes, ils sont.\n3. Ajoute le participe et accorde-le : + e (féminin), + s (pluriel), + es (féminin pluriel)."
+    },
+    "examples": [
+     {
+      "fr": "Nous [sommes] arrivé[s] à Lyon vers midi.",
+      "tr": {
+       "en": "We arrived in Lyon around noon.",
+       "de": "Wir sind gegen Mittag in Lyon angekommen."
+      }
+     },
+     {
+      "fr": "Mes parents [sont] venu[s] dîner samedi.",
+      "tr": {
+       "en": "My parents came for dinner on Saturday.",
+       "de": "Meine Eltern sind am Samstag zum Abendessen gekommen."
+      }
+     },
+     {
+      "fr": "Je [suis] resté[e] à la maison tout le week-end.",
+      "tr": {
+       "en": "I (a woman) stayed at home all weekend.",
+       "de": "Ich (eine Frau) bin das ganze Wochenende zu Hause geblieben."
+      }
+     },
+     {
+      "fr": "Elle [est] né[e] à Montréal.",
+      "tr": {
+       "en": "She was born in Montreal.",
+       "de": "Sie ist in Montreal geboren."
+      }
+     }
+    ],
+    "traps": [
+     {
+      "wrong": "J'ai allé au cinéma.",
+      "right": "Je [suis] allé au cinéma.",
+      "why": {
+       "en": "Aller is an être verb: je suis allé.",
+       "de": "Aller gehört zu den être-Verben: je suis allé.",
+       "fr": "Aller se conjugue avec être : je suis allé."
+      }
+     },
+     {
+      "wrong": "Elle est parti à huit heures.",
+      "right": "Elle est parti[e] à huit heures.",
+      "why": {
+       "en": "With être the participle agrees: + e for elle. You don't hear it, but you write it.",
+       "de": "Mit être passt sich das Partizip an: + e für elle. Man hört es nicht, aber man schreibt es.",
+       "fr": "Avec être, le participe s'accorde : + e pour elle. On ne l'entend pas, mais on l'écrit."
+      }
+     },
+     {
+      "wrong": "Nous sommes marchés jusqu'à la gare.",
+      "right": "Nous [avons] marché jusqu'à la gare.",
+      "why": {
+       "en": "Marcher is not on the être list, so it takes avoir.",
+       "de": "Auf Deutsch „wir sind gelaufen“, aber marcher steht nicht auf der être-Liste und nimmt avoir.",
+       "fr": "Marcher n'est pas dans la liste : il prend avoir."
+      }
+     }
+    ],
+    "contrast_with": [
+     {
+      "id": "FR2_A21_PC_AVOIR",
+      "note": {
+       "en": "Most verbs take avoir, with no agreement.",
+       "de": "Die meisten Verben nehmen avoir, ohne Angleichung.",
+       "fr": "La plupart des verbes prennent avoir, sans accord."
+      },
+      "title": {
+       "en": "Passé composé with avoir, regular and irregular participles",
+       "de": "Passé composé mit avoir: regelmäßige und unregelmäßige Formen",
+       "fr": "Le passé composé avec avoir : formes régulières et irrégulières"
+      }
+     },
+     {
+      "id": "FR2_A21_PC_PRONOMINAL",
+      "note": {
+       "en": "Verbs with se also take être: je me suis levé.",
+       "de": "Verben mit se nehmen auch être: je me suis levé.",
+       "fr": "Les verbes avec se prennent aussi être : je me suis levé."
+      },
+      "title": {
+       "en": "Pronominal verbs in the passé composé: je me suis levé",
+       "de": "Reflexive Verben im Passé composé: je me suis levé",
+       "fr": "Les verbes pronominaux au passé composé : je me suis levé"
+      }
+     }
+    ]
+   },
+   "xray": {
+    "sentence": "Marie est arrivée hier et ses frères sont restés à Paris.",
+    "marks": [
+     {
+      "token": "est arrivée",
+      "role": "agreement",
+      "explanation": "arriver takes être; + e because Marie is feminine"
+     },
+     {
+      "token": "sont restés",
+      "role": "agreement",
+      "explanation": "rester takes être; + s because ses frères is plural"
+     }
+    ]
+   }
+  },
+  {
+   "external_id": "FR2_B11_SI_TYPE1",
+   "sub_band": "B1.1",
+   "title_fr": "Si + présent, futur : conditions réelles",
+   "rule_card": {
+    "speaker": "lila_bonnet",
+    "example": {
+     "fr": "[S'il fait] beau samedi, nous [irons] à la plage.",
+     "tr": {
+      "en": "If the weather is nice on Saturday, we'll go to the beach.",
+      "de": "Wenn am Samstag schönes Wetter ist, fahren wir an den Strand."
+     }
+    },
+    "rule": {
+     "en": "For something that may really happen: si + present, then future, present or imperative. Never the future after si.",
+     "de": "Für etwas, das wirklich passieren kann: si + Präsens, dann Futur, Präsens oder Imperativ. Nach si nie das Futur.",
+     "fr": "Pour une condition réelle : si + présent, puis futur, présent ou impératif. Jamais de futur après si."
+    },
+    "pattern": {
+     "kind": "rows",
+     "rows": [
+      {
+       "shape": "none",
+       "label": "+ futur",
+       "fr": "[Si tu viens], on [ira] au cinéma."
+      },
+      {
+       "shape": "none",
+       "label": "+ impératif",
+       "fr": "[Si tu as] faim, [mange]."
+      },
+      {
+       "shape": "none",
+       "label": "+ présent",
+       "fr": "[S'il pleut], je [prends] le bus."
+      },
+      {
+       "shape": "none",
+       "label": "inversé",
+       "fr": "On [ira] à la plage [s'il fait] beau."
+      }
+     ]
+    },
+    "contrast": {
+     "wrong": "Si tu viendras, on ira au cinéma.",
+     "right": "[Si tu viens], on ira au cinéma."
+    },
+    "more": {
+     "en": "English does the same (if you come, we'll go), so the main risk comes from translating 'will' too literally. German speakers rarely slip here. Watch the spelling: si becomes s' only before il and ils, never before elle or on.",
+     "de": "Im Deutschen ist es ähnlich (wenn du kommst, gehen wir): Nach wenn steht kein „werden“. Achte auf die Schreibung: si wird nur vor il und ils zu s', nie vor elle oder on.",
+     "fr": "Le si de condition réelle ne supporte ni le futur ni le conditionnel. Attention à l'élision : s'il, s'ils, mais si elle, si on."
+    },
+    "how": {
+     "en": "1. Write the condition with si + present: si tu as le temps.\n2. Add the result: futur (on ira), present (je prends) or imperative (passe me voir).\n3. You can put the result first: on ira au cinéma si tu viens.",
+     "de": "1. Schreib die Bedingung mit si + Präsens: si tu as le temps.\n2. Füg die Folge hinzu: Futur (on ira), Präsens (je prends) oder Imperativ (passe me voir).\n3. Die Folge darf auch vorne stehen: on ira au cinéma si tu viens.",
+     "fr": "1. Écrivez la condition avec si + présent : si tu as le temps.\n2. Ajoutez la conséquence : futur (on ira), présent (je prends) ou impératif (passe me voir).\n3. La conséquence peut venir en premier : on ira au cinéma si tu viens."
+    },
+    "examples": [
+     {
+      "fr": "[Si tu as] le temps, [passe] me voir au bureau.",
+      "tr": {
+       "en": "If you have time, come and see me at the office.",
+       "de": "Wenn du Zeit hast, komm im Büro vorbei."
+      }
+     },
+     {
+      "fr": "Je t'[appellerai] [si le train a] du retard.",
+      "tr": {
+       "en": "I'll call you if the train is late.",
+       "de": "Ich rufe dich an, wenn der Zug Verspätung hat."
+      }
+     },
+     {
+      "fr": "[Si on part] maintenant, on [arrivera] avant la nuit.",
+      "tr": {
+       "en": "If we leave now, we'll arrive before dark.",
+       "de": "Wenn wir jetzt losfahren, kommen wir vor der Dunkelheit an."
+      }
+     }
+    ],
+    "traps": [
+     {
+      "wrong": "Si elle viendra demain, je serai content.",
+      "right": "[Si elle vient] demain, je serai content.",
+      "why": {
+       "en": "The si-clause stays in the present even when it talks about tomorrow.",
+       "de": "Der si-Satz bleibt im Präsens, auch wenn er von morgen spricht.",
+       "fr": "La subordonnée en si reste au présent, même pour parler de demain."
+      }
+     },
+     {
+      "wrong": "S'elle a faim, elle mangera.",
+      "right": "[Si elle] a faim, elle mangera.",
+      "why": {
+       "en": "Si becomes s' only before il and ils.",
+       "de": "Si wird nur vor il und ils zu s'.",
+       "fr": "Si ne s'élide que devant il et ils."
+      }
+     }
+    ],
+    "contrast_with": [
+     {
+      "id": "FR2_B11_SI_TYPE2",
+      "note": {
+       "en": "Imagined, unlikely situations: si + imparfait, then conditionnel.",
+       "de": "Vorgestellte, unwahrscheinliche Situationen: si + Imparfait, dann Conditionnel.",
+       "fr": "Situations imaginées, peu probables : si + imparfait, puis conditionnel."
+      },
+      "title": {
+       "en": "Si + imparfait, conditionnel: imagined conditions",
+       "de": "Si + Imparfait, Conditionnel: vorgestellte Bedingungen",
+       "fr": "Si + imparfait, conditionnel : conditions imaginées"
+      }
+     },
+     {
+      "id": "FR2_B11_TEMPORAL_FUTURE",
+      "note": {
+       "en": "Quand is for what will certainly happen, and it does take the future: quand tu viendras.",
+       "de": "Quand steht für das, was sicher passiert, und dort steht das Futur: quand tu viendras.",
+       "fr": "Quand annonce ce qui arrivera sûrement, et prend le futur : quand tu viendras."
+      },
+      "title": {
+       "en": "Quand, dès que + futur",
+       "de": "Quand, dès que + Futur",
+       "fr": "Quand, dès que + futur"
+      }
+     }
+    ]
+   },
+   "xray": {
+    "sentence": "S'il fait beau samedi, nous irons à la plage.",
+    "marks": [
+     {
+      "token": "S'il fait",
+      "role": "condition",
+      "explanation": "si + present, never future"
+     },
+     {
+      "token": "irons",
+      "role": "result",
+      "explanation": "futur simple in the main clause"
+     }
+    ]
+   }
+  },
+  {
+   "external_id": "FR2_B11_NE_QUE",
+   "sub_band": "B1.1",
+   "title_fr": "Ne…que : seulement",
+   "rule_card": {
+    "speaker": "margaux_barman",
+    "example": {
+     "fr": "Je [ne] bois [que] du thé le matin.",
+     "tr": {
+      "en": "I only drink tea in the morning.",
+      "de": "Ich trinke morgens nur Tee."
+     }
+    },
+    "rule": {
+     "en": "Ne…que means 'only': ne before the verb, que right before the thing you limit.",
+     "de": "Ne…que heißt „nur“: ne vor dem Verb, que direkt vor dem, was eingeschränkt wird.",
+     "fr": "Ne…que signifie « seulement » : ne avant le verbe, que juste devant ce qu'on limite."
+    },
+    "pattern": {
+     "kind": "rows",
+     "rows": [
+      {
+       "shape": "none",
+       "label": "présent",
+       "fr": "Je [n]'ai [que] dix euros."
+      },
+      {
+       "shape": "none",
+       "label": "passé composé",
+       "fr": "On [n]'a vu [que] deux films."
+      },
+      {
+       "shape": "none",
+       "label": "article",
+       "fr": "Elle [ne] boit [que] de l'eau."
+      }
+     ]
+    },
+    "contrast": {
+     "wrong": "Je ne bois que de thé.",
+     "right": "Je [ne] bois [que] du thé."
+    },
+    "more": {
+     "en": "It looks like a negation but it isn't one: you do drink something, only tea. That is why du, de la, des stay (unlike pas de). Que can move to target exactly what you mean: je n'ai vu que lui (only him), je ne l'ai vu qu'hier (only yesterday). Seulement says the same: j'ai seulement dix euros.",
+     "de": "Es sieht aus wie eine Verneinung, ist aber keine: Du trinkst ja etwas, nur eben Tee. Deshalb bleiben du, de la, des (anders als bei pas de). Que kann wandern und zielt genau auf das Eingeschränkte: je n'ai vu que lui (nur ihn), je ne l'ai vu qu'hier (erst gestern). Seulement sagt dasselbe: j'ai seulement dix euros.",
+     "fr": "Ce n'est pas une négation mais une restriction : on boit quelque chose, du thé seulement. C'est pourquoi l'article reste. Que se place devant l'élément visé : je n'ai vu que lui, je ne l'ai vu qu'hier."
+    },
+    "how": {
+     "en": "1. Put ne (n') before the conjugated verb, as usual.\n2. Put que directly before the word you restrict, after the participle in the passé composé.\n3. Keep the article: que du thé, que des légumes.",
+     "de": "1. Setz ne (n') wie gewohnt vor das konjugierte Verb.\n2. Setz que direkt vor das eingeschränkte Wort, im Passé composé nach dem Participe.\n3. Der Artikel bleibt: que du thé, que des légumes.",
+     "fr": "1. Placez ne (n') devant le verbe conjugué, comme d'habitude.\n2. Placez que juste devant l'élément limité, après le participe au passé composé.\n3. Gardez l'article : que du thé, que des légumes."
+    },
+    "examples": [
+     {
+      "fr": "Je [n]'ai [que] dix minutes pour déjeuner.",
+      "tr": {
+       "en": "I only have ten minutes for lunch.",
+       "de": "Ich habe nur zehn Minuten zum Mittagessen."
+      }
+     },
+     {
+      "fr": "Il [n]'y a [que] trois places libres.",
+      "tr": {
+       "en": "There are only three free seats.",
+       "de": "Es gibt nur drei freie Plätze."
+      }
+     },
+     {
+      "fr": "Ce [n]'est [qu]'un début.",
+      "tr": {
+       "en": "It's only a beginning.",
+       "de": "Das ist erst der Anfang."
+      }
+     }
+    ],
+    "traps": [
+     {
+      "wrong": "Je ne que bois du thé.",
+      "right": "Je [ne] bois [que] du thé.",
+      "why": {
+       "en": "Que never stands before the verb: it goes right before the thing you limit.",
+       "de": "Que steht nie vor dem Verb, sondern direkt vor dem Eingeschränkten.",
+       "fr": "Que ne se place jamais devant le verbe, mais devant l'élément limité."
+      }
+     },
+     {
+      "wrong": "Je n'ai pas que dix euros.",
+      "right": "Je [n]'ai [que] dix euros.",
+      "why": {
+       "en": "No pas: ne pas… que means 'not only', the opposite.",
+       "de": "Kein pas: ne pas… que heißt „nicht nur“, also das Gegenteil.",
+       "fr": "Pas de pas : ne… pas que signifie « pas seulement »."
+      }
+     }
+    ],
+    "contrast_with": [
+     {
+      "id": "FR2_A21_NEG_WORDS",
+      "note": {
+       "en": "Ne…pas, ne…plus negate and turn du into de: pas de pain vs que du pain.",
+       "de": "Ne…pas, ne…plus verneinen und machen aus du ein de: pas de pain, aber que du pain.",
+       "fr": "Ne…pas, ne…plus nient et changent du en de : pas de pain, mais que du pain."
+      },
+      "title": {
+       "en": "Ne…plus, ne…jamais, ne…rien, ne…personne",
+       "de": "Ne…plus, ne…jamais, ne…rien, ne…personne",
+       "fr": "Ne…plus, ne…jamais, ne…rien, ne…personne"
+      }
+     }
+    ]
+   },
+   "xray": {
+    "sentence": "Je ne bois que du thé le matin.",
+    "marks": [
+     {
+      "token": "ne...que",
+      "role": "restriction",
+      "explanation": "ne…que = only"
+     },
+     {
+      "token": "du thé",
+      "role": "article_kept",
+      "explanation": "article stays: no pas de here"
+     }
+    ]
+   }
+  }
+ ]
+}

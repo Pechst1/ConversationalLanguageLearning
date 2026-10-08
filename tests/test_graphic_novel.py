@@ -2517,11 +2517,11 @@ def test_standalone_edition_never_calls_the_news_service(client: TestClient, db_
     """Audit checklist #1: a normal standalone episode must not touch the news service."""
     _patch_story(monkeypatch)
 
-    class _ExplodingNews:
-        async def fetch_feuilleton_daily_seed(self, *args, **kwargs):  # noqa: ANN002, ANN003
-            raise AssertionError("standalone edition must not fetch live news")
+    def _exploding_dossier(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise AssertionError("standalone edition must not pick a news dossier")
 
-    monkeypatch.setattr("app.services.graphic_novel.NewsService", _ExplodingNews)
+    # WP-119 phase 5: the news seam is the feuilleton bridge, not NewsService.
+    monkeypatch.setattr("app.services.revue.feuilleton_bridge.dossier_for_feuilleton", _exploding_dossier)
     token = _token(client)
     concept = _concept(db_session)
     response = client.post(

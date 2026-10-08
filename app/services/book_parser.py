@@ -385,40 +385,73 @@ class BookParserService:
     
     def _extract_epub_text(self, content: bytes) -> str:
         """Extract plain text from EPUB file."""
-        try:
-            from io import BytesIO
+        from io import BytesIO
+        from zipfile import BadZipFile, ZipFile
 
-            import ebooklib
-            from bs4 import BeautifulSoup
-            from ebooklib import epub
-            
-            book = epub.read_epub(BytesIO(content))
-            text_parts = []
-            
-            for item in book.get_items():
-                if item.get_type() == ebooklib.ITEM_DOCUMENT:
-                    soup = BeautifulSoup(item.get_content(), "html.parser")
-                    text_parts.append(soup.get_text(separator="\n"))
-            
-            return "\n\n".join(text_parts)
-        except ImportError:
-            logger.warning("ebooklib not installed, EPUB parsing limited")
-            return content.decode("utf-8", errors="replace")
-    
-    def _extract_pdf_text(self, content: bytes) -> str:
-        """Extract plain text from PDF file."""
+        # Compressed upload size alone cannot bound EPUB memory use.
         try:
-            import fitz  # PyMuPDF
-            
-            doc = fitz.open(stream=content, filetype="pdf")
+            with ZipFile(BytesIO(content)) as archive:
+                entries = archive.infolist()
+                if len(entries) > 2000 or sum(entry.file_size for entry in entries) > 40_000_000:
+                    raise ValueError("EPUB exceeds the unpacked size or file count limit.")
+                if any(entry.flag_bits & 1 for entry in entries):
+                    raise ValueError("Encrypted EPUB files are not supported.")
+        except BadZipFile as exc:
+            raise ValueError("Invalid EPUB archive.") from exc
+        # The EPUB container is a zip of XHTML documents listed, in reading order, by
+        # the OPF package file that META-INF/container.xml points to. Reading it with
+        # the standard library keeps an AGPL parser (EbookLib) out of the service.
+        import posixpath
+
+        from bs4 import BeautifulSoup
+        from defusedxml import ElementTree
+
+        with ZipFile(BytesIO(content)) as archive:
+            names = set(archive.namelist())
+            documents: list[str] = []
+            try:
+                container = ElementTree.fromstring(archive.read("META-INF/container.xml"))
+                rootfile = next(
+                    el.get("full-path") for el in container.iter() if el.tag.endswith("rootfile")
+                )
+                package = ElementTree.fromstring(archive.read(rootfile))
+                base = posixpath.dirname(rootfile)
+                manifest = {
+                    el.get("id"): posixpath.normpath(posixpath.join(base, el.get("href", "")))
+                    for el in package.iter()
+                    if el.tag.endswith("}item") or el.tag == "item"
+                }
+                documents = [
+                    manifest[el.get("idref")]
+                    for el in package.iter()
+                    if (el.tag.endswith("}itemref") or el.tag == "itemref")
+                    and manifest.get(el.get("idref")) in names
+                ]
+            except (KeyError, StopIteration, ElementTree.ParseError):
+                documents = []
+            if not documents:
+                documents = sorted(n for n in names if n.lower().endswith((".xhtml", ".html", ".htm")))
+
             text_parts = []
-            
-            for page in doc:
-                text_parts.append(page.get_text())
-            
-            return "\n\n".join(text_parts)
-        except ImportError as exc:
-            raise ValueError("PDF parsing requires PyMuPDF to be installed.") from exc
+            for name in documents:
+                soup = BeautifulSoup(archive.read(name), "html.parser")
+                text_parts.append(soup.get_text(separator="\n"))
+        return "\n\n".join(text_parts)
+
+    def _extract_pdf_text(self, content: bytes) -> str:
+        """Extract plain text from PDF file (pypdf, BSD-licensed)."""
+        from io import BytesIO
+
+        from pypdf import PdfReader
+        from pypdf.errors import PdfReadError
+
+        try:
+            reader = PdfReader(BytesIO(content))
+            if reader.is_encrypted:
+                raise ValueError("Encrypted PDF files are not supported.")
+            return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        except PdfReadError as exc:
+            raise ValueError("Invalid PDF file.") from exc
 
     def _extract_html_text(self, content: bytes) -> str:
         """Extract plain text from HTML file."""

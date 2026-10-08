@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, get_llm_service
+from app.core.offload import off_event_loop
 from app.db.models.user import User
 from app.services.audio_session_service import (
     AudioSessionNotFoundError,
@@ -88,7 +89,7 @@ class AudioSessionEndResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────────
 
 @router.get("/scenarios", response_model=list[dict])
-async def list_audio_scenarios(
+def list_audio_scenarios(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
@@ -98,6 +99,7 @@ async def list_audio_scenarios(
 
 
 @router.post("/start", response_model=AudioSessionStartResponse)
+@off_event_loop
 async def start_audio_session(
     request: AudioSessionStartRequest | None = None,
     db: Session = Depends(get_db),
@@ -138,6 +140,7 @@ async def start_audio_session(
 
 
 @router.post("/respond", response_model=AudioSessionMessageResponse)
+@off_event_loop
 async def respond_to_audio(
     request: AudioSessionMessageRequest,
     db: Session = Depends(get_db),
@@ -205,6 +208,7 @@ async def respond_to_audio(
 
 
 @router.post("/end", response_model=AudioSessionEndResponse)
+@off_event_loop
 async def end_audio_session(
     request: AudioSessionEndRequest,
     db: Session = Depends(get_db),

@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget et fin · le bouclage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@1,400..800&family=Instrument+Sans:wght@400..700&display=swap">
+<style>
+/* ==========================================================================
+   WP-119 mockups · tokens copied verbatim from web-frontend/styles/atelier-v2.css
+   (light block .av2, dark block :root[data-theme='dark'] .av2) and the cast
+   accents from components/feuilleton/reader/reader-styles.tsx. Nothing new:
+   every colour below is an existing --av2-* or --char-* value.
+   ========================================================================== */
+@font-face { font-family: 'AtelierSerif'; font-style: italic; font-weight: 400 800; font-display: swap;
+  src: url('../../../web-frontend/public/fonts/eb-garamond-italic-latin.woff2') format('woff2'); }
+@font-face { font-family: 'AtelierSerif'; font-style: italic; font-weight: 400 800; font-display: swap;
+  src: url('../../../web-frontend/public/fonts/eb-garamond-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F; }
+@font-face { font-family: 'AtelierSans'; font-style: normal; font-weight: 400 700; font-display: swap;
+  src: url('../../../web-frontend/public/fonts/instrument-sans-latin.woff2') format('woff2'); }
+
+:root {
+  --av2-paper: #f1ece1; --av2-card: #f8f3e8; --av2-line: #e8e0cf; --av2-line-2: #d8cdb6;
+  --av2-ink: #14110d; --av2-ink-2: #4a4538; --av2-muted: #6f6857;
+  --av2-on-dark: #f8f3e8; --av2-on-red: #ffffff; --av2-on-blue: #f8f3e8; --av2-on-green: #f8f3e8;
+  --av2-on-yellow: #14110d; --av2-on-ink: #f8f3e8;
+  --av2-red: #d8321a; --av2-red-deep: #9c2411; --av2-blue: #1d3a8a; --av2-blue-deep: #14285f;
+  --av2-yellow: #f3c318; --av2-yellow-deep: #c49a0a; --av2-green: #2c6a5d; --av2-green-deep: #1f4f45;
+  --av2-ink-deep: #000000; --av2-tint-correct: #e3efe9; --av2-tint-wrong: #f7e1dc;
+  --av2-r-pill: 999px; --av2-r-button: 16px; --av2-r-card: 16px; --av2-r-tile: 18px;
+  --av2-r-episode: 22px; --av2-r-hero: 24px; --av2-r-sheet: 28px;
+  --av2-press: 5px; --av2-press-sm: 3px; --av2-press-md: 4px; --av2-press-dur: 0.08s;
+  --av2-serif: 'AtelierSerif', 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --av2-sans: 'AtelierSans', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --av2-t-meta: 0.75rem; --av2-t-label: 0.8125rem; --av2-t-body: 0.9375rem; --av2-t-body-lg: 1rem;
+  --av2-t-action: 1.0625rem; --av2-t-rule: 1.1875rem; --av2-t-option: 1.25rem; --av2-t-title: 1.5rem;
+  --av2-t-head: 1.875rem; --av2-t-screen: 2rem; --av2-t-display: 2.125rem;
+  --av2-gutter: 20px; --av2-gap: 12px; --av2-tap: 44px; --av2-focus: var(--av2-ink);
+  --char-romy: #1d3a8a; --char-marin: #2c6a5d; --char-lila: #c2890f; --char-gus: #8a2f2a;
+  --char-margaux: #a85d24; --char-marchand: #5b5346;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --av2-paper: #17140f; --av2-card: #221e17; --av2-line: #332d22; --av2-line-2: #4a4234;
+    --av2-ink: #f5efe1; --av2-ink-2: #d3c8b5; --av2-muted: #a2957e;
+    --av2-on-dark: #17140f; --av2-on-red: #17140f; --av2-on-blue: #17140f; --av2-on-green: #17140f;
+    --av2-on-yellow: #17140f; --av2-on-ink: #17140f;
+    --av2-red: #ff6a4d; --av2-red-deep: #a8321c; --av2-blue: #7fa0ff; --av2-blue-deep: #3f5cb8;
+    --av2-yellow: #f5cc3c; --av2-yellow-deep: #b08f16; --av2-green: #52b892; --av2-green-deep: #2f7a5f;
+    --av2-ink-deep: #6a6152; --av2-tint-correct: #1b2d27; --av2-tint-wrong: #33201c;
+    --char-romy: #7c9bff; --char-marin: #5fb3a1; --char-lila: #e0ad3e; --char-gus: #d97a72;
+    --char-margaux: #d68f52; --char-marchand: #a89b86;
+  }
+}
+:root[data-theme="dark"] {
+  --av2-paper: #17140f; --av2-card: #221e17; --av2-line: #332d22; --av2-line-2: #4a4234;
+  --av2-ink: #f5efe1; --av2-ink-2: #d3c8b5; --av2-muted: #a2957e;
+  --av2-on-dark: #17140f; --av2-on-red: #17140f; --av2-on-blue: #17140f; --av2-on-green: #17140f;
+  --av2-on-yellow: #17140f; --av2-on-ink: #17140f;
+  --av2-red: #ff6a4d; --av2-red-deep: #a8321c; --av2-blue: #7fa0ff; --av2-blue-deep: #3f5cb8;
+  --av2-yellow: #f5cc3c; --av2-yellow-deep: #b08f16; --av2-green: #52b892; --av2-green-deep: #2f7a5f;
+  --av2-ink-deep: #6a6152; --av2-tint-correct: #1b2d27; --av2-tint-wrong: #33201c;
+  --char-romy: #7c9bff; --char-marin: #5fb3a1; --char-lila: #e0ad3e; --char-gus: #d97a72;
+  --char-margaux: #d68f52; --char-marchand: #a89b86;
+}
+
+/* ---------- the desk around the phones (mockup furniture, not app UI) ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--av2-line); color: var(--av2-ink); font-family: var(--av2-sans); font-size: 16px; }
+.doc { max-width: 1680px; margin: 0 auto; padding: 24px 24px 64px; }
+.doc__head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.doc__kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.doc__title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-screen); line-height: 1.05; }
+.doc__lede { margin: 0; max-width: 72ch; font-size: var(--av2-t-body); line-height: 1.5; color: var(--av2-ink-2); }
+.doc__nav { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--av2-t-label); }
+.doc__nav a { color: var(--av2-ink-2); }
+.doc__nav a[aria-current] { color: var(--av2-ink); font-weight: 700; text-decoration: none; }
+.frames { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px; }
+.frame { width: 390px; display: flex; flex-direction: column; gap: 10px; }
+.frame__cap { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.frame__cap b { color: var(--av2-ink); }
+.frame__id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--av2-muted); }
+.phone { position: relative; width: 390px; min-height: 780px; overflow: hidden; border-radius: 34px;
+  background: var(--av2-paper); box-shadow: 0 0 0 1px var(--av2-line-2), 0 18px 40px -24px rgba(0,0,0,.35);
+  display: flex; flex-direction: column; }
+.phone--short { min-height: 0; }
+.ann { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--av2-card); font-size: var(--av2-t-meta); line-height: 1.45; color: var(--av2-ink-2); }
+.ann ol, .ann ul { margin: 4px 0 0; padding-left: 18px; }
+.pin { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: var(--av2-ink); color: var(--av2-on-ink); font-size: 10px; font-weight: 700; vertical-align: 1px; }
+.phone .pin { position: absolute; z-index: 30; box-shadow: 0 0 0 2px var(--av2-paper); }
+.sample { font-size: 11px; color: var(--av2-muted); }
+@media (max-width: 430px) {
+  .doc { padding: 16px 0 40px; }
+  .doc__head { padding: 0 16px; }
+  .frames { gap: 0; }
+  .frame { width: 100%; gap: 0; }
+  .frame__cap, .frame .ann { border-radius: 0; padding: 12px 16px; margin: 0; background: var(--av2-line); }
+  .phone { width: 100%; border-radius: 0; box-shadow: none; min-height: 0; }
+}
+
+/* ==========================================================================
+   Copied from styles/atelier-v2.css (subset, same class names)
+   ========================================================================== */
+.av2 { font-family: var(--av2-sans); color: var(--av2-ink); background: var(--av2-paper); }
+.av2 :focus-visible { outline: 3px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+.av2-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.av2-headline { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-head); line-height: 1.15; color: var(--av2-ink); text-wrap: pretty; }
+.av2-headline--screen { font-size: var(--av2-t-screen); line-height: 1; }
+.av2-headline--title { font-size: var(--av2-t-title); line-height: 1.12; font-weight: 600; }
+.av2-headline--rule { font-size: var(--av2-t-rule); line-height: 1.2; }
+.av2-fr { font-family: var(--av2-serif); font-style: italic; line-height: 1.35; }
+.av2-label { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-muted); }
+.av2-label--story { color: var(--av2-blue); }
+.av2-label--action { color: var(--av2-red); }
+.av2-body { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2-body--lg { font-size: var(--av2-t-body); }
+.av2-surface { background: var(--av2-card); border-radius: var(--av2-r-card); padding: 16px 18px; }
+.av2-surface--episode { border-radius: var(--av2-r-episode); padding: 0; overflow: hidden; }
+.av2-surface--outline { background: transparent; border: 2px dashed var(--av2-line-2); color: var(--av2-muted); }
+.av2-stack { display: flex; flex-direction: column; gap: var(--av2-gap); }
+.av2-shape { display: inline-block; flex: none; width: 12px; height: 12px; background: currentColor; }
+.av2-shape--square { border-radius: 2px; color: var(--av2-ink); }
+.av2-shape--circle { border-radius: 999px; color: var(--av2-blue); }
+.av2-shape--reward { border-radius: 3px; color: var(--av2-yellow); }
+.av2-shape--triangle { color: var(--av2-red); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.av2-shape--sm { width: 8px; height: 8px; }
+.av2-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 12px; border: 0; border-radius: var(--av2-r-pill);
+  background: var(--av2-card); color: var(--av2-ink); font: 700 var(--av2-t-label)/1.3 var(--av2-sans); text-decoration: none; }
+button.av2-chip, a.av2-chip { min-height: var(--av2-tap); cursor: pointer; }
+.av2-chip--story { background: var(--av2-blue); color: var(--av2-on-blue); }
+.av2-chip--quiet { background: transparent; color: var(--av2-muted); }
+.av2-btn { --f: var(--av2-card); --fg: var(--av2-ink); --sh: var(--av2-line-2); --d: var(--av2-press);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 3.5rem;
+  padding: .75rem 1.25rem; border: 0; border-radius: var(--av2-r-button); background: var(--f); color: var(--fg);
+  box-shadow: 0 var(--d) 0 var(--sh); font: 700 var(--av2-t-action)/1.25 var(--av2-sans); text-align: center; text-decoration: none; cursor: pointer;
+  transition: transform var(--av2-press-dur), box-shadow var(--av2-press-dur); }
+.av2-btn:active { transform: translateY(var(--d)); box-shadow: 0 0 0 transparent; }
+.av2-btn--primary { --f: var(--av2-red); --fg: var(--av2-on-red); --sh: var(--av2-red-deep); }
+.av2-btn--done { --f: var(--av2-ink); --fg: var(--av2-on-ink); --sh: var(--av2-ink-deep); }
+.av2-btn--story { --f: var(--av2-blue); --fg: var(--av2-on-blue); --sh: var(--av2-blue-deep); }
+.av2-btn--secondary { --d: var(--av2-press-md); font-size: var(--av2-t-body-lg); }
+.av2-surface .av2-btn--secondary, .rv-sheet .av2-btn--secondary { --f: var(--av2-line); }
+.av2-btn--quiet { --f: transparent; --fg: var(--av2-ink-2); --sh: transparent; --d: 0px; min-height: var(--av2-tap); padding: .5rem .75rem;
+  font-size: var(--av2-t-label); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.av2-btn--inline { width: auto; }
+.av2-icon-btn { display: inline-grid; place-items: center; flex: none; width: var(--av2-tap); height: var(--av2-tap); padding: 0; border: 0;
+  border-radius: 999px; background: var(--av2-card); color: var(--av2-ink); cursor: pointer; }
+.av2-icon-btn--pressable { box-shadow: 0 var(--av2-press-md) 0 var(--av2-line-2); }
+.av2-icon-btn--action { background: var(--av2-red); color: var(--av2-on-red); box-shadow: 0 var(--av2-press-md) 0 var(--av2-red-deep); }
+.av2-icon-btn--recording { background: var(--av2-ink); color: var(--av2-on-dark); box-shadow: 0 var(--av2-press-md) 0 var(--av2-ink-deep); }
+.av2-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: var(--av2-tap); padding: 12px 14px; border: 0;
+  border-radius: var(--av2-r-card); background: var(--av2-card); color: var(--av2-ink); font-family: inherit; text-align: left; text-decoration: none; }
+.av2-row__main { flex: 1 1 auto; min-width: 0; }
+.av2-progress__segments { display: flex; flex: 1 1 auto; gap: 5px; min-width: 0; }
+.av2-progress__segment { flex: 1 1 0; height: 14px; border-radius: 7px; background: var(--av2-line); }
+.av2-progress__segment[data-state='done'] { background: var(--av2-ink); }
+.av2-progress__segment[data-state='active'] { background: var(--av2-blue); }
+.av2-field__control { width: 100%; min-height: 3rem; padding: .75rem 1rem; border: 2px solid transparent; border-radius: var(--av2-r-card);
+  background: var(--av2-card); color: var(--av2-ink); font: 400 var(--av2-t-body-lg)/1.45 var(--av2-sans); }
+.av2-field__control::placeholder { color: var(--av2-muted); }
+.av2-field__control:focus, .av2-field__control[data-focus] { border-color: var(--av2-blue); outline: none; }
+.av2-composer { display: flex; align-items: flex-end; gap: 8px; }
+.av2-composer .av2-field__control { flex: 1 1 auto; }
+.av2-notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-card);
+  color: var(--av2-ink-2); font-size: var(--av2-t-label); line-height: 1.45; }
+.av2-notice p { margin: 0; }
+.av2-notice[data-tone='quiet'] { background: transparent; border: 2px dashed var(--av2-line-2); }
+.av2-notice .av2-shape { margin-top: 4px; }
+.av2-feedback { display: flex; align-items: flex-start; gap: 10px; }
+.av2-feedback__icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: var(--av2-green); color: var(--av2-on-green); }
+.av2-feedback__title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.15; color: var(--av2-green); }
+.av2-feedback__sub { margin: 3px 0 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+.av2-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.av2-choice { --cf: var(--av2-card); --ce: var(--av2-line-2); --cfg: var(--av2-ink); --cd: transparent;
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 12px 16px; border: 2px solid var(--ce); border-radius: var(--av2-r-tile);
+  background: var(--cf); color: var(--cfg); box-shadow: 0 var(--av2-press-sm) 0 var(--ce); font: 500 italic var(--av2-t-option)/1.2 var(--av2-serif); text-align: left; }
+.av2-choice[data-state='selected'] { --ce: var(--av2-blue); --cd: var(--av2-blue); }
+.av2-choice[data-state='correct'] { --cf: var(--av2-green); --ce: var(--av2-green-deep); --cfg: var(--av2-on-green); --cd: var(--av2-on-green); }
+.av2-choice__dot { flex: none; width: 14px; height: 14px; border-radius: 999px; border: 2px solid currentColor; background: var(--cd); opacity: .9; }
+.av2-word-token { display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--av2-blue); color: var(--av2-on-blue);
+  font: 500 italic var(--av2-t-label)/1 var(--av2-serif); }
+.av2-word-token[data-tone='new'] { background: var(--av2-yellow); color: var(--av2-on-yellow); }
+.av2-word-token[data-tone='known'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2-word-token[data-shape='feminine'] { border-radius: 999px; }
+.av2-word-token[data-shape='other'] { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+/* «Le fil» (WP-89): character on the left in a bubble, learner on the right, Garamond, hairline rule */
+.av2-thread { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.av2-speech { display: flex; align-items: flex-end; gap: 10px; }
+.av2-speech__bubble { flex: 1 1 auto; min-width: 0; padding: 12px 15px; border-radius: 20px 20px 20px 6px; background: var(--av2-card); }
+.av2-speech--past .av2-speech__bubble { flex: 0 1 auto; padding: 9px 13px; border-radius: 16px 16px 16px 6px; }
+.av2-thread__text { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.3; color: var(--av2-ink-2); }
+.av2-thread__line[data-speaker='learner'] { display: flex; flex-direction: column; align-items: flex-end; padding-left: 12%; }
+.av2-thread__mine { margin: 0; padding-right: 12px; border-right: 2px solid var(--av2-line-2); text-align: right;
+  font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.35; color: var(--av2-ink); }
+.av2-reply__typing { margin: 0; display: inline-flex; align-items: center; gap: 8px; color: var(--av2-muted); font-size: var(--av2-t-meta); }
+.av2-reply__dots { display: inline-flex; gap: 3px; }
+.av2-reply__dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .5; }
+/* Cast face disc (CastPortrait, drawn) */
+.face { flex: none; display: inline-grid; place-items: center; overflow: hidden; border-radius: 999px; background: var(--av2-card);
+  box-shadow: 0 0 0 2px var(--ring, var(--av2-line)); }
+.face svg { width: 100%; height: 100%; display: block; }
+.face--xs { width: 30px; height: 30px; } .face--sm { width: 40px; height: 40px; } .face--md { width: 64px; height: 64px; }
+.face[data-ring] { --ring: var(--c, var(--av2-line)); }
+/* the reader's tappable word, its translate chip and its word sheet (FeuilletonReader) */
+.fr-word { border-bottom: 1px dotted color-mix(in srgb, var(--av2-muted) 60%, transparent); border-radius: 3px; cursor: pointer; }
+.fr-word[data-open] { background: color-mix(in srgb, var(--av2-yellow) 34%, transparent); }
+.fr-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 4px 12px; border: 0; border-radius: 999px;
+  background: var(--av2-card); color: var(--av2-ink); font: 700 var(--av2-t-meta)/1 var(--av2-sans); }
+.fr-chip .sq { width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+.fr-chip[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+.rc-translation { margin: 6px 0 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink-2); }
+
+/* ---------- screen scaffold ---------- */
+.scr { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.scr__body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 14px; padding: 14px var(--av2-gutter) 18px; }
+.scr__foot { padding: 12px var(--av2-gutter) 26px; border-top: 1px solid var(--av2-line); background: var(--av2-paper); display: flex; flex-direction: column; gap: 10px; }
+.statusbar { height: 34px; flex: none; }
+.home__mast { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 6px var(--av2-gutter) 0; }
+.home__kicker { margin: 10px 0 0; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); }
+.home__streak { text-align: right; }
+.home__streak-n { display: block; font: 600 italic 2.875rem/.9 var(--av2-serif); }
+.home__section { padding: 14px var(--av2-gutter) 0; }
+.home__section--first { padding-top: 18px; }
+.home__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.day-plan { display: flex; justify-content: space-between; margin: 0; padding: 0; list-style: none; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.day-plan li { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.day-plan li[data-state='todo'] .av2-shape { color: var(--av2-line-2); }
+.tabbar { margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 8px 22px; border-top: 1px solid var(--av2-line); background: var(--av2-paper); }
+.tabbar span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--av2-muted); }
+.tabbar span[aria-current] { color: var(--av2-ink); }
+.tabbar i { width: 16px; height: 16px; background: currentColor; border-radius: 3px; }
+.tabbar span:nth-child(2) i { border-radius: 999px; } .tabbar span:nth-child(3) i { clip-path: polygon(50% 0,100% 100%,0 100%); border-radius: 0; }
+.gear { position: absolute; top: 46px; right: 16px; z-index: 5; box-shadow: 0 0 0 1px var(--av2-line); }
+.mark { display: inline-grid; grid-template-columns: 14px 14px; gap: 3px; }
+.mark i { width: 14px; height: 14px; display: block; }
+.mark i:nth-child(1) { background: var(--av2-red); clip-path: polygon(50% 0,100% 100%,0 100%); }
+.mark i:nth-child(2) { background: var(--av2-blue); border-radius: 999px; }
+.mark i:nth-child(3) { background: var(--av2-yellow); border-radius: 3px; }
+.mark i:nth-child(4) { background: var(--av2-ink); border-radius: 2px; }
+
+/* ==========================================================================
+   NEW · rv-* (WP-119). Tokens only, both themes.
+   ========================================================================== */
+
+/* RvSessionHead: close · five beats · the column */
+.rv-head { display: flex; align-items: center; gap: 12px; padding: 0 var(--av2-gutter) 10px; }
+.rv-head .av2-progress__segments { gap: 4px; }
+.rv-head .av2-progress__segment { height: 10px; }
+.rv-head .av2-progress__segment[data-beat='pursue'] { flex-grow: 2; }
+
+/* RvColumn: the remaining room as a newspaper column, never a clock */
+.rv-col { flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: var(--av2-tap); padding: 0 2px; border: 0; background: none; color: var(--av2-muted); font: 700 var(--av2-t-meta)/1 var(--av2-sans); }
+.rv-col__glyph { display: grid; grid-template-rows: repeat(7, 2px); gap: 2px; width: 16px; }
+.rv-col__glyph i { display: block; height: 2px; border-radius: 1px; background: var(--av2-line-2); }
+.rv-col__glyph i:nth-child(odd) { width: 100%; } .rv-col__glyph i:nth-child(even) { width: 78%; }
+.rv-col__glyph i[data-used] { background: var(--av2-ink); }
+.rv-col[data-phase='bouclage'] { color: var(--av2-ink); }
+.rv-col[data-phase='bouclage'] .rv-col__glyph i[data-last] { background: var(--av2-red); }
+
+/* RvStage: the plate with the drawn cast (PanelStage geometry) */
+.rv-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: var(--av2-card); flex: none; }
+.rv-stage[data-size='band'] { aspect-ratio: 390 / 168; }
+.rv-stage__plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.rv-stage[data-size='band'] .rv-stage__plate { object-position: 50% 62%; }
+.rv-stage__fig { position: absolute; transform: translateX(-50%); aspect-ratio: 180 / 220; }
+.rv-stage__fig svg { width: 100%; height: 100%; display: block; }
+.rv-stage__fig--you { aspect-ratio: 180 / 260; }
+.rv-stage__fig[data-entering] { animation: rv-enter .26s ease-out both; }
+@keyframes rv-enter { from { transform: translateX(-20%); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rv-stage__fig[data-entering] { animation: none; } }
+.rv-stage__folio { position: absolute; left: 12px; bottom: 12px; z-index: 6; display: inline-flex; align-items: center; gap: 7px; max-width: calc(100% - 24px);
+  padding: 5px 11px 5px 9px; border-radius: 999px; background: var(--av2-paper); color: var(--av2-ink); font: 700 var(--av2-t-meta)/1.3 var(--av2-sans);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--av2-blue-deep) 40%, transparent); }
+.rv-stage__folio::before { content: ''; width: 8px; height: 8px; flex: none; border-radius: 999px; background: var(--av2-blue); }
+/* the reader's «sous presse» duotone, reused */
+.rv-stage[data-pending] .rv-stage__plate { filter: grayscale(1) contrast(1.08) brightness(1.06); }
+.rv-stage__ink { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--av2-blue) 88%, var(--av2-blue-deep)); mix-blend-mode: screen; opacity: 0; }
+.rv-stage[data-pending] .rv-stage__ink { opacity: 1; }
+.rv-stage__close { position: absolute; z-index: 8; top: 12px; left: 12px; }
+.rv-stage__close.av2-icon-btn { background: var(--av2-paper); }
+
+/* RvNarration: the narrator, bare */
+.rv-narr { margin: 0; font-size: var(--av2-t-body); line-height: 1.5; color: var(--av2-ink-2); }
+.rv-narr + .rv-narr { margin-top: -6px; }
+
+/* speaker name over a bubble */
+.rv-who { display: block; margin: 0 0 3px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--c, var(--av2-muted)); }
+.rv-line__tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* RvListen: the read-aloud summary, the face is the play button (HeardLine) */
+.rv-listen { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 14px 8px 8px; border: 0; border-radius: var(--av2-r-card);
+  background: var(--av2-card); color: var(--av2-ink); font: 600 var(--av2-t-body)/1.3 var(--av2-sans); text-align: left; box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2); }
+.rv-listen__play { position: relative; }
+.rv-listen__play::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 18px; height: 18px; border-radius: 999px; background: var(--av2-ink);
+  -webkit-mask: none; box-shadow: 0 0 0 2px var(--av2-card); }
+.rv-listen__play b { position: absolute; right: 2px; bottom: 1px; z-index: 2; width: 0; height: 0; border-left: 7px solid var(--av2-on-ink); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; }
+.rv-listen__meta { display: block; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.rv-listen__wave { margin-left: auto; display: inline-flex; gap: 2px; align-items: center; }
+.rv-listen__wave i { width: 3px; border-radius: 2px; background: var(--av2-line-2); }
+
+/* RvClaim: a sourced claim. fact = solid ink rule; interpretation = dashed blue rule + attribution */
+.rv-claim { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 13px 15px 12px 17px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.rv-claim::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--av2-ink); }
+.rv-claim[data-kind='interpretation']::before, .rv-claim[data-kind='forecast']::before { background: repeating-linear-gradient(to bottom, var(--av2-blue) 0 5px, transparent 5px 9px); }
+.rv-claim__kind { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.rv-claim[data-kind='interpretation'] .rv-claim__kind { color: var(--av2-blue); }
+.rv-claim__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.38; color: var(--av2-ink); }
+.rv-claim__fr--b1 { font-size: var(--av2-t-rule); }
+.rv-claim__de { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink-2); }
+/* RvGloss shown (A1): the gloss printed under the word, ruby-style */
+ruby.rv-gloss { ruby-position: under; }
+ruby.rv-gloss rt { white-space: nowrap; ruby-align: center; text-align: center; font: 600 normal 0.6875rem/1.2 var(--av2-sans); color: var(--av2-muted); letter-spacing: 0; padding-top: 2px; }
+.rv-target { text-decoration: underline; text-decoration-color: var(--av2-yellow); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+/* RvSourceLine */
+.rv-source { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.rv-source a { color: var(--av2-ink-2); text-underline-offset: 3px; }
+.rv-source button { min-height: var(--av2-tap); padding: 0 2px; border: 0; background: none; color: var(--av2-ink-2); font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.rv-quote { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--av2-paper); font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink-2); }
+
+/* RvUncertainty: what the sources do not say (the outline surface = absence) */
+.rv-unknown { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--av2-r-card); border: 2px dashed var(--av2-line-2); }
+.rv-unknown__k { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-ink-2); }
+.rv-unknown__k .ring { width: 10px; height: 10px; border-radius: 999px; border: 2px solid var(--av2-blue); }
+.rv-unknown__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.3; color: var(--av2-ink); }
+
+/* RvShift: the support level changed (no modal) — a hairline marker in the thread */
+.rv-shift { display: flex; align-items: center; gap: 10px; margin: 2px 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.rv-shift::before, .rv-shift::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--av2-line-2); }
+
+/* RvGuestEntrance */
+.rv-enter { display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; border-radius: 999px; background: color-mix(in srgb, var(--c, var(--av2-muted)) 12%, var(--av2-card)); }
+.rv-enter p { margin: 0; font-size: var(--av2-t-label); line-height: 1.35; color: var(--av2-ink-2); }
+.rv-enter b { color: var(--av2-ink); }
+
+/* quick replies over the composer */
+.rv-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.rv-quick .av2-chip { font-weight: 600; }
+.rv-quick .av2-chip .lead { color: var(--av2-muted); font-weight: 700; }
+
+/* RvMakePicker: ChoiceList with a sub-line and Romy's pick */
+.rv-make .av2-choice { flex-wrap: wrap; row-gap: 2px; align-items: flex-start; }
+.rv-make .av2-choice .av2-choice__dot { margin-top: 5px; }
+.rv-make__t { flex: 1 1 0; min-width: 0; }
+.rv-make__sub { display: block; margin-top: 3px; font: 400 normal var(--av2-t-label)/1.35 var(--av2-sans); color: var(--av2-ink-2); }
+.av2-choice[data-state='correct'] .rv-make__sub { color: inherit; }
+.rv-make__pick { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font: 700 normal var(--av2-t-meta)/1 var(--av2-sans); color: var(--av2-blue); }
+.av2-choice[aria-disabled='true'] { opacity: 1; --cf: transparent; --ce: var(--av2-line-2); color: var(--av2-muted); box-shadow: none; border-style: dashed; }
+
+/* contribution mark: the learner's own words, kept (yellow = reward) + a word, never colour alone */
+.rv-yours { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--av2-yellow) 70%, transparent) 62%); padding: 0 1px; }
+.rv-yours sup { font: 700 normal 0.625rem/1 var(--av2-sans); color: var(--av2-muted); margin-left: 2px; }
+/* RvQuestionDraft */
+.rv-draft { display: flex; flex-direction: column; gap: 10px; }
+.rv-draft__pane { padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.rv-draft__pane[data-who='you'] { background: transparent; border: 2px solid var(--av2-line); }
+.rv-draft__fr { margin: 4px 0 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.3; }
+
+/* RvDispatch: the clipping that closes the Revue */
+.rv-dispatch { display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 16px; border-radius: var(--av2-r-hero); background: var(--av2-card); }
+.rv-dispatch__rule { height: 4px; border-top: 1px solid var(--av2-ink); border-bottom: 1px solid var(--av2-ink); }
+.rv-dispatch__hl { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-head); line-height: 1.1; }
+.rv-dispatch__body { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.4; color: var(--av2-ink-2); }
+.rv-dispatch__by { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.rv-colophon { margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--av2-line-2); text-align: center; font: italic var(--av2-t-rule)/1.3 var(--av2-serif); color: var(--av2-ink-2); }
+.rv-kept { display: flex; flex-direction: column; }
+.rv-kept__row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--av2-line); }
+.rv-kept__row:first-child { border-top: 0; padding-top: 0; }
+.rv-kept__fr { flex: 1 1 auto; min-width: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); }
+.rv-kept__de { flex: none; font-size: var(--av2-t-label); color: var(--av2-muted); }
+
+/* La Une card (RvUneCard) */
+.rv-une { display: block; text-decoration: none; color: inherit; }
+.rv-une__art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--av2-line); }
+.rv-une__body { display: flex; flex-direction: column; gap: 6px; padding: 14px 18px 16px; }
+.rv-une__folio { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rv-une__meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.rv-une__meta .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--av2-muted); }
+.rv-alts { display: flex; flex-direction: column; gap: 0; margin: 2px 0 0; border-top: 1px solid var(--av2-line); }
+.rv-alt { display: flex; align-items: center; gap: 12px; min-height: var(--av2-tap); padding: 10px 0; border-bottom: 1px solid var(--av2-line); color: inherit; text-decoration: none; }
+.rv-alt__t { flex: 1 1 auto; min-width: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.2; }
+.rv-alt__m { display: block; margin-top: 2px; font: 600 normal var(--av2-t-meta)/1.3 var(--av2-sans); color: var(--av2-muted); }
+.rv-ask { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.rv-ask .av2-field__control { min-height: var(--av2-tap); padding: .5rem .9rem; background: var(--av2-paper); }
+.rv-une__filed { display: flex; flex-direction: column; gap: 6px; }
+
+/* bottom sheet (BottomSheet) */
+.rv-scrim { position: absolute; inset: 0; z-index: 20; background: color-mix(in srgb, var(--av2-ink-deep) 38%, transparent); }
+.rv-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; display: flex; flex-direction: column; gap: 12px; padding: 10px var(--av2-gutter) 28px;
+  border-radius: var(--av2-r-sheet) var(--av2-r-sheet) 0 0; background: var(--av2-paper); }
+.rv-sheet__handle { align-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--av2-line-2); }
+
+/* Relevé (nb-*) copied from components/cahiers/CahierV2.tsx */
+.nb-tabs { display: flex; gap: 6px; padding: 0 var(--av2-gutter); }
+.nb-tabs span { padding: 8px 12px; border-radius: 999px; font-size: var(--av2-t-label); font-weight: 700; color: var(--av2-muted); }
+.nb-tabs span[aria-current] { background: var(--av2-card); color: var(--av2-ink); }
+.nb-sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.nb-sechead__t { margin: 0; font: italic 500 var(--av2-t-title)/1.1 var(--av2-serif); }
+.nb-sechead__n { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.nb-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--av2-line); }
+.nb-line:first-child { padding-top: 0; border-top: 0; }
+.nb-line__l { font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.nb-line__n { font: italic 700 var(--av2-t-rule)/1 var(--av2-serif); }
+/* RvReleveEntry: «la coupure» */
+.rv-cut { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.rv-cut__rule { height: 3px; border-top: 1px solid var(--av2-ink-2); border-bottom: 1px solid var(--av2-ink-2); opacity: .7; }
+.rv-cut__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.rv-cut__t { margin: 0; font: italic 500 var(--av2-t-rule)/1.2 var(--av2-serif); }
+.rv-cut__made { margin: 0; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.rv-cut__made q { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); color: var(--av2-ink); quotes: '« ' ' »'; }
+.rv-cut__claims { display: flex; flex-direction: column; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.rv-cut__claims li { position: relative; padding-left: 12px; font: italic var(--av2-t-body)/1.4 var(--av2-serif); color: var(--av2-ink); }
+.rv-cut__claims li::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--av2-ink); }
+.rv-cut__claims li[data-kind='interpretation']::before { background: repeating-linear-gradient(to bottom, var(--av2-blue) 0 4px, transparent 4px 7px); }
+.rv-cut__claims small { display: block; margin-top: 2px; font: 600 normal var(--av2-t-meta)/1.3 var(--av2-sans); color: var(--av2-muted); }
+.rv-cut__words { display: flex; flex-wrap: wrap; gap: 6px; }
+.rv-cut__words > span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--av2-paper); font-size: var(--av2-t-label); }
+.rv-cut__words em { font: italic var(--av2-t-body)/1 var(--av2-serif); }
+.rv-cut__words small { color: var(--av2-muted); }
+.rv-cut[data-collapsed] { gap: 6px; }
+
+/* column states strip (08) */
+.rv-colstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rv-colstrip > div { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-radius: 12px; background: var(--av2-card); font-size: 11px; color: var(--av2-ink-2); text-align: center; }
+.rv-stage[data-size='une'] { aspect-ratio: 16 / 9; }
+.rv-stage[data-size='une'] .rv-stage__plate { object-position: 50% 55%; }
+.dim { position: relative; }
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<g id="romy-body">
+  <path d="M18,222 Q18,156 90,150 Q162,156 162,222 Z" fill="#1d3a8a"/>
+  <path d="M72,152 L90,188 L108,152 Z" fill="#f8f3e8"/>
+  <rect x="80" y="120" width="20" height="36" rx="8" fill="#ecb896"/>
+  <g transform="rotate(-9 128 190)"><rect x="104" y="158" width="46" height="56" rx="4" fill="#f8f3e8"/>
+    <rect x="104" y="158" width="7" height="56" fill="#c49a0a"/>
+    <path d="M117,173h26M117,182h26M117,191h18" stroke="#c9c2b2" stroke-width="3" stroke-linecap="round"/></g>
+  <circle cx="110" cy="200" r="10" fill="#ecb896"/>
+</g>
+<g id="romy-head">
+  <path d="M46,100 Q44,44 90,42 Q136,44 134,100 L136,130 Q118,126 116,104 L64,104 Q62,126 44,130 Z" fill="#4a2e1a"/>
+  <ellipse cx="90" cy="96" rx="36" ry="40" fill="#ecb896"/>
+  <path d="M54,90 Q58,50 92,50 Q124,52 128,86 Q108,70 84,74 Q66,76 54,90 Z" fill="#4a2e1a"/>
+  <circle cx="76" cy="100" r="3.6" fill="#14110d"/><circle cx="104" cy="100" r="3.6" fill="#14110d"/>
+  <circle cx="68" cy="113" r="5" fill="#f1a98f" opacity=".7"/><circle cx="112" cy="113" r="5" fill="#f1a98f" opacity=".7"/>
+  <path d="M82,119 Q90,125 98,119" stroke="#14110d" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</g>
+<g id="margaux-body">
+  <path d="M18,222 Q18,156 90,150 Q162,156 162,222 Z" fill="#2c6a5d"/>
+  <path d="M56,166 Q90,178 124,166 L126,222 L54,222 Z" fill="#f8f3e8"/>
+  <rect x="80" y="120" width="20" height="36" rx="8" fill="#cf946a"/>
+</g>
+<g id="margaux-head">
+  <circle cx="90" cy="44" r="19" fill="#14110d"/>
+  <ellipse cx="90" cy="98" rx="36" ry="40" fill="#cf946a"/>
+  <path d="M54,94 Q54,56 90,54 Q126,56 126,94 Q114,72 90,70 Q66,72 54,94 Z" fill="#14110d"/>
+  <circle cx="76" cy="101" r="3.6" fill="#14110d"/><circle cx="104" cy="101" r="3.6" fill="#14110d"/>
+  <path d="M79,116 Q90,128 101,116" stroke="#14110d" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</g>
+<g id="toi-back">
+  <path d="M14,262 Q12,150 90,140 Q168,150 166,262 Z" fill="#4a4338"/>
+  <path d="M14,230 L42,230 L44,262 L14,262 Z" fill="#f8f3e8"/><path d="M166,230 L138,230 L136,262 L166,262 Z" fill="#f8f3e8"/>
+  <rect x="14" y="224" width="152" height="9" fill="#e9e4d8"/>
+  <path d="M90,228 Q72,214 70,228 Q72,242 90,228 Z M90,228 Q108,214 110,228 Q108,242 90,228 Z" fill="#c9c2b2"/>
+  <circle cx="90" cy="228" r="4.5" fill="#c9c2b2"/>
+  <path d="M87,232 L79,258 M93,232 L101,258" stroke="#c9c2b2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M62,146 Q90,160 118,146 L118,134 Q90,146 62,134 Z" fill="#4a4338"/>
+  <circle cx="52" cy="104" r="7" fill="#ecb896"/><circle cx="128" cy="104" r="7" fill="#ecb896"/>
+  <ellipse cx="90" cy="102" rx="37" ry="40" fill="#3a2a1c"/>
+  <path d="M50,98 Q50,46 90,44 Q130,46 130,98 Z" fill="#1d3a8a"/>
+  <rect x="47" y="86" width="86" height="17" rx="7" fill="#14285f"/>
+  <circle cx="90" cy="42" r="11" fill="#f8f3e8"/>
+</g>
+</defs></svg>
+<main class="doc">
+  <header class="doc__head">
+    <p class="doc__kicker">WP-119 · La Revue de Romy · maquettes (spec : docs/implementation/atelier-v2/WP-119-DESIGN.md)</p>
+    <h1 class="doc__title">Budget et fin · le bouclage</h1>
+    <p class="doc__lede">How the learner sees the room left without a clock, how Romy steers to the make at 80 % and closes at 100 %, and what /revue shows once the week's Revue is done.</p>
+    <ul class="doc__nav"><li><a href="01-la-une-card.html">A · La Une</a></li><li><a href="02-arrive.html">B1 · arrive</a></li><li><a href="03-facts-a1-b1.html">B2/C · facts, support</a></li><li><a href="04-pursue-guest.html">B3 · pursue, guest</a></li><li><a href="05-make.html">B4 · make</a></li><li><a href="06-close-releve.html">B5/D · close, Relevé</a></li><li><a href="07-states.html">F · states</a></li><li><a href="08-budget-ending.html" aria-current="page">E · budget, ending</a></li></ul>
+  </header>
+  <div class="frames">
+<section class="frame" id="column"><p class="frame__cap"><span class="frame__id">#column</span> · <b>Budget, as a newspaper column.</b> The remaining room is space, not time: seven lines of type that ink as the turns go. The word «Bouclage» appears only at 80 %, «Bouclé» at 100 %.</p><div class="phone av2 phone--short"><div class="scr__body" style="padding-top:18px"><p class="av2-label">RvColumn · la place qui reste dans la colonne</p><div class="rv-colstrip"><div><button class="rv-col" aria-label="Place dans la colonne : encore quatre échanges environ"><span class="rv-col__glyph" aria-hidden="true"><i data-used data-last></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button><b>Début</b></div><div><button class="rv-col" aria-label="Place dans la colonne : encore quatre échanges environ"><span class="rv-col__glyph" aria-hidden="true"><i data-used></i><i data-used></i><i data-used></i><i data-used data-last></i><i></i><i></i><i></i></span></button><b>À mi-chemin</b></div><div><button class="rv-col" data-phase="bouclage" aria-label="Bouclage proche : de la place pour un dernier échange"><span class="rv-col__glyph" aria-hidden="true"><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used data-last></i><i></i></span><span>Bouclage</span></button><b>80 % · Romy oriente vers le papier</b></div><div><button class="rv-col" data-phase="boucle" aria-label="Colonne pleine : Romy boucle"><span class="rv-col__glyph" aria-hidden="true"><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used data-last></i></span><span>Bouclé</span></button><b>100 % · Romy boucle</b></div></div><p class="av2-body">Sept lignes de texte, encrées à mesure que la conversation avance. Pas de minutes, pas de compte à rebours&nbsp;: une colonne qui se remplit. Le mot n’apparaît qu’au bouclage.</p><p class="av2-body">Toucher la colonne&nbsp;: «&nbsp;De la place pour environ quatre échanges.&nbsp;» (une ligne sous la barre, 3 s).</p></div></div><div class="ann">Mapping: one line ≈ 2 of the plan's 14 turns (or 1/7 of the minutes, whichever runs first). The last inked line turns red at bouclage: the one place red marks a state, because it is the action Romy is about to take. Screen readers get a sentence, never «6/7».</div></section>
+<section class="frame" id="steer"><p class="frame__cap"><span class="frame__id">#steer</span> · <b>80 % · Romy steers.</b> She declines an off-dossier detour honestly, then proposes the make that fits. The learner can still ask one more.</p><div class="phone av2"><div class="statusbar"></div><div class="rv-head"><button class="av2-icon-btn" aria-label="Quitter la Revue — Romy garde tes notes"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><div class="av2-progress__segments" role="img" aria-label="La Revue : étape 3 sur 5"><span class="av2-progress__segment" data-beat="arrive" data-state="done"></span><span class="av2-progress__segment" data-beat="facts" data-state="done"></span><span class="av2-progress__segment" data-beat="pursue" data-state="active"></span><span class="av2-progress__segment" data-beat="make" data-state="todo"></span><span class="av2-progress__segment" data-beat="close" data-state="todo"></span></div><button class="rv-col" data-phase="bouclage" aria-label="Bouclage proche : de la place pour un dernier échange"><span class="rv-col__glyph" aria-hidden="true"><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used data-last></i><i></i></span><span>Bouclage</span></button></div><div class="rv-stage" data-size="band"><img class="rv-stage__plate" src="plate-le_mistral-counter.webp" alt=""><span class="rv-stage__ink"></span><div class="rv-stage__fig" style="left:50%;height:92.0%;bottom:0%;z-index:3"><svg viewBox="0 0 180 220"><use href="#romy-body"/><use href="#romy-head"/></svg></div><div class="rv-stage__fig rv-stage__fig--you" style="left:86%;height:58%;bottom:-6%;z-index:4"><svg viewBox="0 0 180 260"><use href="#toi-back"/></svg></div></div><div class="scr__body"><ol class="av2-thread"><li class="av2-thread__line" data-speaker="learner"><span class="av2-sr">Toi : </span><p class="av2-thread__mine">Et les vignerons allemands&nbsp;?</p></li><li class="av2-thread__line"><div class="av2-speech av2-speech--past"><span class="face face--xs" data-ring style="--c:var(--char-romy)" aria-hidden="true"><svg viewBox="42 46 96 96"><use href="#romy-head"/></svg></span><div class="av2-speech__bubble"><span class="rv-who" style="--c:var(--char-romy)">Romy</span><p class="av2-thread__text">Ça, ce sera pour une autre fois&nbsp;: mes sources parlent de la Bourgogne.</p></div></div></li><li class="av2-thread__line"><div class="av2-speech"><span class="face face--sm" data-ring style="--c:var(--char-romy)" aria-hidden="true"><svg viewBox="42 46 96 96"><use href="#romy-head"/></svg></span><div class="av2-speech__bubble"><span class="rv-who" style="--c:var(--char-romy)">Romy</span><p class="av2-headline" style="font-size:var(--av2-t-title);line-height:1.2">On boucle bientôt. Il reste de la place pour une chose&nbsp;: on écrit ta question sur les prix&nbsp;?</p></div></div></li></ol></div><div class="scr__foot"><div class="rv-quick" aria-label="Réponses rapides"><button class="av2-chip">Oui, on l’écrit</button><button class="av2-chip">Encore une question</button></div><div class="av2-composer"><input class="av2-field__control" placeholder="Ta question à Romy…" lang="fr" aria-label="Ta réponse"><button class="av2-icon-btn av2-icon-btn--action" aria-label="Parler"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="11" rx="3" fill="currentColor"/><path d="M4 10a6 6 0 0 0 12 0M10 16v2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button></div></div></div><div class="ann">The steer is a line in her voice, not a banner. Quick replies lead with the make.</div></section>
+<section class="frame" id="final"><p class="frame__cap"><span class="frame__id">#final</span> · <b>100 % · Romy closes with what exists.</b> A new question is acknowledged and kept for next week; the press opens the close beat.</p><div class="phone av2"><div class="statusbar"></div><div class="rv-head"><button class="av2-icon-btn" aria-label="Quitter la Revue — Romy garde tes notes"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><div class="av2-progress__segments" role="img" aria-label="La Revue : étape 4 sur 5"><span class="av2-progress__segment" data-beat="arrive" data-state="done"></span><span class="av2-progress__segment" data-beat="facts" data-state="done"></span><span class="av2-progress__segment" data-beat="pursue" data-state="done"></span><span class="av2-progress__segment" data-beat="make" data-state="active"></span><span class="av2-progress__segment" data-beat="close" data-state="todo"></span></div><button class="rv-col" data-phase="boucle" aria-label="Colonne pleine : Romy boucle"><span class="rv-col__glyph" aria-hidden="true"><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used></i><i data-used data-last></i></span><span>Bouclé</span></button></div><div class="rv-stage" data-size="band"><img class="rv-stage__plate" src="plate-le_mistral-counter.webp" alt=""><span class="rv-stage__ink"></span><div class="rv-stage__fig" style="left:50%;height:92.0%;bottom:0%;z-index:3"><svg viewBox="0 0 180 220"><use href="#romy-body"/><use href="#romy-head"/></svg></div><div class="rv-stage__fig rv-stage__fig--you" style="left:86%;height:58%;bottom:-6%;z-index:4"><svg viewBox="0 0 180 260"><use href="#toi-back"/></svg></div></div><div class="scr__body"><ol class="av2-thread"><li class="av2-thread__line" data-speaker="learner"><span class="av2-sr">Toi : </span><p class="av2-thread__mine">Encore une question&nbsp;: et en Alsace&nbsp;?</p></li><li class="av2-thread__line"><div class="av2-speech"><span class="face face--sm" data-ring style="--c:var(--char-romy)" aria-hidden="true"><svg viewBox="42 46 96 96"><use href="#romy-head"/></svg></span><div class="av2-speech__bubble"><span class="rv-who" style="--c:var(--char-romy)">Romy</span><p class="av2-headline" style="font-size:var(--av2-t-title);line-height:1.2">La colonne est pleine&nbsp;! On boucle avec ce qu’on a&nbsp;: deux faits sûrs et ta question. L’Alsace, je la note pour la semaine prochaine.</p></div></div></li></ol></div><div class="scr__foot"><button class="av2-btn av2-btn--primary">Voir le papier</button></div></div><div class="ann">If nothing was made yet, the close uses the headline Romy wrote herself and says the learner's question is noted; the Relevé still gets the words and claims.</div></section>
+<section class="frame" id="ended"><p class="frame__cap"><span class="frame__id">#ended</span> · <b>Ended.</b> /revue after the close, this week: read-only, the dispatch, «Relire la conversation», «La suite la semaine prochaine». No composer, no press.</p><div class="phone av2"><div class="statusbar"></div><div class="rv-head"><button class="av2-icon-btn" aria-label="Revenir à La Une"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg></button><p class="av2-label" style="flex:1;display:flex;align-items:center;gap:7px;color:var(--av2-ink)"><span class="av2-shape av2-shape--square av2-shape--sm"></span>Revue bouclée le 2 oct.</p></div><div class="scr__body"><article class="rv-dispatch"><div class="rv-dispatch__rule"></div><p class="av2-label av2-label--story">La Revue de Romy · semaine 40</p><h2 class="rv-dispatch__hl" lang="fr">Vendanges précoces en Bourgogne&nbsp;: <span class="rv-yours">le vin</span> va-t-il être <span class="rv-yours">plus cher<sup>toi</sup></span>&nbsp;?</h2><p class="rv-dispatch__by"><span class="face face--xs" data-ring style="--c:var(--char-romy)" aria-hidden="true"><svg viewBox="42 46 96 96"><use href="#romy-head"/></svg></span><span>Romy Tremblay, avec toi</span></p></article><button class="av2-btn av2-btn--quiet av2-btn--inline" style="align-self:flex-start">Relire la conversation</button><p class="rv-colophon" lang="fr">La suite la semaine prochaine.</p></div></div><div class="ann">Back arrow (not ×): the encounter is over, this is a page. A Revue left unfinished on Sunday night is filed by an authored close with whatever exists.</div></section>
+  </div>
+</main>
+</body>
+</html>

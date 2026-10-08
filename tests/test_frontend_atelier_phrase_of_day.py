@@ -17,7 +17,11 @@ def test_la_une_prints_yesterdays_phrase_only_when_present() -> None:
     assert "const phraseOfDay = today?.phrase_of_day || null" in page
     assert "phrase={phraseOfDay ?" in page
     assert "<HomeScreen" in page
-    assert 'aria-label="La phrase d’hier"' in component
+    # 2026-09-24: the section's name is chrome (one-language rule); the
+    # French wording lives in the copy table, the phrase itself stays French.
+    assert "aria-label={copy.home_phrase}" in component
+    copy = (ROOT / "web-frontend" / "lib" / "atelier-v2-copy.ts").read_text(encoding="utf-8")
+    assert "home_phrase: 'La phrase d’hier'" in copy
     # The block only ever renders for a phrase that was published, so the "Paru"
     # badge restated its own precondition and was removed in the density pass.
     assert 'className="paru"' not in component

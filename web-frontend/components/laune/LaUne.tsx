@@ -9,6 +9,9 @@ import Link from 'next/link';
 import React from 'react';
 
 import { pulseAppHaptic } from '@/lib/haptics';
+import { useChromeLanguage } from '@/lib/learner-language';
+
+import { fill, launeCopy } from './laune-copy';
 
 function LuPortraitChip({
   name,
@@ -119,13 +122,14 @@ export function LuMasthead({
      keeps only what the app header cannot say: which day this edition is, and
      whether it is filed. Edition number and level moved to Le Cours, which is
      where a level belongs. */
+  const t = launeCopy(useChromeLanguage());
   return (
     <header className="lu-mast-wrap">
       <div className="folio">
         <b>{date}</b>
         {/* Idiomatic French: the ordinal stands alone; runs use the cardinal. */}
-        {streak > 0 && <span>{streak === 1 ? '1ᵉʳ jour' : `${streak} jours de suite`}</span>}
-        {boucle && <span className="filed">Bouclé{boucleDate ? ` · ${boucleDate}` : ''}</span>}
+        {streak > 0 && <span>{streak === 1 ? t.streak_first_day : fill(t.streak_days, { n: streak })}</span>}
+        {boucle && <span className="filed">{t.filed}{boucleDate ? ` · ${boucleDate}` : ''}</span>}
       </div>
     </header>
   );
@@ -151,12 +155,13 @@ export function LuBiblio({
   chapter?: number;
   href?: string;
 }) {
+  const t = launeCopy(useChromeLanguage());
   return (
     <article className="lu-art-sec undone">
-      <Link className="lu-tap" href={href} aria-label={'Lire ' + title + ', chapitre ' + chapter}>
+      <Link className="lu-tap" href={href} aria-label={fill(t.biblio_aria, { title, n: chapter })}>
         <div className="lu-kicker mut">La Bibliothèque</div>
         <h3 className="lu-head" style={{ fontSize: 20 }}>{title}</h3>
-        <p className="lu-deck">Chapitre {chapter} · lecture du soir, sans exercice.</p>
+        <p className="lu-deck">{fill(t.biblio_deck, { n: chapter })}</p>
       </Link>
     </article>
   );
@@ -182,11 +187,12 @@ export function LuPhraseDuJour({
   byline: string;
   paru?: boolean;
 }) {
+  const t = launeCopy(useChromeLanguage());
   return (
-    <aside className="lu-phrase-du-jour" aria-label="La phrase d’hier">
-      <div className="head"><span>La phrase d’hier</span></div>
+    <aside className="lu-phrase-du-jour" aria-label={t.phrase_head}>
+      <div className="head"><span>{t.phrase_head}</span></div>
       <blockquote>« {text} »</blockquote>
-      <p>par <em>{byline}</em></p>
+      <p>{t.by} <em>{byline}</em></p>
     </aside>
   );
 }
@@ -247,17 +253,18 @@ export function LuManchette({
   onOpen?: (() => void) | null;
   onCta?: () => void;
 }) {
-  const kicker = mission ? `Courrier attendu · Épisode ${ep}` : `Le Feuilleton · Épisode ${ep}`;
+  const t = launeCopy(useChromeLanguage());
+  const kicker = fill(mission ? t.kicker_mission : t.kicker_episode, { ep });
   const showFrame = artMode === 'art' || artMode === 'press';
   const askLine = ask === 'rest' || done
     ? null
     : ask === 'mission'
-      ? (replyMode === 'speak' ? `À vous de parler : cinq minutes de voix avec ${byline}.` : `À vous d’écrire : une réponse à ${byline}.`)
+      ? fill(replyMode === 'speak' ? t.ask_speak : t.ask_write, { name: byline })
       : ask === 'session'
-        ? 'À vous de jouer : la séance du jour.'
+        ? t.ask_session
         : ask === 'review'
-          ? 'À vous de réviser : le lexique du jour.'
-          : 'À vous de lire : l’épisode du jour.';
+          ? t.ask_review
+          : t.ask_read;
   const lead = (
     <React.Fragment>
       {showFrame && (
@@ -265,13 +272,13 @@ export function LuManchette({
           <div className="ratio">
             {artMode === 'art' && artUrl && (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img className="lu-art-img" src={artUrl} alt={'Illustration — épisode ' + ep} />
+              <img className="lu-art-img" src={artUrl} alt={fill(t.art_alt, { ep })} />
             )}
             {artMode === 'press' && (
               <div className="lu-art-press">
                 <div className="plate">
-                  <b>Sous presses</b>
-                  <span>L’illustration de l’épisode {ep} est en cours d’impression.</span>
+                  <b>{t.press_title}</b>
+                  <span>{fill(t.press_body, { ep })}</span>
                   <div className="rollers"><i /><i /><i /></div>
                 </div>
               </div>
@@ -282,26 +289,26 @@ export function LuManchette({
       <h2 className="lu-head lg">{headline}</h2>
       {artMode === 'late' && (
         <div className="lu-art-late">
-          <b>Illustration retardée</b>
-          L’image de cet épisode paraîtra dans une édition ultérieure. Le texte, lui, n’attend pas.
+          <b>{t.late_title}</b>
+          {t.late_body}
         </div>
       )}
       <div className="lu-byline">
         <LuPortraitChip className="chip" name={byline} url={portraitUrl} accentColour={accentColour} />
-        par <em>{byline}</em>
+        {t.by} <em>{byline}</em>
       </div>
     </React.Fragment>
   );
   return (
     <article className={'lu-art-sec lu-manchette' + (read ? ' done' : ' undone')}>
-      {done ? <LuStamp word="Bouclé" tone="blue" tilt={-5} /> : read ? <LuStamp word={mission ? 'Envoyé' : 'Lu'} tilt={-8} /> : null}
+      {done ? <LuStamp word={t.filed} tone="blue" tilt={-5} /> : read ? <LuStamp word={mission ? t.stamp_sent : t.stamp_read} tilt={-8} /> : null}
       <div className={'lu-kicker' + (mission ? ' blue' : '')}>{kicker}</div>
       {onOpen ? (
         <button
           type="button"
           className="lu-tap"
           onClick={onOpen}
-          aria-label={(mission ? 'Répondre à la mission — ' : 'Lire l’épisode — ') + headline}
+          aria-label={fill(mission ? t.open_mission : t.open_episode, { headline })}
         >
           {lead}
         </button>
@@ -316,8 +323,7 @@ export function LuManchette({
           {because && <p className="lu-prescription-because">{because}</p>}
           {budgetMinutes != null && (
             <p className="lu-prescription-overrun">
-              Plus long que les {budgetMinutes} minutes demandées — vous pouvez vous arrêter
-              quand vous voulez.
+              {fill(t.overrun, { n: budgetMinutes })}
             </p>
           )}
         </div>
@@ -330,11 +336,11 @@ export function LuManchette({
       )}
       {!done && (
         <button className="lu-cta" type="button" onClick={onCta} disabled={disabled} aria-busy={disabled || undefined}>
-          Continuer <IcoArrow />
+          {t.continue} <IcoArrow />
         </button>
       )}
       {!done && (
-        <Link className="lu-prescription-adjust" href="/settings?section=practice">Ajuster le temps de l’édition</Link>
+        <Link className="lu-prescription-adjust" href="/settings?section=practice">{t.adjust_time}</Link>
       )}
     </article>
   );
@@ -353,9 +359,10 @@ export type LuBrefRow = {
   disabled?: boolean;
 };
 export function LuEnBref({ rows }: { rows: LuBrefRow[] }) {
+  const t = launeCopy(useChromeLanguage());
   return (
-    <section className="lu-enbref" aria-label="En bref">
-      <div className="lu-kicker">En bref</div>
+    <section className="lu-enbref" aria-label={t.en_bref}>
+      <div className="lu-kicker">{t.en_bref}</div>
       <div className="lu-enbref-rule" />
       {rows.map((row) => {
         const inner = (
@@ -402,11 +409,12 @@ export function LuDemain({
   grand?: boolean;
 }) {
   /* One centred italic line under a double rule — a colophon, not a section. */
+  const t = launeCopy(useChromeLanguage());
   return (
     <section className={'lu-demain' + (grand ? ' grand' : '')}>
-      {grand && epTease && <p className="tease">Épisode {ep} : {epTease}</p>}
+      {grand && epTease && <p className="tease">{fill(t.tease, { ep: ep ?? '', tease: epTease })}</p>}
       <p className="line">
-        Demain — {ep ? <span>épisode {ep} · </span> : null}<Link href={focusHref}><em>{focus}</em></Link>
+        {t.tomorrow} — {ep ? <span>{fill(t.tomorrow_episode, { ep })} · </span> : null}<Link href={focusHref}><em>{focus}</em></Link>
         {!grand && epTease ? <span> · {epTease}</span> : null}.
       </p>
     </section>
@@ -427,11 +435,12 @@ export function LuNotice({
   retry?: boolean;
   onRetry?: () => void;
 }) {
+  const t = launeCopy(useChromeLanguage());
   return (
     <div className="lu-notice" role="alert">
       <span className={'sq ' + tone} />
       <span className="body"><b>{label}</b><p>{message}</p></span>
-      {retry && <button className="retry" type="button" onClick={onRetry}>Réessayer</button>}
+      {retry && <button className="retry" type="button" onClick={onRetry}>{t.retry}</button>}
     </div>
   );
 }

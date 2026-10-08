@@ -102,11 +102,14 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 }
-const htmlHas = (html, text) => html.includes(escapeHtml(text));
+// WP-82: French content is rendered with a narrow no-break space (U+202F)
+// before « ; : ! ? »; the fixtures are written with ordinary spaces.
+const htmlHas = (html, text) => html.replace(/ /g, ' ').includes(escapeHtml(text));
 
 const state = require('./journey-state.ts');
+const episodeModel = require('./story-episode-model.ts');
 const requests = require('./journey-requests.ts');
-const { journeyCopy } = require('./journey-copy.ts');
+const { journeyCopy, journeyStatusCopy } = require('./journey-copy.ts');
 const steps = require('./JourneySteps.tsx');
 const { JourneySession } = require('./JourneySession.tsx');
 const { JourneyTodayCard } = require('./JourneyTodayCard.tsx');
@@ -517,7 +520,7 @@ const noSleep = () => Promise.resolve();
   assert.deepEqual(apiCalls.find((e) => e.method === 'createDailyJourney').args[0], {
     mutation_id: 'mid-create',
     timezone: 'Europe/Paris',
-    budget_seconds: 300,
+    // WP-L6: no budget on the wire — the server sizes the day from the rhythm.
     preferred_input_mode: 'text',
   });
 
@@ -601,67 +604,53 @@ const noSleep = () => Promise.resolve();
   }
   assert.ok(lockedRecallHtml.includes('aria-checked'), 'and keeps its selection semantics');
 
-  // Respond: voice only when the server offers it; text always.
+  // WP-27 — Respond is voice-first. The primary action speaks; text is one tap
+  // away; a step the server does not offer voice for is text from the start.
   const respondHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: withVoice,
-      ...baseStepProps,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
+    React.createElement(steps.RespondStepView, { step: withVoice, ...baseStepProps }),
   );
-  assert.ok(respondHtml.includes('<textarea'), 'text is always a full path');
-  assert.ok(htmlHas(respondHtml, EN.use_voice), 'voice is offered for a voice-capable step');
+  assert.ok(htmlHas(respondHtml, EN.send), 'WP-107: sending is the primary output');
+  // WP-82 (appendix A): the «say it out loud…» line is gone — the mic says it.
+  assert.ok(!htmlHas(respondHtml, EN.voice_hint), 'no explaining line under the mic');
+  assert.ok(!/prononciation|pronunciation/i.test(respondHtml), 'and no talk of pronunciation');
+  assert.ok(!htmlHas(respondHtml, EN.use_voice), 'voice waits behind Hint');
+  assert.ok(respondHtml.includes('<textarea'), 'the reply opens on the field');
   assert.ok(htmlHas(respondHtml, withVoice.prompt.character_line_fr));
-  assert.ok(htmlHas(respondHtml, 'un café'), 'the elicited targets are shown');
+  assert.ok(!htmlHas(respondHtml, 'un café'), 'WP-107: target chips wait behind Hint');
+  assert.ok(htmlHas(respondHtml, EN.help_hint), 'one help disclosure is offered');
 
   const respondTextOnlyHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: voicelessRespond,
-      ...baseStepProps,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
+    React.createElement(steps.RespondStepView, { step: voicelessRespond, ...baseStepProps }),
   );
   assert.ok(respondTextOnlyHtml.includes('<textarea'), 'text stays a full path without voice');
-  assert.ok(!htmlHas(respondTextOnlyHtml, EN.use_voice), 'no voice control when voice is unavailable');
+  assert.ok(!htmlHas(respondTextOnlyHtml, EN.speak), 'no voice control when voice is unavailable');
+  assert.ok(!htmlHas(respondTextOnlyHtml, EN.use_voice));
   assert.ok(!htmlHas(respondTextOnlyHtml, EN.record));
-
-  // A transcription failure keeps the turn open and is never a wrong answer.
-  const voiceFailedHtml = renderToStaticMarkup(
-    React.createElement(steps.RespondStepView, {
-      step: withVoice,
-      ...baseStepProps,
-      voice: { kind: 'failed', message: 'voice_failed' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
-    }),
-  );
-  assert.ok(htmlHas(voiceFailedHtml, EN.voice_failed));
-  assert.ok(voiceFailedHtml.includes('<textarea'), 'the learner still holds the turn');
-  assert.ok(!htmlHas(voiceFailedHtml, EN.wrong));
 
   // A double tap can never send twice: the primary action is disabled while a
   // request is in flight, and the gate above reuses the first request anyway.
   const busyRespondHtml = renderToStaticMarkup(
     React.createElement(steps.RespondStepView, {
-      step: withVoice,
+      step: voicelessRespond,
       ...baseStepProps,
       busy: true,
       feedback: { kind: 'submitting' },
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   assert.ok(busyRespondHtml.includes('disabled=""'), 'the primary action locks while submitting');
   assert.ok(htmlHas(busyRespondHtml, EN.sending), 'and says so');
+
+  // The same is true of the microphone: a turn already in flight cannot be
+  // re-answered by speaking over it.
+  const busyVoiceHtml = renderToStaticMarkup(
+    React.createElement(steps.RespondStepView, {
+      step: withVoice,
+      ...baseStepProps,
+      busy: true,
+      feedback: { kind: 'submitting' },
+    }),
+  );
+  assert.ok(busyVoiceHtml.includes('disabled=""'), 'the speak action locks while submitting');
 
   // A graded turn stays closed until the learner continues.
   const gradedRespondHtml = renderToStaticMarkup(
@@ -669,10 +658,6 @@ const noSleep = () => Promise.resolve();
       step: withVoice,
       ...baseStepProps,
       feedback: cleanFeedback,
-      voice: { kind: 'idle' },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   // WP-20 D-6: a graded turn closes its input surface. The field, the send
@@ -686,11 +671,7 @@ const noSleep = () => Promise.resolve();
       step: withVoice,
       ...baseStepProps,
       feedback: cleanFeedback,
-      voice: { kind: 'idle' },
       draft: { get: () => 'Un café, s’il vous plaît.', set: () => {} },
-      onStartRecording: () => {},
-      onStopRecording: () => {},
-      onResetVoice: () => {},
     }),
   );
   assert.ok(
@@ -753,9 +734,24 @@ const noSleep = () => Promise.resolve();
 
   const correctHtml = renderFeedback(cleanFeedback);
   assert.ok(correctHtml.includes('data-state="correct"') && htmlHas(correctHtml, EN.correct));
-  assert.ok(htmlHas(correctHtml, clean.character_reply_fr));
+  // WP-76: the reply is the character's own speech in RespondStepView; the
+  // verdict card no longer repeats it.
+  assert.ok(!htmlHas(correctHtml, clean.character_reply_fr));
 
-  const supportedHtml = renderFeedback(supportedFeedback);
+  // WP-89 — verdict only at the close. The fixture's supported turn carries a
+  // `next_turn`: the conversation goes on, so there is no band, no «Continue»,
+  // no face and no correction card — nothing between two exchanges.
+  assert.ok(supported.next_turn, 'the fixture is a continuing turn');
+  const continuingHtml = renderFeedback(supportedFeedback);
+  assert.equal(continuingHtml, '', 'no band on next_turn');
+  assert.equal(
+    renderFeedback(state.feedbackFromAttempt({ ...supported, task_outcome: 'not_yet', assistance_level: 'none' })),
+    '',
+    'and no not_yet band either: a slip mid-conversation is a mark, not a verdict',
+  );
+  assert.equal(renderFeedback({ ...supportedFeedback, kind: 'replying' }), '');
+  // The same result as the closing turn is judged, once.
+  const supportedHtml = renderFeedback(state.feedbackFromAttempt({ ...supported, next_turn: null }));
   assert.ok(supportedHtml.includes('data-state="supported"') && htmlHas(supportedHtml, EN.supported));
   assert.ok(htmlHas(supportedHtml, supported.correction.corrected_fr));
   assert.ok(htmlHas(supportedHtml, EN.correction));
@@ -765,12 +761,13 @@ const noSleep = () => Promise.resolve();
   );
   assert.ok(wrongHtml.includes('data-state="wrong"') && htmlHas(wrongHtml, EN.wrong));
 
-  // An authored reply is labelled as authored; an unknown source claims nothing.
+  // WP-82 (text diet): the verdict prints no provenance line — an authored
+  // reply is never *presented* as live, and it is not annotated either.
   const authoredHtml = renderFeedback(
     state.feedbackFromAttempt({ ...clean, reply_source: 'authored' }),
   );
-  assert.ok(htmlHas(authoredHtml, EN.reply_authored_note), 'an authored reply says so');
-  assert.ok(!htmlHas(correctHtml, EN.reply_authored_note), 'and a live one does not');
+  assert.ok(!htmlHas(authoredHtml, EN.reply_authored_note), 'no «written reply from the script» line');
+  assert.ok(!htmlHas(correctHtml, EN.reply_authored_note), 'and none on a live one');
   const unknownSourceHtml = renderFeedback(state.feedbackFromAttempt(noProvenance));
   assert.ok(
     !htmlHas(unknownSourceHtml, EN.reply_authored_note),
@@ -831,23 +828,18 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(recapHtml, EN.finished_title));
-  assert.ok(htmlHas(recapHtml, EN.duration_not_measured), 'an unmeasured duration is stated, not invented');
-  assert.ok(htmlHas(recapHtml, 'en terrasse'), 'the single focus headline is shown');
-  assert.ok(htmlHas(recapHtml, EN.next_focus));
-  // Server-recorded capability evidence, in the server's own words.
-  const capability = finishedJourney.recap.capability_evidence[0];
-  assert.ok(htmlHas(recapHtml, EN.capability_shown));
-  assert.ok(htmlHas(recapHtml, capability.context_native));
-  assert.ok(htmlHas(recapHtml, EN[`capability_state_${capability.state}`]));
-  // Practised targets use readable labels, not raw enum text.
-  assert.ok(htmlHas(recapHtml, EN.evidence_produced_independent));
-  assert.ok(!recapHtml.includes('produced_independent'), 'no raw enum leaks into the recap');
+  // WP-79: an unmeasured duration reads as the steps the learner did, and the
+  // two deleted lines stay deleted.
+  assert.ok(!/pas encore mesur|not measured yet|nicht gemessen/i.test(recapHtml), 'no "not measured" line');
+  assert.ok(!/does not reopen|ne rouvre pas|nicht neu ge/i.test(recapHtml), 'no "does not reopen" line');
+  assert.ok(/data-fact="scene"/.test(recapHtml), 'the scene fact is shown');
   // A story callback is attributed to the character, not left as a bare fragment.
   assert.ok(
     htmlHas(recapHtml, finishedJourney.scenario.character_name)
       && htmlHas(recapHtml, finishedJourney.recap.story_outcome.callback_fr),
   );
-  assert.ok(!/\b\d+\s?min\b/.test(recapHtml.split(escapeHtml(EN.practiced))[0]), 'no fabricated duration');
+  assert.ok(!recapHtml.includes('produced_independent'), 'no raw enum leaks into the recap');
+  assert.ok(!/\b\d+\s?min\b/.test(recapHtml), 'no fabricated duration');
 
   const partialJourney = fixture('ended_early').response;
   const partialHtml = renderToStaticMarkup(
@@ -937,8 +929,10 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(legacyHtml, EN.start), 'the journey still offers its own start');
-  assert.ok(htmlHas(legacyHtml, EN.legacy_resume_title), 'and the old session is labelled separately');
-  assert.ok(htmlHas(legacyHtml, EN.legacy_resume_action));
+  // WP-81: Home does one thing — the old session's card is gone from Home.
+  assert.ok(!htmlHas(legacyHtml, EN.legacy_resume_title), 'no «unfinished older practice» card');
+  assert.ok(!htmlHas(legacyHtml, EN.legacy_resume_action));
+  assert.ok(!legacyHtml.includes('journey-legacy'));
 
   // Preparing shows the retry hint instead of a second start action.
   const preparingHtml = renderToStaticMarkup(
@@ -950,7 +944,11 @@ const noSleep = () => Promise.resolve();
       onOpen: () => {},
     }),
   );
-  assert.ok(htmlHas(preparingHtml, EN.preparing_title) && htmlHas(preparingHtml, EN.preparing_retry));
+  // WP-69: a status card is one language — the learner's — button included.
+  const STATUS_EN = journeyStatusCopy('en');
+  assert.ok(htmlHas(preparingHtml, STATUS_EN.preparing_title) && htmlHas(preparingHtml, STATUS_EN.preparing_retry));
+  assert.ok(!htmlHas(preparingHtml, journeyCopy('fr').preparing_retry), 'no French button under an English status');
+  assert.equal(state.phaseFromJourney(fixture('preparing').response).retryAllowed, Boolean(fixture('preparing').response.retry?.allowed));
   assert.ok(!htmlHas(preparingHtml, EN.start), 'never a second start while one is preparing');
 
   // A finished day is a read: no start, no restart.
@@ -964,6 +962,10 @@ const noSleep = () => Promise.resolve();
     }),
   );
   assert.ok(htmlHas(doneHtml, EN.done_today));
+  assert.ok(htmlHas(doneHtml, EN.done_review), 'one quiet «Revoir»');
+  // WP-81: the completed state names the day's scene (French content) under
+  // the learner-language status.
+  assert.ok(htmlHas(doneHtml, fixture('completed').response.scenario.title_fr));
   assert.ok(!htmlHas(doneHtml, EN.start), 'a finished day is never restartable from here');
 
   // The capability being off renders nothing at all.
@@ -1001,6 +1003,40 @@ const noSleep = () => Promise.resolve();
   // An unknown control language falls back rather than rendering blanks.
   assert.equal(journeyCopy('pt').start, journeyCopy('en').start);
   assert.equal(journeyCopy(null).start, journeyCopy('en').start);
+
+  // --- WP-33: register and pragmatics ---------------------------------------
+  // The dimension reuses the capability state labels above and adds exactly one
+  // more: the honest "we did not assess this". A learner must never read a
+  // blank where a verdict should be, and must never read a verdict where there
+  // was no evidence.
+  for (const language of ['en', 'de', 'fr']) {
+    const table = journeyCopy(language);
+    for (const key of [
+      'capability_register',
+      'capability_state_not_evaluated',
+      'correction_register',
+    ]) {
+      assert.ok(table[key] && table[key].trim().length > 0, `${language}.${key} exists`);
+    }
+    // No pronunciation or accent judgement anywhere (owner WON'T-DO). The one
+    // key allowed to say the word is `voice_hint`, which exists to promise the
+    // opposite — that promise is asserted separately below.
+    for (const key of Object.keys(table)) {
+      if (key === 'voice_hint') continue;
+      for (const banned of ['pronunciation', 'prononciation', 'Aussprache', 'phoneme']) {
+        assert.ok(
+          !table[key].toLowerCase().includes(banned.toLowerCase()),
+          `${language}.${key} must not judge pronunciation`,
+        );
+      }
+    }
+  }
+  assert.equal(journeyCopy('fr').capability_state_not_evaluated, 'non évalué');
+  // WP-27's promise, re-pinned here because WP-33 grades a *spoken* turn's
+  // register from its transcript and must not be read as scoring the voice.
+  assert.match(journeyCopy('en').voice_hint, /nothing here judges your pronunciation/i);
+  assert.match(journeyCopy('de').voice_hint, /nicht bewertet/i);
+  assert.match(journeyCopy('fr').voice_hint, /rien ici ne juge votre prononciation/i);
 
 
   // =========================================================================
@@ -1250,7 +1286,9 @@ const noSleep = () => Promise.resolve();
       draft: recallDrafts,
     }),
   );
-  assert.ok(!htmlHas(recallDraftHtml, EN.correct) && !htmlHas(recallDraftHtml, EN.wrong));
+  // Text only: the field's `autoCorrect="off"` (WP-76) is an attribute, not a verdict.
+  const recallDraftText = recallDraftHtml.replace(/<[^>]*>/g, ' ');
+  assert.ok(!htmlHas(recallDraftText, EN.correct) && !htmlHas(recallDraftText, EN.wrong));
 
   // A renderer given no store still works; it simply keeps nothing.
   const noStore = mountView(steps.RecallStepView, { ...stepProps, step: shortAnswerStep });
@@ -1264,8 +1302,16 @@ const noSleep = () => Promise.resolve();
     ...respondJourney.steps.find((entry) => entry.kind === 'respond'),
     status: 'active',
   };
-  const turnOne = { ...respondStep, prompt: { ...respondStep.prompt, turn_index: 1 } };
-  const turnTwo = { ...respondStep, prompt: { ...respondStep.prompt, turn_index: 2 } };
+  // Drafts are a property of the written path, so these two turns are pinned to
+  // text; WP-27's voice-first default is exercised in its own section below.
+  const turnOne = {
+    ...respondStep,
+    prompt: { ...respondStep.prompt, turn_index: 1, input_modes: ['text'] },
+  };
+  const turnTwo = {
+    ...respondStep,
+    prompt: { ...respondStep.prompt, turn_index: 2, input_modes: ['text'] },
+  };
 
   const respondDrafts = draftStore();
   const respondProps = {
@@ -1344,6 +1390,18 @@ const noSleep = () => Promise.resolve();
       assert.ok(!htmlHas(html, forbidden), `${kind} never reads as "${forbidden}"`);
     }
   }
+
+  // W6 (WP-89): the notice lives in the header's own slot — inside the head,
+  // before the step — so it can never push the field or Send down.
+  const pendingShell = shellHtml(connectionOf('pending_sync'), sessionPhase, activeJourney);
+  const headClose = pendingShell.indexOf('</header>');
+  const noticeAt = pendingShell.indexOf('class="av2-session__notice"');
+  assert.ok(noticeAt !== -1 && noticeAt < headClose, 'the connection notice is in the session header');
+  assert.equal(
+    pendingShell.split('journey-connection').length - 1,
+    1,
+    'and said once, not repeated above the step',
+  );
 
   // Connected, settled and current: no banner at all.
   const liveHtml = shellHtml(connectionOf('live'), sessionPhase, activeJourney);
@@ -1484,8 +1542,9 @@ const noSleep = () => Promise.resolve();
   assert.equal(attempts[0].args[2].expected_revision, serverJourney.revision);
 
   // The learner sees the feedback they never got — built from the server's own
-  // AttemptResult, not invented locally.
-  assert.equal(live.feedback.kind, 'graded');
+  // AttemptResult, not invented locally. WP-76: a respond reply is staged
+  // (`replying`, then `graded` for the very same result).
+  assert.ok(['graded', 'replying'].includes(live.feedback.kind), live.feedback.kind);
   assert.equal(live.feedback.result.evidence_ref, storedReceipt.evidence_ref);
 
   // The recovery layer is exposed on the controller and has settled.
@@ -1501,10 +1560,12 @@ const noSleep = () => Promise.resolve();
   );
   assert.equal(live.recovery.replayPlan, null, 'the plan is offered once, not on every render');
   // The step the learner was answering is still open, so their words are still
-  // held on the device — and the connection state says exactly that rather than
-  // claiming everything is synced.
+  // held on the device (`unsent`). W6 (WP-89): a draft while online is not a
+  // sync problem — the mutation settled, so the session is simply live and no
+  // «has not reached the server» banner pushes the field down.
   assert.equal(live.recovery.draftFor(interruptedStep.id), interruptedBody.text);
-  assert.equal(live.recovery.connection.state, 'pending_sync');
+  assert.equal(live.recovery.connection.state, 'live');
+  assert.equal(live.recovery.connection.unsent, true, 'the held draft is still a known fact');
   assert.equal(live.recovery.connection.online, true);
   assert.equal(live.recovery.connection.readingCache, false, 'a served snapshot is not a cached one');
 
@@ -1643,6 +1704,195 @@ const noSleep = () => Promise.resolve();
   );
   assert.equal(stuck.phase.kind, 'finished');
 
+  // -------------------------------------------------------------------------
+  // WP-27 — speaking is the default output, and every failure keeps the turn
+  // -------------------------------------------------------------------------
+  //
+  // No pronunciation scoring exists anywhere in this path (owner decision):
+  // the recording becomes text, the learner corrects it, and the same respond
+  // call grades it exactly like a typed answer.
+
+  const voiceLib = require('./voice-answer.ts');
+  const FRC = journeyCopy('fr');
+
+  // 1. the pure state machine, including each failure path
+  let vs = voiceLib.IDLE;
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'start' });
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'recording' });
+  assert.equal(vs.kind, 'recording');
+  assert.equal(voiceLib.voiceIsBusy(vs), true, 'the send button waits while the mic is live');
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'stop' });
+  assert.equal(vs.kind, 'transcribing');
+  vs = voiceLib.voiceAnswerReduce(vs, { type: 'transcribed', text: '  Je voudrais un café. ' });
+  assert.deepEqual(vs, { kind: 'transcript', text: 'Je voudrais un café.' });
+  assert.equal(
+    voiceLib.submittedMode(vs, 'Je voudrais un café.'),
+    'voice',
+    'a spoken sentence is submitted as voice',
+  );
+  assert.equal(
+    voiceLib.submittedMode(vs, 'Je voudrais un café, s’il vous plaît.'),
+    'voice',
+    'correcting a misheard word does not make the sentence typed',
+  );
+  assert.equal(voiceLib.submittedMode(vs, '   '), 'text', 'an emptied field is no longer voice');
+  assert.equal(voiceLib.submittedMode(voiceLib.IDLE, 'tapé'), 'text');
+
+  // an empty transcript is a declared failure, never a blank submission
+  assert.deepEqual(
+    voiceLib.voiceAnswerReduce({ kind: 'transcribing' }, { type: 'transcribed', text: '   ' }),
+    { kind: 'failed', reason: 'failed' },
+  );
+  // a stop that arrives with nothing running invents no work
+  assert.deepEqual(
+    voiceLib.voiceAnswerReduce(voiceLib.IDLE, { type: 'stop' }),
+    voiceLib.IDLE,
+  );
+  for (const reason of ['permission', 'unsupported', 'offline', 'empty', 'failed']) {
+    const failed = voiceLib.voiceAnswerReduce({ kind: 'recording' }, { type: 'fail', reason });
+    assert.deepEqual(failed, { kind: 'failed', reason });
+    const key = voiceLib.FAILURE_COPY_KEY[reason];
+    assert.ok(FRC[key], `${reason} has a sentence of its own`);
+    assert.ok(!/[A-Za-z]+ing\b|micro?phone\b/.test(FRC[key]), `${reason} is not English`);
+    // and every failure is recoverable: a fresh start clears it
+    assert.deepEqual(voiceLib.voiceAnswerReduce(failed, { type: 'start' }), voiceLib.IDLE);
+  }
+
+  // 2. the French chrome says what it does, and promises nothing about sound
+  assert.equal(FRC.speak, 'Parler');
+  assert.equal(FRC.use_text, 'Écrire plutôt');
+  assert.ok(/prononciation/.test(FRC.voice_hint), 'the hint addresses pronunciation once — to disown it');
+  assert.ok(/ne juge/.test(FRC.voice_hint), 'and only to say nothing judges it');
+  assert.ok(/réglages/i.test(FRC.voice_permission), 'a refusal says where to change it');
+  assert.ok(/écrit/.test(FRC.voice_permission), 'and that writing still works');
+  assert.ok(/écrit/.test(FRC.voice_offline), 'offline keeps the written path');
+  // `speak` is chrome and therefore French for every control language (WP-43);
+  // the sentences said to the learner are the ones that must be translated.
+  for (const key of ['voice_hint', 'voice_permission', 'voice_offline', 'voice_empty']) {
+    assert.ok(FRC[key] !== EN[key], `${key} is actually translated`);
+  }
+
+  // 3. the remembered preference
+  global.window.localStorage.removeItem(voiceLib.INPUT_MODE_KEY);
+  assert.equal(voiceLib.readAnswerMode(), 'voice', 'speaking is the default');
+  voiceLib.writeAnswerMode('text');
+  assert.equal(voiceLib.readAnswerMode(), 'text', 'and the choice is remembered');
+  assert.equal(global.window.localStorage.getItem(voiceLib.INPUT_MODE_KEY), 'text');
+  assert.equal(voiceLib.micRefusalExplained(), false);
+  voiceLib.rememberMicRefusalExplained();
+  assert.equal(voiceLib.micRefusalExplained(), true, 'a refusal is explained once, not every turn');
+
+  // 4. the whole device path: record → transcript → edit → submit as voice
+  const stoppedTracks = [];
+  const fakeStream = { getTracks: () => [{ stop: () => stoppedTracks.push(1) }] };
+  let micAnswer = async () => fakeStream;
+  class FakeRecorder {
+    constructor() {
+      this.mimeType = 'audio/webm';
+      this.started = false;
+    }
+    start() {
+      this.started = true;
+    }
+    stop() {
+      this.ondataavailable({ data: new Blob(['x'.repeat(4000)], { type: 'audio/webm' }) });
+      this.onstop();
+    }
+  }
+  FakeRecorder.isTypeSupported = () => false;
+  let currentRecorder = null;
+  global.MediaRecorder = new Proxy(FakeRecorder, {
+    construct(target, args) {
+      currentRecorder = new target(...args);
+      return currentRecorder;
+    },
+  });
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: true, mediaDevices: { getUserMedia: (...args) => micAnswer(...args) } },
+  });
+
+  apiHandler = (method) => {
+    if (method === 'transcribeAudio') return Promise.resolve('je voudrai un café');
+    throw new Error(`unexpected ${method}`);
+  };
+
+  const spoken = [];
+  const voiceStep = { ...withVoice, status: 'active' };
+  const voiceProps = {
+    ...stepProps,
+    copy: FRC,
+    step: voiceStep,
+    onSubmit: (input) => spoken.push(input),
+  };
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  const spokenTurn = mountView(steps.RespondStepView, voiceProps);
+  const actionWith = (tree, label) =>
+    findIn(tree, (node) => node.props && node.props.children === label);
+
+  assert.ok(actionWith(spokenTurn.tree, FRC.speak), 'the primary action is «Parler»');
+  assert.equal(textareaIn(spokenTurn.tree), null, 'and no field is offered yet');
+
+  await actionWith(spokenTurn.tree, FRC.speak).props.onClick();
+  await spokenTurn.settle();
+  assert.ok(currentRecorder && currentRecorder.started, 'the microphone is actually running');
+  assert.ok(actionWith(spokenTurn.tree, FRC.stop_recording), 'and the action becomes «Arrêter»');
+
+  actionWith(spokenTurn.tree, FRC.stop_recording).props.onClick();
+  await spokenTurn.settle();
+  assert.equal(stoppedTracks.length, 1, 'the microphone is released, not left open');
+  const field = textareaIn(spokenTurn.tree);
+  assert.ok(field, 'the transcript comes back into an editable field');
+  assert.equal(field.props.value, 'je voudrai un café');
+  assert.equal(spoken.length, 0, 'nothing is submitted behind the learner’s back');
+
+  // the learner fixes what the transcription got wrong, then sends
+  field.props.onChange({ target: { value: 'Je voudrais un café.' } });
+  await spokenTurn.settle();
+  actionWith(spokenTurn.tree, FRC.send).props.onClick();
+  assert.deepEqual(
+    spoken,
+    [{ mode: 'voice', text: 'Je voudrais un café.' }],
+    'the corrected sentence is submitted, and recorded as spoken',
+  );
+
+  // 5. a refused microphone is a first-class text path, explained once
+  global.window.localStorage.removeItem(voiceLib.MIC_DENIED_KEY);
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  micAnswer = async () => {
+    throw new Error('NotAllowedError');
+  };
+  const refused = mountView(steps.RespondStepView, { ...voiceProps, onSubmit: () => {} });
+  await actionWith(refused.tree, FRC.speak).props.onClick();
+  await refused.settle();
+  const refusedField = textareaIn(refused.tree);
+  assert.ok(refusedField, 'a refusal drops the learner straight onto the written path');
+  assert.equal(
+    global.window.localStorage.getItem(voiceLib.INPUT_MODE_KEY),
+    'text',
+    'and the device’s answer is remembered rather than re-asked every turn',
+  );
+  assert.equal(voiceLib.micRefusalExplained(), true, 'the explanation is marked as given');
+  const refusedHtml = renderToStaticMarkup(refused.tree);
+  assert.ok(refusedHtml.includes('réglages'), 'and it is on screen, in French');
+  assert.ok(!/wrong|Pas encore/.test(refusedHtml), 'a refusal is never a wrong answer');
+
+  // 6. offline: said before recording, never after losing the sentence
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: false, mediaDevices: { getUserMedia: async () => fakeStream } },
+  });
+  global.window.localStorage.setItem(voiceLib.INPUT_MODE_KEY, 'voice');
+  const offlineTurn = mountView(steps.RespondStepView, { ...voiceProps, onSubmit: () => {} });
+  await actionWith(offlineTurn.tree, FRC.speak).props.onClick();
+  await offlineTurn.settle();
+  const offlineHtml = renderToStaticMarkup(offlineTurn.tree);
+  assert.ok(offlineHtml.includes('Sans connexion'), 'offline is stated honestly');
+  assert.ok(actionWith(offlineTurn.tree, FRC.speak), 'and the turn is still there to retry');
+
+  delete global.MediaRecorder;
+  delete global.navigator;
+
   apiHandler = () => {
     throw new Error('no api handler installed');
   };
@@ -1656,3 +1906,391 @@ const noSleep = () => Promise.resolve();
   console.error(error);
   process.exit(1);
 });
+
+// ===========================================================================
+// WP-82 — one language rule (supersedes WP-43 / WP-39 D-3)
+// ===========================================================================
+// Up to A2 the app's own words — instructions, status, verdicts and the
+// buttons beside them — are the learner's language, so no card mixes two
+// chrome languages. French is the content (`*_fr`) and the navigation. From
+// B1 the chrome is French: `journeyChromeLanguage` resolves 'fr'.
+{
+  const FRT = journeyCopy('fr');
+  for (const language of ['en', 'de']) {
+    const table = journeyCopy(language);
+    for (const key of ['start', 'resume', 'continue', 'send', 'check', 'help', 'retry', 'today_eyebrow', 'finish_early']) {
+      assert.notEqual(table[key], FRT[key], `${language}.${key} is the learner's language`);
+    }
+    assert.notEqual(table.preparing_body, FRT.preparing_body, `${language}.preparing_body stays native`);
+  }
+  assert.equal(journeyCopy('de').start, 'Heute starten');
+  assert.equal(journeyCopy('de').today_eyebrow, 'Heute');
+  assert.equal(journeyCopy('fr').start, 'Commencer');
+
+  const { journeyChromeLanguage, chromeLanguage, levelBand } = require('../../../lib/language-rule.ts');
+  assert.equal(levelBand('A1.1'), 'A1');
+  assert.equal(levelBand(' b2 '), 'B2');
+  assert.equal(levelBand('Nouveau'), null);
+  assert.equal(chromeLanguage('de', 'A2'), 'de', 'A2: the learner’s language');
+  assert.equal(chromeLanguage('de', 'B1'), 'fr', 'B1: French chrome');
+  assert.equal(chromeLanguage('en-GB', null), 'en', 'no level: a beginner');
+  const withBand = (band) => ({
+    controlLanguage: 'en',
+    journey: { scenario: { level_band: band } },
+    envelope: null,
+  });
+  assert.equal(journeyChromeLanguage(withBand('A1')), 'en');
+  assert.equal(journeyChromeLanguage(withBand('B2')), 'fr');
+  assert.equal(
+    journeyChromeLanguage({ controlLanguage: 'de', journey: null, envelope: { available: { level_band: 'B1' } } }),
+    'fr',
+    'before a journey exists, the offered scenario’s band',
+  );
+
+  // The card no longer carries its own primary: the action sits under it.
+  const card = fs.readFileSync(path.join(__dirname, 'JourneyTodayCard.tsx'), 'utf8');
+  assert.ok(card.includes('function JourneyPrimary('), 'the primary action is its own block under the card');
+  assert.ok(card.includes('collapseWhenAbsent'), 'no empty art plate on the Home card');
+  assert.ok(card.includes('journeyChromeLanguage(controller)'), 'the card resolves its one chrome language');
+  const session = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
+  assert.ok(!session.includes("atelierCopy('fr')"), 'the step caption follows the chrome language');
+  assert.ok(session.includes('journeyChromeLanguage(controller)'));
+}
+
+// ===========================================================================
+// WP-66 — des journées qui ne se ressemblent pas
+//
+// Day shapes on the wire, the three Séance formats in the renderer, the
+// register line under the ending, and the «jour de lettre» seam. Everything
+// here is additive: a payload from a server built before WP-66 must render
+// exactly as it did.
+// ===========================================================================
+{
+  const EN66 = journeyCopy('en');
+  const FR66 = journeyCopy('fr');
+  const returning66 = fixture('returning_due').response;
+  const baseProps = {
+    copy: EN66,
+    busy: false,
+    feedback: { kind: 'idle' },
+    help: null,
+    onHelp: () => {},
+    onSubmit: () => {},
+    onContinue: () => {},
+  };
+  const recallFixture = returning66.steps.find((step) => step.kind === 'recall');
+  const sceneFixture = returning66.steps.find((step) => step.kind === 'scene');
+  const respondFixture = returning66.steps.find((step) => step.kind === 'respond');
+  const resolutionFixture = returning66.steps.find((step) => step.kind === 'resolution');
+  const render = (view, step, extra = {}) =>
+    renderToStaticMarkup(React.createElement(view, { step, ...baseProps, ...extra }));
+
+  // --- the shape -----------------------------------------------------------
+  assert.equal(
+    state.dayShapeOf(returning66),
+    'standard',
+    'a snapshot with no day_shape is the standard day it was',
+  );
+  assert.equal(state.dayShapeOf(null), 'standard');
+  assert.equal(state.dayShapeOf({ ...returning66, day_shape: 'listening' }), 'listening');
+  assert.equal(
+    state.dayShapeOf({ ...returning66, day_shape: 'jour_de_marche' }),
+    'jour_de_marche',
+    'an unknown shape is reported, not flattened: the steps still render',
+  );
+  assert.equal(
+    state.phaseFromJourney({ ...returning66, day_shape: 'jour_de_marche' }).kind,
+    'session',
+    'and a shape this build has never met never costs the learner their day',
+  );
+
+  // --- how each format is answered ----------------------------------------
+  const MODES = {
+    choice: 'choice',
+    classify: 'choice',
+    tiles: 'tiles',
+    word_bank: 'tiles',
+    short_answer: 'text',
+    transform: 'text',
+  };
+  for (const [format, mode] of Object.entries(MODES)) {
+    assert.equal(state.recallAnswerMode(format), mode, `${format} is answered as ${mode}`);
+  }
+  assert.equal(
+    state.recallAnswerMode('a_format_from_the_future'),
+    'text',
+    'an unknown format falls back to writing, which every server accepts',
+  );
+
+  const answered = { choice: 'opt-1', tiles: ['t1', 't2'], text: 'vous prenez un café' };
+  assert.deepEqual(state.recallAttempt({ task_type: 'classify', options: [] }, answered), {
+    mode: 'choice',
+    option_id: 'opt-1',
+  });
+  assert.deepEqual(state.recallAttempt({ task_type: 'word_bank', options: [] }, answered), {
+    mode: 'tiles',
+    tile_ids: ['t1', 't2'],
+  });
+  assert.deepEqual(state.recallAttempt({ task_type: 'transform', options: [] }, answered), {
+    mode: 'text',
+    text: 'vous prenez un café',
+  });
+  // Nothing answered is `null`, never a blank submission — a blank answer
+  // costs the learner a turn.
+  const empty = { choice: null, tiles: [], text: '   ' };
+  for (const format of Object.keys(MODES)) {
+    assert.equal(
+      state.recallAttempt({ task_type: format, options: [] }, empty),
+      null,
+      `${format} refuses an empty answer before it reaches the server`,
+    );
+  }
+
+  // --- the three new renderers --------------------------------------------
+  const classifyStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'classify',
+      instruction_native: 'Masculine or feminine?',
+      prompt_fr: 'terrasse',
+      options: [
+        { id: 'cls-m', text_fr: 'masculin' },
+        { id: 'cls-f', text_fr: 'féminin' },
+      ],
+      help_available: ['solution'],
+    },
+  };
+  const classifyHtml = render(steps.RecallStepView, classifyStep);
+  assert.ok(htmlHas(classifyHtml, 'terrasse'), 'the bare noun is the prompt');
+  assert.ok(!htmlHas(classifyHtml, 'une terrasse'), 'and its article is never shown');
+  assert.ok(htmlHas(classifyHtml, 'masculin') && htmlHas(classifyHtml, 'féminin'));
+  assert.ok(classifyHtml.includes('role="radiogroup"'), 'a classify is a real radio group');
+  assert.ok(!classifyHtml.includes('<textarea'), 'and not a writing task');
+
+  const wordBankStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'word_bank',
+      instruction_native: 'Build "the bill now". Some chips are not needed.',
+      prompt_fr: null,
+      options: [
+        { id: 'tile-1', text_fr: 'maintenant' },
+        { id: 'chip-1', text_fr: 'café' },
+        { id: 'tile-2', text_fr: "l'addition" },
+      ],
+    },
+  };
+  const wordBankHtml = render(steps.RecallStepView, wordBankStep);
+  for (const option of wordBankStep.prompt.options) {
+    assert.ok(htmlHas(wordBankHtml, option.text_fr), `chip ${option.id} is rendered`);
+  }
+  assert.ok(
+    htmlHas(wordBankHtml, EN66.word_bank_spare_chips),
+    'the learner is told some chips do not belong — otherwise counting solves it',
+  );
+  assert.ok(!wordBankHtml.includes('<textarea'), 'a word bank is built, not written');
+  // Plain tiles say nothing of the kind: every chip there is part of the answer.
+  const tilesHtml = render(steps.RecallStepView, {
+    ...recallFixture,
+    prompt: { ...recallFixture.prompt, task_type: 'tiles', options: wordBankStep.prompt.options },
+  });
+  assert.ok(!htmlHas(tilesHtml, EN66.word_bank_spare_chips));
+
+  const transformStep = {
+    ...recallFixture,
+    prompt: {
+      ...recallFixture.prompt,
+      task_type: 'transform',
+      instruction_native: 'Say the same thing with "vous": change "tu prends".',
+      prompt_fr: 'tu prends un café',
+      options: [],
+      help_available: ['hint'],
+    },
+  };
+  const transformHtml = render(steps.RecallStepView, transformStep);
+  assert.ok(htmlHas(transformHtml, 'tu prends un café'), 'the source sentence is printed');
+  assert.ok(htmlHas(transformHtml, EN66.transform_source_label), 'and labelled as the source');
+  assert.ok(transformHtml.includes('<textarea'), 'a transform is written out');
+  assert.ok(
+    !htmlHas(transformHtml, 'vous prenez un café'),
+    'and the rewrite the learner owes is nowhere on the page',
+  );
+
+  // The three originals are untouched.
+  const choiceHtml = render(steps.RecallStepView, recallFixture);
+  assert.ok(choiceHtml.includes('role="radiogroup"'), 'choice still renders as it did');
+  assert.ok(!htmlHas(choiceHtml, EN66.word_bank_spare_chips));
+  assert.ok(!htmlHas(choiceHtml, EN66.transform_source_label));
+
+  // --- «jour d'écoute» -----------------------------------------------------
+  assert.equal(state.sceneOpensOnAudio(sceneFixture.prompt), false);
+  assert.equal(
+    state.sceneOpensOnAudio({ ...sceneFixture.prompt, listen_first: true, audio_available: false }),
+    false,
+    'a listening day on a silent deployment is not a listening day',
+  );
+  assert.equal(
+    state.sceneOpensOnAudio({ ...sceneFixture.prompt, listen_first: true, audio_available: true }),
+    true,
+  );
+  const listeningHtml = render(steps.SceneStepView, {
+    ...sceneFixture,
+    prompt: { ...sceneFixture.prompt, listen_first: true, audio_available: true },
+  });
+  assert.ok(htmlHas(listeningHtml, EN66.listen_first_day), 'the order is stated before the text');
+  assert.ok(
+    !htmlHas(render(steps.SceneStepView, sceneFixture), EN66.listen_first_day),
+    'and never on an ordinary day',
+  );
+
+  // --- «jour de reprise» + the register line -------------------------------
+  assert.equal(state.registerNoteOf(resolutionFixture.prompt), null);
+  assert.equal(state.chapterRecapOf(resolutionFixture.prompt), null);
+  assert.equal(
+    state.registerNoteOf({ register_note_fr: '   ', register_reason_native: 'Kept vous.' }),
+    null,
+    'half a verdict is never shown: no French line, no reason either',
+  );
+  assert.deepEqual(
+    state.registerNoteOf({ register_note_fr: '« vous » tenu avec Margaux.' }),
+    { lineFr: '« vous » tenu avec Margaux.', reasonNative: null },
+    'a French-speaking learner gets the line alone, not the same sentence twice',
+  );
+
+  const reprise = {
+    ...resolutionFixture,
+    prompt: {
+      ...resolutionFixture.prompt,
+      chapter_recap_fr: 'Le chapitre s’achève : Romy a récupéré ses clés.',
+      register_note_fr: '« vous » tenu avec Margaux.',
+      register_reason_native: 'Kept vous with Margaux.',
+    },
+  };
+  const repriseHtml = render(steps.ResolutionStepView, reprise);
+  assert.ok(htmlHas(repriseHtml, 'Le chapitre s’achève : Romy a récupéré ses clés.'));
+  assert.ok(htmlHas(repriseHtml, EN66.chapter_recap_label));
+  assert.ok(htmlHas(repriseHtml, '« vous » tenu avec Margaux.'), 'the register line is French');
+  assert.ok(htmlHas(repriseHtml, 'Kept vous with Margaux.'), 'the reason is the learner’s');
+  assert.ok(htmlHas(repriseHtml, EN66.register_label));
+  // The ending is still the ending: the additions sit under it.
+  assert.ok(htmlHas(repriseHtml, resolutionFixture.prompt.character_line_fr));
+  assert.ok(
+    repriseHtml.replace(/\u202f/g, " ").indexOf(escapeHtml(resolutionFixture.prompt.character_line_fr)) <
+      repriseHtml.replace(/\u202f/g, " ").indexOf(escapeHtml('« vous » tenu avec Margaux.')),
+  );
+
+  // A resolution from a server that predates WP-66 renders exactly as before.
+  const plainResolutionHtml = render(steps.ResolutionStepView, resolutionFixture);
+  assert.ok(!htmlHas(plainResolutionHtml, EN66.register_label));
+  assert.ok(!htmlHas(plainResolutionHtml, EN66.chapter_recap_label));
+
+  // --- «jour de lettre» (WP-64 seam, off until a provider exists) ----------
+  assert.equal(respondFixture.prompt.letter ?? null, null, 'no letter on an ordinary day');
+  const letterStep = {
+    ...respondFixture,
+    prompt: {
+      ...respondFixture.prompt,
+      letter: {
+        mission_id: 'm-1',
+        correspondent_id: 'romy_voisine',
+        correspondent_name: 'Romy',
+        subject_fr: 'Le radiateur',
+        body_fr: 'Le radiateur fuit encore. Tu peux passer ce soir ?',
+        objective_native: 'Answer Romy and say when you can come.',
+      },
+    },
+  };
+  const letterHtml = render(steps.RespondStepView, letterStep);
+  assert.ok(htmlHas(letterHtml, 'Le radiateur fuit encore. Tu peux passer ce soir ?'));
+  assert.ok(htmlHas(letterHtml, 'Romy'), 'the correspondent is named');
+  assert.ok(htmlHas(letterHtml, 'Write your answer to this letter.'), 'the chrome says the task');
+  assert.ok(!htmlHas(letterHtml, 'Answer Romy and say when you can come.'), "the mission's own objective is not the task line");
+  // The turn is still the ordinary respond turn: same answer surface, same
+  // send action. A letter changes what is being answered, not how.
+  const plainRespondHtml = render(steps.RespondStepView, respondFixture);
+  assert.equal(
+    letterHtml.includes('<textarea'),
+    plainRespondHtml.includes('<textarea'),
+    'a letter day answers the same way an ordinary day does',
+  );
+  assert.equal(
+    letterHtml.includes(escapeHtml(EN66.send)),
+    plainRespondHtml.includes(escapeHtml(EN66.send)),
+    'and the same action closes the turn',
+  );
+  // The ordinary respond step never shows a letter block.
+  assert.ok(!htmlHas(render(steps.RespondStepView, respondFixture), 'Le radiateur'));
+
+  // --- the seam, wired: one reading of the letter, and F-27 ----------------
+  //
+  // WP-64 now registers a real provider, so `prompt.letter` is a letter a
+  // learner will actually meet. Two properties matter on this side.
+
+  // 1. Half a letter is never shown. The letter block replaces the character's
+  //    line and the day's objective, so a letter missing a sender, a body or an
+  //    objective would leave the learner answering a blank page. It falls back
+  //    to the ordinary respond step instead — which is always complete.
+  assert.equal(state.letterOf(respondFixture.prompt), null, 'no letter, no letter');
+  assert.equal(state.letterOf(null), null);
+  assert.deepEqual(
+    state.letterOf(letterStep.prompt),
+    letterStep.prompt.letter,
+    'a whole letter is the letter',
+  );
+  for (const missing of ['correspondent_name', 'body_fr', 'objective_native']) {
+    const partial = {
+      ...letterStep,
+      prompt: { ...letterStep.prompt, letter: { ...letterStep.prompt.letter, [missing]: '   ' } },
+    };
+    assert.equal(state.letterOf(partial.prompt), null, `${missing} missing is not a letter`);
+    const partialHtml = render(steps.RespondStepView, partial);
+    assert.ok(
+      htmlHas(partialHtml, respondFixture.prompt.objective_native),
+      `${missing} missing falls back to the ordinary objective, never to a blank`,
+    );
+    assert.ok(!htmlHas(partialHtml, 'Le radiateur fuit encore'));
+  }
+
+  // 2. F-27 — «Écouter d'abord» is offered BEFORE the first planche, and only
+  //    when this deployment can actually speak the scene.
+  const placement = (args) => episodeModel.listenFirstPlacement(args);
+  assert.equal(
+    placement({ audioAvailable: false }),
+    'none',
+    'no audio, no offer — a link that answers "audio is off" is worse than none',
+  );
+  assert.equal(
+    placement({ audioAvailable: false, preferred: true, dealt: true }),
+    'none',
+    'and a remembered choice cannot turn a silent deployment into a listening day',
+  );
+  assert.equal(
+    placement({ audioAvailable: true }),
+    'before_first_panel',
+    'the offer sits above the panels, where accepting it still means something',
+  );
+  assert.equal(placement({ audioAvailable: true, preferred: true }), 'cycle');
+  assert.equal(
+    placement({ audioAvailable: true, dealt: true }),
+    'cycle',
+    'a «jour d’écoute» opens on the cycle rather than on an offer',
+  );
+
+  // The component reads that one function and offers nothing on the foot: the
+  // link the QA walk found under the last panel is gone from the file.
+  const episodeStep = fs.readFileSync(path.join(__dirname, 'StoryEpisodeStep.tsx'), 'utf8');
+  assert.ok(episodeStep.includes('listenFirstPlacement('), 'the placement is the model’s call');
+  assert.ok(
+    episodeStep.includes('footLink={null}'),
+    'the reader’s foot no longer carries the offer',
+  );
+  assert.ok(
+    episodeStep.indexOf("data-listen-offer=\"before-first-panel\"") <
+      episodeStep.indexOf('<StoryEpisodeReader'),
+    'and the offer is rendered before the reader, not after it',
+  );
+}
+
+console.log('WP-66 day shapes and recall formats: ok');

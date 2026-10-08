@@ -12,6 +12,7 @@
 services:
   - type: web
     name: atelier-api
+    autoDeployTrigger: checksPass
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
@@ -22,12 +23,54 @@ services:
         value: "1"
       - key: BOOTSTRAP_REFERENCE_DATA
         value: "1"
+      # WP-71: production. app/main.py refuses to start production unless
+      # AUTO_CREATE_USERS_ON_LOGIN and PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
+      # are false and SMTP_HOST + SMTP_FROM_EMAIL are set (below, dashboard).
       - key: APP_ENV
-        value: staging   # switch to production for the pilot (requires SMTP_* set)
+        value: production
+      # --- WP-73 observability (begin) ---------------------------------
+      # JSON log lines (extras + request_id). Sentry is a no-op until SENTRY_DSN
+      # is entered in the dashboard; the release tag defaults to RENDER_GIT_COMMIT.
+      - key: LOG_FORMAT
+        value: json
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0"
+      - key: WORKER_HEARTBEAT_STALE_SECONDS
+        value: "300"
+      # --- WP-73 observability (end) -----------------------------------
       - key: AUTO_CREATE_USERS_ON_LOGIN
         value: "false"
       - key: PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE
         value: "false"
+      # WP-70: two workers fit the 512 MB starter plan (~184 MB each).
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: USER_DAILY_SPEND_CAP_USD
+        value: "0.50"
+      - key: RATE_LIMIT_TRUSTED_PROXY_HOPS
+        value: "1"
+      # Password reset emails a six-digit code typed in the app. SMTP_HOST and
+      # SMTP_FROM_EMAIL are required at startup; USERNAME/PASSWORD are the
+      # provider's credentials. SMTP_PORT (587) and SMTP_USE_TLS (true) default.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      # PASSWORD_RESET_BASE_URL is deliberately unset: with no public web app the
+      # email carries the code only. Set it to a public https URL of
+      # /auth/forgot-password once one exists and the email adds a link.
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -64,7 +107,7 @@ services:
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2
+        value: gpt-image-2.5-flare
       # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
@@ -94,10 +137,53 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. Never blank this while the
-      # switch above is on — with APP_ENV=staging an empty cohort means every
-      # account on the service, which is the opposite of shrinking the pilot.
+      # study accounts appended to the same list. '*' means EVERYONE and 'none'
+      # means nobody on purpose. WP-88: the API refuses to start in production
+      # with this blank, because blank used to mean "nobody" silently.
       - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
+      # WP-88 (owner decision D-2): the characters speak. Clips are cached per
+      # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
+      # characters, an estimate the row says so).
+      - key: ATELIER_EPISODE_AUDIO_ENABLED
+        value: "true"
+      # WP-103 T1 (decision R-5): a steerable speech model, told per character to
+      # speak native French with no English accent and at the band's pace
+      # (app/services/cast_voices.py). tts-1-hd cannot be steered; it is only the
+      # logged fallback if this model errors. Changing the model or the wording
+      # changes the cache key, so old clips are never served.
+      - key: FEUILLETON_AUDIO_TTS_MODEL
+        value: gpt-4o-mini-tts
+      # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
+      # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
+      # (panels show the location plate, and startup logs why) until durable
+      # storage is set below: a drawing on the container's disk dies at deploy.
+      - key: ATELIER_PANEL_ART_ENABLED
+        value: "true"
+      - key: ATELIER_PANEL_ART_BANDS
+        value: "A1,A2"
+      - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
+        value: "0.25"
+      # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
+      # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
+      # the generated serial (D6).
+      - key: ATELIER_SEASON_SCRIPT
+        value: "s1"
+      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
+      # dashboard to switch panel art on.
+      - key: GRAPHIC_NOVEL_IMAGE_STORAGE
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_REGION
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         value: "2.00"
@@ -114,6 +200,7 @@ services:
 
   - type: worker
     name: atelier-worker
+    autoDeployTrigger: checksPass
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
@@ -124,8 +211,33 @@ services:
         value: "0"
       - key: BOOTSTRAP_REFERENCE_DATA
         value: "0"
+      # Same environment as the API: the cohort rule below depends on it.
       - key: APP_ENV
-        value: staging
+        value: production
+      # --- WP-73 observability (begin) ---------------------------------
+      - key: LOG_FORMAT
+        value: json
+      - key: SENTRY_DSN
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: SENTRY_DSN
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      # --- WP-73 observability (end) -----------------------------------
+      # Password recovery outbox retries run in the worker as well as the API.
+      - key: SMTP_HOST
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_HOST}
+      - key: SMTP_PORT
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_PORT}
+      - key: SMTP_USE_TLS
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_USE_TLS}
+      - key: SMTP_FROM_EMAIL
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_FROM_EMAIL}
+      - key: SMTP_USERNAME
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_USERNAME}
+      - key: SMTP_PASSWORD
+        fromService: {type: web, name: atelier-api, envVarKey: SMTP_PASSWORD}
       - key: SECRET_KEY
         fromService:
           type: web
@@ -164,7 +276,7 @@ services:
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
         value: gpt-5.5
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2
+        value: gpt-image-2.5-flare
       # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
@@ -192,10 +304,53 @@ services:
       # in the dashboard and no learner's address is ever committed here.
       #
       # ROLLOUT §3: the owner's account ALONE for the first clean day, then the
-      # study accounts appended to the same list. Never blank this while the
-      # switch above is on — with APP_ENV=staging an empty cohort means every
-      # account on the service, which is the opposite of shrinking the pilot.
+      # study accounts appended to the same list. '*' means EVERYONE and 'none'
+      # means nobody on purpose. WP-88: the API refuses to start in production
+      # with this blank, because blank used to mean "nobody" silently.
       - key: ATELIER_DAILY_JOURNEY_COHORT
+        sync: false
+      # WP-88 (owner decision D-2): the characters speak. Clips are cached per
+      # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
+      # characters, an estimate the row says so).
+      - key: ATELIER_EPISODE_AUDIO_ENABLED
+        value: "true"
+      # WP-103 T1 (decision R-5): a steerable speech model, told per character to
+      # speak native French with no English accent and at the band's pace
+      # (app/services/cast_voices.py). tts-1-hd cannot be steered; it is only the
+      # logged fallback if this model errors. Changing the model or the wording
+      # changes the cache key, so old clips are never served.
+      - key: FEUILLETON_AUDIO_TTS_MODEL
+        value: gpt-4o-mini-tts
+      # WP-88 (D-3): each panel drawn with the cast references, A1–A2 first, on
+      # its own daily allowance apart from USER_DAILY_SPEND_CAP_USD. It stays off
+      # (panels show the location plate, and startup logs why) until durable
+      # storage is set below: a drawing on the container's disk dies at deploy.
+      - key: ATELIER_PANEL_ART_ENABLED
+        value: "true"
+      - key: ATELIER_PANEL_ART_BANDS
+        value: "A1,A2"
+      - key: ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD
+        value: "0.25"
+      # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
+      # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
+      # the generated serial (D6).
+      - key: ATELIER_SEASON_SCRIPT
+        value: "s1"
+      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
+      # dashboard to switch panel art on.
+      - key: GRAPHIC_NOVEL_IMAGE_STORAGE
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_REGION
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
       - key: APNS_TEAM_ID
         fromService:

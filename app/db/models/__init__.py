@@ -9,14 +9,16 @@ from app.db.models.atelier import (
     AtelierExerciseSet,
     AtelierGenerationEvent,
     AtelierLanguagePack,
+    AtelierServedItem,
     AtelierSession,
 )
-from app.db.models.cefr import UserCEFRProgressHistory
+from app.db.models.cefr import UserCanDoStamp, UserCEFRProgressHistory, UserLevelCheckpoint
 from app.db.models.daily_journey import (
     DailyJourney,
     DailyJourneyMutation,
     DailyJourneyStep,
 )
+from app.db.models.episode_audio import EpisodeAudioClip
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
 from app.db.models.grammar import (
@@ -31,12 +33,23 @@ from app.db.models.graphic_novel import (
     GraphicNovelScene,
     PersonalInputItem,
 )
+from app.db.models.intake import LearnerArtefact
+from app.db.models.journal import JournalEntry
 from app.db.models.library import BookEpisode, UserBook
+from app.db.models.line_audio import LineAudioClip
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
+from app.db.models.password_reset_delivery import PasswordResetDelivery
 from app.db.models.pilot_event import PilotEvent
+from app.db.models.placement import PlacementSession
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.push_subscription import PushSubscription
+from app.db.models.rehearsal import Rehearsal
+from app.db.models.revue_correcteur import RevueCorrection
+from app.db.models.revue_place import RevuePlace
+from app.db.models.revue_relecture import RevueRelecture
+from app.db.models.revue_session import RevueSession
+from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
@@ -46,11 +59,20 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
+from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
 
 __all__ = [
+    "RevueSession",
+    "RevueRelecture",
+    "RevueCorrection",
+    "RevuePlace",
+    "RevuePictogram",
+    "RevueVignette",
+    "PasswordResetDelivery",
     "User",
+    "StreakDay",
     "RefreshToken",
     "VocabularyWord",
     "VerbConjugation",
@@ -70,10 +92,15 @@ __all__ = [
     "AtelierGenerationEvent",
     "AtelierLanguagePack",
     "AtelierSession",
+    "AtelierServedItem",
     "RealWorldMission",
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",
     "BookEpisode",
+    "EpisodeAudioClip",
+    "LineAudioClip",
+    "LearnerArtefact",
+    "JournalEntry",
     "UserBook",
     "SerialEpisode",
     "SerialThread",
@@ -91,6 +118,8 @@ __all__ = [
     "GrammarConceptLocalization",
     "UserGrammarProgress",
     "UserCEFRProgressHistory",
+    "UserLevelCheckpoint",
+    "UserCanDoStamp",
     # Story RPG models
     "Story",
     "Chapter",
@@ -102,6 +131,8 @@ __all__ = [
     "UserFeedbackReport",
     "PushSubscription",
     "PilotEvent",
+    "PlacementSession",
+    "Rehearsal",
     "DailyJourney",
     "DailyJourneyStep",
     "DailyJourneyMutation",

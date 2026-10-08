@@ -1,0 +1,62 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "L'enquête au zinc",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "La confiance au zinc",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Attendre avant de publier",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": null,
+   "title": "Le billet et la baguette",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le billet et la baguette",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Pain, billet et pourquoi",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: story engine failed (invalid_story_output); journey 2acb3d15-4ab3-4725-a090-38bd78a5bef7 serves authored order_at_cafe at A1",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.2 twice; accepted and logged (Make the day's meaningful change visible: have the learner speak or do something that produces a concrete difference by the page end (permission granted, refused, or a clear partial agreement).; Show that the open obstacle is being faced: include the source's name being mentioned or someone demandin)",
+  "living_story: the retry the story critic bought failed (invalid_story_output); serving the refused draft",
+  "living_story: story critic refused g1.4 twice; accepted and logged (Meaningful change: end the page with a visible difference (the ticket moved, or the learner says the sentence to the agent, or Lila explicitly takes over) rather than only preparing to act.; Obstacle faced: show Romy's article timeline consequence or her waiting (the open_obstacle) being acknowledge)",
+  "daily_journey: story engine failed (repeated_situation); journey f1f0938a-ddf2-412c-971c-badfabc92348 serves authored arrange_meeting at A1"
+ ]
+}

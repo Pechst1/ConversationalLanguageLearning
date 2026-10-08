@@ -6,12 +6,22 @@
    episode. Closing it returns focus to the word that was tapped.
 
    Honest about what it knows: a word with no dictionary entry says so, and
-   offers the line's translation instead of inventing a gloss. */
+   offers the line's translation instead of inventing a gloss.
+
+   WP-91 «Les voix»: the word says itself — a small «Écouter le mot» beside it,
+   in the device's French voice (no server needed, works offline). */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { learnerGloss } from '@/lib/glosses';
+import { canKeep, keepCopy, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import apiService from '@/services/api';
+import type { ControlLanguage } from '@/types/daily-journey';
+
+import { fillReaderCopy, readerCopy } from './reader-copy';
 
 export type WordHelpRequest = {
   /** the surface form as printed */
@@ -25,11 +35,17 @@ export type WordHelpRequest = {
   /** who said it, for the accent scope */
   character?: string;
   speaker?: string;
+  /** WP-78: today's journey, when the word was tapped inside its scene. */
+  journeyId?: string | null;
+  /** WP-115a: who said the line, its panel and audio key — a kept word remembers them. */
+  speakerId?: string | null;
+  panelId?: string;
+  lineKey?: string;
 };
 
 type GlossState =
   | { kind: 'loading' }
-  | { kind: 'gloss'; text: string }
+  | { kind: 'gloss'; text: string; language: string | null }
   | { kind: 'sentence'; text: string }
   | { kind: 'none' };
 
@@ -39,15 +55,25 @@ const FOCUSABLE =
 export function WordHelpSheet({
   request,
   onClose,
+  language = null,
 }: {
   request: WordHelpRequest | null;
   onClose: () => void;
+  /** WP-82: the chrome's language; absent keeps French. */
+  language?: ControlLanguage | null;
 }) {
+  const t = readerCopy(language);
+  const keepT = keepCopy(language);
+  // The learner's own language (not the chrome's): the one a kept word's meaning must be in.
+  const learnerLanguage = useLearnerLanguage();
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const [gloss, setGloss] = useState<GlossState>({ kind: 'loading' });
   const [sentenceEn, setSentenceEn] = useState('');
+  const [keep, setKeep] = useState<KeepState>({ kind: 'idle' });
+  const voice = useLineVoice();
+  const sayLabel = journeyCopy(language ?? 'fr').word_listen;
 
   const open = Boolean(request);
 
@@ -113,6 +139,7 @@ export function WordHelpSheet({
     if (!term) return undefined;
     let alive = true;
     setGloss({ kind: 'loading' });
+    setKeep({ kind: 'idle' });
     setSentenceEn(suppliedEn);
     (async () => {
       try {
@@ -120,7 +147,8 @@ export function WordHelpSheet({
         const text = learnerGloss(entry as any, '');
         if (!alive) return;
         if (text) {
-          setGloss({ kind: 'gloss', text });
+          const glossLanguage = typeof entry?.translation_language === 'string' ? entry.translation_language : null;
+          setGloss({ kind: 'gloss', text, language: glossLanguage });
           return;
         }
       } catch {
@@ -137,7 +165,7 @@ export function WordHelpSheet({
         return;
       }
       try {
-        const translated = await apiService.translateToEnglish(sentence);
+        const translated = await apiService.translateForLearner(sentence);
         if (!alive) return;
         if (translated) {
           setSentenceEn(translated);
@@ -156,11 +184,31 @@ export function WordHelpSheet({
 
   const handleScrim = useCallback(() => onClose(), [onClose]);
 
+  /* WP-78 «Garder»: the word joins the learner's Lexique with this sentence. */
+  const keepWord = useCallback(async () => {
+    if (!request) return;
+    setKeep({ kind: 'saving' });
+    try {
+      const kept = await apiService.keepWord({
+        term: request.term,
+        sentence: request.sentence,
+        surface: request.surface,
+        journey_id: request.journeyId ?? null,
+        speaker_id: request.speakerId ?? null,
+        panel_id: request.panelId ?? null,
+        line_key: request.lineKey ?? null,
+      });
+      setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
+    } catch (error) {
+      setKeep({ kind: 'refused', message: keepRefusalMessage(error, language) });
+    }
+  }, [language, request]);
+
   if (!request) return null;
 
   return (
     <div className="fr-sheet-root" data-char={request.character || undefined}>
-      <button type="button" className="fr-scrim" aria-label="Fermer l’aide" onClick={handleScrim} />
+      <button type="button" className="fr-scrim" aria-label={t.help_close_label} onClick={handleScrim} />
       <div
         className="fr-sheet"
         role="dialog"
@@ -171,31 +219,61 @@ export function WordHelpSheet({
         <div className="fr-handle" aria-hidden="true" />
         <div className="fr-sheet-head">
           <div className="lede">
-            <div className="k">Aide au mot</div>
-            <h2 id="fr-word-title">{request.surface}</h2>
+            <div className="k">{t.help_kicker}</div>
+            <h2 id="fr-word-title" lang="fr">{request.surface}</h2>
           </div>
+          {voice.supported && (
+            <button
+              type="button"
+              className="av2-say"
+              aria-pressed={voice.speakingKey === `word:${request.surface}`}
+              onClick={() => voice.speak({ key: `word:${request.surface}`, text_fr: request.surface })}
+            >
+              <span className="av2-say__glyph" aria-hidden="true" />
+              {sayLabel}
+            </button>
+          )}
           <button type="button" className="fr-sheet-close" onClick={onClose} ref={closeRef}>
-            Fermer
+            {t.help_close}
           </button>
         </div>
         <div className="fr-sheet-body">
           <p className="fr-gloss" aria-live="polite">
-            {gloss.kind === 'loading' && 'Recherche…'}
+            {gloss.kind === 'loading' && t.help_searching}
             {gloss.kind === 'gloss' && gloss.text}
-            {gloss.kind === 'sentence' && 'Pas d’entrée pour ce mot seul — voici la phrase.'}
-            {gloss.kind === 'none' && 'Aucune traduction disponible pour l’instant.'}
+            {gloss.kind === 'sentence' && t.help_sentence_only}
+            {gloss.kind === 'none' && t.no_translation}
           </p>
           {sentence && (
             <blockquote className="fr-quote">
               <p className="fr-quote-k">
-                {request.speaker ? `Dans la réplique de ${request.speaker}` : 'Dans la planche'}
+                {request.speaker ? fillReaderCopy(t.help_in_line_of, { name: request.speaker }) : t.help_in_panel}
               </p>
               <p className="fr-quote-fr">« {sentence} »</p>
               {sentenceEn && <p className="fr-quote-en">{sentenceEn}</p>}
             </blockquote>
           )}
+          {canKeep(gloss.kind, sentence, gloss.kind === 'gloss' ? gloss.language : null, learnerLanguage) && (
+            <div className="fr-keep">
+              {keep.kind === 'idle' || keep.kind === 'saving' ? (
+                <button
+                  type="button"
+                  className="fr-keep-btn"
+                  onClick={() => void keepWord()}
+                  disabled={keep.kind === 'saving'}
+                >
+                  {keep.kind === 'saving' ? keepT.saving : keepT.action}
+                </button>
+              ) : null}
+              {keep.kind !== 'idle' && keep.kind !== 'saving' && (
+                <p className="fr-keep-status" role="status">
+                  {keepStatusLine(keep, language)}
+                </p>
+              )}
+            </div>
+          )}
           <p className="fr-sheet-note">
-            Consulter l’aide ne compte pas comme une réponse et ne fait pas avancer l’épisode.
+            {t.help_note}
           </p>
         </div>
       </div>

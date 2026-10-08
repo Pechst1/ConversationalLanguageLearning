@@ -137,14 +137,18 @@ def test_telemetry_never_breaks_a_correction(db_session):
 
 def test_the_digest_prints_calls_tokens_and_money(db_session):
     import sys
-    from datetime import UTC, date, datetime
+    from datetime import UTC, datetime
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     from pilot_digest import format_correction_line
 
     user_id = uuid4()
-    day = date.today()
+    # The digest buckets events by their stored UTC date. One timestamp for both
+    # the rows and the queried day keeps this clock-independent: `date.today()`
+    # is the *local* date, which is a day ahead of UTC just after local midnight.
+    stamp = datetime.now(UTC)
+    day = stamp.date()
     service = AtelierCorrectionService(db_session)
     service._cost_user_id = user_id
     service._cost_session_id = uuid4()
@@ -156,7 +160,7 @@ def test_the_digest_prints_calls_tokens_and_money(db_session):
         .filter(PilotEvent.event_type == "atelier_correction", PilotEvent.user_id == user_id)
         .all()
     ):
-        row.occurred_at = datetime.now(UTC)
+        row.occurred_at = stamp
     db_session.flush()
 
     line = format_correction_line(db_session, day, str(user_id))

@@ -1,0 +1,117 @@
+{
+  "id": "evergreen-rentree",
+  "dossier_version": "revue-v1",
+  "week": "2026-W35",
+  "topic": "culture",
+  "title_fr": "La rentrée des classes",
+  "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+      "source_id": "rentree_sp_calendrier",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+      "published_at": "2025-10-24",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+      "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+      "source_id": "rentree_sp_ars",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+      "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+      "source_id": "rentree_sp_ars",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+      "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+      "source_id": "rentree_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+      "published_at": "2025-11-16",
+      "confidence": "reported",
+      "attributed_to": "la Confédération syndicale des familles (constat de 2016)"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Caisse d'allocations familiales (Caf)",
+      "kind": "organisation"
+    },
+    {
+      "name": "Confédération syndicale des familles",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016.",
+    "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce que la rentrée change pour une famille",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "La rentrée coûte-t-elle de plus en plus cher ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "cour_ecole_rentree",
+      "name_fr": "Une cour d'école à Paris, début septembre",
+      "brief": "a school courtyard with plane trees, a chalked hopscotch on the asphalt, a closed green gate, early September morning light",
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-08-24/2026-09-13",
+    "relevant_until": "2026-09-30"
+  },
+  "sources": [
+    {
+      "id": "rentree_sp_calendrier",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+      "published_at": "2025-10-24"
+    },
+    {
+      "id": "rentree_sp_ars",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03"
+    },
+    {
+      "id": "rentree_wikipedia",
+      "name": "Wikipédia, « Rentrée scolaire »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+      "published_at": "2025-11-16"
+    }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un cartable"
+}

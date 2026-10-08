@@ -1,0 +1,3393 @@
+{
+ "n": 4,
+ "dossier_id": "2026-w40-paris-plan-canicules",
+ "level": "A1.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "2026-w40-paris-plan-canicules",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "city",
+  "title_fr": "Paris se prépare aux prochaines canicules",
+  "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+    "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+    "source_id": "w40_canicules_ici",
+    "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+    "published_at": "2026-09-29",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+    "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+    "source_id": "w40_canicules_ici",
+    "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+    "published_at": "2026-09-29",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+    "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+    "source_id": "w40_canicules_ici",
+    "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+    "published_at": "2026-09-29",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+    "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+    "source_id": "w40_canicules_ici",
+    "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+    "published_at": "2026-09-29",
+    "confidence": "reported",
+    "attributed_to": "la Ville de Paris"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Emmanuel Grégoire",
+    "kind": "person",
+    "role": "maire de Paris"
+   },
+   {
+    "name": "Ville de Paris",
+    "kind": "organisation",
+    "role": null
+   },
+   {
+    "name": "la Seine",
+    "kind": "place",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+   "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Ce qui change dans les rues et les écoles de Paris",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": "landlord_marchand"
+   },
+   {
+    "id": "a2",
+    "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+    "purpose": "prepare_dispatch",
+    "participation": "none",
+    "guest_fit": "landlord_marchand"
+   }
+  ],
+  "places": [
+   {
+    "id": "rue_paris_voile_ombrage",
+    "name_fr": "Une rue de Paris sous un voile d'ombrage",
+    "brief": "a narrow Paris street of cream stone buildings with closed grey shutters, a white shade sail stretched high between balconies, young plane trees in iron grates, hard summer light",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-09-29/2026-10-11",
+   "relevant_until": "2026-10-25"
+  },
+  "sources": [
+   {
+    "id": "w40_canicules_ici",
+    "name": "ICI Paris Île-de-France",
+    "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+    "published_at": "2026-09-29"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un thermomètre"
+ },
+ "band": "A1",
+ "vocabulary": [
+  {
+   "fr": "un plan",
+   "gloss": {
+    "en": "a plan"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "adapter",
+   "gloss": {
+    "en": "to adapt"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "l'été",
+   "gloss": {
+    "en": "the summer"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "la baignade",
+   "gloss": {
+    "en": "swimming"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "une salle",
+   "gloss": {
+    "en": "a room"
+   },
+   "claim_id": "c4"
+  }
+ ],
+ "target_use": {
+  "word": "la baignade",
+  "article_said": "la",
+  "intended": "correct",
+  "sentence": "Pour moi, la baignade, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T00:49:24.032920+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text"
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T00:49:28.908325+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?",
+      "translation": "Perfect. We say: 100 shade sails (c2), swimming earlier (c3), cooled school rooms according to the City (c4). Do you want me to write the text?",
+      "glosses": [
+       {
+        "fr": "la baignade",
+        "gloss": "swimming",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T00:49:28.908383+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+        "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+        "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+        "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+        "attributed_to": "la Ville de Paris",
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "un plan",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "adapter",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'été",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la baignade",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "une salle",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Il y a combien de voiles ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T00:49:28.918763+00:00",
+      "kind": "mine",
+      "text_fr": "Il y a combien de voiles ?",
+      "mode": "text"
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T00:49:31.058853+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Il y en aura cent, d'après c2.",
+      "translation": "There will be one hundred, according to c2.",
+      "glosses": [],
+      "reason": null
+     },
+     {
+      "id": "10",
+      "seq": 10,
+      "at": "2026-10-03T00:49:33.757269+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+      "move": "enter",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "un plan",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "adapter",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'été",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la baignade",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "une salle",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Le plan coûte combien ?",
+   "result": {
+    "items": [
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T00:49:33.767241+00:00",
+      "kind": "mine",
+      "text_fr": "Le plan coûte combien ?",
+      "mode": "text"
+     },
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T00:49:38.192598+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?",
+      "translation": "The sources do not say the plan's cost (uncertainty 0). According to c1, the mayor presented the plan. Do you want me to write a question to the mayor?",
+      "glosses": [
+       {
+        "fr": "un plan",
+        "gloss": "a plan",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "14.u",
+      "seq": 14,
+      "at": "2026-10-03T00:49:38.192598+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+     },
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T00:49:38.192648+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+        "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       }
+      ]
+     },
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T00:49:41.196837+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Voulez-vous que je demande au maire combien coûte le plan ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": [
+       {
+        "fr": "un plan",
+        "gloss": "a plan",
+        "claim_id": "c1"
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "un plan",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "adapter",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'été",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la baignade",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "une salle",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "19",
+      "seq": 19,
+      "at": "2026-10-03T00:49:43.494210+00:00",
+      "kind": "mine",
+      "text_fr": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+      "mode": "text"
+     },
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T00:49:48.395997+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Bonne nouvelle pour toi. D'après c3, en 2027 la baignade dans la Seine pourra commencer en juin, parfois en mai, si besoin. Veux-tu que j'écrive une question au maire ?",
+      "translation": "Good news for you. According to c3, in 2027 bathing in the Seine can start in June, sometimes in May, if needed. Do you want me to write a question to the mayor?",
+      "glosses": [
+       {
+        "fr": "la baignade",
+        "gloss": "swimming",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T00:49:51.202988+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Je m'intéresse à la baignade pour la sécurité de tous. Voulez-vous que je demande au maire ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": [
+       {
+        "fr": "la baignade",
+        "gloss": "swimming",
+        "claim_id": "c3"
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "un plan",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "adapter",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'été",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la baignade",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "une salle",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "unsupported",
+     "register_note": "ok"
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Aucune école ne disposera de salle rafraîchie en 2027."
+     },
+     {
+      "id": "h2",
+      "text_fr": "Cent voiles d'ombrage installés dès l'été 2027 dans les rues les plus exposées."
+     },
+     {
+      "id": "h3",
+      "text_fr": "La baignade dans la Seine restera impossible en juin 2027."
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Le plan coûte combien ?",
+    "uncertainty_fr": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+   }
+  ],
+  "intro": {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T00:49:58.499498+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Le plan coûte combien ?",
+    "proposal_fr": "Le plan coûte combien ?",
+    "contribution": [
+     [
+      0,
+      21
+     ]
+    ],
+    "why_native": "No change needed; the sentence is already correct and appropriate at A1 level."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Le plan coûte combien ?",
+    "contribution": [
+     [
+      0,
+      21
+     ]
+    ],
+    "learner_fr": "Le plan coûte combien ?"
+   },
+   "line": {
+    "id": "28",
+    "seq": 28,
+    "at": "2026-10-03T00:50:01.364349+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je conserve ta question dans le dossier; elle reste jointe aux sources.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Le plan coûte combien ?",
+   "body_fr": [
+    "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+    "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+    "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+   ],
+   "contribution": [
+    [
+     0,
+     21
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après ICI Paris Île-de-France",
+   "sources": [
+    {
+     "id": "w40_canicules_ici",
+     "name": "ICI Paris Île-de-France",
+     "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+     "published_at": "2026-09-29"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "un plan",
+     "gloss": "a plan",
+     "claim_id": "c1",
+     "used": true
+    },
+    {
+     "fr": "adapter",
+     "gloss": "to adapt",
+     "claim_id": "c1",
+     "used": false
+    },
+    {
+     "fr": "l'été",
+     "gloss": "the summer",
+     "claim_id": "c2",
+     "used": false
+    },
+    {
+     "fr": "la baignade",
+     "gloss": "swimming",
+     "claim_id": "c3",
+     "used": true
+    },
+    {
+     "fr": "une salle",
+     "gloss": "a room",
+     "claim_id": "c4",
+     "used": false
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+     "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+     "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+     "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+     "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+     "attributed_to": "la Ville de Paris",
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Le plan coûte combien ?",
+  "vignette": {
+   "id": "c58bfd5d-2992-4919-b78e-7cc507ae6a07",
+   "session_id": "189d812a-9f87-4a95-b173-59cf244ec40b",
+   "dossier_id": "2026-w40-paris-plan-canicules",
+   "week": "2026-W40",
+   "place_label_fr": "Une rue de Paris sous un voile d'ombrage",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"22\" fill=\"#1D3A8A\"/><rect x=\"32\" y=\"57\" width=\"36\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#1D3A8A\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Paris se prépare aux prochaines canicules",
+   "minted_at": "2026-10-03T00:50:05"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T00:49:24.026168+00:00",
+   "kind": "narration",
+   "text_fr": "Une rue de Paris sous un voile d'ombrage."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T00:49:24.026168+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 29 sept. au 11 oct.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T00:49:24.026168+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment une rue de Paris sous un voile d'ombrage, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T00:49:24.026168+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change dans les rues et les écoles de Paris ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T00:49:24.026168+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T00:49:24.032920+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text"
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T00:49:28.908325+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?",
+   "translation": "Perfect. We say: 100 shade sails (c2), swimming earlier (c3), cooled school rooms according to the City (c4). Do you want me to write the text?",
+   "glosses": [
+    {
+     "fr": "la baignade",
+     "gloss": "swimming",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T00:49:28.908383+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+     "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+     "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+     "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+     "attributed_to": "la Ville de Paris",
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T00:49:28.918763+00:00",
+   "kind": "mine",
+   "text_fr": "Il y a combien de voiles ?",
+   "mode": "text"
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T00:49:31.058853+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Il y en aura cent, d'après c2.",
+   "translation": "There will be one hundred, according to c2.",
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "10",
+   "seq": 10,
+   "at": "2026-10-03T00:49:33.757269+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T00:49:33.767241+00:00",
+   "kind": "mine",
+   "text_fr": "Le plan coûte combien ?",
+   "mode": "text"
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T00:49:38.192598+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?",
+   "translation": "The sources do not say the plan's cost (uncertainty 0). According to c1, the mayor presented the plan. Do you want me to write a question to the mayor?",
+   "glosses": [
+    {
+     "fr": "un plan",
+     "gloss": "a plan",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "14.u",
+   "seq": 14,
+   "at": "2026-10-03T00:49:38.192598+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T00:49:38.192648+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+     "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_canicules_ici",
+      "name": "ICI Paris Île-de-France",
+      "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+      "published_at": "2026-09-29"
+     }
+    }
+   ]
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T00:49:41.196837+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Voulez-vous que je demande au maire combien coûte le plan ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": [
+    {
+     "fr": "un plan",
+     "gloss": "a plan",
+     "claim_id": "c1"
+    }
+   ]
+  },
+  {
+   "id": "19",
+   "seq": 19,
+   "at": "2026-10-03T00:49:43.494210+00:00",
+   "kind": "mine",
+   "text_fr": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+   "mode": "text"
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T00:49:48.395997+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Bonne nouvelle pour toi. D'après c3, en 2027 la baignade dans la Seine pourra commencer en juin, parfois en mai, si besoin. Veux-tu que j'écrive une question au maire ?",
+   "translation": "Good news for you. According to c3, in 2027 bathing in the Seine can start in June, sometimes in May, if needed. Do you want me to write a question to the mayor?",
+   "glosses": [
+    {
+     "fr": "la baignade",
+     "gloss": "swimming",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T00:49:51.202988+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Je m'intéresse à la baignade pour la sécurité de tous. Voulez-vous que je demande au maire ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": [
+    {
+     "fr": "la baignade",
+     "gloss": "swimming",
+     "claim_id": "c3"
+    }
+   ]
+  },
+  {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T00:49:58.499498+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "27",
+   "seq": 27,
+   "at": "2026-10-03T00:50:01.364333+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Le plan coûte combien ?",
+    "contribution": [
+     [
+      0,
+      21
+     ]
+    ],
+    "learner_fr": "Le plan coûte combien ?"
+   }
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T00:50:01.364349+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T00:50:05.686785+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je conserve ta question dans le dossier; elle reste jointe aux sources.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-paris-plan-canicules",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-paris-plan-canicules",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "city",
+     "title_fr": "Paris se prépare aux prochaines canicules",
+     "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+       "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+       "source_id": "w40_canicules_ici",
+       "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+       "published_at": "2026-09-29",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+       "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+       "source_id": "w40_canicules_ici",
+       "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+       "published_at": "2026-09-29",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+       "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+       "source_id": "w40_canicules_ici",
+       "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+       "published_at": "2026-09-29",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+       "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+       "source_id": "w40_canicules_ici",
+       "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+       "published_at": "2026-09-29",
+       "confidence": "reported",
+       "attributed_to": "la Ville de Paris"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Emmanuel Grégoire",
+       "kind": "person",
+       "role": "maire de Paris"
+      },
+      {
+       "name": "Ville de Paris",
+       "kind": "organisation",
+       "role": null
+      },
+      {
+       "name": "la Seine",
+       "kind": "place",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+      "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Ce qui change dans les rues et les écoles de Paris",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": "landlord_marchand"
+      },
+      {
+       "id": "a2",
+       "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+       "purpose": "prepare_dispatch",
+       "participation": "none",
+       "guest_fit": "landlord_marchand"
+      }
+     ],
+     "places": [
+      {
+       "id": "rue_paris_voile_ombrage",
+       "name_fr": "Une rue de Paris sous un voile d'ombrage",
+       "brief": "a narrow Paris street of cream stone buildings with closed grey shutters, a white shade sail stretched high between balconies, young plane trees in iron grates, hard summer light",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-09-29/2026-10-11",
+      "relevant_until": "2026-10-25"
+     },
+     "sources": [
+      {
+       "id": "w40_canicules_ici",
+       "name": "ICI Paris Île-de-France",
+       "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+       "published_at": "2026-09-29"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "un thermomètre"
+    },
+    "cost_usd": 0.00221
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Une rue de Paris sous un voile d'ombrage.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 29 sept. au 11 oct.."
+    ],
+    "place_note": "Ce n'est pas vraiment une rue de Paris sous un voile d'ombrage, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change dans les rues et les écoles de Paris ». Tu m'aides ?",
+    "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?",
+    "translation": "Perfect. We say: 100 shade sails (c2), swimming earlier (c3), cooled school rooms according to the City (c4). Do you want me to write the text?",
+    "claims_cited": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Tu veux que j'écrive le texte ?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001459
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c2",
+     "c3",
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "un plan",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plan",
+      "capability_known": false
+     },
+     {
+      "fr": "adapter",
+      "outcome": "unscored",
+      "capability_id": "revue.word:adapter",
+      "capability_known": false
+     },
+     {
+      "fr": "l'été",
+      "outcome": "unscored",
+      "capability_id": "revue.word:ete",
+      "capability_known": false
+     },
+     {
+      "fr": "la baignade",
+      "outcome": "unscored",
+      "capability_id": "revue.word:baignade",
+      "capability_known": false
+     },
+     {
+      "fr": "une salle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:salle",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Il y a combien de voiles ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Il y en aura cent, d'après c2.",
+    "translation": "There will be one hundred, according to c2.",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000803
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "landlord_marchand",
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "reason": "he manages buildings in the 10e and anything about Une rue de Paris sous un voile d'ombrage touches his business",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "move": "enter",
+    "position": null,
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000985,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Il y a combien de voiles ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "un plan",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plan",
+      "capability_known": false
+     },
+     {
+      "fr": "adapter",
+      "outcome": "unscored",
+      "capability_id": "revue.word:adapter",
+      "capability_known": false
+     },
+     {
+      "fr": "l'été",
+      "outcome": "unscored",
+      "capability_id": "revue.word:ete",
+      "capability_known": false
+     },
+     {
+      "fr": "la baignade",
+      "outcome": "unscored",
+      "capability_id": "revue.word:baignade",
+      "capability_known": false
+     },
+     {
+      "fr": "une salle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:salle",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Le plan coûte combien ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?",
+    "translation": "The sources do not say the plan's cost (uncertainty 0). According to c1, the mayor presented the plan. Do you want me to write a question to the mayor?",
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+    "proposes_question": "Peux-tu demander au maire : «Combien coûte ce plan?»",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.00145
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1"
+    ]
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Voulez-vous que je demande au maire combien coûte le plan ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001099,
+    "turn_seq": 13
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Le plan coûte combien ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+    "turn_seq": 13,
+    "kept": false
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:plan",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "un plan"
+    ],
+    "words_used": [
+     "un plan"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "un plan",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plan",
+      "capability_known": false
+     },
+     {
+      "fr": "adapter",
+      "outcome": "unscored",
+      "capability_id": "revue.word:adapter",
+      "capability_known": false
+     },
+     {
+      "fr": "l'été",
+      "outcome": "unscored",
+      "capability_id": "revue.word:ete",
+      "capability_known": false
+     },
+     {
+      "fr": "la baignade",
+      "outcome": "unscored",
+      "capability_id": "revue.word:baignade",
+      "capability_known": false
+     },
+     {
+      "fr": "une salle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:salle",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000681,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 13
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Bonne nouvelle pour toi. D'après c3, en 2027 la baignade dans la Seine pourra commencer en juin, parfois en mai, si besoin. Veux-tu que j'écrive une question au maire ?",
+    "translation": "Good news for you. According to c3, in 2027 bathing in the Seine can start in June, sometimes in May, if needed. Do you want me to write a question to the mayor?",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Veux-tu que j'écrive une question au maire sur les dates et les lieux de baignade ?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.00187
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Je m'intéresse à la baignade pour la sécurité de tous. Voulez-vous que je demande au maire ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001004,
+    "turn_seq": 19
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:baignade",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "la baignade"
+    ],
+    "words_used": [
+     "la baignade"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "un plan",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plan",
+      "capability_known": false
+     },
+     {
+      "fr": "adapter",
+      "outcome": "unscored",
+      "capability_id": "revue.word:adapter",
+      "capability_known": false
+     },
+     {
+      "fr": "l'été",
+      "outcome": "unscored",
+      "capability_id": "revue.word:ete",
+      "capability_known": false
+     },
+     {
+      "fr": "la baignade",
+      "outcome": "unscored",
+      "capability_id": "revue.word:baignade",
+      "capability_known": false
+     },
+     {
+      "fr": "une salle",
+      "outcome": "unscored",
+      "capability_id": "revue.word:salle",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "unsupported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.00096,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 19
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Aucune école ne disposera de salle rafraîchie en 2027."
+      },
+      {
+       "id": "h2",
+       "text_fr": "Cent voiles d'ombrage installés dès l'été 2027 dans les rues les plus exposées."
+      },
+      {
+       "id": "h3",
+       "text_fr": "La baignade dans la Seine restera impossible en juin 2027."
+      }
+     ],
+     "answer": "h2",
+     "supported_by": "c2",
+     "contradicted_by": {
+      "h1": "c4",
+      "h3": "c3"
+     }
+    },
+    "cost_usd": 0.001367
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Le plan coûte combien ?",
+    "proposal_fr": "Le plan coûte combien ?",
+    "contribution": [
+     [
+      0,
+      21
+     ]
+    ],
+    "why_native": "No change needed; the sentence is already correct and appropriate at A1 level.",
+    "cost_usd": 0.000659
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Le plan coûte combien ?",
+    "contribution": [
+     [
+      0,
+      21
+     ]
+    ],
+    "learner_fr": "Le plan coûte combien ?"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je conserve ta question dans le dossier; elle reste jointe aux sources.",
+    "cost_usd": 0.001183
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je conserve ta question dans le dossier; elle reste jointe aux sources.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Le plan coûte combien ?",
+      "body_fr": [
+       "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+       "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+       "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+      ],
+      "contribution": [
+       [
+        0,
+        21
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après ICI Paris Île-de-France",
+      "sources": [
+       {
+        "id": "w40_canicules_ici",
+        "name": "ICI Paris Île-de-France",
+        "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+        "published_at": "2026-09-29"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "un plan",
+        "gloss": "a plan",
+        "claim_id": "c1",
+        "used": true
+       },
+       {
+        "fr": "adapter",
+        "gloss": "to adapt",
+        "claim_id": "c1",
+        "used": false
+       },
+       {
+        "fr": "l'été",
+        "gloss": "the summer",
+        "claim_id": "c2",
+        "used": false
+       },
+       {
+        "fr": "la baignade",
+        "gloss": "swimming",
+        "claim_id": "c3",
+        "used": true
+       },
+       {
+        "fr": "une salle",
+        "gloss": "a room",
+        "claim_id": "c4",
+        "used": false
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+        "quote": "Alors que la capitale a surchauffé cet été 2026, Emmanuel Grégoire annonce ce mardi un plan d'accélération afin d'adapter la ville aux canicules.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+        "quote": "Première mesure : 100 nouveaux voiles d’ombrage seront installés dès l’été 2027. Ils cibleront les rues et les secteurs les plus exposés à la chaleur.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+        "quote": "l'accès à la baignade dans la Seine débutera plus tôt si la température le nécessite, elle sera avancée au mois de juin, parfois mai, dès l'année prochaine",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+        "quote": "\"La Ville change d’échelle avec un objectif clair : dès 2027, chaque école, crèche et collège disposera d’au moins une salle rafraîchie\" promet la Ville de Paris.",
+        "attributed_to": "la Ville de Paris",
+        "source": {
+         "id": "w40_canicules_ici",
+         "name": "ICI Paris Île-de-France",
+         "url": "https://www.ici.fr/ile-de-france/paris-75/paris/baignade-dans-la-seine-avancee-espaces-verts-voiles-d-ombrage-paris-s-engage-a-adapter-la-ville-aux-canicules-3282803",
+         "published_at": "2026-09-29"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Le plan coûte combien ?",
+     "vignette": {
+      "id": "c58bfd5d-2992-4919-b78e-7cc507ae6a07",
+      "session_id": "189d812a-9f87-4a95-b173-59cf244ec40b",
+      "dossier_id": "2026-w40-paris-plan-canicules",
+      "week": "2026-W40",
+      "place_label_fr": "Une rue de Paris sous un voile d'ombrage",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"22\" fill=\"#1D3A8A\"/><rect x=\"32\" y=\"57\" width=\"36\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#1D3A8A\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Paris se prépare aux prochaines canicules",
+      "minted_at": "2026-10-03T00:50:05"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "un plan",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plan",
+     "capability_known": false
+    },
+    {
+     "fr": "adapter",
+     "outcome": "unscored",
+     "capability_id": "revue.word:adapter",
+     "capability_known": false
+    },
+    {
+     "fr": "l'été",
+     "outcome": "unscored",
+     "capability_id": "revue.word:ete",
+     "capability_known": false
+    },
+    {
+     "fr": "la baignade",
+     "outcome": "unscored",
+     "capability_id": "revue.word:baignade",
+     "capability_known": false
+    },
+    {
+     "fr": "une salle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:salle",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "un plan",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plan",
+     "capability_known": false
+    },
+    {
+     "fr": "adapter",
+     "outcome": "unscored",
+     "capability_id": "revue.word:adapter",
+     "capability_known": false
+    },
+    {
+     "fr": "l'été",
+     "outcome": "unscored",
+     "capability_id": "revue.word:ete",
+     "capability_known": false
+    },
+    {
+     "fr": "la baignade",
+     "outcome": "unscored",
+     "capability_id": "revue.word:baignade",
+     "capability_known": false
+    },
+    {
+     "fr": "une salle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:salle",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:plan",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "un plan"
+   ],
+   "words_used": [
+    "un plan"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "un plan",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plan",
+     "capability_known": false
+    },
+    {
+     "fr": "adapter",
+     "outcome": "unscored",
+     "capability_id": "revue.word:adapter",
+     "capability_known": false
+    },
+    {
+     "fr": "l'été",
+     "outcome": "unscored",
+     "capability_id": "revue.word:ete",
+     "capability_known": false
+    },
+    {
+     "fr": "la baignade",
+     "outcome": "unscored",
+     "capability_id": "revue.word:baignade",
+     "capability_known": false
+    },
+    {
+     "fr": "une salle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:salle",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000681,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 13
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:baignade",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "la baignade"
+   ],
+   "words_used": [
+    "la baignade"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "un plan",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plan",
+     "capability_known": false
+    },
+    {
+     "fr": "adapter",
+     "outcome": "unscored",
+     "capability_id": "revue.word:adapter",
+     "capability_known": false
+    },
+    {
+     "fr": "l'été",
+     "outcome": "unscored",
+     "capability_id": "revue.word:ete",
+     "capability_known": false
+    },
+    {
+     "fr": "la baignade",
+     "outcome": "unscored",
+     "capability_id": "revue.word:baignade",
+     "capability_known": false
+    },
+    {
+     "fr": "une salle",
+     "outcome": "unscored",
+     "capability_id": "revue.word:salle",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "unsupported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.00096,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 19
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "landlord_marchand",
+   "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "reason": "he manages buildings in the 10e and anything about Une rue de Paris sous un voile d'ombrage touches his business",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000985,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Voulez-vous que je demande au maire combien coûte le plan ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.001099,
+   "turn_seq": 13
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Je m'intéresse à la baignade pour la sécurité de tous. Voulez-vous que je demande au maire ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.001004,
+   "turn_seq": 19
+  }
+ ],
+ "cost_usd_state": 0.01573,
+ "cost_usd_provider": 0.01573,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 10.196,
+   "cost_usd": 0.00221,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules."
+     },
+     {
+      "id": "c2",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur."
+     },
+     {
+      "id": "c3",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+     }
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "un plan",
+      "gloss": "a plan",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "adapter",
+      "gloss": "to adapt",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "l'été",
+      "gloss": "the summer",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "la baignade",
+      "gloss": "swimming",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "une salle",
+      "gloss": "a room",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.871,
+   "cost_usd": 0.001459,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+     "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change dans les rues et les écoles de Paris",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Une rue de Paris sous un voile d'ombrage."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 29 sept. au 11 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une rue de Paris sous un voile d'ombrage, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change dans les rues et les écoles de Paris ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?",
+    "translation": "Perfect. We say: 100 shade sails (c2), swimming earlier (c3), cooled school rooms according to the City (c4). Do you want me to write the text?",
+    "claims_cited": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "Tu veux que j'écrive le texte ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 2.081,
+   "cost_usd": 0.000803,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Il y a combien de voiles ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+     "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change dans les rues et les écoles de Paris",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 29 sept. au 11 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une rue de Paris sous un voile d'ombrage, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change dans les rues et les écoles de Paris ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?"
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3, c4"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Il y en aura cent, d'après c2.",
+    "translation": "There will be one hundred, according to c2.",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.693,
+   "cost_usd": 0.000985,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "enter",
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "position": null,
+    "learner_text": "Il y a combien de voiles ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "claims_shown": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change dans les rues et les écoles de Paris ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?"
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "Il y a combien de voiles ?"
+     },
+     {
+      "who": "romy",
+      "text": "Il y en aura cent, d'après c2."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "position": null,
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.42,
+   "cost_usd": 0.00145,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Le plan coûte combien ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+     "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change dans les rues et les écoles de Paris",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On dit : 100 voiles d'ombrage (c2), baignade plus tôt (c3), écoles rafraîchies d'après la Ville (c4). Tu veux que j'écrive le texte ?"
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "Il y a combien de voiles ?"
+     },
+     {
+      "who": "romy",
+      "text": "Il y en aura cent, d'après c2."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous."
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": "landlord_marchand",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?",
+    "translation": "The sources do not say the plan's cost (uncertainty 0). According to c1, the mayor presented the plan. Do you want me to write a question to the mayor?",
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_cited": 0,
+    "proposes_question": "Peux-tu demander au maire : «Combien coûte ce plan?»",
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.997,
+   "cost_usd": 0.001099,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "Le plan coûte combien ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Il y en aura cent, d'après c2."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous."
+     },
+     {
+      "who": "learner",
+      "text": "Le plan coûte combien ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Voulez-vous que je demande au maire combien coûte le plan ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.289,
+   "cost_usd": 0.000681,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A1",
+     "claims_shown": [
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+      }
+     ],
+     "target_words": [
+      "un plan",
+      "adapter",
+      "l'été",
+      "la baignade",
+      "une salle"
+     ],
+     "addressee": "landlord_marchand",
+     "expected_register": "vous",
+     "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+     "headline_words": null
+    },
+    "learner_text": "Le plan coûte combien ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "un plan",
+      "outcome": "correct",
+      "quote": "Le plan"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.897,
+   "cost_usd": 0.00187,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+     "Les sources ne disent pas dans quelles rues seront installés les cent voiles d'ombrage."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change dans les rues et les écoles de Paris",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Écrire un petit mot aux voisins : où trouver de la fraîcheur l'été prochain",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous."
+     },
+     {
+      "who": "learner",
+      "text": "Le plan coûte combien ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Voulez-vous que je demande au maire combien coûte le plan ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": "landlord_marchand",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Bonne nouvelle pour toi. D'après c3, en 2027 la baignade dans la Seine pourra commencer en juin, parfois en mai, si besoin. Veux-tu que j'écrive une question au maire ?",
+    "translation": "Good news for you. According to c3, in 2027 bathing in the Seine can start in June, sometimes in May, if needed. Do you want me to write a question to the mayor?",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "Veux-tu que j'écrive une question au maire sur les dates et les lieux de baignade ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.801,
+   "cost_usd": 0.001004,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "C'est bien pour les enfants. Pour moi, la baignade, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change dans les rues et les écoles de Paris",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie.",
+      "attributed_to": "la Ville de Paris"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas le coût du plan (incertitude 0). D'après c1, le maire a présenté le plan. Tu veux que j'écrive une question au maire ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Voulez-vous que je demande au maire combien coûte le plan ?"
+     },
+     {
+      "who": "learner",
+      "text": "C'est bien pour les enfants. Pour moi, la baignade, c'est important."
+     },
+     {
+      "who": "romy",
+      "text": "Bonne nouvelle pour toi. D'après c3, en 2027 la baignade dans la Seine pourra commencer en juin, parfois en mai, si besoin. Veux-tu que j'écrive une question au maire ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je m'intéresse à la baignade pour la sécurité de tous. Voulez-vous que je demande au maire ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.005,
+   "cost_usd": 0.00096,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+      }
+     ],
+     "target_words": [
+      "un plan",
+      "adapter",
+      "l'été",
+      "la baignade",
+      "une salle"
+     ],
+     "addressee": "landlord_marchand",
+     "expected_register": "vous",
+     "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+     "headline_words": null
+    },
+    "learner_text": "C'est bien pour les enfants. Pour moi, la baignade, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "la baignade",
+      "outcome": "correct",
+      "quote": "la baignade, c'est important."
+     }
+    ],
+    "fact_fit": "unsupported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 4.274,
+   "cost_usd": 0.001367,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Paris se prépare aux prochaines canicules",
+    "angle": "Ce qui change dans les rues et les écoles de Paris",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+     }
+    ],
+    "band": "A1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Cent voiles d'ombrage installés dès l'été 2027 dans les rues les plus exposées.",
+     "supported_by": "c2"
+    },
+    "distractors": [
+     {
+      "text_fr": "La baignade dans la Seine restera impossible en juin 2027.",
+      "contradicted_by": "c3"
+     },
+     {
+      "text_fr": "Aucune école ne disposera de salle rafraîchie en 2027.",
+      "contradicted_by": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.851,
+   "cost_usd": 0.000659,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Le plan coûte combien ?",
+    "uncertainty": "Les sources ne disent pas combien coûte tout le plan, ni comment il sera payé.",
+    "title_fr": "Paris se prépare aux prochaines canicules",
+    "band": "A1",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "Le plan coûte combien ?",
+    "why_native": "No change needed; the sentence is already correct and appropriate at A1 level."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.281,
+   "cost_usd": 0.001183,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Paris se prépare aux prochaines canicules",
+    "summary_fr": "Après un été très chaud, le maire de Paris, Emmanuel Grégoire, a présenté le 29 septembre 2026 un plan pour adapter la ville à la chaleur : des voiles d'ombrage dans les rues, la baignade dans la Seine plus tôt dans l'année et des salles plus fraîches dans les écoles.",
+    "angle": "Ce qui change dans les rues et les écoles de Paris",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Le plan coûte combien ?",
+     "learner_fr": "Le plan coûte combien ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "En 2027, la baignade dans la Seine pourra commencer plus tôt, en juin, parfois en mai, si la température le demande."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+     }
+    ],
+    "open_question": "Le plan coûte combien ?",
+    "band": "A1"
+   },
+   "response": {
+    "romy_line_fr": "Je conserve ta question dans le dossier; elle reste jointe aux sources.",
+    "headline_fr": "Le plan coûte combien ?",
+    "body_lines": [
+     "Le 29 septembre, après un été très chaud, le maire de Paris a présenté un plan pour adapter la ville aux canicules.",
+     "Cent nouveaux voiles d'ombrage seront installés à partir de l'été 2027, dans les rues les plus exposées à la chaleur.",
+     "Pour la Ville de Paris, c'est un changement d'échelle : dès 2027, chaque école, crèche et collège aura au moins une salle rafraîchie."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 10.209
+  },
+  {
+   "step": "turn1",
+   "seconds": 4.884
+  },
+  {
+   "step": "turn2",
+   "seconds": 4.848
+  },
+  {
+   "step": "turn3",
+   "seconds": 9.727
+  },
+  {
+   "step": "turn4",
+   "seconds": 10.726
+  },
+  {
+   "step": "make_options",
+   "seconds": 4.283
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.86
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.008
+  },
+  {
+   "step": "close",
+   "seconds": 4.326
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini"
+ }
+}

@@ -498,6 +498,9 @@ class AtelierRewardService:
         if attempt.verdict not in {"correct", "accepted"} or float(attempt.score_0_4 or 0) < 4:
             return False
         correction = attempt.correction_payload or {}
+        # WP-S1: a verdict still being read (or never read) earns nothing yet.
+        if correction.get("assessment_status") in {"provisional", "unavailable"}:
+            return False
         return not correction.get("errata") and not correction.get("missing_targets")
 
     @staticmethod

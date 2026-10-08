@@ -1,13 +1,23 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
+import { AtelierV2Root, StateBlock } from '@/components/atelier-v2/ui';
 import { sanitizeAuthCallbackUrl, useAppSession } from '@/lib/app-auth';
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { readLearnerLanguage, readLearnerLevel } from '@/lib/learner-language';
+import { chromeLanguage } from '@/lib/language-rule';
+import { reconnectWebSession, SESSION_EXPIRED_EVENT, sessionExpiredCopy } from '@/lib/session-recovery';
 
 const PUBLIC_PATHNAMES = new Set([
   '/',
   '/auth/signin',
   '/auth/signup',
   '/auth/forgot-password',
+  // WP-72: the privacy policy and the terms must be readable before an account
+  // exists — sign-up links to them and App Review opens them signed out.
+  '/privacy',
+  '/terms',
+  // Dev/QA only, and pruned from the native export (scripts/native-export-prune.mjs).
   '/mobile-visual-qa',
   // Both of these are development-only: their `getStaticProps` returns
   // `notFound` when NODE_ENV is production, so the route does not exist in a
@@ -20,11 +30,21 @@ const GUEST_ONLY_PATHNAMES = new Set([
   '/auth/signup',
 ]);
 
+/* WP-83 — one loader. While the session resolves the screen shows the same
+   av2 skeleton the pages themselves use, labelled for screen readers, instead
+   of an unlabelled spinner that a page skeleton then replaced. */
 function LoadingFrame() {
+  const [language, setLanguage] = React.useState<string>('en');
+  React.useEffect(() => setLanguage(readLearnerLanguage()), []);
+  const label = atelierChrome(language).loading;
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--app-ink)] border-t-transparent" />
-    </div>
+    <AtelierV2Root language={language} className="app-loading-frame" role="status" aria-busy="true" aria-label={label}>
+      <span className="av2-sr">{label}</span>
+      <div className="av2-skeleton" style={{ width: '40%', height: '1rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ width: '70%', height: '2rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ height: '12rem' }} aria-hidden="true" />
+      <div className="av2-skeleton" style={{ height: '3.5rem' }} aria-hidden="true" />
+    </AtelierV2Root>
   );
 }
 
@@ -34,11 +54,17 @@ export default function RouteAuthGate({ children }: { children: React.ReactNode 
   const isGuestOnly = GUEST_ONLY_PATHNAMES.has(router.pathname);
   const isProtected = !PUBLIC_PATHNAMES.has(router.pathname);
   const pendingRedirectRef = React.useRef<string | null>(null);
+  const [expired, setExpired] = React.useState(false);
+  React.useEffect(() => {
+    const expire = () => setExpired(true);
+    window.addEventListener(SESSION_EXPIRED_EVENT, expire);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expire);
+  }, []);
 
   React.useEffect(() => {
     if (!router.isReady) return;
 
-    if (isProtected && status === 'unauthenticated') {
+    if (isProtected && status === 'unauthenticated' && !expired) {
       const callbackUrl = sanitizeAuthCallbackUrl(router.asPath);
       const redirectKey = `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
       if (pendingRedirectRef.current === redirectKey) return;
@@ -60,7 +86,20 @@ export default function RouteAuthGate({ children }: { children: React.ReactNode 
         pendingRedirectRef.current = null;
       });
     }
-  }, [isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
+  }, [expired, isGuestOnly, isProtected, router, router.asPath, router.isReady, router.query.callbackUrl, status]);
+
+  if (isProtected && expired) {
+    const language = chromeLanguage(readLearnerLanguage(), readLearnerLevel());
+    const copy = sessionExpiredCopy[language];
+    return (
+      <AtelierV2Root language={language}>
+        <StateBlock tone="error" title={copy.message} action={{
+          label: copy.action,
+          onSelect: () => { void reconnectWebSession(sanitizeAuthCallbackUrl(router.asPath)); },
+        }} />
+      </AtelierV2Root>
+    );
+  }
 
   if (!router.isReady && isProtected && status !== 'authenticated') return <LoadingFrame />;
   if (isProtected && status !== 'authenticated') return <LoadingFrame />;

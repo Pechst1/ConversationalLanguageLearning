@@ -6,10 +6,29 @@ import toast from 'react-hot-toast';
 
 import { learnerGloss } from '@/lib/glosses';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
-import { useLearnerLanguage } from '@/lib/learner-language';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { pickByLanguage } from '@/lib/language-rule';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
+import {
+  gradedFormat,
+  ladderCue,
+  ladderRung,
+  nextAgainQueue,
+  type CardMode,
+} from '@/components/lexique/recall-ladder';
+import {
+  fill,
+  formatDate,
+  formatNumber,
+  lexiqueCopy,
+  nextReviewText,
+  partOfSpeechLabel,
+  plural,
+  useLexCopy,
+  type LexiqueCopy,
+} from '@/components/lexique/lexique-copy';
 import { WordBiographySheet } from '@/components/mobile';
 import {
   Action,
@@ -40,6 +59,8 @@ import {
   saveResumeActivity,
   writeReviewContextCache,
 } from '@/lib/pilot-resilience';
+import { useArtSet } from '@/lib/art-set';
+import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -61,13 +82,13 @@ import {
  * byline; the visual cue chip; the word biography; the offline cache note; the
  * end-of-deck continuation. */
 
-// The four French labels carry the whole scale; the English FSRS hints
-// (Again/Hard/Good/Easy) were corrector internals printed on the buttons.
+// The four grade labels carry the whole scale, in the chrome language
+// (components/lexique/lexique-copy.ts); the FSRS internals are never printed.
 const reviewOptions = [
-  { rating: 0, label: 'Encore', tone: 'red' },
-  { rating: 1, label: 'Dur', tone: 'yellow' },
-  { rating: 2, label: 'Bien', tone: 'blue' },
-  { rating: 3, label: 'Facile', tone: 'green' },
+  { rating: 0, label: 'deck_again', tone: 'red' },
+  { rating: 1, label: 'deck_hard', tone: 'yellow' },
+  { rating: 2, label: 'deck_good', tone: 'blue' },
+  { rating: 3, label: 'deck_easy', tone: 'green' },
 ] as const;
 
 // One card costs about twenty seconds at the deck's observed pace. The
@@ -79,23 +100,78 @@ const SECONDS_PER_CARD = 20;
 // one filled rule with the identical count and accessible value.
 const MAX_SEGMENTS = 12;
 
+// WP-131 (owner decision 9): one session introduces at most this many new words
+// (`vocabulary_pace.DRILL_SESSION_NEW_WORDS`); the server clamps it to what the
+// day's allowance leaves after the journey and the throttle.
+const SESSION_NEW_WORDS = 8;
+
 // Direction is resolved server-side from the learner's stored preference.
 const reviewQueueParams = {
   limit: 50,
   due_limit: 30,
   fragile_limit: 12,
-  new_limit: 8,
+  new_limit: SESSION_NEW_WORDS,
   topic_limit: 8,
   linked_limit: 8,
 } as const;
 
-function reviewMessage(response: ReviewResponse | AnkiReviewResponse) {
+// WP-131: «Encore N mots» — the rest of the day's allowance (Soutenu 18,
+// Intensif 30) as an explicit, bounded continuation: at most one session's new
+// words, plus whatever came due meanwhile; no fragile, topic or linked padding.
+function moreWordsParams(n: number) {
+  const words = Math.max(0, Math.min(SESSION_NEW_WORDS, Math.floor(n)));
+  return {
+    limit: words + 30,
+    due_limit: 30,
+    fragile_limit: 0,
+    new_limit: words,
+    topic_limit: 0,
+    linked_limit: 0,
+  } as const;
+}
+
+// The continuation's words, in the deck's chrome language (the learner's up to
+// A2, French from B1).
+const MORE_WORDS_COPY: Record<'one' | 'many', Record<string, { label: string; note: string }>> = {
+  one: {
+    fr: { label: 'Encore 1 mot', note: 'Votre rythme prévoit encore 1 mot nouveau aujourd’hui.' },
+    en: { label: '1 more word', note: 'Your rhythm still has 1 new word for today.' },
+    de: { label: 'Noch 1 Wort', note: 'Dein Rhythmus sieht heute noch 1 neues Wort vor.' },
+  },
+  many: {
+    fr: { label: 'Encore {n} mots', note: 'Votre rythme prévoit encore {n} mots nouveaux aujourd’hui.' },
+    en: { label: '{n} more words', note: 'Your rhythm still has {n} new words for today.' },
+    de: { label: 'Noch {n} Wörter', note: 'Dein Rhythmus sieht heute noch {n} neue Wörter vor.' },
+  },
+};
+
+function moreWordsCopy(language: string, n: number) {
+  const table = MORE_WORDS_COPY[n === 1 ? 'one' : 'many'];
+  const copy = table[language] || table.fr;
+  return { label: fill(copy.label, { n }), note: fill(copy.note, { n }) };
+}
+
+// WP-L6 «Encore 5 minutes» (after the day's Seal): reviews only — no new
+// words — and a deck of about five minutes at the deck's own pace. It never
+// touches the story; the streak is marked at most once a day on the server.
+const ENCORE_CARDS = Math.round((5 * 60) / SECONDS_PER_CARD);
+const encoreQueueParams = {
+  limit: ENCORE_CARDS,
+  due_limit: ENCORE_CARDS,
+  fragile_limit: ENCORE_CARDS,
+  new_limit: 0,
+  topic_limit: 0,
+  linked_limit: 0,
+} as const;
+
+function isEncore(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('encore') === '1';
+}
+
+function reviewMessage(t: LexiqueCopy, response: ReviewResponse | AnkiReviewResponse) {
   const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
-  const date = next ? new Date(next) : null;
-  const label = date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-    : '';
-  return label ? `Reprogrammé pour le ${label}` : 'Révision classée';
+  return nextReviewText(t, next);
 }
 
 function queueItems(context: VocabularyDueContext | null) {
@@ -166,39 +242,18 @@ function queueDirection(item: VocabularyRecommendationItem) {
 /* The design's hint line reads "verbe · 1er groupe · rang 2 140". Each part
  * is printed only when the payload actually carries it. The part-of-speech
  * column comes from a heuristic import and holds English keys (and sometimes
- * "x"), so only a value we recognise prints, as a French label — never the raw
- * key, never a guess. The frequency rank is read only if the queue item
- * carries one; nothing is invented to fill the slot. */
-const PART_OF_SPEECH_LABELS: Record<string, string> = {
-  noun: 'nom',
-  verb: 'verbe',
-  adjective: 'adjectif',
-  adverb: 'adverbe',
-  pronoun: 'pronom',
-  preposition: 'préposition',
-  determiner: 'déterminant',
-  conjunction: 'conjonction',
-  interjection: 'interjection',
-  number: 'numéral',
-};
-
-function partOfSpeechLabel(value?: string | null) {
-  const key = String(value || '').trim().toLowerCase();
-  return PART_OF_SPEECH_LABELS[key] || '';
-}
-
+ * "x"), so only a value on the whitelist prints (PART_OF_SPEECH_LABELS in
+ * components/lexique/lexique-copy.ts), as a label in the chrome language —
+ * never the raw key, never a guess. The frequency rank is read only if the
+ * queue item carries one; nothing is invented to fill the slot. */
 function optionalRank(item: VocabularyRecommendationItem) {
   const value = (item as unknown as { frequency_rank?: unknown }).frequency_rank;
   return typeof value === 'number' && value > 0 ? value : null;
 }
 
-function formatRank(rank: number) {
-  return `rang ${new Intl.NumberFormat('fr-FR').format(rank)}`;
-}
-
-function cardHint(item: VocabularyRecommendationItem) {
+function cardHint(t: LexiqueCopy, item: VocabularyRecommendationItem) {
   const rank = optionalRank(item);
-  return [partOfSpeechLabel(item.part_of_speech), rank ? formatRank(rank) : '']
+  return [partOfSpeechLabel(t, item.part_of_speech), rank ? fill(t.rank, { n: formatNumber(t, rank) }) : '']
     .filter(Boolean)
     .join(' · ');
 }
@@ -285,35 +340,47 @@ function clozeIsBlanked(item: VocabularyRecommendationItem) {
   return Boolean(prompt) && prompt.includes('_____');
 }
 
-function cardMode(item: VocabularyRecommendationItem | null): 'recognition' | 'production' | 'audio' | 'cloze' {
+/** WP-115b: the server's rung of the recall ladder, when it sent one. */
+function ladderOf(item: VocabularyRecommendationItem | null): CardMode | null {
+  return ladderRung(item as never, item ? clozeIsBlanked(item) : false);
+}
+
+function sceneOrRescueCue(item: VocabularyRecommendationItem | null) {
+  return ladderCue(item as never);
+}
+
+function cardMode(item: VocabularyRecommendationItem | null): CardMode {
   if (!item) return 'recognition';
+  const ladder = ladderOf(item);
+  if (ladder) return ladder;
   if ((item.proficiency_score || 0) >= 90 && item.example_sentence && clozeIsBlanked(item)) return 'cloze';
   if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
   if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
   return 'recognition';
 }
 
-// Bucket keys are corrector internals; the card prints their French name.
-const bucketLabels: Record<string, string> = {
-  due: 'À revoir',
-  fragile: 'Fragile',
-  new: 'La pioche du jour',
-  linked: 'Mot voisin',
-  topic: 'Du thème',
-  topic_compatible: 'Du thème',
-};
-
-function formatDueLabel(item: VocabularyRecommendationItem) {
-  const fallback = bucketLabels[item.bucket] || 'À revoir';
-  if (item.bucket === 'new') return bucketLabels.new;
-  const raw = item.due_at || item.next_review;
-  const date = raw ? new Date(raw) : null;
-  if (!date || Number.isNaN(date.getTime())) return fallback;
-  return `Échéance ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+// Bucket keys are corrector internals; the card prints their name in the
+// chrome language.
+function bucketLabel(t: LexiqueCopy, bucket?: string | null) {
+  switch (bucket) {
+    case 'fragile': return t.state_fragile;
+    case 'new': return t.bucket_new_deck;
+    case 'linked': return t.bucket_linked;
+    case 'topic':
+    case 'topic_compatible': return t.bucket_topic;
+    default: return t.state_due;
+  }
 }
 
-function ratingToneLabel(rating: number) {
-  return reviewOptions.find((item) => item.rating === rating)?.label || 'Classée';
+function formatDueLabel(t: LexiqueCopy, item: VocabularyRecommendationItem) {
+  if (item.bucket === 'new') return t.bucket_new_deck;
+  const label = formatDate(t, item.due_at || item.next_review);
+  return label ? fill(t.due_on, { date: label }) : bucketLabel(t, item.bucket);
+}
+
+function ratingToneLabel(t: LexiqueCopy, rating: number) {
+  const option = reviewOptions.find((item) => item.rating === rating);
+  return option ? t[option.label] : t.rating_fallback;
 }
 
 function decrementSummaryCount(value: number | undefined) {
@@ -324,13 +391,19 @@ function decrementSummaryCount(value: number | undefined) {
    portrait byline. The server portrait is used when it loads; otherwise the
    initial on the character's accent, exactly as the Feuilleton draws it. */
 function ReviewPortrait({ item }: { item: VocabularyRecommendationItem }) {
+  const t = useLexCopy();
   const [failed, setFailed] = useState(false);
+  // WP-116: the drawn art set shows the character's rig beside the word.
+  const artSet = useArtSet();
   const anchor = item.episodic_anchor;
   if (!anchor) return null;
   const name = anchor.character_name || 'Le Feuilleton';
+  const drawn = artSet === 'drawn' && drawnFaceId(anchor.character_name) !== null;
   return (
-    <span className="av2-byline lx-cast" title={`Ancré dans votre histoire avec ${name}`}>
-      {anchor.portrait_url && !failed ? (
+    <span className="av2-byline lx-cast" title={fill(t.anchored_with, { name })}>
+      {drawn ? (
+        <span className="lx-cast__portrait lx-cast__portrait--drawn"><CastFace seeds={[anchor.character_name]} size={22} /></span>
+      ) : anchor.portrait_url && !failed ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
           className="lx-cast__portrait"
@@ -389,6 +462,7 @@ function VocabularyReviewContinuation({
   onRefresh,
   onReturn,
   returning,
+  more,
 }: {
   lastItem: VocabularyRecommendationItem | null;
   lastRating: number | null;
@@ -396,28 +470,36 @@ function VocabularyReviewContinuation({
   onRefresh: () => void;
   onReturn: () => void;
   returning: boolean;
+  /** WP-131: the day's allowance still holds new words — «Encore N mots». */
+  more?: { label: string; note: string; onSelect: () => void } | null;
 }) {
+  const t = useLexCopy();
   const wordId = lastItem?.word_id || null;
   const word = lastItem ? queueFrench(lastItem) || queueWord(lastItem) : '';
-  const ratingCopy = lastRating !== null ? ratingToneLabel(lastRating) : '';
+  const ratingCopy = lastRating !== null ? ratingToneLabel(t, lastRating) : '';
 
   return (
     <>
-      <Surface as="section" shape="hero" className="lx-done" aria-label="Fin de la révision">
+      <Surface as="section" shape="hero" className="lx-done" aria-label={t.done_aria}>
         <ShapeToken kind="done" size="lg" />
-        <p className="av2-label">Révision espacée</p>
+        <p className="av2-label">{t.done_label}</p>
         {/* the one Garamond-italic headline once the deck is empty */}
-        <h2 className="av2-headline av2-headline--screen">Paquet vidé</h2>
+        <h2 className="av2-headline av2-headline--screen">{t.done_title}</h2>
         {(word || ratingCopy) && (
           <p className="av2-body av2-body--lg">{[word, ratingCopy].filter(Boolean).join(' · ')}</p>
         )}
+        {more && <p className="av2-body">{more.note}</p>}
         <div className="lx-done__actions">
           {/* the one tactile 3D press on the empty deck */}
-          <Action tone="done" pending={returning} pendingLabel="Retour…" onClick={onReturn}>
-            L’Atelier
+          <Action tone="done" pending={returning} pendingLabel={t.returning} onClick={onReturn}>
+            {/* WP-109: the front page is «La Une». */}
+            La Une
           </Action>
           <div className="lx-done__quiet">
-            <Action tone="quiet" inline onClick={onRefresh}>Actualiser</Action>
+            {more && (
+              <Action tone="quiet" inline onClick={more.onSelect}>{more.label}</Action>
+            )}
+            <Action tone="quiet" inline onClick={onRefresh}>{t.refresh}</Action>
             {wordId && (
               <Link className="av2-btn av2-btn--quiet av2-btn--inline" href={`/vocabulary?word=${wordId}`}>
                 Le Cahier
@@ -444,12 +526,20 @@ export default function VocabularyReviewPage() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  // Le Lexique has no journey envelope, so the learner's language comes from the
-  // profile rather than a `control_language` field. Only the failure copy below
-  // uses it: the deck's chrome stays French.
-  const learnerLanguage = useLearnerLanguage();
-  const chrome = atelierChrome(learnerLanguage);
+  // Le Lexique has no journey envelope, so the learner's language and level
+  // come from the profile rather than a `control_language` field. WP-82: the
+  // deck's chrome — buttons, states, the failure toasts, the visual cue's
+  // scene name — is the learner's language up to A2 and French from B1; the
+  // words and their examples stay French.
+  const language = useChromeLanguage();
+  const t = lexiqueCopy(language);
+  const chrome = atelierChrome(language);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
+  // WP-115b «successive relearning»: a card answered wrong comes back at the end of
+  // the session, until it is right once.
+  const [againIds, setAgainIds] = useState<number[]>([]);
+  // WP-115b: the answer came from the microphone (a spoken production).
+  const [spokenAnswer, setSpokenAnswer] = useState(false);
   const [lastRating, setLastRating] = useState<number | null>(null);
   const [lastReviewedItem, setLastReviewedItem] = useState<VocabularyRecommendationItem | null>(null);
   const [biographyOpen, setBiographyOpen] = useState(false);
@@ -465,12 +555,17 @@ export default function VocabularyReviewPage() {
   const activeWordIdRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const loadQueue = useCallback(async () => {
+  const loadQueue = useCallback(async (moreWords?: number) => {
     setLoading(!visibleCacheRef.current);
     setLoadError(null);
     try {
+      const params = isEncore()
+        ? encoreQueueParams
+        : moreWords
+          ? moreWordsParams(moreWords)
+          : reviewQueueParams;
       const [next, slate] = await Promise.all([
-        apiService.getVocabularyDueContext(reviewQueueParams),
+        apiService.getVocabularyDueContext(params),
         apiService.getWordsOfTheDay().catch(() => null),
       ]);
       setWordSlate(slate);
@@ -485,7 +580,7 @@ export default function VocabularyReviewPage() {
       setTypedAnswer('');
     } catch (error) {
       console.error(error);
-      if (!visibleCacheRef.current) setLoadError('La révision est indisponible.');
+      if (!visibleCacheRef.current) setLoadError('unavailable');
     } finally {
       setLoading(false);
     }
@@ -514,20 +609,32 @@ export default function VocabularyReviewPage() {
   }, [wordSlate]);
   const allItems = useMemo(() => {
     const items = queueItems(context);
-    const ordered = slateById.size === 0 ? items : [
-      ...items.filter((item) => slateById.has(item.word_id)),
-      ...items.filter((item) => !slateById.has(item.word_id)),
-    ];
+    // WP-115b (owner test 2026-09-30): reviews before new words, as in Anki — and
+    // among the reviews, the words that don't stick and the story's own lines
+    // first. The day's slate words follow, then the rest.
+    const rung = (item: (typeof items)[number]) => (item as { ladder?: string | null }).ladder;
+    const rank = (item: (typeof items)[number]) =>
+      rung(item) === 'rescue' ? 0
+        : rung(item) === 'scene' ? 1
+          : item.bucket === 'due' || item.bucket === 'fragile' ? 2
+            : slateById.has(item.word_id) ? 3
+              : 4;
+    const ordered = items
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => rank(a.item) - rank(b.item) || a.index - b.index)
+      .map(({ item }) => item);
     if (!resumeWordId) return ordered;
     return [
       ...ordered.filter((item) => item.word_id === resumeWordId),
       ...ordered.filter((item) => item.word_id !== resumeWordId),
     ];
   }, [context, resumeWordId, slateById]);
-  const remainingItems = useMemo(
-    () => allItems.filter((item) => !reviewedIds.has(item.word_id)),
-    [allItems, reviewedIds],
-  );
+  const remainingItems = useMemo(() => {
+    const main = allItems.filter((item) => !reviewedIds.has(item.word_id));
+    const byId = new Map(allItems.map((item) => [item.word_id, item]));
+    const again = againIds.map((id) => byId.get(id)).filter(Boolean) as typeof allItems;
+    return [...main, ...again];
+  }, [allItems, reviewedIds, againIds]);
   const current = remainingItems[0] || null;
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
   const completed = reviewedIds.size;
@@ -546,16 +653,23 @@ export default function VocabularyReviewPage() {
   // something the headline count does not.
   const deckComposition = useMemo(() => {
     const parts: string[] = [];
-    if (remainingSummary.due) parts.push(`${remainingSummary.due} à revoir`);
-    if (remainingSummary.fragile) {
-      parts.push(`${remainingSummary.fragile} fragile${remainingSummary.fragile > 1 ? 's' : ''}`);
-    }
-    if (remainingSummary.new) {
-      parts.push(`${remainingSummary.new} nouveau${remainingSummary.new > 1 ? 'x' : ''}`);
-    }
+    if (remainingSummary.due) parts.push(fill(t.count_due, { n: remainingSummary.due }));
+    if (remainingSummary.fragile) parts.push(plural(t, 'count_fragile', remainingSummary.fragile));
+    if (remainingSummary.new) parts.push(plural(t, 'count_new', remainingSummary.new));
     if (parts.length < 2) return '';
-    return `Dont ${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}.`;
-  }, [remainingSummary]);
+    const list = `${parts.slice(0, -1).join(', ')} ${t.and_word} ${parts[parts.length - 1]}`;
+    return fill(t.composition, { list });
+  }, [remainingSummary, t]);
+
+  // WP-131: the day's allowance still holds new words after this deck. Offered
+  // once the deck is done, never in «Encore 5 minutes» (review only), and at most
+  // one session's worth at a time; the server stays the judge of the room.
+  const moreWords = useMemo(() => {
+    const left = Number(context?.new_words_left_today || 0);
+    if (isEncore() || !Number.isFinite(left) || left <= 0) return null;
+    const n = Math.min(SESSION_NEW_WORDS, Math.floor(left));
+    return { ...moreWordsCopy(language, n), onSelect: () => void loadQueue(n) };
+  }, [context, language, loadQueue]);
 
   useEffect(() => {
     if (current) {
@@ -616,7 +730,7 @@ export default function VocabularyReviewPage() {
       setBiography(next);
     } catch (error) {
       console.error(error);
-      setBiographyError('L’histoire de ce mot est indisponible.');
+      setBiographyError('unavailable');
     } finally {
       setBiographyLoading(false);
     }
@@ -653,7 +767,7 @@ export default function VocabularyReviewPage() {
         window.speechSynthesis.speak(utterance);
       } else {
         setAudioPlaying(false);
-        toast.error('La lecture audio a échoué.');
+        toast.error(t.audio_failed);
       }
     }
   };
@@ -668,6 +782,7 @@ export default function VocabularyReviewPage() {
       }
       if (transcript.trim()) {
         setTypedAnswer(transcript.trim());
+        setSpokenAnswer(Boolean(transcript.trim()));
       } else {
         toast(chrome.transcription_empty);
       }
@@ -734,9 +849,22 @@ export default function VocabularyReviewPage() {
     if (!current || reviewing) return;
     setReviewing(true);
     try {
-      const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating });
-      toast.success(reviewMessage(response));
+      // WP-115a: a card the learner answered is graded by the answer (the server
+      // earns the grade); a card only turned over stays a self-rated flashcard.
+      // QA-CLOSE: the typed text goes to the server, which grades it.
+      const answered = graded
+        ? { format: gradedFormat(mode, spokenAnswer), answer_text: typedAnswer }
+        : { format: 'flashcard' as const };
+      const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
+      toast.success(reviewMessage(t, response));
+      if (response.note_native) toast(response.note_native);
       setReviewedIds((prev) => new Set(prev).add(current.word_id));
+      // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
+      // The server's verdict decides; the device's own fold only when it sent none.
+      const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
+      const wrong = graded ? !serverCorrect : rating === 0;
+      setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
+      setSpokenAnswer(false);
       setLastRating(rating);
       setLastReviewedItem(current);
       setContext((prev) => optimisticallyDecrementSummary(prev, current));
@@ -744,7 +872,7 @@ export default function VocabularyReviewPage() {
       setTypedAnswer('');
     } catch (error) {
       console.error(error);
-      toast.error('La révision n’a pas pu être classée.');
+      toast.error(t.review_failed);
     } finally {
       setReviewing(false);
     }
@@ -802,33 +930,47 @@ export default function VocabularyReviewPage() {
   const mode = cardMode(current);
   const prompt = current
     ? mode === 'audio'
-      ? 'Écoutez le mot français'
+      ? t.listen_prompt
       : mode === 'production'
       ? queueMeaning(current) || queueFrench(current)
       : mode === 'cloze'
         ? clozePrompt(current)
-        : queueWord(current)
+        : mode === 'scene' || mode === 'rescue'
+          ? sceneOrRescueCue(current)?.sentence_fr || queueMeaning(current) || queueFrench(current)
+          : queueWord(current)
     : '';
   const answer = current ? (mode === 'recognition' ? queueTranslation(current) : queueFrench(current)) : '';
   const french = current ? queueFrench(current) : '';
   const meaning = current ? queueMeaning(current) : '';
   const example = current ? queueExample(current) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
-  const visualCue = current ? wordVisualCue(current, learnerLanguage) : null;
+  const visualCue = current ? wordVisualCue(current, language) : null;
   const visibleExample = mode === 'audio' ? '' : example;
   const contextText = mode === 'audio'
     ? [meaning, example].filter(Boolean).join(' · ')
     : example || (current ? `${french} - ${meaning}` : '');
   const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
-  const hint = current ? cardHint(current) : '';
+  const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
+  const hint = current ? cardHint(t, current) : '';
+  // WP-115b: the ladder's own cue on the scene and rescue rungs.
+  const ladderCue = sceneOrRescueCue(current);
+  const ladderHint =
+    mode === 'scene'
+      ? t.ladder_scene_hint
+      : mode === 'rescue' && ladderCue?.first_letter
+        ? fill(t.ladder_rescue_hint, { letter: ladderCue.first_letter, n: ladderCue.length ?? '' })
+        : '';
   const direction = current ? queueDirection(current) : '';
 
   // "Mot du jour · French 5000": the tag half is the deck the card came from,
   // printed only when the payload names one.
+  // An Anki path («Französisch 5000::1. FR → DE») is a filing system, not a
+  // name: only its first segment is printed, and the direction is the badge's.
+  const deckLabel = String(current?.deck_name || '').split('::')[0].trim();
   const kicker = current
     ? [
-        currentSlateEntry ? 'Mot du jour' : formatDueLabel(current),
-        current.deck_name || '',
+        currentSlateEntry ? t.word_of_day : formatDueLabel(t, current),
+        deckLabel,
       ].filter(Boolean).join(' · ')
     : '';
 
@@ -840,26 +982,28 @@ export default function VocabularyReviewPage() {
   }));
   const countLabel = total ? `${completed}/${total}` : '';
   const progressCaption = sessionRemaining
-    ? `${sessionRemaining} ${sessionRemaining > 1 ? 'cartes' : 'carte'}${minutesLeft ? ` · environ ${minutesLeft} min` : ''}`
+    ? [plural(t, 'cards', sessionRemaining), minutesLeft ? fill(t.about_minutes, { n: minutesLeft }) : '']
+      .filter(Boolean)
+      .join(' · ')
     : completed
-      ? `${completed} carte${completed > 1 ? 's' : ''} classée${completed > 1 ? 's' : ''}`
-      : 'Rien à revoir aujourd’hui';
+      ? plural(t, 'filed', completed)
+      : t.nothing_due;
 
   return (
     <>
       <Head>
-        <title>Le Lexique · Révision · L’Atelier</title>
+        <title>{t.review_head_title}</title>
       </Head>
-      <AtelierV2Root as="main" className="lx-review" aria-label="Le Lexique — révision">
+      <AtelierV2Root as="main" language={language} className="lx-review" aria-label={t.review_aria}>
         <div className="av2-screen lx-review__screen">
           {/* The screen's own name, in every state including the loading and
               empty ones. The design draws no title here, so it is announced
               rather than printed (WP-20 D-11). */}
-          <h1 className="av2-sr">Le Lexique — révision</h1>
+          <h1 className="av2-sr">{t.review_aria}</h1>
           {/* The design's Lexique header: round close, one segment per word,
               the count. No masthead and no tabs on this immersive screen. */}
           <header className="av2-session__head lx-review__head">
-            <IconAction label="Quitter la révision" onClick={() => void returnToAtelier()} pending={returning}>
+            <IconAction label={t.close_review} onClick={() => void returnToAtelier()} pending={returning}>
               <CrossIcon size={16} />
             </IconAction>
             <div className="av2-progress">
@@ -867,7 +1011,7 @@ export default function VocabularyReviewPage() {
                 <div
                   className="av2-progress__segments lx-dots"
                   role="progressbar"
-                  aria-label="Progression de la révision"
+                  aria-label={t.progress_aria}
                   aria-valuemin={0}
                   aria-valuemax={total}
                   aria-valuenow={completed}
@@ -881,11 +1025,11 @@ export default function VocabularyReviewPage() {
                 <div
                   className="av2-progress__track lx-rule"
                   role="progressbar"
-                  aria-label="Progression de la révision"
+                  aria-label={t.progress_aria}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={progress}
-                  aria-valuetext={loading ? 'Ouverture du paquet…' : progressCaption}
+                  aria-valuetext={loading ? t.opening_deck : progressCaption}
                 >
                   <div className="av2-progress__fill lx-rule__fill" style={{ width: `${progress}%` }} />
                 </div>
@@ -897,20 +1041,18 @@ export default function VocabularyReviewPage() {
           <div className="av2-screen__body lx-review__body">
             {cachedContextAt && (
               <Notice tone="quiet" shape="story">
-                <p>Édition précédente · mise à jour en cours…</p>
+                <p>{t.cached_notice}</p>
               </Notice>
             )}
 
-            {loading && (
-              <StateBlock tone="loading" title="Ouverture du paquet…" body="Le paquet du jour arrive." />
-            )}
+            {loading && <StateBlock tone="loading" title={t.opening_deck} />}
 
             {!loading && loadError && (
               <StateBlock
                 tone="error"
-                title="Paquet indisponible"
-                body={loadError}
-                action={{ label: 'Réessayer', onSelect: () => void loadQueue() }}
+                title={t.deck_error_title}
+                body={t.deck_unavailable}
+                action={{ label: t.retry, onSelect: () => void loadQueue() }}
               />
             )}
 
@@ -919,9 +1061,10 @@ export default function VocabularyReviewPage() {
                 lastItem={lastReviewedItem}
                 lastRating={lastRating}
                 slate={wordSlate}
-                onRefresh={loadQueue}
+                onRefresh={() => void loadQueue()}
                 onReturn={returnToAtelier}
                 returning={returning}
+                more={moreWords}
               />
             )}
 
@@ -933,7 +1076,13 @@ export default function VocabularyReviewPage() {
                 </div>
                 {deckComposition && <p className="av2-body lx-review__composition">{deckComposition}</p>}
                 {current.recommendation_reason?.text && (
-                  <p className="av2-body lx-review__why">{current.recommendation_reason.text}</p>
+                  <p className="av2-body lx-review__why">
+                    {pickByLanguage(
+                      current.recommendation_reason.text_by_language,
+                      language,
+                      current.recommendation_reason.text,
+                    )}
+                  </p>
                 )}
 
                 {/* The tap-to-flip card. It holds a field and two audio
@@ -948,7 +1097,7 @@ export default function VocabularyReviewPage() {
                   role="button"
                   tabIndex={0}
                   aria-pressed={revealed}
-                  aria-label={revealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}
+                  aria-label={revealed ? t.flip_back : t.flip_front}
                   onClick={() => setRevealed((value) => !value)}
                   onKeyDown={(event) => {
                     if (event.target !== event.currentTarget) return;
@@ -959,7 +1108,7 @@ export default function VocabularyReviewPage() {
                   }}
                 >
                   <div className="lx-card__top">
-                    <span>{revealed ? 'Sens · touche pour revenir' : 'Touche pour retourner'}</span>
+                    <span>{revealed ? t.flip_back : t.flip_front}</span>
                     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
                       <path d="M7 0L14 14H0Z" fill="currentColor" />
                     </svg>
@@ -973,7 +1122,7 @@ export default function VocabularyReviewPage() {
                           <Chip
                             className="review-visual-cue lx-cue"
                             icon={<ShapeToken kind={visualCue.shape} size="sm" />}
-                            aria-label={`Indice visuel : ${visualCue.label}`}
+                            aria-label={fill(t.cue_aria, { label: visualCue.label })}
                           >
                             {visualCue.label} · {visualCue.caption}
                           </Chip>
@@ -987,11 +1136,11 @@ export default function VocabularyReviewPage() {
                               tone="secondary"
                               inline
                               pending={audioPlaying}
-                              pendingLabel="Lecture…"
+                              pendingLabel={t.playing}
                               onClick={playAudioPrompt}
                               icon={<ShapeToken kind="story" size="sm" />}
                             >
-                              Écouter
+                              {t.listen}
                             </Action>
                             <IconAction
                               label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : chrome.record_start}
@@ -1003,13 +1152,36 @@ export default function VocabularyReviewPage() {
                               {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
                             </IconAction>
                           </div>
-                          <p className="lx-card__hint">Écouter · répondre</p>
+                          <p className="lx-card__hint">{t.listen_hint}</p>
                         </>
                       ) : (
                         <>
                           {/* the one Garamond-italic headline on this screen */}
-                          <p className="av2-headline lx-card__word review-prompt-term">{prompt}</p>
-                          {hint && <p className="lx-card__hint">{hint}</p>}
+                          <p
+                            className={`av2-headline lx-card__word review-prompt-term${mode === 'scene' || mode === 'rescue' ? ' lx-card__word--line' : ''}`}
+                            lang={mode === 'scene' || mode === 'rescue' ? 'fr' : undefined}
+                          >
+                            {prompt}
+                          </p>
+                          {ladderHint ? (
+                            <p className="lx-card__hint" data-ladder={mode}>{ladderHint}</p>
+                          ) : (
+                            hint && <p className="lx-card__hint">{hint}</p>
+                          )}
+                          {mode !== 'recognition' && (
+                            /* WP-115b: say it — a spoken answer is graded like a typed one. */
+                            <div className="lx-card__audio" onClick={(event) => event.stopPropagation()}>
+                              <IconAction
+                                label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : t.ladder_speak}
+                                tone={recording ? 'recording' : 'action'}
+                                pressable
+                                pending={transcribing}
+                                onClick={recording ? stopRecording : startRecording}
+                              >
+                                {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
+                              </IconAction>
+                            </div>
+                          )}
                         </>
                       )}
                       {mode !== 'recognition' && (
@@ -1017,10 +1189,13 @@ export default function VocabularyReviewPage() {
                           className="av2-field__control lx-input lx-card__input"
                           lang="fr"
                           value={typedAnswer}
-                          onChange={(event) => setTypedAnswer(event.target.value)}
+                          onChange={(event) => {
+                            setTypedAnswer(event.target.value);
+                            setSpokenAnswer(false);
+                          }}
                           onClick={(event) => event.stopPropagation()}
-                          placeholder={mode === 'audio' ? 'Écrivez ce que vous avez entendu' : 'Écrivez la réponse française'}
-                          aria-label="Écrire la réponse française"
+                          placeholder={mode === 'audio' ? t.input_placeholder_audio : t.input_placeholder}
+                          aria-label={t.input_aria}
                           autoComplete="off"
                           autoCapitalize="off"
                         />
@@ -1031,20 +1206,20 @@ export default function VocabularyReviewPage() {
                       <div className="lx-card__marks">
                         <IconAction
                           className="lx-card__history"
-                          label={`Ouvrir l’histoire du mot ${french || prompt}`}
+                          label={fill(t.open_story, { word: french || prompt })}
                           onClick={(event) => {
                             event.stopPropagation();
                             void openBiography();
                           }}
                         >
-                          <ShapeToken kind="story" size="sm" title="L’histoire du mot" />
+                          <ShapeToken kind="story" size="sm" title={t.story_title} />
                         </IconAction>
                       </div>
                       <p className="av2-headline lx-card__word review-answer-word">{answer || meaning || french}</p>
                       {mode !== 'recognition' && typedAnswer && (
                         <p className="lx-card__hint lx-card__verdict" data-match={typedMatches ? 'true' : 'false'}>
                           <ShapeToken kind={typedMatches ? 'done' : 'action'} size="sm" />
-                          {typedMatches ? 'Réponse exacte' : `Votre réponse : ${typedAnswer}`}
+                          {typedMatches ? t.verdict_exact : fill(t.verdict_yours, { answer: typedAnswer })}
                         </p>
                       )}
                       {mode !== 'recognition' && meaning && meaning !== answer && (
@@ -1075,29 +1250,43 @@ export default function VocabularyReviewPage() {
                     files grade 0 and Je sais grade 2 (Bien); Dur (1) and
                     Facile (3) stay reachable underneath as quiet actions, so
                     the four-grade FSRS scale is unchanged. */}
-                <div className="lx-review__foot" aria-label="Noter la carte">
+                {graded && revealed ? (
+                  /* WP-115a: the answer graded itself — one button files it. */
+                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
+                    <button
+                      type="button"
+                      className="av2-btn av2-btn--primary lx-rate"
+                      data-graded={typedMatches ? 'correct' : 'wrong'}
+                      disabled={reviewing}
+                      onClick={() => void submitRating(typedMatches ? 2 : 0)}
+                    >
+                      {t.deck_graded_next}
+                    </button>
+                  </div>
+                ) : (
+                <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
                   <div className="lx-review__pair">
                     <button
                       type="button"
                       className="av2-btn lx-rate"
                       disabled={reviewing}
                       onClick={() => handleRatingClick(0)}
-                      title={revealed ? 'Noter : Encore' : 'Révéler la réponse'}
-                      aria-label={revealed ? 'Noter : Encore' : 'Révéler la réponse avant de noter'}
+                      title={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_first}
+                      aria-label={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_before}
                     >
                       <span className="av2-shape av2-shape--dot lx-rate__dot" aria-hidden="true" />
-                      Encore
+                      {t.deck_again}
                     </button>
                     <button
                       type="button"
                       className="av2-btn av2-btn--done lx-rate"
                       disabled={reviewing}
                       onClick={() => handleRatingClick(2)}
-                      title={revealed ? 'Noter : Bien' : 'Révéler la réponse'}
-                      aria-label={revealed ? 'Noter : Bien' : 'Révéler la réponse avant de noter'}
+                      title={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_first}
+                      aria-label={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_before}
                     >
                       <ShapeToken kind="reward" size="sm" />
-                      Je sais
+                      {t.deck_know}
                     </button>
                   </div>
                   <div className="lx-review__grades">
@@ -1109,15 +1298,16 @@ export default function VocabularyReviewPage() {
                           inline
                           disabled={reviewing}
                           onClick={() => handleRatingClick(option.rating)}
-                          title={revealed ? `Noter : ${option.label}` : 'Révéler la réponse'}
-                          aria-label={revealed ? `Noter : ${option.label}` : 'Révéler la réponse avant de noter'}
+                          title={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_first}
+                          aria-label={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_before}
                         >
-                          {option.label}
+                          {t[option.label]}
                         </Action>
                       ) : null
                     ))}
                   </div>
                 </div>
+                )}
               </>
             )}
           </div>
@@ -1127,7 +1317,7 @@ export default function VocabularyReviewPage() {
           open={biographyOpen}
           biography={biography}
           loading={biographyLoading}
-          error={biographyError}
+          error={biographyError ? t.biography_failed : null}
           onClose={() => setBiographyOpen(false)}
           action={biography ? <Link href={`/vocabulary?word=${biography.word.id}`}>Le Cahier</Link> : undefined}
         />
@@ -1154,6 +1344,7 @@ export default function VocabularyReviewPage() {
         .av2 .lx-dot[data-state='pending'] { background: var(--av2-line); }
         .av2 .lx-rule__fill { background: var(--av2-yellow); }
         .av2 .lx-review__kicker { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+        .av2 .lx-review__kicker > p { min-width: 0; overflow-wrap: anywhere; }
         .av2 .lx-review__direction { flex: none; font-weight: 600; }
         .av2 .lx-review__composition, .av2 .lx-review__why { margin-top: -4px; }
         .av2 .lx-review__why { font-family: var(--av2-serif); font-style: italic; }
@@ -1205,10 +1396,19 @@ export default function VocabularyReviewPage() {
         .av2 .lx-card__middle { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
         .av2 .lx-card__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; }
         .av2 .lx-card__marks:empty { display: none; }
+        /* WP-115b: a whole line from the story reads as a line, not a headword. */
+        .av2 .lx-card__word.lx-card__word--line {
+          font-size: 1.75rem;
+          line-height: 1.2;
+        }
         .av2 .lx-card__word {
           font-size: 2.875rem; /* design 46px */
           line-height: 1;
           color: inherit;
+          /* A long French word breaks inside the card instead of pushing the
+             320px screen sideways. */
+          overflow-wrap: anywhere;
+          hyphens: auto;
         }
         .av2 .lx-card__word--sans {
           font-family: var(--av2-sans);
@@ -1237,6 +1437,7 @@ export default function VocabularyReviewPage() {
           opacity: 0.9;
           color: inherit;
           text-wrap: pretty;
+          overflow-wrap: anywhere;
         }
         .av2 .lx-card__example + .lx-card__example { margin-top: 8px; }
         .av2 .lx-card__example-tr {
@@ -1252,6 +1453,7 @@ export default function VocabularyReviewPage() {
            paper ground instead of the card's own colour. */
         .av2 .lx-cast { gap: 6px; }
         .av2 .lx-cast .av2-label { color: inherit; opacity: 0.85; }
+        .av2 .lx-cast__portrait--drawn { display: inline-block; overflow: hidden; background: var(--av2-card); }
         .av2 .lx-cast__portrait { width: 22px; height: 22px; border-radius: var(--av2-r-pill); object-fit: cover; object-position: top center; background: var(--av2-line); }
         .av2 .lx-cue { background: var(--av2-paper); color: var(--av2-ink); }
         .av2 .lx-card__history { background: var(--av2-paper); }
@@ -1275,10 +1477,10 @@ export default function VocabularyReviewPage() {
         .av2 .lx-review__pair { display: flex; gap: 10px; min-width: 0; }
         .av2 .lx-rate { flex: 1 1 0; width: auto; font-size: var(--av2-t-body-lg); }
         .av2 .lx-rate__dot { background: var(--av2-red); width: 12px; height: 12px; }
-        .av2 .lx-review__grades { display: flex; justify-content: center; gap: 12px; min-width: 0; }
+        .av2 .lx-review__grades { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; min-width: 0; }
 
         /* The empty deck. */
-        .av2 .lx-done { display: flex; flex-direction: column; gap: 8px; padding: 22px 20px; }
+        .av2 .lx-done { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 22px 20px; overflow-wrap: anywhere; }
         .av2 .lx-done__actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; min-width: 0; }
         .av2 .lx-done__quiet { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 

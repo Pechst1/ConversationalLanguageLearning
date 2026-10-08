@@ -192,6 +192,11 @@ def test_food_vocabulary_builds_food_domain_mission(db_session, monkeypatch):
     assert payload["prompt_payload"]["messenger"]["contact_name"] == "Samira"
     assert "pain" in payload["prompt_payload"]["messenger"]["opening_message"].lower()
     assert payload["target_vocabulary_ids"] == [word.id]
+    # 2026-09-24: the objective is chrome — an authored letter carries it in
+    # every control language so an A1 learner reads it in their own.
+    ask_by_language = payload["prompt_payload"]["slim_payload"]["ask_by_language"]
+    assert set(ask_by_language) == {"fr", "en", "de"}
+    assert ask_by_language["fr"].startswith("Samira sait")
 
 
 def test_consecutive_standalone_missions_vary_domain_contact_and_channel(db_session, monkeypatch):
@@ -475,11 +480,16 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     recap = complete.json()["recap"]
     assert complete.json()["mission"]["status"] == "completed"
     assert recap["turns"] == 1
-    assert recap["readiness"]["overall"] >= 0
+    # WP-64: measured numbers only — no invented "readiness" percentage.
+    assert "readiness" not in recap
+    assert recap["outcome"] in {"kept", "partial", "missed"}
+    assert recap["measured"]["objectives_total"] >= 1
+    assert recap["measured"]["repairs"] == recap["errata_logged"]
     assert recap["objective_results"]
     assert all("met" in item and "label" in item for item in recap["objective_results"])
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
-    assert recap["saved_to_srs"]["saved_count"] >= 1
+    # WP-74: missions no longer invent catalogue rows from the learner's text.
+    assert recap["saved_to_srs"]["saved_count"] == 0
     assert recap["minted_collectibles"][0]["kind"] == "logo_token"
     assert recap["minted_collectibles"][0]["source_kind"] == "mission"
 
@@ -517,7 +527,8 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     )
 
     assert submit.status_code == 200
-    assert submit.json()["correction"]["verdict"] in {"accepted", "partial", "needs_revision"}
+    # WP-74: no grader in tests -> a non-empty answer is "unassessed", never "accepted".
+    assert submit.json()["correction"]["verdict"] in {"unassessed", "partial", "needs_revision"}
     assert "the learner" not in str(submit.json()["correction"]).lower()
     assert turn.status_code == 200
     assert turn.json()["user_turn"]["role"] == "user"
@@ -533,7 +544,9 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     assert duplicate_turn.json()["correction"]["persistence"]["saved_count"] >= 2
 
 
-def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestClient, db_session, monkeypatch):
+def test_mission_unused_target_vocabulary_is_an_unobserved_opportunity(client: TestClient, db_session, monkeypatch):
+    """WP-125A (owner decision 6): a suggested word the letter did not use opens
+    no erratum and charges no lapse; it is recorded as unobserved."""
     monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
     token = _token(client)
     user = _user_from_token(db_session, token)
@@ -576,21 +589,17 @@ def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestCl
     assert submit.status_code == 200
     correction = submit.json()["correction"]
     assert any(
-        event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+        event["word_id"] == target_word.id and event["event_type"] == "unused_target"
         for event in correction["vocabulary_events"]
     )
-    assert any(
-        item["linked_word_id"] == target_word.id and item["error_category"] == "vocabulary"
-        for item in correction["errata"]
-    )
-    assert any(item["linked_word_id"] == target_word.id for item in submit.json()["errata"])
+    assert not any(item.get("linked_word_id") == target_word.id for item in correction["errata"])
+    assert not any(item.get("linked_word_id") == target_word.id for item in submit.json()["errata"])
     progress = (
         db_session.query(UserVocabularyProgress)
         .filter(UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == target_word.id)
-        .one()
+        .one_or_none()
     )
-    assert progress.state == "relearning"
-    assert progress.phase == "relearn"
+    assert progress is None or progress.state != "relearning"
 
     complete = client.post(
         f"/api/v1/missions/{mission_id}/complete",
@@ -598,7 +607,8 @@ def test_mission_missing_target_vocabulary_creates_credit_erratum(client: TestCl
     )
 
     assert complete.status_code == 200
-    assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] >= 1
+    assert complete.json()["recap"]["vocabulary_credit"]["missed_target"] == 0
+    assert complete.json()["recap"]["vocabulary_credit"]["unobserved"] >= 1
 
 
 def test_mission_correction_catches_obvious_vous_avet_when_llm_accepts(db_session):
@@ -910,8 +920,10 @@ def test_mission_completion_returns_recap(client: TestClient, db_session, monkey
     assert response.status_code == 200
     assert response.json()["mission"]["status"] == "completed"
     assert "completed_at" in response.json()["recap"]
-    assert response.json()["recap"]["readiness"]["overall"] >= 0
-    assert response.json()["recap"]["saved_to_srs"]["saved_count"] >= 1
+    assert response.json()["recap"]["outcome"] in {"kept", "partial", "missed"}
+    # WP-74: quick-reply scaffolds with a placeholder gloss are not vocabulary.
+    assert response.json()["recap"]["measured"]["phrases_saved"] == 0
+    assert response.json()["recap"]["saved_to_srs"]["saved_count"] == 0
     assert response.json()["recap"]["minted_collectibles"][0]["kind"] == "logo_token"
 
     again = client.post(
@@ -1206,9 +1218,11 @@ def test_mission_only_scores_the_vocabulary_the_page_prints(db_session):
         user=user, mission=mission, text="Bonjour, je vous confirme le rendez-vous de demain matin.", mode="chat"
     )
 
-    scored = {item["external_id"] for item in correction["missing_targets"]}
-    assert f"VOCAB_{shown.id}" in scored
-    assert f"VOCAB_{hidden.id}" not in scored
+    # WP-125A: an unused word is an unobserved opportunity, not a missing target.
+    assert not any(str(item["external_id"]).startswith("VOCAB_") for item in correction["missing_targets"])
+    scored = {item["word_id"] for item in correction["unused_targets"]}
+    assert shown.id in scored
+    assert hidden.id not in scored
     assert all(event["word_id"] != hidden.id for event in correction["vocabulary_events"])
 
 
@@ -1236,7 +1250,7 @@ def test_mission_flags_an_unused_target_word_once_per_mission(client: TestClient
     def _missed(response):
         return [
             event for event in response.json()["correction"]["vocabulary_events"]
-            if event["word_id"] == target_word.id and event["event_type"] == "missed_target"
+            if event["word_id"] == target_word.id and event["event_type"] == "unused_target"
         ]
 
     first = client.post(
@@ -1283,8 +1297,8 @@ def test_mission_persistence_separates_repairs_from_vocabulary_credit(client: Te
     )
 
     persistence = response.json()["correction"]["persistence"]
-    # The unused target word is credited but is not a repair the card shows.
-    assert persistence["saved_count"] >= 1
+    # WP-125A: the unused target word is neither a repair nor a saved erratum.
+    assert persistence["saved_count"] == 0
     assert persistence["repair_count"] == 0
 
 
@@ -1318,7 +1332,8 @@ def test_mission_debrief_keeps_objectives_met_in_an_earlier_turn(db_session):
         mission=mission, attempts=[], turns=turns, errata_count=0, srs_result={"saved_count": 0},
     )
 
-    assert debrief["readiness"]["task_fit"] == 100
+    assert debrief["outcome"] == "kept"
+    assert debrief["measured"]["objectives_met"] == debrief["measured"]["objectives_total"] == 1
     assert [item["met"] for item in debrief["objective_results"]] == [True]
     # The dossier speaks the publication's French.
     assert debrief["branch_outcome"]["next_best_move"].startswith(("Revoyez", "Ajoutez", "Refaites"))
@@ -1456,3 +1471,60 @@ def test_mission_correction_drops_write_more_notes_on_a_one_word_reply(db_sessio
 
     assert correction["errata"] == []
     assert correction["corrected_answer"] == "Oui."
+
+
+def test_courrier_reads_the_living_story_mood_and_trust():
+    """WP-61: the Feuilleton's feeling toward the learner reaches the Courrier's character."""
+    from types import SimpleNamespace
+
+    from app.services.missions import MissionScheduler
+
+    thread = SimpleNamespace(
+        state={
+            "relationships": {"romy": {"closeness": 2, "register": "tu", "callbacks": []}},
+            "living_story": {"moods": {"romy": {"mood": -2, "trust": 1}}},
+        }
+    )
+    payload = MissionScheduler._serial_relationship_payload(
+        thread=thread, brief={"required_cast": ["romy", "marin"]}
+    )
+    assert payload["romy"] == {"closeness": 2, "register": "tu", "callbacks": [], "mood": -2, "trust": 1}
+    assert "mood" not in payload["marin"]
+
+    prompt = {"serial_character_id": "romy", "serial_relationships": payload}
+    direction = MissionScheduler.feeling_toward_learner(prompt)
+    assert "hurt" in direction and "guarded" in direction
+    assert MissionScheduler.feeling_toward_learner({**prompt, "serial_character_id": "marin"}) is None
+    assert MissionScheduler.feeling_toward_learner({}) is None
+
+
+def test_courrier_block_is_on_every_serialized_mission(client: TestClient, db_session, monkeypatch):
+    """WP-64: the fields WP-65 renders survive the API, not just the service."""
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    token = _token(client)
+
+    today = client.get("/api/v1/missions/today", headers={"Authorization": f"Bearer {token}"})
+    assert today.status_code == 200
+    weekly = today.json()["weekly_mission"]
+
+    for key in ("correspondent", "chain", "expires_at", "thread_history", "courrier"):
+        assert key in weekly
+    assert weekly["courrier"]["outcome"] is None
+    assert weekly["correspondent"]["id"]
+    # The weekly letter is the standing invitation for the whole week: it may open
+    # an affair, but it never carries a deadline it could miss.
+    assert weekly["expires_at"] is None
+
+    detail = client.get(
+        f"/api/v1/missions/{weekly['id']}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert detail.status_code == 200
+    assert detail.json()["mission"]["courrier"]["thread_history"] == []
+
+    complete = client.post(
+        f"/api/v1/missions/{weekly['id']}/complete", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert complete.status_code == 200
+    # Nothing was written, so nothing was settled — and it says so plainly.
+    assert complete.json()["mission"]["courrier"]["outcome"] == "missed"
+    assert complete.json()["recap"]["branch_outcome"]["state"] == "needs_follow_up"

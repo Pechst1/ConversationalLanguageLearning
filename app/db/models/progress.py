@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 
 class UserVocabularyProgress(Base):
@@ -65,10 +66,22 @@ class UserVocabularyProgress(Base):
 
     error_types = Column(JSONB().with_variant(JSON(), "sqlite"), default=list)
 
-    first_seen_date = Column(DateTime(timezone=True), server_default=func.now())
+    # WP-34 — where this card came from. Null for every card the app itself
+    # scheduled; "learner_artefact" for a word the learner met in a document they
+    # brought in themselves. WP-29's coverage guard reads it to treat such a word
+    # as a *target* (meant to be new) instead of an accident to generate away, and
+    # `provenance_ref` names the artefact so a deleted document leaves no pointer.
+    provenance = Column(String(32), nullable=True, index=True)
+    provenance_ref = Column(String(64), nullable=True, index=True)
+    # WP-115a — where the word was met, so a review can bring back its scene: the
+    # sentence, who said it, the scene and panel, and the line's audio key
+    # (``{panel_id}:l{index}``, the key episode audio stores its clip under).
+    context = Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True)
+
+    first_seen_date = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
     mastered_date = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), onupdate=app_now)
 
     user = relationship("User", backref="vocabulary_progress")
     word = relationship("VocabularyWord")
@@ -148,6 +161,18 @@ class ReviewLog(Base):
     state_transition = Column(String(50))
     schedule_before = Column(Integer)
     schedule_after = Column(Integer)
+
+    # WP-115a — what the review was, so retention can be read per kind of answer:
+    # ``source`` (atelier, drill, story, letter, session, mission, …), ``format``
+    # (recognition, production, flashcard, listening, …) and ``direction``
+    # (fr_to_native, native_to_fr).
+    source = Column(String(24), nullable=True, index=True)
+    format = Column(String(24), nullable=True)
+    direction = Column(String(16), nullable=True)
+    # WP-115e — measurement: what the scheduler predicted (recall probability when the
+    # review happened) and how long it had been since the last review, in days.
+    predicted_r = Column(Float, nullable=True)
+    elapsed_days_exact = Column(Float, nullable=True)
 
     # Anki-specific fields
     scheduler_type = Column(String(20), default="fsrs")  # "fsrs" or "anki"

@@ -29,7 +29,15 @@ import json
 import os
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
+
+# Serve the checkout this script lives in. Run as `python scripts/…`, Python puts
+# scripts/ (not the repository) first on the path, so `import app` found an
+# installed copy instead — in CI a non-editable wheel without the package data
+# (the season world, the alembic directory): every scene was refused as "not in
+# this world" and the schema guard saw no migration heads.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 FAKE_CREDENTIAL = "dev-fake-key-not-a-real-credential"
 
@@ -47,6 +55,11 @@ def _guard_environment() -> None:
         sys.exit("DATABASE_URL must be set explicitly to a throwaway database (createdb ...).")
     if "language_learning" in url:
         sys.exit("Refusing to run against the owner's live language_learning database.")
+    # WP-108: a throwaway server must never queue into the owner's Redis (the walk
+    # harness put warm-up jobs there). Tasks run inline; the broker is in memory.
+    os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
+    os.environ["CELERY_BROKER_URL"] = "memory://"
+    os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
     os.environ.setdefault("ATELIER_DAILY_JOURNEY_ENABLED", "true")
     os.environ.setdefault("ATELIER_STORY_ENGINE_ENABLED", "true")
     # The fake client below bypasses the provider flag on purpose; keep the real
@@ -66,6 +79,40 @@ PREMISES = [
 ]
 # Seven premises: the engine rejects a premise that overlaps one of the last five.
 
+# WP-111: the season's generated days. Canon-safe, «tu» (the season's register), and
+# never one of a gap's forbidden reveals; the objective stays one of the English
+# strings the walk's language check already knows.
+SEASON_CAST = ("margaux_barman", "lila_bonnet", "marin_leveque", "romy_tremblay", "augustin_de_roncourt")
+SEASON_PLACES = ("le_mistral", "boulangerie", "quai_de_valmy", "user_apartment", "marin_lila_flat", "stairwell", "ngo_office")
+SEASON_PREMISES = (
+    "Il pleut sur le canal, et le radiateur du studio refuse encore de chauffer.",
+    "Au comptoir, Margaux essuie un verre déjà sec et attend ta commande.",
+    "Mme Diallo sort les baguettes du four ; Lila compte ses pièces.",
+    "Marin arrive avec une soupe et une bouillotte, trempé jusqu'aux os.",
+    "Gus répète un discours sur des fiches, qui tombent une à une.",
+    "Romy allume sa caméra, puis l'éteint en te regardant.",
+    "Une lettre de la gérance attend sur le paillasson.",
+)
+
+
+#: Distinct chapter questions (the engine refuses a question that repeats a closed one).
+SEASON_QUESTIONS = (
+    "Le billet de retour va-t-il bouger encore ?",
+    "Qui osera parler à Margaux du quartier ?",
+    "La boulangère connaîtra-t-elle bientôt ta commande ?",
+    "Marin trouvera-t-il le courage de demander ?",
+    "Gus acceptera-t-il enfin un tutoiement ?",
+    "Romy publiera-t-elle son enquête sur Solvel ?",
+    "Le radiateur du studio survivra-t-il à l'hiver ?",
+    "Lila montrera-t-elle ses toiles au groupe ?",
+    "Qui paiera l'addition du vendredi soir ?",
+    "La lettre de Solvel restera-t-elle sans réponse ?",
+    "Le voisin du troisième ouvrira-t-il sa porte ?",
+    "Que cache vraiment la cave de l'immeuble ?",
+    "Le marché du dimanche aura-t-il lieu sous la pluie ?",
+    "Qui gagnera la dispute sur la playlist du café ?",
+)
+
 
 class FakeStoryProvider:
     """Deterministic, canon-safe answers for the engine's three schemas."""
@@ -82,12 +129,97 @@ class FakeStoryProvider:
         source = data["data"]
         with self._lock:
             self.calls += 1
-            if schema == "SceneDraft":
+            if schema == "SceneDraft" and (source.get("season_script") or {}).get("brief"):
+                value = self._season_draft(source, self.scenes)
+                self.scenes += 1
+            elif schema == "SceneDraft":
                 value = self._draft(source, self.scenes)
                 self.scenes += 1
+                # WP-92: a compliant director says the day's new form twice and asks for it.
+                examples = ((source.get("grammar_plan") or {}).get("introduce") or {}).get("examples") or []
+                if examples and len(value["panels"]) >= 3:
+                    speaker = value["character_id"]
+                    for panel, example in zip(value["panels"][1:3], [examples[0], examples[-1]], strict=True):
+                        panel["dialogue"].append({"character_id": speaker, "text_fr": example})
+                    value["suggested_response_fr"] = examples[0]
+                # WP-95: the can-do the scene exercises, an unstamped one first.
+                menu = source.get("can_dos") or {}
+                value["can_do_id"] = (menu.get("prefer") or [None])[0]
+                # WP-94 «Numéro spécial»: everyone comes, and the host's two lines.
+                epreuve = source.get("epreuve")
+                if epreuve and len(value["panels"]) >= 2:
+                    value["can_do_id"] = epreuve["can_do_ids"][0]
+                    value["panels"][-1]["dialogue"] = [
+                        {"character_id": member["id"], "text_fr": "Bonsoir !"}
+                        for member in epreuve.get("cast") or []
+                    ][:3]
+                    value["epreuve_pass_line_fr"] = "Bravo ! On est tous très fiers."  # noqa: S105
+                    value["epreuve_fail_line_fr"] = "On se revoit la semaine prochaine, d'accord ?"
             elif schema == "SemanticTurn":
                 value = self._turn(source, self.turns)
                 self.turns += 1
+            elif schema == "TutorVerdict":
+                # WP-87 lanes: the tutor grades, the voice answers, the story lane ends.
+                text = str(source.get("learner_text") or "")
+                value = {"outcome": "met", "evidence_quotes": [text] if text.strip() else [], "demonstrated_target_ids": []}
+            elif schema == "VoiceReply":
+                text = str(source.get("learner_text") or "").lower()
+                refused = any(marker in text for marker in ("non", "ne peux pas", "pas possible", "désolé"))
+                keep = bool((source.get("turn_plan") or {}).get("keep_talking"))
+                value = {
+                    "reply_fr": ("Dommage. Et demain, alors ?" if refused else "Merci ! Et après, on fait quoi ?")
+                    if keep
+                    else ("Dommage, une autre fois alors." if refused else "Merci ! On fait ça ensemble."),
+                    "understood_intent": "The learner declines." if refused else "The learner offers help.",
+                    "needs_clarification": False,
+                    "feeling_shift": "steady",
+                }
+            elif schema == "StoryTurn":
+                value = {
+                    "resolution_fr": "La journée se termine au Mistral.",
+                    "summary_native": "[dev fake] The day ends at Le Mistral.",
+                    "callback_fr": "Vous avez répondu.",
+                    "commitments": [],
+                    "resolved_commitment_ids": [],
+                    "chapter_resolved": False,
+                    "development_index": 0,
+                }
+            elif schema == "TurnReview":
+                value = {"accepted": True, "issues": [], "released_issues": []}
+            elif schema == "StoryReview":
+                # WP-114: the story critic, satisfied (the fake director's day changes something).
+                value = {
+                    "hook": True, "stakes": True, "value_turn": True, "meaningful_change": True,
+                    "advances_thread": True, "in_character": True, "spoils_next_tentpole": False,
+                    "change_summary": "avant → après", "issues": [], "accepted": True,
+                }
+            elif schema == "ReplyChoice":
+                # WP-111: which of the bible's likely replies a learner line expresses.
+                from app.services.season.turns import match_reply
+
+                turn = {"replies": source.get("replies") or [], "fallback": source.get("fallback")}
+                reply_id, _ = match_reply(turn, str(source.get("learner_text") or ""))
+                value = {"reply_id": reply_id, "expresses": "none", "value": None, "confidence": 0.6}
+            elif schema == "CoulissesDraft":
+                # WP-93 «Coulisses»: the same evening, from another cast member's eyes.
+                pov = source.get("pov_character_id") or "romy_tremblay"
+                value = {
+                    "title_fr": "Le même soir, en coulisses",
+                    "pov_character_id": pov,
+                    "panels": [
+                        {
+                            "narration_fr": text,
+                            "dialogue": [{"character_id": pov, "text_fr": line, "mood": "moved"}],
+                            "visual_direction": "Close-up of the character, later that evening.",
+                            "alt_native": "The character, alone, later that evening.",
+                        }
+                        for text, line in (
+                            ("Plus tard, le café est calme.", "Quelle soirée !"),
+                            ("Dehors, il pleut encore.", "Je pense à tout ça."),
+                            ("La lumière s'éteint.", "Demain, on verra."),
+                        )
+                    ],
+                }
             else:
                 value = {"accepted": True, "issues": []}
         return SimpleNamespace(
@@ -105,9 +237,24 @@ class FakeStoryProvider:
         locations = [place for place in world.get("locations", []) if place.get("id")] or [{"id": "le_mistral"}]
         character = cast[n % len(cast)]["id"]
         location = locations[n % len(locations)]["id"]
-        premise, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
         chapter = context.get("chapter") or {}
         events = context.get("events") or []
+        # ``n`` is a process counter, and the drain verifier restarts this server
+        # between its phases: on 7–8 October the fresh process dealt day 2 the
+        # premise day 1 had used and a room outside the bottle chapter, every
+        # attempt was refused, and the day fell to the authored fallback. The
+        # guards' own inputs are in the context, so honour them here: a bottle
+        # chapter keeps its room, and a premise the recent situations already
+        # used is skipped.
+        if chapter and not chapter.get("resolved") and str(chapter.get("shape") or "") == "bottle" and chapter.get("location_id"):
+            location = str(chapter["location_id"])
+        used_objectives = {
+            str(item.get("objective_native") or "") for item in (context.get("recent_situations") or [])
+        }
+        order = [PREMISES[(n + k) % len(PREMISES)] for k in range(len(PREMISES))]
+        premise, objective, semantics, novelty = next(
+            (entry for entry in order if entry[1] not in used_objectives), order[0]
+        )
         if chapter and not chapter.get("resolved"):
             chapter_value = {k: chapter[k] for k in ("title_fr", "dramatic_question", "possible_developments")}
         else:
@@ -126,18 +273,90 @@ class FakeStoryProvider:
             "location_id": location,
             "causal_reason": "Suite directe de l'échange précédent." if events else "Première rencontre du quartier.",
             "source_event_ids": [e["id"] for e in events[-1:]],
-            "novelty_key": f"{novelty}-{n}",
+            "novelty_key": f"{novelty}-{len(events)}-{n}",
             "chapter": chapter_value,
             "panels": [
                 {"narration_fr": f"Panneau 1 : {premise}", "dialogue": [], "visual_direction": "Wide establishing shot of the location."},
                 {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, qu'est-ce que vous en pensez ?"}], "visual_direction": "Medium shot, the character turns to the learner."},
                 {"narration_fr": "Panneau 3 : un silence, puis un sourire.", "dialogue": [{"character_id": character, "text_fr": "Dites-moi."}], "visual_direction": "Close-up, waiting."},
+                # The engine draws a page of four panels at least (MIN_SCENE_PANELS).
+                {"narration_fr": "Panneau 4 : la pluie sur la vitre.", "dialogue": [], "visual_direction": "Wide shot of the window, rain."},
             ],
             "opening_line_fr": "Vous pouvez m'aider ?",
             "suggested_response_fr": "Oui, je peux vous aider samedi.",
             "hint_native": "Say yes or no, and when.",
             "translation_native": "Can you help me?",
             "capability_key": None,
+        }
+
+    @staticmethod
+    def _season_draft(context: dict, n: int) -> dict:
+        """A generated day inside the season's gap: its scheduled moment (or the first
+        premise on offer), the checklist, «tu», and a hook."""
+
+        brief = context["season_script"]["brief"]
+        today = brief.get("today") or {}
+        premise = today.get("required_premise") or (today.get("premises") or [{}])[0]
+        chapter = context.get("chapter") or {}
+        keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
+        character = SEASON_CAST[n % len(SEASON_CAST)]
+        location = SEASON_PLACES[n % len(SEASON_PLACES)]
+        shape = str((context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or "")
+        if shape == "bottle" and keeps and chapter.get("location_id"):
+            location = str(chapter["location_id"])
+        must_change = (context.get("variety") or {}).get("must_change") or {}
+        if must_change.get("character_id") == character and must_change.get("location_id") == location:
+            character = SEASON_CAST[(n + 1) % len(SEASON_CAST)]
+        text, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
+        retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
+        question = next(
+            (
+                SEASON_QUESTIONS[(n + k) % len(SEASON_QUESTIONS)]
+                for k in range(len(SEASON_QUESTIONS))
+                if SEASON_QUESTIONS[(n + k) % len(SEASON_QUESTIONS)].casefold() not in retired
+            ),
+            SEASON_QUESTIONS[n % len(SEASON_QUESTIONS)],
+        )
+        moment = (today.get("small_moments") or [{}])[0]
+        return {
+            "title_fr": f"{premise.get('title_fr') or 'Entre deux jours'} ({n + 1})",
+            "premise_fr": SEASON_PREMISES[n % len(SEASON_PREMISES)],
+            "setup_native": f"[dev fake] {premise.get('text') or text}"[:600],
+            "objective_native": objective,
+            "objective_semantics": semantics,
+            "character_id": character,
+            "location_id": location,
+            "causal_reason": "Suite de la saison, dans les règles de l'entre-deux.",
+            "source_event_ids": [e["id"] for e in (context.get("events") or [])[-1:]],
+            "novelty_key": f"season-{novelty}-{n}",
+            "chapter": {k: chapter[k] for k in ("title_fr", "dramatic_question", "possible_developments")}
+            if keeps
+            else {
+                "title_fr": f"Entre deux jours {n + 1}",
+                "dramatic_question": question,
+                "possible_developments": ["Quelque chose change.", "Rien ne bouge encore."],
+            },
+            "panels": [
+                {"narration_fr": SEASON_PREMISES[(n + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
+                {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?"}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
+                {"narration_fr": "Un silence.", "dialogue": [], "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
+                {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
+            ],
+            "opening_line_fr": "Tu m'aides ?",
+            "suggested_response_fr": "Oui, je peux t'aider samedi.",
+            "hint_native": "Say yes or no, and when.",
+            "translation_native": "Can you help me?",
+            "capability_key": None,
+            "season_checklist": {
+                "premise_id": premise.get("id"),
+                "threads": [],
+                "change_before": "avant",
+                "change_after": "après",
+                "turn_want": "say what you want",
+                "small_moment_id": moment.get("id"),
+                "hook_fr": "À suivre…",
+                "forbidden_respected": True,
+            },
         }
 
     @staticmethod

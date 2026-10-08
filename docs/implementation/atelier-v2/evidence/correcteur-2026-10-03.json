@@ -1,0 +1,203 @@
+{
+  "generated": "2026-10-03",
+  "what": "WP-122 B evidence: one real draft (B1 learner, two recurring errata: past-participle agreement and du/de le) on the grève evergreen",
+  "learner": {
+    "band": "B1",
+    "errata": [
+      {
+        "wrong": "la grève est annoncé",
+        "right": "la grève est annoncée",
+        "label": "Accord du participe passé",
+        "lapses": 3,
+        "occurrences": 4
+      },
+      {
+        "wrong": "le début de le mois",
+        "right": "le début du mois",
+        "label": "Contraction de l'article",
+        "lapses": 2,
+        "occurrences": 3
+      }
+    ]
+  },
+  "dossier_id": "evergreen-greve-transports",
+  "provider": "llm-correcteur",
+  "spent_usd": 0.00104,
+  "text_fr": "Dans les transports publics, un preavis de grève doit être déposé à le moins cinq jours avant le début de la grève. Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisée sur les lignes les plus importantes. Les transports ont été organisé par la loi pendant une grève, mais elle n'a pas créé une vraie obligation de service minimum.",
+  "unseeded_text_fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève. Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes. Les transports ont été organisés par la loi pendant une grève, mais elle n'a pas créé une vraie obligation de service minimum.",
+  "dossier_lines": [
+    "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+    "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+    "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+  ],
+  "seeded": [
+    {
+      "sentence_index": 0,
+      "span": [
+        32,
+        39
+      ],
+      "wrong_fr": "preavis",
+      "correct_fr": "préavis",
+      "grammar_point": "les accents (é, è, à)",
+      "source": "classique",
+      "rule": "accent",
+      "error_id": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        66,
+        70
+      ],
+      "wrong_fr": "à le",
+      "correct_fr": "au",
+      "grammar_point": "la contraction de l'article (du, au, aux)",
+      "source": "errata",
+      "rule": "contraction",
+      "error_id": "(fixture erratum)"
+    },
+    {
+      "sentence_index": 1,
+      "span": [
+        91,
+        102
+      ],
+      "wrong_fr": "réorganisée",
+      "correct_fr": "réorganisé",
+      "grammar_point": "l'accord du participe passé",
+      "source": "errata",
+      "rule": "pp_agreement",
+      "error_id": "(fixture erratum)"
+    },
+    {
+      "sentence_index": 2,
+      "span": [
+        23,
+        31
+      ],
+      "wrong_fr": "organisé",
+      "correct_fr": "organisés",
+      "grammar_point": "l'accord du participe passé",
+      "source": "classique",
+      "rule": "pp_agreement",
+      "error_id": null
+    }
+  ],
+  "rewrite": {
+    "sentence_index": 2,
+    "before": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+    "after": "Les transports ont été organisés par la loi pendant une grève, mais elle n'a pas créé une vraie obligation de service minimum.",
+    "point": "pp_agreement",
+    "provider": "llm-correcteur",
+    "accepted": true,
+    "reason": null,
+    "checks_unchanged": true
+  },
+  "checks": {
+    "unchanged": true,
+    "anchor": [
+      {
+        "claim_id": "c1",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c2",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c3",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c4",
+        "ok": true,
+        "reason": null
+      }
+    ],
+    "attribution": [
+      {
+        "claim_id": "c1",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c2",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c3",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "claim_id": "c4",
+        "ok": true,
+        "reason": null
+      }
+    ],
+    "spans_only": true
+  },
+  "short_by": 0,
+  "differs_only_in_spans": true,
+  "public_units_sample": [
+    {
+      "sentence_index": 0,
+      "span": [
+        0,
+        4
+      ],
+      "text": "Dans",
+      "options": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        5,
+        8
+      ],
+      "text": "les",
+      "options": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        9,
+        19
+      ],
+      "text": "transports",
+      "options": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        20,
+        27
+      ],
+      "text": "publics",
+      "options": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        29,
+        31
+      ],
+      "text": "un",
+      "options": null
+    },
+    {
+      "sentence_index": 0,
+      "span": [
+        32,
+        39
+      ],
+      "text": "preavis",
+      "options": null
+    }
+  ]
+}

@@ -124,9 +124,22 @@ def test_cleanup_old_snapshots(db_session, task_session_factory, active_user):
 
 
 def test_streak_reminder_task_delivers_instead_of_only_logging(
+    db_session,
     task_session_factory,
     active_user,
 ):
+    # WP-80: the streak is the checked practice streak, the push goes out at
+    # the learner's local 19:00, and only to a device that can receive it.
+    from app.db.models.push_subscription import PushSubscription
+
+    evening = datetime(2026, 9, 22, 17, 0, tzinfo=UTC)  # 19:00 in Paris
+    active_user.timezone = "Europe/Paris"
+    active_user.grammar_streak_days = 4
+    active_user.grammar_last_review_date = date(2026, 9, 21)
+    db_session.add(
+        PushSubscription(user_id=active_user.id, endpoint="https://push.test/celery", keys={"p256dh": "x", "auth": "y"})
+    )
+    db_session.commit()
     with patch(
         "app.tasks.notifications.SessionLocal",
         side_effect=task_session_factory,
@@ -134,12 +147,14 @@ def test_streak_reminder_task_delivers_instead_of_only_logging(
         "app.services.notification_service.NotificationService.send_notification",
         return_value=1,
     ) as send:
-        result = send_streak_reminders.run()
+        result = send_streak_reminders.run(now=evening.isoformat())
 
     assert result["eligible_users"] >= 1
     assert result["notifications_sent"] >= 1
-    assert send.call_args.kwargs["data"] == {"route": "/atelier"}
-    assert str(active_user.current_streak) in send.call_args.kwargs["message"]
+    assert send.call_args.kwargs["data"]["route"] == "/atelier?start=today"
+    assert "4" in send.call_args.args[1]
+    db_session.query(PushSubscription).delete()
+    db_session.commit()
 
 
 def test_generate_scene_images_task_renders_queued_panels(db_session, task_session_factory, active_user, monkeypatch):

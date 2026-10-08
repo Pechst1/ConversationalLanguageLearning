@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -10,9 +11,11 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import get_db, harden_demo_user_password
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.core.security import (
     InvalidTokenError,
     decode_token,
@@ -58,6 +61,7 @@ from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
     ATELIER_TRANSFORM_ITEMS,
+    FORGE_VERDICT_EVENT,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
@@ -65,6 +69,7 @@ from app.services.atelier import (
     AtelierSRSService,
     ConceptSelection,
     estimate_session_minutes,
+    forward_report_to_pool,
     fr_localizations_by_concept_id,
     inject_vocabulary_context,
     planned_session_drills,
@@ -79,12 +84,24 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cefr_progress import CEFRProgressService
+from app.services.cefr_progress import CEFRProgressService, with_can_do_line
+from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
-from app.services.missions import MissionConversationService
+from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
+from app.services.forge_picker import forge_plan  # WP-S4 one picker
+from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
+from app.services.intake_throttle import intake_notice  # WP-L6 auto-throttle
+from app.services.item_bank import public_payload  # WP-103 goals, no frames
+from app.services.learner_copy import (
+    LEARNER_COPY,
+    learner_text,
+    learner_text_for_english,
+)
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.serial import SerialThreadService
+from app.services.streak import settle_streak
 
 router = APIRouter(prefix="/atelier", tags=["atelier"])
 atelier_oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
@@ -196,6 +213,49 @@ def _with_fr_titles(
     return next_payload
 
 
+def _with_learner_instructions(payload: dict[str, Any], *, native_language: Any) -> dict[str, Any]:
+    """Read every exercise instruction in the learner's own language (WP-67).
+
+    Exercise sets are generated once and shared across learners, so an
+    instruction cannot be written in one learner's language when it is stored —
+    the same problem `_with_fr_titles` solves for the concept title, and the
+    same answer: localize on the way out.
+
+    Two sources, in order. An item written since WP-67 carries
+    `instruction_key`, the `learner_copy` identifier that produced it. An item
+    cached before it — the rows already sitting in `atelier_exercise_sets` —
+    carries only the English sentence, which is looked up in the copy table's
+    own English column. Anything else (a model-written instruction) is left
+    exactly as it is: this function translates nothing, it only re-reads a row
+    the copy table already holds.
+
+    Nothing that is graded is touched. `expected_answer`, `correct_answer`,
+    `labels` and the French prompts are data the corrector compares against, and
+    moving them to a learner's language would mean marking a right answer wrong.
+    """
+    language = normalize_language(native_language)
+    if language == DEFAULT_GLOSS_LANGUAGE:
+        return payload
+
+    def localize(node: Any) -> Any:
+        if isinstance(node, list):
+            return [localize(child) for child in node]
+        if not isinstance(node, dict):
+            return node
+        next_node = {key: localize(value) for key, value in node.items()}
+        instruction = next_node.get("instruction")
+        if not isinstance(instruction, str) or not instruction.strip():
+            return next_node
+        key = next_node.get("instruction_key")
+        if isinstance(key, str) and key in LEARNER_COPY:
+            next_node["instruction"] = learner_text(key, language)
+        else:
+            next_node["instruction"] = learner_text_for_english(instruction, language)
+        return next_node
+
+    return localize(payload)
+
+
 def _with_serial_conversation(
     payload: dict[str, Any],
     *,
@@ -208,7 +268,8 @@ def _with_serial_conversation(
     output_ladder = dict(payload.get("output_ladder") or {})
     conversation = dict(output_ladder.get("conversation") or {})
     items = [dict(item or {}) for item in conversation.get("items") or []]
-    if not items:
+    if not items or items[0].get("scene"):
+        # WP-S5: a coached two-line scene keeps its coach as the character.
         return payload
     character = context["character"]
     register = str(character.get("register") or "vous")
@@ -495,6 +556,7 @@ def _attempt_response(
     attempt: AtelierAttempt,
     *,
     minted_collectibles: list[dict[str, Any]] | None = None,
+    forge: dict[str, Any] | None = None,
 ) -> AtelierAttemptResponse:
     correction = attempt.correction_payload or {}
     ai_review = correction.get("ai_review") if isinstance(correction, dict) else {}
@@ -503,8 +565,10 @@ def _attempt_response(
         verdict=attempt.verdict,
         score_0_4=attempt.score_0_4,
         correction=correction,
+        local_status=correction.get("local_status") if isinstance(correction, dict) else None,
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
+        forge=forge or {},
     )
 
 
@@ -622,6 +686,78 @@ def _errata_by_concept(due_errata: list[dict[str, Any]]) -> dict[int, list[dict[
 
 def _concept_roles_payload(selections: list[ConceptSelection]) -> dict[str, str]:
     return {str(selection.concept.id): selection.role for selection in selections}
+
+
+#: WP-S4: a séance set aside because the learner asked for another rule.
+SESSION_PARKED = "parked"
+#: A parked séance is offered back for this long, then left alone.
+PARKED_RESUME_WINDOW = timedelta(hours=24)
+
+
+def _session_answers_request(
+    session: AtelierSession, *, preferred_id: int | None, concept_ids: list[int]
+) -> bool:
+    """Does the open séance already seat what this start asks for?
+
+    A bare start resumes it. A start for a rule resumes it only when that rule
+    leads it; explicit ``concept_ids`` only when they are the same list.
+    """
+
+    seated = [int(item) for item in (session.selected_concept_ids or [])]
+    if concept_ids:
+        return seated[: len(concept_ids[:3])] == [int(item) for item in concept_ids[:3]]
+    if preferred_id:
+        return bool(seated) and seated[0] == int(preferred_id)
+    return True
+
+
+def _stamp_forge_origin(db: Session, session: AtelierSession, payload: Any) -> None:
+    """A resumed forge séance takes the journey step that reopened it."""
+
+    step_id = getattr(payload, "journey_step_id", None) if payload is not None else None
+    if not step_id:
+        return
+    quote = dict(session.quote_payload or {})
+    forge = quote.get("forge")
+    if not isinstance(forge, dict) or str(forge.get("journey_step_id") or "") == str(step_id):
+        return
+    quote["forge"] = {**forge, "origin": "journey", "journey_step_id": str(step_id)}
+    session.quote_payload = quote
+    flag_modified(session, "quote_payload")
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
+
+def _park_session(db: Session, session: AtelierSession) -> None:
+    # WP-S8: a forge séance set aside unfinished is an abandon (once per séance).
+    record_forge_abandoned(db, session, reason="parked")
+    session.status = SESSION_PARKED
+    db.add(session)
+    db.flush()
+
+
+def _resumable_session(db: Session, user: User) -> AtelierSession | None:
+    """A bare start first resumes a recently parked séance, then a prepared one."""
+
+    parked = (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == SESSION_PARKED)
+        .order_by(AtelierSession.created_at.desc())
+        .first()
+    )
+    if parked is not None:
+        created = parked.created_at
+        if created is not None and created.tzinfo is None:
+            created = created.replace(tzinfo=UTC)
+        if created is None or datetime.now(UTC) - created <= PARKED_RESUME_WINDOW:
+            return parked
+    return (
+        db.query(AtelierSession)
+        .filter(AtelierSession.user_id == user.id, AtelierSession.status == "prepared")
+        .order_by(AtelierSession.created_at.desc())
+        .first()
+    )
 
 
 def _session_selections(db: Session, user: User, session: AtelierSession) -> list[ConceptSelection]:
@@ -968,6 +1104,10 @@ def _session_response(
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     asset_service = AtelierAssetService(db)
+    # WP-S3 La Forge: a fresh séance is composed by the forge (it may reseat
+    # the concepts: at most one brand-new rule, today's contrast partner).
+    forge_service = ForgeService(db)
+    forge_service.ensure_attached(user=user, session=session)
     selections = _session_selections(db, user, session)
     due_errata = scheduler.due_errata(user)
     due_by_concept = _errata_by_concept(due_errata)
@@ -1007,6 +1147,19 @@ def _session_response(
             concept=selection.concept,
             fr_localizations=fr_localizations,
         )
+        payload = _with_learner_instructions(
+            payload,
+            native_language=user_chrome_language(user),
+        )
+        # WP-103: every item's goal in the learner's language, no retired frame, no
+        # server-only key (the classify follow-up's).
+        payload = public_payload(payload, user_chrome_language(user))
+        if user_chrome_language(user) == "fr":
+            from app.services.grammar_units import french_rule
+            payload["rule_panel"] = {
+                **(payload.get("rule_panel") or {}), "rule": french_rule(selection.concept),
+                "when": None, "pattern": None, "check": None,
+            }
         exercise_sets.append(
             {
                 "id": str(exercise_set.id),
@@ -1033,10 +1186,12 @@ def _session_response(
         target_vocabulary=target_vocabulary,
         recap=session.recap_payload or {},
         learning_moments={"adaptive_locks": _adaptive_locks(session)},
+        forge=forge_service.view(user=user, session=session),  # WP-S3
     )
 
 
 @router.get("/today", response_model=AtelierTodayResponse)
+@off_event_loop
 async def get_today(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -1054,6 +1209,13 @@ async def get_today(
         )
         if not has_open_session:
             background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
+    # WP-80: an honest streak — a missed day reads 0, a banked «jour de
+    # relâche» is spent and written down before anything prints the number.
+    streak = settle_streak(db, current_user)
+    # WP-L6: the auto-throttle, evaluated once a read (a change writes its
+    # pilot event, kept by this commit).
+    intake = intake_notice(db, current_user)
+    db.commit()
     scheduler = AtelierScheduler(db)
     selections = scheduler.select_today(current_user)
     asset_service = AtelierAssetService(db)
@@ -1084,7 +1246,8 @@ async def get_today(
         library_episode=library_episode,
         concept_count=len(selections),
     )
-    cefr = CEFRProgressService(db).current(current_user)
+    # WP-95: Home's level line reads the next can-do from here.
+    cefr = with_can_do_line(db, current_user, CEFRProgressService(db).current(current_user))
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
     return AtelierTodayResponse(
         concepts=[
@@ -1104,6 +1267,8 @@ async def get_today(
         serial_episode=serial_episode,
         serial=serial_episode,
         phrase_of_day=AtelierSRSService(db).phrase_for_la_une(user=current_user),
+        streak=streak.as_payload(),
+        intake=intake,
     )
 
 
@@ -1137,6 +1302,8 @@ def start_session(
 ) -> AtelierSessionStartResponse:
     scheduler = AtelierScheduler(db)
     scheduler.ensure_catalog()
+    preferred_id = payload.preferred_concept_id if payload else None
+    explicit_ids = list(payload.concept_ids or []) if payload else []
 
     active = (
         db.query(AtelierSession)
@@ -1144,25 +1311,28 @@ def start_session(
         .order_by(AtelierSession.created_at.desc())
         .first()
     )
-    if active:
+    if active and _session_answers_request(active, preferred_id=preferred_id, concept_ids=explicit_ids):
+        # WP-S4 × WP-S3: the day's forge step resumes the open forge séance of
+        # its rule; the séance now belongs to that step (its recap returns there).
+        _stamp_forge_origin(db, active, payload)
         # fast_path is a no-op once a concept's exercise set is already stored
         # (the common case); it only matters if this in-progress session was
         # flipped over from "prepared" before background pregeneration finished
         # writing every concept's exercise set, so a reload doesn't block here.
         return _session_response(db, current_user, active, fast_path=True, background_tasks=background_tasks)
+    if active:
+        # WP-S4: the learner asked for a different rule. The open séance is
+        # parked (resumable later, never deleted) and the asked-for rule is
+        # seated — an in-progress session no longer overrides the choice.
+        _park_session(db, active)
 
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
-        prepared = (
-            db.query(AtelierSession)
-            .filter(AtelierSession.user_id == current_user.id, AtelierSession.status == "prepared")
-            .order_by(AtelierSession.created_at.desc())
-            .first()
-        )
-        if prepared:
-            prepared.status = "in_progress"
-            db.add(prepared)
+        resumable = _resumable_session(db, current_user)
+        if resumable is not None:
+            resumable.status = "in_progress"
+            db.add(resumable)
             db.commit()
-            db.refresh(prepared)
+            db.refresh(resumable)
             if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
                 background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
             # A "prepared" row can exist before background pregeneration has
@@ -1170,55 +1340,45 @@ def start_session(
             # session row up front, then populates exercise sets one by one) --
             # without fast_path this would block on the same slow generation
             # chain HS-1 exists to avoid.
-            return _session_response(db, current_user, prepared, fast_path=True, background_tasks=background_tasks)
+            return _session_response(db, current_user, resumable, fast_path=True, background_tasks=background_tasks)
 
-    if payload and payload.concept_ids:
+    # WP-S8: open forge séances nobody touched for a day were left.
+    sweep_stale_forge_seances(db, user_id=current_user.id)
+
+    forge = None
+    if explicit_ids:
         concepts = (
             db.query(GrammarConcept)
-            .filter(GrammarConcept.id.in_(payload.concept_ids), GrammarConcept.active.is_(True))
+            .filter(GrammarConcept.id.in_(explicit_ids), GrammarConcept.active.is_(True))
             .all()
         )
         concepts_by_id = {concept.id: concept for concept in concepts}
         selections = [
             ConceptSelection(concept=concepts_by_id[concept_id], role="fragile" if index < 2 else "contrast")
-            for index, concept_id in enumerate(payload.concept_ids[:3])
+            for index, concept_id in enumerate(explicit_ids[:3])
             if concept_id in concepts_by_id
         ]
-    elif payload and payload.preferred_concept_id:
-        concept = (
-            db.query(GrammarConcept)
-            .filter(GrammarConcept.id == payload.preferred_concept_id, GrammarConcept.active.is_(True))
-            .first()
-        )
-        if not concept:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook concept is not available")
-        selections = [ConceptSelection(concept=concept, role="fragile")]
-        seen_ids = {concept.id}
-        for selection in scheduler.select_today(current_user):
-            if selection.concept.id in seen_ids:
-                continue
-            role = "fragile" if len(selections) < 2 else "contrast"
-            selections.append(ConceptSelection(concept=selection.concept, role=role))
-            seen_ids.add(selection.concept.id)
-            if len(selections) >= 3:
-                break
-        if len(selections) < 3:
-            fallback_concepts = (
-                db.query(GrammarConcept)
-                .filter(
-                    GrammarConcept.language == concept.language,
-                    GrammarConcept.active.is_(True),
-                    ~GrammarConcept.id.in_(seen_ids),
-                )
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
-                .limit(3 - len(selections))
-                .all()
-            )
-            for fallback in fallback_concepts:
-                role = "fragile" if len(selections) < 2 else "contrast"
-                selections.append(ConceptSelection(concept=fallback, role=role))
     else:
-        selections = scheduler.select_today(current_user)
+        if preferred_id:
+            concept = (
+                db.query(GrammarConcept)
+                .filter(GrammarConcept.id == preferred_id, GrammarConcept.active.is_(True))
+                .first()
+            )
+            if not concept:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notebook concept is not available")
+        # WP-S4 — La Forge's one picker: the chosen rule (or today's) first,
+        # then due rules and introduced contrast partners. No padding from
+        # teaching order; a new rule only through the rhythm quota.
+        forge = forge_plan(
+            db,
+            current_user,
+            preferred_concept_id=preferred_id,
+            budget_seconds=payload.budget_seconds if payload else None,
+        )
+        selections = scheduler.selections_for_plan(
+            current_user, forge, limit=scheduler.concept_limit(current_user)
+        )
 
     if not selections:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Atelier concepts are available")
@@ -1234,7 +1394,17 @@ def start_session(
         "target_vocabulary_ids": [int(item["word_id"]) for item in target_vocabulary if item.get("word_id")],
         "target_vocabulary": target_vocabulary,
         "concept_roles": _concept_roles_payload(selections),
+        # WP-S3 La Forge: the Cahier's chosen rule is today's rule; an explicit
+        # plan keeps every concept the learner picked.
+        "forge_today_concept_id": payload.preferred_concept_id if payload else None,
+        "forge_keep_concepts": bool(payload and payload.concept_ids),
     }
+    if forge is not None:
+        quote["forge"] = {
+            **forge.as_payload(),
+            "origin": (payload.origin if payload else None) or ("practice" if preferred_id else "after_day"),
+            "journey_step_id": str(payload.journey_step_id) if payload and payload.journey_step_id else None,
+        }
     session = AtelierSession(
         user_id=current_user.id,
         selected_concept_ids=[selection.concept.id for selection in selections],
@@ -1303,6 +1473,7 @@ def submit_attempt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_atelier_user),
 ) -> AtelierAttemptResponse:
+    started = perf_counter()
     session = _session_or_404(db, session_id, current_user)
     if session.status == "completed":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Atelier session is already completed")
@@ -1385,36 +1556,13 @@ def submit_attempt(
         prompt_payload_override=prompt_payload_override,
         retest_of=retest_source.id if retest_source else None,
     )
-    if payload.round == "conversation":
-        conversation_item = next(
-            (
-                item
-                for item in (attempt.prompt_payload or {}).get("items") or []
-                if isinstance(item, dict) and isinstance(item.get("character"), dict)
-            ),
-            None,
-        )
-        if conversation_item and attempt.verdict in {"correct", "accepted"}:
-            serial_context = conversation_item.get("serial_context") or {}
-            character = conversation_item.get("character") or {}
-            learner_text = str((attempt.answer_payload or {}).get("text") or "").strip()
-            world_reply = MissionConversationService(db).respond_for_atelier(
-                character=character,
-                opener=str(serial_context.get("opener") or conversation_item.get("prompt") or ""),
-                scene_context=str(serial_context.get("scene_context") or ""),
-                user_text=learner_text,
-            )
-            attempt.correction_payload = {
-                **(attempt.correction_payload or {}),
-                "world_reply": {
-                    "text": world_reply,
-                    "character": character,
-                },
-            }
-            db.add(attempt)
-            db.commit()
-            db.refresh(attempt)
-    adaptive_lock = _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
+    # WP-S1: the conversation rung's in-character reply follows the relecture
+    # (AtelierCorrectionService._attach_world_reply), never this request.
+    # WP-S3 La Forge: the staircase replaces the adaptive lock in a forge séance.
+    forge_session = is_forge_session(session)
+    adaptive_lock = (
+        None if forge_session else _maybe_apply_adaptive_lock(db, session=session, concept=concept, attempt=attempt)
+    )
     if adaptive_lock:
         correction = {**(attempt.correction_payload or {}), "adaptive_lock": adaptive_lock}
         attempt.correction_payload = correction
@@ -1426,15 +1574,46 @@ def submit_attempt(
         source_correction["retest"] = source_retest
         retest_source.correction_payload = source_correction
         db.add(retest_source)
-    if adaptive_lock or retest_source:
-        db.commit()
-        db.refresh(attempt)
+    # WP-S1 / WP-S8: the local verdict's latency, per rung. The relecture
+    # amends the same row with its own latency and whether it changed the verdict.
+    local_ms = round((perf_counter() - started) * 1000, 1)
+    correction = dict(attempt.correction_payload or {})
+    second_check_pending = AtelierCorrectionService.ai_review_from_correction(correction).get("status") == "pending"
+    correction["latency"] = {**dict(correction.get("latency") or {}), "local_ms": local_ms}
+    attempt.correction_payload = correction
+    db.add(attempt)
+    PilotEventService(db).record(
+        FORGE_VERDICT_EVENT,
+        user_id=current_user.id,
+        entity_type="atelier_attempt",
+        entity_id=attempt.id,
+        payload={
+            "session_id": str(session.id),
+            "concept_id": attempt.concept_id,
+            "rung": attempt.round,
+            "mode": attempt.mode,
+            "local_ms": local_ms,
+            "local_verdict": attempt.verdict,
+            "assessment_status": correction.get("assessment_status"),
+            "second_check": "pending" if second_check_pending else "none",
+            "async_llm_ms": None,
+            "verdict_changed": None,
+        },
+    )
+    db.commit()
+    db.refresh(attempt)
     if correction_service.should_auto_start_ai_review(attempt):
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
     if settings.ATELIER_BACKGROUND_PREGENERATION_ENABLED:
         background_tasks.add_task(pregenerate_next_atelier_session, current_user.id)
     minted = [] if retest_source else AtelierRewardService(db).mint_logo_token_for_attempt(attempt, first_submission=first_submission)
-    return _attempt_response(attempt, minted_collectibles=minted)
+    # WP-S3 La Forge: every answered item is evidence (with the forge's caps).
+    forge_view = (
+        ForgeService(db).observe_attempt(user=current_user, session=session, attempt=attempt)
+        if forge_session
+        else {}
+    )
+    return _attempt_response(attempt, minted_collectibles=minted, forge=forge_view)
 
 
 @router.post("/attempts/{attempt_id}/repair", response_model=AtelierAttemptResponse)
@@ -1515,6 +1694,9 @@ def report_exercise(
     db.refresh(event)
     if exercise_set:
         AtelierExerciseQualityService(db).evaluate_and_retire(exercise_set)
+        # WP-S2: a templated set's production prompt may come from a shared
+        # pool set; the report then counts against that pool set too.
+        forward_report_to_pool(db, exercise_set, round_name=payload.round, event=event)
     return AtelierExerciseReportResponse(ok=True, event_id=event.id)
 
 
@@ -1543,6 +1725,23 @@ def request_attempt_ai_review(
     if should_enqueue:
         background_tasks.add_task(run_atelier_ai_review, attempt.id)
     return _attempt_response(attempt)
+
+
+@router.post("/sessions/{session_id}/exit", status_code=status.HTTP_204_NO_CONTENT)
+def exit_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> None:
+    """WP-S8: the learner closed an unfinished forge séance («forge_abandoned»).
+
+    The séance stays open (a bare start resumes it); only the event is written,
+    once. A completed, finished or legacy séance writes nothing.
+    """
+
+    session = _session_or_404(db, session_id, current_user)
+    if record_forge_abandoned(db, session, reason="exit") is not None:
+        db.commit()
 
 
 @router.post("/sessions/{session_id}/complete", response_model=AtelierCompleteResponse)
@@ -1642,22 +1841,34 @@ class TranslateRequest(BaseModel):
 
 
 @router.post("/translate")
-def translate_to_english(
+def translate_for_learner(
     request: TranslateRequest,
     current_user: User = Depends(get_atelier_user),
 ) -> dict[str, str]:
-    """On-demand French -> English translation for any learner-facing line."""
+    """On-demand French -> learner's-language translation for any learner-facing line.
+
+    The target is the account's ``native_language`` (German for a German
+    learner, English as the floor), never a fixed English: the help sheet
+    quotes this line under the French one, and a translation the learner
+    cannot read is no help at all.
+    """
     text = (request.text or "").strip()
     if not text:
-        return {"translation": ""}
+        return {"translation": "", "language": ""}
+    from app.services.glosses import EXPLANATION_LANGUAGE_NAMES, normalize_language
     from app.services.llm_service import LLMService
+
+    language = normalize_language(getattr(current_user, "native_language", None))
+    if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
+        language = "en"
+    language_name = EXPLANATION_LANGUAGE_NAMES[language]
 
     try:
         result = LLMService().generate_chat_completion(
             messages=[{"role": "user", "content": text}],
             system_prompt=(
-                "Translate the user's French text into natural, concise English. "
-                "Return ONLY the English translation — no quotes, labels, or notes."
+                f"Translate the user's French text into natural, concise {language_name}. "
+                f"Return ONLY the {language_name} translation — no quotes, labels, or notes."
             ),
             temperature=0.0,
             max_tokens=1200,
@@ -1665,6 +1876,6 @@ def translate_to_english(
             reasoning_effort="minimal",
             request_timeout=20.0,
         )
-        return {"translation": (result.content or "").strip()}
+        return {"translation": (result.content or "").strip(), "language": language}
     except Exception:  # pragma: no cover - translation is best-effort
-        return {"translation": ""}
+        return {"translation": "", "language": language}

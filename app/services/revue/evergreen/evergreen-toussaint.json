@@ -1,0 +1,112 @@
+{
+  "id": "evergreen-toussaint",
+  "dossier_version": "revue-v1",
+  "week": "2026-W44",
+  "topic": "culture",
+  "title_fr": "La Toussaint et les chrysanthèmes",
+  "summary_fr": "Le 1er novembre, c'est la Toussaint, un jour férié en France. Beaucoup de familles vont au cimetière et fleurissent les tombes de leurs proches avec des chrysanthèmes. Les fleuristes en vendent des millions de pots.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La Toussaint est fêtée le 1er novembre.",
+      "quote": "la Toussaint est fêtée le 1er novembre",
+      "source_id": "toussaint_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Toussaint&oldid=236090826",
+      "published_at": "2026-05-11",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "En France, le 1er novembre est un jour férié.",
+      "quote": "en France et en Belgique, le 1er novembre, jour de la Toussaint, est un jour férié",
+      "source_id": "toussaint_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Toussaint&oldid=236090826",
+      "published_at": "2026-05-11",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "On fleurit les tombes avec des chrysanthèmes : en 2010, environ 21,3 millions de pots ont été achetés en France fin octobre et début novembre.",
+      "quote": "l’arrivée des chrysanthèmes dans les cimetières a glissé du 11 novembre à la fête des morts le 2 novembre. En 2010, quelque 21,3 millions de pots ont été achetés en France",
+      "source_id": "toussaint_chrysantheme",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Chrysanth%C3%A8me&oldid=233819054",
+      "published_at": "2026-03-05",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour l'écrivain Antoine Redier, en 1919, le chrysanthème est une fleur triste.",
+      "quote": "Je trouve que le chrysanthème est une fleur triste.",
+      "source_id": "toussaint_chrysantheme",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Chrysanth%C3%A8me&oldid=233819054",
+      "published_at": "2026-03-05",
+      "confidence": "reported",
+      "attributed_to": "l'écrivain Antoine Redier, en 1919"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Antoine Redier",
+      "kind": "person",
+      "role": "écrivain, cité pour un texte de 1919 sur les chrysanthèmes"
+    },
+    {
+      "name": "France",
+      "kind": "place"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas combien de pots de chrysanthèmes sont vendus en 2026 : le chiffre cité date de 2010.",
+    "Les sources ne disent pas si les jeunes gardent cette tradition."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce que font les familles le 1er novembre",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une fleur triste, ou une fleur de fête ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "fleuriste_chrysanthemes",
+      "name_fr": "Le trottoir d'un fleuriste fin octobre",
+      "brief": "a florist's pavement display of potted chrysanthemums in bronze, white and purple, wet cobblestones, yellow plane-tree leaves, soft grey autumn light",
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-10-26/2026-11-08",
+    "relevant_until": "2026-11-22"
+  },
+  "sources": [
+    {
+      "id": "toussaint_wikipedia",
+      "name": "Wikipédia, « Toussaint »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Toussaint&oldid=236090826",
+      "published_at": "2026-05-11"
+    },
+    {
+      "id": "toussaint_chrysantheme",
+      "name": "Wikipédia, « Chrysanthème »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Chrysanth%C3%A8me&oldid=233819054",
+      "published_at": "2026-03-05"
+    }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un pot de chrysanthèmes"
+}

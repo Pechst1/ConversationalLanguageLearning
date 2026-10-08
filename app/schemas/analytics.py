@@ -41,17 +41,29 @@ class AnalyticsStatisticsResponse(BaseModel):
 
 
 class StreakCalendarDay(BaseModel):
-    """Calendar entry for streak visualisation."""
+    """One learner-local day of «Vos sceaux» (WP-D5)."""
 
     date: date
-    completed: int
+    #: ``completed | relache | missed | today | future``.
+    state: str = "missed"
+    #: 1 on a completed day (kept for older readers of this endpoint).
+    completed: int = 0
+    is_today: bool = False
+    #: The day's journey was *completed* (an early stop presses no seal).
+    sealed: bool = False
+    edition_no: int | None = None
+    seal_variant: str | None = None
 
 
 class StreakInfo(BaseModel):
-    """Current and longest streak data."""
+    """The streak number and its calendar, read from the same rows (WP-D5)."""
 
     current_streak: int
     longest_streak: int
+    today_done: bool = False
+    freeze_available: bool = False
+    today: date | None = None
+    timezone: str | None = None
     calendar: list[StreakCalendarDay] = Field(default_factory=list)
 
 

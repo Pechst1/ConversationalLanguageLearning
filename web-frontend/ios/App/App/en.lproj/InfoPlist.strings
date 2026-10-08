@@ -1,0 +1,5 @@
+/* WP-72 — permission prompts and home-screen name, English. Keep in step with de/fr and Info.plist. */
+"CFBundleDisplayName" = "L’Atelier";
+"NSCameraUsageDescription" = "L’Atelier uses the camera when you photograph a document in the Courrier, so it can be read and turned into an exercise.";
+"NSMicrophoneUsageDescription" = "L’Atelier uses the microphone when you answer aloud. The recording is transcribed and then discarded.";
+"NSPhotoLibraryUsageDescription" = "L’Atelier opens your photos when you choose a document for the Courrier. Only the photo you pick is sent to be read.";

@@ -14,6 +14,7 @@ import pytest
 from app.db.models import User
 from app.services import journey_content
 from app.services.journey_contracts import (
+    GOAL_REQUIRED_RECALL_FORMATS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
     AssistanceLevel,
@@ -21,6 +22,12 @@ from app.services.journey_contracts import (
     InputMode,
     normalize_control_language,
 )
+
+#: The scenario families the catalogue actually publishes. WP-37 put
+#: `CapabilityKey.REGISTER` on the enum — a *dimension* of a respond turn, with
+#: no scenario, no brief and no plan of its own — so the enum is no longer the
+#: family list, and this file parametrizes over the production tuple instead.
+SCENARIO_FAMILIES = journey_content.SCENARIO_PRIORITY
 
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures" / "daily_journey_v1" / "public"
 
@@ -92,7 +99,7 @@ def test_an_unsupported_control_language_falls_back_to_english(db_session, learn
     assert brief.public_descriptor() == _fixture("first_day")["available"]
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_scenario_family_is_publishable_and_bounded(
     db_session, learner, scenario_key
 ) -> None:
@@ -116,7 +123,7 @@ def test_every_scenario_family_is_publishable_and_bounded(
         assert outcome in brief.resolution_summaries, f"{outcome} has no native summary"
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_public_descriptor_never_carries_evaluator_material(
     db_session, learner, scenario_key
 ) -> None:
@@ -146,7 +153,7 @@ def test_a_zero_cost_offer_list_needs_no_model_or_image_call(
     briefs = journey_content.list_available_scenarios(
         db_session, user=learner, input_mode=InputMode.TEXT
     )
-    assert {str(b.scenario_key) for b in briefs} == {str(k) for k in CapabilityKey}
+    assert {str(b.scenario_key) for b in briefs} == {str(k) for k in SCENARIO_FAMILIES}
 
 
 def test_wp05_classifies_the_frozen_fixture_evidence_the_same_way() -> None:
@@ -215,7 +222,7 @@ def _plan_for(db, user, scenario_key, input_mode=InputMode.TEXT):
     )
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_the_real_chain_produces_a_valid_bounded_plan(db_session, learner, scenario_key):
     """WP-03's brief + WP-05's candidates + WP-04's planner must satisfy the envelope."""
 
@@ -227,10 +234,15 @@ def test_the_real_chain_produces_a_valid_bounded_plan(db_session, learner, scena
     assert kinds.count("respond") == 1
     assert kinds.count("recall") <= MAX_RECALL_STEPS
     mandatory = sum(s.estimated_seconds for s in plan.steps if not s.optional)
-    assert mandatory <= 300, f"{scenario_key}: {mandatory}s"
+    # WP-128: at an A1 learner's pace an authored page may be longer than five
+    # minutes. It is then the story alone, flagged — never squeezed, never refused.
+    if plan.longer_day:
+        assert kinds == ["scene", "respond", "resolution"], f"{scenario_key}: {kinds}"
+    else:
+        assert mandatory <= 300, f"{scenario_key}: {mandatory}s"
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_no_planned_public_prompt_leaks_the_answer_key(db_session, learner, scenario_key):
     _, _, plan = _plan_for(db_session, learner, scenario_key)
     for step in plan.steps:
@@ -316,7 +328,7 @@ def _respond_task(db, user, scenario_key):
     return _brief(db, user, scenario_key).response_task
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_a_consequence_is_always_one_the_scenario_declared(db_session, learner, scenario_key):
     """A model may propose an outcome; it may never invent one."""
 
@@ -337,7 +349,7 @@ def test_a_consequence_is_always_one_the_scenario_declared(db_session, learner, 
     assert default_outcome_key(task, scenario_key) in task.allowed_outcomes
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_declared_outcome_has_an_ending_the_learner_can_be_shown(
     db_session, learner, scenario_key
 ):
@@ -374,7 +386,7 @@ def test_a_repair_turn_exists_beyond_the_two_normal_turns(db_session, learner):
         assert turn_budget(task) == normal_turns(task) + 1
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 def test_every_scenario_can_end_without_claiming_the_learner_succeeded(
     db_session, learner, scenario_key
 ):
@@ -475,3 +487,337 @@ def test_an_unfrozen_event_name_is_refused(db_session, learner):
         metadata={"journey_id": str(journey_id)},
     )
     assert refused is None
+
+
+# ---------------------------------------------------------------------------
+# WP-66: day shapes and the three Séance formats, across the seam.
+#
+# The failure a per-package suite cannot catch here is a planner that produces
+# a step the wire schema refuses — or a wire schema that has quietly stopped
+# accepting a payload already sitting in somebody's database.
+# ---------------------------------------------------------------------------
+
+def test_every_recall_format_the_planner_can_pose_validates_on_the_wire(
+    db_session, learner
+):
+    """Six formats in the planner must be six formats in `RecallPrompt`."""
+
+    from app.schemas.daily_journey import RecallPrompt
+    from app.services.journey_contracts import RECALL_FORMATS, TargetKind, TargetRef
+    from app.services.journey_planner import (
+        build_recall_task_in_format,
+        public_recall_target,
+    )
+
+    brief = _brief(db_session, learner, CapabilityKey.ORDER_AT_CAFE)
+    scene = ["un café", "en terrasse", "s'il vous plaît", "au comptoir"]
+    # One target per format, each paired with the scene vocabulary that makes
+    # *that* format the honest way to pose it: a word the scene can distract
+    # (choice), the same word in a scene that affords nothing (short answer), a
+    # phrase with no gloss to choose between (tiles), a phrase the scene can
+    # add spare chips to (word bank), a noun with its article (gender
+    # classify), and a phrase that tutoies (transform).
+    targets = {
+        "choice": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p1", label_fr="café",
+                label_native="coffee",
+            ),
+            scene,
+        ),
+        "short_answer": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p3", label_fr="brouillard",
+                label_native="fog",
+            ),
+            [],
+        ),
+        "tiles": (
+            # WP-103 T3: tiles say what they build — a phrase with no gloss gets none.
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p2", label_fr="un grand café",
+                label_native="a large coffee",
+            ),
+            [],
+        ),
+        "word_bank": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p4", label_fr="l'addition maintenant",
+                label_native="the bill now",
+            ),
+            scene,
+        ),
+        "classify": (
+            TargetRef(
+                kind=TargetKind.VOCABULARY, id="p5", label_fr="une terrasse",
+                label_native="a terrace",
+            ),
+            scene,
+        ),
+        "transform": (
+            TargetRef(
+                kind=TargetKind.GRAMMAR, id="p6", label_fr="tu prends un café",
+                label_native="you are having a coffee",
+            ),
+            scene,
+        ),
+    }
+    # WP-78: the three quick formats are posed from today's other glossed words
+    # (matching, listen-and-tap) and from the scene's sentences (unscramble).
+    pool = [
+        TargetRef(kind=TargetKind.VOCABULARY, id=f"q{index}", label_fr=fr, label_native=native)
+        for index, (fr, native) in enumerate(
+            [("la clé", "the key"), ("le volet", "the shutter"), ("brouillard", "fog")]
+        )
+    ]
+    quick = TargetRef(
+        kind=TargetKind.VOCABULARY, id="p7", label_fr="un café", label_native="a coffee"
+    )
+    targets.update(
+        {
+            "match_pairs": (quick, scene),
+            "listen_tap": (quick, scene),
+            "unscramble": (quick, scene),
+        }
+    )
+    sentences = ["Je voudrais un café au comptoir."]
+    # WP-86: «Qui a dit ça ?» is posed from a scene line and the cast, never
+    # from a target alone — it is covered below, from `scene_items`.
+    assert set(targets) | {"who_said", "dictation"} == set(RECALL_FORMATS), (
+        "a format with no parity coverage"
+    )
+
+    posed = 0
+    for task_type, (target, affordances) in targets.items():
+        task = build_recall_task_in_format(
+            task_type,
+            target=target,
+            scenario=brief,
+            affordances=affordances,
+            optional=False,
+            pool=pool,
+            sentences=sentences,
+        )
+        assert task is not None, f"{task_type} could not be posed at all"
+        assert task.task_type == task_type
+        if task_type in GOAL_REQUIRED_RECALL_FORMATS:
+            assert task.goal_native, f"{task_type} does not say what to produce"
+        prompt = RecallPrompt.model_validate(
+            {
+                "task_type": task.task_type,
+                "instruction_native": task.instruction_native,
+                "prompt_fr": task.prompt_fr,
+                "options": [dict(option) for option in task.options],
+                "target": public_recall_target(task.target),
+                "optional": task.optional,
+                "help_available": [],
+                "goal_native": task.goal_native,
+                "source_fr": task.source_fr,
+            }
+        )
+        serialized = json.dumps(prompt.model_dump(mode="json"), ensure_ascii=False)
+        for marker in PROMPT_LEAK_MARKERS:
+            assert marker not in serialized, f"{task_type} leaks {marker}"
+        posed += 1
+    from app.services.scene_items import SceneLine, build_who_said_task
+
+    who = build_who_said_task(
+        target=quick,
+        line=SceneLine("romy_tremblay", "Vous prenez un café ?", "panel:1:line:0"),
+        names={"romy_tremblay": "Romy", "lila_bonnet": "Lila", "marin_leveque": "Marin"},
+        optional=True,
+        control_language=brief.control_language,
+    )
+    assert who is not None and who.task_type == "who_said"
+    prompt = RecallPrompt.model_validate(
+        {
+            "task_type": who.task_type,
+            "instruction_native": who.instruction_native,
+            "prompt_fr": who.prompt_fr,
+            "options": [dict(option) for option in who.options],
+            "target": public_recall_target(who.target),
+            "optional": who.optional,
+            "help_available": [],
+        }
+    )
+    dumped = prompt.model_dump(mode="json")
+    assert {option["character_id"] for option in dumped["options"]} >= {"romy_tremblay"}
+    serialized = json.dumps(dumped, ensure_ascii=False)
+    for marker in PROMPT_LEAK_MARKERS:
+        assert marker not in serialized, f"who_said leaks {marker}"
+    posed += 1
+    # WP-91: «Dictée» is posed from a line of the scene, heard through its clip.
+    from app.services.cast_voices import line_audio_url
+    from app.services.journey_planner import HeardLine, build_dictation_task
+
+    heard = HeardLine("romy_tremblay", "Vous prenez un café ?")
+    dictation = build_dictation_task(
+        target=quick, line=heard, optional=True, control_language=brief.control_language
+    )
+    prompt = RecallPrompt.model_validate(
+        {
+            "task_type": dictation.task_type,
+            "instruction_native": dictation.instruction_native,
+            "prompt_fr": dictation.prompt_fr,
+            "options": [dict(option) for option in dictation.options],
+            "target": public_recall_target(dictation.target),
+            "optional": dictation.optional,
+            "help_available": [],
+            "audio_url": line_audio_url(heard.voice, heard.text_fr),
+        }
+    )
+    serialized = json.dumps(prompt.model_dump(mode="json"), ensure_ascii=False)
+    assert "Vous prenez un café" not in serialized, "a dictation prints its line"
+    for marker in PROMPT_LEAK_MARKERS:
+        assert marker not in serialized, f"dictation leaks {marker}"
+    posed += 1
+    assert posed == len(RECALL_FORMATS)
+
+
+def test_a_v1_payload_still_validates_after_the_wp66_additions(db_session, learner):
+    """Additive means additive: the frozen fixtures must not need editing."""
+
+    from app.schemas.daily_journey import JourneySnapshot, ResolutionPrompt
+
+    snapshot = _fixture("cafe_journey_created")
+    assert "day_shape" not in snapshot, "the frozen fixture predates WP-66"
+    parsed = JourneySnapshot.model_validate(snapshot)
+    assert parsed.day_shape == "standard", "an old plan is the standard day it was"
+    for step in parsed.steps:
+        if step.kind == "scene":
+            assert step.prompt.listen_first is False
+        if step.kind == "resolution":
+            assert step.prompt.chapter_recap_fr is None
+            assert step.prompt.register_note_fr is None
+
+    # And the new fields are genuinely optional, not merely defaulted somewhere.
+    bare = ResolutionPrompt.model_validate(
+        {
+            "outcome_key": "served_at_counter",
+            "character_line_fr": "Un café pour vous.",
+            "summary_native": "Margaux served your coffee.",
+        }
+    )
+    assert (bare.chapter_recap_fr, bare.register_note_fr, bare.register_reason_native) == (
+        None,
+        None,
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    "shape", ["standard", "letter", "listening", "reprise", "short"]
+)
+def test_every_day_shape_the_planner_deals_is_a_shape_the_wire_can_carry(shape):
+    from app.schemas.daily_journey import JourneySnapshot
+    from app.services.journey_contracts import DayShape
+
+    assert shape in {str(value) for value in DayShape}
+    snapshot = _fixture("cafe_journey_created")
+    parsed = JourneySnapshot.model_validate({**snapshot, "day_shape": shape})
+    assert parsed.day_shape == shape
+
+
+def test_a_shape_this_build_has_never_heard_of_does_not_break_the_day():
+    """A client (or an older server) meeting a newer deployment's shape."""
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    snapshot = _fixture("cafe_journey_created")
+    parsed = JourneySnapshot.model_validate({**snapshot, "day_shape": "jour_de_marche"})
+    assert parsed.day_shape == "jour_de_marche"
+    assert parsed.steps, "the steps are still there to render"
+
+
+# ---------------------------------------------------------------------------
+# WP-75 — the first day's cast introduction, additive on the wire
+#
+# The first-day payload lives beside the frozen bundle, not in it: the v1 bundle
+# is frozen (and the web renderer counts its files), and WP-75 changed no
+# existing shape — it added one optional field.
+# ---------------------------------------------------------------------------
+
+WP75_FIXTURE = FIXTURES.parent.parent / "wp75" / "first_journey_created.json"
+
+
+def _wp75_fixture() -> dict:
+    return json.loads(WP75_FIXTURE.read_text(encoding="utf-8"))["response"]
+
+
+def test_cast_intro_is_optional_and_absent_on_every_older_payload():
+    """A pre-WP-75 payload validates unchanged and reads ``cast_intro=None``."""
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    snapshot = _fixture("cafe_journey_created")
+    assert "cast_intro" not in snapshot, "the frozen fixture predates WP-75"
+    assert JourneySnapshot.model_validate(snapshot).cast_intro is None
+    assert JourneySnapshot.model_validate({**snapshot, "cast_intro": None}).cast_intro is None
+
+
+def test_cast_intro_entries_refuse_extra_keys():
+    from pydantic import ValidationError
+
+    from app.schemas.daily_journey import JourneySnapshot
+
+    entry = _wp75_fixture()["cast_intro"][0]
+    snapshot = _fixture("cafe_journey_created")
+    with pytest.raises(ValidationError):
+        JourneySnapshot.model_validate(
+            {**snapshot, "cast_intro": [{**entry, "portrait_prompt": "x"}]}
+        )
+
+
+def test_the_first_journey_fixture_validates_against_the_real_schema():
+    from app.schemas.daily_journey import JourneySnapshot
+
+    frozen = _wp75_fixture()
+    parsed = JourneySnapshot.model_validate(frozen)
+    assert parsed.cast_intro is not None and len(parsed.cast_intro) == 3
+    assert not set(PRIVATE_MARKERS) & set(json.dumps(frozen).split('"'))
+
+
+def test_the_real_first_day_matches_the_frozen_first_journey_fixture(db_session, learner):
+    """WP-03 + WP-04's real first day is the payload the frontend codes against."""
+
+    from app.services import journey_planner
+
+    frozen = _wp75_fixture()
+    brief = journey_content.first_day_brief(db_session, user=learner)
+    assert brief.public_descriptor() == frozen["scenario"]
+    candidates = journey_content.first_day_candidates(db_session, user=learner, brief=brief)
+    # WP-93: the page is priced by what is on it, so the frozen first day is the
+    # default rhythm's (Régulier, 600 s); Léger keeps one of the two wins.
+    plan = journey_planner.plan_journey(
+        scenario=brief, candidates=candidates, first_day=True,
+        budget_seconds=frozen["budget_seconds"],
+    )
+    assert [str(step.kind) for step in plan.steps] == [step["kind"] for step in frozen["steps"]]
+    for step, fixture_step in zip(plan.steps, frozen["steps"], strict=True):
+        prompt = dict(step.public_prompt)
+        fixture_prompt = fixture_step["prompt"]
+        if str(step.kind) == "recall":
+            assert prompt["task_type"] == fixture_prompt["task_type"]
+            # Which of the two first-day words is posed as the choice follows the
+            # catalogue rows' ids, which a shared test database assigns in run
+            # order: the sentence frame is the contract, the word is either one.
+            frame = fixture_prompt["instruction_native"].split('"')[0]
+            assert prompt["instruction_native"].split('"')[0] == frame
+            # Choice distractors are seeded by the catalogue row's id, which a
+            # fresh database assigns differently: the count is the contract.
+            if prompt["task_type"] == "tiles":
+                # Either first-day phrase, split into its own words.
+                # WP-93: day 1 no longer repeats the taste's words.
+                phrases = {"au comptoir", "à emporter"}
+                tiles = sorted(o["text_fr"] for o in prompt["options"])
+                assert tiles in [sorted(p.split()) for p in phrases]
+            else:
+                assert len(prompt["options"]) == len(fixture_prompt["options"])
+            assert prompt["optional"] is False
+        if str(step.kind) == "respond":
+            assert prompt["character_line_fr"] == fixture_prompt["character_line_fr"]
+            assert prompt["max_turns"] == fixture_prompt["max_turns"]
+    assert (
+        journey_content.first_day_cast_intro(learner.native_language) == frozen["cast_intro"]
+    )
+    assert len(frozen["cast_intro"]) == journey_content.CAST_INTRO_SIZE

@@ -5,10 +5,14 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
-import { useLearnerLanguage } from '@/lib/learner-language';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { pickByLanguage } from '@/lib/language-rule';
+import { castIdFor } from '@/lib/cast-faces';
+import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
 import {
+  ArrowLeftIcon,
   AtelierV2Root,
   Chip,
   IconAction,
@@ -17,23 +21,50 @@ import {
   Skeleton,
   StateBlock,
   StopIcon,
+  useControlLanguage,
 } from '@/components/atelier-v2/ui';
 import {
   CourrierStyles,
+  CrArtefactCard,
+  CrArtefactTaskCard,
+  CrArtefactUnread,
   CrComposer,
   CrDesk,
   CrGhost,
+  CrIntakeEntry,
+  CrIntakeLink,
   CrMemo,
   CrPS,
   CrRepair,
   CrRibbon,
+  CrSeal,
   CrSituation,
   CrSlip,
+  crSealNumbers,
 } from '@/components/courrier/Courrier';
-import apiService, { MissionToday, RealWorldMission, SerialToday } from '@/services/api';
+import {
+  CrCorrespondent,
+  CrLapsedNotice,
+  crMoodFace,
+  crMoodKey,
+  crMoodSentence,
+  crMoodValue,
+  crOutcomeLabel,
+  crOutcomeSentence,
+} from '@/components/courrier/Correspondance';
+import { courrierCopy, crFill, useCrCopy, type CourrierCopy } from '@/components/courrier/courrier-copy';
+import apiService, {
+  IntakeArtefact,
+  IntakeEnvelope,
+  MissionMeasured,
+  MissionToday,
+  RealWorldMission,
+  SerialToday,
+} from '@/services/api';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
 import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
+import { ShellCorner } from '@/components/layout/ShellCorner';
 
 // Only what the Courrier actually prints. contact_role, contact_initials,
 // presence, thread_title, inbox_context and ambient_cues were computed on every
@@ -118,6 +149,9 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   const prompt = mission?.prompt_payload || {};
   const raw = prompt.messenger && typeof prompt.messenger === 'object' ? prompt.messenger as Record<string, any> : {};
   const slim = missionSlimPayload(mission);
+  // WP-82: these fallbacks stand in for the letter's own words (the frame, the
+  // ask, the character's opening line), which are content — French at every
+  // level, rendered with `lang="fr"`. None of them is chrome.
   return {
     channel_label: String(raw.channel_label || missionVariety(mission).channel_label || 'Message'),
     contact_name: String(raw.contact_name || 'Camille'),
@@ -130,6 +164,28 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   };
 }
 
+// An artefact task's title («Répondre au document») is chrome, served as
+// `title_by_language` (app/services/missions.py); every other title is the
+// letter's own French.
+function missionTitleView(mission: RealWorldMission | null, chromeLang: ControlLanguage): { text: string; lang: string } {
+  const localized = pickByLanguage(mission?.prompt_payload?.title_by_language, chromeLang);
+  if (localized) return { text: localized, lang: chromeLang };
+  return { text: missionTitle(mission), lang: 'fr' };
+}
+
+// An artefact task opens its thread with the instruction to the learner, not a
+// correspondent's line: chrome, in the chrome language when served
+// (`messenger.opening_message_by_language`). A letter's opening stays French.
+function missionOpening(mission: RealWorldMission | null, messenger: MissionMessenger, chromeLang: ControlLanguage): { text: string; lang: string } {
+  const raw = mission?.prompt_payload?.messenger;
+  const table = raw && typeof raw === 'object' && (raw as Record<string, any>).opening_is_chrome
+    ? (raw as Record<string, any>).opening_message_by_language
+    : null;
+  const localized = pickByLanguage(table, chromeLang);
+  if (localized) return { text: localized, lang: chromeLang };
+  return { text: messenger.opening_message, lang: 'fr' };
+}
+
 function missionTitle(mission: RealWorldMission | null) {
   if (!mission) return 'Mission';
   const variety = missionVariety(mission);
@@ -137,11 +193,21 @@ function missionTitle(mission: RealWorldMission | null) {
   return String(mission.title || variety.domain_label || 'Mission');
 }
 
-function missionFrame(mission: RealWorldMission | null, messenger: MissionMessenger) {
+function missionFrame(mission: RealWorldMission | null, messenger: MissionMessenger, chromeLang: ControlLanguage = 'fr') {
   const slim = missionSlimPayload(mission);
   const frame = compactText(slim.frame || messenger.scene_anchor || mission?.brief, 210);
-  const ask = compactText(slim.ask || messenger.dispatch_note || messenger.success_signal, 150);
-  return { frame, ask };
+  // The objective is chrome (the one-language rule): the version in the
+  // learner's chrome language when the letter carries it (`ask_by_language`,
+  // app/services/missions.py `success_signal_i18n`). Fallback — a letter with
+  // no version in that language keeps its French objective, marked `fr`.
+  const localized = pickByLanguage(slim.ask_by_language, chromeLang);
+  const french = pickByLanguage(slim.ask_by_language, 'fr');
+  const ask = compactText(
+    localized || french || slim.ask || messenger.dispatch_note || messenger.success_signal,
+    150,
+  );
+  const askLang: string = localized ? chromeLang : 'fr';
+  return { frame, ask, askLang };
 }
 
 function pickMission(today: MissionToday | null) {
@@ -157,7 +223,7 @@ function missionTurns(mission: RealWorldMission | null) {
 
 // The word ribbon ("à placer :") — the target word itself, marked "used" once it
 // surfaces in one of the learner's own turns.
-function ribbonWords(mission: RealWorldMission | null): { t: string; used?: boolean }[] {
+function ribbonWords(mission: RealWorldMission | null): { t: string; used?: boolean; recall?: string }[] {
   const direct = Array.isArray(mission?.target_vocabulary) ? mission?.target_vocabulary || [] : [];
   const prompt = Array.isArray(mission?.prompt_payload?.target_vocabulary)
     ? mission?.prompt_payload?.target_vocabulary || []
@@ -166,14 +232,20 @@ function ribbonWords(mission: RealWorldMission | null): { t: string; used?: bool
     .filter((turn) => turn.role === 'user')
     .map((turn) => String(turn.text || '').toLowerCase())
     .join(' ');
+  // WP-115d: the week's letter asks for due words by their meaning — the reply is
+  // where the learner recalls the French, which the ribbon shows once it is used.
+  const recall = Boolean(mission?.prompt_payload?.recall_ribbon);
   const seen = new Set<string>();
-  const result: { t: string; used?: boolean }[] = [];
+  const result: { t: string; used?: boolean; recall?: string }[] = [];
   (direct.length ? direct : prompt).forEach((item: Record<string, any>) => {
     const word = String(item.word || '').trim();
     const key = word.toLowerCase();
     if (!word || seen.has(key) || result.length >= 3) return;
     seen.add(key);
-    result.push({ t: word, used: key.length > 1 && said.includes(key) });
+    const head = key.replace(/^(?:le|la|les|un|une|l['’])\s*/, '');
+    const used = key.length > 1 && (said.includes(key) || (head.length > 2 && said.includes(head)));
+    const meaning = String(item.translation || '').trim();
+    result.push({ t: word, used, ...(recall && meaning ? { recall: meaning } : {}) });
   });
   return result;
 }
@@ -207,41 +279,52 @@ function missionIsVoice(format: MissionFormat) {
   return format === 'voicemail_reply' || format === 'phone_call';
 }
 
-function missionCadenceLabel(mission: RealWorldMission | null): string | null {
+function missionCadenceLabel(mission: RealWorldMission | null, t: CourrierCopy): string | null {
   const cadence = String(mission?.cadence || '');
-  if (cadence === 'weekly') return 'Courrier de la semaine';
-  if (cadence === 'post_session') return 'Après la séance';
+  if (cadence === 'weekly') return t.cadence_weekly;
+  if (cadence === 'post_session') return t.cadence_post_session;
   return null; // ad_hoc needs no marginal label
 }
 
-function formatComposerCopy(format: MissionFormat, writing: { title: string; instruction: string; placeholder: string }) {
+// WP-82: the labels and instructions are chrome (`t`); the email and form
+// placeholders are French templates of the letter itself, so they stay French.
+function formatComposerCopy(
+  format: MissionFormat,
+  writing: { title: string; instruction: string; placeholder: string },
+  t: CourrierCopy,
+) {
+  // The server writes `writing_title` / `writing_instruction` in French: they
+  // are chrome, so they are only used when the chrome is French (B1+).
+  const serverChrome = t.lang === 'fr';
+  const title = serverChrome ? writing.title : '';
+  const instruction = serverChrome ? writing.instruction : '';
   switch (format) {
     case 'email_formal':
       return {
-        label: writing.title || 'Votre email',
-        instruction: writing.instruction || 'Écrivez l’email avec un objet, une formule d’appel, le corps et une formule de politesse.',
+        label: title || t.composer_label_email,
+        instruction: instruction || t.composer_instruction_email,
         placeholder: writing.placeholder || 'Objet : ...\n\nMadame, Monsieur,\n...',
       };
     case 'admin_form':
       return {
-        label: writing.title || 'Le formulaire',
-        instruction: writing.instruction || 'Remplissez les champs en français, en phrases complètes là où c’est demandé.',
+        label: title || t.composer_label_form,
+        instruction: instruction || t.composer_instruction_form,
         placeholder: writing.placeholder || 'Nom :\nAdresse :\nDemande :',
       };
     case 'voicemail_reply':
-      return { label: 'Votre message vocal', instruction: 'Répondez à l’oral — ou écrivez votre réponse.', placeholder: 'Parlez, ou écrivez ici…' };
+      return { label: t.composer_label_voicemail, instruction: t.composer_instruction_voicemail, placeholder: t.composer_placeholder_voice };
     case 'phone_call':
-      return { label: 'Au téléphone', instruction: 'Réponse courte et orale — parlez, ou écrivez.', placeholder: 'Parlez, ou écrivez ici…' };
+      return { label: t.composer_label_call, instruction: t.composer_instruction_call, placeholder: t.composer_placeholder_voice };
     default:
-      return { label: 'Votre dépêche', instruction: '', placeholder: 'Votre réponse en français…' };
+      return { label: t.composer_label_chat, instruction: '', placeholder: t.composer_placeholder_chat };
   }
 }
 
-// The composer verb per artefact — the ink press-bar's French label.
-function submitLabel(format: MissionFormat) {
-  if (format === 'email_formal') return 'Envoyer l’email';
-  if (format === 'admin_form') return 'Déposer';
-  return 'Envoyer';
+// The composer verb per artefact, in the chrome language.
+function submitLabel(format: MissionFormat, t: CourrierCopy) {
+  if (format === 'email_formal') return t.send_email;
+  if (format === 'admin_form') return t.send_form;
+  return t.send;
 }
 
 // Real grammar fixes only, mirroring the quiet-repair rules: drop task-compliance
@@ -282,6 +365,7 @@ function correctedReply(correction: Record<string, any> | undefined, learnerText
 function currentComposerInstruction(
   mission: RealWorldMission | null,
   base: { label: string; instruction: string; placeholder: string },
+  t: CourrierCopy,
 ): { label: string; instruction: string; placeholder: string } {
   if (!missionTurns(mission).some((turn) => turn.role === 'user')) return base;
   const assistantTurns = missionTurns(mission).filter((turn) => turn.role === 'assistant');
@@ -294,17 +378,17 @@ function currentComposerInstruction(
   const state = String(branch.state || '');
   if (state === 'understood') {
     return {
-      label: 'Dernière réponse',
-      instruction: 'La situation est comprise. Confirmez le dernier détail ou terminez la mission.',
-      placeholder: 'Confirmez brièvement en français…',
+      label: t.composer_label_last,
+      instruction: t.composer_instruction_last,
+      placeholder: t.composer_placeholder_last,
     };
   }
   return {
-    label: 'Votre réponse',
+    label: t.composer_label_reply,
     instruction: assistantText
-      ? `Dernier message : « ${assistantText} » Répondez à cette demande et faites avancer la situation.`
-      : 'Répondez au dernier message et faites avancer la situation.',
-    placeholder: 'Répondez au dernier message…',
+      ? crFill(t.composer_instruction_quoted, { text: assistantText })
+      : t.composer_instruction_reply,
+    placeholder: t.composer_placeholder_reply,
   };
 }
 
@@ -318,27 +402,31 @@ function slipTime(turn: Record<string, any> | null): string | undefined {
   return `${String(date.getHours()).padStart(2, '0')} h ${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function frenchDate(raw: string | null | undefined): string {
+// «12 septembre» / «12 September» / «12. September», in the chrome locale.
+function chromeDate(raw: string | null | undefined, locale: string): string {
   const date = raw ? new Date(raw) : new Date();
   const safe = Number.isNaN(date.getTime()) ? new Date() : date;
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(safe);
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(safe);
 }
 
 // The kicker: a serial act flips to the blue "Le Feuilleton · Acte N" furniture.
-function deskKicker(mission: RealWorldMission | null, isSerialAct: boolean, actNumber: number | null) {
-  if (!isSerialAct) return 'Le Courrier';
-  return actNumber != null ? `Le Feuilleton · Acte ${actNumber}` : 'Le Feuilleton';
+function deskKicker(mission: RealWorldMission | null, isSerialAct: boolean, actNumber: number | null, t: CourrierCopy) {
+  if (!isSerialAct) return t.courrier;
+  return actNumber != null ? crFill(t.feuilleton_act, { n: actNumber }) : t.feuilleton;
 }
 
-// Status as printed marginalia (never a pill), in the fiction's French.
-function deskStatusLine(mission: RealWorldMission | null, format: MissionFormat, completed: boolean): string {
-  if (completed) return `Bouclé · ${frenchDate(mission?.completed_at)}`;
-  if (mission?.status === 'in_progress') return 'En cours';
-  if (format === 'email_formal') return 'Reçu · à rédiger';
-  if (format === 'admin_form') return 'Dossier · à déposer';
-  if (format === 'voicemail_reply') return 'Message reçu · à rappeler';
-  if (format === 'phone_call') return 'Appel · ligne ouverte';
-  return 'Reçu ce matin';
+// Status as printed marginalia (never a pill), in the chrome language.
+function deskStatusLine(mission: RealWorldMission | null, format: MissionFormat, completed: boolean, t: CourrierCopy): string {
+  if (completed) return crFill(t.status_done, { date: chromeDate(mission?.completed_at, t.locale) });
+  // WP-64's fourth status. Marginalia, like the rest: a letter that stopped
+  // waiting is a fact of the correspondence, not a verdict on the learner.
+  if (mission?.status === 'lapsed') return t.status_lapsed;
+  if (mission?.status === 'in_progress') return t.status_in_progress;
+  if (format === 'email_formal') return t.status_email;
+  if (format === 'admin_form') return t.status_form;
+  if (format === 'voicemail_reply') return t.status_voicemail;
+  if (format === 'phone_call') return t.status_call;
+  return t.status_received;
 }
 
 function latestAssistantReply(mission: RealWorldMission | null) {
@@ -366,12 +454,32 @@ function querySeed(routerQuery: Record<string, string | string[] | undefined>): 
 // The serial gate refuses a new act while the current episode is still unread
 // (409 serial_episode_not_ready). Saying only "n'a pas pu être ouvert" left the
 // learner with a retry button that can never work; name the actual blocker.
-function loadErrorMessage(error: any): string {
+// The state keeps the kind, not the sentence, so the sentence follows the
+// chrome language even when the profile settles after the failure.
+type LoadErrorKind = 'not_ready' | 'open';
+
+function loadErrorKind(error: any): LoadErrorKind {
   const detail = error?.response?.data?.detail;
-  if (detail && typeof detail === 'object' && detail.code === 'serial_episode_not_ready') {
-    return 'L’acte suivant n’est pas encore ouvert : lisez d’abord l’épisode en cours du Feuilleton.';
-  }
-  return 'Ce moment de mission n’a pas pu être ouvert.';
+  if (detail && typeof detail === 'object' && detail.code === 'serial_episode_not_ready') return 'not_ready';
+  return 'open';
+}
+
+function loadErrorMessage(kind: LoadErrorKind, t: CourrierCopy): string {
+  return kind === 'not_ready' ? t.error_not_ready : t.error_open;
+}
+
+// WP-34's refusals arrive from the server in every chrome language
+// (`detail.message_by_language`, with `message_fr` for older servers) — the
+// weekly cap, an unreadable photo, a document too long. Printing our own
+// sentence over them would be inventing a reason we do not know.
+function intakeErrorMessage(error: any, t: CourrierCopy): string {
+  const detail = error?.response?.data?.detail;
+  if (!detail || typeof detail !== 'object') return t.intake_error;
+  const localized = pickByLanguage(detail.message_by_language, t.lang as ControlLanguage);
+  if (localized) return localized;
+  // An older server's French sentence is only chrome for a French reader.
+  const french = t.lang === 'fr' ? String(detail.message_fr || '') : '';
+  return french || t.intake_error;
 }
 
 function shouldCreateFromSeed(seed: QuerySeed) {
@@ -392,30 +500,12 @@ function routeForMissionSerialBeat(serial: SerialToday | null | undefined) {
   return '/atelier';
 }
 
-// Archive status in the fiction's French — printed as marginalia on each row.
-function archiveStatus(mission: RealWorldMission | null) {
+// Archive status, in the chrome language — printed as marginalia on each row.
+function archiveStatus(mission: RealWorldMission | null, t: CourrierCopy) {
   if (!mission) return '';
-  if (mission.status === 'completed') return 'Bouclé';
-  if (mission.status === 'in_progress') return 'En cours';
-  return 'À traiter';
-}
-
-// The credit rows on the resolved dossier. Every value maps to a recap field;
-// rows only print when their number is real (no invented totals).
-function resolutionCredit(mission: RealWorldMission | null, isSerialAct: boolean, hasNextAct: boolean) {
-  const recap = (mission?.recap || {}) as Record<string, any>;
-  const produced = Number(recap.vocabulary_credit?.produced_correct || 0);
-  // The filed repairs, not the ones this page happened to print: the dossier and
-  // the per-message cards must not quote two different totals for one thing.
-  const repairs = missionTurns(mission).reduce(
-    (total, turn) => total + correctionPersistence((turn as Record<string, any>).correction),
-    0,
-  );
-  const rows: { label: string; value: string }[] = [];
-  if (produced > 0) rows.push({ label: 'Lexique crédité', value: `${produced} mot${produced === 1 ? '' : 's'}` });
-  if (repairs > 0) rows.push({ label: 'Réparations', value: `${repairs} enregistrée${repairs === 1 ? '' : 's'}` });
-  if (isSerialAct && hasNextAct) rows.push({ label: 'Feuilleton', value: 'Acte suivant' });
-  return rows;
+  if (mission.status === 'completed') return t.archive_done;
+  if (mission.status === 'in_progress') return t.archive_in_progress;
+  return t.archive_todo;
 }
 
 // Records a spoken reply and transcribes it via /missions/audio/transcribe,
@@ -436,9 +526,10 @@ function CourrierMic({
 }) {
   const [state, setState] = useState<MicState>('idle');
   const [problem, setProblem] = useState<string | null>(null);
-  // A refused microphone is an explanation, not fiction: it follows the
-  // learner's language while the Courrier around it stays French (WP-21).
-  const chrome = atelierChrome(useLearnerLanguage());
+  // WP-82: the mic's words are the composer's chrome, so they read the same
+  // chrome language as the card around them — never a second language.
+  const chrome = atelierChrome(useControlLanguage());
+  const t = useCrCopy();
   const [seconds, setSeconds] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -498,7 +589,7 @@ function CourrierMic({
   return (
     <>
       <IconAction
-        label={state === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer une réponse vocale'}
+        label={state === 'recording' ? t.mic_stop : t.mic_start}
         tone={state === 'recording' ? 'recording' : 'action'}
         pressable
         className="cr-send"
@@ -511,7 +602,7 @@ function CourrierMic({
       {state === 'recording' && (
         <p className="cr-mic-state cr-mic-state--rec" role="status" aria-live="polite">
           <ShapeToken kind="action" size="sm" />
-          <span>Enregistrement · {timer}</span>
+          <span>{crFill(t.mic_recording, { timer })}</span>
         </p>
       )}
       {state === 'transcribing' && (
@@ -527,32 +618,51 @@ function CourrierMic({
 
 export default function MissionsPage() {
   const router = useRouter();
+  // WP-82 — one language rule: the Courrier's chrome is the learner's
+  // language up to A2 and French from B1. Computed once, handed to the
+  // page's AtelierV2Root; every Courrier component reads it from there.
+  const chromeLang = useChromeLanguage();
+  const t = courrierCopy(chromeLang);
   const [today, setToday] = useState<MissionToday | null>(null);
   const [mission, setMission] = useState<RealWorldMission | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
   const [micState, setMicState] = useState<MicState>('idle');
   const [completedNextSerial, setCompletedNextSerial] = useState<SerialToday | null>(null);
+  // WP-34's surface (WP-37 §2.1). «Vos documents» is a second view of this
+  // route rather than a second page: it is the Courrier's own intake, it opens
+  // Courrier tasks, and giving it its own view keeps exactly one 3D press on
+  // screen — «Faire lire» here, the reply there.
+  const [intake, setIntake] = useState<IntakeEnvelope | null>(null);
+  const [intakeLoading, setIntakeLoading] = useState(true);
+  const [intakeReading, setIntakeReading] = useState(false);
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+  const [deletingArtefactId, setDeletingArtefactId] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const seed = useMemo(() => querySeed(router.query as Record<string, string | string[] | undefined>), [router.query]);
+  const intakeMode = Boolean(firstQuery(router.query.intake));
   const messenger = useMemo(() => missionMessenger(mission), [mission]);
-  const frame = useMemo(() => missionFrame(mission, messenger), [mission, messenger]);
+  const frame = useMemo(() => missionFrame(mission, messenger, chromeLang), [mission, messenger, chromeLang]);
   const turns = useMemo(() => missionTurns(mission), [mission]);
   const ribbon = useMemo(() => ribbonWords(mission), [mission]);
   const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId);
   const completed = mission?.status === 'completed';
+  // WP-64: an overdue chain letter stops waiting. There is nothing left to
+  // write, so the situation, the ribbon and the composer come off the screen —
+  // but nothing on it calls it a failure.
+  const lapsed = mission?.status === 'lapsed';
   const interactionReady = hasInteraction(mission);
-  const canSend = reply.trim().length > 0 && !submitting && !completed;
+  const canSend = reply.trim().length > 0 && !submitting && !completed && !lapsed;
   const format = useMemo(() => missionFormat(mission), [mission]);
   const writing = useMemo(() => missionWriting(mission), [mission]);
   const formatPayload = useMemo(() => missionFormatPayload(mission), [mission]);
-  const composerCopy = useMemo(() => formatComposerCopy(format, writing), [format, writing]);
+  const composerCopy = useMemo(() => formatComposerCopy(format, writing, t), [format, writing, t]);
   const turnComposerCopy = useMemo(
     () => currentComposerInstruction(
       mission,
@@ -560,26 +670,32 @@ export default function MissionsPage() {
         ...composerCopy,
         instruction: composerCopy.instruction || frame.ask,
       },
+      t,
     ),
-    [composerCopy, frame.ask, mission],
+    [composerCopy, frame.ask, mission, t],
   );
-  const cadenceLabel = missionCadenceLabel(mission);
+  const cadenceLabel = missionCadenceLabel(mission, t);
   const isVoiceFormat = missionIsVoice(format);
   const recentCompleted = today?.recent_completed || [];
-  const openingMessage = isVoiceFormat && formatPayload.transcript
-    ? String(formatPayload.transcript)
-    : messenger.opening_message;
+  const opening = isVoiceFormat && formatPayload.transcript
+    ? { text: String(formatPayload.transcript), lang: 'fr' }
+    : missionOpening(mission, messenger, chromeLang);
+  const openingMessage = opening.text;
   const visibleTurns = useMemo(() => {
     let hasLearnerTurn = false;
-    const openingKey = _normalizeVisibleMessage(openingMessage);
+    // The stored opening turn is the French one; a localized opening must hide it too.
+    const openingKeys = new Set([
+      _normalizeVisibleMessage(openingMessage),
+      _normalizeVisibleMessage(messenger.opening_message),
+    ]);
     return turns.filter((turn) => {
       if (turn.role === 'user') {
         hasLearnerTurn = true;
         return true;
       }
-      return hasLearnerTurn || _normalizeVisibleMessage(turn.text) !== openingKey;
+      return hasLearnerTurn || !openingKeys.has(_normalizeVisibleMessage(turn.text));
     });
-  }, [openingMessage, turns]);
+  }, [openingMessage, messenger.opening_message, turns]);
   const actNumber = typeof mission?.episode_index === 'number'
     ? mission.episode_index + 1
     : typeof seed.episodeIndex === 'number' ? seed.episodeIndex + 1 : null;
@@ -623,6 +739,14 @@ export default function MissionsPage() {
 
   const loadMission = useCallback(async () => {
     if (!router.isReady) return;
+    if (intakeMode) {
+      // The intake view loads no mission and — the part that matters — creates
+      // none. Falling through would post a new mission (a paid generation) for
+      // a learner who came here to paste a letter, and would then rewrite the
+      // URL to that mission and throw the view away.
+      setLoading(false);
+      return;
+    }
     const requestId = ++loadRequestRef.current;
     const isCurrent = () => loadRequestRef.current === requestId && router.pathname === '/missions';
     setLoading(true);
@@ -654,11 +778,11 @@ export default function MissionsPage() {
     } catch (loadError) {
       console.error(loadError);
       if (!isCurrent()) return;
-      setError(loadErrorMessage(loadError));
+      setError(loadErrorKind(loadError));
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [createSeededMission, routeToMission, router.isReady, router.pathname, seed]);
+  }, [createSeededMission, intakeMode, routeToMission, router.isReady, router.pathname, seed]);
 
   useEffect(() => {
     void loadMission();
@@ -666,6 +790,57 @@ export default function MissionsPage() {
       loadRequestRef.current += 1;
     };
   }, [loadMission]);
+
+  useEffect(() => {
+    if (!intakeMode || !router.isReady) return undefined;
+    let alive = true;
+    setIntakeLoading(true);
+    apiService.getIntakeArtefacts()
+      .then((envelope) => { if (alive) setIntake(envelope); })
+      .catch((loadError) => {
+        console.error(loadError);
+        if (alive) setIntakeError(intakeErrorMessage(loadError, t));
+      })
+      .finally(() => { if (alive) setIntakeLoading(false); });
+    return () => { alive = false; };
+    // `t` is read at failure time only; a language change must not refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intakeMode, router.isReady]);
+
+  const readDocument = useCallback(async (input: { text?: string; file?: File }) => {
+    if (intakeReading) return;
+    setIntakeReading(true);
+    setIntakeError(null);
+    try {
+      const envelope = input.file
+        ? await apiService.readIntakePhoto(input.file, input.file.name || 'document.jpg')
+        : await apiService.readIntakeText(String(input.text || ''));
+      setIntake(envelope);
+    } catch (readError) {
+      console.error(readError);
+      setIntakeError(intakeErrorMessage(readError, t));
+    } finally {
+      setIntakeReading(false);
+    }
+  }, [intakeReading, t]);
+
+  const deleteDocument = useCallback(async (artefactId: string) => {
+    if (deletingArtefactId) return;
+    setDeletingArtefactId(artefactId);
+    setIntakeError(null);
+    try {
+      // The button says it removes the document *and* its task, so the list is
+      // re-read from the server rather than spliced here: a task the server
+      // kept must not disappear from the screen.
+      await apiService.deleteIntakeArtefact(artefactId);
+      setIntake(await apiService.getIntakeArtefacts());
+    } catch (deleteError) {
+      console.error(deleteError);
+      setIntakeError(intakeErrorMessage(deleteError, t));
+    } finally {
+      setDeletingArtefactId(null);
+    }
+  }, [deletingArtefactId, t]);
 
   useEffect(() => {
     if (!mission?.id || mission.status === 'completed') return;
@@ -696,7 +871,7 @@ export default function MissionsPage() {
       window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
     } catch (sendError) {
       console.error(sendError);
-      toast.error('Le message n’est pas parti.');
+      toast.error(t.toast_send_failed);
     } finally {
       setSubmitting(false);
     }
@@ -714,10 +889,10 @@ export default function MissionsPage() {
       if (!result.mission.serial_thread_id) {
         writeLocalDayProgressFlag('missionDone');
       }
-      toast.success(isSerialAct ? 'Acte bouclé' : 'Courrier bouclé');
+      toast.success(isSerialAct ? t.toast_act_done : t.toast_courrier_done);
     } catch (completeError) {
       console.error(completeError);
-      toast.error('Ce moment n’a pas pu être terminé.');
+      toast.error(t.toast_finish_failed);
     } finally {
       setCompleting(false);
     }
@@ -733,10 +908,10 @@ export default function MissionsPage() {
       });
       if (!next) return;
       setCompletedNextSerial(null);
-      toast.success(next.serial_thread_id ? 'Nouvel acte ouvert' : 'Nouveau courrier ouvert');
+      toast.success(next.serial_thread_id ? t.toast_new_act : t.toast_new_courrier);
     } catch (createError) {
       console.error(createError);
-      toast.error('Le nouveau moment n’a pas pu être créé.');
+      toast.error(t.toast_new_failed);
     }
   };
 
@@ -748,15 +923,11 @@ export default function MissionsPage() {
     });
   }, [router]);
 
-  const kicker = deskKicker(mission, isSerialAct, actNumber);
-  const statusLine = deskStatusLine(mission, format, completed);
-  const nextBest = mission?.recap?.branch_outcome?.next_best_move || latestAssistantReply(mission) || null;
-  const creditRows = completed
-    ? resolutionCredit(mission, isSerialAct, Boolean(completedNextSerial?.thread_id))
-    : [];
+  const kicker = deskKicker(mission, isSerialAct, actNumber, t);
+  const statusLine = deskStatusLine(mission, format, completed, t);
   const memoRows: [string, string][] = [
-    ['De la part de', String(formatPayload.caller || messenger.contact_name)],
-    ['Canal', messenger.channel_label],
+    [t.memo_from, String(formatPayload.caller || messenger.contact_name)],
+    [t.memo_channel, messenger.channel_label],
   ];
   const translateFrame = () => apiService.translateToEnglish([frame.frame, frame.ask].filter(Boolean).join(' '));
   const useQuickReply = (value: string) => {
@@ -766,17 +937,17 @@ export default function MissionsPage() {
 
   // Header line: "<cadence or act> · <mission title>" — the design's
   // "Mission de la semaine · résumer un titre".
-  const deskLine = `${cadenceLabel || kicker} · ${missionTitle(mission)}`;
+  const deskLine = `${cadenceLabel || kicker} · ${missionTitleView(mission, chromeLang).text}`;
   const placedCount = ribbon.filter((word) => word.used).length;
   const deskChip = completed ? (
-    <Chip icon={<ShapeToken kind="done" size="sm" />}>Bouclé</Chip>
+    <Chip className="cr-status" icon={<ShapeToken kind="done" size="sm" />}>{t.chip_done}</Chip>
   ) : ribbon.length > 0 ? (
     <Chip tone="reward" icon={<ShapeToken kind="done" size="sm" />}>
       {placedCount}/{ribbon.length}
-      <span className="av2-sr"> mots placés</span>
+      <span className="av2-sr"> {t.chip_placed_sr}</span>
     </Chip>
   ) : (
-    <Chip tone="quiet" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
+    <Chip tone="quiet" className="cr-status" icon={<ShapeToken kind="story" size="sm" />}>{statusLine}</Chip>
   );
   // The mic stands where the send press would be while there is nothing to
   // send (or while it is busy); with a draft the round red press becomes send.
@@ -789,16 +960,133 @@ export default function MissionsPage() {
   const recapTurns = Number(mission?.recap?.turns || 0);
   const recapErrata = Number(mission?.recap?.errata_logged || 0);
   const recapSaved = Number(mission?.recap?.saved_to_srs?.saved_count || 0);
+  /* WP-65 — the correspondence. Every field is mirrored flat and inside
+     `courrier`; both are read so a payload from either side of WP-64's deploy
+     renders, and `outcome` is only ever in the block (the top-level key is the
+     legacy serial state delta). */
+  const courrier = mission?.courrier || null;
+  const correspondent = mission?.correspondent || courrier?.correspondent || null;
+  const chain = mission?.chain || courrier?.chain || null;
+  const expiresAt = mission?.expires_at || courrier?.expires_at || null;
+  const threadHistory = mission?.thread_history || courrier?.thread_history || [];
+  const letterOutcome = courrier?.outcome || (mission?.recap as Record<string, any>)?.courrier_outcome || null;
+  // `recap.measured` (mission-debrief-v2). Absent on a letter finished before
+  // WP-64 shipped — those keep the three-count grid rather than losing it.
+  const measured = (mission?.recap as Record<string, any>)?.measured as MissionMeasured | undefined;
+  // Appendix A — the answered letter is ONE seal: the verdict, one sentence,
+  // at most three counted numbers. The outcome's own sentence is chrome; a
+  // letter with no outcome keeps its success line, which is the letter's
+  // French. No credit rows, no debrief rows, no objectives, no last message.
+  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang);
+  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
+  const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
+  // The correspondent's face on the seal, in the mood the letter left
+  // (`recap.correspondent_mood_value_after`, or the legacy French line).
+  const moodRecap = (mission?.recap || {}) as Record<string, any>;
+  const moodKey = crMoodKey(crMoodValue(moodRecap.correspondent_mood_value_after, moodRecap.correspondent_mood_after));
+  const moodName = String(correspondent?.name || '').trim();
+  const sealMood = moodKey && moodName
+    ? {
+        name: moodName,
+        characterId: castIdFor(mission?.prompt_payload?.serial_character_id, correspondent?.id, moodName),
+        face: crMoodFace(moodKey),
+        line: crMoodSentence(moodKey, moodName, t),
+      }
+    : null;
+  // A because-line is chrome; the server sends it in all three languages.
+  const reasonText = pickByLanguage(
+    mission?.recommendation_reason?.text_by_language,
+    chromeLang,
+    String(mission?.recommendation_reason?.text || ''),
+  );
+  // WP-83: the composer opens itself once there is something in it.
+  const composerOpen = reply.trim().length > 0 || micState !== 'idle';
 
   return (
     <>
       <Head>
-        <title>{isSerialAct ? 'Le Feuilleton · Acte' : 'Le Courrier'} · L’Atelier</title>
+        <title>
+          {`${intakeMode ? t.documents_title : isSerialAct ? t.feuilleton : t.courrier} · L’Atelier`}
+        </title>
       </Head>
-      <AtelierV2Root as="main" className="cr motion" aria-label={isSerialAct ? 'Le Feuilleton · acte' : 'Le Courrier'}>
-        {loading && !mission ? (
+      <AtelierV2Root
+        as="main"
+        language={chromeLang}
+        className="cr motion"
+        aria-label={intakeMode ? t.page_aria_intake : isSerialAct ? t.page_aria_act : t.courrier}
+      >
+        {/* Settings, in the same corner on every tab (2026-10-01). */}
+        {!intakeMode && <ShellCorner />}
+        {intakeMode ? (
+          /* WP-34's surface, mounted (WP-37 §2.1). Everything here already
+             existed and was imported by no page: the components, the client
+             calls and 82 backend tests. */
+          <div className="cr-page">
+            {/* WP-45: the desk's name and line said «Vos documents» twice, once
+                here and once in the head the intake now carries from
+                `Documents.dc.html`. What is left is the part the artboard does
+                not draw and the screen still needs: the way back. */}
+            <p className="cr-desk cr-desk--back">
+              <Link
+                className="av2-icon-btn cr-back"
+                href="/atelier"
+                onClick={returnToAtelierHome}
+                aria-label={t.back_atelier}
+                title={t.back_atelier}
+              >
+                <ArrowLeftIcon size={20} />
+              </Link>
+            </p>
+            {intakeLoading && !intake ? (
+              <div className="cr-skel" aria-busy="true" aria-live="polite">
+                <span className="av2-sr">{t.loading_documents}</span>
+                <Skeleton height={44} radius={999} />
+                <Skeleton height={150} />
+                <Skeleton height={72} />
+              </div>
+            ) : (
+              <>
+                <CrIntakeEntry
+                  cap={intake?.cap}
+                  onRead={(input) => { void readDocument(input); }}
+                  reading={intakeReading}
+                  error={intakeError}
+                  onDismissError={() => setIntakeError(null)}
+                />
+                {(intake?.artefacts || []).map((artefact: IntakeArtefact) => (
+                  <React.Fragment key={artefact.id}>
+                    {artefact.status === 'read' ? (
+                      <>
+                        <CrArtefactCard
+                          artefact={artefact}
+                          onDelete={() => { void deleteDocument(artefact.id); }}
+                          deleting={deletingArtefactId === artefact.id}
+                        />
+                        {/* The task is shown here and answered in the Courrier,
+                            where the composer and the corrector already live.
+                            No `onStart`, and no ghost row beneath it: WP-45 put
+                            the way through — «Répondre à …» — inside the card
+                            above, as `Documents.dc.html` draws it, and that is
+                            this screen's one press. */}
+                        <CrArtefactTaskCard task={artefact.task} />
+                      </>
+                    ) : (
+                      <CrArtefactUnread
+                        sourceKind={artefact.source_kind}
+                        onDelete={() => { void deleteDocument(artefact.id); }}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
+                {intake && intake.artefacts.length === 0 && (
+                  <p className="cr-reason">{t.intake_empty}</p>
+                )}
+              </>
+            )}
+          </div>
+        ) : loading && !mission ? (
           <div className="cr-page" aria-busy="true" aria-live="polite">
-            <span className="av2-sr">Chargement du courrier</span>
+            <span className="av2-sr">{t.loading_courrier}</span>
             <div className="cr-skel">
               <Skeleton height={44} radius={999} />
               <Skeleton height={72} />
@@ -811,20 +1099,21 @@ export default function MissionsPage() {
           <div className="cr-page cr-page--centre">
             <StateBlock
               tone="error"
-              title="Courrier égaré"
-              body={error}
-              action={{ label: 'Réessayer', onSelect: () => { void loadMission(); }, tone: 'primary' }}
+              title={t.error_title}
+              body={loadErrorMessage(error, t)}
+              action={{ label: t.retry, onSelect: () => { void loadMission(); }, tone: 'primary' }}
             />
-            <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à la Une</CrGhost>
+            <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_home}</CrGhost>
           </div>
         ) : !mission ? (
           <div className="cr-page cr-page--centre">
             <StateBlock
               tone="empty"
-              title="Aucun courrier — la Une vous attend."
-              body="Le facteur repassera avec l’édition de demain."
-              action={{ label: 'Retour à la Une', onSelect: () => returnToAtelierHome(), tone: 'primary' }}
+              title={t.empty_title}
+              body={t.empty_body}
+              action={{ label: t.back_home, onSelect: () => returnToAtelierHome(), tone: 'primary' }}
             />
+            <CrIntakeLink />
           </div>
         ) : (
           <>
@@ -834,14 +1123,32 @@ export default function MissionsPage() {
                 line={deskLine}
                 chip={deskChip}
                 onBack={returnToAtelierHome}
+                // WP-91: the sender's face reads the letter (French only).
+                letterFr={opening.lang === 'fr' ? openingMessage : null}
+                senderId={mission?.prompt_payload?.serial_character_id || correspondent?.id || null}
               />
-              {mission.recommendation_reason?.text && (
-                <p className="cr-reason">{mission.recommendation_reason.text}</p>
-              )}
+              {reasonText && <p className="cr-reason">{reasonText}</p>}
 
-              {!completed && (
+              {/* WP-65 — the correspondent view: who is writing, how they feel,
+                  which letter of the affair this is, by when, and the letters
+                  already exchanged with the same person over the weeks. It sits
+                  above the situation because it is the context the situation is
+                  in, and it renders nothing at all when the letter has nobody
+                  behind it (a pre-WP-64 row, a serial act). */}
+              <CrCorrespondent
+                correspondent={correspondent}
+                chain={chain}
+                expiresAt={expiresAt}
+                history={threadHistory}
+                lapsed={lapsed}
+                showMood={!completed}
+              />
+
+              {lapsed && <CrLapsedNotice name={correspondent?.name} />}
+
+              {!completed && !lapsed && (
                 <>
-                  <CrSituation frame={frame.frame} ask={frame.ask} translate={translateFrame} />
+                  <CrSituation frame={frame.frame} ask={frame.ask} askLang={frame.askLang} translate={translateFrame} />
                   <CrRibbon words={ribbon} />
                 </>
               )}
@@ -851,11 +1158,15 @@ export default function MissionsPage() {
                   <CrMemo
                     rows={memoRows}
                     transcript={openingMessage}
-                    stamp={interactionReady ? 'Répondu' : null}
+                    stamp={interactionReady ? t.memo_answered : null}
                     translate={() => apiService.translateToEnglish(openingMessage)}
                   />
                 ) : (
-                  <CrSlip who={messenger.contact_name} translate={() => apiService.translateToEnglish(openingMessage)}>
+                  <CrSlip
+                    who={messenger.contact_name}
+                    lang={opening.lang}
+                    translate={opening.lang === 'fr' ? () => apiService.translateToEnglish(openingMessage) : undefined}
+                  >
                     {openingMessage}
                   </CrSlip>
                 )}
@@ -870,7 +1181,7 @@ export default function MissionsPage() {
                   return (
                     <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
                       <CrSlip
-                        who={isUser ? 'Vous' : messenger.contact_name}
+                        who={isUser ? t.you : messenger.contact_name}
                         time={slipTime(turn)}
                         you={isUser}
                         sent={isUser}
@@ -878,6 +1189,11 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
+                      {/* WP-74: the corrector was unavailable. Not a pass, not a
+                          fault — say plainly that nobody has corrected it yet. */}
+                      {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
+                        <p className="cr-unassessed" role="status">{t.unassessed}</p>
+                      )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair
                           correctedAnswer={correctedAnswer}
@@ -891,105 +1207,114 @@ export default function MissionsPage() {
                 {submitting && (
                   <div className="cr-typing" role="status" aria-live="polite">
                     <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
-                    <span>{messenger.contact_name} rédige sa réponse</span>
+                    <span>{crFill(t.typing, { name: messenger.contact_name })}</span>
                   </div>
                 )}
               </div>
 
-              {completed && (
-                <section className="cr-resolve" aria-label="Dossier résolu">
-                  <p className="cr-resolve-kicker">Compte rendu de mission</p>
-                  <div className="cr-seal">
-                    <span className="cr-seal-word">
-                      <ShapeToken kind="done" size="lg" />
-                      {isSerialAct ? 'Acte bouclé' : 'Résolu'}
+              {/* WP-83: the composer sits in the flow right after the letter,
+                  collapsed to one «Répondre» pill until the learner asks for
+                  it — never sticky, never over the letter it answers. */}
+              {!completed && !lapsed && (
+                <CrComposer
+                  quick={messenger.quick_replies}
+                  onQuick={useQuickReply}
+                  cta={submitLabel(format, t)}
+                  onSubmit={sendReply}
+                  sending={submitting}
+                  canSubmit={canSend}
+                  canFinish={interactionReady}
+                  finishing={completing}
+                  onFinish={finishMission}
+                  open={composerOpen}
+                  voice={showMic ? (
+                    <CourrierMic
+                      disabled={submitting}
+                      onStateChange={setMicState}
+                      onTranscript={(text) => setReply((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
+                    />
+                  ) : undefined}
+                >
+                  <label className="av2-field">
+                    <span className={format === 'chat_message' && !composerInstruction ? 'av2-sr' : 'av2-field__label'}>
+                      {turnComposerCopy.label}
                     </span>
-                    <span className="cr-seal-date">{frenchDate(mission?.completed_at)}</span>
-                    <p className="cr-seal-sub" lang="fr">{messenger.success_signal}</p>
-                  </div>
-                  {mintedToken && (
-                    <div className="cr-token" role="status">
-                      <LogoToken pop />
-                      <span className="cr-token-earned">Jeton frappé</span>
-                    </div>
-                  )}
-                  {creditRows.length > 0 && (
-                    <div className="cr-credit">
-                      {creditRows.map((row) => (
-                        <div className="cr-credit-row" key={row.label}>
-                          <span>
-                            <ShapeToken kind={row.label === 'Feuilleton' ? 'story' : 'reward'} size="sm" />
-                            {row.label}
-                          </span>
-                          <b>{row.value}</b>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="cr-recap-grid">
-                    <div>
-                      <strong>{recapTurns}</strong>
-                      <span>réponse{recapTurns === 1 ? '' : 's'}</span>
-                    </div>
-                    <div>
-                      <strong>{recapErrata}</strong>
-                      <span>erreur{recapErrata === 1 ? '' : 's'} repérée{recapErrata === 1 ? '' : 's'}</span>
-                    </div>
-                    <div>
-                      <strong>{recapSaved}</strong>
-                      <span>phrase{recapSaved === 1 ? '' : 's'} sauvegardée{recapSaved === 1 ? '' : 's'}</span>
-                    </div>
-                  </div>
-                  {mission.recap?.readiness && (
-                    <div className="cr-readiness">
-                      <span>Prêt pour la vraie vie</span>
-                      <strong>{Number(mission.recap.readiness.overall || 0)}%</strong>
-                    </div>
-                  )}
-                  {Array.isArray(mission.recap?.objective_results) && mission.recap.objective_results.length > 0 && (
-                    <div className="cr-objectives" aria-label="Objectifs de mission">
-                      <span className="cr-objectives-k">Objectifs</span>
-                      {mission.recap.objective_results.map((objective: Record<string, any>, index: number) => (
-                        <div className={'cr-objective' + (objective.met ? ' cr-objective--met' : '')} key={String(objective.id || index)}>
-                          <ShapeToken kind={objective.met ? 'done' : 'action'} size="sm" />
-                          <span>
-                            {String(objective.label || 'Objectif de mission')}
-                            <span className="av2-sr">{objective.met ? ' · atteint' : ' · à revoir'}</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {nextBest && <p className="cr-next" lang="fr">{nextBest}</p>}
+                    {composerInstruction && <p className="cr-instruction">{composerInstruction}</p>}
+                    <textarea
+                      ref={replyRef}
+                      className={'av2-field__control cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' cr-draft--tall' : '')}
+                      lang="fr"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      rows={1}
+                      value={reply}
+                      onChange={(event) => setReply(event.target.value)}
+                      placeholder={turnComposerCopy.placeholder || composerCopy.placeholder}
+                      aria-label={turnComposerCopy.label}
+                    />
+                  </label>
+                </CrComposer>
+              )}
+
+              {completed && (
+                <section className="cr-resolve" aria-label={t.resolved_aria}>
+                  <CrSeal
+                    verdict={sealVerdict}
+                    date={chromeDate(mission?.completed_at, t.locale)}
+                    sentence={outcomeSentence || frame.ask}
+                    sentenceLang={outcomeSentence ? undefined : frame.askLang}
+                    mood={sealMood}
+                    numbers={sealNumbers}
+                    token={mintedToken ? <LogoToken pop /> : undefined}
+                  />
                   {/* One 3D press per screen: the forward move. When the act
                       continues, that is the next act; otherwise the next
                       courrier. Everything else stays quiet. */}
                   <div className="cr-nexts">
                     {isSerialAct && completedNextSerial?.thread_id ? (
-                      <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>Lire l’acte suivant</CrGhost>
+                      <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>{t.next_act}</CrGhost>
                     ) : (
-                      <CrGhost primary onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                      <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
                     )}
-                    <CrGhost href="/atelier" onClick={returnToAtelierHome}>Retour à l’Atelier</CrGhost>
+                    <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
                     {isSerialAct && completedNextSerial?.thread_id && (
-                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>Nouveau courrier</CrGhost>
+                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
                     )}
                   </div>
                 </section>
               )}
 
+              {/* A lapsed letter has no composer, so it would otherwise be a
+                  screen with no way forward. One quiet press, and it opens the
+                  next letter rather than re-opening this one: the delay is
+                  past, and offering a retry would be pretending it is not. */}
+              {lapsed && (
+                <div className="cr-nexts">
+                  <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                  <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
+                </div>
+              )}
+
+              {/* WP-37 §2.1: the Courrier's own way in to «Vos documents». A
+                  row, not a press — the screen's press is the reply. */}
+              <CrIntakeLink />
+
               {recentCompleted.length > 0 && (
-                <section className="cr-archive" aria-label="Courrier passé">
-                  <p className="cr-archive-k">Courrier passé</p>
+                <section className="cr-archive" aria-label={t.archive_k}>
+                  <p className="cr-archive-k">{t.archive_k}</p>
                   <ul>
                     {/* Filter before slicing, or the open courrier silently eats a row. */}
                     {recentCompleted.filter((past) => past.id !== mission?.id).slice(0, 8).map((past) => (
                       <li key={past.id}>
                         <Link className="cr-archive-row" href={{ pathname: '/missions', query: { mission: past.id } }}>
-                          <b>{missionTitle(past)}</b>
+                          {(() => {
+                            const title = missionTitleView(past, chromeLang);
+                            return <b lang={title.lang}>{title.text}</b>;
+                          })()}
                           <span>
                             <ShapeToken kind={past.status === 'completed' ? 'done' : 'story'} size="sm" />
-                            {archiveStatus(past)}
+                            {archiveStatus(past, t)}
                           </span>
                         </Link>
                       </li>
@@ -998,45 +1323,6 @@ export default function MissionsPage() {
                 </section>
               )}
             </div>
-
-            {!completed && (
-              <CrComposer
-                quick={messenger.quick_replies}
-                onQuick={useQuickReply}
-                cta={submitLabel(format)}
-                onSubmit={sendReply}
-                sending={submitting}
-                canSubmit={canSend}
-                canFinish={interactionReady}
-                finishing={completing}
-                onFinish={finishMission}
-                finishLabel="Terminer"
-                voice={showMic ? (
-                  <CourrierMic
-                    disabled={submitting}
-                    onStateChange={setMicState}
-                    onTranscript={(text) => setReply((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
-                  />
-                ) : undefined}
-              >
-                <label className="av2-field">
-                  <span className={format === 'chat_message' && !composerInstruction ? 'av2-sr' : 'av2-field__label'}>
-                    {turnComposerCopy.label}
-                  </span>
-                  {composerInstruction && <p className="cr-instruction">{composerInstruction}</p>}
-                  <textarea
-                    ref={replyRef}
-                    className={'av2-field__control cr-draft' + (format === 'email_formal' || format === 'admin_form' ? ' cr-draft--tall' : '')}
-                    lang="fr"
-                    rows={1}
-                    value={reply}
-                    onChange={(event) => setReply(event.target.value)}
-                    placeholder={turnComposerCopy.placeholder || composerCopy.placeholder}
-                    aria-label={turnComposerCopy.label}
-                  />
-                </label>
-              </CrComposer>
-            )}
           </>
         )}
       </AtelierV2Root>

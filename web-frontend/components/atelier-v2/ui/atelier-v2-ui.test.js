@@ -504,8 +504,13 @@ const h = React.createElement;
 
   const portrait = render(h(ui.Portrait, { name: 'Marin' }));
   assert.ok(portrait.includes('--av2-char'), 'the accent is applied as a token, not a hex');
-  assert.ok(portrait.includes('>M<'), 'the initial is drawn');
   assert.ok(portrait.includes('aria-hidden="true"'), 'the avatar is decorative; the name is text');
+  // WP-77: a drawn cast member shows their face; anyone else keeps the initial.
+  assert.ok(portrait.includes('/assets/serial/characters/marin_leveque/portrait-neutral.webp'));
+  const cross = render(h(ui.Portrait, { name: 'Augustin « Gus » de Roncourt', mood: 'cross' }));
+  assert.ok(cross.includes('augustin_de_roncourt/portrait-cross.webp'), 'a full name resolves too');
+  const stranger = render(h(ui.Portrait, { name: 'Samira' }));
+  assert.ok(stranger.includes('>S<') && !stranger.includes('<img'), 'the initial is drawn');
 }
 
 // ===========================================================================
@@ -578,21 +583,21 @@ const h = React.createElement;
     }
   }
 
-  // Action names are really localized, not English under a translated heading.
+  // WP-82 — one language rule: up to A2 an action name is in the learner's
+  // language, like the status line beside it (never a French button under a
+  // German sentence); only the navigation labels are French everywhere.
   const actionKeys = keys.filter((key) => key.startsWith('action_') || key.startsWith('record_'));
   assert.ok(actionKeys.length >= 6, 'there are action names to check');
   for (const key of actionKeys) {
-    assert.notEqual(
-      atelierChrome('de')[key],
-      atelierChrome('en')[key],
-      `de.${key} must be German, not the English label`,
-    );
-    assert.notEqual(
-      atelierChrome('fr')[key],
-      atelierChrome('en')[key],
-      `fr.${key} must be French, not the English label`,
-    );
+    assert.notEqual(atelierChrome('de')[key], atelierChrome('fr')[key], `de.${key} is German`);
+    assert.notEqual(atelierChrome('en')[key], atelierChrome('fr')[key], `en.${key} is English`);
   }
+  for (const key of ['nav_atelier', 'nav_missions', 'nav_serial', 'nav_notebook']) {
+    assert.equal(atelierChrome('en')[key], atelierChrome('fr')[key], `en.${key} is the French place name`);
+    assert.equal(atelierChrome('de')[key], atelierChrome('fr')[key], `de.${key} is the French place name`);
+  }
+  // …while what explains a failure to the learner stays in their language.
+  assert.notEqual(atelierChrome('de').mic_denied, atelierChrome('fr').mic_denied);
 
   // Normalization: regional tags, casing, whitespace, separators, junk.
   assert.equal(normalizeControlLanguage('de'), 'de');
@@ -614,7 +619,8 @@ const h = React.createElement;
   assert.equal(merged.action_check, 'Vérifier');
   assert.equal(atelierCopy('pt').action_check, atelierCopy('en').action_check);
 
-  // Interpolation happens in the learner's language.
+  // The progress caption is status (WP-82): the learner's language up to A2,
+  // with the numbers interpolated.
   assert.equal(stepOfLabel(atelierCopy('en'), 2, 5), 'Step 2 of 5');
   assert.equal(stepOfLabel(atelierCopy('de'), 2, 5), 'Schritt 2 von 5');
   assert.equal(stepOfLabel(atelierCopy('fr'), 2, 5), 'Étape 2 sur 5');
@@ -643,3 +649,26 @@ const h = React.createElement;
 }
 
 console.log('atelier v2 design system tests passed');
+
+// ===========================================================================
+// WP-43 — the screen foot in the flow, and the shell's tab-bar reservation
+// ===========================================================================
+{
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const index = fs.readFileSync(path.join(__dirname, 'index.ts'), 'utf8');
+  assert.ok(index.includes("export { ScreenFoot } from './ScreenFoot';"), 'ScreenFoot is exported from the kit');
+  const foot = fs.readFileSync(path.join(__dirname, 'ScreenFoot.tsx'), 'utf8');
+  assert.ok(foot.includes('av2-screen__foot--flow'), 'the foot is placed in the flow, never fixed');
+  assert.ok(!/position:\s*fixed/.test(foot), 'no fixed positioning in the foot');
+  const css = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'styles', 'atelier-v2.css'), 'utf8');
+  const block = css.slice(css.indexOf('/* WP-43'), css.indexOf('/* end WP-43 */'));
+  assert.ok(block.includes('.app-route-shell {') && block.includes('padding-bottom: var(--phone-bottom-nav-space'), 'the route shell reserves the tab bar once');
+  assert.ok(block.includes('.av2.fb-scope .fb-launcher') && block.includes('display: none'), 'the floating launcher is hidden on phones');
+  const feedback = fs.readFileSync(path.join(__dirname, '..', '..', 'feedback', 'FeedbackWidget.tsx'), 'utf8');
+  assert.ok(feedback.includes("export const FEEDBACK_OPEN_EVENT = 'atelier:feedback-open'"), 'Réglages can open the panel');
+  const settings = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'pages', 'settings.tsx'), 'utf8');
+  // WP-46 moved the row's words into the per-language copy table.
+  const settingsCopy = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'lib', 'settings-copy.ts'), 'utf8');
+  assert.ok(settingsCopy.includes('Signaler un problème') && settings.includes('FEEDBACK_OPEN_EVENT'), 'the Réglages row exists');
+}

@@ -8,10 +8,31 @@
   "image_asset": "assets/serial/locations/marche_canal.webp",
   "register": "tu",
   "register_note": "Lila tutoies the learner from night one and mocks a 'vous' (world bible register_with_user).",
-  "forbidden_topic_groups": ["landlord_paperwork", "administration"],
+  "counterpart_register": {
+    "expected": "tu",
+    "counterpart": "Lila",
+    "reason_fr": "Lila vous tutoie depuis le premier soir et se moque d’un « vous ».",
+    "reason_native": {
+      "en": "Lila has used tu with you since the first evening, and teases anyone who answers with vous.",
+      "de": "Lila duzt dich seit dem ersten Abend und zieht jeden auf, der mit vous antwortet.",
+      "fr": "Lila vous tutoie depuis le premier soir et taquine qui répond par « vous »."
+    }
+  },
+  "forbidden_topic_groups": [
+    "landlord_paperwork",
+    "administration"
+  ],
   "forbidden_terms": [],
-  "authored_bands": ["A1", "A2"],
-  "serial_locations": ["marche_canal", "le_mistral", "marin_lila_flat"],
+  "authored_bands": [
+    "A1",
+    "A2",
+    "B1"
+  ],
+  "serial_locations": [
+    "marche_canal",
+    "le_mistral",
+    "marin_lila_flat"
+  ],
   "variants": [
     {
       "level_band": "A1",
@@ -29,6 +50,46 @@
         "fr": "Lila t'écrit. Elle veut te faire découvrir le marché du Canal."
       },
       "opening_line_fr": "Salut ! Tu es libre quel jour ?",
+      "panels": [
+        {
+          "narration_fr": "Samedi matin, au marché du Canal.",
+          "dialogue": [],
+          "visual_direction": "Wide shot of the Canal Saint-Martin market on a bright morning: stalls with crates of fruit and flowers, an iron footbridge behind. Lila, ochre scarf in her hair, walks between the stalls with Marin, who carries a big wicker basket.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "Lila, le panier est plein !"
+            },
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Encore des fleurs. S'il te plaît !"
+            }
+          ],
+          "visual_direction": "Medium shot: Marin holds up an overflowing basket of vegetables, pretending to collapse under its weight; Lila adds a large bouquet of yellow flowers on top, grinning.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-2.webp"
+        },
+        {
+          "narration_fr": "Lila prend son téléphone. Elle pense à toi.",
+          "dialogue": [],
+          "visual_direction": "Close-up of Lila leaning on a flower stall, typing on her phone with a mischievous smile, the bouquet under her arm.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-3.webp"
+        },
+        {
+          "narration_fr": "Lila t'écrit.",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Salut ! Tu es libre quel jour ?"
+            }
+          ],
+          "visual_direction": "Close-up: Lila holds her phone up near her face and winks, as if sending a message to the viewer; blurred market stalls behind her.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Lila propose le marché du Canal, ouvert le samedi et le dimanche matin.",
         "Le Mistral reste possible en semaine, le soir.",
@@ -45,7 +106,11 @@
         "d'accord"
       ],
       "estimated_seconds": 262,
-      "reading_seconds": {"scene": 40, "recall": 44, "resolution": 56},
+      "reading_seconds": {
+        "scene": 40,
+        "recall": 44,
+        "resolution": 56
+      },
       "response_task": {
         "objective_native": {
           "en": "Name a day and a meeting place.",
@@ -55,8 +120,14 @@
         "opening_line_fr": "Alors, quel jour ? Et on se retrouve où ?",
         "max_turns": 2,
         "repair_allowed": true,
-        "required_intents": ["name_a_day", "name_a_meeting_place"],
-        "optional_intents": ["greet_lila", "say_you_are_happy_to_come"],
+        "required_intents": [
+          "name_a_day",
+          "name_a_meeting_place"
+        ],
+        "optional_intents": [
+          "greet_lila",
+          "say_you_are_happy_to_come"
+        ],
         "rubric_native": {
           "en": "Met: the learner names a day AND a place, in any order, even in two short fragments (« Samedi, au marché. »). Partially met: only one of the two. Not yet: neither, or an English day name. Days may be written without a capital letter. Pick exactly one outcome key from the allowed list; if the learner names a weekend day, use meeting_saturday_market.",
           "de": "Erfüllt: Es werden ein Tag UND ein Ort genannt, in beliebiger Reihenfolge, auch als zwei kurze Fragmente (« Samedi, au marché. »). Teilweise erfüllt: nur eines von beidem. Noch nicht: keines, oder ein englischer Wochentag. Kleinschreibung der Wochentage ist korrekt. Wähle genau einen erlaubten Outcome-Key; bei einem Wochenendtag nimm meeting_saturday_market.",
@@ -121,6 +192,46 @@
         "fr": "Lila t'envoie un message : elle veut te faire découvrir le marché du Canal."
       },
       "opening_line_fr": "On se voit cette semaine ? Dis-moi quand tu peux.",
+      "panels": [
+        {
+          "narration_fr": "Dimanche matin, au marché du Canal. Lila fait les courses avec Marin.",
+          "dialogue": [],
+          "visual_direction": "Wide shot of the Canal Saint-Martin market on a bright morning: stalls with crates of fruit and flowers, an iron footbridge behind. Lila, ochre scarf in her hair, walks between the stalls with Marin, who carries a big wicker basket.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "Tu as acheté trois bouquets. On a un seul vase !"
+            },
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Alors on achètera un vase."
+            }
+          ],
+          "visual_direction": "Medium shot: Marin holds up an overflowing basket of vegetables, pretending to collapse under its weight; Lila adds a large bouquet of yellow flowers on top, grinning.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-2.webp"
+        },
+        {
+          "narration_fr": "Lila sourit : ce marché, elle veut te le montrer.",
+          "dialogue": [],
+          "visual_direction": "Close-up of Lila leaning on a flower stall, typing on her phone with a mischievous smile, the bouquet under her arm.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-3.webp"
+        },
+        {
+          "narration_fr": "Lila t'envoie un message.",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "On se voit cette semaine ? Dis-moi quand tu peux."
+            }
+          ],
+          "visual_direction": "Close-up: Lila holds her phone up near her face and winks, as if sending a message to the viewer; blurred market stalls behind her.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-4.webp"
+        }
+      ],
       "required_facts_fr": [
         "Le marché du Canal n'ouvre que le samedi et le dimanche matin.",
         "Lila travaille à l'école jusqu'à seize heures trente en semaine.",
@@ -137,7 +248,11 @@
         "plutôt"
       ],
       "estimated_seconds": 278,
-      "reading_seconds": {"scene": 42, "recall": 48, "resolution": 58},
+      "reading_seconds": {
+        "scene": 42,
+        "recall": 48,
+        "resolution": 58
+      },
       "response_task": {
         "objective_native": {
           "en": "Propose a day, a time and a meeting place.",
@@ -147,8 +262,15 @@
         "opening_line_fr": "Alors, quand est-ce qu'on se voit ? Et où ?",
         "max_turns": 2,
         "repair_allowed": true,
-        "required_intents": ["propose_a_day", "propose_a_time", "name_a_meeting_place"],
-        "optional_intents": ["check_it_suits_lila", "offer_an_alternative"],
+        "required_intents": [
+          "propose_a_day",
+          "propose_a_time",
+          "name_a_meeting_place"
+        ],
+        "optional_intents": [
+          "check_it_suits_lila",
+          "offer_an_alternative"
+        ],
         "rubric_native": {
           "en": "Met: the learner proposes a day, a clock time (« vers dix heures », « à 10h ») AND a place. Partially met: two of the three. Not yet: fewer than two. A market proposal for a weekday is a real content error worth one short correction, because the market opens only at the weekend. Pick exactly one outcome key from the allowed list.",
           "de": "Erfüllt: Es werden ein Tag, eine Uhrzeit (« vers dix heures », « à 10h ») UND ein Ort vorgeschlagen. Teilweise erfüllt: zwei von drei. Noch nicht: weniger als zwei. Ein Markttermin unter der Woche ist ein echter Inhaltsfehler und eine kurze Korrektur wert, denn der Markt öffnet nur am Wochenende. Wähle genau einen erlaubten Outcome-Key.",
@@ -166,6 +288,150 @@
           "fr": "On se voit samedi matin au marché, vers dix heures ?"
         },
         "estimated_seconds": 130
+      },
+      "outcomes": [
+        {
+          "key": "meeting_saturday_market",
+          "line_fr": "Super, {day|samedi} au marché alors. Je t'attends près des fleurs.",
+          "summary_native": {
+            "en": "You and Lila agreed to meet {day_native|on Saturday} at the Canal market.",
+            "de": "Du und Lila trefft euch {day_native|am Samstag} auf dem Markt am Kanal.",
+            "fr": "Lila et toi avez convenu de vous retrouver {day_native|samedi} au marché du Canal."
+          }
+        },
+        {
+          "key": "meeting_weekday_cafe",
+          "line_fr": "Bon, {day|en semaine} au Mistral alors. Je préviens Marin.",
+          "summary_native": {
+            "en": "You and Lila agreed to meet at Le Mistral {day_native|during the week}.",
+            "de": "Du und Lila trefft euch {day_native|unter der Woche} im Mistral.",
+            "fr": "Lila et toi vous retrouvez au Mistral {day_native|en semaine}."
+          }
+        },
+        {
+          "key": "meeting_postponed",
+          "line_fr": "Pas cette semaine, d'accord. On se cale ça la semaine prochaine.",
+          "summary_native": {
+            "en": "You and Lila pushed the meet-up to next week.",
+            "de": "Du und Lila habt das Treffen auf nächste Woche verschoben.",
+            "fr": "Lila et toi avez reporté le rendez-vous à la semaine prochaine."
+          }
+        }
+      ]
+    },
+    {
+      "level_band": "B1",
+      "title_fr": "Un rendez-vous à trouver",
+      "objective_key": "arrange_meeting.time_and_place",
+      "objective_native": {
+        "en": "Agree on a time and a place to meet Lila this week.",
+        "de": "Einigt euch auf eine Uhrzeit und einen Ort, um Lila diese Woche zu treffen.",
+        "fr": "Proposez un rendez-vous — avec si."
+      },
+      "setup_fr": "Lila voudrait vous montrer le marché du Canal ce week-end. Son samedi est chargé : proposez un rendez-vous qui vous convienne à tous les deux.",
+      "setup_native": {
+        "en": "Lila messages you: she wants to show you the Canal market.",
+        "de": "Lila schreibt dir: Sie will dir den Markt am Kanal zeigen.",
+        "fr": "Lila voudrait vous montrer le marché du Canal ce week-end. Son samedi est chargé : proposez un rendez-vous qui vous convienne à tous les deux."
+      },
+      "opening_line_fr": "Si tu es libre dimanche, on ira au marché. Sinon, tu proposes quoi ?",
+      "panels": [
+        {
+          "narration_fr": "Dimanche, Lila et Marin découvrent un nouveau fleuriste au marché.",
+          "dialogue": [],
+          "visual_direction": "Wide shot of the Canal Saint-Martin market on a bright morning: stalls with crates of fruit and flowers, an iron footbridge behind. Lila, ochre scarf in her hair, walks between the stalls with Marin, who carries a big wicker basket.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-1.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "marin_leveque",
+              "text_fr": "Si tu achètes encore des fleurs, il faudra un deuxième vase."
+            },
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "On trouvera bien une place près de la fenêtre."
+            }
+          ],
+          "visual_direction": "Medium shot: Marin holds up an overflowing basket of vegetables, pretending to collapse under its weight; Lila adds a large bouquet of yellow flowers on top, grinning.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-2.webp"
+        },
+        {
+          "narration_fr": "Lila pense au prochain week-end et vous écrit.",
+          "dialogue": [],
+          "visual_direction": "Close-up of Lila leaning on a flower stall, typing on her phone with a mischievous smile, the bouquet under her arm.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-3.webp"
+        },
+        {
+          "narration_fr": "",
+          "dialogue": [
+            {
+              "character_id": "lila_bonnet",
+              "text_fr": "Si tu es libre dimanche, on ira au marché. Sinon, tu proposes quoi ?"
+            }
+          ],
+          "visual_direction": "Close-up: Lila holds her phone up near her face and winks, as if sending a message to the viewer; blurred market stalls behind her.",
+          "image_asset": "assets/serial/scenes/arrange_meeting/panel-4.webp"
+        }
+      ],
+      "required_facts_fr": [
+        "Le marché du Canal n'ouvre que le samedi et le dimanche matin.",
+        "Lila travaille à l'école jusqu'à seize heures trente en semaine.",
+        "Le Mistral est l'option de repli en soirée ; reporter reste possible.",
+        "Lila te tutoie et attend le tutoiement en retour."
+      ],
+      "target_affordances_fr": [
+        "samedi matin",
+        "vers dix heures",
+        "on se voit",
+        "on se retrouve",
+        "au marché",
+        "ça te va",
+        "plutôt",
+        "Si tu es libre dimanche, on se retrouvera à dix heures devant le marché."
+      ],
+      "estimated_seconds": 300,
+      "reading_seconds": {
+        "scene": 60,
+        "recall": 45,
+        "resolution": 60
+      },
+      "response_task": {
+        "objective_native": {
+          "en": "Propose a day, a time and a meeting place.",
+          "de": "Schlage einen Tag, eine Uhrzeit und einen Treffpunkt vor.",
+          "fr": "Proposez un rendez-vous — avec si."
+        },
+        "opening_line_fr": "Si tu es libre dimanche, on ira au marché. Sinon, tu proposes quoi ?",
+        "max_turns": 2,
+        "repair_allowed": true,
+        "required_intents": [
+          "propose_a_day",
+          "propose_a_time",
+          "name_a_meeting_place"
+        ],
+        "optional_intents": [
+          "check_it_suits_lila",
+          "offer_an_alternative"
+        ],
+        "rubric_native": {
+          "en": "Met: the learner proposes a day, a clock time (« vers dix heures », « à 10h ») AND a place. Partially met: two of the three. Not yet: fewer than two. A market proposal for a weekday is a real content error worth one short correction, because the market opens only at the weekend. Pick exactly one outcome key from the allowed list.",
+          "de": "Erfüllt: Es werden ein Tag, eine Uhrzeit (« vers dix heures », « à 10h ») UND ein Ort vorgeschlagen. Teilweise erfüllt: zwei von drei. Noch nicht: weniger als zwei. Ein Markttermin unter der Woche ist ein echter Inhaltsfehler und eine kurze Korrektur wert, denn der Markt öffnet nur am Wochenende. Wähle genau einen erlaubten Outcome-Key.",
+          "fr": "Atteint : l'apprenant propose un jour, une heure (« vers dix heures », « à 10h ») ET un lieu. Partiellement atteint : deux sur trois. Pas encore : moins de deux. Proposer le marché en semaine est une vraie erreur de contenu qui mérite une correction courte, car le marché n'ouvre que le week-end. Choisis exactement un outcome_key autorisé."
+        },
+        "suggested_response_fr": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marché.",
+        "hint_native": {
+          "en": "Give the day, then the time, then the place — the market is a weekend market.",
+          "de": "Nenne Tag, dann Uhrzeit, dann Ort — der Markt ist ein Wochenendmarkt.",
+          "fr": "Après si, utilisez le présent ; annoncez ensuite ce qui se passera."
+        },
+        "translation_native": {
+          "en": "Shall we meet Saturday morning at the market, around ten?",
+          "de": "Treffen wir uns Samstagvormittag auf dem Markt, gegen zehn?",
+          "fr": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marché."
+        },
+        "estimated_seconds": 155
       },
       "outcomes": [
         {

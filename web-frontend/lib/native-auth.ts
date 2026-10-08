@@ -132,33 +132,125 @@ export async function clearNativeAuthSession() {
   ]);
 }
 
-export async function refreshNativeAccessToken() {
-  const refreshToken = await readSecureValue(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
+/**
+ * What a refresh attempt established.
+ *
+ * - `refreshed`: a new pair is stored.
+ * - `signed-out`: the server definitively refused the refresh token (401/403),
+ *   or there is none. Only this clears the keychain.
+ * - `unreachable`: offline, timed out, or the server failed (5xx). The tokens
+ *   stay; the learner stays in the app and the next request tries again.
+ */
+export type NativeRefreshResult =
+  | { status: 'refreshed'; accessToken: string }
+  | { status: 'signed-out' }
+  | { status: 'unreachable' };
 
+const REFRESH_TIMEOUT_MS = 15_000;
+
+/**
+ * The one refresh in flight (WP-71).
+ *
+ * The backend rotates the refresh token on every use. Ten requests waking
+ * together after the access token expired used to send ten refreshes with the
+ * same token: one won, nine got 401, and each 401 wiped the keychain — the
+ * learner was "signed out at random". Every caller now shares this promise.
+ */
+let inFlightRefresh: Promise<NativeRefreshResult> | null = null;
+
+async function performNativeRefresh(): Promise<NativeRefreshResult> {
+  const refreshToken = await readSecureValue(REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    // Nothing to refresh with: whatever else is stored cannot be renewed.
+    await clearNativeAuthSession();
+    return { status: 'signed-out' };
+  }
+
+  let response: Response;
+  const controller = typeof AbortController === 'undefined' ? null : new AbortController();
+  const timer = controller ? setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS) : null;
   try {
-    const response = await fetch(`${nativeApiBaseUrl()}/auth/refresh`, {
+    response = await fetch(`${nativeApiBaseUrl()}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
+      signal: controller?.signal,
     });
-    if (!response.ok) throw new Error('Refresh token rejected.');
+  } catch {
+    // Offline, DNS, TLS, timeout: nothing was decided about the session.
+    return { status: 'unreachable' };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    // Only another rotation that landed while ours was on the wire can make a
+    // stored token newer than the one we sent; then the session is fine.
+    const current = await readSecureValue(REFRESH_TOKEN_KEY);
+    if (current && current !== refreshToken) {
+      const access = await readSecureValue(ACCESS_TOKEN_KEY);
+      if (access) return { status: 'refreshed', accessToken: access };
+    }
+    await clearNativeAuthSession();
+    return { status: 'signed-out' };
+  }
+  if (!response.ok) return { status: 'unreachable' };
+
+  try {
     const tokens = await response.json() as TokenResponse;
     const stored = await storeNativeTokens(tokens, refreshToken);
-    return stored.accessToken;
+    return { status: 'refreshed', accessToken: stored.accessToken };
   } catch {
-    await clearNativeAuthSession();
-    return null;
+    // A garbled body or a keychain hiccup is not a verdict on the session.
+    return { status: 'unreachable' };
   }
+}
+
+/** Refresh once for everyone who asks while a refresh is already running. */
+export function refreshNativeSession(): Promise<NativeRefreshResult> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = performNativeRefresh().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
+/** Compatibility wrapper: the new access token, or null if there is none. */
+export async function refreshNativeAccessToken() {
+  const result = await refreshNativeSession();
+  return result.status === 'refreshed' ? result.accessToken : null;
+}
+
+/**
+ * After a request came back 401: the token it carried may simply be older than
+ * the one another request already refreshed to. Reuse that before rotating
+ * again; refresh (single-flight) only when the stored token is the rejected one.
+ */
+export async function recoverNativeAccessToken(rejectedAccessToken?: string | null): Promise<NativeRefreshResult> {
+  const stored = await readSecureValue(ACCESS_TOKEN_KEY);
+  if (stored && rejectedAccessToken && stored !== rejectedAccessToken && !tokenNeedsRefresh(stored)) {
+    return { status: 'refreshed', accessToken: stored };
+  }
+  return refreshNativeSession();
 }
 
 export async function getNativeAccessToken({ refresh = true }: { refresh?: boolean } = {}) {
   const accessToken = await readSecureValue(ACCESS_TOKEN_KEY);
   if (accessToken && !tokenNeedsRefresh(accessToken)) return accessToken;
-  return refresh ? refreshNativeAccessToken() : accessToken;
+  if (!refresh) return accessToken;
+  const result = await refreshNativeSession();
+  if (result.status === 'refreshed') return result.accessToken;
+  // Unreachable: keep sending the stored token. Offline, the request fails as
+  // a network error and the learner stays in the app; back online, a 401 on it
+  // comes back through recoverNativeAccessToken.
+  if (result.status === 'unreachable') return accessToken;
+  return null;
 }
 
 export async function loadNativeAuthSession(): Promise<NativeAuthSession | null> {
+  // An offline launch an hour later keeps the session: getNativeAccessToken
+  // hands back the stored (expired) token when the refresh cannot be reached.
   const accessToken = await getNativeAccessToken();
   const refreshToken = await readSecureValue(REFRESH_TOKEN_KEY);
   if (!accessToken || !refreshToken) return null;

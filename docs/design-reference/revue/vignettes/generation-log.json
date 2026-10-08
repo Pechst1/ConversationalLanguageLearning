@@ -1,0 +1,194 @@
+{
+  "prompt_version": "pictogram-v1",
+  "spent_usd": 0.0343,
+  "results": [
+    {
+      "dossier_id": "evergreen-bac",
+      "topic": "culture",
+      "object_fr": "une copie d'examen et un stylo",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 433,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-beaujolais-nouveau",
+      "topic": "food",
+      "object_fr": "une grappe de raisin",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 680,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-fete-de-la-musique",
+      "topic": "culture",
+      "object_fr": "une guitare",
+      "outcome": "regenerated",
+      "prompt_version": "pictogram-v1",
+      "bytes": 502,
+      "tries": [
+        {
+          "ok": false,
+          "errors": [
+            "out_of_circle: rect",
+            "out_of_circle: circle"
+          ],
+          "snapped": []
+        },
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-galette-des-rois",
+      "topic": "culture",
+      "object_fr": "une galette avec sa fève",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 355,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-greve-transports",
+      "topic": "work",
+      "object_fr": "une rame de métro à l'arrêt",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 532,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-marche-du-dimanche",
+      "topic": "food",
+      "object_fr": "un cageot de légumes",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 528,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-noel-au-marche",
+      "topic": "culture",
+      "object_fr": "un sapin de Noël",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 310,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-quatorze-juillet",
+      "topic": "culture",
+      "object_fr": "un feu d'artifice",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 637,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-rentree",
+      "topic": "culture",
+      "object_fr": "un cartable",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 336,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-soldes-d-hiver",
+      "topic": "city",
+      "object_fr": "un sac de courses",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 502,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-tour-de-france",
+      "topic": "sport",
+      "object_fr": "un maillot jaune",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 422,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-toussaint",
+      "topic": "culture",
+      "object_fr": "un pot de chrysanthèmes",
+      "outcome": "first",
+      "prompt_version": "pictogram-v1",
+      "bytes": 553,
+      "tries": [
+        {
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    }
+  ]
+}

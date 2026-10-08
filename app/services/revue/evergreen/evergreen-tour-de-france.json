@@ -1,0 +1,111 @@
+{
+  "id": "evergreen-tour-de-france",
+  "dossier_version": "revue-v1",
+  "week": "2026-W27",
+  "topic": "sport",
+  "title_fr": "Le Tour de France",
+  "summary_fr": "En juillet, le Tour de France traverse le pays pendant trois semaines. En 2026, il part de Barcelone, en Espagne. Des millions de spectateurs le regardent au bord des routes, gratuitement.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le Tour de France 2026 a lieu du 4 au 26 juillet.",
+      "quote": "se déroule du 4 au 26 juillet 2026",
+      "source_id": "tour_wikipedia_2026",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France_2026&oldid=238571015",
+      "published_at": "2026-08-12",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "En 2026, le Tour part de Barcelone, en Espagne.",
+      "quote": "le grand départ de l'édition 2026 sera donné à Barcelone",
+      "source_id": "tour_wikipedia_2026",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France_2026&oldid=238571015",
+      "published_at": "2026-08-12",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Plus de 12 millions de spectateurs regardent le Tour au bord des routes ; c'est un spectacle gratuit.",
+      "quote": "ils sont plus de 12 millions aujourd'hui aux bords des routes du Tour et plus de 3,5 milliards à suivre le Tour devant la télévision. Le Tour est, il est vrai, un spectacle gratuit",
+      "source_id": "tour_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France&oldid=239634758",
+      "published_at": "2026-09-19",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour ses critiques, le Tour est devenu trop commercial, et la télévision change la façon de courir.",
+      "quote": "Le tournant commercial pris par le Tour de France est toutefois critiqué. L'importance prise par la télévision bouleverse le déroulement de la course",
+      "source_id": "tour_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France&oldid=239634758",
+      "published_at": "2026-09-19",
+      "confidence": "reported",
+      "attributed_to": "des critiques du Tour, cités par Wikipédia"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Barcelone",
+      "kind": "place"
+    },
+    {
+      "name": "Tour de France",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Le parcours du Tour 2027 n'est pas encore connu.",
+    "Les sources ne disent pas combien une ville paie pour accueillir une étape."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Trois semaines de juillet : ce que le Tour change dans une ville-étape",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une fête populaire, ou une grande publicité ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "route_col_tour",
+      "name_fr": "Une route de col dans les Alpes en juillet",
+      "brief": "a winding mountain pass road with names painted in chalk on the asphalt, crash barriers, pine slopes and summer haze",
+      "known": false,
+      "geo": {
+        "lat": 45.0641,
+        "lon": 6.4078,
+        "precision": "exact",
+        "label_fr": "Col du Galibier, Alpes"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-07-04/2026-07-26",
+    "relevant_until": "2026-08-09"
+  },
+  "sources": [
+    {
+      "id": "tour_wikipedia_2026",
+      "name": "Wikipédia, « Tour de France 2026 »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France_2026&oldid=238571015",
+      "published_at": "2026-08-12"
+    },
+    {
+      "id": "tour_wikipedia",
+      "name": "Wikipédia, « Tour de France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Tour_de_France&oldid=239634758",
+      "published_at": "2026-09-19"
+    }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un maillot jaune"
+}

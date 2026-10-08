@@ -45,10 +45,22 @@ import {
   SpinnerToken,
   StopIcon,
   Surface,
+  useControlLanguage,
 } from '@/components/atelier-v2/ui';
+import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { pulseAppHaptic } from '@/lib/haptics';
+import type { PortraitMood } from '@/lib/onboarding-portraits';
+
+import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
 
 type Node = React.ReactNode;
+
+/* WP-82: every word below that is not the exercise itself comes from this
+   table, in the language `EpShell` (its AtelierV2Root) was given — the
+   learner's up to A2, French from B1. */
+export function useEpCopy(): EpreuveCopy {
+  return epreuveCopy(useControlLanguage());
+}
 
 /* ---------- icons (2.4–3px strokes, currentColor, like the system's own) ---------- */
 const ico = (stroke: number, children: React.ReactNode, fill = 'none') => (
@@ -71,9 +83,9 @@ export const EpIco: Record<string, React.ReactElement> = {
 /* The session root. `AtelierV2Root` carries the `.av2` scope (tokens, fonts,
    dark mode, the rounded form wells); `av2-screen` gives the design's
    header / body / footer column. */
-export function EpShell({ children, style, className = '', as = 'main' }: { children: Node; style?: React.CSSProperties; className?: string; as?: 'div' | 'main' | 'section' | 'article' }) {
+export function EpShell({ children, style, className = '', as = 'main', language }: { children: Node; style?: React.CSSProperties; className?: string; as?: 'div' | 'main' | 'section' | 'article'; language?: unknown }) {
   return (
-    <AtelierV2Root as={as} className={`ep-shell av2-screen ${className}`.trim()} style={style}>
+    <AtelierV2Root as={as} language={language} className={`ep-shell av2-screen ${className}`.trim()} style={style}>
       {children}
     </AtelierV2Root>
   );
@@ -86,9 +98,10 @@ export function EpStick({ groups, cap, full, labels }: { groups: EpStickGroup[];
   const total = groups.reduce((sum, g) => sum + Math.max(0, g.total), 0);
   const set = groups.reduce((sum, g) => sum + Math.max(0, Math.min(g.set, g.total)), 0);
   const caption = cap ? [cap[0], cap[1]].filter((part) => part !== '' && part != null).join(' ') : undefined;
+  const t = useEpCopy();
   return (
     <div className={'ep-stick' + (full ? ' ep-stick--full' : '')}>
-      <ProgressRule value={set} max={total} label="Progression de la séance" caption={caption || undefined} />
+      <ProgressRule value={set} max={total} label={t.progress_label} caption={caption || undefined} />
       {full && labels && labels.length > 0 && (
         <div className="ep-stick__concepts">
           {labels.map((l, i) => (
@@ -117,6 +130,8 @@ export function EpTopbar({
   finishDisabled,
   partial = false,
   run,
+  runSlot,
+  middle,
 }: {
   groups: EpStickGroup[];
   cap?: [string, string | number];
@@ -125,6 +140,10 @@ export function EpTopbar({
   finishDisabled?: boolean;
   partial?: boolean;
   run?: number;
+  /** WP-S6: La Forge replaces the machine rule and «0/20» with its name and «n of N». */
+  middle?: Node;
+  /** WP-S7: La Forge draws its combo (shape tokens) where the red «● n» sits. */
+  runSlot?: Node;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
@@ -143,27 +162,28 @@ export function EpTopbar({
   };
 
   const runCount = Math.max(0, Math.floor(Number(run) || 0));
+  const t = useEpCopy();
 
   return (
     <header className="av2-session__head ep-top">
-      <IconAction label="Fermer la séance" onClick={onClose}>
+      <IconAction label={t.close_session} onClick={onClose}>
         <CrossIcon size={16} />
       </IconAction>
-      <EpStick groups={groups} cap={cap} />
-      {runCount > 0 && (
-        <span className="ep-run" role="img" aria-label={`${runCount} ${runCount === 1 ? 'bonne réponse' : 'bonnes réponses'} de suite`}>
+      {middle ?? <EpStick groups={groups} cap={cap} />}
+      {runSlot ?? (runCount > 0 && (
+        <span className="ep-run" role="img" aria-label={fill(runCount === 1 ? t.run_one : t.run_many, { n: runCount })}>
           <span className="av2-shape av2-shape--dot ep-run__dot" aria-hidden="true" />
           {runCount}
         </span>
-      )}
+      ))}
       <button
         type="button"
         className={'av2-btn av2-btn--quiet av2-btn--inline ep-finish' + (confirming ? ' ep-finish--confirming' : '')}
         onClick={finish}
         disabled={finishDisabled}
-        title={partial ? 'Clore l’édition sur ce qui est déjà classé' : 'Clore l’édition'}
+        title={partial ? t.finish_title_partial : t.finish_title}
       >
-        {confirming ? 'Clore ici ?' : 'Terminer'}
+        {confirming ? t.finish_confirm : t.finish}
       </button>
     </header>
   );
@@ -171,6 +191,7 @@ export function EpTopbar({
 
 /* ---------- step label ---------- */
 export function EpEyebrow({ round, mode, i, n, retour }: { round: string; mode?: string; i: number | string; n: number | string; retour?: boolean }) {
+  const t = useEpCopy();
   return (
     <div className="ep-eyebrow">
       <p className="av2-label av2-label--story ep-eyebrow__step">
@@ -179,7 +200,7 @@ export function EpEyebrow({ round, mode, i, n, retour }: { round: string; mode?:
       {retour && (
         <span className="av2-chip av2-chip--quiet ep-retour">
           <ShapeToken kind="story" size="sm" />
-          <span>Retour · déjà corrigé</span>
+          <span>{t.retour}</span>
         </span>
       )}
     </div>
@@ -199,6 +220,7 @@ export function EpProvenance({ children }: { children: Node }) {
 /* Concept row: the motif, the concept name, and the design's "■ La règle" pill
    (yellow square = reward) that discloses the rule card. */
 export function EpConcept({ title, motif, askOn, onAsk }: { title: Node; motif?: Node; askOn?: boolean; onAsk?: () => void }) {
+  const t = useEpCopy();
   return (
     <div className="ep-concept">
       {motif}
@@ -210,7 +232,7 @@ export function EpConcept({ title, motif, askOn, onAsk }: { title: Node; motif?:
         aria-expanded={Boolean(askOn)}
         onClick={onAsk || (() => undefined)}
       >
-        La règle
+        {t.rule}
       </Chip>
     </div>
   );
@@ -248,8 +270,9 @@ export function EpMotif({ prims = [], done, canvas = 46 }: { prims?: MotifPrim[]
    own markup is restyled under `.ep-rule` below. The pill toggles the card,
    so the card carries no close control of its own. */
 export function EpRule({ lede, examples = [] }: { kicker?: string; lede?: Node; examples?: Node[]; onClose?: () => void }) {
+  const t = useEpCopy();
   return (
-    <Surface className="ep-rule" role="region" aria-label="La règle">
+    <Surface className="ep-rule" role="region" aria-label={t.rule}>
       <div className="ep-rule__body">{lede}</div>
       {examples.length > 0 && (
         <div className="ep-rule__anchor">
@@ -264,10 +287,12 @@ export function EpRule({ lede, examples = [] }: { kicker?: string; lede?: Node; 
 /* The one Garamond-italic headline of the screen; the cue (instruction or
    meaning) is the 15px body under it. A block child (the word-bank line) is
    legal because this is a div, not an h-element. */
-export function EpPrompt({ children, cue }: { children: Node; cue?: Node }) {
+export function EpPrompt({ children, cue, lang = 'fr' }: { children: Node; cue?: Node; lang?: string }) {
+  /* WP-S6: a headline that is a cue in the learner's language (a minimal
+     pair's ask, a production situation) is not French: `lang` follows it. */
   return (
     <div className="ep-prompt">
-      <div className="av2-headline ep-line" lang="fr">{children}</div>
+      <div className="av2-headline ep-line" lang={lang || undefined}>{children}</div>
       {cue && <p className="av2-body av2-body--lg ep-cue">{cue}</p>}
     </div>
   );
@@ -278,11 +303,13 @@ export function Blank({ children, set }: { children?: Node; set?: boolean }) {
 
 /* ---------- recognize / fill: the design's option cards ---------- */
 export function EpOpts({ children }: { children: Node }) {
-  return <div className="av2-choices ep-opts" role="group" aria-label="Choix">{children}</div>;
+  const t = useEpCopy();
+  return <div className="av2-choices ep-opts" role="group" aria-label={t.choices_label}>{children}</div>;
 }
-export function EpOpt({ chosen, right, wrong, children, onClick, disabled }: { chosen?: boolean; right?: boolean; wrong?: boolean; children: Node; onClick?: () => void; disabled?: boolean }) {
+export function EpOpt({ chosen, right, wrong, children, onClick, disabled, contentLang = 'fr' }: { chosen?: boolean; right?: boolean; wrong?: boolean; children: Node; onClick?: () => void; disabled?: boolean; contentLang?: string }) {
+  const t = useEpCopy();
   const state = right ? 'correct' : wrong ? 'wrong' : chosen ? 'selected' : 'idle';
-  const word = right ? 'juste' : wrong ? 'faux' : chosen ? 'choisi' : null;
+  const word = right ? t.sr_right : wrong ? t.sr_wrong : chosen ? t.sr_chosen : null;
   return (
     <button
       type="button"
@@ -292,7 +319,7 @@ export function EpOpt({ chosen, right, wrong, children, onClick, disabled }: { c
       onClick={onClick}
       disabled={disabled}
     >
-      <span lang="fr">{children}</span>
+      <span lang={contentLang || undefined}>{children}</span>
       <span className="av2-choice__dot" aria-hidden="true">
         {right ? <CheckIcon size={13} /> : null}
         {wrong ? <RepairIcon size={13} /> : null}
@@ -305,6 +332,7 @@ export function EpChoices({ children }: { children: Node }) { return <div classN
 
 /* ---------- movable type (word bank) → the system's word tiles ---------- */
 export function EpSlug({ children, spent, set, onClick, disabled }: { children: Node; spent?: boolean; set?: boolean; onClick?: () => void; disabled?: boolean }) {
+  const t = useEpCopy();
   return (
     <button
       type="button"
@@ -316,24 +344,26 @@ export function EpSlug({ children, spent, set, onClick, disabled }: { children: 
       disabled={disabled}
     >
       {children}
-      {spent && <span className="av2-sr"> · déjà placé</span>}
+      {spent && <span className="av2-sr"> · {t.sr_spent}</span>}
     </button>
   );
 }
 export function EpSetLine({ empty, children }: { empty?: boolean; children?: Node }) {
+  const t = useEpCopy();
   return (
-    <div className="av2-tiles__line ep-setline" data-empty={empty ? 'true' : undefined} aria-live="polite" aria-label="La ligne composée">
-      {empty && <span className="ep-setline__hint">Réglez la ligne ici</span>}
+    <div className="av2-tiles__line ep-setline" data-empty={empty ? 'true' : undefined} aria-live="polite" aria-label={t.setline_label}>
+      {empty && <span className="ep-setline__hint">{t.setline_hint}</span>}
       {children}
     </div>
   );
 }
 export function EpCase({ label, count, children }: { label: Node; count?: number | null; children?: Node }) {
+  const t = useEpCopy();
   return (
     <div className="ep-case">
       <div className="ep-case__cap">
         <span className="av2-label">{label}</span>
-        {count != null && <span className="av2-label">{count} sortes</span>}
+        {count != null && <span className="av2-label">{fill(t.case_count, { n: count })}</span>}
       </div>
       <div className="av2-tiles__bank">{children}</div>
     </div>
@@ -341,8 +371,9 @@ export function EpCase({ label, count, children }: { label: Node; count?: number
 }
 /* Classify: each label is a tile-group surface holding its "Placer ici" card. */
 export function EpCases({ boxes }: { boxes: { label: Node; slugs: Node[] }[] }) {
+  const t = useEpCopy();
   return (
-    <div className="ep-cases" role="group" aria-label="Classer">
+    <div className="ep-cases" role="group" aria-label={t.classify_label}>
       {boxes.map((b, i) => (
         <div className="av2-surface av2-surface--tile ep-casebox" key={i}>
           <p className="av2-label ep-casebox__label" lang="fr">{b.label}</p>
@@ -367,11 +398,12 @@ export function EpProduce({ typed, placeholder, caret = true }: { typed?: Node; 
 
 /* ---------- confidence tap ---------- */
 export function EpConfidence({ value, onPick }: { value?: 'sure' | 'unsure' | null; onPick?: (v: 'sure' | 'unsure') => void }) {
+  const t = useEpCopy();
   return (
-    <div className="ep-conf" role="group" aria-label="Votre confiance">
-      <span className="av2-label">Vous êtes…</span>
-      <Chip tone={value === 'sure' ? 'story' : 'plain'} aria-pressed={value === 'sure'} onClick={() => onPick?.('sure')}>sûr·e</Chip>
-      <Chip tone={value === 'unsure' ? 'story' : 'plain'} aria-pressed={value === 'unsure'} onClick={() => onPick?.('unsure')}>pas sûr·e</Chip>
+    <div className="ep-conf" role="group" aria-label={t.confidence_label}>
+      <span className="av2-label">{t.confidence_ask}</span>
+      <Chip tone={value === 'sure' ? 'story' : 'plain'} aria-pressed={value === 'sure'} onClick={() => onPick?.('sure')}>{t.sure}</Chip>
+      <Chip tone={value === 'unsure' ? 'story' : 'plain'} aria-pressed={value === 'unsure'} onClick={() => onPick?.('unsure')}>{t.unsure}</Chip>
     </div>
   );
 }
@@ -379,13 +411,32 @@ export function EpConfidence({ value, onPick }: { value?: 'sure' | 'unsure' | nu
 /* ---------- verdict band + the one primary ---------- */
 /* The footer's feedback band: round icon badge, Garamond verdict, 13px line.
    `tone` keeps its legacy values: "go" = correct, anything else = wrong. */
-export function EpVerdict({ tone = 'go', children, sub }: { tone?: string; children: Node; sub?: Node }) {
+export function EpVerdict({
+  tone = 'go',
+  children,
+  sub,
+  coach,
+  coachMood,
+}: {
+  tone?: string;
+  children: Node;
+  sub?: Node;
+  /** WP-S5: the rule's coach reacts in the badge's place (happy, cross, moved). */
+  coach?: { id: string; name: string } | null;
+  coachMood?: PortraitMood;
+}) {
   const correct = tone === 'go';
   return (
-    <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} role="status" aria-live="polite">
-      <span className="av2-feedback__icon" aria-hidden="true">
-        {correct ? <CheckIcon size={15} /> : <RepairIcon size={15} />}
-      </span>
+    <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} data-coach={coach?.id || undefined} role="status" aria-live="polite">
+      {coach ? (
+        <span className="ep-verdict__coach" data-mood={coachMood || 'neutral'}>
+          <CastPortrait characterId={coach.id} name={coach.name} mood={coachMood || 'neutral'} size="xs" ring />
+        </span>
+      ) : (
+        <span className="av2-feedback__icon" aria-hidden="true">
+          {correct ? <CheckIcon size={15} /> : <RepairIcon size={15} />}
+        </span>
+      )}
       <div className="ep-verdict__text">
         <p className="av2-feedback__title">{children}</p>
         {sub && <p className="av2-feedback__sub">{sub}</p>}
@@ -427,21 +478,23 @@ export function EpFix({ old, fix }: { old: Node; fix: Node }) {
   );
 }
 export function EpIns({ fix }: { fix: Node }) {
+  const t = useEpCopy();
   return (
     <span className="ep-ins">
       <span className="ep-ins__mark" aria-hidden="true">+</span>{' '}
       <span className="av2-correction__fix" lang="fr">{fix}</span>
-      <span className="av2-sr"> (à ajouter)</span>
+      <span className="av2-sr"> {t.sr_add}</span>
     </span>
   );
 }
 /* label-vs-label correction (classify): two stacked lines, because the chosen
    and correct category names run too long to sit on one. */
 export function EpLabelFix({ old, fix }: { old: Node; fix: Node }) {
+  const t = useEpCopy();
   return (
     <div className="ep-labelfix">
-      <p><span className="av2-label ep-labelfix__k">Classé</span><span className="av2-correction__span" lang="fr">{old}</span></p>
-      <p><span className="av2-label ep-labelfix__k">Correct</span><span className="av2-correction__fix" lang="fr">{fix}</span></p>
+      <p><span className="av2-label ep-labelfix__k">{t.labelfix_old}</span><span className="av2-correction__span" lang="fr">{old}</span></p>
+      <p><span className="av2-label ep-labelfix__k">{t.labelfix_new}</span><span className="av2-correction__fix" lang="fr">{fix}</span></p>
     </div>
   );
 }
@@ -481,11 +534,12 @@ export function EpRelecture({ status = 'pending', children, onRetry, retrying }:
   onRetry?: () => void;
   retrying?: boolean;
 }) {
+  const t = useEpCopy();
   if (status === 'pending') {
     return (
       <div className="ep-relecture" data-status="pending">
         <Notice tone="quiet" shape="story">
-          <p className="ep-relecture__line"><PendingIcon size={14} /> Relecture en cours…</p>
+          <p className="ep-relecture__line"><PendingIcon size={14} /> {t.relecture_pending}</p>
         </Notice>
       </div>
     );
@@ -494,10 +548,10 @@ export function EpRelecture({ status = 'pending', children, onRetry, retrying }:
     return (
       <div className="ep-relecture" data-status="failed">
         <Notice tone="alert" live="alert" shape="action">
-          <p>Relecture interrompue.</p>
+          <p>{t.relecture_failed}</p>
           {onRetry && (
             <button type="button" className="av2-btn av2-btn--secondary av2-btn--inline ep-relecture__again" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}>
-              {retrying ? 'Relance…' : 'Relancer'}
+              {retrying ? t.relaunching : t.relaunch}
             </button>
           )}
         </Notice>
@@ -515,10 +569,11 @@ export function EpRelecture({ status = 'pending', children, onRetry, retrying }:
 
 /* ---------- the correct moment ---------- */
 export function EpBonStamp({ struck }: { struck?: boolean }) {
+  const t = useEpCopy();
   return (
     <span className="av2-byline ep-bon-stamp" data-struck={struck ? 'true' : undefined}>
       <ShapeToken kind="done" size="sm" />
-      <span className="av2-label">Bon à tirer</span>
+      <span className="av2-label">{t.stamp_correct}</span>
     </span>
   );
 }
@@ -556,10 +611,11 @@ export function EpRepair({
   const good = typed.slice(0, okChars);
   const bad = errFrom == null ? '' : typed.slice(errFrom);
   const inputId = React.useId();
+  const t = useEpCopy();
   return (
     <Surface className="ep-repair" data-status={status || undefined}>
       <label className="av2-field">
-        <span className="av2-field__label">Recopie la correction</span>
+        <span className="av2-field__label">{t.repair_label}</span>
         {onChange ? (
           <input
             id={inputId}
@@ -570,7 +626,7 @@ export function EpRepair({
             // The correction is already visible in the card above; the
             // placeholder is a generic prompt, not the answer itself, so
             // retyping stays a real recall exercise instead of copying.
-            placeholder="Tapez la ligne corrigée…"
+            placeholder={t.repair_placeholder}
             disabled={disabled || status === 'ok'}
             aria-invalid={status === 'no' || undefined}
             autoCapitalize="sentences"
@@ -595,17 +651,17 @@ export function EpRepair({
           disabled={disabled || submitting || !typed.trim()}
           aria-busy={submitting || undefined}
         >
-          {submitting ? 'Comparaison…' : 'Comparer la ligne'}
+          {submitting ? t.repair_submitting : t.repair_submit}
         </button>
       )}
       {status === 'ok' && (
         <Notice tone="quiet" shape="done">
-          <p>Ligne recomposée · juste.</p>
+          <p>{t.repair_ok}</p>
         </Notice>
       )}
       {status === 'no' && (
         <Notice tone="alert" live="alert" shape="action">
-          <p>La lettre diffère · reprenez la ligne.</p>
+          <p>{t.repair_no}</p>
         </Notice>
       )}
     </Surface>
@@ -614,7 +670,8 @@ export function EpRepair({
 
 /* ---------- écouter + shadowing ---------- */
 export function EpListen({ fr, disabled, playing, onPlay }: { fr: Node; disabled?: boolean; playing?: boolean; onPlay?: () => void }) {
-  const label = disabled ? 'Voix indisponible' : playing ? 'Lecture…' : 'Écouter le modèle';
+  const t = useEpCopy();
+  const label = disabled ? t.listen_unavailable : playing ? t.listen_playing : t.listen;
   return (
     <div className="ep-listen" data-disabled={disabled ? 'true' : undefined} data-playing={playing ? 'true' : undefined}>
       <IconAction label={label} pressable onClick={onPlay} disabled={disabled} pending={playing}>
@@ -628,11 +685,12 @@ export function EpListen({ fr, disabled, playing, onPlay }: { fr: Node; disabled
   );
 }
 export function EpRecord({ status = 'idle', onToggle, disabled }: { status?: 'idle' | 'recording' | 'transcribing'; onToggle?: () => void; disabled?: boolean }) {
-  const st = ({ idle: 'Appuyez pour répéter', recording: 'Enregistrement… appuyez pour arrêter', transcribing: 'Transcription…' } as Record<string, string>)[status];
+  const t = useEpCopy();
+  const st = ({ idle: t.record_idle, recording: t.record_recording, transcribing: t.record_transcribing } as Record<string, string>)[status];
   return (
     <div className="ep-record" data-status={status}>
       <IconAction
-        label={status === 'recording' ? 'Arrêter l’enregistrement' : 'Enregistrer'}
+        label={status === 'recording' ? t.record_stop : t.record}
         tone={status === 'recording' ? 'recording' : 'action'}
         pressable
         pending={status === 'transcribing'}
@@ -652,36 +710,40 @@ export function EpRecord({ status = 'idle', onToggle, disabled }: { status?: 'id
    Yellow = reward: mastery ahead of schedule is the day's reward moment. */
 export function EpLock({ motif, title, retired = 0 }: { motif?: Node; title: Node; retired?: number }) {
   const count = Math.max(0, Math.round(retired));
+  const t = useEpCopy();
   return (
     <Surface tone="reward" shape="hero" className="ep-lock" role="status">
-      <p className="av2-label ep-lock__k">Maîtrise anticipée</p>
+      <p className="av2-label ep-lock__k">{t.lock_kicker}</p>
       {motif && <div className="ep-lock__plate">{motif}</div>}
       <h2 className="av2-headline av2-headline--title ep-lock__title" lang="fr">{title}</h2>
       <p className="av2-body av2-body--lg ep-lock__p">
         {count > 0
-          ? `Tout était propre — ${count} exercice${count === 1 ? '' : 's'} retiré${count === 1 ? '' : 's'} de l’édition du jour.`
-          : 'Tout était propre — cette épreuve se ferme en avance.'}
+          ? fill(count === 1 ? t.lock_retired_one : t.lock_retired_many, { n: count })
+          : t.lock_closed}
       </p>
       <span className="av2-byline ep-lock__promo">
         <ShapeToken kind="done" size="sm" />
-        <span className="av2-label">Classé sans faute</span>
+        <span className="av2-label">{t.lock_promo}</span>
       </span>
     </Surface>
   );
 }
 
 /* ---------- completion stamp ---------- */
-export function EpBatStage({ sub }: { sub?: Node }) {
+export function EpBatStage({ sub, title }: { sub?: Node; title?: Node }) {
   React.useEffect(() => {
     pulseAppHaptic('complete');
   }, []);
 
+  const t = useEpCopy();
+  /* The recap is a dialog over the séance, so this is the dialog's one
+     Garamond heading; the screen's own `h1` belongs to the séance (WP-20
+     D-11). WP-82: the kicker and the second «L’épreuve» headline are gone. */
   return (
     <div className="ep-bat-stage">
       <Surface shape="hero" className="ep-bat">
         <AtelierMark size={34} title="Atelier" />
-        <p className="av2-label ep-bat__d">Édition prête</p>
-        <h2 className="av2-headline av2-headline--screen ep-bat__m">Bon à tirer</h2>
+        <h2 className="av2-headline av2-headline--screen ep-bat__m">{title ?? t.recap_title}</h2>
         {sub && <p className="av2-body av2-body--lg ep-bat__sub">{sub}</p>}
       </Surface>
     </div>
@@ -689,13 +751,10 @@ export function EpBatStage({ sub }: { sub?: Node }) {
 }
 
 /* ---------- recap · l'épreuve ---------- */
+/* The date alone: one headline per screen, and it is EpBatStage's. */
 export function EpRecapHead({ date }: { date: Node }) {
   return (
     <div className="ep-recap-head">
-      <p className="av2-label ep-recap-head__folio">Atelier · La séance · L’épreuve</p>
-      {/* The recap is a dialog over the séance, so its title is the dialog's
-          heading; the screen's own `h1` belongs to the séance (WP-20 D-11). */}
-      <h2 className="av2-headline av2-headline--display ep-recap-head__title">L’épreuve</h2>
       <p className="av2-label ep-recap-head__date">{date}</p>
     </div>
   );
@@ -713,11 +772,12 @@ export function EpTally({ items }: { items: { n: Node; l: Node }[] }) {
   );
 }
 export function EpProof({ lines }: { lines: { fr: Node; tag: Node; re?: boolean }[] }) {
+  const t = useEpCopy();
   return (
     <ul className="ep-proof">
       {lines.map((l, i) => (
         <li className="ep-proof__pl" key={i} data-re={l.re ? 'true' : undefined}>
-          <ShapeToken kind={l.re ? 'action' : 'done'} size="sm" title={l.re ? 'Corrigé' : 'Juste'} />
+          <ShapeToken kind={l.re ? 'action' : 'done'} size="sm" title={l.re ? t.proof_fixed : t.proof_right} />
           <span className="av2-fr ep-proof__fr" lang="fr">{l.fr}</span>
           <span className="av2-label ep-proof__tag">{l.tag}</span>
         </li>
@@ -726,9 +786,10 @@ export function EpProof({ lines }: { lines: { fr: Node; tag: Node; re?: boolean 
   );
 }
 export function EpPhrase({ quote, by }: { quote: Node; by: Node }) {
+  const t = useEpCopy();
   return (
     <Surface tone="blue" className="ep-phrase">
-      <p className="av2-label ep-phrase__flag">À paraître demain</p>
+      <p className="av2-label ep-phrase__flag">{t.phrase_flag}</p>
       <p className="av2-headline av2-headline--title ep-phrase__q" lang="fr">« {quote} »</p>
       <p className="av2-label ep-phrase__by">{by}</p>
     </Surface>
@@ -744,10 +805,11 @@ export function EpToken() {
   );
 }
 export function EpMint({ note, tokens = 2 }: { note?: Node; tokens?: number }) {
+  const t = useEpCopy();
   return (
     <div className="ep-mint">
       <div className="ep-mint__tx">
-        <p className="av2-label ep-mint__b">Jetons frappés</p>
+        <p className="av2-label ep-mint__b">{t.mint_title}</p>
         {note && <p className="av2-body ep-mint__note">{note}</p>}
       </div>
       <div className="ep-mint__tokens">{Array.from({ length: tokens }).map((_, i) => <EpToken key={i} />)}</div>
@@ -755,9 +817,11 @@ export function EpMint({ note, tokens = 2 }: { note?: Node; tokens?: number }) {
   );
 }
 /* The seal: the Atelier mark on a round medallion — yellow (reward) when gilt. */
-export function EpSeal({ gilt, label = 'Atelier · Bon à tirer', stamp }: { gilt?: boolean; label?: string; stamp?: boolean }) {
+export function EpSeal({ gilt, label, stamp }: { gilt?: boolean; label?: string; stamp?: boolean }) {
+  const t = useEpCopy();
+  const name = label || t.seal_label;
   return (
-    <div className="ep-seal" data-gilt={gilt ? 'true' : undefined} data-stamp={stamp ? 'true' : undefined} role="img" aria-label={gilt ? `${label} · doré` : label}>
+    <div className="ep-seal" data-gilt={gilt ? 'true' : undefined} data-stamp={stamp ? 'true' : undefined} role="img" aria-label={gilt ? `${name} · ${t.seal_gilt}` : name}>
       <span className="ep-seal__med">
         <AtelierMark size={44} />
       </span>
@@ -769,13 +833,14 @@ export function EpSeal({ gilt, label = 'Atelier · Bon à tirer', stamp }: { gil
    show the standing figure alone instead. */
 export function EpStreak({ was, now, rules = 5, on = 4 }: { was: Node; now: Node; rules?: number; on?: number }) {
   const advanced = was !== now;
+  const t = useEpCopy();
   return (
     <Surface className="ep-streak" role="status">
       <div className="ep-streak__row">
         {advanced && <span className="ep-streak__n ep-streak__n--was">{was}</span>}
         {advanced && <span className="ep-streak__arw" aria-hidden="true">{EpIco.arrow}</span>}
         <span className="ep-streak__n">{now}</span>
-        <span className="av2-body ep-streak__l"><b>{now} {now === 1 ? 'jour' : 'jours'}</b> de suite — l’édition ne rate pas.</span>
+        <span className="av2-body ep-streak__l"><b>{fill(now === 1 ? t.streak_one : t.streak_many, { n: String(now) })}</b></span>
       </div>
       <span className="ep-streak__rules" aria-hidden="true">
         {Array.from({ length: rules }).map((_, i) => <i key={i} data-on={i < on ? 'true' : undefined}></i>)}
@@ -786,6 +851,7 @@ export function EpStreak({ was, now, rules = 5, on = 4 }: { was: Node; now: Node
 /* `label` is the whole call to action ("Réviser maintenant", "Ouvrir la
    mission"); with none, the single way out is home. */
 export function EpHandoff({ label, onRead, onHome }: { label?: Node; onRead?: () => void; onHome?: () => void }) {
+  const t = useEpCopy();
   return (
     <div className="ep-handoff">
       {label ? (
@@ -794,7 +860,7 @@ export function EpHandoff({ label, onRead, onHome }: { label?: Node; onRead?: ()
         </button>
       ) : null}
       <button type="button" className="av2-btn av2-btn--secondary" onClick={onHome}>
-        <span>Revenir à La Une</span>
+        <span>{t.back_home}</span>
       </button>
     </div>
   );
@@ -802,19 +868,20 @@ export function EpHandoff({ label, onRead, onHome }: { label?: Node; onRead?: ()
 
 /* ---------- system states ---------- */
 export function EpResume({ groups, cap, onResume }: { groups: EpStickGroup[]; cap?: [string, string | number]; onResume?: () => void }) {
+  const t = useEpCopy();
   return (
     <Surface shape="hero" className="ep-resume" role="status">
-      <p className="av2-label av2-label--story">Séance en cours</p>
-      <h2 className="av2-headline av2-headline--title">La ligne était à moitié réglée.</h2>
-      <p className="av2-body av2-body--lg">Reprenez là où le plomb attend.</p>
+      <p className="av2-label av2-label--story">{t.resume_kicker}</p>
+      <h2 className="av2-headline av2-headline--title">{t.resume_title}</h2>
       <div className="ep-resume__stick"><EpStick groups={groups} cap={cap} /></div>
       <button type="button" className="av2-btn av2-btn--primary" onClick={onResume}>
-        <span>Reprendre la composition</span>
+        <span>{t.resume_action}</span>
       </button>
     </Surface>
   );
 }
 export function EpSkeleton() {
+  const t = useEpCopy();
   return (
     <div className="ep-skel" role="status" aria-busy="true">
       <div className="av2-skeleton" style={{ width: '38%', height: 14 }} aria-hidden="true"></div>
@@ -822,19 +889,19 @@ export function EpSkeleton() {
       <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
       <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
       <div className="av2-skeleton" style={{ height: 56 }} aria-hidden="true"></div>
-      <p className="av2-label ep-skel__press">On compose la séance…</p>
+      <p className="av2-label ep-skel__press">{t.skeleton}</p>
     </div>
   );
 }
-export function EpNotice({ msg = 'La séance n’a pas pu être composée. Le texte est sauvegardé ; la rédaction réessaie.', onRetry }: { msg?: Node; onRetry?: () => void }) {
+export function EpNotice({ msg, onRetry }: { msg?: Node; onRetry?: () => void }) {
+  const t = useEpCopy();
   return (
     <div className="ep-notice">
       <Notice tone="alert" live="alert" shape="action">
-        <p className="av2-label">Avis de la rédaction</p>
-        <p>{msg}</p>
+        <p>{msg || t.notice_default}</p>
         {onRetry && (
           <button type="button" className="av2-btn av2-btn--secondary av2-btn--inline" onClick={onRetry}>
-            {EpIco.retry}<span>Réessayer</span>
+            {EpIco.retry}<span>{t.retry}</span>
           </button>
         )}
       </Notice>
@@ -879,7 +946,16 @@ export function LEpreuveStyles() {
 /* ============================================================
    HEADER — close · blue rule · red run · quiet Terminer
    ============================================================ */
-.av2 .ep-top { padding-top: calc(12px + env(safe-area-inset-top, 0px)); gap: 12px; }
+/* WP-S6: the top bar stays put while the sheet scrolls (paper face, no rule). */
+.av2 .ep-top {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-bottom: 10px;
+  gap: 12px;
+  background: var(--av2-paper);
+}
 .av2 .ep-top .ep-stick { flex: 1 1 auto; min-width: 0; }
 .av2 .ep-stick__concepts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
 .av2 .ep-stick__concept[data-state='done'] .av2-label { color: var(--av2-ink); }
@@ -1033,11 +1109,15 @@ export function LEpreuveStyles() {
    ============================================================ */
 .av2 .ep-setline { min-height: max(var(--av2-tap), 3.5rem); }
 .av2 .ep-setline__hint { color: var(--av2-muted); }
-.av2 .ep-setline .ep-slug { min-height: 36px; padding: 0.25rem 0.75rem; }
+.av2 .ep-setline .ep-slug { min-height: var(--av2-tap); padding: 0.25rem 0.75rem; } /* WP-83: a placed word is still a 44 px target */
+/* WP-S6: the av2 tile without strokes — a flat face on its own press, in
+   both themes; a placed word takes the blue face on the blue-deep press. */
+.av2 .ep-slug.av2-tile { border: 0; }
+.av2 .ep-slug.av2-tile[data-state='placed'] { background: var(--av2-blue); color: var(--av2-on-blue); box-shadow: 0 var(--av2-press-sm) 0 var(--av2-blue-deep); }
+.av2 .ep-slug.av2-tile[data-state='placed']:disabled { color: var(--av2-on-blue); }
 .av2 .ep-typecase { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .av2 .ep-slug[data-spent='true'] {
   background: var(--av2-line);
-  border-color: transparent;
   box-shadow: none;
   color: var(--av2-ink-2);
   text-decoration: line-through;
@@ -1135,10 +1215,16 @@ export function LEpreuveStyles() {
    FOOTER — tinted band, verdict, the one primary. Sticky above the
    app's bottom navigation; pushed to the bottom when the sheet is short.
    ============================================================ */
+/* WP-S6: the band bleeds to both edges. The «.av2 *» rule caps every box at 100 % of
+   its parent, which cut the bleeding band two gutters short on the right (and
+   its divider with it); the band's width is the parent plus both gutters. */
 .av2 .ep-foot {
   position: sticky;
   bottom: var(--phone-bottom-nav-space, 0px);
   z-index: 5;
+  max-width: none;
+  width: calc(100% + 2 * var(--av2-gutter));
+  box-sizing: border-box;
   margin: auto calc(-1 * var(--av2-gutter)) 0;
   padding-bottom: 16px;
   display: flex;
@@ -1149,17 +1235,24 @@ export function LEpreuveStyles() {
 .av2 .ep-foot[data-tone='wrong'] { background: var(--av2-tint-wrong); }
 .av2 .ep-foot .ep-verdict { margin: 0; }
 .av2 .ep-verdict__text { min-width: 0; }
+/* WP-S5: the rule's coach reacts where the badge sits (S6 owns the polish). */
+.av2 .ep-verdict__coach { flex: none; display: inline-flex; }
 .av2 .ep-bar { margin: 0; }
 
 /* ============================================================
    FEEDBACK BODY — corrections, relecture, repair, correct moment
    ============================================================ */
 .av2 .ep-feedback { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* WP-S6: the correction and its band stay together. As the sheet's last child
+   the feedback used to grow to the screen's height and push its band to the
+   bottom, so scrolling to the correction opened a large empty gap. */
+.av2 .ep-sheet > .ep-feedback:last-child { flex: 0 0 auto; }
+.av2 .ep-feedback > .ep-foot { margin-top: 0; }
 .av2 .ep-galley { margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .av2 .ep-galley__anchor { margin: 0; }
 .av2 .ep-gline { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.35; color: var(--av2-ink); overflow-wrap: anywhere; }
 .av2 .ep-gline .av2-correction__span { color: var(--av2-ink-2); }
-.av2 .ep-why { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-why { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); white-space: pre-line; }
 .av2 .ep-repair-hint { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
 .av2 .ep-repair-hint .av2-shape { margin-top: 5px; }
 .av2 .ep-labelfix { display: flex; flex-direction: column; gap: 4px; }
@@ -1240,6 +1333,7 @@ export function LEpreuveStyles() {
    NOTICE · SKELETON · RESUME
    ============================================================ */
 .av2 .ep-notice { min-width: 0; }
+.av2 .ep-say { margin: 0.5rem 0 0.25rem; min-width: 0; }
 .av2 .ep-notice .av2-btn { gap: 6px; }
 .av2 .ep-skel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .av2 .ep-skel__press { margin: 4px 0 0; }

@@ -49,6 +49,14 @@ export type JourneyCopyKey =
   | 'voice_retry'
   | 'use_text'
   | 'use_voice'
+  | 'speak'
+  | 'voice_hint'
+  | 'voice_transcript_label'
+  | 'voice_transcript_hint'
+  | 'voice_permission'
+  | 'voice_unsupported'
+  | 'voice_offline'
+  | 'voice_empty'
   | 'empty_answer'
   | 'still_grading'
   | 'try_grading_again'
@@ -63,6 +71,8 @@ export type JourneyCopyKey =
   | 'stale_from_earlier_day'
   | 'correct'
   | 'supported'
+  // WP-89 (W7): a partial answer given WITHOUT help — never «with help».
+  | 'nearly'
   | 'wrong'
   | 'correction'
   | 'reply_authored_note'
@@ -85,20 +95,140 @@ export type JourneyCopyKey =
   | 'capability_state_with_support'
   | 'capability_state_independent_once'
   | 'capability_state_used_again_later'
+  // WP-33 — register and pragmatics. The dimension is scored by the same
+  // rubric as the three capabilities above, so it reuses their state labels
+  // and adds only the honest fourth answer: not assessed.
+  | 'capability_register'
+  | 'capability_state_not_evaluated'
+  | 'correction_register'
+  // WP-36 — the character asks for the repair before it corrects. The question
+  // itself is the character's French line and arrives on the wire; these are
+  // only the labels the app puts around it.
+  | 'correction_self_repair'
+  | 'self_repair_hint'
   | 'evidence_recognized'
   | 'evidence_produced_supported'
   | 'evidence_produced_independent'
   | 'evidence_not_yet'
   | 'evidence_unscored'
   | 'next_focus'
-  | 'duration_not_measured'
   | 'more_practice'
   | 'more_practice_note'
+  // WP-S4 «La Forge»: the entry after the day (Léger, Régulier) and the step
+  // folded into the day (Soutenu, Intensif).
+  | 'forge_today'
+  | 'forge_eyebrow'
+  | 'forge_body'
+  | 'forge_back'
+  | 'forge_done'
+  | 'forge_later'
+  // WP-93: the READ step — «Relecture», «Coulisses». `{name}` is the cast member.
+  | 'read_relecture'
+  | 'read_coulisses'
+  | 'read_coulisses_anon'
+  | 'read_writing'
+  | 'read_writing_anon'
+  | 'read_optional'
+  | 'read_unavailable'
+  | 'read_skip'
   // WP-16 / D-0: the recap's pointer into the «Plus de pratique» drill loop
   // for one target the scene actually practised.
   | 'practice_this'
   | 'done_today'
-  | 'nothing_offered';
+  | 'done_review'
+  | 'nothing_offered'
+  // WP-32 «Écouter d'abord» — the four-stage listening cycle. Chrome only:
+  // the two guesses, the lines and the phrase to retain are French content
+  // derived from the scene itself, and are not translated.
+  | 'listen_first_label'
+  | 'listen_first_hint'
+  | 'listen_first_on'
+  | 'listen_first_off'
+  | 'radio_stage_predire'
+  | 'radio_stage_ecouter'
+  | 'radio_stage_verifier'
+  | 'radio_stage_retenir'
+  | 'radio_predire_body'
+  | 'radio_predire_native'
+  | 'radio_guess_label'
+  | 'radio_guess_selected'
+  | 'radio_listen_action'
+  | 'radio_ecouter_body'
+  | 'radio_words_hidden'
+  | 'radio_preparing'
+  | 'radio_play'
+  | 'radio_replay'
+  | 'radio_stop'
+  | 'radio_playing'
+  | 'radio_verify_action'
+  | 'radio_verifier_body'
+  | 'radio_reveal'
+  | 'radio_reveal_all'
+  | 'radio_guess_confirmed'
+  | 'radio_guess_other'
+  | 'radio_guess_unresolved'
+  | 'radio_evidence_label'
+  | 'radio_retenir_body'
+  | 'radio_retain_none'
+  | 'radio_truncated'
+  | 'radio_audio_disabled'
+  | 'radio_audio_failed'
+  | 'radio_audio_offline'
+  | 'radio_audio_unsupported'
+  | 'radio_audio_empty'
+  | 'radio_read_instead'
+  // -- WP-66: day shapes and the three formats brought in from the Séance ----
+  | 'word_bank_spare_chips'
+  | 'transform_source_label'
+  | 'classify_label'
+  | 'listen_first_day'
+  | 'chapter_recap_label'
+  | 'register_label'
+  | 'letter_from'
+  | 'letter_task'
+  | 'letter_reply_label'
+  // WP-82: the cast intro's heading, in the chrome language.
+  | 'cast_title'
+  // WP-89 «Le fil»: the respond step as one conversation. `exchange_of` is the
+  // screen-reader text of the exchange tokens ({n}, {total}).
+  | 'exchange_of'
+  | 'thread_label'
+  | 'thread_you'
+  | 'thread_note_open'
+  // WP-91 «Les voix»: the face is the play button; words, dictation and
+  // listen-and-tap speak. `voice_listen_to` takes {name}.
+  | 'voice_listen_to'
+  | 'voice_listen_line'
+  | 'word_listen'
+  | 'dictation_play'
+  | 'dictation_replay'
+  | 'dictation_stop'
+  | 'dictation_loading'
+  | 'dictation_unavailable'
+  | 'dictation_label'
+  | 'dictation_placeholder'
+  | 'listen_unavailable_read'
+  // WP-103 T3: a drill's header names the drill; a scene-cut item says where from.
+  | 'drill_recall'
+  | 'drill_rule'
+  | 'drill_forge'
+  | 'drill_from_scene'
+  // WP-103 T7: «À vous — répondez à {name}» under the latest line; `exchange_of`
+  // supplies «Échange {n} sur {total}», `exchange_last` the last one.
+  | 'exchange_your_turn_to'
+  | 'exchange_your_turn'
+  | 'exchange_last'
+  // WP-103 T6: the corrected form under the learner's line, and the closing
+  // verdict's list of what the conversation corrected.
+  | 'thread_fix_sr'
+  | 'thread_note_close'
+  | 'conversation_fixes'
+  // WP-103 T2: «Afficher le texte» at every stage of the listening cycle, and
+  // the question the learner is listening for.
+  | 'radio_text_show'
+  | 'radio_text_hide'
+  | 'radio_task_label'
+  | 'radio_task_question';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -137,6 +267,14 @@ const EN: CopyTable = {
   voice_retry: 'Record again',
   use_text: 'Type instead',
   use_voice: 'Speak instead',
+  speak: 'Speak',
+  voice_hint: 'Say your answer out loud. We turn it into text — nothing here judges your pronunciation.',
+  voice_transcript_label: 'What we heard',
+  voice_transcript_hint: 'Correct anything we got wrong, then send.',
+  voice_permission: 'The microphone is not allowed. You can answer in writing; to speak, allow the microphone in your device settings.',
+  voice_unsupported: 'This device cannot record here. Answer in writing.',
+  voice_offline: 'Without a connection there is no transcription. Answer in writing, or try again later.',
+  voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
   still_grading: 'Still being checked. Nothing was scored yet.',
   try_grading_again: 'Check again',
@@ -151,6 +289,7 @@ const EN: CopyTable = {
   stale_from_earlier_day: 'This was saved on an earlier day.',
   correct: 'Correct',
   supported: 'Correct, with help',
+  nearly: 'Nearly — one more thing next time',
   wrong: 'Not yet',
   correction: 'One thing to fix',
   reply_authored_note: 'Written reply from the script',
@@ -174,18 +313,113 @@ const EN: CopyTable = {
   capability_state_with_support: 'with help',
   capability_state_independent_once: 'on your own, once',
   capability_state_used_again_later: 'used again later',
+  capability_register: 'Speaking to the right person the right way',
+  capability_state_not_evaluated: 'not assessed',
+  correction_register: 'Who you are speaking to',
+  correction_self_repair: 'The form you were just asked about',
+  self_repair_hint: 'Say it again with the form you mean.',
   evidence_recognized: 'recognised',
   evidence_produced_supported: 'used, with help',
   evidence_produced_independent: 'used on your own',
   evidence_not_yet: 'not yet',
   evidence_unscored: 'not checked',
   next_focus: 'Worth another look',
-  duration_not_measured: 'Duration is not measured yet.',
   more_practice: 'More practice',
+  forge_today: 'Forge today’s rule',
+  forge_eyebrow: 'Forge · {n} min',
+  forge_body: 'A short, mixed block on today’s rule and the rules that are due. Then back to the scene.',
+  forge_back: 'Back to the scene',
+  forge_done: 'Forged. The rule is a little more yours.',
+  forge_later: 'Not now',
+  read_relecture: 'Re-read · yesterday’s page',
+  read_coulisses: 'Behind the scenes · {name}’s evening',
+  read_coulisses_anon: 'Behind the scenes · the same evening',
+  read_writing: '{name}’s evening is being written…',
+  read_writing_anon: 'This page is being written…',
+  read_optional: 'Optional — read it when it’s ready, or go on.',
+  read_unavailable: 'This page won’t be ready today. The story goes on without it.',
+  read_skip: 'Skip this page',
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
-  done_today: 'Today’s scene is done.',
+  done_today: 'Done for today',
+  done_review: 'Look again',
   nothing_offered: 'No scene is available right now.',
+  listen_first_label: 'Listen first',
+  listen_first_hint: 'Guess what happens, listen without the text, then check. Harder, and the part that trains listening.',
+  listen_first_on: 'Listen first',
+  listen_first_off: 'Read instead',
+  radio_stage_predire: 'Guess',
+  radio_stage_ecouter: 'Listen',
+  radio_stage_verifier: 'Check',
+  radio_stage_retenir: 'Keep',
+  radio_predire_native: 'You hear the scene first without the text. The text comes afterwards, line by line.',
+  radio_predire_body: 'Before you listen: how does it end? A wrong guess costs nothing.',
+  radio_guess_label: 'Your guess',
+  radio_guess_selected: 'chosen',
+  radio_listen_action: 'Listen',
+  radio_ecouter_body: 'The words stay hidden. You can replay any line as often as you like.',
+  radio_words_hidden: 'Text hidden',
+  radio_preparing: 'Preparing the audio',
+  radio_play: 'Play the episode',
+  radio_replay: 'Play again',
+  radio_stop: 'Stop',
+  radio_playing: 'Playing',
+  radio_verify_action: 'Check my guess',
+  radio_verifier_body: 'Tap a line to see what was said.',
+  radio_reveal: 'Show this line',
+  radio_reveal_all: 'Show every line',
+  radio_guess_confirmed: 'Your guess held.',
+  radio_guess_other: 'It went the other way.',
+  radio_guess_unresolved: 'The scene does not settle it either way, so neither guess is wrong.',
+  radio_evidence_label: 'What settles it',
+  radio_retenir_body: 'One thing to listen for tomorrow:',
+  radio_retain_none: 'Nothing to single out in this episode.',
+  radio_truncated: 'A long episode: only the first part was recorded.',
+  radio_audio_disabled: 'Audio is not switched on for this account. The scene is here to read.',
+  radio_audio_failed: 'The audio could not be prepared. The scene is here to read, and nothing is lost.',
+  radio_audio_offline: 'Without a connection there is no audio. Read the scene, or try again later.',
+  radio_audio_unsupported: 'This device will not play audio. The scene is here to read.',
+  radio_audio_empty: 'This scene has nothing to say aloud. Read it instead.',
+  radio_read_instead: 'Read the scene',
+  word_bank_spare_chips: 'Not every word belongs in the answer.',
+  transform_source_label: 'The sentence to rewrite',
+  classify_label: 'Choose one',
+  listen_first_day: 'Listen first — the text comes after.',
+  chapter_recap_label: 'Where the chapter leaves things',
+  register_label: 'How you addressed them',
+  letter_from: 'Letter from {name}',
+  letter_task: 'Write your answer to this letter.',
+  letter_reply_label: 'Your reply',
+  cast_title: 'The characters',
+  exchange_of: 'Exchange {n} of {total}',
+  thread_label: 'The conversation',
+  thread_you: 'You',
+  thread_note_open: 'Show the correction',
+  voice_listen_to: 'Listen to {name}',
+  voice_listen_line: 'Listen to this line',
+  word_listen: 'Hear the word',
+  dictation_play: 'Listen',
+  dictation_replay: 'Listen again',
+  dictation_stop: 'Stop',
+  dictation_loading: 'Getting the recording…',
+  dictation_unavailable: 'The recording can’t be played right now.',
+  dictation_label: 'What you hear',
+  dictation_placeholder: 'Write what you hear, in French',
+  listen_unavailable_read: 'No sound right now — read the line instead.',
+  drill_recall: 'Recall',
+  drill_rule: 'Rule',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'From the scene',
+  exchange_your_turn_to: 'Your turn — reply to {name}',
+  exchange_your_turn: 'Your turn',
+  exchange_last: 'Last exchange',
+  thread_fix_sr: 'Corrected form',
+  thread_note_close: 'Hide the explanation',
+  conversation_fixes: 'What was corrected',
+  radio_text_show: 'Show the text',
+  radio_text_hide: 'Hide the text',
+  radio_task_label: 'Your listening question',
+  radio_task_question: 'How does it end?',
 };
 
 const DE: CopyTable = {
@@ -223,6 +457,14 @@ const DE: CopyTable = {
   voice_retry: 'Neu aufnehmen',
   use_text: 'Lieber tippen',
   use_voice: 'Lieber sprechen',
+  speak: 'Sprechen',
+  voice_hint: 'Sag deine Antwort laut. Wir schreiben sie mit — deine Aussprache wird hier nicht bewertet.',
+  voice_transcript_label: 'Das haben wir gehört',
+  voice_transcript_hint: 'Korrigiere, was falsch verstanden wurde, und schick es ab.',
+  voice_permission: 'Das Mikrofon ist nicht erlaubt. Du kannst schriftlich antworten; zum Sprechen erlaube das Mikrofon in den Geräteeinstellungen.',
+  voice_unsupported: 'Dieses Gerät kann hier nicht aufnehmen. Antworte schriftlich.',
+  voice_offline: 'Ohne Verbindung gibt es keine Transkription. Antworte schriftlich oder versuche es später.',
+  voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
   still_grading: 'Wird noch geprüft. Es wurde noch nichts bewertet.',
   try_grading_again: 'Erneut prüfen',
@@ -237,6 +479,7 @@ const DE: CopyTable = {
   stale_from_earlier_day: 'Das wurde an einem früheren Tag gespeichert.',
   correct: 'Richtig',
   supported: 'Richtig, mit Hilfe',
+  nearly: 'Fast — beim nächsten Mal noch eine Sache',
   wrong: 'Noch nicht',
   correction: 'Eine Sache zum Korrigieren',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
@@ -260,18 +503,113 @@ const DE: CopyTable = {
   capability_state_with_support: 'mit Hilfe',
   capability_state_independent_once: 'einmal selbständig',
   capability_state_used_again_later: 'später erneut genutzt',
+  capability_register: 'Die passende Anrede treffen',
+  capability_state_not_evaluated: 'nicht bewertet',
+  correction_register: 'Mit wem du sprichst',
+  correction_self_repair: 'Die Form, nach der eben gefragt wurde',
+  self_repair_hint: 'Sag es noch einmal mit der Form, die du meinst.',
   evidence_recognized: 'erkannt',
   evidence_produced_supported: 'mit Hilfe benutzt',
   evidence_produced_independent: 'selbständig benutzt',
   evidence_not_yet: 'noch nicht',
   evidence_unscored: 'nicht geprüft',
   next_focus: 'Noch einmal ansehen',
-  duration_not_measured: 'Die Dauer wird noch nicht gemessen.',
   more_practice: 'Mehr üben',
+  forge_today: 'Regel des Tages schmieden',
+  forge_eyebrow: 'Schmiede · {n} Min.',
+  forge_body: 'Ein kurzer, gemischter Block zur Regel von heute und zu fälligen Regeln. Danach geht die Szene weiter.',
+  forge_back: 'Zurück zur Szene',
+  forge_done: 'Geschmiedet. Die Regel sitzt ein Stück besser.',
+  forge_later: 'Nicht jetzt',
+  read_relecture: 'Nochmal lesen · die Seite von gestern',
+  read_coulisses: 'Hinter den Kulissen · der Abend von {name}',
+  read_coulisses_anon: 'Hinter den Kulissen · derselbe Abend',
+  read_writing: 'Der Abend von {name} wird geschrieben…',
+  read_writing_anon: 'Diese Seite wird geschrieben…',
+  read_optional: 'Freiwillig — lies sie, wenn sie fertig ist, oder mach weiter.',
+  read_unavailable: 'Diese Seite wird heute nicht fertig. Die Geschichte geht ohne sie weiter.',
+  read_skip: 'Seite überspringen',
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
-  done_today: 'Die heutige Szene ist erledigt.',
+  done_today: 'Für heute erledigt',
+  done_review: 'Noch einmal ansehen',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
+  listen_first_label: 'Zuerst hören',
+  listen_first_hint: 'Rate, wie es ausgeht, hör ohne Text zu, prüfe dann nach. Schwerer — und genau der Teil, der Hörverstehen übt.',
+  listen_first_on: 'Zuerst hören',
+  listen_first_off: 'Lieber lesen',
+  radio_stage_predire: 'Raten',
+  radio_stage_ecouter: 'Hören',
+  radio_stage_verifier: 'Prüfen',
+  radio_stage_retenir: 'Merken',
+  radio_predire_native: 'Du hörst die Szene zuerst ohne Text. Der Text erscheint danach, Zeile für Zeile.',
+  radio_predire_body: 'Bevor du hörst: Wie geht es aus? Falsch raten kostet nichts.',
+  radio_guess_label: 'Deine Vermutung',
+  radio_guess_selected: 'gewählt',
+  radio_listen_action: 'Hören',
+  radio_ecouter_body: 'Der Text bleibt verdeckt. Jede Zeile kannst du so oft abspielen, wie du willst.',
+  radio_words_hidden: 'Text verdeckt',
+  radio_preparing: 'Audio wird vorbereitet',
+  radio_play: 'Folge abspielen',
+  radio_replay: 'Nochmal abspielen',
+  radio_stop: 'Stopp',
+  radio_playing: 'Läuft',
+  radio_verify_action: 'Vermutung prüfen',
+  radio_verifier_body: 'Tippe auf eine Zeile, um zu sehen, was gesagt wurde.',
+  radio_reveal: 'Diese Zeile zeigen',
+  radio_reveal_all: 'Alle Zeilen zeigen',
+  radio_guess_confirmed: 'Deine Vermutung hat gestimmt.',
+  radio_guess_other: 'Es kam anders.',
+  radio_guess_unresolved: 'Die Szene entscheidet es nicht — also ist keine der beiden Vermutungen falsch.',
+  radio_evidence_label: 'Woran man es sieht',
+  radio_retenir_body: 'Eine Sache, auf die du morgen hören kannst:',
+  radio_retain_none: 'In dieser Folge gibt es nichts hervorzuheben.',
+  radio_truncated: 'Lange Folge: nur der erste Teil wurde aufgenommen.',
+  radio_audio_disabled: 'Audio ist für dieses Konto nicht eingeschaltet. Die Szene steht zum Lesen bereit.',
+  radio_audio_failed: 'Das Audio konnte nicht vorbereitet werden. Die Szene steht zum Lesen bereit, nichts ist verloren.',
+  radio_audio_offline: 'Ohne Verbindung gibt es kein Audio. Lies die Szene oder versuche es später.',
+  radio_audio_unsupported: 'Dieses Gerät spielt kein Audio ab. Die Szene steht zum Lesen bereit.',
+  radio_audio_empty: 'In dieser Szene gibt es nichts vorzulesen. Lies sie stattdessen.',
+  radio_read_instead: 'Szene lesen',
+  word_bank_spare_chips: 'Nicht jedes Wort gehört in die Antwort.',
+  transform_source_label: 'Der Satz, den du umschreibst',
+  classify_label: 'Wähle eins',
+  listen_first_day: 'Erst hören — den Text gibt es danach.',
+  chapter_recap_label: 'Wo das Kapitel endet',
+  register_label: 'Wie du sie angesprochen hast',
+  letter_from: 'Brief von {name}',
+  letter_task: 'Schreib deine Antwort auf diesen Brief.',
+  letter_reply_label: 'Deine Antwort',
+  cast_title: 'Die Figuren',
+  exchange_of: 'Austausch {n} von {total}',
+  thread_label: 'Das Gespräch',
+  thread_you: 'Du',
+  thread_note_open: 'Korrektur zeigen',
+  voice_listen_to: '{name} anhören',
+  voice_listen_line: 'Diesen Satz anhören',
+  word_listen: 'Wort anhören',
+  dictation_play: 'Anhören',
+  dictation_replay: 'Noch einmal anhören',
+  dictation_stop: 'Stopp',
+  dictation_loading: 'Die Aufnahme wird geladen…',
+  dictation_unavailable: 'Die Aufnahme lässt sich gerade nicht abspielen.',
+  dictation_label: 'Was du hörst',
+  dictation_placeholder: 'Schreib auf Französisch, was du hörst',
+  listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
+  drill_recall: 'Wiederholung',
+  drill_rule: 'Regel',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'Aus der Szene',
+  exchange_your_turn_to: 'Du bist dran — antworte {name}',
+  exchange_your_turn: 'Du bist dran',
+  exchange_last: 'Letzter Austausch',
+  thread_fix_sr: 'Korrigierte Form',
+  thread_note_close: 'Erklärung verbergen',
+  conversation_fixes: 'Was korrigiert wurde',
+  radio_text_show: 'Text anzeigen',
+  radio_text_hide: 'Text verbergen',
+  radio_task_label: 'Deine Hörfrage',
+  radio_task_question: 'Wie geht es aus?',
 };
 
 const FR: CopyTable = {
@@ -309,6 +647,14 @@ const FR: CopyTable = {
   voice_retry: 'Réenregistrer',
   use_text: 'Écrire plutôt',
   use_voice: 'Parler plutôt',
+  speak: 'Parler',
+  voice_hint: 'Dites votre réponse à voix haute. Nous la transcrivons — rien ici ne juge votre prononciation.',
+  voice_transcript_label: 'Ce que nous avons entendu',
+  voice_transcript_hint: 'Corrigez ce qui a été mal compris, puis envoyez.',
+  voice_permission: 'Le micro n’est pas autorisé. Vous pouvez répondre par écrit ; pour parler, autorisez le micro dans les réglages de l’appareil.',
+  voice_unsupported: 'Cet appareil ne peut pas enregistrer ici. Répondez par écrit.',
+  voice_offline: 'Sans connexion, pas de transcription. Répondez par écrit, ou réessayez plus tard.',
+  voice_empty: 'Rien n’a été enregistré. C’est toujours votre tour.',
   empty_answer: 'Écrivez d’abord quelque chose.',
   still_grading: 'Toujours en cours de vérification. Rien n’a encore été évalué.',
   try_grading_again: 'Vérifier à nouveau',
@@ -323,6 +669,7 @@ const FR: CopyTable = {
   stale_from_earlier_day: 'Ceci a été enregistré un jour précédent.',
   correct: 'Correct',
   supported: 'Correct, avec aide',
+  nearly: 'Presque — encore un détail la prochaine fois',
   wrong: 'Pas encore',
   correction: 'Une chose à corriger',
   reply_authored_note: 'Réponse écrite, tirée du scénario',
@@ -346,24 +693,135 @@ const FR: CopyTable = {
   capability_state_with_support: 'avec aide',
   capability_state_independent_once: 'seul, une fois',
   capability_state_used_again_later: 'réutilisé plus tard',
+  capability_register: 'S’adresser comme il faut',
+  capability_state_not_evaluated: 'non évalué',
+  correction_register: 'À qui vous parlez',
+  correction_self_repair: 'La forme qu’on venait de vous demander',
+  self_repair_hint: 'Redites-le avec la forme que vous visez.',
   evidence_recognized: 'reconnu',
   evidence_produced_supported: 'utilisé avec aide',
   evidence_produced_independent: 'utilisé seul',
   evidence_not_yet: 'pas encore',
   evidence_unscored: 'non évalué',
   next_focus: 'À revoir',
-  duration_not_measured: 'La durée n’est pas encore mesurée.',
   more_practice: 'Plus d’exercices',
+  forge_today: 'Forger la règle du jour',
+  forge_eyebrow: 'Forge · {n} min',
+  forge_body: 'Un bloc court et mêlé sur la règle du jour et les règles à revoir. Puis on revient à la scène.',
+  forge_back: 'Retour à la scène',
+  forge_done: 'Forgée. La règle est un peu plus à vous.',
+  forge_later: 'Pas maintenant',
+  read_relecture: 'Relecture · la page d’hier',
+  read_coulisses: 'Coulisses · la soirée de {name}',
+  read_coulisses_anon: 'Coulisses · la même soirée',
+  read_writing: 'La soirée de {name} s’écrit…',
+  read_writing_anon: 'Cette page s’écrit…',
+  read_optional: 'Facultatif — lisez-la quand elle sera prête, ou continuez.',
+  read_unavailable: 'Cette page ne sera pas prête aujourd’hui. L’histoire continue sans elle.',
+  read_skip: 'Passer cette page',
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
-  done_today: 'La scène du jour est terminée.',
+  done_today: 'Journée bouclée',
+  done_review: 'Revoir',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
+  listen_first_label: 'Écouter d’abord',
+  listen_first_hint: 'Devinez ce qui arrive, écoutez sans le texte, puis vérifiez. Plus difficile — et c’est cette partie-là qui travaille l’écoute.',
+  listen_first_on: 'Écouter d’abord',
+  listen_first_off: 'Lire plutôt',
+  radio_stage_predire: 'Prédire',
+  radio_stage_ecouter: 'Écouter',
+  radio_stage_verifier: 'Vérifier',
+  radio_stage_retenir: 'Retenir',
+  radio_predire_native: 'Vous écoutez la scène sans le texte. Le texte vient après, réplique par réplique.',
+  radio_predire_body: 'Avant d’écouter : comment ça finit ? Se tromper ne coûte rien.',
+  radio_guess_label: 'Votre prédiction',
+  radio_guess_selected: 'choisi',
+  radio_listen_action: 'Écouter',
+  radio_ecouter_body: 'Le texte reste caché. Vous pouvez réécouter chaque réplique autant de fois que vous voulez.',
+  radio_words_hidden: 'Texte caché',
+  radio_preparing: 'Préparation de l’audio',
+  radio_play: 'Écouter l’épisode',
+  radio_replay: 'Réécouter',
+  radio_stop: 'Arrêter',
+  radio_playing: 'Lecture en cours',
+  radio_verify_action: 'Vérifier ma prédiction',
+  radio_verifier_body: 'Touchez une réplique pour voir ce qui a été dit.',
+  radio_reveal: 'Afficher cette réplique',
+  radio_reveal_all: 'Afficher toutes les répliques',
+  radio_guess_confirmed: 'Votre prédiction se vérifie.',
+  radio_guess_other: 'Cela s’est passé autrement.',
+  radio_guess_unresolved: 'La scène ne tranche pas : aucune des deux prédictions n’est fausse.',
+  radio_evidence_label: 'Ce qui le montre',
+  radio_retenir_body: 'Une chose à écouter demain :',
+  radio_retain_none: 'Rien à retenir en particulier dans cet épisode.',
+  radio_truncated: 'Épisode long : seule la première partie a été enregistrée.',
+  radio_audio_disabled: 'L’audio n’est pas activé sur ce compte. La scène est là, à lire.',
+  radio_audio_failed: 'L’audio n’a pas pu être préparé. La scène est là, à lire : rien n’est perdu.',
+  radio_audio_offline: 'Sans connexion, pas d’audio. Lisez la scène, ou réessayez plus tard.',
+  radio_audio_unsupported: 'Cet appareil ne lit pas l’audio. La scène est là, à lire.',
+  radio_audio_empty: 'Cette scène n’a rien à dire à voix haute. Lisez-la.',
+  radio_read_instead: 'Lire la scène',
+  word_bank_spare_chips: 'Tous les mots ne servent pas.',
+  transform_source_label: 'La phrase à réécrire',
+  classify_label: 'Choisissez',
+  listen_first_day: 'On écoute d’abord — le texte vient après.',
+  chapter_recap_label: 'Où en est le chapitre',
+  register_label: 'Tu ou vous',
+  letter_from: 'Lettre de {name}',
+  letter_task: 'Écris ta réponse à cette lettre.',
+  letter_reply_label: 'Votre réponse',
+  cast_title: 'Les personnages',
+  exchange_of: 'Échange {n} sur {total}',
+  thread_label: 'La conversation',
+  thread_you: 'Vous',
+  thread_note_open: 'Voir la correction',
+  voice_listen_to: 'Écouter {name}',
+  voice_listen_line: 'Écouter la réplique',
+  word_listen: 'Écouter le mot',
+  dictation_play: 'Écouter',
+  dictation_replay: 'Réécouter',
+  dictation_stop: 'Arrêter',
+  dictation_loading: 'L’enregistrement arrive…',
+  dictation_unavailable: 'L’enregistrement ne peut pas être lu pour l’instant.',
+  dictation_label: 'Ce que vous entendez',
+  dictation_placeholder: 'Écrivez ce que vous entendez',
+  listen_unavailable_read: 'Pas de son pour l’instant : lisez la phrase.',
+  drill_recall: 'Rappel',
+  drill_rule: 'Règle',
+  drill_forge: 'La Forge',
+  drill_from_scene: 'Dans la scène',
+  exchange_your_turn_to: 'À vous — répondez à {name}',
+  exchange_your_turn: 'À vous',
+  exchange_last: 'Dernier échange',
+  thread_fix_sr: 'Forme corrigée',
+  thread_note_close: 'Masquer l’explication',
+  conversation_fixes: 'Ce qui a été corrigé',
+  radio_text_show: 'Afficher le texte',
+  radio_text_hide: 'Masquer le texte',
+  radio_task_label: 'Votre question d’écoute',
+  radio_task_question: 'Comment ça finit ?',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };
 
+/**
+ * WP-82 — one language rule (supersedes WP-43's «chrome is French everywhere»).
+ *
+ * Up to A2 every key in this table is the learner's own language: the
+ * instructions, the status, the verdicts and the buttons beside them, so no
+ * card ever mixes two chrome languages («German bodies with French buttons»,
+ * L7). French on these screens is the *content* — `*_fr` from the server.
+ * From B1 the chrome is French: callers resolve the language with
+ * `chromeLanguage(control, level)` (`lib/language-rule.ts`) and pass `'fr'`.
+ */
 export function journeyCopy(language: ControlLanguage | null | undefined): CopyTable {
   return TABLES[(language ?? 'en') as ControlLanguage] ?? EN;
 }
+
+/**
+ * WP-69 (L6/L7) — status cards speak one language. Kept as a name for the
+ * callers that already used it; under WP-82 it is the same table.
+ */
+export const journeyStatusCopy = journeyCopy;
 
 export type JourneyCopy = CopyTable;

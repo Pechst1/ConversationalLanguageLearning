@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+    <title>Kiosque test — ville</title>
+    <link>https://kiosque.test/ville</link>
+    <item>
+      <title>Paris ouvre trois nouvelles pistes cyclables</title>
+      <link>https://kiosque.test/ville/pistes-cyclables.html</link>
+      <description>La mairie inaugure des pistes sur les grands boulevards de l'est parisien.</description>
+      <pubDate>Tue, 29 Sep 2026 11:00:00 +0200</pubDate>
+    </item>
+    <item>
+      <title>La ligne 14 du métro relie Paris à l'aéroport d'Orly</title>
+      <link>https://kiosque.test/ville/metro-ligne-14.html</link>
+      <description>Le prolongement de la ligne 14 met l'aéroport à vingt-cinq minutes du centre de Paris.</description>
+      <pubDate>Fri, 02 Oct 2026 08:00:00 +0200</pubDate>
+    </item>
+    <item>
+      <title>Une fusillade dans le centre de Lyon</title>
+      <link>https://kiosque.test/ville/fait-divers.html</link>
+      <description>Une fusillade a eu lieu dans la nuit dans le centre de la ville.</description>
+      <pubDate>Wed, 30 Sep 2026 06:00:00 +0200</pubDate>
+    </item>
+    <item>
+      <title>City council approves the new budget for the year</title>
+      <link>https://kiosque.test/ville/english-item.html</link>
+      <description>The council voted on Tuesday for the new budget of the city and its districts.</description>
+      <pubDate>Tue, 29 Sep 2026 10:00:00 +0200</pubDate>
+    </item>
+</channel></rss>

@@ -1,0 +1,2377 @@
+{
+  "id": "t5",
+  "number": 5,
+  "title_fr": "Berlin",
+  "intent": "Lila has a one-year residency in Berlin: a studio, a grant and a date, 9 January. She wants it. She tells you, or you find out first, and which one depends on what you did with the photograph in T4. On the romance path, what she tells you and what you say back are also about the two of you. On the friendship path they are about courage.\n\nLila never asks permission, and the learner can never stop her. What the learner's words change is how she goes, what she carries, and what they are to each other afterwards. The two halves of the owner's line are the whole scene: «je te veux ici» and «je veux ça pour toi». The best reply says both badly.",
+  "state_in": [
+    "Days 33–34 · Sunday 13 and Monday 14 December; her deadline is the 15th. Each variant runs as Day A, then a mid-point hook, then Day B, which picks up the same night.",
+    "After T4. The quartier knows about the fire (fire_photo = wall), or pretends not to (margaux). The flat's debt is real. Marin is still pushing «Le Mistral à nous», and his plan of the back room has a square labelled ATELIER DE LILA: her afternoon painting classes for children are the co-op's daytime income.",
+    "The generated days since T2 have seeded: the disastrous improvised dinner in Odile's kitchen (an omelette, the smoke alarm, Lila laughing so hard she has to sit on the floor); getting caught on the building's roof by M. Marchand; an argument and a hesitant apology. Each of these left a line the learner chose to say. Together those lines set s1.lila_path.",
+    "The residency. It is fictional: Künstlerhaus am Kanal, Berlin. Lila must confirm by 15 December. Her train from Gare de l'Est leaves on 8 January.",
+    "Variant selection: A · «Elle te le dit» if s1.fire_photo = wall.",
+    "Variant selection: B · «Tu le découvres» if s1.fire_photo = margaux. It takes place in Odile's flat if s1.lila_has_key, and otherwise in Marin and Lila's flat (see B, end note).",
+    "What the conversation means, A · she tells you. Romance path: You are the first person she tells because you are the one person whose «reste» she is afraid of hearing. Telling you is the confession she won't make. Friendship path: You are her accomplice, and she needs one to face Marin. The scene is about courage.",
+    "What the conversation means, B · you discover. Romance path: You learn she is leaving before you have learned what you are to each other. The hurt is out of proportion, and both of you notice. The quarrel is the confession. Friendship path: A quarrel between two accomplices who both kept a secret. It ends in a truce and a private joke."
+  ],
+  "flags_read": ["s1.fire_photo", "s1.lila_has_key", "s1.lila_path", "user.usual_order", "s1.berlin_reading"],
+  "days": [
+    {
+      "day": "a",
+      "variant": "elle_te_le_dit",
+      "when": {"s1.fire_photo": "wall"},
+      "story_date_fr": "dimanche 13 décembre",
+      "title_fr": "Berlin",
+      "location_id": "le_mistral",
+      "minutes": 7,
+      "can_do": {
+        "en": "Say something true about how you feel; react to someone's news.",
+        "de": "Etwas Wahres darüber sagen, was du fühlst; auf die Neuigkeit eines anderen reagieren.",
+        "fr": "Dire quelque chose de vrai sur ce qu'on ressent ; réagir à la nouvelle de quelqu'un."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "partir",
+          "lemma": "partir",
+          "gloss": {"en": "to leave", "de": "abreisen, gehen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Reste",
+          "lemma": "rester",
+          "gloss": {"en": "to stay", "de": "bleiben"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "content pour toi",
+          "lemma": "content",
+          "gloss": {"en": "happy for you", "de": "froh für dich"},
+          "part_of_speech": "adjective"
+        },
+        {
+          "surface_fr": "je ne veux pas",
+          "lemma": "vouloir",
+          "gloss": {"en": "I don't want", "de": "ich will nicht"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "pour toi",
+          "lemma": "pour",
+          "gloss": {"en": "for you", "de": "für dich"},
+          "part_of_speech": "preposition"
+        },
+        {
+          "surface_fr": "rêve",
+          "lemma": "rêve",
+          "gloss": {"en": "dream", "de": "Traum"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "Berlin",
+          "lemma": "Berlin",
+          "gloss": {"en": "Berlin", "de": "Berlin"},
+          "part_of_speech": "proper noun"
+        },
+        {
+          "surface_fr": "un an",
+          "lemma": "an",
+          "gloss": {"en": "a year", "de": "ein Jahr"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "va.a.p1",
+          "visual": "Le Mistral, Sunday, closing time. Chairs going up on tables. Gus, already in his coat, stands in the middle of the room with a list; Marin stacks chairs and listens patiently.",
+          "location_id": "le_mistral",
+          "in_frame": ["augustin_de_roncourt", "marin_leveque"],
+          "lines": [
+            {
+              "who": "augustin_de_roncourt",
+              "say": {
+                "a2": "La boulangère m'a rendu la monnaie… sans parler. Sans parler, Marin !",
+                "b1": "La boulangère m'a rendu la monnaie en silence. En silence, Marin ! Depuis samedi dernier, je suis un paria.",
+                "native": {
+                  "en": "The baker gave me my change… without speaking. Without speaking, Marin!",
+                  "de": "Die Bäckerin hat mir das Wechselgeld gegeben… ohne zu sprechen. Ohne zu sprechen, Marin!"
+                }
+              }
+            },
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "C'est peut-être un signe.",
+                "native": {"en": "Maybe it's a sign.", "de": "Vielleicht ist das ein Zeichen."}
+              }
+            },
+            {
+              "who": "augustin_de_roncourt",
+              "say": {"a2": "Un signe de quoi ?", "native": {"en": "A sign of what?", "de": "Ein Zeichen wofür?"}}
+            },
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Je sais pas encore.",
+                "native": {"en": "I don't know yet.", "de": "Das weiß ich noch nicht."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.a.p2",
+          "visual": "Margaux puts her ring of keys on the zinc in front of Toi and Lila, then shrugs on her coat. Gus and Marin are already at the door.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "toi", "lila_bonnet", "augustin_de_roncourt", "marin_leveque"],
+          "lines": [
+            {
+              "who": "margaux_barman",
+              "direction": "not a question",
+              "say": {"a2": "Vous fermez.", "native": {"en": "You lock up.", "de": "Ihr schließt ab."}}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.a.p3",
+          "visual": "Toi reaches for Toi's coat on the hook. Lila, behind Toi, has not taken hers.",
+          "location_id": "le_mistral",
+          "in_frame": ["toi", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Reste. Deux minutes.",
+                "native": {"en": "Stay. Two minutes.", "de": "Bleib. Zwei Minuten."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.a.p4",
+          "visual": "Lila behind the zinc, badly working the machine Margaux never lets anyone touch; steam everywhere. She puts a cup in front of Toi: Toi's usual, exactly right (from user.usual_order). She has been paying attention for weeks.",
+          "location_id": "le_mistral",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "va.a.p5",
+          "visual": "She slides a printed letter across the zinc. Its letterhead is legible: Künstlerhaus am Kanal · Berlin. Toi is reading, from behind; she watches Toi read.",
+          "location_id": "le_mistral",
+          "in_frame": ["lila_bonnet", "toi"],
+          "diegetic": ["Künstlerhaus am Kanal · Berlin"],
+          "lines": [
+            {
+              "who": "letter",
+              "say": {
+                "a2": "Madame Bonnet, nous sommes heureux de vous proposer une résidence d'un an à Berlin, à partir du 9 janvier. Merci de confirmer avant le 15 décembre.",
+                "b1": "Madame Bonnet, nous avons le plaisir de vous proposer une résidence d'un an, atelier et bourse compris, à partir du 9 janvier. Nous vous remercions de confirmer avant le 15 décembre.",
+                "native": {
+                  "en": "Madame Bonnet, we are pleased to offer you a one-year residency in Berlin, starting on 9 January. Please confirm before 15 December.",
+                  "de": "Sehr geehrte Frau Bonnet, wir freuen uns, Ihnen einen einjährigen Aufenthalt in Berlin ab dem 9. Januar anzubieten. Bitte bestätigen Sie vor dem 15. Dezember."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.a.p6",
+          "visual": "Close. Lila with both hands round her own cup, not drinking.",
+          "location_id": "le_mistral",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Je vais dire oui. Tu es la première personne à le savoir. Même pas Marin.",
+                "b1": "Je compte accepter. Tu es la première personne à qui je le dis. Même Marin ne le sait pas.",
+                "native": {
+                  "en": "I'm going to say yes. You're the first person to know. Not even Marin.",
+                  "de": "Ich werde Ja sagen. Du bist die erste Person, die es weiß. Nicht mal Marin."
+                }
+              }
+            }
+          ],
+          "note": "Agreement note. «La première personne» agrees with «personne», which is feminine whatever the learner's gender, so the line holds for every learner. Avoid the shorter «tu es la première / le premier»."
+        },
+        {
+          "kind": "turn",
+          "id": "va.a.turn1",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "va.a.p7",
+            "visual": "Across the zinc, Lila facing Toi, and Toi's empty balloon.",
+            "location_id": "le_mistral",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Dis-moi un truc vrai. Pas un truc gentil.",
+                  "b1": "Dis-moi quelque chose de vrai. Pas quelque chose de gentil.",
+                  "native": {
+                    "en": "Tell me something true. Not something nice.",
+                    "de": "Sag mir etwas Wahres. Nichts Nettes."
+                  }
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Tell Lila what you actually feel about her going, for her and for yourself. She has asked you not to be polite.",
+            "de": "Sag Lila, was du wirklich darüber fühlst, dass sie geht – für sie und für dich selbst. Sie hat dich gebeten, nicht höflich zu sein.",
+            "fr": "Dis à Lila ce que tu ressens vraiment quand elle part, pour elle et pour toi. Elle t'a demandé de ne pas faire de politesses."
+          },
+          "listens_for": "What the learner actually feels about her going. Gate 4: wanting her here, even the clumsy «je veux toi ici», moves toward romance; «je veux ça pour toi» or honest support moves toward friendship. Quick polite cheering and deflection move nothing.",
+          "fallback": "d",
+          "gate": 4,
+          "sets": {"s1.berlin_told_how": "told"},
+          "replies": [
+            {
+              "id": "a",
+              "label": "Quick support",
+              "means": "The learner cheers her on quickly, without saying what they feel: she must go.",
+              "examples": ["C'est génial ! Tu dois partir !"],
+              "repeat_once": true,
+              "sets_if": [{"when": {"path": "romance"}, "sets": {"lila.heard_the_true_thing": false}}],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.a.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Tu dis ça vite.",
+                        "b1": "Tu dis ça bien vite. Essaie encore.",
+                        "native": {"en": "You say that quickly.", "de": "Das sagst du schnell."}
+                      }
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "when": {"band": "a1a2"},
+                      "say": {
+                        "a2": "Trop vite. Encore une fois ?",
+                        "native": {"en": "Too quickly. One more time?", "de": "Zu schnell. Noch einmal?"}
+                      }
+                    }
+                  ],
+                  "note": "This is not a punishment. It is a second chance to say the real thing, and the exchange repeats once. If the learner repeats the same line, she accepts it: «D'accord. Merci.», with a small smile that doesn't reach her eyes. Friendship is unaffected. On the romance path it sets lila.heard_the_true_thing = false."
+                }
+              ],
+              "again": [
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.a.again",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "direction": "a small smile that doesn't reach her eyes",
+                      "say": {
+                        "a2": "D'accord. Merci.",
+                        "native": {"en": "All right. Thanks.", "de": "In Ordnung. Danke."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Honest want",
+              "means": "The learner says they do not want her to go.",
+              "examples": ["Je ne veux pas que tu partes."],
+              "path": "romance",
+              "sets_if": [{"when": {"path": "romance"}, "sets": {"lila.heard_the_true_thing": true}}],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.b.r1",
+                  "visual": "She puts the cup down.",
+                  "location_id": "le_mistral",
+                  "in_frame": ["lila_bonnet"],
+                  "silence": true,
+                  "when": {"path": "romance"}
+                },
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.b.r2",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Voilà. Ça, c'est vrai.",
+                        "b1": "Voilà. Ça, c'est un truc vrai.",
+                        "native": {"en": "There. That one is true.", "de": "So. Das ist wahr."}
+                      }
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Je pars quand même. Je crois.",
+                        "b1": "Je vais partir quand même. Je crois.",
+                        "native": {"en": "I'm going anyway. I think.", "de": "Ich gehe trotzdem. Glaube ich."}
+                      }
+                    }
+                  ],
+                  "when": {"path": "romance"}
+                },
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.b.r3",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Moi non plus, je ne veux pas partir d'ici. C'est pour ça que je dois partir.",
+                        "b1": "Moi non plus, je n'ai pas envie de partir d'ici. C'est justement pour ça qu'il le faut.",
+                        "native": {
+                          "en": "I don't want to leave here either. That's why I have to leave.",
+                          "de": "Ich will hier auch nicht weg. Genau deshalb muss ich gehen."
+                        }
+                      }
+                    }
+                  ],
+                  "when": {"path": ["friendship", "open"]}
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply that means both: wanting her here, and wanting Berlin for her.",
+              "examples": ["Je veux toi… ici. Et je veux Berlin… pour toi. Les deux. C'est bête."],
+              "clumsy": true,
+              "path": "romance",
+              "sets_if": [{"when": {"path": "romance"}, "sets": {"lila.heard_the_true_thing": true}}],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.c.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Non. C'est pas bête. C'est ma phrase. Je la cherche depuis un mois.",
+                        "b1": "Ce n'est pas bête. C'est exactement ma phrase. Ça fait un mois que je la cherche.",
+                        "native": {
+                          "en": "No. It's not stupid. It's my sentence. I've been looking for it for a month.",
+                          "de": "Nein. Das ist nicht dumm. Das ist mein Satz. Ich suche ihn seit einem Monat."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "This is the best reply in the season's central relationship, and it is grammatically wrong («je veux toi»). The margin offers «je te veux ici» and «je veux que tu sois ici». The plot keeps what was meant. On the romance path this line alone can carry T7's kiss."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Deflection",
+              "means": "The learner deflects to Marin and the café instead of answering.",
+              "examples": ["Et Marin ? Et le Mistral ?"],
+              "repeat_once": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.a.turn1.d.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Voilà. Tout le monde pense à Marin. Moi, je t'ai demandé à toi.",
+                        "b1": "Et voilà. Tout le monde pense d'abord à Marin. C'est à toi que je pose la question.",
+                        "native": {
+                          "en": "There it is. Everyone thinks about Marin. I asked you.",
+                          "de": "Da haben wir's. Alle denken an Marin. Ich habe dich gefragt."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "The exchange repeats once. The deflection is exactly the group habit Lila is trying to leave."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "id": "va.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "va.a.p7b",
+            "visual": "Lila puts her cup down and walks round the end of the zinc, past Toi, to the door of the back room. She stops with her hand on the handle and looks back.",
+            "location_id": "le_mistral",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Viens. Je dois te montrer quelque chose.",
+                  "b1": "Viens. Il y a quelque chose que je dois te montrer.",
+                  "native": {"en": "Come. I have to show you something.", "de": "Komm. Ich muss dir etwas zeigen."}
+                }
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Dans l'arrière-salle, sous un drap, Lila cache quelque chose depuis des mois. À suivre…",
+                  "b1": "Derrière cette porte, sous un drap, Lila garde quelque chose depuis des mois. À suivre…",
+                  "native": {
+                    "en": "In the back room, under a sheet, Lila has been hiding something for months. To be continued…",
+                    "de": "Im Hinterzimmer versteckt Lila seit Monaten etwas unter einem Tuch. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "elle_te_le_dit",
+      "when": {"s1.fire_photo": "wall"},
+      "story_date_fr": "lundi 14 décembre",
+      "title_fr": "Le portrait",
+      "location_id": "mistral_back_room",
+      "minutes": 8,
+      "previously": [
+        {"ref": "va.a.p5", "label": "La lettre de Berlin."},
+        {"ref": "va.a.p7", "label": "« Dis-moi un truc vrai. » Ta réponse, en bulle."},
+        {"ref": "va.a.p7b", "label": "La main de Lila sur la porte."}
+      ],
+      "can_do": {
+        "en": "Say something true about how you feel; react to someone's news.",
+        "de": "Etwas Wahres darüber sagen, was du fühlst; auf die Neuigkeit eines anderen reagieren.",
+        "fr": "Dire quelque chose de vrai sur ce qu'on ressent ; réagir à la nouvelle de quelqu'un."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "partir",
+          "lemma": "partir",
+          "gloss": {"en": "to leave", "de": "abreisen, gehen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Reste",
+          "lemma": "rester",
+          "gloss": {"en": "to stay", "de": "bleiben"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "content pour toi",
+          "lemma": "content",
+          "gloss": {"en": "happy for you", "de": "froh für dich"},
+          "part_of_speech": "adjective"
+        },
+        {
+          "surface_fr": "je ne veux pas",
+          "lemma": "vouloir",
+          "gloss": {"en": "I don't want", "de": "ich will nicht"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "pour toi",
+          "lemma": "pour",
+          "gloss": {"en": "for you", "de": "für dich"},
+          "part_of_speech": "preposition"
+        },
+        {
+          "surface_fr": "rêve",
+          "lemma": "rêve",
+          "gloss": {"en": "dream", "de": "Traum"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "Berlin",
+          "lemma": "Berlin",
+          "gloss": {"en": "Berlin", "de": "Berlin"},
+          "part_of_speech": "proper noun"
+        },
+        {
+          "surface_fr": "un an",
+          "lemma": "an",
+          "gloss": {"en": "a year", "de": "ein Jahr"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "turn",
+          "id": "va.b.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "va.b.p8",
+            "visual": "The back room of Le Mistral, rebuilt after the fire, with new plaster and a slightly different white. Under a sheet on an easel is Lila's group portrait, which Margaux lets her keep here. She pulls the sheet off. The booth: Marin mid-laugh, Gus mid-gesture, Romy with her microphone lowered, Margaux behind the zinc, and a new face at the zinc, Odile, painted from a Polaroid. In the bottom corner is a figure seen from behind, in a slightly-too-heavy coat.",
+            "location_id": "mistral_back_room",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "say": {
+                  "a2": "Là, dans le coin. C'est toi. De dos. Je n'ai pas encore trouvé ton visage.",
+                  "b1": "Là, dans le coin, c'est toi. De dos. Ton visage, je ne l'ai pas encore trouvé.",
+                  "native": {
+                    "en": "There, in the corner. That's you. From behind. I haven't found your face yet.",
+                    "de": "Da, in der Ecke. Das bist du. Von hinten. Dein Gesicht habe ich noch nicht gefunden."
+                  }
+                }
+              },
+              {
+                "who": "lila_bonnet",
+                "when": {"path": "romance"},
+                "say": {
+                  "a2": "Tu crois que je peux le trouver… de loin ?",
+                  "b1": "Tu crois qu'on peut trouver un visage de loin ?",
+                  "native": {
+                    "en": "Do you think I can find it… from far away?",
+                    "de": "Glaubst du, ich kann es finden… aus der Ferne?"
+                  }
+                }
+              },
+              {
+                "who": "lila_bonnet",
+                "when": {"path": ["friendship", "open"]},
+                "say": {
+                  "a2": "Je le finis à Berlin. Tu m'envoies des photos de toi. Des photos ridicules, s'il te plaît.",
+                  "b1": "Je le finirai à Berlin. Tu m'enverras des photos de toi, les plus ridicules possible.",
+                  "native": {
+                    "en": "I'll finish it in Berlin. You send me photos of yourself. Ridiculous photos, please.",
+                    "de": "Ich beende es in Berlin. Du schickst mir Fotos von dir. Lächerliche Fotos, bitte."
+                  }
+                }
+              }
+            ],
+            "balloon": true,
+            "note": "This is the app's rule of never showing Toi's face, turned into a line of the story. It comes back in T8."
+          },
+          "task": {
+            "en": "Answer her about the face, in any way at all.",
+            "de": "Antworte ihr auf die Sache mit dem Gesicht, wie du willst.",
+            "fr": "Réponds-lui à propos du visage, comme tu veux."
+          },
+          "listens_for": "Any answer about the face. Replies might be «Reviens le finir.», «Non. Il faut être ici.» or a joke («Fais-moi beau / belle.»).",
+          "fallback": "be_here",
+          "replies": [
+            {
+              "id": "come_back",
+              "label": "Come back and finish it",
+              "means": "The learner asks her to come back and finish the portrait.",
+              "examples": ["Reviens le finir."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.b.turn2.come_back.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "direction": "a real smile",
+                      "say": {
+                        "a2": "C'est une invitation ou un ordre ?",
+                        "native": {
+                          "en": "Is that an invitation or an order?",
+                          "de": "Ist das eine Einladung oder ein Befehl?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "be_here",
+              "label": "You have to be here",
+              "means": "The learner says the portrait needs her to be here.",
+              "examples": ["Non. Il faut être ici."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.b.turn2.be_here.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Peut-être. Ou peut-être que je te vois mieux de loin.",
+                        "native": {
+                          "en": "Maybe. Or maybe I see you better from far away.",
+                          "de": "Vielleicht. Oder vielleicht sehe ich dich aus der Ferne besser."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "joke",
+              "label": "A joke",
+              "means": "The learner answers with a joke.",
+              "examples": ["Fais-moi beau / belle."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "va.b.turn2.joke.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Impossible. Je peins la vérité, moi.",
+                        "native": {"en": "Impossible. I paint the truth.", "de": "Unmöglich. Ich male die Wahrheit."}
+                      }
+                    }
+                  ],
+                  "note": "Agreement. «Fais-moi beau / belle» is the learner's own choice. Lila's replies are agreement-free."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.p9",
+          "visual": "Lila throws the sheet back over the portrait. She stands in the doorway of the back room, coat now on, looking at the plan pinned by the door, Marin's plan, with its square labelled «ATELIER DE LILA».",
+          "location_id": "mistral_back_room",
+          "in_frame": ["lila_bonnet"],
+          "diegetic": ["ATELIER DE LILA"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Il faut le dire à Marin. Ce soir. Tu viens avec moi ?",
+                "b1": "Il faut que je le dise à Marin. Ce soir. Tu viens avec moi ?",
+                "native": {
+                  "en": "We have to tell Marin. Tonight. Are you coming with me?",
+                  "de": "Wir müssen es Marin sagen. Heute Abend. Kommst du mit?"
+                }
+              }
+            }
+          ],
+          "note": "Going is support, but it entangles you in Marin's disappointment, and his plan is the one your flat could save. Staying away respects her, but she walks alone. On the romance path, staying away also reads as «this is not mine to hold yet». On the friendship path, going with her is the accomplice's instinct."
+        },
+        {
+          "kind": "solve",
+          "id": "va.b.choix",
+          "mechanic": "choix",
+          "to": "lila_bonnet",
+          "prompt": {
+            "a2": "Il faut le dire à Marin. Ce soir. Tu viens avec moi ?",
+            "b1": "Il faut que je le dise à Marin. Ce soir. Tu viens avec moi ?",
+            "native": {
+              "en": "We have to tell Marin. Tonight. Are you coming with me?",
+              "de": "Wir müssen es Marin sagen. Heute Abend. Kommst du mit?"
+            }
+          },
+          "task": {
+            "en": "Choose whether you go with Lila to tell Marin.",
+            "de": "Wähle, ob du mit Lila gehst, um es Marin zu sagen.",
+            "fr": "Choisis si tu vas avec Lila le dire à Marin."
+          },
+          "flag": "s1.went_with_lila_to_marin",
+          "default": "oui",
+          "options": [
+            {
+              "id": "oui",
+              "label": {"a2": "Oui, je viens", "native": {"en": "Yes, I'm coming", "de": "Ja, ich komme mit"}},
+              "subtitle": {
+                "a2": "Marin saura que tu savais.",
+                "native": {"en": "Marin will know you knew.", "de": "Marin wird wissen, dass du es wusstest."}
+              },
+              "sets": {"s1.went_with_lila_to_marin": true}
+            },
+            {
+              "id": "non",
+              "label": {
+                "a2": "Non. C'est à toi.",
+                "native": {"en": "No. It's yours to do.", "de": "Nein. Das musst du tun."}
+              },
+              "subtitle": {"a2": "Lila y va seule.", "native": {"en": "Lila goes alone.", "de": "Lila geht allein."}},
+              "sets": {"s1.went_with_lila_to_marin": false}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.r1.romance",
+          "visual": "The canal at one in the morning. Two figures walk under the plane trees, the locks black and still. Toi's shoulder and Lila's nearly touch. She has paint on her thumb from the portrait; so does Toi, on the back of the hand. At the foot of her building she wipes the ochre off Toi's hand with her thumb, and the thumb stays a second too long.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true,
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.r1.romance2",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Pas maintenant.", "native": {"en": "Not now.", "de": "Nicht jetzt."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Mais pas jamais.", "native": {"en": "But not never.", "de": "Aber nicht nie."}}
+            }
+          ],
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.r1.friendship",
+          "visual": "The canal at one in the morning. Two figures walk under the plane trees, the locks black and still. Lila rehearses what she will say to Marin and makes Toi play Marin. She does his voice when Toi won't.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "\"C'est un signe, ça !\"",
+                "native": {"en": "\"That's a sign, that is!\"", "de": "„Das ist ein Zeichen!“"}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "direction": "she laughs",
+              "say": {
+                "a2": "Il va pleurer. Il va pleurer et me faire une crêpe.",
+                "native": {
+                  "en": "He's going to cry. He's going to cry and make me a crêpe.",
+                  "de": "Er wird weinen. Er wird weinen und mir einen Crêpe machen."
+                }
+              }
+            }
+          ],
+          "when": {"path": ["friendship", "open"]}
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.r2.went",
+          "visual": "The door opens. Marin in his socks, delighted to see both of them, holding up the co-op folder like a trophy.",
+          "location_id": "marin_lila_flat",
+          "in_frame": ["marin_leveque", "lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "marin_leveque",
+              "say": {
+                "a2": "Vous tombez bien ! Regardez ce que j'ai fait pour toi, Lila !",
+                "native": {
+                  "en": "Perfect timing! Look what I've made for you, Lila!",
+                  "de": "Ihr kommt genau richtig! Seht, was ich für dich gemacht habe, Lila!"
+                }
+              }
+            }
+          ],
+          "when": {"s1.went_with_lila_to_marin": true}
+        },
+        {
+          "kind": "panel",
+          "id": "va.b.r2.stayed",
+          "visual": "From the street, Toi watches the third-floor window light up. Two silhouettes. One of them sits down very slowly.",
+          "location_id": "quai_de_valmy",
+          "in_frame": ["toi"],
+          "silence": true,
+          "when": {"s1.went_with_lila_to_marin": {"not": true}}
+        },
+        {
+          "kind": "hook",
+          "id": "va.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "va.b.last",
+            "visual": "Close on the folder in Marin's hands, open to the plan of the back room. The square «ATELIER DE LILA» has been coloured in, carefully, with a child's felt-tip.",
+            "location_id": "marin_lila_flat",
+            "in_frame": ["marin_leveque"],
+            "diegetic": ["ATELIER DE LILA"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Marin a fait une place pour Lila. Dans trois semaines, cette place va être vide. À suivre…",
+                  "b1": "Marin a gardé une place pour Lila. Dans trois semaines, elle sera vide. À suivre…",
+                  "native": {
+                    "en": "Marin has made a place for Lila. In three weeks, that place will be empty. To be continued…",
+                    "de": "Marin hat einen Platz für Lila geschaffen. In drei Wochen wird dieser Platz leer sein. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "a",
+      "variant": "tu_le_decouvres",
+      "when": {"s1.fire_photo": "margaux", "s1.lila_has_key": true},
+      "story_date_fr": "dimanche 13 décembre",
+      "title_fr": "Berlin",
+      "location_id": "odile_flat",
+      "minutes": 7,
+      "can_do": {
+        "en": "Work out whether a message is an invitation, an apology or a goodbye; ask why someone didn't tell you.",
+        "de": "Herausfinden, ob eine Nachricht eine Einladung, eine Entschuldigung oder ein Abschied ist; fragen, warum jemand es dir nicht gesagt hat.",
+        "fr": "Comprendre si un message est une invitation, des excuses ou un adieu ; demander pourquoi quelqu'un ne nous l'a pas dit."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "invitation",
+          "lemma": "invitation",
+          "gloss": {"en": "invitation", "de": "Einladung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "excuses",
+          "lemma": "excuse",
+          "gloss": {"en": "apology", "de": "Entschuldigung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "adieu",
+          "lemma": "adieu",
+          "gloss": {"en": "goodbye, farewell", "de": "Abschied"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "quand",
+          "lemma": "quand",
+          "gloss": {"en": "when", "de": "wann"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "me le dire",
+          "lemma": "dire",
+          "gloss": {"en": "to tell me", "de": "es mir sagen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Dispute-toi",
+          "lemma": "se disputer",
+          "gloss": {"en": "to quarrel", "de": "sich streiten"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "secret",
+          "lemma": "secret",
+          "gloss": {"en": "secret", "de": "Geheimnis"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "visage",
+          "lemma": "visage",
+          "gloss": {"en": "face", "de": "Gesicht"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "vb.a.p1",
+          "visual": "The stairwell at night. Toi's hand with the key; the timed light ticking. Under Odile's door there is a line of light that should not be there.",
+          "location_id": "stairwell",
+          "in_frame": ["toi"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Deux heures du matin. Tu ne dors pas. En haut, il y a de la lumière.",
+                "b1": "Deux heures du matin. Impossible de dormir. Là-haut, quelqu'un a laissé la lumière.",
+                "native": {
+                  "en": "Two in the morning. You can't sleep. Upstairs, there's a light on.",
+                  "de": "Zwei Uhr morgens. Du schläfst nicht. Oben brennt Licht."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.a.p2",
+          "visual": "Odile's room, empty of people. Her things have been pushed carefully to one side: her chair, her Polaroid box, her calendar still on April 2023. The space is full of Lila: an easel, a canvas half-wrapped in bubble wrap, and a wooden crate. On the drainer, two washed mugs, one of them the one Toi always uses. She has been coming here for weeks.",
+          "location_id": "odile_flat",
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "vb.a.p3",
+          "visual": "Close on the crate. The stencil is legible: FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL.",
+          "location_id": "odile_flat",
+          "silence": true,
+          "diegetic": ["FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL"]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.a.p4",
+          "visual": "On the easel's ledge, a card in Lila's quick handwriting, addressed to Toi, with its last line unfinished.",
+          "location_id": "odile_flat"
+        },
+        {
+          "kind": "solve",
+          "id": "vb.a.dechiffrer",
+          "mechanic": "dechiffrer",
+          "prompt": {
+            "a2": "Ce message, c'est quoi ?",
+            "b1": "Ce message, c'est quoi ? Tout ce qui est vrai.",
+            "native": {"en": "What is this message?", "de": "Was ist das für eine Nachricht?"}
+          },
+          "task": {
+            "en": "Read the card: what is this message?",
+            "de": "Lies die Karte: Was ist das für eine Nachricht?",
+            "fr": "Lis la carte : ce message, c'est quoi ?"
+          },
+          "visual": "The card fills the screen.",
+          "document": {
+            "a2": "À toi —\nViens voir la toile. Demain, je la mets dans la caisse.\nPardon pour l'autre soir. «Encore un secret», j'ai dit. Moi aussi, j'ai un secret.\nJe pars le 8 janvier, à Berlin. Je veux te le dire avant tout le monde, et je",
+            "b1": "À toi —\nPasse voir la toile avant qu'ils l'emballent.\nPardon pour l'autre soir, pour mon «encore un secret». J'étais mal placée pour le dire : moi aussi, j'en garde un.\nJe pars le 8 janvier, à Berlin. Je voulais te le dire avant tous les autres, et je",
+            "native": {
+              "en": "To you —\nCome and see the canvas. Tomorrow I'm putting it in the crate.\nSorry about the other night. \"Another secret\", I said. I have a secret too.\nI'm leaving on 8 January, for Berlin. I want to tell you before everyone else, and I",
+              "de": "An dich —\nKomm und sieh dir die Leinwand an. Morgen packe ich sie in die Kiste.\nEntschuldige wegen neulich Abend. „Noch ein Geheimnis“, habe ich gesagt. Ich habe auch ein Geheimnis.\nIch gehe am 8. Januar nach Berlin. Ich will es dir vor allen anderen sagen, und ich"
+            }
+          },
+          "multi_b1": true,
+          "flag": "s1.berlin_reading",
+          "default": "invitation",
+          "options": [
+            {
+              "id": "invitation",
+              "label": {"a2": "Une invitation", "native": {"en": "An invitation", "de": "Eine Einladung"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "invitation", "s1.berlin_told_how": "discovered"}
+            },
+            {
+              "id": "excuses",
+              "label": {"a2": "Des excuses", "native": {"en": "An apology", "de": "Eine Entschuldigung"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "excuses", "s1.berlin_told_how": "discovered"}
+            },
+            {
+              "id": "adieu",
+              "label": {"a2": "Un adieu", "native": {"en": "A goodbye", "de": "Ein Abschied"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "adieu", "s1.berlin_told_how": "discovered"}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.a.p5",
+          "visual": "The doorway. Lila with two paper cups from the all-night place on the corner, one of them Toi's usual. She sees Toi, sees the card in Toi's hand, and stops.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true,
+          "note": "This is the owner's own example of Déchiffrer («an invitation, an apology or a goodbye?»), and the honest answer is «the three». The learner is doing exactly what a reader does with a message from someone they care about. There is no wrong answer. Each reading is true: «Viens voir la toile», «Pardon», «Je pars». What the learner taps sets how Lila finds you when she walks in: hurt if they tapped adieu, softened if invitation, wary if excuses. It also comes back in her line in Exchange 1 (c)."
+        },
+        {
+          "kind": "hook",
+          "id": "vb.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "vb.a.p5b",
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Deux cafés. Une carte pas finie. Et Lila à la porte. À suivre…",
+                  "b1": "Deux cafés, une carte inachevée, et Lila sur le seuil. À suivre…",
+                  "native": {
+                    "en": "Two coffees. An unfinished card. And Lila at the door. To be continued…",
+                    "de": "Zwei Kaffee. Eine unfertige Karte. Und Lila in der Tür. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "tu_le_decouvres",
+      "when": {"s1.fire_photo": "margaux", "s1.lila_has_key": true},
+      "story_date_fr": "lundi 14 décembre",
+      "title_fr": "Invitation, pardon, adieu",
+      "location_id": "odile_flat",
+      "minutes": 8,
+      "previously": [
+        {"ref": "vb.a.p3", "label": "La caisse : BERLIN."},
+        {"ref": "vb.a.p4", "label": "La carte pas finie."},
+        {"ref": "vb.a.p5", "label": "Lila sur le seuil, deux cafés."}
+      ],
+      "can_do": {
+        "en": "Work out whether a message is an invitation, an apology or a goodbye; ask why someone didn't tell you.",
+        "de": "Herausfinden, ob eine Nachricht eine Einladung, eine Entschuldigung oder ein Abschied ist; fragen, warum jemand es dir nicht gesagt hat.",
+        "fr": "Comprendre si un message est une invitation, des excuses ou un adieu ; demander pourquoi quelqu'un ne nous l'a pas dit."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "invitation",
+          "lemma": "invitation",
+          "gloss": {"en": "invitation", "de": "Einladung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "excuses",
+          "lemma": "excuse",
+          "gloss": {"en": "apology", "de": "Entschuldigung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "adieu",
+          "lemma": "adieu",
+          "gloss": {"en": "goodbye, farewell", "de": "Abschied"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "quand",
+          "lemma": "quand",
+          "gloss": {"en": "when", "de": "wann"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "me le dire",
+          "lemma": "dire",
+          "gloss": {"en": "to tell me", "de": "es mir sagen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Dispute-toi",
+          "lemma": "se disputer",
+          "gloss": {"en": "to quarrel", "de": "sich streiten"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "secret",
+          "lemma": "secret",
+          "gloss": {"en": "secret", "de": "Geheimnis"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "visage",
+          "lemma": "visage",
+          "gloss": {"en": "face", "de": "Gesicht"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "vb.b.p6",
+          "visual": "Two-shot across the crate.",
+          "location_id": "odile_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "direction": "not a question",
+              "say": {"a2": "Tu as lu.", "native": {"en": "You read it.", "de": "Du hast es gelesen."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "adieu"},
+              "say": {
+                "a2": "Vas-y. Dis-le. Tu es en colère ?",
+                "b1": "Vas-y. Dispute-toi avec moi. Tu en as le droit.",
+                "native": {"en": "Go on. Say it. Are you angry?", "de": "Los. Sag es. Bist du wütend?"}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "invitation"},
+              "say": {
+                "a2": "Bon. Au moins, l'invitation, elle marche.",
+                "native": {
+                  "en": "Well. At least the invitation works.",
+                  "de": "Na ja. Wenigstens die Einladung funktioniert."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "excuses"},
+              "say": {
+                "a2": "Oui. C'était des excuses. Et le reste aussi.",
+                "native": {
+                  "en": "Yes. It was an apology. And the rest too.",
+                  "de": "Ja. Das war eine Entschuldigung. Und der Rest auch."
+                }
+              }
+            }
+          ],
+          "note": "Agreement. «Tu es en colère ?» is agreement-free. Avoid «Tu es fâché(e) ?» here."
+        },
+        {
+          "kind": "turn",
+          "id": "vb.b.turn1",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "vb.b.p7",
+            "visual": "Toi's balloon, empty, facing her across the crate.",
+            "in_frame": ["lila_bonnet", "toi"],
+            "balloon": true
+          },
+          "task": {
+            "en": "Say what finding it this way does to you, and what you want now: from her, from yourself, from the two of you.",
+            "de": "Sag, was es mit dir macht, es auf diese Weise zu erfahren, und was du jetzt willst: von ihr, von dir selbst, von euch beiden.",
+            "fr": "Dis ce que ça te fait de l'apprendre comme ça, et ce que tu veux maintenant : d'elle, de toi, de vous deux."
+          },
+          "listens_for": "What finding it this way does to the learner, and what they want now. Gate 4: wanting her not to go (even clumsily) moves toward romance; warm, honest support («je suis content pour toi, mais…») moves toward friendship. The hurt question and the cold reply move nothing.",
+          "fallback": "b",
+          "gate": 4,
+          "replies": [
+            {
+              "id": "a",
+              "label": "The hurt question",
+              "means": "The learner asks, hurt, when she was going to tell them.",
+              "examples": ["Tu allais me le dire quand ?"],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.a.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Après. Toujours après.",
+                        "b1": "Après. C'est toujours après, ici.",
+                        "native": {"en": "Afterwards. Always afterwards.", "de": "Danach. Immer danach."}
+                      }
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Comme toi, avec la photo.",
+                        "b1": "Comme toi avec la photo.",
+                        "native": {"en": "Like you, with the photo.", "de": "Wie du, mit dem Foto."}
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.a.r2",
+                  "visual": "She regrets it.",
+                  "in_frame": ["lila_bonnet"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.a.r3",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Pardon. C'était pas juste.",
+                        "b1": "Pardon. C'était bas, ça.",
+                        "native": {"en": "Sorry. That wasn't fair.", "de": "Entschuldige. Das war nicht fair."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Cold",
+              "means": "The learner answers coldly: wish her a good trip.",
+              "examples": ["OK. Bon voyage."],
+              "repeat_once": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.b.r1",
+                  "visual": "She puts both cups down on the crate.",
+                  "in_frame": ["lila_bonnet"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.b.r2",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Non. Pas comme ça. Dispute-toi avec moi, au moins.",
+                        "b1": "Non. Pas comme ça. Engueule-moi, si tu veux, mais pas ça.",
+                        "native": {
+                          "en": "No. Not like that. At least fight with me.",
+                          "de": "Nein. Nicht so. Streite dich wenigstens mit mir."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "A second chance is offered, and the exchange repeats. Coldness is not a dead end. The owner's rule is that misunderstandings create chances to connect."
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: they can't tell if the card is a goodbye or an apology, and do not want a goodbye.",
+              "examples": ["Je lis ta carte. C'est… adieu ? Ou pardon ? Je comprends pas bien. Je veux pas adieu."],
+              "clumsy": true,
+              "path": "romance",
+              "sets_if": [{"when": {"path": "romance"}, "sets": {"lila.heard_the_true_thing": true}}],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.c.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "C'est les trois. Invitation, pardon, adieu. Tu as bien lu. C'est moi qui écris mal.",
+                        "b1": "C'est les trois à la fois. Tu as très bien lu. C'est moi qui ne sais pas écrire ce genre de chose.",
+                        "native": {
+                          "en": "It's all three. Invitation, apology, goodbye. You read it well. I'm the one who writes badly.",
+                          "de": "Es ist alles drei. Einladung, Entschuldigung, Abschied. Du hast richtig gelesen. Ich schreibe nur schlecht."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "The learner's fear of not understanding becomes her admission. This is the reversal we want the learner to feel: the comprehension doubt was the right reading."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Warm but honest",
+              "means": "The learner is glad for her, but says she could have told them.",
+              "examples": ["Je suis content pour toi. / Je suis contente pour toi. Mais tu pouvais me le dire."],
+              "path": "friendship",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn1.d.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Je sais. J'ai écrit cette carte six fois. Je n'ai jamais fini la phrase.",
+                        "b1": "Je sais. J'ai commencé cette carte six fois. Je n'ai jamais réussi à finir la phrase.",
+                        "native": {
+                          "en": "I know. I wrote this card six times. I never finished the sentence.",
+                          "de": "Ich weiß. Ich habe diese Karte sechsmal geschrieben. Den Satz habe ich nie zu Ende gebracht."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.p8",
+          "visual": "She unwraps the canvas for Toi, bubble wrap crackling. It is the same portrait as in A, with Toi in the corner from behind.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "C'est toi. De dos. Je n'ai pas encore trouvé ton visage.",
+                "native": {
+                  "en": "That's you. From behind. I haven't found your face yet.",
+                  "de": "Das bist du. Von hinten. Dein Gesicht habe ich noch nicht gefunden."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"path": "romance", "band": "b1"},
+              "say": {
+                "a2": "Je n'arrive pas à trouver ton visage. Peut-être que je ne veux pas le finir.",
+                "b1": "Je n'arrive pas à trouver ton visage. Peut-être que je ne veux pas le finir.",
+                "native": {
+                  "en": "I can't find your face. Maybe I don't want to finish it.",
+                  "de": "Ich finde dein Gesicht nicht. Vielleicht will ich es nicht zu Ende malen."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"path": ["friendship", "open"]},
+              "say": {
+                "a2": "Ton visage, je le fais à Berlin. De mémoire. Ça va être une catastrophe.",
+                "native": {
+                  "en": "Your face, I'll do in Berlin. From memory. It's going to be a disaster.",
+                  "de": "Dein Gesicht male ich in Berlin. Aus dem Gedächtnis. Das wird eine Katastrophe."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.p9",
+          "visual": "Lila sits on the crate. Toi is on Odile's chair. The Polaroid box is between them.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "direction": "she stops",
+              "say": {
+                "a2": "Ici, on s'aime beaucoup. Et on se retient beaucoup. Margaux avec Odile. Moi avec Marin. Et toi…",
+                "b1": "Ici, on s'aime en se retenant. Margaux a retenu Odile avec un mensonge. Moi, je me retiens avec Marin. Et toi…",
+                "native": {
+                  "en": "Here, we love each other a lot. And we hold ourselves back a lot. Margaux with Odile. Me with Marin. And you…",
+                  "de": "Hier lieben wir uns sehr. Und wir halten uns sehr zurück. Margaux mit Odile. Ich mit Marin. Und du…"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.p9r",
+          "visual": "She doesn't finish the sentence.",
+          "in_frame": ["lila_bonnet"],
+          "silence": true,
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "turn",
+          "id": "vb.b.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "vb.b.p9t",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "when": {"path": ["friendship", "open"]},
+                "say": {
+                  "a2": "…toi, tu retiens tout le monde avec cet appartement.",
+                  "b1": "…toi, tu retiens tout le monde avec cet appartement. Sans le vouloir.",
+                  "native": {
+                    "en": "…you, you hold everyone back with this flat.",
+                    "de": "…du hältst alle mit dieser Wohnung zurück."
+                  }
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer her theory, which is also Lila's side in the fight over the café's future.",
+            "de": "Antworte auf ihre Theorie, die zugleich Lilas Seite im Streit um die Zukunft des Cafés ist.",
+            "fr": "Réponds à sa théorie, qui est aussi le camp de Lila dans la dispute sur l'avenir du café."
+          },
+          "listens_for": "Any answer to her theory. Replies might be «Non. On s'aide.», «Peut-être. Tu as raison.», or, on the romance path, the unfinished sentence finished by the learner («Et moi, je te retiens ?»).",
+          "fallback": "tu_as_raison",
+          "replies": [
+            {
+              "id": "on_saide",
+              "label": "We help each other",
+              "means": "The learner disagrees: they help each other.",
+              "examples": ["Non. On s'aide."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn2.on_saide.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Oui. Les deux. C'est ça, le problème.",
+                        "native": {"en": "Yes. Both. That's the problem.", "de": "Ja. Beides. Das ist das Problem."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "tu_as_raison",
+              "label": "You're right",
+              "means": "The learner agrees that she is right.",
+              "examples": ["Peut-être. Tu as raison."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn2.tu_as_raison.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Je déteste avoir raison la nuit.",
+                        "native": {"en": "I hate being right at night.", "de": "Ich hasse es, nachts recht zu haben."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "et_moi",
+              "label": "And me, do I hold you back?",
+              "means": "The learner finishes her unfinished sentence: do I hold you back?",
+              "examples": ["Et moi, je te retiens ?"],
+              "when": {"path": "romance"},
+              "beats": [
+                {"kind": "panel", "id": "vb.b.turn2.et_moi.r1", "in_frame": ["lila_bonnet"], "silence": true},
+                {
+                  "kind": "panel",
+                  "id": "vb.b.turn2.et_moi.r2",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Un peu. Pas assez pour rester. Trop pour partir tranquille.",
+                        "b1": "Un peu. Pas assez pour que je reste. Trop pour que je parte tranquille.",
+                        "native": {
+                          "en": "A little. Not enough to stay. Too much to leave in peace.",
+                          "de": "Ein bisschen. Nicht genug, um zu bleiben. Zu viel, um in Ruhe zu gehen."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "vb.b.choix",
+          "mechanic": "choix",
+          "to": "lila_bonnet",
+          "prompt": {
+            "a2": "Il faut le dire à Marin. Demain matin. Tu viens avec moi ?",
+            "native": {
+              "en": "We have to tell Marin. Tomorrow morning. Are you coming with me?",
+              "de": "Wir müssen es Marin sagen. Morgen früh. Kommst du mit?"
+            }
+          },
+          "task": {
+            "en": "Choose whether you go with Lila to tell Marin.",
+            "de": "Wähle, ob du mit Lila gehst, um es Marin zu sagen.",
+            "fr": "Choisis si tu vas avec Lila le dire à Marin."
+          },
+          "flag": "s1.went_with_lila_to_marin",
+          "default": "oui",
+          "options": [
+            {
+              "id": "oui",
+              "label": {"a2": "Oui, je viens", "native": {"en": "Yes, I'm coming", "de": "Ja, ich komme mit"}},
+              "subtitle": {
+                "a2": "Marin saura que tu savais.",
+                "native": {"en": "Marin will know you knew.", "de": "Marin wird wissen, dass du es wusstest."}
+              },
+              "sets": {"s1.went_with_lila_to_marin": true}
+            },
+            {
+              "id": "non",
+              "label": {
+                "a2": "Non. C'est à toi.",
+                "native": {"en": "No. It's yours to do.", "de": "Nein. Das musst du tun."}
+              },
+              "subtitle": {"a2": "Lila y va seule.", "native": {"en": "Lila goes alone.", "de": "Lila geht allein."}},
+              "sets": {"s1.went_with_lila_to_marin": false}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.r1",
+          "visual": "The two of them wrapping the portrait together: tape screeching, bubble wrap, her holding, Toi taping. An ordinary task at two in the morning.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.r2.romance",
+          "visual": "She wipes ochre off Toi's hand with her thumb, and the thumb stays.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Pas maintenant.", "native": {"en": "Not now.", "de": "Nicht jetzt."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Mais pas jamais.", "native": {"en": "But not never.", "de": "Aber nicht nie."}}
+            }
+          ],
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "vb.b.r2.friendship",
+          "visual": "At the door, coat on. She points at the smoke alarm, still hanging from its wire since the disastrous dinner.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Promets-moi un truc. Après mon départ, tu ne refais jamais l'omelette. Jamais.",
+                "b1": "Promets-moi une chose. Quand je serai partie, tu ne referas jamais l'omelette.",
+                "native": {
+                  "en": "Promise me something. After I've gone, you never make the omelette again. Never.",
+                  "de": "Versprich mir etwas. Nach meiner Abreise machst du nie wieder das Omelett. Nie."
+                }
+              }
+            }
+          ],
+          "when": {"path": ["friendship", "open"]}
+        },
+        {
+          "kind": "hook",
+          "id": "vb.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "vb.b.last",
+            "visual": "Lila's phone, face up this time, on the crate. A message from Marin.",
+            "in_frame": ["lila_bonnet"],
+            "lines": [
+              {
+                "who": "sms",
+                "say": {
+                  "a2": "Tu rentres ? J'ai une surprise pour toi. Pour le Mistral !",
+                  "native": {
+                    "en": "Are you coming home? I have a surprise for you. For Le Mistral!",
+                    "de": "Kommst du nach Hause? Ich habe eine Überraschung für dich. Für das Mistral!"
+                  }
+                }
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Marin a une surprise pour Lila. Lila a une caisse pour Berlin. À suivre…",
+                  "b1": "Marin prépare une surprise pour Lila. Lila, elle, a fait sa caisse pour Berlin. À suivre…",
+                  "native": {
+                    "en": "Marin has a surprise for Lila. Lila has a crate for Berlin. To be continued…",
+                    "de": "Marin hat eine Überraschung für Lila. Lila hat eine Kiste für Berlin. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "a",
+      "variant": "tu_le_decouvres_sans_cle",
+      "when": {"s1.fire_photo": "margaux", "s1.lila_has_key": {"not": true}},
+      "story_date_fr": "dimanche 13 décembre",
+      "title_fr": "Berlin",
+      "location_id": "marin_lila_flat",
+      "minutes": 7,
+      "can_do": {
+        "en": "Work out whether a message is an invitation, an apology or a goodbye; ask why someone didn't tell you.",
+        "de": "Herausfinden, ob eine Nachricht eine Einladung, eine Entschuldigung oder ein Abschied ist; fragen, warum jemand es dir nicht gesagt hat.",
+        "fr": "Comprendre si un message est une invitation, des excuses ou un adieu ; demander pourquoi quelqu'un ne nous l'a pas dit."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "invitation",
+          "lemma": "invitation",
+          "gloss": {"en": "invitation", "de": "Einladung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "excuses",
+          "lemma": "excuse",
+          "gloss": {"en": "apology", "de": "Entschuldigung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "adieu",
+          "lemma": "adieu",
+          "gloss": {"en": "goodbye, farewell", "de": "Abschied"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "quand",
+          "lemma": "quand",
+          "gloss": {"en": "when", "de": "wann"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "me le dire",
+          "lemma": "dire",
+          "gloss": {"en": "to tell me", "de": "es mir sagen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Dispute-toi",
+          "lemma": "se disputer",
+          "gloss": {"en": "to quarrel", "de": "sich streiten"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "secret",
+          "lemma": "secret",
+          "gloss": {"en": "secret", "de": "Geheimnis"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "visage",
+          "lemma": "visage",
+          "gloss": {"en": "face", "de": "Gesicht"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "vn.a.p1",
+          "visual": "The stairwell at night. Toi's hands with the casserole dish from the disastrous dinner; the timed light ticking. Under Marin and Lila's door there is a line of light that should not be there.",
+          "location_id": "stairwell",
+          "in_frame": ["toi"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Deux heures du matin. Tu ne dors pas. En haut, il y a de la lumière.",
+                "b1": "Deux heures du matin. Impossible de dormir. Là-haut, quelqu'un a laissé la lumière.",
+                "native": {
+                  "en": "Two in the morning. You can't sleep. Upstairs, there's a light on.",
+                  "de": "Zwei Uhr morgens. Du schläfst nicht. Oben brennt Licht."
+                }
+              }
+            }
+          ],
+          "note": "End note, B without the key: the scene moves to Marin and Lila's flat. Marin is in Finistère for the weekend (his father thread). You come by to return the casserole dish from the disastrous dinner. The crate stands in the hallway, and the card is on the fridge under a magnet shaped like a sardine. Lila comes back from the épicerie with two cups. Everything else holds. The only lost detail is the washed mug in Odile's kitchen, which is replaced by your drawing still on their fridge from the dinner."
+        },
+        {
+          "kind": "panel",
+          "id": "vn.a.p2",
+          "visual": "Marin and Lila's flat, empty of people: Marin is in Finistère for the weekend. The space is full of Lila: an easel, a canvas half-wrapped in bubble wrap, and a wooden crate standing in the hallway. On the fridge, Toi's drawing from the dinner, still there.",
+          "location_id": "marin_lila_flat",
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "vn.a.p3",
+          "visual": "Close on the crate, standing in the hallway. The stencil is legible: FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL.",
+          "location_id": "marin_lila_flat",
+          "silence": true,
+          "diegetic": ["FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL"]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.a.p4",
+          "visual": "On the fridge, under a magnet shaped like a sardine, a card in Lila's quick handwriting, addressed to Toi, with its last line unfinished.",
+          "location_id": "marin_lila_flat"
+        },
+        {
+          "kind": "solve",
+          "id": "vn.a.dechiffrer",
+          "mechanic": "dechiffrer",
+          "prompt": {
+            "a2": "Ce message, c'est quoi ?",
+            "b1": "Ce message, c'est quoi ? Tout ce qui est vrai.",
+            "native": {"en": "What is this message?", "de": "Was ist das für eine Nachricht?"}
+          },
+          "task": {
+            "en": "Read the card: what is this message?",
+            "de": "Lies die Karte: Was ist das für eine Nachricht?",
+            "fr": "Lis la carte : ce message, c'est quoi ?"
+          },
+          "visual": "The card fills the screen.",
+          "document": {
+            "a2": "À toi —\nViens voir la toile. Demain, je la mets dans la caisse.\nPardon pour l'autre soir. «Encore un secret», j'ai dit. Moi aussi, j'ai un secret.\nJe pars le 8 janvier, à Berlin. Je veux te le dire avant tout le monde, et je",
+            "b1": "À toi —\nPasse voir la toile avant qu'ils l'emballent.\nPardon pour l'autre soir, pour mon «encore un secret». J'étais mal placée pour le dire : moi aussi, j'en garde un.\nJe pars le 8 janvier, à Berlin. Je voulais te le dire avant tous les autres, et je",
+            "native": {
+              "en": "To you —\nCome and see the canvas. Tomorrow I'm putting it in the crate.\nSorry about the other night. \"Another secret\", I said. I have a secret too.\nI'm leaving on 8 January, for Berlin. I want to tell you before everyone else, and I",
+              "de": "An dich —\nKomm und sieh dir die Leinwand an. Morgen packe ich sie in die Kiste.\nEntschuldige wegen neulich Abend. „Noch ein Geheimnis“, habe ich gesagt. Ich habe auch ein Geheimnis.\nIch gehe am 8. Januar nach Berlin. Ich will es dir vor allen anderen sagen, und ich"
+            }
+          },
+          "multi_b1": true,
+          "flag": "s1.berlin_reading",
+          "default": "invitation",
+          "options": [
+            {
+              "id": "invitation",
+              "label": {"a2": "Une invitation", "native": {"en": "An invitation", "de": "Eine Einladung"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "invitation", "s1.berlin_told_how": "discovered"}
+            },
+            {
+              "id": "excuses",
+              "label": {"a2": "Des excuses", "native": {"en": "An apology", "de": "Eine Entschuldigung"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "excuses", "s1.berlin_told_how": "discovered"}
+            },
+            {
+              "id": "adieu",
+              "label": {"a2": "Un adieu", "native": {"en": "A goodbye", "de": "Ein Abschied"}},
+              "correct": true,
+              "sets": {"s1.berlin_reading": "adieu", "s1.berlin_told_how": "discovered"}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.a.p5",
+          "visual": "The doorway. Lila back from the épicerie with two paper cups, one of them Toi's usual. She sees Toi, sees the card in Toi's hand, and stops.",
+          "location_id": "marin_lila_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true,
+          "note": "This is the owner's own example of Déchiffrer («an invitation, an apology or a goodbye?»), and the honest answer is «the three». The learner is doing exactly what a reader does with a message from someone they care about. There is no wrong answer. Each reading is true: «Viens voir la toile», «Pardon», «Je pars». What the learner taps sets how Lila finds you when she walks in: hurt if they tapped adieu, softened if invitation, wary if excuses. It also comes back in her line in Exchange 1 (c)."
+        },
+        {
+          "kind": "hook",
+          "id": "vn.a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "vn.a.p5b",
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Deux cafés. Une carte pas finie. Et Lila à la porte. À suivre…",
+                  "b1": "Deux cafés, une carte inachevée, et Lila sur le seuil. À suivre…",
+                  "native": {
+                    "en": "Two coffees. An unfinished card. And Lila at the door. To be continued…",
+                    "de": "Zwei Kaffee. Eine unfertige Karte. Und Lila in der Tür. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "variant": "tu_le_decouvres_sans_cle",
+      "when": {"s1.fire_photo": "margaux", "s1.lila_has_key": {"not": true}},
+      "story_date_fr": "lundi 14 décembre",
+      "title_fr": "Invitation, pardon, adieu",
+      "location_id": "marin_lila_flat",
+      "minutes": 8,
+      "previously": [
+        {"ref": "vn.a.p3", "label": "La caisse : BERLIN."},
+        {"ref": "vn.a.p4", "label": "La carte pas finie."},
+        {"ref": "vn.a.p5", "label": "Lila sur le seuil, deux cafés."}
+      ],
+      "can_do": {
+        "en": "Work out whether a message is an invitation, an apology or a goodbye; ask why someone didn't tell you.",
+        "de": "Herausfinden, ob eine Nachricht eine Einladung, eine Entschuldigung oder ein Abschied ist; fragen, warum jemand es dir nicht gesagt hat.",
+        "fr": "Comprendre si un message est une invitation, des excuses ou un adieu ; demander pourquoi quelqu'un ne nous l'a pas dit."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "invitation",
+          "lemma": "invitation",
+          "gloss": {"en": "invitation", "de": "Einladung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "excuses",
+          "lemma": "excuse",
+          "gloss": {"en": "apology", "de": "Entschuldigung"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "adieu",
+          "lemma": "adieu",
+          "gloss": {"en": "goodbye, farewell", "de": "Abschied"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "quand",
+          "lemma": "quand",
+          "gloss": {"en": "when", "de": "wann"},
+          "part_of_speech": "adverb"
+        },
+        {
+          "surface_fr": "me le dire",
+          "lemma": "dire",
+          "gloss": {"en": "to tell me", "de": "es mir sagen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "Dispute-toi",
+          "lemma": "se disputer",
+          "gloss": {"en": "to quarrel", "de": "sich streiten"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "secret",
+          "lemma": "secret",
+          "gloss": {"en": "secret", "de": "Geheimnis"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "visage",
+          "lemma": "visage",
+          "gloss": {"en": "face", "de": "Gesicht"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "vn.b.p6",
+          "visual": "Two-shot across the crate.",
+          "location_id": "marin_lila_flat",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "direction": "not a question",
+              "say": {"a2": "Tu as lu.", "native": {"en": "You read it.", "de": "Du hast es gelesen."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "adieu"},
+              "say": {
+                "a2": "Vas-y. Dis-le. Tu es en colère ?",
+                "b1": "Vas-y. Dispute-toi avec moi. Tu en as le droit.",
+                "native": {"en": "Go on. Say it. Are you angry?", "de": "Los. Sag es. Bist du wütend?"}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "invitation"},
+              "say": {
+                "a2": "Bon. Au moins, l'invitation, elle marche.",
+                "native": {
+                  "en": "Well. At least the invitation works.",
+                  "de": "Na ja. Wenigstens die Einladung funktioniert."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_reading": "excuses"},
+              "say": {
+                "a2": "Oui. C'était des excuses. Et le reste aussi.",
+                "native": {
+                  "en": "Yes. It was an apology. And the rest too.",
+                  "de": "Ja. Das war eine Entschuldigung. Und der Rest auch."
+                }
+              }
+            }
+          ],
+          "note": "Agreement. «Tu es en colère ?» is agreement-free. Avoid «Tu es fâché(e) ?» here."
+        },
+        {
+          "kind": "turn",
+          "id": "vn.b.turn1",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "vn.b.p7",
+            "visual": "Toi's balloon, empty, facing her across the crate.",
+            "in_frame": ["lila_bonnet", "toi"],
+            "balloon": true
+          },
+          "task": {
+            "en": "Say what finding it this way does to you, and what you want now: from her, from yourself, from the two of you.",
+            "de": "Sag, was es mit dir macht, es auf diese Weise zu erfahren, und was du jetzt willst: von ihr, von dir selbst, von euch beiden.",
+            "fr": "Dis ce que ça te fait de l'apprendre comme ça, et ce que tu veux maintenant : d'elle, de toi, de vous deux."
+          },
+          "listens_for": "What finding it this way does to the learner, and what they want now. Gate 4: wanting her not to go (even clumsily) moves toward romance; warm, honest support («je suis content pour toi, mais…») moves toward friendship. The hurt question and the cold reply move nothing.",
+          "fallback": "b",
+          "gate": 4,
+          "replies": [
+            {
+              "id": "a",
+              "label": "The hurt question",
+              "means": "The learner asks, hurt, when she was going to tell them.",
+              "examples": ["Tu allais me le dire quand ?"],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.a.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Après. Toujours après.",
+                        "b1": "Après. C'est toujours après, ici.",
+                        "native": {"en": "Afterwards. Always afterwards.", "de": "Danach. Immer danach."}
+                      }
+                    },
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Comme toi, avec la photo.",
+                        "b1": "Comme toi avec la photo.",
+                        "native": {"en": "Like you, with the photo.", "de": "Wie du, mit dem Foto."}
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.a.r2",
+                  "visual": "She regrets it.",
+                  "in_frame": ["lila_bonnet"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.a.r3",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Pardon. C'était pas juste.",
+                        "b1": "Pardon. C'était bas, ça.",
+                        "native": {"en": "Sorry. That wasn't fair.", "de": "Entschuldige. Das war nicht fair."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Cold",
+              "means": "The learner answers coldly: wish her a good trip.",
+              "examples": ["OK. Bon voyage."],
+              "repeat_once": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.b.r1",
+                  "visual": "She puts both cups down on the crate.",
+                  "in_frame": ["lila_bonnet"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.b.r2",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Non. Pas comme ça. Dispute-toi avec moi, au moins.",
+                        "b1": "Non. Pas comme ça. Engueule-moi, si tu veux, mais pas ça.",
+                        "native": {
+                          "en": "No. Not like that. At least fight with me.",
+                          "de": "Nein. Nicht so. Streite dich wenigstens mit mir."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "A second chance is offered, and the exchange repeats. Coldness is not a dead end. The owner's rule is that misunderstandings create chances to connect."
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: they can't tell if the card is a goodbye or an apology, and do not want a goodbye.",
+              "examples": ["Je lis ta carte. C'est… adieu ? Ou pardon ? Je comprends pas bien. Je veux pas adieu."],
+              "clumsy": true,
+              "path": "romance",
+              "sets_if": [{"when": {"path": "romance"}, "sets": {"lila.heard_the_true_thing": true}}],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.c.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "C'est les trois. Invitation, pardon, adieu. Tu as bien lu. C'est moi qui écris mal.",
+                        "b1": "C'est les trois à la fois. Tu as très bien lu. C'est moi qui ne sais pas écrire ce genre de chose.",
+                        "native": {
+                          "en": "It's all three. Invitation, apology, goodbye. You read it well. I'm the one who writes badly.",
+                          "de": "Es ist alles drei. Einladung, Entschuldigung, Abschied. Du hast richtig gelesen. Ich schreibe nur schlecht."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "The learner's fear of not understanding becomes her admission. This is the reversal we want the learner to feel: the comprehension doubt was the right reading."
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Warm but honest",
+              "means": "The learner is glad for her, but says she could have told them.",
+              "examples": ["Je suis content pour toi. / Je suis contente pour toi. Mais tu pouvais me le dire."],
+              "path": "friendship",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn1.d.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Je sais. J'ai écrit cette carte six fois. Je n'ai jamais fini la phrase.",
+                        "b1": "Je sais. J'ai commencé cette carte six fois. Je n'ai jamais réussi à finir la phrase.",
+                        "native": {
+                          "en": "I know. I wrote this card six times. I never finished the sentence.",
+                          "de": "Ich weiß. Ich habe diese Karte sechsmal geschrieben. Den Satz habe ich nie zu Ende gebracht."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.p8",
+          "visual": "She unwraps the canvas for Toi, bubble wrap crackling. It is the same portrait as in A, with Toi in the corner from behind.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "C'est toi. De dos. Je n'ai pas encore trouvé ton visage.",
+                "native": {
+                  "en": "That's you. From behind. I haven't found your face yet.",
+                  "de": "Das bist du. Von hinten. Dein Gesicht habe ich noch nicht gefunden."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"path": "romance", "band": "b1"},
+              "say": {
+                "a2": "Je n'arrive pas à trouver ton visage. Peut-être que je ne veux pas le finir.",
+                "b1": "Je n'arrive pas à trouver ton visage. Peut-être que je ne veux pas le finir.",
+                "native": {
+                  "en": "I can't find your face. Maybe I don't want to finish it.",
+                  "de": "Ich finde dein Gesicht nicht. Vielleicht will ich es nicht zu Ende malen."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"path": ["friendship", "open"]},
+              "say": {
+                "a2": "Ton visage, je le fais à Berlin. De mémoire. Ça va être une catastrophe.",
+                "native": {
+                  "en": "Your face, I'll do in Berlin. From memory. It's going to be a disaster.",
+                  "de": "Dein Gesicht male ich in Berlin. Aus dem Gedächtnis. Das wird eine Katastrophe."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.p9",
+          "visual": "Lila sits on the crate. Toi is on Odile's chair. The Polaroid box is between them.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "direction": "she stops",
+              "say": {
+                "a2": "Ici, on s'aime beaucoup. Et on se retient beaucoup. Margaux avec Odile. Moi avec Marin. Et toi…",
+                "b1": "Ici, on s'aime en se retenant. Margaux a retenu Odile avec un mensonge. Moi, je me retiens avec Marin. Et toi…",
+                "native": {
+                  "en": "Here, we love each other a lot. And we hold ourselves back a lot. Margaux with Odile. Me with Marin. And you…",
+                  "de": "Hier lieben wir uns sehr. Und wir halten uns sehr zurück. Margaux mit Odile. Ich mit Marin. Und du…"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.p9r",
+          "visual": "She doesn't finish the sentence.",
+          "in_frame": ["lila_bonnet"],
+          "silence": true,
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "turn",
+          "id": "vn.b.turn2",
+          "to": "lila_bonnet",
+          "panel": {
+            "kind": "panel",
+            "id": "vn.b.p9t",
+            "in_frame": ["lila_bonnet", "toi"],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "when": {"path": ["friendship", "open"]},
+                "say": {
+                  "a2": "…toi, tu retiens tout le monde avec cet appartement.",
+                  "b1": "…toi, tu retiens tout le monde avec cet appartement. Sans le vouloir.",
+                  "native": {
+                    "en": "…you, you hold everyone back with this flat.",
+                    "de": "…du hältst alle mit dieser Wohnung zurück."
+                  }
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer her theory, which is also Lila's side in the fight over the café's future.",
+            "de": "Antworte auf ihre Theorie, die zugleich Lilas Seite im Streit um die Zukunft des Cafés ist.",
+            "fr": "Réponds à sa théorie, qui est aussi le camp de Lila dans la dispute sur l'avenir du café."
+          },
+          "listens_for": "Any answer to her theory. Replies might be «Non. On s'aide.», «Peut-être. Tu as raison.», or, on the romance path, the unfinished sentence finished by the learner («Et moi, je te retiens ?»).",
+          "fallback": "tu_as_raison",
+          "replies": [
+            {
+              "id": "on_saide",
+              "label": "We help each other",
+              "means": "The learner disagrees: they help each other.",
+              "examples": ["Non. On s'aide."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn2.on_saide.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Oui. Les deux. C'est ça, le problème.",
+                        "native": {"en": "Yes. Both. That's the problem.", "de": "Ja. Beides. Das ist das Problem."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "tu_as_raison",
+              "label": "You're right",
+              "means": "The learner agrees that she is right.",
+              "examples": ["Peut-être. Tu as raison."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn2.tu_as_raison.r1",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Je déteste avoir raison la nuit.",
+                        "native": {"en": "I hate being right at night.", "de": "Ich hasse es, nachts recht zu haben."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "et_moi",
+              "label": "And me, do I hold you back?",
+              "means": "The learner finishes her unfinished sentence: do I hold you back?",
+              "examples": ["Et moi, je te retiens ?"],
+              "when": {"path": "romance"},
+              "beats": [
+                {"kind": "panel", "id": "vn.b.turn2.et_moi.r1", "in_frame": ["lila_bonnet"], "silence": true},
+                {
+                  "kind": "panel",
+                  "id": "vn.b.turn2.et_moi.r2",
+                  "in_frame": ["lila_bonnet"],
+                  "lines": [
+                    {
+                      "who": "lila_bonnet",
+                      "say": {
+                        "a2": "Un peu. Pas assez pour rester. Trop pour partir tranquille.",
+                        "b1": "Un peu. Pas assez pour que je reste. Trop pour que je parte tranquille.",
+                        "native": {
+                          "en": "A little. Not enough to stay. Too much to leave in peace.",
+                          "de": "Ein bisschen. Nicht genug, um zu bleiben. Zu viel, um in Ruhe zu gehen."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "vn.b.choix",
+          "mechanic": "choix",
+          "to": "lila_bonnet",
+          "prompt": {
+            "a2": "Il faut le dire à Marin. Demain matin. Tu viens avec moi ?",
+            "native": {
+              "en": "We have to tell Marin. Tomorrow morning. Are you coming with me?",
+              "de": "Wir müssen es Marin sagen. Morgen früh. Kommst du mit?"
+            }
+          },
+          "task": {
+            "en": "Choose whether you go with Lila to tell Marin.",
+            "de": "Wähle, ob du mit Lila gehst, um es Marin zu sagen.",
+            "fr": "Choisis si tu vas avec Lila le dire à Marin."
+          },
+          "flag": "s1.went_with_lila_to_marin",
+          "default": "oui",
+          "options": [
+            {
+              "id": "oui",
+              "label": {"a2": "Oui, je viens", "native": {"en": "Yes, I'm coming", "de": "Ja, ich komme mit"}},
+              "subtitle": {
+                "a2": "Marin saura que tu savais.",
+                "native": {"en": "Marin will know you knew.", "de": "Marin wird wissen, dass du es wusstest."}
+              },
+              "sets": {"s1.went_with_lila_to_marin": true}
+            },
+            {
+              "id": "non",
+              "label": {
+                "a2": "Non. C'est à toi.",
+                "native": {"en": "No. It's yours to do.", "de": "Nein. Das musst du tun."}
+              },
+              "subtitle": {"a2": "Lila y va seule.", "native": {"en": "Lila goes alone.", "de": "Lila geht allein."}},
+              "sets": {"s1.went_with_lila_to_marin": false}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.r1",
+          "visual": "The two of them wrapping the portrait together: tape screeching, bubble wrap, her holding, Toi taping. An ordinary task at two in the morning.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "silence": true
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.r2.romance",
+          "visual": "She wipes ochre off Toi's hand with her thumb, and the thumb stays.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Pas maintenant.", "native": {"en": "Not now.", "de": "Nicht jetzt."}}
+            },
+            {
+              "who": "lila_bonnet",
+              "say": {"a2": "Mais pas jamais.", "native": {"en": "But not never.", "de": "Aber nicht nie."}}
+            }
+          ],
+          "when": {"path": "romance"}
+        },
+        {
+          "kind": "panel",
+          "id": "vn.b.r2.friendship",
+          "visual": "At the door, coat on. She points at the smoke alarm, still hanging from its wire since the disastrous dinner.",
+          "in_frame": ["lila_bonnet", "toi"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "say": {
+                "a2": "Promets-moi un truc. Après mon départ, tu ne refais jamais l'omelette. Jamais.",
+                "b1": "Promets-moi une chose. Quand je serai partie, tu ne referas jamais l'omelette.",
+                "native": {
+                  "en": "Promise me something. After I've gone, you never make the omelette again. Never.",
+                  "de": "Versprich mir etwas. Nach meiner Abreise machst du nie wieder das Omelett. Nie."
+                }
+              }
+            }
+          ],
+          "when": {"path": ["friendship", "open"]}
+        },
+        {
+          "kind": "hook",
+          "id": "vn.b.suivre",
+          "role": "a_suivre",
+          "panel": {
+            "kind": "panel",
+            "id": "vn.b.last",
+            "visual": "Lila's phone, face up this time, on the crate. A message from Marin.",
+            "in_frame": ["lila_bonnet"],
+            "lines": [
+              {
+                "who": "sms",
+                "say": {
+                  "a2": "Tu rentres ? J'ai une surprise pour toi. Pour le Mistral !",
+                  "native": {
+                    "en": "Are you coming home? I have a surprise for you. For Le Mistral!",
+                    "de": "Kommst du nach Hause? Ich habe eine Überraschung für dich. Für das Mistral!"
+                  }
+                }
+              },
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Marin a une surprise pour Lila. Lila a une caisse pour Berlin. À suivre…",
+                  "b1": "Marin prépare une surprise pour Lila. Lila, elle, a fait sa caisse pour Berlin. À suivre…",
+                  "native": {
+                    "en": "Marin has a surprise for Lila. Lila has a crate for Berlin. To be continued…",
+                    "de": "Marin hat eine Überraschung für Lila. Lila hat eine Kiste für Berlin. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "state_out": {"lila.berlin_revealed": true},
+  "for_next_gap": [
+    "Lila is leaving. She does not become sad or distant. She becomes practical about everyone else's life, which is how she meddles (canon).",
+    "Marin now knows, in both versions. He says nothing about it for two episodes and bakes too much. The folder stays on the fridge.",
+    "Never write a scene where the learner can ask Lila to stay as a mechanic. They can say it, and she can hear it, but it is not a choice card.",
+    "State out: s1.lila_path is updated only by what was expressed here. For example, (b) or (c) said with romantic intent confirms romance, and a joke-first scene keeps friendship. It is never shown.",
+    "State out: lila.heard_the_true_thing (romance only) is read by T7."
+  ]
+}

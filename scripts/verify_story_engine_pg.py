@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import sys
 import threading
+import time
 import uuid
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -187,6 +188,22 @@ def main() -> int:
         # A brand-new learner has no due vocabulary, so there is normally no recall step.
         a.advance()
     report.record("reached the respond step", bool(a.current()) and a.current()["kind"] == "respond", str(a.current() and a.current()["kind"]))
+    # The reply is a short exchange (`prompt.max_turns`, 2 today) and only its last
+    # turn settles the scene. Play the turns before it once, plainly, so the race
+    # below lands on the attempt that writes the story event. (The driver predates
+    # the exchange: it raced turn 0, nothing settled, and every check after this
+    # one failed.)
+    for _ in range(8):
+        prompt = (a.current() or {}).get("prompt") or {}
+        if a.current() is None or a.current()["kind"] != "respond" or prompt.get("turn_index", 0) >= prompt.get("max_turns", 1) - 1:
+            break
+        early_path, early_body = a.attempt_body("Oui, je peux t'aider.")
+        early = a.post(early_path, early_body)
+        if early.status_code != 200:
+            raise SystemExit(f"an early turn failed: {early.status_code} {early.text}")
+        a.refresh()
+    prompt = (a.current() or {}).get("prompt") or {}
+    report.record("the race lands on the exchange's last turn", prompt.get("turn_index", 0) == prompt.get("max_turns", 1) - 1, f"turn {prompt.get('turn_index')} of {prompt.get('max_turns')}")
     path, body = a.attempt_body("Oui, je peux apporter les affiches samedi.")
     same = [lambda: a.post(path, body) for _ in range(N)]
     positions = [lambda: a.client.put(f"/api/v1/story-engine/episodes/{scene_id}/position", headers=a.headers, json={"panel_index": 2}) for _ in range(3)]
@@ -194,7 +211,19 @@ def main() -> int:
     attempts, pos = mixed[:N], mixed[N:]
     report.record("no 5xx under the settle race", all(r.status_code < 500 for r in mixed), f"attempts={codes(attempts)} positions={codes(pos)}")
     report.record("at least one identical retry succeeded", any(r.status_code == 200 for r in attempts), codes(attempts))
-    a.refresh()
+    # WP-87: with the three-lane turn (the production default) the reply commits
+    # first and the story's own lane settles after that commit, in the background
+    # (`story_lanes.dispatch_pending`); the resolution reads `story_pending` until
+    # then. The invariants below are about the settled world, so wait for it.
+    deadline = time.monotonic() + 60
+    while True:
+        a.refresh()
+        resolution_step = next((s for s in a.journey["steps"] if s["kind"] == "resolution"), None)
+        pending = bool(((resolution_step or {}).get("prompt") or {}).get("story_pending"))
+        if not pending or time.monotonic() > deadline:
+            break
+        time.sleep(0.25)
+    report.record("the story lane settled", not pending, "story_pending cleared" if not pending else "still pending after 60 s")
     thread = db.rows("select state, current_episode_index from serial_threads where id = :t", t=thread_id)[0]
     events = (thread["state"].get("living_story") or {}).get("events", [])
     report.record("exactly one story event was written", len(events) == 1, f"events={len(events)}")

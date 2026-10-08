@@ -2,36 +2,122 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from app.core.srs import memory
+from app.core.srs.memory import Evidence, EvidenceFormat, MemoryDecision, MemoryState
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
-from app.services.grammar_catalog import FRENCH_CORE_CATALOG_VERSION, FrenchCoreGrammarCatalog
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
-# SRS Interval Logic (from Excel tracker)
-# Score 9-10: +30 days
-# Score 7-8:  +14 days
-# Score 5-6:  +7 days
-# Score 3-4:  +3 days
-# Score 0-2:  +1 day
+# WP-L3: grammar is scheduled by the one memory model (`app.core.srs.memory`),
+# the FSRS-style stability/difficulty model vocabulary already uses, with the
+# evidence weight of the format that produced the observation. Every grammar
+# credit path — the Atelier, the journey, an erratum repair, a Rappel card, a
+# live-session reply, an in-context mention — goes through
+# `apply_grammar_evidence`; nothing else writes `next_review`.
 
-def calculate_next_review(score: float) -> timedelta:
-    """Calculate the next review interval based on score (0-10)."""
-    if score >= 9:
-        return timedelta(days=30)
-    elif score >= 7:
-        return timedelta(days=14)
-    elif score >= 5:
-        return timedelta(days=7)
-    elif score >= 3:
-        return timedelta(days=3)
-    else:
-        return timedelta(days=1)
+
+def grammar_memory_state(progress: UserGrammarProgress) -> MemoryState:
+    """The stored memory of a concept, seeded from SM-2-era fields if absent.
+
+    A row written before the WP-L3 migration (or built without the new columns)
+    has ``reps > 0`` and no stability: it is read with the migration's seed
+    formula, so it continues from the interval it was last given.
+    """
+
+    reps = int(getattr(progress, "reps", 0) or 0)
+    stability = float(getattr(progress, "stability", 0.0) or 0.0)
+    if reps > 0 and stability <= 0.0:
+        return memory.seed_from_legacy(
+            score=getattr(progress, "score", 0.0),
+            reps=reps,
+            last_review=getattr(progress, "last_review", None),
+            next_review=getattr(progress, "next_review", None),
+        )
+    return MemoryState(
+        stability=stability,
+        difficulty=float(getattr(progress, "difficulty", None) or memory.DEFAULT_DIFFICULTY),
+        reps=reps,
+        lapses=int(getattr(progress, "lapses", 0) or 0),
+    )
+
+
+def apply_grammar_evidence(
+    progress: UserGrammarProgress,
+    evidence: Evidence,
+    *,
+    now: datetime,
+    score: float | None = None,
+    interval_multiplier: float = 1.0,
+    weight_scale: float = 1.0,
+) -> MemoryDecision | None:
+    """The one door through which grammar evidence reaches the schedule.
+
+    ``weight_scale`` (WP-S3, La Forge) scales the format's evidence weight:
+    the forge's second, third… schedule-moving success of one rule inside one
+    séance is massed practice and buys less of the rating's stability gain.
+
+    Writes stability/difficulty/lapses/reps and the review pair from
+    :func:`app.core.srs.memory.review`; ``score`` (0–10, display only) and the
+    derived ``state`` move when a score is given. Returns ``None`` — and changes
+    nothing about the schedule — for evidence that does not schedule (a
+    mention). Never commits.
+    """
+
+    graded: Evidence | memory.EvidenceGrade = evidence
+    if weight_scale != 1.0:
+        grade = memory.grade_evidence(evidence)
+        if grade is not None:
+            graded = memory.EvidenceGrade(
+                rating=grade.rating,
+                weight=grade.weight * max(0.0, min(1.0, float(weight_scale))),
+                step=grade.step,
+            )
+    decision = memory.review(
+        grammar_memory_state(progress),
+        graded,
+        now=now,
+        interval_multiplier=interval_multiplier,
+    )
+    if decision is None:
+        return None
+    progress.stability = decision.stability
+    progress.difficulty = decision.difficulty
+    progress.lapses = decision.lapses
+    progress.reps = decision.reps
+    progress.last_review = now
+    progress.next_review = decision.due_at
+    if score is not None:
+        progress.score = max(0.0, min(10.0, float(score)))
+    progress.state = determine_state(float(progress.score or 0.0), progress.reps)
+    progress.updated_at = now
+    # WP-L4: the concept's life (introduced, free use, spaced success, held)
+    # sees every observation that reaches the schedule.
+    from app.services.concept_life import note_concept_evidence
+
+    note_concept_evidence(progress, evidence, now=now)
+    return decision
+
+
+def previous_interval_days(progress: UserGrammarProgress) -> int:
+    """The interval the last review actually granted, in days.
+
+    `UserGrammarProgress` has no interval column, so it is read back off the
+    schedule the last review wrote. Zero when there is no such pair, which the
+    scheduler reads as "no history".
+    """
+
+    last = getattr(progress, "last_review", None)
+    nxt = getattr(progress, "next_review", None)
+    if not last or not nxt:
+        return 0
+    return max(0, (nxt - last).days)
 
 
 # `UserGrammarProgress.notes` is written from two very different places: the
@@ -245,15 +331,15 @@ class GrammarService:
                 (UserGrammarProgress.concept_id == GrammarConcept.id)
                 & (UserGrammarProgress.user_id == user.id),
             )
+            .filter(GrammarConcept.active.is_(True))
             .filter(
                 (UserGrammarProgress.id.is_(None))  # New concepts
                 | (UserGrammarProgress.next_review <= now)  # Due
                 | (UserGrammarProgress.next_review.is_(None))  # Never reviewed
             )
-            .filter(
-                (UserGrammarProgress.id.is_(None))
-                | (UserGrammarProgress.state != "gemeistert")
-            )
+            # WP-L1: mastered concepts are not excluded. Their interval is long,
+            # but when it runs out they come back like any other review —
+            # excluding them meant a mastered concept was never seen again.
         )
 
         if level:
@@ -283,8 +369,14 @@ class GrammarService:
         notes: str | None = None,
         interval_multiplier: float = 1.0,
         source_type: str | None = None,
+        evidence: Evidence | None = None,
     ) -> UserGrammarProgress:
-        """Record a grammar review with a 0-10 score."""
+        """Record a grammar review with a 0-10 score.
+
+        ``evidence`` says what the score was earned with (the format and whether
+        it was right); without it the score is read as a self-rated Rappel card
+        (``Evidence.from_score``). The score itself is kept for display.
+        """
         if source_type == "atelier":
             from app.services.journey_learning import lock_learning_credit
 
@@ -313,13 +405,13 @@ class GrammarService:
             return progress
 
         now = datetime.now(UTC)
-        interval = calculate_next_review(score) * interval_multiplier
-
-        progress.score = score
-        progress.reps += 1
-        progress.last_review = now
-        progress.next_review = now + interval
-        progress.state = determine_state(score, progress.reps)
+        apply_grammar_evidence(
+            progress,
+            evidence if evidence is not None else Evidence.from_score(score),
+            now=now,
+            score=score,
+            interval_multiplier=interval_multiplier,
+        )
         if notes:
             # Provenance never overwrites something the learner wrote in the
             # Cahier; it only fills a column that is empty or already machine.
@@ -356,8 +448,13 @@ class GrammarService:
         score: float,
         notes: str | None = None,
         source: str = "conversation",
+        evidence: Evidence | None = None,
     ) -> UserGrammarProgress:
-        """Record grammar evidence gathered inside a live session."""
+        """Record grammar evidence gathered inside a live session.
+
+        By default a live-session observation is the learner's own line: free
+        production, right when the score passes (``score >= 5``).
+        """
 
         context_notes = notes.strip() if isinstance(notes, str) else None
         if context_notes:
@@ -370,6 +467,9 @@ class GrammarService:
             concept_id=concept_id,
             score=score,
             notes=context_notes,
+            evidence=evidence
+            if evidence is not None
+            else Evidence.from_score(score, fmt=EvidenceFormat.PRODUCE),
         )
 
     # ─────────────────────────────────────────────────────────────────
@@ -384,7 +484,7 @@ class GrammarService:
         FrenchCoreGrammarCatalog(self.db).ensure_catalog(archive_legacy=True)
         catalog_filters = (
             GrammarConcept.active.is_(True),
-            GrammarConcept.catalog_version == FRENCH_CORE_CATALOG_VERSION,
+            GrammarConcept.catalog_version == active_catalog_version(),
         )
         total_concepts = (
             self.db.query(func.count(GrammarConcept.id))
@@ -419,7 +519,6 @@ class GrammarService:
                 UserGrammarProgress.user_id == user.id,
                 *catalog_filters,
                 UserGrammarProgress.next_review <= now,
-                UserGrammarProgress.state != "gemeistert",
             )
             .scalar()
             or 0
@@ -766,19 +865,25 @@ class GrammarService:
         for concept_id in concept_ids:
             progress = self.get_or_create_progress(user_id=user.id, concept_id=concept_id)
 
-            # If this is a first-time practice, give it a starting score
-            if progress.reps == 0:
-                progress.score = 5.0  # Middle score for context practice
-                progress.reps = 1
-                progress.state = determine_state(5.0, 1)
-                progress.last_review = now
-                progress.next_review = now + calculate_next_review(5.0)
+            if int(progress.reps or 0) == 0:
+                # A first meeting in a scene is exposure, the weakest evidence
+                # there is: recognition with the form handed over (ladder step
+                # 0, a one-day stability). Without a first schedule the row
+                # would sit "due now" with nothing learned.
+                apply_grammar_evidence(
+                    progress,
+                    Evidence(EvidenceFormat.RECOGNISE, correct=True, assisted=True),
+                    now=now,
+                    score=5.0,
+                )
             else:
-                # Small boost for practicing in context (max +0.5)
-                new_score = min(10.0, progress.score + 0.5)
+                # WP-L1/L3: a mention in the story is not a review. It goes
+                # through the same door and is refused there (no schedule
+                # change); only the display score is nudged.
+                apply_grammar_evidence(progress, Evidence.mention(), now=now)
+                new_score = min(10.0, float(progress.score or 0.0) + 0.5)
                 progress.score = new_score
                 progress.state = determine_state(new_score, progress.reps)
-                progress.last_review = now
 
             progress.updated_at = now
 
@@ -790,4 +895,10 @@ class GrammarService:
         )
 
 
-__all__ = ["GrammarService", "calculate_next_review", "determine_state"]
+__all__ = [
+    "GrammarService",
+    "apply_grammar_evidence",
+    "determine_state",
+    "grammar_memory_state",
+    "previous_interval_days",
+]

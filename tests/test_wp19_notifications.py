@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -87,8 +88,9 @@ def test_journey_morning_copy_announces_the_scene_for_a_cohort_learner(
 
     assert copy is not None
     title, message = copy
-    assert title == "Votre scène du jour est prête"
-    assert title == DAILY_JOURNEY_MORNING_TITLE
+    # WP-80: the push is a character speaking, not the app announcing.
+    assert title == "Marin"
+    assert title != DAILY_JOURNEY_MORNING_TITLE
     assert message
 
 
@@ -101,8 +103,9 @@ def test_journey_morning_copy_offers_to_resume_an_unfinished_scene(
 
     title, message = daily_journey_morning_copy(db_session, user, today=TODAY)
 
-    assert title == DAILY_JOURNEY_MORNING_TITLE
-    assert "5 minutes" in message
+    # WP-80: the character picks the unfinished scene up where it stopped.
+    assert title != DAILY_JOURNEY_MORNING_TITLE
+    assert "continue" in message or "reprend" in message
 
 
 def test_journey_morning_copy_stays_silent_after_the_scene_is_finished(
@@ -127,7 +130,7 @@ def test_journey_morning_copy_ignores_yesterdays_finished_scene(
     copy = daily_journey_morning_copy(db_session, user, today=TODAY)
 
     assert copy is not None
-    assert copy[0] == DAILY_JOURNEY_MORNING_TITLE
+    assert copy[0] != DAILY_JOURNEY_MORNING_TITLE
 
 
 def test_scheduler_copy_uses_the_journey_title_for_cohort_learners(
@@ -139,7 +142,7 @@ def test_scheduler_copy_uses_the_journey_title_for_cohort_learners(
 
     title, _message = _morning_copy(db_session, user, TODAY)
 
-    assert title == DAILY_JOURNEY_MORNING_TITLE
+    assert title == "Marin"
 
 
 def test_scheduler_copy_keeps_the_legacy_edition_for_everyone_else(
@@ -187,7 +190,10 @@ def test_client_error_becomes_a_client_crash_in_the_pilot_ledger(
     assert response.status_code == 204
 
     user = db_session.scalar(select(User).where(User.email == "crash@example.com"))
-    report = PilotEventService(db_session).daily_rollup(date.today(), user_id=str(user.id))
+    # The rollup's day is a Europe/Berlin day (`pilot_events._day_bounds`), not
+    # the host's local date: they differ on a UTC CI runner late in the evening.
+    pilot_today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    report = PilotEventService(db_session).daily_rollup(pilot_today, user_id=str(user.id))
     rows = [row for row in report["users"] if row["user_id"] == str(user.id)]
     assert rows, report
     assert rows[0]["events"]["client_crash"] == 1

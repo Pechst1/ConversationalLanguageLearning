@@ -38,8 +38,9 @@ from app.services.glosses import gloss_payload
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.graphic_novel_image_storage import GraphicNovelImageStorage
 from app.services.llm_service import LLMProviderError, LLMService
-from app.services.news_service import NewsService
 from app.services.progress import ProgressService
+from app.services.revue import feuilleton_bridge
+from app.services.revue.dossier import EditorialDossier
 from app.services.serial_costs import serial_generation_cost_event
 from app.services.serial_notifications import enqueue_serial_edition_notification
 from app.services.vocabulary_credit import VocabularyCreditService
@@ -101,11 +102,16 @@ GENERIC_PANEL_BEAT_PHRASES = (
     "worksheet",
     "learner",
 )
+# WP-D8 (owner, 2026-09-23): one art direction for the cast, the places and the episode panels —
+# the flat screen print of `scripts/art/atelier_art.py`, in the brand inks.
 IMAGE_STYLE_MOODBOARD = (
-    "Visual moodboard: Penguin Crime and Penguin Modern Classics cover design, Len Deighton-era spy paperback covers, "
-    "photomechanical halftone printing, sparse editorial collage, high-contrast ink, restrained cream/black/red with occasional muted blue or green, "
-    "strong negative space, one decisive prop, diagonal typographic energy without readable typography, and slightly dry noir atmosphere. "
-    "Avoid decorative modernist shape clutter, repeated props, busy café clutter, cute app illustration, and crowded adventure-comic scenes."
+    "Visual moodboard: vintage French travel posters and three-colour risograph prints. Large flat colour shapes, faces "
+    "modelled with three or four flat planes of tone, no outlines or linework, slight print misregistration and paper grain. "
+    "Strictly the brand inks: warm paper #F1ECE1, near-black ink #14110D, cobalt blue #1D3A8A, vermilion red #D8321A, "
+    "sunflower yellow #F3C318, deep green #2C6A5D and ochre #C2890F, with natural skin tones. Characters are beautiful and "
+    "individual, never caricatured; strong negative space and one decisive prop. "
+    "Avoid photographic lighting, gradients, hair strands, glossy highlights, decorative shape clutter, repeated props, "
+    "busy café clutter, cute app illustration, and crowded adventure-comic scenes."
 )
 _PROMPT_ASSET_CACHE: dict[str, tuple[int, str]] = {}
 
@@ -622,6 +628,7 @@ class GraphicNovelScheduler:
         preferred_concept_ids: list[int] | None = None,
         preferred_errata_ids: list[UUID] | None = None,
         target_vocabulary_ids: list[int] | None = None,
+        dossier: EditorialDossier | None = None,
         use_news: bool = False,
         panel_count: int | None = None,
         story_quality: str = "standard",
@@ -631,7 +638,7 @@ class GraphicNovelScheduler:
         image_quality: str | None = None,
         public_figure_mode: str = "named_context",
         force_new: bool = False,
-        refresh_news: bool = False,
+        refresh_news: bool = False,  # unused since WP-119 phase 5 (dossiers are files); kept for callers
         sync: bool | None = None,
         pending_scene_id: UUID | None = None,
     ) -> GraphicNovelScene:
@@ -658,11 +665,18 @@ class GraphicNovelScheduler:
             preferred_concept_ids=preferred_concept_ids,
             limit=3,
         )
+        if dossier is None and use_news:
+            # Deprecated (WP-119 phase 5): ``use_news`` maps to the week's recommended
+            # dossier for one release. Callers pass ``dossier=`` instead.
+            logger.bind(user_id=str(user.id)).warning(
+                "GraphicNovelScheduler.create(use_news=True) is deprecated; pass dossier= "
+                "(feuilleton_bridge.dossier_for_feuilleton). Using the week's recommended dossier."
+            )
+            dossier = feuilleton_bridge.dossier_for_feuilleton(user, db=self.db)
         source_snapshot = await self._source_snapshot(
             user=user,
             personal_item=personal_item,
-            use_news=use_news,
-            refresh_news=refresh_news,
+            dossier=dossier,
         )
         if target_vocabulary_ids is not None:
             preferred_vocabulary_ids = _dedupe_ints(target_vocabulary_ids)
@@ -1552,8 +1566,7 @@ class GraphicNovelScheduler:
         *,
         user: User,
         personal_item: PersonalInputItem | None,
-        use_news: bool,
-        refresh_news: bool = False,
+        dossier: EditorialDossier | None = None,
     ) -> dict[str, Any]:
         if personal_item:
             return {
@@ -1572,14 +1585,13 @@ class GraphicNovelScheduler:
                 ],
                 "source_policy": "Personal input; used only as contextual inspiration.",
             }
-        if use_news:
-            interests = [item.strip() for item in (user.interests or "").split(",") if item.strip()]
-            snapshot = await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=refresh_news)
-            if isinstance(snapshot, dict):
-                # Only a genuine, opted-in news edition may surface a learner-facing
-                # source card. Everything else is internal generation provenance.
-                snapshot["learner_visible"] = True
-            return snapshot
+        if dossier is not None:
+            # Only a genuine, opted-in news edition may surface a learner-facing source
+            # card: the bridge tags the dossier's snapshot ``learner_visible`` and
+            # ``learner_facing_source`` turns it into the same card as
+            # ``feuilleton_bridge.source_card(dossier)``. Everything else is internal
+            # generation provenance.
+            return feuilleton_bridge.snapshot_for_prompt(dossier)
         return {
             "mode": "atelier_curated",
             "title": "A small Paris errand",
@@ -5853,10 +5865,10 @@ class GraphicNovelStoryGenerator:
         else:
             public_figure_policy = "Exclude real public figures entirely; use fictional people only."
         return (
-            "Draw one square editorial visual-gag comic panel in the spirit of Penguin Crime, Penguin Modern Classics, Len Deighton spy paperback covers, Sempé, and New Yorker single-panel restraint. "
-            "Use photomechanical halftone texture, high-contrast black ink, cream paper, sharp red accents, and at most one muted blue or green accent. "
+            "Draw one square editorial visual-gag comic panel as a flat screen-printed illustration in the spirit of vintage French travel posters, Sempé, and New Yorker single-panel restraint. "
+            "Use large flat colour shapes on cream paper in near-black ink, cobalt blue, vermilion red, sunflower yellow, deep green and ochre, with slight print misregistration and no outlines. "
             f"{IMAGE_STYLE_MOODBOARD} "
-            "The aesthetic should feel spare, printed, noir-adjacent, and book-cover intelligent, not a generic app illustration or a busy adventure panel. "
+            "The aesthetic should feel spare, printed and warm, like a good poster, not a generic app illustration or a busy adventure panel. "
             f"Scene visual preamble: satirize this mechanic without naming the real source in the image: {headline_mechanic}. "
             f"Visual domain: {domain}. Anchor object: {anchor}. "
             f"Human continuity: {character_line or 'fictional French people with simple readable silhouettes'}. "
@@ -5887,8 +5899,8 @@ class GraphicNovelStoryGenerator:
         )
         return (
             "Draw one complete comic page containing exactly "
-            f"{script.get('panel_count') or len(panels)} panels in a clean grid. Penguin Crime and Penguin Modern Classics paperback-cover mood, "
-            "Len Deighton spy-cover restraint, photomechanical halftone texture, cream paper, high-contrast black ink, sharp red accents, and at most one muted blue or green accent. "
+            f"{script.get('panel_count') or len(panels)} panels in a clean grid, as flat screen-printed illustration in the spirit of vintage French travel posters: "
+            "large flat colour shapes on cream paper in near-black ink, cobalt blue, vermilion red, sunflower yellow, deep green and ochre, slight print misregistration, no outlines. "
             f"{IMAGE_STYLE_MOODBOARD} "
             f"Story premise: {(script.get('story_bible') or {}).get('premise')}. "
             f"News-to-fiction mechanic: {(script.get('story_bible') or {}).get('news_mechanic')}. "
@@ -5914,7 +5926,7 @@ class GraphicNovelStoryGenerator:
             "image_generation_usd": image_cost,
             "story_generation_usd": round(story_cost, 4),
             "total_estimated_usd": round(image_cost + story_cost, 3),
-            "basis": "Configured gpt-image-2 estimate scaled by render mode and quality; story cost uses provider token usage when available.",
+            "basis": "Configured gpt-image-2.5 estimate scaled by render mode and quality; story cost uses provider token usage when available.",
         }
 
     def _source_prompt(self, source_snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -6937,8 +6949,21 @@ class GraphicNovelCorrectionService:
             logger.debug("Graphic novel correction fallback", error=str(exc))
             return None
 
-def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
+def _scene_chrome_language(scene: GraphicNovelScene | None) -> str:
+    """The one-language rule for this scene's reader (French when unknown)."""
+    from app.services.chrome_language import user_chrome_language
+
+    try:
+        return user_chrome_language(getattr(scene, "user", None))
+    except Exception:  # a detached row cannot lazy-load its user
+        return "fr"
+
+
+def serialize_panel(panel: GraphicNovelPanel, *, language: str | None = None) -> dict[str, Any]:
     from app.services.recommendation_reasons import recommendation_reason
+
+    if language is None:
+        language = _scene_chrome_language(getattr(panel, "scene", None))
 
     overlay = dict(panel.overlay_payload or {})
     tasks = overlay.get("tasks")
@@ -6948,6 +6973,7 @@ def serialize_panel(panel: GraphicNovelPanel) -> dict[str, Any]:
                 **task,
                 "recommendation_reason": recommendation_reason(
                     "panel_task",
+                    language=language,
                     concept_id=task.get("concept_id"),
                     target_errata_count=len(task.get("target_errata_ids") or []),
                     target_vocabulary_count=len(task.get("target_vocabulary_ids") or task.get("vocabulary_ids") or []),
@@ -7055,6 +7081,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
         return None
     from app.services.recommendation_reasons import recommendation_reason
 
+    language = _scene_chrome_language(scene)
     script_payload = dict(scene.script_payload or {})
     final_prompt = script_payload.get("final_prompt")
     if isinstance(final_prompt, dict):
@@ -7062,6 +7089,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
             **final_prompt,
             "recommendation_reason": recommendation_reason(
                 "panel_task",
+                language=language,
                 concept_id=final_prompt.get("concept_id"),
                 target_errata_count=len(
                     final_prompt.get("target_errata_ids") or scene.target_errata_ids or []
@@ -7105,7 +7133,7 @@ def serialize_scene(scene: GraphicNovelScene | None, *, include_children: bool =
         "completed_at": scene.completed_at.isoformat() if scene.completed_at else None,
     }
     if include_children:
-        payload["panels"] = [serialize_panel(panel) for panel in sorted(scene.panels or [], key=lambda item: item.panel_index)]
+        payload["panels"] = [serialize_panel(panel, language=language) for panel in sorted(scene.panels or [], key=lambda item: item.panel_index)]
         payload["attempts"] = [
             serialize_attempt(attempt) for attempt in sorted(scene.attempts or [], key=lambda item: item.created_at)
         ]

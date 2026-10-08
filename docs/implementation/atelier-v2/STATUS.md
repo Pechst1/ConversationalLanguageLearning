@@ -1505,3 +1505,481 @@ Three deliberate constraints:
 `used_again_later` is the number to watch: it is the only one that says a
 capability survived a night, and it is the retention signal the five-learner
 study (WP-22) exists to read.
+
+## 2026-09-10 — WP-26 latency
+
+Draft p50 sat at 20–22 s against a 25 s timeout, which on a five-minute session
+is the experience. Full handover: [WP-26-LATENCY.md](WP-26-LATENCY.md).
+
+- New `app/services/journey_latency.py`: prefetch cache keyed by the WP-14C rule
+  (story revision + scene identity + learner context + prompt version), the
+  hot-path handover, wall-time telemetry, and the release gate.
+- Bounded beat `app/tasks/journey_prefetch.py` at 03:20/15:20 Europe/Berlin —
+  flag, cohort, open-day, live-cache and weekly-guardrail all refuse before
+  anything is paid for; a repeat run inside the same revision returns `cached`.
+- `_run_generation` serves a valid warm scene and never calls the content
+  adapter; a key that no longer matches is discarded, and its spend billed on the
+  discard row so no engine money escapes the guardrail.
+- Gate: draft p95 ≤ 8 s, prefetch hit rate ≥ 70 %, ≥ 10 samples.
+  `pilot_digest.py --gate` exits non-zero; thin data is never a pass.
+- Frontend: the wait state is delayed 400 ms so a warm draft shows no spinner,
+  and every mutation is bounded — a timeout is a retryable state, not a dead end.
+- 22 backend + 7 frontend tests, all green. No production numbers yet and no paid
+  call was made: the gate is there to answer that on the first real pilot day.
+
+## 2026-09-10 — WP-27 voice-first respond
+
+The respond beat opens on «Parler». The recording is transcribed by the existing
+stateless endpoint, the transcript lands **in the answer field** to be corrected,
+and the learner sends it as `mode: 'voice'`. The old path auto-submitted the
+transcript, so a misheard word became a wrong answer nobody saw coming.
+
+**No pronunciation scoring, ever** (owner decision): speech becomes text and is
+graded exactly like typed text, and the French hint on screen says so.
+
+«Écrire» is one tap away and remembered (`localStorage`). Recording, transcribing,
+failed transcription, refused permission (→ text, explained once, remembered),
+unsupported device, offline and empty recording each have their own French
+sentence, and none is ever a wrong answer.
+
+Backend grading needed no change — modality and transcript already reach the
+evidence. What was missing was the money: `POST /audio/transcribe` now writes one
+priced pilot row per call, **declared as an estimate** (Whisper reports no
+duration), with the surface that produced it. Details in
+[WP-27-VOICE-RESPOND.md](WP-27-VOICE-RESPOND.md). **Not walked on the simulator.**
+
+## 2026-09-10 — WP-25 placement
+
+CEFR level was self-declared for a learner's first forty attempts, so the first week was served at the wrong band to exactly the people most likely to leave. There is now a placement: four to six French prompts, each drawn from the band the previous answer earned, graded by the same paid checker the Séance correction uses. Full design in [WP-25-PLACEMENT.md](WP-25-PLACEMENT.md).
+
+The result is a prior, not a verdict. `estimate_source` gains `"placement"`, which outranks `"declared"` and is overtaken by `"measured"` once the attempts accrue; it stays a floor and never a ceiling, and `breakdown.status` stays `unverified` because the learner's in-app counters are still zero. `CEFRProgressResponse` gained `estimate_source`, `declared_level` and `placement` — the first two were computed and then dropped by the response schema, so Le Relevé's unverified branch could never fire.
+
+Three properties, each with tests: **resumable** (the conversation is a row, not a request), **idempotent** (a replayed turn returns the stored grading and makes no paid call), **honest under failure** (no grading means `unassessed` and no level — never a fabricated band, never the declaration wearing the word "placement"). An unusable grading raises rather than scoring zero, which would have walked the ladder down on a provider hiccup.
+
+Onboarding: sign-up now hands a new learner to `/placement` after their first sign-in; skipping is a real option that says what it costs, and Réglages re-runs it. One `placement_grading` PilotEvent per call, and a digest line printing cost per placed learner.
+
+**Verification:** backend `1876 passed, 1 skipped`; all twelve node suites pass; `type-check`, `lint`, `next build` clean (31 → 32 routes). **US$0.00 spent — no live model call was made**, which is also the largest open item: the ladder's *mechanism* is proven and its *calibration* is not, and it needs the same kind of bounded paid run the journey conversation waited on.
+
+## 2026-09-10 — WP-24 mistake loop
+
+An erratum could never be finished: `review_error` wrote `review` or
+`relearning` and nothing else, so a learner's mistakes accumulated for the life
+of the account. There are now three states — `open → repairing → mastered` —
+with a real exit (three correct repairs on **distinct days**, no recurrence in
+between) and a real reopen (a recurrence zeroes the streak; it does not pause
+it). Legacy states are folded, not trusted: `review` becomes `repairing`, since
+a row that was merely scheduled forward proved nothing.
+
+The two hand-written day tables are gone. `app/core/srs/schedule.py` wraps the
+SM-2 implementation that had been dead code since it was written; intervals now
+compound with an item's history and a lapse costs ease as well as interval. A
+*first* review still grants the historic seed interval, so nothing already in
+the database is re-dated.
+
+`app/services/journey_errata.py` ranks the learner's due errata and
+`plan_journey(errata_targets=…)` merges them in front of the day's candidates,
+stamping `target_reason="erratum:<id>"`; Home's because-line says so in French.
+Two hooks are still owed by other owners (daily_journey, living_story) and are
+written out in [WP-24-MISTAKE-LOOP.md](WP-24-MISTAKE-LOOP.md) §5 — until they
+land the line is dark and the planner behaves exactly as before.
+
+## 2026-09-10 — WP-29 coverage-controlled generation
+
+Scenes were aimed by band label; nothing checked the result against the words *this*
+learner has. Comprehension with support needs ~95 % known-word coverage (Laufer &
+Ravenhorst-Kalovski 2010), so unknown words are now a budget.
+`app/services/lexical_coverage.py` builds the known set from FSRS retrievability
+(`is_vocab_nailed`, imported not re-derived) plus the CEFR core list for WP-25's estimate,
+folds lemmas through elision and accents, splits unknowns into targets and accidents, and
+returns a verdict naming the words to replace *and* the targets to keep. Thin text is
+`not_assessed`, never rejected. 57 tests, US$0.00; the guard stays dark until two diffs
+land in `living_story.py` (WP-28's lease) — verbatim in [WP-29-COVERAGE.md](WP-29-COVERAGE.md) §5.
+
+## 2026-09-10 — WP-28 integration
+
+The four packages' hooks, wired; handover in [WP-28-INTEGRATION.md](WP-28-INTEGRATION.md).
+
+- WP-24 §5: `daily_journey` reads the errata, plans with them and stores `plan_because`'s payload with the plan; `GET /atelier/today` serves it as a nullable `because` and Home prints the French that was unreachable code until today. Read from the plan, never recomputed — a mistake made after the scene must not claim credit for it.
+- WP-24's quality half: the erratum's label, «faux → juste» and why now shape the scene-draft prompt (the actor is deliberately not told; a primed grader is not a grader). The errata therefore joined the WP-26 cache key: a repaired mistake can no longer be served back the next morning in the scene generated to make the learner repeat it.
+- WP-26 item 3: `TodayEnvelope.is_warm` — warmth is told, not timed, and the wait copy is delayed rather than suppressed. WP-27: the controller's dead second microphone is gone. WP-25: Le Relevé says «niveau estimé (placement)» instead of the self-declaration's words. The signup test WP-25 was said to have broken was already re-pinned in `5f465ff` and passes untouched.
+- 12 backend tests + 9 frontend assertions. Backend `1945 passed, 1 skipped` (three consecutive runs; the tree also carries WP-29, which landed mid-session); twelve node suites, type-check, lint and build green. One intermittent failure in `test_journey_end_to_end.py` was seen once in ten full-suite runs and never again — a float reaching a UUID column mid-reload, i.e. a corrupted cursor read on the shared SQLite connection, not a WP-28 behaviour. **US$0.00 — no model call.**
+
+## 2026-09-10 — WP-31 «Répétition»
+
+Everything else in the app is fiction. This is not: the learner declares a real thing that is about to happen («appeler le propriétaire pour le chauffage, mardi»), it is structured into goal / counterpart / register / date / facts, generated into one scene at their band, rehearsed over 3–6 graded turns, and then — on or after the day — debriefed. Full handover in [WP-31-REHEARSAL.md](WP-31-REHEARSAL.md).
+
+- **Biography, not canon.** `rehearsals` is its own table with no key into any story table, `rehearsal.py` imports no serial or living-story writer (an **AST** scan fails the build if it ever does), and the `ScenarioBrief` it builds carries an empty `story_context` — which is also what keeps `evaluate_response` on its deterministic path. The boundary holds both ways: no world-bible character may appear in a rehearsal, including inside a correction the shared conversation module hands back — one of its rules explains itself by naming Margaux, which has no place in a call to the learner's real landlord.
+- **The debrief is the metric**, not the rehearsal score: done / partly / not yet, plus one free line that is corrected — or declared uncorrected, never passed off as correct. `rehearsal_digest_line` prints "carried out for real: 3/4 (75 %)" and says "nothing to report" rather than 0 % on an empty window.
+- The turn bound is this package's: `journey_conversation` budgets two turns for a journey, so the rehearsal counts its own 3–6 and tells that module only whether a follow-up remains. Nothing shared was edited.
+- Help is a request and it costs: asking for the useful phrases makes every later turn `produced_supported`, and the button says so before it is pressed. The private rubric and the recognition cues never cross the wire while the scene is live.
+- Honest failure is a state: `not_prepared` keeps the declaration and says «Répétition non préparée» with a retry. A hard weekly cap in config (`ATELIER_REHEARSAL_WEEKLY_CAP`, 0 = off) bounds the spend; priced pilot rows per call, and the one call this package cannot price (the shared module's model reply) is marked `cost_known: false` rather than billed at zero.
+- 57 + 6 backend tests, 14 frontend assertions, all green; type-check, lint, build clean (`/repetition` is route 33). Capabilities do **not** yet accrue from a rehearsal — the rubric needs a `DailyJourneyStep` — and that, the Home entry, the day-before push and the digest call are written out as hooks owed. **US$0.00 — no model call was made.**
+
+## 2026-09-10 — WP-33 register and pragmatics
+
+Register was chrome: a scene declared `vous`, the actor answered in character, and a learner who tutoyed their landlord for a week was never told. It is now a graded dimension. New `app/services/pragmatics.py` detects deterministically — tu/vous against the register the *counterpart* actually uses, politeness markers, greeting/closing, imperative-versus-request at A1/A2 only — and a model is asked only where the detectors saw nothing, with `not_evaluated` as the honest answer to every failure. Full handover: [WP-33-REGISTER.md](WP-33-REGISTER.md).
+
+- **Explicit meta-pragmatics** (Taguchi 2015): the line names the rule *and* the reason — «Ici, c'est « vous » : Margaux vous vouvoie. Elle tient le comptoir du Mistral…» — in en/de/fr, and goes *through* WP-05's one-correction policy, not around it. A correction on the day's own target still outranks it; among the rest, register wins.
+- **One rubric, four dimensions.** `register` is scored by the same `_summarize`, the same ladder and the same 24-hour repeat arithmetic as the three capabilities, with no new column and no new writer: the exchange is already in `private_task["turns"]`. One slip anywhere in the scene costs the turn.
+- A pronoun is never swapped without its verb (« vous peux » would be worse than what the learner wrote), and « votre » carries no repair at all because its gender is unknown — that slip arrives as an explanation instead of a diff.
+- Every authored scenario now declares `counterpart_register` (expected register, counterpart, reason in fr/en/de), pinned by test; the two English-only register `_CorrectionRule`s that double-booked the same slip are gone.
+- **No pronunciation or accent judgement anywhere** (owner WON'T-DO), enforced by a source scan over the WP-33 surfaces and the copy tables — with WP-27's promise re-pinned so a spoken turn graded from its transcript cannot be read as scoring the voice. Lila's coarse register below B1 was already stripped by WP-17 in the data path; WP-33 re-pins it read-only rather than editing `living_story.py`.
+- 52 new backend tests; 1973 passed, 1 skipped with the concurrently-edited packages' suites excluded; ruff, type-check, lint and all twelve node suites clean. **US$0.00 — no model call was made**, so the LLM half's mechanism is proven and its judgement is not. One line is owed on `CapabilityKey` before the dimension reaches the wire and the digest; it is written out in the handover.
+
+## 2026-09-10 — WP-30 the learner writes the recap
+
+The recap was written *for* the learner. Retrieval-practice research says that is the weakest of the three formats, and that it buys nothing over restudy without corrective feedback — so «Le journal de bord» does both halves or neither. Full handover: [WP-30-JOURNAL.md](WP-30-JOURNAL.md).
+
+- The day after a scene, the learner writes two to four sentences from memory. **The scene text is not in the payload until they have written**: `JournalCueView` (who, where, how long ago) and `JournalRevealView` are two objects, and the router attaches the second only on the written branch — pinned behaviourally, by schema shape, and by source scan.
+- **Two scores, never one.** The Séance corrector grades the French through the journey's own one-correction policy (full list on demand); `score_content_recall` grades what was remembered against the scene's stored commitments and outcome, deterministically, in its own column. Flawless French about the wrong evening is not a pass.
+- Grammar errors enter WP-24's errata loop; due words the recap used earn unassisted SRS credit, and a flagged word earns none. Both gated on a real verdict — no provider, or no concept to anchor on, is `unavailable`: the writing is kept, nothing is invented, no schedule moves.
+- **+7 days, one line** — « Et la semaine dernière, avec Romy ? » — whose answer is the `used_again_later` signal, about a scene rather than a sitting. It is the journal's own signal, deliberately not folded into `build_capability_summary` (two rubrics is the CONTRACTS §8 failure); the digest line pairing them is a hook owed, and until it lands the number is dark.
+- One priced `journal_correction` PilotEvent per real call, via a one-method subclass so the correction stays the Séance's. New tab in Le Cahier, French, av2, dark-capable. 58 new backend tests; **2094 passed, 1 skipped**; ruff, type-check, lint, build and all twelve node suites clean. **US$0.00 — no model call was made.**
+
+## 2026-09-10 — WP-29H the coverage hooks
+
+WP-29's guard was dark: `living_story.py` was WP-28's lease. It is registered now — `_check_coverage` in `_validate_scene`, the metadata on the brief and on the stored scene, and targets filled from the *same* errata read the director and the prefetch key use, plus today's due vocabulary. Details in [WP-29-COVERAGE.md](WP-29-COVERAGE.md) §5.
+The lexicon is built in `generate_scene`, not `story_context`: that function also builds the **actor's** payload, which would have handed a grader the words the learner cannot read — and `json.dumps` would have died on a frozen `KnownWordSet` on every turn. `_prompt_payload` strips both keys from every prompt; `_storable_context` stores the lexicon's provenance, not its 800 lemmas, so the brief survives the prefetch cache. Both are pinned.
+**It measures; it does not yet reject.** Against the seven-scene A1 fixture set the 821-lemma core list rejects 7 of 7 at 65–83 % — because it lacks *samedi*, *vendredi*, *soirée*, *vendre*, *garder*. Enforcing that costs three retries and then the learner's day, which is the failure §2.4 of that doc names in its own words. So `COVERAGE_ENFORCED = False`: every scene is measured and its verdict stored from today, which is the only thing that can grow the list from real rejections. One constant is the flip, and the enforcing path has its own test.
+Still owed before that flip: the prefetch key carries the errata but not the known-word set, so a warm scene would bypass a guard the cold path applies (`journey_latency.py`, not this lease).
+10 new backend tests; the engine's own suites — WP-29H, living story, longitudinal, WP-28, the five daily-journey files — `263 passed`; ruff clean. The full suite was not run from this checkout: five packages are mid-edit in it, so its count would be someone else's. **US$0.00 — no model call.**
+
+## 2026-09-10 — WP-32 «Écouter d'abord»
+
+Audio is not the intervention: predict → listen → verify → debrief is, and it is largest for the weakest listeners (Vandergrift & Tafaghodtari 2010). So the radio episode is the *cycle*, and the machine refuses the shortcut — no listening without a prediction, no verifying without having listened. Full handover in [WP-32-RADIO.md](WP-32-RADIO.md).
+
+- **Opt-in, off by default**, remembered per learner. With it off `StoryEpisodeStep` behaves exactly as before and nothing audio-shaped is reached — a server render asserting zero transport calls pins it.
+- The two guesses and the check are **deterministic from the episode the server already sent**: no model call, no second generation. A scene whose lines settle neither way is **`unresolved`**, told to the learner as such, never scored as a miss.
+- Cached per scene revision (text + voices + model); a replay calls nobody and writes no cost row, because a zero-cost row reads as a free call. One failed line fails the whole episode with **no clips** — half a scene played aloud is a test nobody can pass — while what was paid for stays cached so the retry is cheaper.
+- The price is an estimate and says so (`estimated: true` + basis): the speech endpoint returns audio and no usage. Provider pinned to OpenAI in code, `.env` untouched.
+- The prediction check is **measurement, not marking**: stored beside the reading position, never in the capability rubric — an AST scan fails the build if it ever reaches `DailyJourneyStep`. No pronunciation anywhere; a copy scan in three languages enforces it.
+- 25 backend + 19 frontend tests; twelve other node suites, type-check, lint and build green. **US$0.00 — no live TTS call was made**, which is also the open item: nothing here has actually been *heard*.
+
+## 2026-09-10 — day's close: eight innovation packages, two finished by hand
+
+Plan: [INNOVATION-WORK-PACKAGES-2026-09-10.md](INNOVATION-WORK-PACKAGES-2026-09-10.md).
+Landed today on top of WP-24…28: WP-29 coverage (`79ccfe7`…`4154b56`) + hooks WP-29H
+(`c1e6d00`), WP-30 journal (`bd3c7d0`), WP-31 rehearsal (`76759a3`), WP-32 radio
+(`5e107ce`, merge `237c86a`), WP-33 register (`ea2ba32`), WP-34 intake (`45d7a5f`),
+WP-35 dossier (`7dd15d4`). Full backend suite after the last commit: **2274 passed,
+1 skipped** (WP-32's run); all 16 node suites pass; type-check, lint, build clean.
+US$0.00 spent — no package made a live model call, so every judgement half
+(placement ladder, coverage lexicon, register LLM gap, radio voice, intake reading)
+is mechanism-proven and calibration-unproven.
+Subagents stalled at the account session limit from the seventh onward; WP-34/35
+were verified and committed by the integration owner (their handoffs say so).
+`services/api.ts` had the WP-31 client block committed twice (HEAD failed
+type-check); `45d7a5f` removes the duplicate.
+**Not done:** WP-36 self-repair prompts (never started); hooks owed by WP-31/32/33/34/35
+(Home entries, `CapabilityKey.REGISTER`, digest lines, settings row, learner-sourced
+coverage targets); no browser or simulator walk of any new surface.
+
+## 2026-09-11 — WP-36 characters prompt self-repair
+
+Explicit correction gets uptake in 50 % of cases against 31 % for a recast (Lyster & Ranta 1997), and prompts that push output beat feedback that supplies it. So a learner who repeats one of their own recorded mistakes is now *asked* — « Pardon, un ou une café ? » — the question appended to the character's own reply, never replacing it. A repair that lands is booked through WP-24's `review_error` as *supported* production, because it was prompted; one that fails becomes the explicit correction, chosen by WP-05's own selector; an ignored question is neither, and says so. Bounded: one prompt per scene — recomputed from the character's prior lines, never a marker a learner could read — never on the last turn, and never for a mistake that a background transcript scan recorded and nobody ever explained. Handover: [WP-36-SELF-REPAIR.md](WP-36-SELF-REPAIR.md).
+
+- The actor is told the scene does not end (`turn_plan`), so its own state stays coherent, and is still never told what the learner is *expected* to get wrong: the question is deterministic, so an actor that ignores the plan costs the scene its tidiness and not its pedagogy. `"errata" not in ACTOR` is re-pinned, `VERSION` deliberately not bumped.
+- WP-33's `missing_greeting` / `missing_politeness` / `missing_closing` reach a learner at last, in character rather than as a lecture, and `is_closing_turn` finally has a caller. Only the closing nudge may cost a turn; the other two ride along on a turn that was continuing anyway, so nobody's earned ending is held back to teach them « bonjour ».
+- WP-34's hook is wired: words off the learner's own documents are coverage targets now, not accidents to be generated away.
+- 40 new backend tests; full suite **2347 passed, 1 skipped** (green; an earlier run in this checkout carried six failures that were WP-37's concurrent edit, and they are gone from the final one); ruff, type-check, lint and the node suites clean. **US$0.00 — no model call was made**, so what is proven is the mechanism: whether a prompted repair actually beats a recast *here* needs the telemetry hook and a pilot week, and is the package's first open item.
+
+## 2026-09-11 — WP-37 the hooks, applied
+
+Every 2026-09-10 package stopped at its lease and wrote the missing diff into its handover. Right discipline, one cost: a package ships dark. Applied: [WP-37-HOOKS.md](WP-37-HOOKS.md).
+
+- `CapabilityKey.REGISTER` was never one line. `_CAPABILITY_ORDER` was `tuple(CapabilityKey)`, so the member alone would have asked the evidence reader for a scenario nothing writes and raised `KeyError` on `_TITLES[…][REGISTER]` in every progress call and finish recap — and then printed the dimension twice. The scenario keys are their own tuple now; six test files that read the enum as "the authored scenarios" read `SCENARIO_PRIORITY` instead. The frozen fixture gained one entry, `contract_version` still 1; CONTRACT-FREEZE row 16 is drafted in the handover, not applied.
+- Home carries two quiet rows and still exactly one press bar: the rehearsal debrief (gated on the server's own `debrief_due`) and the dossier. **Not «Vos documents»** — WP-34's intake components are imported by no page, so that row would open a screen with no intake on it. Its surface, not a Home entry, is what is owed.
+- Six digest lines that existed and were never printed; `rehearsal_reminder_copy` (unplayed rehearsals only, the learner's own goal, never a character) whose call site is `app/tasks/notifications.py` and is written out; «Écouter d'abord» in Réglages on the reader's own key; the radio transport in the journey facade.
+- Fixed in passing: WP-31's weekly-cap test compared a frozen `NOW` against a server-default `created_at`, so it passed only on the day it was written.
+- 31 new tests. Full suite **2347 passed, 1 skipped** — including WP-36's, whose six reported failures were this package's enum mid-flight and are gone. Sixteen node suites, type-check, lint, build clean (37 routes). **US$0.00 — no model call.** Nothing here has been walked in a browser or on a simulator.
+
+## 2026-09-11 — WP-38 the last seams
+
+The seven diffs WP-36 and WP-37 wrote out and could not apply from inside their own leases. Applied: [WP-38-LAST-SEAMS.md](WP-38-LAST-SEAMS.md).
+
+- **WP-34 has a surface at last**: `/missions?intake=1` renders the intake, the artefact card, its task and «Non lu» — a backend with 82 tests and a component set with 17 that no page imported. It is a second *view* of the Courrier's own route because the task it produces is a Courrier task, and because `loadMission` would otherwise have **created a paid mission** for a learner who came to paste a letter; that guard has its own test. The task card is rendered without `onStart` and the way in is an `av2-row`, so the screen keeps one 3D press. Home's «Vos documents» row exists now — gated on the server's allowance — and Home still draws exactly one primary.
+- The **rehearsal push is sent**. WP-37's sketch would have made it dead for anyone whose edition had already gone out: the edition's dedupe `continue`d. It is a branch now, and the reminder runs beside it on its own key, idempotent, recording nothing when no device took it.
+- `journey_events`'s `scenario_key` validates against `SCENARIO_PRIORITY`, not the enum that now carries `register`; CONTRACT-FREEZE row 16 applied. The radio hook and step import the journey facade, not `apiService`.
+- **WP-36's loop can be counted and can close in a rehearsal.** `FeedbackDecision.reason` reaches a `PilotEvent` — written after the turn's own flush and inside a SAVEPOINT, because the first version went red in `test_daily_journey_concurrency` on the flush that carries the learner's turn. The digest rate is over *answers*, not prompts. `rehearsal.py` stores the character's reply (`reply_fr`, not §8.3's `character_reply_fr`).
+- 28 new tests. Full suite **2375 passed, 1 skipped**; seventeen node suites (`test:self-repair` wired into CI), ruff, type-check, lint, build clean (37 routes). **US$0.00 — no model call.** Still unwalked: the intake screen has never had a real document pasted into it.
+
+## 2026-09-11 — WP-39 QA walk: two P0s the tests never saw
+
+Walked in the Browser pane on the fake-provider harness ([WP-39-QA.md](WP-39-QA.md)).
+Two product-level defects, both fixed and pinned in `tests/test_wp39_qa_walk.py`:
+**D-1** a day-one learner with declared A1.1 was labelled `estimate_source: "measured"`
+/ «vérifié» (strict `>` in `_estimate_with_declaration`; now `>=`); **D-2** the journey
+was created with `preferred_input_mode: "text"` by default, so the server never offered
+voice and WP-27's «Parler» could not render for anyone (hook default `'voice'`, page
+passes the remembered mode; verified live: «Sprechen / Lieber tippen»). Open: mixed
+chrome languages on Home and Dossier (D-3, product decision), ~130 requests per Home
+load (D-4), English gloss to a German native (D-6). Full backend suite after the fixes:
+exit 0, 0 failures; type-check, lint, journey suite green. Not walked: mic-denied,
+self-repair elicitation, +1-day journal, 320/390 pt rendering, simulator.
+
+## 2026-09-15 — the nouvelles-pages canvas, implementation begun
+
+Design contract: `docs/design-reference/nouvelles-pages-2026-09-15/` (canvas
+https://claude.ai/artifact/BCqoRp9WQDBGoC1vbrm8W7). Subagents stalled at the
+session limit in every configuration (3 parallel, then 1 alone), so the
+integration owner verified and committed their partial work: **WP-44**
+reader (bubble variant A default, banner + «Panneau N :» gone), the French
+«prédire» stage, the Feuilleton season page + read-only season endpoint
+(`984b8b9`); **WP-45** dossier on the canvas wording with token type sizes
+(`7a209e8`). Walked on the fake harness: dossier and season render per the
+artboards. Open: WP-45 bilan/répétition/journal/documents (agent in flight);
+WP-43 Home card + shell foot + journey-shell chrome («Schritt 1 von 3»,
+«Hier aufhören» still German) — not started; the dev server must be
+restarted after `next build` (shared `.next`), and the backend after any
+endpoint change.
+
+## 2026-09-15 (later) — WP-43 by hand, WP-45 closed
+
+Subagents kept stalling (WP-43 twice before editing, WP-45 twice mid-page), so
+the integration owner did **WP-43** directly ([WP-43-HOME.md](WP-43-HOME.md),
+`50514cc`): French chrome keys for every control language, the journey card's
+one red action under the card, no empty art plate, no second episode card, the
+route shell reserving the tab bar once, `ScreenFoot` in the flow, the feedback
+launcher moved into Réglages on phones, and Home down to **9 requests per load**
+from ~130 (`lib/once-per-load.ts`). WP-45's verified leftovers landed as
+`2c1a185` (placement/répétition stop reserving the bar themselves; Courrier
+header deduped). Walked on the fake harness at 390 pt light + dark. Still open
+from the canvas: the journal tab's «Journal» pill and its +1-day entry screen,
+and the documents artefact card as drawn (`Documents.dc.html`); the reader
+variant (bubbles vs lines) remains the owner's call, one constant away.
+
+## 2026-09-17 — owner decisions applied, calibration run
+
+Reader = variant B (line in a card under the art, `7639410`); panels on
+`gpt-image-2.5-flare` (newest OpenAI everyday image model, same price as
+gpt-image-2; -sunburst is the capable sibling); French chrome confirmed; Réglages
+moves to the learner's language (WP-46, in flight). The four companion feet are
+the shared `ScreenFoot` (`9161d69`). **Calibration** (owner-approved, ≈US$0.15):
+[CALIBRATION-2026-09-17.md](CALIBRATION-2026-09-17.md) — placement right for A1/A2,
+one band low for B1 (one low turn ends the climb); register detector 5/6 and the
+model gap fixed from a gpt-5-mini token starvation (`app/services/pragmatics.py`);
+three radio mp3s for the owner's ear; intake read both fixtures; coverage not
+observable on a synthetic learner.
+
+**WP-46 landed.** Réglages now reads in the learner's `native_language`, not the
+publication's French: `lib/settings-copy.ts` holds the whole screen in en/de/fr
+(122 keys — labels, hints, buttons, toasts, validation, both confirmations, the
+`<title>`), English is the floor for anything else, and the language is chosen
+only once the account has answered, so nothing paints French and swaps. Six
+suites re-pinned onto the key plus all three wordings; `tests/test_settings_language.py`
+fails on any French sentence left in the page. Not walked in a browser — `/settings`
+is auth-gated. See [WP-46-SETTINGS-LANGUAGE.md](WP-46-SETTINGS-LANGUAGE.md).
+
+## 2026-09-19 — owner QA of the Séance and the Feuilleton (`d36e8da`)
+
+Three screenshots, three causes. **Étape 3 asked for a translation of a German
+explanation and graded the word "grammar"**: WP-24 handed the planner the erratum's
+category label as `label_fr` and its explanation as the gloss. `journey_errata`
+now elicits the stored French correction (a row without one is never a target),
+and `journey_planner` poses an error target as a repair of the learner's own
+wording («Write this correctly in French» over the wrong text) — never a
+"How do you say…". The summary line and the junk `journey_correction` row the
+bug filed were the same defect. **Every Feuilleton panel blank**: the owner's
+serial thread predates the 2026-09-04 WebP re-encoding and its stored world-bible
+copy still names `.png` files; `resolveMediaUrl` folds a legacy
+`/assets/serial/…png` to `.webp` (dev rows rewritten; Render has the same 71 stale
+threads — the frontend fold covers them, a one-line `UPDATE serial_threads SET
+world_bible = replace(world_bible::text,'.png','.webp')::jsonb` finishes it).
+**The reprise card was the last legacy overlay on the Séance route**: it is now
+`components/atelier-v2/errata/ErrataReviewSheet.tsx` on the av2 bottom sheet
+(walked in the dev gallery, light and dark). A legacy row that filed the learner's
+wording in the context column («Pourquoi : un conseils») reads it as the task, and
+rows without a correction are no longer due.
+
+Still open, not touched here (Codex holds uncommitted edits in `living_story.py`):
+the three failed respond turns were guard rejections of the actor draft
+(`fabricated_evidence_quote` ×2, `inclusive_dot_form` ×1) at 18–20 s and
+≈US$0.005 each — the learner sees a failed send; engine scenes still reuse one
+static location image for every panel (`image_model="existing-setting-art"`),
+so the flare panel decision has not reached the living-story path; and the
+"no storyline" note is what Codex's DIRECTOR-prompt diff is addressing.
+
+## 2026-09-19 (evening) — a learner's first day, walked end to end
+
+The whole day as a new German-native learner on the real providers
+(≈US$0.10): [QA-LEARNER-WALK-2026-09-19.md](QA-LEARNER-WALK-2026-09-19.md)
+lists 20 findings, two of them test-harness artefacts, and defines
+WP-47…WP-55. All nine landed the same evening:
+
+- **WP-47** sign-up signs the learner in and opens the placement; the sign-in
+  form (fallback) keeps the address; one French interest list
+  (`lib/interest-topics.ts`) feeds sign-up, Réglages and the «Gewählt» line.
+- **WP-48** a word without a dictionary entry no longer pops «Resource not
+  found.»; `/atelier/translate` answers in the learner's `native_language`
+  (`translateForLearner`; German verified).
+- **WP-49** the scene prompt carries `audio_available` (injected in
+  `snapshot`, so the planner keeps its import allowlist) and `/users/me/settings`
+  carries `episode_audio_enabled`; «Écouter d'abord» and the Réglages row exist
+  only when the deployment can honour them.
+- **WP-50** `name_fr` on every recurring location of both world bibles;
+  `living_story.location_display_name` + `LOCATION_NAMES_FR` fold stored
+  threads and journeys at read time (journey, season page, serial archive all
+  say «Votre appartement»).
+- **WP-51** `describe_next` sends a French `title_fr`; help chips, `action_*`
+  and «Étape n sur N» are chrome (French for every control language, pinned in
+  `atelier-v2-ui.test.js`); assistance-used prints labels; the finished card
+  reads «Revoir».
+- **WP-52/53/54/55** season row titled by the episode title, `<title>` on the
+  Feuilleton, Lexique kicker without the Anki path, placement/journey scroll to
+  the top per step, capitalised confidence sentence, `.fr-word` inline so
+  punctuation stays with its word.
+
+Verified: `tsc`, `lint`, the node suites, and the backend suites for the
+touched modules (one order-dependent `test_atelier` starter test fails only
+in a long run). Browser: Home «Revoir», the season row and its title; API:
+settings flag, scene flag, German translation, French place names. The hidden
+Browser pane stopped hydrating after the first load, so the sign-up hand-off,
+Réglages labels, the reader sheet, the scroll reset and the kicker are covered
+by tests and the type-checker only — an owner walk on a phone is the next
+check. Uncommitted, like Codex's `living_story.py` edits.
+
+**Second pass, same evening — Séance rounds and continuity.** Both Séances
+completed end to end (journey via browser and, on a fresh account, via the
+API on the fixed engine; the legacy practice round via the API). The
+`inclusive_dot_form` guard no longer rejects a turn for a dotted form in the
+private `understood_intent` (WP-57) — that was the owner's failed sends and
+it killed day 2 of a live review. Learner-facing rule labels now read the
+French concept title (WP-56, labels only; the recognize-round English «why»
+sentences remain). Story continuity: two live A2 reviews show real day-to-day
+carry-over (day 2 quotes day 1's constraint) but the engine aborts when both
+drafts fail a guard, and the 09-07 fourteen-day run loops on one problem —
+prompt work that sits in Codex's uncommitted `living_story.py`. Recommend
+`ATELIER_STORY_MAX_ATTEMPTS=3` in production meanwhile. Details in the QA
+report's second pass.
+
+## 2026-09-19 (night) — WP-58: the story gets a shape, and no day dies
+
+Owner: the Feuilleton looped on one problem and aborted on a stumble; the goal
+is a storyline the learner feels. Landed in `living_story.py`
+([WP-58-STORY-SHAPE.md](WP-58-STORY-SHAPE.md)): chapters are four-scene arcs
+with required beats (setup → complication → turn → resolution) whose
+resolution closes the question whatever the learner answers; a new chapter
+must start from a new practical problem (`stale_problem`); the world bible's
+season arcs, open threads, warmth rule and each character's secret,
+contradiction and flaw reach the director, and a resolved chapter advances its
+arc one stage. A refused turn no longer fails the send: an honest authored
+ending (character called away, learner's words as the only evidence, nothing
+met, `reply_source: authored`) settles the day. Chapter closure by the actor is
+honoured only from the turn beat. The review script now runs the production
+bookkeeping and the same fallback. Living-story, journey, serial and
+end-to-end suites green; five new tests pin the shape.
+
+**Late follow-up (`70bc641` and after):** a forbidden endearment or a
+middle-dot form is repaired, not refused; the agreement guard now sees
+negation and «t'es». The six-day live run `atelier-story-review-A2-2026-09-19g`
+came back clean — two four-beat chapters, four learner commitments carried
+forward, no fallback — the reading is in the QA report.
+
+## 2026-09-19 (late night) — WP-59: loop engineering, per-learner dice, B1/B2/C1
+
+Owner: make the arc less deterministic; fix B1/B2; add C1. Landed
+([WP-59-LOOP-ENGINEERING.md](WP-59-LOOP-ENGINEERING.md)): on the setup and
+turn beats the director drafts two scenes concurrently and a deterministic
+novelty/rotation/arc score keeps one (`DUAL_DRAFTS_ENABLED`, off in the
+scripted test fixtures); the season arcs are ordered per learner by a hash
+of the thread id and each chapter is dealt a complication card from an
+authored deck of fourteen; from B1 an objective must be a move
+(`objective_too_thin`), reply and scene limits scale to B1/B2/C1 with a
+prose bar in the prompts, a resolution may not repeat the turn's question,
+«prêt(e)» forms are scrubbed; C1 is a band of its own. Seeded B1 live run:
+4/4 days, opened on Lila's Berlin envelope, move-shaped objectives.
+Earlier B1 and B2 runs on the WP-58 engine were 4/4 stable but one-sentence
+and Romy-first — the reason for this package.
+
+**WP-60 (same night):** C1 lost a day to a 350-character premise cap —
+field caps now sized for C1, a schema overflow names its fields in the retry
+hint, the review script's counter is thread-safe and records failed calls.
+The recognize round's immediate feedback follows the learner's language
+(`learner_copy` `atelier.recognize.*`, localized rule title), the second
+half of WP-56; the si/imparfait templates stay English until the relecture.
+C1 rerun: 4/4 days, move-shaped objectives, one authored fallback on a
+fabricated quote. See [WP-60-C1-AND-RECOGNIZE-FEEDBACK.md](WP-60-C1-AND-RECOGNIZE-FEEDBACK.md).
+
+**WP-61 (same night):** per-character mood (−2…2) and trust (0…5) as engine
+state, moved by the actor's `feeling_shift`, a refusal, a promise, and a
+weekly drift toward neutral; the director writes characters as they feel now
+and the actor answers from that state. The development the learner's answer
+made true is recorded on the chapter and the next beat must follow it. The
+two-draft score prefers a hurt character and a draft that follows the branch.
+See [WP-61-MOODS-AND-BRANCHING.md](WP-61-MOODS-AND-BRANCHING.md).
+
+## 2026-09-21 — WP-62..68: long memory, a season that ends, a Courrier that lives in the story, days that differ
+
+Owner brief (WORK-PACKAGES-2026-09-21.md): coherence, consistent quality, fun,
+diversity of experience; the Courrier and the Feuilleton need depth and a
+long-horizon story that works **without being deterministic**. Seven packages,
+four waves, one shared checkout.
+
+### What landed
+
+| WP | Commit(s) | What it is | Note |
+|---|---|---|---|
+| WP-62 — la mémoire longue | `77b3d93` | `chronicle[]`, `consequences[]`, `planted[]`, `secrets{}` and `day_index` in `state["living_story"]`; a seeded callback candidate per setup beat; guard `fabricated_callback`; trust no longer decays | [WP-62-LONG-MEMORY.md](WP-62-LONG-MEMORY.md) |
+| WP-63 — l'horizon de saison | `148d2e6` | Character agendas ticking off-screen with witness rules; `threads{}` as state; arc gating on an honest stage claim; escalation instead of the blanket `stale_problem` ban; five chapter shapes; finale → interlude → season 2 with the life carried over | [WP-63-SEASON-HORIZON.md](WP-63-SEASON-HORIZON.md) |
+| WP-64 — le Courrier vit dans l'histoire | `7c4a291` | New `app/services/story_correspondence.py`: a finished letter writes an `events[]` row, a mood/trust step and commitments into the living story; correspondent threads; 2–4 letter chains with soft deadlines and a real `ignored` state; story-born letters; seeded selection; the invented debrief numbers deleted | [WP-64-COURRIER-IN-STORY.md](WP-64-COURRIER-IN-STORY.md) |
+| WP-65 — le Courrier, surface | `e51ef92`, `30810a0` | `components/courrier/Correspondance.tsx`: who is writing, how they feel, «2ᵉ lettre sur 3», the soft deadline, the honest debrief, `lapsed` as a real state, La Une's entry row, the Feuilleton's story-born line | [WP-65-COURRIER-SURFACE.md](WP-65-COURRIER-SURFACE.md) |
+| WP-66 — des journées qui ne se ressemblent pas | `1f5b0f3`, `ff1e246`, `6eadbe2` | Five day shapes validated as a set instead of one template, dealt by seeded dice; `transform`, `classify` and `word_bank` brought into the daily loop; the graded register shown as one French line; then the «jour de lettre» seam closed against WP-64 and F-27 «Écouter d'abord» | [WP-66-DAY-SHAPES.md](WP-66-DAY-SHAPES.md) |
+| WP-67 — une seule qualité | `c65e26d`, `f6be02a` | 126 new `learner_copy` keys (the remaining English `why`/fallback strings, localized on the way out so no cached set had to be regenerated), Réglages' page label, the achievements toggle removed rather than faked, Dossier and Répétition reachable, a static test that fails on English chrome. US$0.00 | [WP-67-ONE-QUALITY.md](WP-67-ONE-QUALITY.md) |
+| WP-68 — la preuve | this commit | `tests/test_long_horizon_evidence.py`: two learners × 126 days through the assembled router, planner, story engine and Courrier, with one clock; `scripts/long_horizon_report.py` writes a readable season timeline | [WP-68-EVIDENCE.md](WP-68-EVIDENCE.md) |
+
+### What the long run proved
+
+Over 244 learner-days: a day-126 director context still carries a sentence said on
+day four; a callback reaches 101 days back; the agendas tick and only witnesses
+hear about them; the season reaches a finale, an interlude and a second season with
+chronicle, consequences, secrets and world flags intact, and **no day is ever
+served with no arc and no ending either**; a finished letter is a fact in the next
+day's scene; a chain of four letters climbs its stakes; an ignored letter cools its
+correspondent exactly once; a «jour de lettre» finishes its letter exactly once;
+five day shapes, none above 50 % of the deal, never the same shape dealt twice
+running; the two lives diverge in arcs, shapes, letters and callbacks while each
+deal replays identically; and the day-126 prompt is no larger than 1.6× the day-20
+one, with the two-attempt 75 s budget untouched.
+
+### What it broke, and what is fixed
+
+- **Fixed** — WP-63's chapter shape never reached WP-66's day shape:
+  `_day_shape_inputs` read three keys a real living-story brief does not have (the
+  director context is under `story_context["source"]`), so a letter chapter never
+  once dealt «jour de lettre» in 126 days. Now read from where the engine writes
+  it, and only on the chapter's own letter beat.
+- **Fixed** — the letter-chapter override ignored the module's own «no two
+  identical shapes on consecutive days» rule, which the resolution-beat override
+  has always honoured.
+- **Fixed** — a seed-flaky test in WP-63's suite (a three-beat chapter closes
+  before the commitment limit the test is about); the shape is pinned for that test.
+
+### What is open
+
+- **Two of the six recall formats cannot be posed at all under the story engine.**
+  `choice` and `word_bank` are built from authored scene affordances, and a
+  generated situation has none, so the assembled day poses three formats, not five.
+  The fix is a product decision about what a generated scene affords — a
+  `SceneDraft` field and prompt work — not a plumbing change. WP-68-EVIDENCE §4 L-1.
+- The errata queue outranks due vocabulary, so a learner who writes letters often
+  sees `tiles` on 55–65 % of recall steps (L-2); a shape the planner cannot build
+  is downgraded onto `standard` 12–30 times per 122 days, which is where the served
+  distribution passes 50 % (L-3); the Courrier's week is the wall clock with no
+  injectable `now` at the scheduler's call sites (L-4); no side story appeared in
+  126 days with a compliant director (L-5).
+- **The paid live review with the new ledgers has not been run.** Exact commands
+  and a ≈US$0.10–0.20 estimate for the pair are in WP-68-EVIDENCE §6.
+
+### Owner-only steps
+
+1. **Consent to the paid review** (§6 of WP-68-EVIDENCE) — two runs, A2 and B1,
+   fourteen days each, ≈US$0.10–0.20 together, hard-capped at `--max-requests 60`.
+   Nothing has been spent on this wave.
+2. **Read a season.** `docs/implementation/atelier-v2/evidence/long-horizon-A-2026-09-21.md`
+   is a 126-day life as a timeline. The question no test can answer: does it go
+   anywhere?
+3. **Decide L-1** — whether a generated scene should hand the planner a handful of
+   short French phrases (unlocking `choice` and `word_bank` for every story-engine
+   learner) or whether three formats a day is enough.
+4. Rollout steps unchanged and still owner-only: Render, the cohort list, the Apple
+   team, `TTS_PROVIDER`.

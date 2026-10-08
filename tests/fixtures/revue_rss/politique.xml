@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+    <title>Kiosque test — politique</title>
+    <link>https://kiosque.test/politique</link>
+    <item>
+      <title>Le gouvernement présente le budget 2027</title>
+      <link>https://kiosque.test/politique/budget-2027.html</link>
+      <description>Le projet de loi de finances arrive à l'Assemblée nationale.</description>
+      <pubDate>Wed, 30 Sep 2026 12:00:00 +0200</pubDate>
+    </item>
+</channel></rss>

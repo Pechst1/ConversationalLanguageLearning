@@ -1,0 +1,3404 @@
+{
+ "n": 8,
+ "dossier_id": "evergreen-greve-transports",
+ "level": "B1.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "evergreen-greve-transports",
+  "dossier_version": "revue-v1",
+  "week": "2026-W01",
+  "topic": "work",
+  "title_fr": "Un jour de grève dans les transports",
+  "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+    "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+    "source_id": "greve_ecologie",
+    "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+    "published_at": "2018-05-25",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+    "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+    "source_id": "greve_wikipedia_service_minimum",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+    "published_at": "2026-09-24",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+    "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+    "source_id": "greve_wikipedia_service_minimum",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+    "published_at": "2026-09-24",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+    "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+    "source_id": "greve_wikipedia_service_minimum",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+    "published_at": "2026-09-24",
+    "confidence": "reported",
+    "attributed_to": "les syndicats de salariés et les partis de gauche"
+   }
+  ],
+  "entities": [
+   {
+    "name": "RATP",
+    "kind": "organisation",
+    "role": null
+   },
+   {
+    "name": "SNCF",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   {
+    "id": "u1",
+    "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+   },
+   {
+    "id": "u2",
+    "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+   }
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Comment se passe un jour de grève pour un voyageur",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": null
+   },
+   {
+    "id": "a2",
+    "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": null
+   }
+  ],
+  "places": [
+   {
+    "id": "quai_metro_greve",
+    "name_fr": "Un quai de métro un matin de grève",
+    "brief": "an empty metro platform with a departure board showing long waits, curved white-tiled walls, a closed kiosk, early morning light from the stairs",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Métro de Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-01-01/2026-12-31",
+   "relevant_until": "2027-01-15"
+  },
+  "sources": [
+   {
+    "id": "greve_ecologie",
+    "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+    "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+    "published_at": "2018-05-25"
+   },
+   {
+    "id": "greve_wikipedia_service_minimum",
+    "name": "Wikipédia, « Service minimum »",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+    "published_at": "2026-09-24"
+   }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "une rame de métro à l'arrêt"
+ },
+ "band": "B1",
+ "vocabulary": [
+  {
+   "fr": "dire",
+   "gloss": {
+    "en": "to say; to tell"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "les heures",
+   "gloss": {
+    "en": "hours"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "la gauche",
+   "gloss": {
+    "en": "the political left"
+   },
+   "claim_id": "c4"
+  },
+  {
+   "fr": "les transports",
+   "gloss": {
+    "en": "public transport; the transports"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "le préavis",
+   "gloss": {
+    "en": "advance notice; warning"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "la grève",
+   "gloss": {
+    "en": "strike"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "publics",
+   "gloss": {},
+   "claim_id": "c1"
+  }
+ ],
+ "target_use": {
+  "word": "la gauche",
+  "article_said": "le",
+  "intended": "incorrect",
+  "sentence": "Pour moi, le gauche, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T01:54:51.404851+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T01:54:54.790880+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "les transports",
+        "gloss": "public transport; the transports",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "le préavis",
+        "gloss": "advance notice; warning",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la grève",
+        "gloss": "strike",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "publics",
+        "gloss": "",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T01:54:54.790936+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+        "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_ecologie",
+         "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+         "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+         "published_at": "2018-05-25"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "dire",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les heures",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la gauche",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les transports",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le préavis",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grève",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "publics",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Combien de jours avant faut-il déposer un préavis ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T01:54:54.800334+00:00",
+      "kind": "mine",
+      "text_fr": "Combien de jours avant faut-il déposer un préavis ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T01:55:01.251845+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "le préavis",
+        "gloss": "advance notice; warning",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la grève",
+        "gloss": "strike",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "dire",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les heures",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la gauche",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les transports",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le préavis",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grève",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "publics",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+   "result": {
+    "items": [
+     {
+      "id": "11",
+      "seq": 11,
+      "at": "2026-10-03T01:55:01.262949+00:00",
+      "kind": "mine",
+      "text_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "12",
+      "seq": 12,
+      "at": "2026-10-03T01:55:08.389885+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas : elles ne précisent ni la date de la prochaine grève ni les lignes concernées. Chaque salarié qui veut faire grève doit prévenir 48 heures avant, pour que le service se réorganise. D'après Wikipédia, la loi organise les transports pendant une grève mais n’impose pas vraiment un service minimum.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "les heures",
+        "gloss": "hours",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "les transports",
+        "gloss": "public transport; the transports",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la grève",
+        "gloss": "strike",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "12.u",
+      "seq": 12,
+      "at": "2026-10-03T01:55:08.389885+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T01:55:08.389944+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+        "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+        "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "dire",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les heures",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la gauche",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les transports",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le préavis",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grève",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "publics",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T01:55:08.403198+00:00",
+      "kind": "mine",
+      "text_fr": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T01:55:13.421124+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Je comprends, hein. D’après les syndicats de salariés et les partis de gauche, ils estiment que le service minimum remet en cause le droit de grève.",
+      "translation": null,
+      "glosses": [
+       {
+        "fr": "la gauche",
+        "gloss": "the political left",
+        "claim_id": "c4"
+       },
+       {
+        "fr": "la grève",
+        "gloss": "strike",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T01:55:13.421180+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+        "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+        "attributed_to": "les syndicats de salariés et les partis de gauche",
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "incorrect",
+     "capability_known": true,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "dire",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les heures",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la gauche",
+       "outcome": "incorrect",
+       "capability_known": true
+      },
+      {
+       "fr": "les transports",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le préavis",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grève",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "publics",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "unsupported",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Les salariés n'ont aucune obligation d'annoncer la grève 48 heures à l'avance"
+     },
+     {
+      "id": "h2",
+      "text_fr": "La loi instaure un service minimum obligatoire pendant les grèves"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Un préavis de grève doit être déposé au moins cinq jours avant"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "uncertainty_fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   }
+  ],
+  "intro": {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:55:19.249791+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "proposal_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "contribution": [
+     [
+      0,
+      5
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      36,
+      69
+     ]
+    ],
+    "why_native": "Replaced «est» with the future-form «aura lieu» to ask correctly about the timing of a future event; kept the rest of the phrasing."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "contribution": [
+     [
+      0,
+      5
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      36,
+      69
+     ]
+    ],
+    "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+   },
+   "line": {
+    "id": "25",
+    "seq": 25,
+    "at": "2026-10-03T01:55:21.247708+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je garde ta question et j'écris, d'après la loi, qu'il faut un préavis de cinq jours, que chaque salarié doit prévenir 48 heures avant, et que la loi n'instaure pas un vrai service minimum.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+   "body_fr": [
+    "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+    "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+    "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+   ],
+   "contribution": [
+    [
+     0,
+     5
+    ],
+    [
+     16,
+     34
+    ],
+    [
+     36,
+     69
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après Ministère de la Transition écologique (ecologie.gouv.fr) et Wikipédia, « Service minimum »",
+   "sources": [
+    {
+     "id": "greve_ecologie",
+     "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+     "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+     "published_at": "2018-05-25"
+    },
+    {
+     "id": "greve_wikipedia_service_minimum",
+     "name": "Wikipédia, « Service minimum »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+     "published_at": "2026-09-24"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "dire",
+     "gloss": "to say; to tell",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "les heures",
+     "gloss": "hours",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la gauche",
+     "gloss": "the political left",
+     "claim_id": "c4",
+     "used": true,
+     "outcome": "incorrect"
+    },
+    {
+     "fr": "les transports",
+     "gloss": "public transport; the transports",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le préavis",
+     "gloss": "advance notice; warning",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "publics",
+     "gloss": "",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+     "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_ecologie",
+      "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+      "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+      "published_at": "2018-05-25"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+     "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+     "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+     "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+     "attributed_to": "les syndicats de salariés et les partis de gauche",
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+  "vignette": {
+   "id": "35d55b4a-a4f2-4f77-ad41-e43e668f0011",
+   "session_id": "aebace87-acf2-4f51-ac1f-372d2aabc567",
+   "dossier_id": "evergreen-greve-transports",
+   "week": "2026-W40",
+   "place_label_fr": "Un quai de métro un matin de grève",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"19\" fill=\"#1D3A8A\"/><rect x=\"39\" y=\"57\" width=\"22\" height=\"9\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#C2890F\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"53\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Un jour de grève dans les transports",
+   "minted_at": "2026-10-03T01:55:26"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T01:54:51.398086+00:00",
+   "kind": "narration",
+   "text_fr": "Un quai de métro un matin de grève."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T01:54:51.398086+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T01:54:51.398086+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment un quai de métro un matin de grève, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T01:54:51.398086+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T01:54:51.398086+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T01:54:51.404851+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T01:54:54.790880+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "les transports",
+     "gloss": "public transport; the transports",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "le préavis",
+     "gloss": "advance notice; warning",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "publics",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T01:54:54.790936+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+     "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_ecologie",
+      "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+      "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+      "published_at": "2018-05-25"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T01:54:54.800334+00:00",
+   "kind": "mine",
+   "text_fr": "Combien de jours avant faut-il déposer un préavis ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T01:55:01.251845+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "le préavis",
+     "gloss": "advance notice; warning",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "11",
+   "seq": 11,
+   "at": "2026-10-03T01:55:01.262949+00:00",
+   "kind": "mine",
+   "text_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "12",
+   "seq": 12,
+   "at": "2026-10-03T01:55:08.389885+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas : elles ne précisent ni la date de la prochaine grève ni les lignes concernées. Chaque salarié qui veut faire grève doit prévenir 48 heures avant, pour que le service se réorganise. D'après Wikipédia, la loi organise les transports pendant une grève mais n’impose pas vraiment un service minimum.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "les heures",
+     "gloss": "hours",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "les transports",
+     "gloss": "public transport; the transports",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "12.u",
+   "seq": 12,
+   "at": "2026-10-03T01:55:08.389885+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T01:55:08.389944+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+     "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+     "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+     "attributed_to": null,
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    }
+   ]
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T01:55:08.403198+00:00",
+   "kind": "mine",
+   "text_fr": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T01:55:13.421124+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Je comprends, hein. D’après les syndicats de salariés et les partis de gauche, ils estiment que le service minimum remet en cause le droit de grève.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la gauche",
+     "gloss": "the political left",
+     "claim_id": "c4"
+    },
+    {
+     "fr": "la grève",
+     "gloss": "strike",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T01:55:13.421180+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+     "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+     "attributed_to": "les syndicats de salariés et les partis de gauche",
+     "source": {
+      "id": "greve_wikipedia_service_minimum",
+      "name": "Wikipédia, « Service minimum »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+      "published_at": "2026-09-24"
+     }
+    }
+   ]
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:55:19.249791+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T01:55:21.247692+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "contribution": [
+     [
+      0,
+      5
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      36,
+      69
+     ]
+    ],
+    "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+   }
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:55:21.247708+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "26",
+   "seq": 26,
+   "at": "2026-10-03T01:55:26.039944+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je garde ta question et j'écris, d'après la loi, qu'il faut un préavis de cinq jours, que chaque salarié doit prévenir 48 heures avant, et que la loi n'instaure pas un vrai service minimum.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "les heures",
+     "gloss": "hours",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le préavis",
+     "gloss": "advance notice; warning",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "evergreen-greve-transports",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "evergreen-greve-transports",
+     "dossier_version": "revue-v1",
+     "week": "2026-W01",
+     "topic": "work",
+     "title_fr": "Un jour de grève dans les transports",
+     "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+       "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+       "source_id": "greve_ecologie",
+       "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+       "published_at": "2018-05-25",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+       "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+       "source_id": "greve_wikipedia_service_minimum",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+       "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+       "source_id": "greve_wikipedia_service_minimum",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+       "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+       "source_id": "greve_wikipedia_service_minimum",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24",
+       "confidence": "reported",
+       "attributed_to": "les syndicats de salariés et les partis de gauche"
+      }
+     ],
+     "entities": [
+      {
+       "name": "RATP",
+       "kind": "organisation",
+       "role": null
+      },
+      {
+       "name": "SNCF",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      {
+       "id": "u1",
+       "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+      },
+      {
+       "id": "u2",
+       "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+      }
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Comment se passe un jour de grève pour un voyageur",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": null
+      },
+      {
+       "id": "a2",
+       "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": null
+      }
+     ],
+     "places": [
+      {
+       "id": "quai_metro_greve",
+       "name_fr": "Un quai de métro un matin de grève",
+       "brief": "an empty metro platform with a departure board showing long waits, curved white-tiled walls, a closed kiosk, early morning light from the stairs",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Métro de Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-01-01/2026-12-31",
+      "relevant_until": "2027-01-15"
+     },
+     "sources": [
+      {
+       "id": "greve_ecologie",
+       "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+       "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+       "published_at": "2018-05-25"
+      },
+      {
+       "id": "greve_wikipedia_service_minimum",
+       "name": "Wikipédia, « Service minimum »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+       "published_at": "2026-09-24"
+      }
+     ],
+     "evergreen": true,
+     "vignette_object_fr": "une rame de métro à l'arrêt"
+    },
+    "cost_usd": 0.001468,
+    "prompt_version": "revue-vocabulary-v2"
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Un quai de métro un matin de grève.",
+     "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+    ],
+    "place_note": "Ce n'est pas vraiment un quai de métro un matin de grève, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m'aides ?",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique.",
+    "translation": null,
+    "claims_cited": [
+     "c1"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001229,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 3.381
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "dire",
+      "outcome": "unscored",
+      "capability_id": "CD_A22_PASS_MESSAGE",
+      "capability_known": true
+     },
+     {
+      "fr": "les heures",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la gauche",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_DIRECTIONS",
+      "capability_known": true
+     },
+     {
+      "fr": "les transports",
+      "outcome": "unscored",
+      "capability_id": "revue.word:transports",
+      "capability_known": false
+     },
+     {
+      "fr": "le préavis",
+      "outcome": "unscored",
+      "capability_id": "revue.word:preavis",
+      "capability_known": false
+     },
+     {
+      "fr": "la grève",
+      "outcome": "unscored",
+      "capability_id": "revue.word:greve",
+      "capability_known": false
+     },
+     {
+      "fr": "publics",
+      "outcome": "unscored",
+      "capability_id": "revue.word:publics",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Combien de jours avant faut-il déposer un préavis ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève.",
+    "translation": null,
+    "claims_cited": [],
+    "claims_restated": [
+     "c1"
+    ],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001978,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 6.445
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Combien de jours avant faut-il déposer un préavis ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:preavis",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le préavis"
+    ],
+    "words_used": [
+     "le préavis"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "dire",
+      "outcome": "unscored",
+      "capability_id": "CD_A22_PASS_MESSAGE",
+      "capability_known": true
+     },
+     {
+      "fr": "les heures",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la gauche",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_DIRECTIONS",
+      "capability_known": true
+     },
+     {
+      "fr": "les transports",
+      "outcome": "unscored",
+      "capability_id": "revue.word:transports",
+      "capability_known": false
+     },
+     {
+      "fr": "le préavis",
+      "outcome": "unscored",
+      "capability_id": "revue.word:preavis",
+      "capability_known": false
+     },
+     {
+      "fr": "la grève",
+      "outcome": "unscored",
+      "capability_id": "revue.word:greve",
+      "capability_known": false
+     },
+     {
+      "fr": "publics",
+      "outcome": "unscored",
+      "capability_id": "revue.word:publics",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.001047,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas : elles ne précisent ni la date de la prochaine grève ni les lignes concernées. Chaque salarié qui veut faire grève doit prévenir 48 heures avant, pour que le service se réorganise. D'après Wikipédia, la loi organise les transports pendant une grève mais n’impose pas vraiment un service minimum.",
+    "translation": null,
+    "claims_cited": [
+     "c2",
+     "c3"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": "u1",
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées.",
+    "uncertainty_matched": false,
+    "proposes_question": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.002345,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 7.12
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c2",
+     "c3"
+    ]
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées.",
+    "turn_seq": 11,
+    "kept": false
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:greve",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "la grève"
+    ],
+    "words_used": [
+     "la grève"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "dire",
+      "outcome": "unscored",
+      "capability_id": "CD_A22_PASS_MESSAGE",
+      "capability_known": true
+     },
+     {
+      "fr": "les heures",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la gauche",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_DIRECTIONS",
+      "capability_known": true
+     },
+     {
+      "fr": "les transports",
+      "outcome": "unscored",
+      "capability_id": "revue.word:transports",
+      "capability_known": false
+     },
+     {
+      "fr": "le préavis",
+      "outcome": "unscored",
+      "capability_id": "revue.word:preavis",
+      "capability_known": false
+     },
+     {
+      "fr": "la grève",
+      "outcome": "unscored",
+      "capability_id": "revue.word:greve",
+      "capability_known": false
+     },
+     {
+      "fr": "publics",
+      "outcome": "unscored",
+      "capability_id": "revue.word:publics",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000662,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 11
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Je comprends, hein. D’après les syndicats de salariés et les partis de gauche, ils estiment que le service minimum remet en cause le droit de grève.",
+    "translation": null,
+    "claims_cited": [
+     "c4"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001596,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 5.009
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "CD_A12_DIRECTIONS",
+    "outcome": "incorrect",
+    "capability_known": true,
+    "correct": false,
+    "words": [
+     "la grève"
+    ],
+    "words_used": [
+     "la gauche",
+     "la grève"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "dire",
+      "outcome": "unscored",
+      "capability_id": "CD_A22_PASS_MESSAGE",
+      "capability_known": true
+     },
+     {
+      "fr": "les heures",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la gauche",
+      "outcome": "incorrect",
+      "capability_id": "CD_A12_DIRECTIONS",
+      "capability_known": true
+     },
+     {
+      "fr": "les transports",
+      "outcome": "unscored",
+      "capability_id": "revue.word:transports",
+      "capability_known": false
+     },
+     {
+      "fr": "le préavis",
+      "outcome": "unscored",
+      "capability_id": "revue.word:preavis",
+      "capability_known": false
+     },
+     {
+      "fr": "la grève",
+      "outcome": "unscored",
+      "capability_id": "revue.word:greve",
+      "capability_known": false
+     },
+     {
+      "fr": "publics",
+      "outcome": "unscored",
+      "capability_id": "revue.word:publics",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "unsupported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.00138,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 16
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Les salariés n'ont aucune obligation d'annoncer la grève 48 heures à l'avance"
+      },
+      {
+       "id": "h2",
+       "text_fr": "La loi instaure un service minimum obligatoire pendant les grèves"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Un préavis de grève doit être déposé au moins cinq jours avant"
+      }
+     ],
+     "answer": "h3",
+     "supported_by": "c1",
+     "contradicted_by": {
+      "h1": "c2",
+      "h2": "c3"
+     }
+    },
+    "cost_usd": 0.001144,
+    "prompt_version": "revue-headline-v2"
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "proposal_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "contribution": [
+     [
+      0,
+      5
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      36,
+      69
+     ]
+    ],
+    "why_native": "Replaced «est» with the future-form «aura lieu» to ask correctly about the timing of a future event; kept the rest of the phrasing.",
+    "cost_usd": 0.000516,
+    "prompt_version": "revue-question-v2"
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "contribution": [
+     [
+      0,
+      5
+     ],
+     [
+      16,
+      34
+     ],
+     [
+      36,
+      69
+     ]
+    ],
+    "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je garde ta question et j'écris, d'après la loi, qu'il faut un préavis de cinq jours, que chaque salarié doit prévenir 48 heures avant, et que la loi n'instaure pas un vrai service minimum.",
+    "cost_usd": 0.00156,
+    "prompt_version": "revue-close-v2",
+    "refused": [],
+    "regenerated_for": []
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je garde ta question et j'écris, d'après la loi, qu'il faut un préavis de cinq jours, que chaque salarié doit prévenir 48 heures avant, et que la loi n'instaure pas un vrai service minimum.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+      "body_fr": [
+       "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+       "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+       "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+      ],
+      "contribution": [
+       [
+        0,
+        5
+       ],
+       [
+        16,
+        34
+       ],
+       [
+        36,
+        69
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après Ministère de la Transition écologique (ecologie.gouv.fr) et Wikipédia, « Service minimum »",
+      "sources": [
+       {
+        "id": "greve_ecologie",
+        "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+        "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+        "published_at": "2018-05-25"
+       },
+       {
+        "id": "greve_wikipedia_service_minimum",
+        "name": "Wikipédia, « Service minimum »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+        "published_at": "2026-09-24"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "dire",
+        "gloss": "to say; to tell",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "les heures",
+        "gloss": "hours",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la gauche",
+        "gloss": "the political left",
+        "claim_id": "c4",
+        "used": true,
+        "outcome": "incorrect"
+       },
+       {
+        "fr": "les transports",
+        "gloss": "public transport; the transports",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le préavis",
+        "gloss": "advance notice; warning",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la grève",
+        "gloss": "strike",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "publics",
+        "gloss": "",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+        "quote": "préavis de grève déposé au moins 5 jours francs avant le début de la grève",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_ecologie",
+         "name": "Ministère de la Transition écologique (ecologie.gouv.fr)",
+         "url": "https://www.ecologie.gouv.fr/politiques-publiques/questions-sociales-generales-du-transport-ferroviaire",
+         "published_at": "2018-05-25"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+        "quote": "La loi instaure l'obligation pour les salariés d'indiquer quarante-huit heures à l'avance qu'ils ont l'intention de faire grève pour permettre aux collectivités locales de réorganiser le service sur les dessertes les plus importantes",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+        "quote": "en cas de grève sans mettre en place une véritable obligation de service minimum",
+        "attributed_to": null,
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+        "quote": "La critique du service minimum est faite, essentiellement, par les syndicats de salariés et les partis de gauche. Selon eux, le service minimum remet en cause le droit de grève, qui a valeur constitutionnelle.",
+        "attributed_to": "les syndicats de salariés et les partis de gauche",
+        "source": {
+         "id": "greve_wikipedia_service_minimum",
+         "name": "Wikipédia, « Service minimum »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Service_minimum&oldid=239788633",
+         "published_at": "2026-09-24"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+     "vignette": {
+      "id": "35d55b4a-a4f2-4f77-ad41-e43e668f0011",
+      "session_id": "aebace87-acf2-4f51-ac1f-372d2aabc567",
+      "dossier_id": "evergreen-greve-transports",
+      "week": "2026-W40",
+      "place_label_fr": "Un quai de métro un matin de grève",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"19\" fill=\"#1D3A8A\"/><rect x=\"39\" y=\"57\" width=\"22\" height=\"9\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#C2890F\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"53\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Un jour de grève dans les transports",
+      "minted_at": "2026-10-03T01:55:26"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "dire",
+     "outcome": "unscored",
+     "capability_id": "CD_A22_PASS_MESSAGE",
+     "capability_known": true
+    },
+    {
+     "fr": "les heures",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la gauche",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_DIRECTIONS",
+     "capability_known": true
+    },
+    {
+     "fr": "les transports",
+     "outcome": "unscored",
+     "capability_id": "revue.word:transports",
+     "capability_known": false
+    },
+    {
+     "fr": "le préavis",
+     "outcome": "unscored",
+     "capability_id": "revue.word:preavis",
+     "capability_known": false
+    },
+    {
+     "fr": "la grève",
+     "outcome": "unscored",
+     "capability_id": "revue.word:greve",
+     "capability_known": false
+    },
+    {
+     "fr": "publics",
+     "outcome": "unscored",
+     "capability_id": "revue.word:publics",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:preavis",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le préavis"
+   ],
+   "words_used": [
+    "le préavis"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "dire",
+     "outcome": "unscored",
+     "capability_id": "CD_A22_PASS_MESSAGE",
+     "capability_known": true
+    },
+    {
+     "fr": "les heures",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la gauche",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_DIRECTIONS",
+     "capability_known": true
+    },
+    {
+     "fr": "les transports",
+     "outcome": "unscored",
+     "capability_id": "revue.word:transports",
+     "capability_known": false
+    },
+    {
+     "fr": "le préavis",
+     "outcome": "unscored",
+     "capability_id": "revue.word:preavis",
+     "capability_known": false
+    },
+    {
+     "fr": "la grève",
+     "outcome": "unscored",
+     "capability_id": "revue.word:greve",
+     "capability_known": false
+    },
+    {
+     "fr": "publics",
+     "outcome": "unscored",
+     "capability_id": "revue.word:publics",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.001047,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:greve",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "la grève"
+   ],
+   "words_used": [
+    "la grève"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "dire",
+     "outcome": "unscored",
+     "capability_id": "CD_A22_PASS_MESSAGE",
+     "capability_known": true
+    },
+    {
+     "fr": "les heures",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la gauche",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_DIRECTIONS",
+     "capability_known": true
+    },
+    {
+     "fr": "les transports",
+     "outcome": "unscored",
+     "capability_id": "revue.word:transports",
+     "capability_known": false
+    },
+    {
+     "fr": "le préavis",
+     "outcome": "unscored",
+     "capability_id": "revue.word:preavis",
+     "capability_known": false
+    },
+    {
+     "fr": "la grève",
+     "outcome": "unscored",
+     "capability_id": "revue.word:greve",
+     "capability_known": false
+    },
+    {
+     "fr": "publics",
+     "outcome": "unscored",
+     "capability_id": "revue.word:publics",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000662,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 11
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "CD_A12_DIRECTIONS",
+   "outcome": "incorrect",
+   "capability_known": true,
+   "correct": false,
+   "words": [
+    "la grève"
+   ],
+   "words_used": [
+    "la gauche",
+    "la grève"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "dire",
+     "outcome": "unscored",
+     "capability_id": "CD_A22_PASS_MESSAGE",
+     "capability_known": true
+    },
+    {
+     "fr": "les heures",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la gauche",
+     "outcome": "incorrect",
+     "capability_id": "CD_A12_DIRECTIONS",
+     "capability_known": true
+    },
+    {
+     "fr": "les transports",
+     "outcome": "unscored",
+     "capability_id": "revue.word:transports",
+     "capability_known": false
+    },
+    {
+     "fr": "le préavis",
+     "outcome": "unscored",
+     "capability_id": "revue.word:preavis",
+     "capability_known": false
+    },
+    {
+     "fr": "la grève",
+     "outcome": "unscored",
+     "capability_id": "revue.word:greve",
+     "capability_known": false
+    },
+    {
+     "fr": "publics",
+     "outcome": "unscored",
+     "capability_id": "revue.word:publics",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "unsupported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.00138,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 16
+  }
+ ],
+ "guest": [],
+ "cost_usd_state": 0.014925,
+ "cost_usd_provider": 0.014925,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 5.38,
+   "started": 273.369,
+   "cost_usd": 0.001468,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     },
+     {
+      "id": "c2",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes."
+     },
+     {
+      "id": "c3",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève."
+     }
+    ],
+    "prefer": [
+     "le dire",
+     "heures",
+     "gauche"
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "les transports",
+      "gloss": "public transport; the transports",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "le préavis",
+      "gloss": "advance notice; warning",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "déposer",
+      "gloss": "to file; to submit",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "la grève",
+      "gloss": "strike",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "dire",
+      "gloss": "to say; to tell",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les heures",
+      "gloss": "hours",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "la gauche",
+      "gloss": "the political left",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.381,
+   "started": 278.766,
+   "cost_usd": 0.001229,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+      "attributed_to": null,
+      "source": "Ministère de la Transition écologique (ecologie.gouv.fr)"
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": "Wikipédia, « Service minimum »"
+     }
+    ],
+    "claims_already_said": [],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Comment se passe un jour de grève pour un voyageur",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Un quai de métro un matin de grève."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment un quai de métro un matin de grève, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique.",
+    "translation": "None",
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.989,
+   "started": 282.158,
+   "cost_usd": 0.001047,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+      }
+     ],
+     "target_words": [
+      "dire",
+      "les heures",
+      "la gauche",
+      "les transports",
+      "le préavis",
+      "la grève",
+      "publics"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+     "headline_words": null
+    },
+    "learner_text": "Combien de jours avant faut-il déposer un préavis ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le préavis",
+      "outcome": "correct",
+      "quote": "déposer un préavis"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 6.444,
+   "started": 282.164,
+   "cost_usd": 0.001978,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Combien de jours avant faut-il déposer un préavis ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": "Wikipédia, « Service minimum »"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Comment se passe un jour de grève pour un voyageur",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment un quai de métro un matin de grève, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève.",
+    "translation": null,
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.824,
+   "started": 288.622,
+   "cost_usd": 0.000662,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+      }
+     ],
+     "target_words": [
+      "dire",
+      "les heures",
+      "la gauche",
+      "les transports",
+      "le préavis",
+      "la grève",
+      "publics"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+     "headline_words": null
+    },
+    "learner_text": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "la grève",
+      "outcome": "correct",
+      "quote": "la prochaine grève"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 7.119,
+   "started": 288.627,
+   "cost_usd": 0.002345,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Service minimum »"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": "Wikipédia, « Service minimum »"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Comment se passe un jour de grève pour un voyageur",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Comment se passe un jour de grève pour un voyageur ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci, ça m’aide. Un point important : dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève, d’après le Ministère de la Transition écologique."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1"
+     },
+     {
+      "who": "learner",
+      "text": "Combien de jours avant faut-il déposer un préavis ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève."
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas : elles ne précisent ni la date de la prochaine grève ni les lignes concernées. Chaque salarié qui veut faire grève doit prévenir 48 heures avant, pour que le service se réorganise. D'après Wikipédia, la loi organise les transports pendant une grève mais n’impose pas vraiment un service minimum.",
+    "translation": null,
+    "claims_cited": [
+     "c2",
+     "c3"
+    ],
+    "uncertainty_cited": "u1",
+    "proposes_question": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.009,
+   "started": 295.769,
+   "cost_usd": 0.001596,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "attributed_to": "les syndicats de salariés et les partis de gauche",
+      "source": "Wikipédia, « Service minimum »"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     },
+     {
+      "id": "c2",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes."
+     },
+     {
+      "id": "c3",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas combien de trains roulent un jour de grève : cela dépend du plan de transport."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Comment se passe un jour de grève pour un voyageur",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le service minimum : protéger les voyageurs ou limiter la grève ?"
+    },
+    "angle_changed": false,
+    "question_proposed": true,
+    "band": "B1",
+    "max_words": 70,
+    "history": [
+     {
+      "who": "learner",
+      "text": "Combien de jours avant faut-il déposer un préavis ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après le Ministère de la Transition écologique, il faut déposer le préavis au moins cinq jours avant le début de la grève."
+     },
+     {
+      "who": "learner",
+      "text": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas : elles ne précisent ni la date de la prochaine grève ni les lignes concernées. Chaque salarié qui veut faire grève doit prévenir 48 heures avant, pour que le service se réorganise. D'après Wikipédia, la loi organise les transports pendant une grève mais n’impose pas vraiment un service minimum."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2, c3"
+     }
+    ],
+    "translation_language": null,
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Je comprends, hein. D’après les syndicats de salariés et les partis de gauche, ils estiment que le service minimum remet en cause le droit de grève.",
+    "translation": null,
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 6.434,
+   "started": 295.762,
+   "cost_usd": 0.00138,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "B1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+      }
+     ],
+     "target_words": [
+      "dire",
+      "les heures",
+      "la gauche",
+      "les transports",
+      "le préavis",
+      "la grève",
+      "publics"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+     "headline_words": null
+    },
+    "learner_text": "Personnellement, je comprends les grévistes, même si c'est pénible pour les voyageurs. Pour moi, le gauche, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "la grève",
+      "outcome": "correct",
+      "quote": "les grévistes"
+     },
+     {
+      "fr": "la gauche",
+      "outcome": "incorrect",
+      "quote": "le gauche"
+     }
+    ],
+    "fact_fit": "unsupported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 4.394,
+   "started": 302.206,
+   "cost_usd": 0.001144,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Un jour de grève dans les transports",
+    "angle": "Comment se passe un jour de grève pour un voyageur",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève."
+     }
+    ],
+    "band": "B1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Un préavis de grève doit être déposé au moins cinq jours avant",
+     "supported_by": "c1"
+    },
+    "distractors": [
+     {
+      "text_fr": "Les salariés n'ont aucune obligation d'annoncer la grève 48 heures à l'avance",
+      "contradicted_by": "c2"
+     },
+     {
+      "text_fr": "La loi instaure un service minimum obligatoire pendant les grèves",
+      "contradicted_by": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 1.984,
+   "started": 306.611,
+   "cost_usd": 0.000516,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "uncertainty": "Les sources ne disent pas quand aura lieu la prochaine grève, ni quelles lignes seront touchées.",
+    "title_fr": "Un jour de grève dans les transports",
+    "band": "B1",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "why_native": "Replaced «est» with the future-form «aura lieu» to ask correctly about the timing of a future event; kept the rest of the phrasing."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.748,
+   "started": 308.611,
+   "cost_usd": 0.00156,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Un jour de grève dans les transports",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+    "angle": "Comment se passe un jour de grève pour un voyageur",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+     "learner_fr": "Quand est la prochaine grève, et quelles lignes seront touchées ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève."
+     }
+    ],
+    "open_question": "Quand est la prochaine grève, et quelles lignes seront touchées ?",
+    "band": "B1"
+   },
+   "response": {
+    "romy_line_fr": "Je garde ta question et j'écris, d'après la loi, qu'il faut un préavis de cinq jours, que chaque salarié doit prévenir 48 heures avant, et que la loi n'instaure pas un vrai service minimum.",
+    "headline_fr": "Quand aura lieu la prochaine grève, et quelles lignes seront touchées ?",
+    "body_lines": [
+     "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+     "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+     "La loi organise les transports pendant une grève, mais elle ne crée pas une vraie obligation de service minimum."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 5.396
+  },
+  {
+   "step": "turn1",
+   "seconds": 3.394
+  },
+  {
+   "step": "turn2",
+   "seconds": 6.462
+  },
+  {
+   "step": "turn3",
+   "seconds": 7.14
+  },
+  {
+   "step": "turn4",
+   "seconds": 6.446
+  },
+  {
+   "step": "make_options",
+   "seconds": 4.405
+  },
+  {
+   "step": "make_propose",
+   "seconds": 1.993
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.005
+  },
+  {
+   "step": "close",
+   "seconds": 4.8
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini",
+  "reply": "revue-reply-v2",
+  "guest": "revue-guest-v2",
+  "close": "revue-close-v2",
+  "question": "revue-question-v2",
+  "vocabulary": "revue-vocabulary-v2",
+  "headline": "revue-headline-v2",
+  "critic": "revue-critic-v1"
+ }
+}

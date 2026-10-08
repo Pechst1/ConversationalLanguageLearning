@@ -1,0 +1,107 @@
+{
+  "id": "evergreen-fete-de-la-musique",
+  "dossier_version": "revue-v1",
+  "week": "2026-W25",
+  "topic": "culture",
+  "title_fr": "La Fête de la musique",
+  "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+      "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+      "source_id": "fetemusique_culture",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+      "quote": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+      "source_id": "fetemusique_culture",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+      "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+      "source_id": "fetemusique_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon le ministère de la Culture, le succès de la première édition, en 1982, a dépassé toutes les espérances.",
+      "quote": "Le résultat dépasse toutes les espérances.",
+      "source_id": "fetemusique_culture",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03",
+      "confidence": "reported",
+      "attributed_to": "le ministère de la Culture"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Ministère de la Culture",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas combien de concerts il y a eu en 2026.",
+    "Les sources ne disent pas si les villes vont limiter davantage les horaires de la musique dans la rue."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce qui se passe dans la rue le 21 juin",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une fête pour tous, ou une nuit de bruit pour les voisins ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "place_fete_musique",
+      "name_fr": "Une petite place parisienne le soir du 21 juin",
+      "brief": "a small Paris square on a June evening, an empty makeshift stage with amplifiers and a drum kit, string lights between plane trees, cafe terraces",
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-06-15/2026-06-28",
+    "relevant_until": "2026-07-12"
+  },
+  "sources": [
+    {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+    },
+    {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+    }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "une guitare acoustique vue de face"
+}

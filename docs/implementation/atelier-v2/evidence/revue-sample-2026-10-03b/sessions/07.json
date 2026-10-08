@@ -1,0 +1,3054 @@
+{
+ "n": 7,
+ "dossier_id": "evergreen-marche-du-dimanche",
+ "level": "A2.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "evergreen-marche-du-dimanche",
+  "dossier_version": "revue-v1",
+  "week": "2026-W01",
+  "topic": "food",
+  "title_fr": "Le marché du dimanche à Aligre",
+  "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Paris compte 91 marchés.",
+    "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+    "source_id": "marche_paris",
+    "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+    "published_at": "2026-09-23",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+    "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+    "source_id": "marche_wikipedia_aligre",
+    "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+    "published_at": "2026-03-10",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+    "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+    "source_id": "marche_wikipedia_aligre",
+    "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+    "published_at": "2026-03-10",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+    "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+    "source_id": "marche_paris",
+    "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+    "published_at": "2026-09-23",
+    "confidence": "reported",
+    "attributed_to": "la Ville de Paris"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Marché d'Aligre",
+    "kind": "place",
+    "role": null
+   },
+   {
+    "name": "Ville de Paris",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   {
+    "id": "u1",
+    "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   },
+   {
+    "id": "u2",
+    "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+   }
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": null
+   },
+   {
+    "id": "a2",
+    "fr": "Le marché, plus cher ou plus juste que le supermarché ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": null
+   }
+  ],
+  "places": [
+   {
+    "id": "marche_aligre",
+    "name_fr": "Le marché d'Aligre, un matin",
+    "brief": "the marché d'Aligre on the place d'Aligre, Paris 12e: an open-air market square with fruit and vegetable stalls under striped awnings, crates of leeks and clementines, an old covered market hall behind, morning light",
+    "known": false,
+    "geo": {
+     "lat": 48.849,
+     "lon": 2.378,
+     "precision": "exact",
+     "label_fr": "Place d'Aligre et marché Beauvau, Paris 12e"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-01-01/2026-12-31",
+   "relevant_until": "2027-01-15"
+  },
+  "sources": [
+   {
+    "id": "marche_paris",
+    "name": "Ville de Paris (paris.fr)",
+    "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+    "published_at": "2026-09-23"
+   },
+   {
+    "id": "marche_wikipedia_aligre",
+    "name": "Wikipédia, « Marché d'Aligre »",
+    "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+    "published_at": "2026-03-10"
+   }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un cageot de légumes"
+ },
+ "band": "A2",
+ "vocabulary": [
+  {
+   "fr": "les marchés",
+   "gloss": {
+    "en": "markets"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "les matins",
+   "gloss": {
+    "en": "mornings"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "la convivialité",
+   "gloss": {
+    "en": "friendliness; sociability"
+   },
+   "claim_id": "c4"
+  },
+  {
+   "fr": "le savoir-faire",
+   "gloss": {
+    "en": "expertise; know-how"
+   },
+   "claim_id": "c4"
+  },
+  {
+   "fr": "compte",
+   "gloss": {},
+   "claim_id": "c1"
+  }
+ ],
+ "target_use": {
+  "word": "la convivialité",
+  "article_said": "la",
+  "intended": "correct",
+  "sentence": "Pour moi, la convivialité, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T01:54:19.510267+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T01:54:24.052097+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?",
+      "translation": "Thanks. Paris has 91 markets. The Aligre market takes place every morning, six days a week, according to Wikipedia. Shall we continue?",
+      "glosses": [
+       {
+        "fr": "les marchés",
+        "gloss": "markets",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "les matins",
+        "gloss": "mornings",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "compte",
+        "gloss": "",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T01:54:24.052163+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Paris compte 91 marchés.",
+        "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_paris",
+         "name": "Ville de Paris (paris.fr)",
+         "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+         "published_at": "2026-09-23"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+        "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_wikipedia_aligre",
+         "name": "Wikipédia, « Marché d'Aligre »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+         "published_at": "2026-03-10"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les marchés",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les matins",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la convivialité",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le savoir-faire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "compte",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Le marché d'Aligre est ouvert quand ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T01:54:24.063469+00:00",
+      "kind": "mine",
+      "text_fr": "Le marché d'Aligre est ouvert quand ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T01:54:27.223743+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein.",
+      "translation": "According to Wikipedia, there is a covered market, the Beauvau market, open all day, and an open-air market open only in the morning, huh.",
+      "glosses": [],
+      "reason": null
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T01:54:27.223806+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+        "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_wikipedia_aligre",
+         "name": "Wikipédia, « Marché d'Aligre »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+         "published_at": "2026-03-10"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "correct",
+     "capability_known": true,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les marchés",
+       "outcome": "correct",
+       "capability_known": true
+      },
+      {
+       "fr": "les matins",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la convivialité",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le savoir-faire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "compte",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "C'est moins cher qu'au supermarché ?",
+   "result": {
+    "items": [
+     {
+      "id": "12",
+      "seq": 12,
+      "at": "2026-10-03T01:54:27.234077+00:00",
+      "kind": "mine",
+      "text_fr": "C'est moins cher qu'au supermarché ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T01:54:30.501196+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas. D'après la Ville de Paris, les marchés sont des lieux de vie avec convivialité et savoir-faire.",
+      "translation": "The sources do not say. According to the City of Paris, markets are places of life with conviviality and know-how.",
+      "glosses": [
+       {
+        "fr": "les marchés",
+        "gloss": "markets",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la convivialité",
+        "gloss": "friendliness; sociability",
+        "claim_id": "c4"
+       },
+       {
+        "fr": "le savoir-faire",
+        "gloss": "expertise; know-how",
+        "claim_id": "c4"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "13.u",
+      "seq": 13,
+      "at": "2026-10-03T01:54:30.501196+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T01:54:30.501254+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+        "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+        "attributed_to": "la Ville de Paris",
+        "source": {
+         "id": "marche_paris",
+         "name": "Ville de Paris (paris.fr)",
+         "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+         "published_at": "2026-09-23"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les marchés",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les matins",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la convivialité",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le savoir-faire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "compte",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T01:54:30.511670+00:00",
+      "kind": "mine",
+      "text_fr": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T01:54:34.595125+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Tu as raison, la convivialité revient souvent dans les sources, d'après la Ville de Paris. Pourquoi la convivialité est‑elle importante pour toi au marché ?",
+      "translation": "You're right, conviviality appears often in the sources, according to the City of Paris. Why is conviviality important to you at the market?",
+      "glosses": [
+       {
+        "fr": "la convivialité",
+        "gloss": "friendliness; sociability",
+        "claim_id": "c4"
+       }
+      ],
+      "reason": null
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "correct",
+     "capability_known": true,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les marchés",
+       "outcome": "correct",
+       "capability_known": true
+      },
+      {
+       "fr": "les matins",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la convivialité",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le savoir-faire",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "compte",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "supported",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Le marché en plein air d'Aligre est ouvert toute la journée"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Le marché d'Aligre a lieu six jours sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Paris ne compte pas plus de cinquante marchés"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "C'est moins cher qu'au supermarché ?",
+    "uncertainty_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+   }
+  ],
+  "intro": {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:54:38.082325+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "C'est moins cher qu'au supermarché ?",
+    "proposal_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "contribution": [
+     [
+      0,
+      16
+     ],
+     [
+      48,
+      65
+     ]
+    ],
+    "why_native": "Added the referent «au marché du dimanche à Aligre» so the question stands alone and keeps the learner's original phrasing."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "contribution": [
+     [
+      0,
+      16
+     ],
+     [
+      48,
+      65
+     ]
+    ],
+    "learner_fr": "C'est moins cher qu'au supermarché ?"
+   },
+   "line": {
+    "id": "25",
+    "seq": 25,
+    "at": "2026-10-03T01:54:40.340667+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je note ta question : les informations que j'ai ne disent rien sur les prix, je vais demander aux commerçants, hein.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+   "body_fr": [
+    "Paris compte 91 marchés.",
+    "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+    "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+   ],
+   "contribution": [
+    [
+     0,
+     16
+    ],
+    [
+     48,
+     65
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris (paris.fr) et Wikipédia, « Marché d'Aligre »",
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "les marchés",
+     "gloss": "markets",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "correct"
+    },
+    {
+     "fr": "les matins",
+     "gloss": "mornings",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la convivialité",
+     "gloss": "friendliness; sociability",
+     "claim_id": "c4",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "le savoir-faire",
+     "gloss": "expertise; know-how",
+     "claim_id": "c4",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "compte",
+     "gloss": "",
+     "claim_id": "c1",
+     "used": false,
+     "outcome": "unscored"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Paris compte 91 marchés.",
+     "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+     "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+     "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+     "attributed_to": "la Ville de Paris",
+     "source": {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+  "vignette": {
+   "id": "644be664-af05-4dc4-8141-48a1b8a7ee53",
+   "session_id": "8f587107-f441-48ab-84bf-5859d19a263d",
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "week": "2026-W40",
+   "place_label_fr": "Le marché d'Aligre, un matin",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"19\" fill=\"#2C6A5D\"/><rect x=\"38\" y=\"56\" width=\"24\" height=\"13\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Le marché du dimanche à Aligre",
+   "minted_at": "2026-10-03T01:54:45"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T01:54:19.503760+00:00",
+   "kind": "narration",
+   "text_fr": "Le marché d'Aligre, un matin."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T01:54:19.503760+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T01:54:19.503760+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment le marché d'Aligre, un matin, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T01:54:19.503760+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T01:54:19.503760+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T01:54:19.510267+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T01:54:24.052097+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?",
+   "translation": "Thanks. Paris has 91 markets. The Aligre market takes place every morning, six days a week, according to Wikipedia. Shall we continue?",
+   "glosses": [
+    {
+     "fr": "les marchés",
+     "gloss": "markets",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "les matins",
+     "gloss": "mornings",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "compte",
+     "gloss": "",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T01:54:24.052163+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Paris compte 91 marchés.",
+     "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T01:54:24.063469+00:00",
+   "kind": "mine",
+   "text_fr": "Le marché d'Aligre est ouvert quand ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T01:54:27.223743+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein.",
+   "translation": "According to Wikipedia, there is a covered market, the Beauvau market, open all day, and an open-air market open only in the morning, huh.",
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T01:54:27.223806+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+     "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+     "attributed_to": null,
+     "source": {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    }
+   ]
+  },
+  {
+   "id": "12",
+   "seq": 12,
+   "at": "2026-10-03T01:54:27.234077+00:00",
+   "kind": "mine",
+   "text_fr": "C'est moins cher qu'au supermarché ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T01:54:30.501196+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas. D'après la Ville de Paris, les marchés sont des lieux de vie avec convivialité et savoir-faire.",
+   "translation": "The sources do not say. According to the City of Paris, markets are places of life with conviviality and know-how.",
+   "glosses": [
+    {
+     "fr": "les marchés",
+     "gloss": "markets",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la convivialité",
+     "gloss": "friendliness; sociability",
+     "claim_id": "c4"
+    },
+    {
+     "fr": "le savoir-faire",
+     "gloss": "expertise; know-how",
+     "claim_id": "c4"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "13.u",
+   "seq": 13,
+   "at": "2026-10-03T01:54:30.501196+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T01:54:30.501254+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+     "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+     "attributed_to": "la Ville de Paris",
+     "source": {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     }
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T01:54:30.511670+00:00",
+   "kind": "mine",
+   "text_fr": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T01:54:34.595125+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Tu as raison, la convivialité revient souvent dans les sources, d'après la Ville de Paris. Pourquoi la convivialité est‑elle importante pour toi au marché ?",
+   "translation": "You're right, conviviality appears often in the sources, according to the City of Paris. Why is conviviality important to you at the market?",
+   "glosses": [
+    {
+     "fr": "la convivialité",
+     "gloss": "friendliness; sociability",
+     "claim_id": "c4"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:54:38.082325+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "24",
+   "seq": 24,
+   "at": "2026-10-03T01:54:40.340652+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "contribution": [
+     [
+      0,
+      16
+     ],
+     [
+      48,
+      65
+     ]
+    ],
+    "learner_fr": "C'est moins cher qu'au supermarché ?"
+   }
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:54:40.340667+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "26",
+   "seq": 26,
+   "at": "2026-10-03T01:54:45.991206+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je note ta question : les informations que j'ai ne disent rien sur les prix, je vais demander aux commerçants, hein.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "evergreen-marche-du-dimanche",
+     "dossier_version": "revue-v1",
+     "week": "2026-W01",
+     "topic": "food",
+     "title_fr": "Le marché du dimanche à Aligre",
+     "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "source_id": "marche_paris",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "source_id": "marche_wikipedia_aligre",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+       "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+       "source_id": "marche_wikipedia_aligre",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+       "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+       "source_id": "marche_paris",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23",
+       "confidence": "reported",
+       "attributed_to": "la Ville de Paris"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Marché d'Aligre",
+       "kind": "place",
+       "role": null
+      },
+      {
+       "name": "Ville de Paris",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      {
+       "id": "u1",
+       "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+      },
+      {
+       "id": "u2",
+       "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+      }
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Faire ses courses au marché : comment ça marche",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": null
+      },
+      {
+       "id": "a2",
+       "fr": "Le marché, plus cher ou plus juste que le supermarché ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": null
+      }
+     ],
+     "places": [
+      {
+       "id": "marche_aligre",
+       "name_fr": "Le marché d'Aligre, un matin",
+       "brief": "the marché d'Aligre on the place d'Aligre, Paris 12e: an open-air market square with fruit and vegetable stalls under striped awnings, crates of leeks and clementines, an old covered market hall behind, morning light",
+       "known": false,
+       "geo": {
+        "lat": 48.849,
+        "lon": 2.378,
+        "precision": "exact",
+        "label_fr": "Place d'Aligre et marché Beauvau, Paris 12e"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-01-01/2026-12-31",
+      "relevant_until": "2027-01-15"
+     },
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ],
+     "evergreen": true,
+     "vignette_object_fr": "un cageot de légumes"
+    },
+    "cost_usd": 0.001657,
+    "prompt_version": "revue-vocabulary-v2"
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Le marché d'Aligre, un matin.",
+     "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+    ],
+    "place_note": "Ce n'est pas vraiment le marché d'Aligre, un matin, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m'aides ?",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?",
+    "translation": "Thanks. Paris has 91 markets. The Aligre market takes place every morning, six days a week, according to Wikipedia. Shall we continue?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001642,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.537
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les marchés",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_GOING",
+      "capability_known": true
+     },
+     {
+      "fr": "les matins",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la convivialité",
+      "outcome": "unscored",
+      "capability_id": "revue.word:convivialite",
+      "capability_known": false
+     },
+     {
+      "fr": "le savoir-faire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:savoir-faire",
+      "capability_known": false
+     },
+     {
+      "fr": "compte",
+      "outcome": "unscored",
+      "capability_id": "revue.word:compte",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Le marché d'Aligre est ouvert quand ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein.",
+    "translation": "According to Wikipedia, there is a covered market, the Beauvau market, open all day, and an open-air market open only in the morning, huh.",
+    "claims_cited": [
+     "c3"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001263,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 3.155
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c3"
+    ]
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Le marché d'Aligre est ouvert quand ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "CD_A11_GOING",
+    "outcome": "correct",
+    "capability_known": true,
+    "correct": true,
+    "words": [
+     "les marchés"
+    ],
+    "words_used": [
+     "les marchés"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les marchés",
+      "outcome": "correct",
+      "capability_id": "CD_A11_GOING",
+      "capability_known": true
+     },
+     {
+      "fr": "les matins",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la convivialité",
+      "outcome": "unscored",
+      "capability_id": "revue.word:convivialite",
+      "capability_known": false
+     },
+     {
+      "fr": "le savoir-faire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:savoir-faire",
+      "capability_known": false
+     },
+     {
+      "fr": "compte",
+      "outcome": "unscored",
+      "capability_id": "revue.word:compte",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000865,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "C'est moins cher qu'au supermarché ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas. D'après la Ville de Paris, les marchés sont des lieux de vie avec convivialité et savoir-faire.",
+    "translation": "The sources do not say. According to the City of Paris, markets are places of life with conviviality and know-how.",
+    "claims_cited": [
+     "c4"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": "u1",
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché.",
+    "uncertainty_matched": false,
+    "proposes_question": "C'est moins cher qu'au supermarché ?",
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001282,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 3.262
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "question_raised",
+   "payload": {
+    "text": "C'est moins cher qu'au supermarché ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché.",
+    "turn_seq": 12,
+    "kept": false
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les marchés",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_GOING",
+      "capability_known": true
+     },
+     {
+      "fr": "les matins",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la convivialité",
+      "outcome": "unscored",
+      "capability_id": "revue.word:convivialite",
+      "capability_known": false
+     },
+     {
+      "fr": "le savoir-faire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:savoir-faire",
+      "capability_known": false
+     },
+     {
+      "fr": "compte",
+      "outcome": "unscored",
+      "capability_id": "revue.word:compte",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 12
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Tu as raison, la convivialité revient souvent dans les sources, d'après la Ville de Paris. Pourquoi la convivialité est‑elle importante pour toi au marché ?",
+    "translation": "You're right, conviviality appears often in the sources, according to the City of Paris. Why is conviviality important to you at the market?",
+    "claims_cited": [],
+    "claims_restated": [
+     "c4"
+    ],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001495,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.074
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "CD_A11_GOING",
+    "outcome": "correct",
+    "capability_known": true,
+    "correct": true,
+    "words": [
+     "les marchés",
+     "la convivialité"
+    ],
+    "words_used": [
+     "les marchés",
+     "la convivialité"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les marchés",
+      "outcome": "correct",
+      "capability_id": "CD_A11_GOING",
+      "capability_known": true
+     },
+     {
+      "fr": "les matins",
+      "outcome": "unscored",
+      "capability_id": "CD_A12_ROUTINE",
+      "capability_known": true
+     },
+     {
+      "fr": "la convivialité",
+      "outcome": "unscored",
+      "capability_id": "revue.word:convivialite",
+      "capability_known": false
+     },
+     {
+      "fr": "le savoir-faire",
+      "outcome": "unscored",
+      "capability_id": "revue.word:savoir-faire",
+      "capability_known": false
+     },
+     {
+      "fr": "compte",
+      "outcome": "unscored",
+      "capability_id": "revue.word:compte",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000866,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 17
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Le marché en plein air d'Aligre est ouvert toute la journée"
+      },
+      {
+       "id": "h2",
+       "text_fr": "Le marché d'Aligre a lieu six jours sur sept"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Paris ne compte pas plus de cinquante marchés"
+      }
+     ],
+     "answer": "h2",
+     "supported_by": "c2",
+     "contradicted_by": {
+      "h1": "c3",
+      "h3": "c1"
+     }
+    },
+    "cost_usd": 0.001159,
+    "prompt_version": "revue-headline-v2"
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "C'est moins cher qu'au supermarché ?",
+    "proposal_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "contribution": [
+     [
+      0,
+      16
+     ],
+     [
+      48,
+      65
+     ]
+    ],
+    "why_native": "Added the referent «au marché du dimanche à Aligre» so the question stands alone and keeps the learner's original phrasing.",
+    "cost_usd": 0.000506,
+    "prompt_version": "revue-question-v2"
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "contribution": [
+     [
+      0,
+      16
+     ],
+     [
+      48,
+      65
+     ]
+    ],
+    "learner_fr": "C'est moins cher qu'au supermarché ?"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je note ta question : les informations que j'ai ne disent rien sur les prix, je vais demander aux commerçants, hein.",
+    "cost_usd": 0.001717,
+    "prompt_version": "revue-close-v2",
+    "refused": [],
+    "regenerated_for": []
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je note ta question : les informations que j'ai ne disent rien sur les prix, je vais demander aux commerçants, hein.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+      "body_fr": [
+       "Paris compte 91 marchés.",
+       "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+      ],
+      "contribution": [
+       [
+        0,
+        16
+       ],
+       [
+        48,
+        65
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris (paris.fr) et Wikipédia, « Marché d'Aligre »",
+      "sources": [
+       {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       },
+       {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "les marchés",
+        "gloss": "markets",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "correct"
+       },
+       {
+        "fr": "les matins",
+        "gloss": "mornings",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la convivialité",
+        "gloss": "friendliness; sociability",
+        "claim_id": "c4",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "le savoir-faire",
+        "gloss": "expertise; know-how",
+        "claim_id": "c4",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "compte",
+        "gloss": "",
+        "claim_id": "c1",
+        "used": false,
+        "outcome": "unscored"
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Paris compte 91 marchés.",
+        "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_paris",
+         "name": "Ville de Paris (paris.fr)",
+         "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+         "published_at": "2026-09-23"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+        "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_wikipedia_aligre",
+         "name": "Wikipédia, « Marché d'Aligre »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+         "published_at": "2026-03-10"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+        "quote": "le marché couvert dont le nom est marché Beauvau ou marché Beauvau-Saint-Antoine, ouvert toute la journée et situé dans la moitié ouest de la place d'Aligre, et le marché découvert, ouvert uniquement le matin",
+        "attributed_to": null,
+        "source": {
+         "id": "marche_wikipedia_aligre",
+         "name": "Wikipédia, « Marché d'Aligre »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+         "published_at": "2026-03-10"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+        "quote": "les marchés sont des lieux de vie incontournables, où se mêlent convivialité et savoir-faire",
+        "attributed_to": "la Ville de Paris",
+        "source": {
+         "id": "marche_paris",
+         "name": "Ville de Paris (paris.fr)",
+         "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+         "published_at": "2026-09-23"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+     "vignette": {
+      "id": "644be664-af05-4dc4-8141-48a1b8a7ee53",
+      "session_id": "8f587107-f441-48ab-84bf-5859d19a263d",
+      "dossier_id": "evergreen-marche-du-dimanche",
+      "week": "2026-W40",
+      "place_label_fr": "Le marché d'Aligre, un matin",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"19\" fill=\"#2C6A5D\"/><rect x=\"38\" y=\"56\" width=\"24\" height=\"13\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Le marché du dimanche à Aligre",
+      "minted_at": "2026-10-03T01:54:45"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les marchés",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_GOING",
+     "capability_known": true
+    },
+    {
+     "fr": "les matins",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la convivialité",
+     "outcome": "unscored",
+     "capability_id": "revue.word:convivialite",
+     "capability_known": false
+    },
+    {
+     "fr": "le savoir-faire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:savoir-faire",
+     "capability_known": false
+    },
+    {
+     "fr": "compte",
+     "outcome": "unscored",
+     "capability_id": "revue.word:compte",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "CD_A11_GOING",
+   "outcome": "correct",
+   "capability_known": true,
+   "correct": true,
+   "words": [
+    "les marchés"
+   ],
+   "words_used": [
+    "les marchés"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les marchés",
+     "outcome": "correct",
+     "capability_id": "CD_A11_GOING",
+     "capability_known": true
+    },
+    {
+     "fr": "les matins",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la convivialité",
+     "outcome": "unscored",
+     "capability_id": "revue.word:convivialite",
+     "capability_known": false
+    },
+    {
+     "fr": "le savoir-faire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:savoir-faire",
+     "capability_known": false
+    },
+    {
+     "fr": "compte",
+     "outcome": "unscored",
+     "capability_id": "revue.word:compte",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000865,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les marchés",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_GOING",
+     "capability_known": true
+    },
+    {
+     "fr": "les matins",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la convivialité",
+     "outcome": "unscored",
+     "capability_id": "revue.word:convivialite",
+     "capability_known": false
+    },
+    {
+     "fr": "le savoir-faire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:savoir-faire",
+     "capability_known": false
+    },
+    {
+     "fr": "compte",
+     "outcome": "unscored",
+     "capability_id": "revue.word:compte",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 12
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "CD_A11_GOING",
+   "outcome": "correct",
+   "capability_known": true,
+   "correct": true,
+   "words": [
+    "les marchés",
+    "la convivialité"
+   ],
+   "words_used": [
+    "les marchés",
+    "la convivialité"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les marchés",
+     "outcome": "correct",
+     "capability_id": "CD_A11_GOING",
+     "capability_known": true
+    },
+    {
+     "fr": "les matins",
+     "outcome": "unscored",
+     "capability_id": "CD_A12_ROUTINE",
+     "capability_known": true
+    },
+    {
+     "fr": "la convivialité",
+     "outcome": "unscored",
+     "capability_id": "revue.word:convivialite",
+     "capability_known": false
+    },
+    {
+     "fr": "le savoir-faire",
+     "outcome": "unscored",
+     "capability_id": "revue.word:savoir-faire",
+     "capability_known": false
+    },
+    {
+     "fr": "compte",
+     "outcome": "unscored",
+     "capability_id": "revue.word:compte",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000866,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 17
+  }
+ ],
+ "guest": [],
+ "cost_usd_state": 0.012452,
+ "cost_usd_provider": 0.012452,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 4.707,
+   "started": 242.148,
+   "cost_usd": 0.001657,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     },
+     {
+      "id": "c3",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire."
+     }
+    ],
+    "prefer": [
+     "marchés",
+     "les matins"
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "les marchés",
+      "gloss": "markets",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "les matins",
+      "gloss": "mornings",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "le marché",
+      "gloss": "market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "la convivialité",
+      "gloss": "friendliness; sociability",
+      "claim_id": "c4"
+     },
+     {
+      "fr": "le savoir-faire",
+      "gloss": "expertise; know-how",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.536,
+   "started": 246.872,
+   "cost_usd": 0.001642,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "attributed_to": null,
+      "source": "Ville de Paris (paris.fr)"
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Marché d'Aligre »"
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Marché d'Aligre »"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+      "attributed_to": "la Ville de Paris",
+      "source": "Ville de Paris (paris.fr)"
+     }
+    ],
+    "claims_already_said": [],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le marché, plus cher ou plus juste que le supermarché ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Le marché d'Aligre, un matin."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment le marché d'Aligre, un matin, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?",
+    "translation": "Thanks. Paris has 91 markets. The Aligre market takes place every morning, six days a week, according to Wikipedia. Shall we continue?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.377,
+   "started": 251.422,
+   "cost_usd": 0.000865,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+      }
+     ],
+     "target_words": [
+      "les marchés",
+      "les matins",
+      "la convivialité",
+      "le savoir-faire",
+      "compte"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+     "headline_words": null
+    },
+    "learner_text": "Le marché d'Aligre est ouvert quand ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "les marchés",
+      "outcome": "correct",
+      "quote": "Le marché d'Aligre"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.155,
+   "started": 251.425,
+   "cost_usd": 0.001263,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Le marché d'Aligre est ouvert quand ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin.",
+      "attributed_to": null,
+      "source": "Wikipédia, « Marché d'Aligre »"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+      "attributed_to": "la Ville de Paris",
+      "source": "Ville de Paris (paris.fr)"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le marché, plus cher ou plus juste que le supermarché ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : une histoire de tous les jours."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment le marché d'Aligre, un matin, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?"
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein.",
+    "translation": "According to Wikipedia, there is a covered market, the Beauvau market, open all day, and an open-air market open only in the morning, huh.",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.261,
+   "started": 254.597,
+   "cost_usd": 0.001282,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "C'est moins cher qu'au supermarché ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire.",
+      "attributed_to": "la Ville de Paris",
+      "source": "Ville de Paris (paris.fr)"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     },
+     {
+      "id": "c3",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le marché, plus cher ou plus juste que le supermarché ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Paris compte 91 marchés. Le marché d'Aligre a lieu tous les matins, six jours sur sept, d'après Wikipédia. On continue ?"
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2"
+     },
+     {
+      "who": "learner",
+      "text": "Le marché d'Aligre est ouvert quand ?"
+     },
+     {
+      "who": "romy",
+      "text": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas. D'après la Ville de Paris, les marchés sont des lieux de vie avec convivialité et savoir-faire.",
+    "translation": "The sources do not say. According to the City of Paris, markets are places of life with conviviality and know-how.",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": "u1",
+    "proposes_question": "C'est moins cher qu'au supermarché ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.136,
+   "started": 257.87,
+   "cost_usd": 0.000866,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire."
+      }
+     ],
+     "target_words": [
+      "les marchés",
+      "les matins",
+      "la convivialité",
+      "le savoir-faire",
+      "compte"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+     "headline_words": null
+    },
+    "learner_text": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "les marchés",
+      "outcome": "correct",
+      "quote": "les marchés"
+     },
+     {
+      "fr": "la convivialité",
+      "outcome": "correct",
+      "quote": "la convivialité"
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.074,
+   "started": 257.878,
+   "cost_usd": 0.001495,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "J'adore les marchés, c'est vivant. Pour moi, la convivialité, c'est important.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [],
+    "claims_already_said": [
+     {
+      "id": "c1",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     },
+     {
+      "id": "c3",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "id": "u2",
+      "fr": "Les sources ne disent pas si les horaires changent pendant les fêtes de fin d'année."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "Le marché, plus cher ou plus juste que le supermarché ?"
+    },
+    "angle_changed": false,
+    "question_proposed": true,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "romy",
+      "text": "D'après Wikipédia, il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin, hein."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3"
+     },
+     {
+      "who": "learner",
+      "text": "C'est moins cher qu'au supermarché ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. D'après la Ville de Paris, les marchés sont des lieux de vie avec convivialité et savoir-faire."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Tu as raison, la convivialité revient souvent dans les sources, d'après la Ville de Paris. Pourquoi la convivialité est‑elle importante pour toi au marché ?",
+    "translation": "You're right, conviviality appears often in the sources, according to the City of Paris. Why is conviviality important to you at the market?",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 3.473,
+   "started": 261.961,
+   "cost_usd": 0.001159,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "angle": "Faire ses courses au marché : comment ça marche",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire."
+     }
+    ],
+    "band": "A2"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Le marché d'Aligre a lieu six jours sur sept",
+     "supported_by": "c2"
+    },
+    "distractors": [
+     {
+      "text_fr": "Le marché en plein air d'Aligre est ouvert toute la journée",
+      "contradicted_by": "c3"
+     },
+     {
+      "text_fr": "Paris ne compte pas plus de cinquante marchés",
+      "contradicted_by": "c1"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.242,
+   "started": 265.446,
+   "cost_usd": 0.000506,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "C'est moins cher qu'au supermarché ?",
+    "uncertainty": "Les sources ne disent pas si les prix au marché sont plus bas qu'au supermarché.",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "band": "A2",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+    "why_native": "Added the referent «au marché du dimanche à Aligre» so the question stands alone and keeps the learner's original phrasing."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 5.616,
+   "started": 267.703,
+   "cost_usd": 0.001717,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "angle": "Faire ses courses au marché : comment ça marche",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "C'est moins cher au marché du dimanche à Aligre qu'au supermarché ?",
+     "learner_fr": "C'est moins cher qu'au supermarché ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Paris, les marchés sont des lieux de vie où l'on trouve à la fois de la convivialité et du savoir-faire."
+     }
+    ],
+    "open_question": "C'est moins cher qu'au supermarché ?",
+    "band": "A2"
+   },
+   "response": {
+    "romy_line_fr": "Je note ta question : les informations que j'ai ne disent rien sur les prix, je vais demander aux commerçants, hein.",
+    "headline_fr": "C'est moins cher qu'au supermarché ?",
+    "body_lines": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "Il y a un marché couvert, le marché Beauvau, ouvert toute la journée, et un marché en plein air, ouvert seulement le matin."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 4.722
+  },
+  {
+   "step": "turn1",
+   "seconds": 4.552
+  },
+  {
+   "step": "turn2",
+   "seconds": 3.17
+  },
+  {
+   "step": "turn3",
+   "seconds": 3.277
+  },
+  {
+   "step": "turn4",
+   "seconds": 4.093
+  },
+  {
+   "step": "make_options",
+   "seconds": 3.485
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.252
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.005
+  },
+  {
+   "step": "close",
+   "seconds": 5.657
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini",
+  "reply": "revue-reply-v2",
+  "guest": "revue-guest-v2",
+  "close": "revue-close-v2",
+  "question": "revue-question-v2",
+  "vocabulary": "revue-vocabulary-v2",
+  "headline": "revue-headline-v2",
+  "critic": "revue-critic-v1"
+ }
+}

@@ -33,8 +33,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import apiService from '@/services/api';
 import dailyJourneyService, {
+  getStoryEpisodeForJourney,
   isJourneyDisabled,
   journeyErrorDetail,
   resolveTimezone,
@@ -50,9 +50,9 @@ import type {
   JourneySnapshot,
   PublicStep,
   RespondPrompt,
+  StoryEpisode,
   TodayEnvelope,
 } from '@/types/daily-journey';
-import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import useJourneyRecovery, {
   type JourneyRecoveryController,
 } from '@/lib/useJourneyRecovery';
@@ -62,15 +62,19 @@ import {
   markJourneyResume,
 } from '@/lib/journey-resume';
 import type { PendingPlan, ReplayableKind } from '@/lib/journey-recovery';
+import { createReplySequencer, prefersReducedMotion } from '@/lib/journey-reply-reveal';
 
 import {
   answerIsBlank,
   currentStepOf,
-  feedbackFromAttempt,
   journeyAwaitsFinish,
   journeyProgress,
   phaseFromEnvelope,
   phaseFromJourney,
+  resolutionAwaitsStory,
+  STORY_POLL_LIMIT,
+  STORY_POLL_MS,
+  storyPollTarget,
   type JourneyFeedback,
   type JourneyPhase,
   type JourneyProgress,
@@ -80,21 +84,23 @@ import {
   createRequestGate,
   planFailure,
   runMutation,
+  runWithWaitHint,
+  stageAttemptFeedback,
+  WAIT_HINT_DELAY_MS,
+  WARM_WAIT_HINT_DELAY_MS,
   type MutationOutcome,
 } from './journey-requests';
+import { loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import { READ_POLL_LIMIT, READ_POLL_MS, readPollTarget } from './read-step-model';
+import {
+  STORY_ART_POLL_MS,
+  stepReadsStoryEpisode,
+  storyArtRendering,
+} from './story-episode-model';
+import { shouldPollStoryArtLate } from './story-art-poll';
 
 /** Bounded auto-poll of a `preparing` journey before a manual "check again". */
 const PREPARING_POLL_LIMIT = 8;
-/** Under this many bytes nothing was actually captured by the microphone. */
-const EMPTY_RECORDING_BYTES = 1200;
-
-export type VoiceState =
-  | { kind: 'idle' }
-  | { kind: 'unsupported' }
-  | { kind: 'recording' }
-  | { kind: 'transcribing' }
-  | { kind: 'failed'; message: string };
-
 export type DailyJourneyActions = {
   /** Re-read `/today`. Safe, never creates or pays for generation. */
   refresh: () => Promise<void>;
@@ -115,10 +121,6 @@ export type DailyJourneyActions = {
   finish: (kind: 'complete' | 'early') => Promise<void>;
   /** Dismiss a feedback card without moving on. */
   clearFeedback: () => void;
-  /** Start/stop microphone capture for the current respond step. */
-  startRecording: () => Promise<void>;
-  stopRecording: () => void;
-  resetVoice: () => void;
 };
 
 export type DailyJourneyController = {
@@ -133,9 +135,31 @@ export type DailyJourneyController = {
   progress: JourneyProgress;
   /** A mutation is in flight; the primary action must be disabled. */
   busy: boolean;
+  /**
+   * The mutation has been in flight long enough to be worth a spinner and the
+   * honest wait copy.
+   */
+  waiting: boolean;
+  /**
+   * WP-26 / WP-28: the server says a prefetched scene is waiting for this
+   * learner, so today's draft should answer in tens of milliseconds. Read off
+   * `TodayEnvelope.is_warm` — the client no longer infers warmth from how fast
+   * the answer came back.
+   *
+   * It is a promise about the cache, not about the wire: a warm scene whose
+   * preconditions changed is discarded server-side and generated as usual, so
+   * the wait copy is delayed here, never suppressed.
+   */
+  warm: boolean;
   /** The most recent revealed help for the current step, or `null`. */
   help: HelpResult | null;
-  voice: VoiceState;
+  /**
+   * WP-90: the day's story episode (the engine's panels), read when the scene
+   * or the resolution is current and re-read while a panel is still being
+   * drawn — here, not in the step, so the poll survives leaving it. `null`
+   * when the engine published none (an authored day) or before it is read.
+   */
+  storyEpisode: StoryEpisode | null;
   /**
    * Interruption recovery (WP-10): the honest connection state, the learner's
    * persisted drafts, and the reading position. Presentation reads it; it never
@@ -206,15 +230,27 @@ export type UseDailyJourneyOptions = {
 export function useDailyJourney(
   options: UseDailyJourneyOptions = {},
 ): DailyJourneyController {
-  const { enabled = true, preferredInputMode = 'text', onFinished, onDisabled } = options;
+  // WP-27: speaking is the default output, and the server only offers voice on
+  // a journey that was *created* for voice (CONTRACTS §10 keeps text alongside
+  // it always). A 'text' default here silently made every respond step
+  // text-only — found on the 2026-09-11 QA walk.
+  const { enabled = true, preferredInputMode = 'voice', onFinished, onDisabled } = options;
 
   const [envelope, setEnvelope] = useState<TodayEnvelope | null>(null);
   const [journey, setJourney] = useState<JourneySnapshot | null>(null);
   const [phase, setPhase] = useState<JourneyPhase>({ kind: 'loading' });
   const [feedback, setFeedback] = useState<JourneyFeedback>({ kind: 'idle' });
   const [help, setHelp] = useState<HelpResult | null>(null);
-  const [voice, setVoice] = useState<VoiceState>({ kind: 'idle' });
   const [busy, setBusy] = useState(false);
+  /**
+   * WP-26: is a request slow enough that the learner deserves the honest wait
+   * copy? A draft served from the server's prefetch answers in tens of
+   * milliseconds and never reaches this, so a warm scene shows no spinner at
+   * all; a cold one still says what it is doing within half a second.
+   */
+  const [waiting, setWaiting] = useState(false);
+  /** The server's own answer to "is today's draft already generated?" */
+  const warm = envelope?.is_warm === true;
 
   // WP-10, called here rather than from `pages/atelier.tsx`: the page keeps no
   // journey knowledge and the dependency graph stays acyclic.
@@ -243,6 +279,12 @@ export function useDailyJourney(
   }, [envelope, journey]);
 
   const mountedRef = useRef(true);
+  /**
+   * WP-76: holds the verdict back while the character's reply types in. One
+   * per controller; a newer attempt, a continue or an unmount cancels it so a
+   * stale verdict can never land on a newer turn.
+   */
+  const revealRef = useRef(createReplySequencer());
   /** Has the capability read ever produced an answer? Silence is not a refusal. */
   const capabilityReadRef = useRef(false);
   /** Stable idempotency keys: one per logical intent, reused on every replay. */
@@ -270,10 +312,6 @@ export function useDailyJourney(
   const journeyRef = useRef<JourneySnapshot | null>(null);
   const preparingPollsRef = useRef(0);
   const finishedNotifiedRef = useRef<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const submitRef = useRef<(input: AttemptInput) => Promise<void>>(async () => {});
   /**
    * The recovery controller is a fresh object every render. Holding the latest
    * one in a ref keeps `unwrap` — and therefore every action built on it —
@@ -286,14 +324,10 @@ export function useDailyJourney(
 
   useEffect(() => {
     mountedRef.current = true;
+    const reveal = revealRef.current;
     return () => {
       mountedRef.current = false;
-      try {
-        recorderRef.current?.stop();
-      } catch {
-        // A recorder that was already stopped is not an error worth surfacing.
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      reveal.cancel();
     };
   }, []);
 
@@ -439,6 +473,93 @@ export function useDailyJourney(
     return () => clearTimeout(timer);
   }, [phase, applySnapshot]);
 
+  // WP-87: the resolution's ending is written by the story lane after the reply
+  // came back. While it says `story_pending`, re-read the journey (a safe GET that
+  // never pays); the server heals a dead lane with the authored ending, so this
+  // always ends. Bounded all the same.
+  const storyPollsRef = useRef(0);
+  const storyTarget = storyPollTarget(journey);
+  useEffect(() => {
+    if (!storyTarget) {
+      storyPollsRef.current = 0;
+      return undefined;
+    }
+    if (storyPollsRef.current >= STORY_POLL_LIMIT) return undefined;
+    const timer = setTimeout(() => {
+      storyPollsRef.current += 1;
+      void dailyJourneyService
+        .get(storyTarget)
+        .then((next) => applySnapshot(next))
+        .catch(() => undefined);
+    }, STORY_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [storyTarget, journey, applySnapshot]);
+
+  // WP-93: «Coulisses» is written in the background. While the current READ
+  // step says `writing`, re-read the journey gently (a safe GET) until it is
+  // `ready` or `unavailable`; bounded, and the step stays skippable meanwhile.
+  const readPollsRef = useRef(0);
+  const readTarget = readPollTarget(journey);
+  useEffect(() => {
+    if (!readTarget) {
+      readPollsRef.current = 0;
+      return undefined;
+    }
+    if (readPollsRef.current >= READ_POLL_LIMIT) return undefined;
+    const timer = setTimeout(() => {
+      readPollsRef.current += 1;
+      void dailyJourneyService
+        .get(readTarget)
+        .then((next) => applySnapshot(next))
+        .catch(() => undefined);
+    }, READ_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [readTarget, journey, applySnapshot]);
+
+  // WP-90: the day's story episode. Read when the scene or the resolution
+  // becomes current (the reader and the «case finale» both draw it), then
+  // re-read every few seconds while a panel's drawing is still on the press —
+  // for at most five minutes, and whatever step the learner has moved on to,
+  // so the drawings are there when they look back.
+  const storyJourneyId = journey?.id ?? null;
+  const storyStep = currentStepOf(journey);
+  const storyStepKey =
+    storyJourneyId && storyStep && stepReadsStoryEpisode(storyStep.kind)
+      ? `${storyJourneyId}:${storyStep.id}`
+      : null;
+  useEffect(() => {
+    if (!storyStepKey || !storyJourneyId) return;
+    void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney);
+  }, [storyStepKey, storyJourneyId]);
+
+  const storyEntry = useStoryEpisodeEntry(storyJourneyId);
+  const storyEpisode = storyEntry?.kind === 'episode' ? storyEntry.episode : null;
+  const artPollsRef = useRef(0);
+  // Bumped after every re-read, so a read that failed (and kept the episode
+  // as it was) still schedules the next one.
+  const [artTick, setArtTick] = useState(0);
+  const artSeenRenderingRef = useRef(false);
+  useEffect(() => {
+    artPollsRef.current = 0;
+    artSeenRenderingRef.current = false;
+  }, [storyJourneyId]);
+  useEffect(() => {
+    if (storyArtRendering(storyEpisode)) artSeenRenderingRef.current = true;
+    if (
+      !storyJourneyId ||
+      !shouldPollStoryArtLate(storyEpisode, artPollsRef.current, artSeenRenderingRef.current)
+    ) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      artPollsRef.current += 1;
+      void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney).finally(() => {
+        if (mountedRef.current) setArtTick((tick) => tick + 1);
+      });
+    }, STORY_ART_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [storyJourneyId, storyEpisode, artTick]);
+
   useEffect(() => {
     if (phase.kind !== 'finished') return;
     if (finishedNotifiedRef.current === phase.journey.id) return;
@@ -483,7 +604,7 @@ export function useDailyJourney(
         setFeedback({
           kind: 'error',
           message: plan.kind === 'error' ? plan.message : 'transport_error',
-          retryable: true,
+          retryable: plan.kind === 'error' ? plan.retryable : true,
         });
       }
     },
@@ -500,13 +621,23 @@ export function useDailyJourney(
     await once('create', async () => {
       setBusy(true);
       try {
-        const result = await unwrap('create', { kind: 'create' }, (id) =>
-          dailyJourneyService.create({
-            mutationId: id,
-            timezone: resolveTimezone(),
-            preferredInputMode,
-          }),
-        );
+        // WP-26: the wait hint is delayed and the request is bounded. A
+        // timeout resolves as a *retryable* failure — never a hung `busy`
+        // with no button to press, and never a verdict.
+        const result = await runWithWaitHint(
+          () =>
+            unwrap('create', { kind: 'create' }, (id) =>
+              dailyJourneyService.create({
+                mutationId: id,
+                timezone: resolveTimezone(),
+                preferredInputMode,
+              }),
+            ),
+          {
+            onWait: (value) => { if (mountedRef.current) setWaiting(value); },
+            delayMs: warm ? WARM_WAIT_HINT_DELAY_MS : WAIT_HINT_DELAY_MS,
+          },
+        ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
           if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -516,10 +647,13 @@ export function useDailyJourney(
         await handleFailure(result.detail, result.error);
         if (result.detail?.code !== 'journey_disabled') await loadToday();
       } finally {
-        if (mountedRef.current) setBusy(false);
+        if (mountedRef.current) {
+          setBusy(false);
+          setWaiting(false);
+        }
       }
     });
-  }, [applySnapshot, handleFailure, loadToday, once, preferredInputMode, unwrap]);
+  }, [applySnapshot, handleFailure, loadToday, once, preferredInputMode, unwrap, warm]);
 
   const retryGeneration = useCallback(async () => {
     const target = journey;
@@ -528,9 +662,16 @@ export function useDailyJourney(
     await once(intent, async () => {
       setBusy(true);
       try {
-        const result = await unwrap(intent, { kind: 'retry' }, (id) =>
-          dailyJourneyService.retry(target.id, { mutationId: id }),
-        );
+        const result = await runWithWaitHint(
+          () =>
+            unwrap(intent, { kind: 'retry' }, (id) =>
+              dailyJourneyService.retry(target.id, { mutationId: id }),
+            ),
+          {
+            onWait: (value) => { if (mountedRef.current) setWaiting(value); },
+            delayMs: warm ? WARM_WAIT_HINT_DELAY_MS : WAIT_HINT_DELAY_MS,
+          },
+        ).catch((error) => ({ ok: false as const, detail: null, error }));
         if (result.ok) {
           applySnapshot(result.value.data);
           if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -538,10 +679,13 @@ export function useDailyJourney(
         }
         await handleFailure(result.detail, result.error, target.id);
       } finally {
-        if (mountedRef.current) setBusy(false);
+        if (mountedRef.current) {
+          setBusy(false);
+          setWaiting(false);
+        }
       }
     });
-  }, [applySnapshot, handleFailure, journey, once, unwrap]);
+  }, [applySnapshot, handleFailure, journey, once, unwrap, warm]);
 
   const requestHelp = useCallback(
     async (helpKind: HelpKind) => {
@@ -586,6 +730,7 @@ export function useDailyJourney(
       const intent = `attempt:${journeyId}:${stepId}:${expectedRevision}:${JSON.stringify(input)}`;
       await once(intent, async () => {
         setBusy(true);
+        revealRef.current.cancel();
         setFeedback({ kind: 'submitting' });
         try {
           const result = await unwrap(intent, { kind: 'attempt', stepId, body: input }, (id) =>
@@ -597,8 +742,21 @@ export function useDailyJourney(
           );
           if (result.ok) {
             const attempt = result.value;
+            // Read before the snapshot moves on: the kind of the step answered.
+            const answered = attempt.journey.steps.find((item) => item.id === stepId);
             applySnapshot(attempt.journey);
-            if (mountedRef.current) setFeedback(feedbackFromAttempt(attempt));
+            if (mountedRef.current) {
+              // WP-76: a reply is read before it is judged.
+              stageAttemptFeedback(
+                attempt,
+                answered?.kind ?? null,
+                revealRef.current,
+                (next) => {
+                  if (mountedRef.current) setFeedback(next);
+                },
+                { reducedMotion: prefersReducedMotion() },
+              );
+            }
             return;
           }
           await handleFailure(result.detail, result.error, journeyId);
@@ -630,10 +788,6 @@ export function useDailyJourney(
     },
     [journey, performAttempt],
   );
-
-  useEffect(() => {
-    submitRef.current = submitAnswer;
-  }, [submitAnswer]);
 
   const retryLastAnswer = useCallback(async () => {
     const last = lastAttemptRef.current;
@@ -773,11 +927,14 @@ export function useDailyJourney(
    * active with no step and no recap.
    */
   const continueJourney = useCallback(async () => {
-    if (feedback.kind === 'graded' && feedback.result.next_turn) {
+    revealRef.current.cancel();
+    if ((feedback.kind === 'graded' || feedback.kind === 'replying') && feedback.result.next_turn) {
       setFeedback({ kind: 'idle' });
       setHelp(null);
       return;
     }
+    // WP-87: an ending still being written is not skipped past.
+    if (resolutionAwaitsStory(currentStepOf(journeyRef.current))) return;
     const advanced = await advance();
     if (advanced && journeyAwaitsFinish(advanced)) {
       await finishSnapshot(advanced, 'complete');
@@ -826,70 +983,9 @@ export function useDailyJourney(
     });
   }, [applySnapshot, handleFailure, journey, once, unwrap]);
 
-  const clearFeedback = useCallback(() => setFeedback({ kind: 'idle' }), []);
-
-  // -----------------------------------------------------------------------
-  // Voice — device capture plus the existing stateless transcription endpoint
-  // -----------------------------------------------------------------------
-
-  const resetVoice = useCallback(() => setVoice({ kind: 'idle' }), []);
-
-  const startRecording = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setVoice({ kind: 'unsupported' });
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = createAudioMediaRecorder(stream);
-      streamRef.current = stream;
-      recorderRef.current = recorder;
-      chunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const blob = recordedAudioBlob(chunksRef.current, recorder);
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
-        if (blob.size < EMPTY_RECORDING_BYTES) {
-          // Nothing was captured. The learner still holds the turn.
-          setVoice({ kind: 'failed', message: 'voice_empty' });
-          return;
-        }
-        setVoice({ kind: 'transcribing' });
-        void apiService
-          .transcribeAudio(blob)
-          .then(async (text) => {
-            const spoken = (text || '').trim();
-            if (!spoken) {
-              setVoice({ kind: 'failed', message: 'voice_empty' });
-              return;
-            }
-            setVoice({ kind: 'idle' });
-            // Contract revision 1: no transcript id exists, so `transcript_ref`
-            // is omitted. `mode: 'voice'` is what records the modality.
-            await submitRef.current({ mode: 'voice', text: spoken });
-          })
-          .catch(() => {
-            // A transcription failure keeps the turn; it is never a wrong answer.
-            setVoice({ kind: 'failed', message: 'voice_failed' });
-          });
-      };
-      recorder.start();
-      setVoice({ kind: 'recording' });
-    } catch {
-      setVoice({ kind: 'failed', message: 'voice_permission' });
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    try {
-      recorderRef.current?.stop();
-    } catch {
-      setVoice({ kind: 'failed', message: 'voice_failed' });
-    }
+  const clearFeedback = useCallback(() => {
+    revealRef.current.cancel();
+    setFeedback({ kind: 'idle' });
   }, []);
 
   // -----------------------------------------------------------------------
@@ -916,9 +1012,6 @@ export function useDailyJourney(
       resume,
       finish,
       clearFeedback,
-      startRecording,
-      stopRecording,
-      resetVoice,
     }),
     [
       refresh,
@@ -932,9 +1025,6 @@ export function useDailyJourney(
       resume,
       finish,
       clearFeedback,
-      startRecording,
-      stopRecording,
-      resetVoice,
     ],
   );
 
@@ -949,8 +1039,10 @@ export function useDailyJourney(
     legacyResume: envelope?.legacy_resume ?? null,
     progress,
     busy,
+    waiting,
+    warm,
     help,
-    voice,
+    storyEpisode,
     recovery,
     actions,
   };

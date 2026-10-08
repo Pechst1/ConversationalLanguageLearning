@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.config import settings
+
 Theme = Literal["light", "dark", "system"]
 FontSize = Literal["small", "medium", "large"]
 # Registration derives the gloss direction from the learner's own language
@@ -20,6 +22,31 @@ ProficiencyLevel = Literal["beginner", "A1", "A2", "B1", "B2", "C1", "C2"]
 # How the story engine addresses the learner. "neutral" is the default and means
 # gender-neutral phrasing with no gendered endearments and never an inclusive dot.
 AddressPreference = Literal["feminine", "masculine", "neutral"]
+
+
+# WP-71. bcrypt reads 72 bytes and bcrypt 5 raises past that, so a longer new
+# password was a 500. Counted in UTF-8 bytes: «é» is two, most emoji four.
+PASSWORD_MAX_BYTES = 72
+PASSWORD_TOO_LONG_MESSAGE = (
+    f"Password is too long: at most {PASSWORD_MAX_BYTES} bytes "
+    "(accented letters count as two, emoji as four)."
+)
+
+
+def normalize_email_input(value: Any) -> Any:
+    """Emails are matched without case: strip and lowercase before validation."""
+
+    if isinstance(value, str):
+        return value.strip().lower()
+    return value
+
+
+def check_new_password_bytes(value: str) -> str:
+    """Refuse a new password bcrypt could not hash in full."""
+
+    if len(value.encode("utf-8")) > PASSWORD_MAX_BYTES:
+        raise ValueError(PASSWORD_TOO_LONG_MESSAGE)
+    return value
 
 
 class UserBase(BaseModel):
@@ -40,9 +67,15 @@ class UserBase(BaseModel):
     )
     learning_motivation: str = Field(default="", max_length=80)
     speaking_comfort: str = Field(default="warming_up", max_length=20)
-    daily_goal_minutes: int = Field(default=15, ge=0)
+    # WP-L6: the rhythm as minutes; new learners start on Régulier (10).
+    daily_goal_minutes: int = Field(default=10, ge=0)
     daily_goal_xp: int = Field(default=50, ge=0)
+    # Stored now, read by no scheduler yet: WP-L6 wires it as the vocabulary
+    # pace (new words introduced per day). No upper bound here, since UserRead
+    # inherits it and older rows were accepted up to 100; the inputs cap at 50.
     new_words_per_day: int = Field(default=10, ge=1)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day: int = Field(default=200, ge=1)
     # None = derive from native_language at registration (fr_to_de only for German natives).
     default_vocab_direction: str | None = Field(default=None, max_length=20)
     
@@ -71,38 +104,139 @@ class UserBase(BaseModel):
     show_grammar_explanations: bool = True
 
 
+#: WP-75. The one onboarding question left on sign-up: «Votre français ?». It is
+#: a declaration, not a measurement, so it only ever sets the *declared* level
+#: (``proficiency_level``) and the honest floor of the estimate
+#: (``estimate_source: declared``); a placement (``estimate_source: placement``)
+#: or the learner's own journeys move it from there.
+#:
+#: WP-126 (2026-10-04): five plain-language starting points covering A1 → C1, so a
+#: B2 or C1 learner's day one is served at their own band instead of B1.1. The
+#: three WP-75 values keep their meaning, so an older client's payload is read
+#: exactly as before; ``confident`` (B2) and ``advanced`` (C1) are the new rungs.
+#: The scale ends at C1 (C1.2), never an ambiguous «C1+».
+StartingPoint = Literal["new", "some", "comfortable", "confident", "advanced"]
+STARTING_POINTS: tuple[str, ...] = ("new", "some", "comfortable", "confident", "advanced")
+STARTING_POINT_LEVELS: dict[str, str] = {
+    "new": "A1",
+    "some": "A2",
+    "comfortable": "B1",
+    "confident": "B2",
+    "advanced": "C1",
+}
+#: The estimate a declaration starts at: the floor of the declared band.
+STARTING_POINT_ESTIMATES: dict[str, tuple[str, str]] = {
+    "new": ("A1.1", "A1.2"),
+    "some": ("A2.1", "A2.2"),
+    "comfortable": ("B1.1", "B1.2"),
+    "confident": ("B2.1", "B2.2"),
+    "advanced": ("C1.1", "C1.2"),
+}
+
+
 class UserCreate(UserBase):
-    """Schema for user registration input."""
+    """Schema for user registration input.
+
+    WP-75: email and password are the only required fields. Every profile field
+    has a default (``UserBase``) and moves to Réglages; ``starting_point`` is
+    the one question sign-up still asks.
+    """
 
     password: str = Field(min_length=8, max_length=128)
+    starting_point: StartingPoint | None = None
+    # Same bounds as the Réglages field; WP-L6 wires it as the vocabulary pace.
+    new_words_per_day: int = Field(default=10, ge=1, le=100)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
+    _password_bytes = field_validator("password")(check_new_password_bytes)
+
+    @field_validator("native_language", mode="before")
+    @classmethod
+    def _native_language_default(cls, value: Any) -> Any:
+        # The client sends its interface language; an empty value is "not said".
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return "en"
+        return value
+
+    @model_validator(mode="after")
+    def _apply_starting_point(self) -> UserCreate:
+        """The five starting points → A1 / A2 / B1 / B2 / C1 (WP-126).
+
+        Only when the client did not state a level itself: an explicit
+        ``proficiency_level`` (every pre-WP-75 client) wins, and so does an
+        explicit ``cefr_estimate``.
+        """
+
+        point = self.starting_point
+        if point is None:
+            return self
+        explicit = self.model_fields_set
+        if "proficiency_level" not in explicit:
+            self.proficiency_level = STARTING_POINT_LEVELS[point]
+            if "cefr_estimate" not in explicit:
+                estimate, target = STARTING_POINT_ESTIMATES[point]
+                self.cefr_estimate = estimate
+                if "cefr_target_level" not in explicit:
+                    self.cefr_target_level = target
+        return self
 
 
 class UserLogin(BaseModel):
     """Schema for user login request."""
 
     email: EmailStr
-    password: str
+    # Not held to the 72-byte rule: an account created under bcrypt 4 may have a
+    # longer password, and checking it compares the prefix bcrypt stored.
+    password: str = Field(max_length=1024)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
 
 
 class PasswordResetRequest(BaseModel):
-    """Request a password reset link for an account email."""
+    """Request a password reset code (and link, where a public app URL exists)."""
 
     email: EmailStr
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
 
 
 class PasswordResetRequestResponse(BaseModel):
     """Enumeration-safe password reset request response."""
 
     message: str
+    # Dev/test only (PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE); never in production.
     reset_token: str | None = None
     reset_url: str | None = None
+    reset_code: str | None = None
 
 
 class PasswordResetConfirm(BaseModel):
-    """Confirm a password reset with a one-time token."""
+    """Confirm a password reset with a one-time link token, or email plus code.
 
-    token: str = Field(min_length=16, max_length=256)
+    The six-digit code is the phone path (WP-71): no web host or universal link
+    is needed. The link token stays accepted for emails already sent.
+    """
+
+    token: str | None = Field(default=None, min_length=16, max_length=256)
+    email: EmailStr | None = None
+    code: str | None = Field(default=None, pattern=r"^\s*\d{6}\s*$")
     new_password: str = Field(min_length=8, max_length=128)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email_input)
+    _password_bytes = field_validator("new_password")(check_new_password_bytes)
+
+    @field_validator("code")
+    @classmethod
+    def strip_code(cls, value: str | None) -> str | None:
+        return value.strip() if value else value
+
+    @model_validator(mode="after")
+    def token_or_code(self) -> PasswordResetConfirm:
+        if self.token:
+            return self
+        if self.email and self.code:
+            return self
+        raise ValueError("Provide either a reset token, or the email and the six-digit code.")
 
 
 class UserRead(UserBase):
@@ -145,7 +279,8 @@ class UserUpdate(BaseModel):
     speaking_comfort: str | None = Field(default=None, max_length=20)
     daily_goal_minutes: int | None = Field(default=None, ge=0)
     daily_goal_xp: int | None = Field(default=None, ge=0)
-    new_words_per_day: int | None = Field(default=None, ge=1)
+    new_words_per_day: int | None = Field(default=None, ge=1, le=100)  # WP-L6 wires it
+    max_reviews_per_day: int | None = Field(default=None, ge=1, le=9999)
     default_vocab_direction: str | None = Field(default=None, max_length=20)
     
     notifications_enabled: bool | None = None
@@ -196,8 +331,13 @@ class UserSettingsRead(BaseModel):
     speaking_comfort: str
 
     daily_goal_minutes: int
+    #: WP-L6: the rhythm the minutes map onto (Léger 5 / Régulier 10 /
+    #: Soutenu 20 / Intensif 30). Derived, never stored twice.
+    rhythm: Literal["leger", "regulier", "soutenu", "intensif"] = "regulier"
     daily_goal_xp: int
     new_words_per_day: int
+    #: WP-115a (owner, 2026-09-30): Anki-like caps the learner sets.
+    max_reviews_per_day: int = 200
     default_vocab_direction: str
     preferred_session_time: time | None = None
 
@@ -208,6 +348,8 @@ class UserSettingsRead(BaseModel):
     weekly_email_summary: bool
     achievement_notifications: bool
     serial_edition_notifications: bool
+    #: WP-80: the IANA zone the reminder time is in.
+    timezone: str | None = "Europe/Paris"
 
     theme: str
     font_size: str
@@ -221,6 +363,10 @@ class UserSettingsRead(BaseModel):
     show_grammar_explanations: bool
 
     address_preference: AddressPreference = "neutral"
+
+    # WP-49: read-only deployment facts the client needs before it offers a
+    # feature. Not on the user row; never accepted by the update payload.
+    episode_audio_enabled: bool = Field(default_factory=lambda: bool(settings.ATELIER_EPISODE_AUDIO_ENABLED))
 
     role: str
     is_active: bool
@@ -242,14 +388,21 @@ class UserSettingsUpdate(BaseModel):
     native_language: str | None = Field(default=None, max_length=10)
     target_language: str | None = Field(default=None, max_length=10)
     proficiency_level: ProficiencyLevel | None = None
-    cefr_target_level: str | None = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
+    cefr_target_level: str | None = Field(default=None, pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2|C1\.1|C1\.2)$")
     interests: str | None = Field(default=None, max_length=500)
     learning_motivation: str | None = Field(default=None, max_length=80)
     speaking_comfort: Literal["warming_up", "ready", "confident"] | None = None
 
     daily_goal_minutes: int | None = Field(default=None, ge=0, le=240)
+    #: WP-L6: the rhythm; written as its minutes (5 / 10 / 20 / 30).
+    rhythm: Literal["leger", "regulier", "soutenu", "intensif"] | None = None
     daily_goal_xp: int | None = Field(default=None, ge=0, le=2000)
+    #: WP-L6: the vocabulary pace — new words introduced per day, by the day
+    #: and the word drill together (one intake pool).
+    #: WP-115a: up to 100 (owner: «an option to set the max new words higher»).
     new_words_per_day: int | None = Field(default=None, ge=1, le=100)
+    #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
+    max_reviews_per_day: int | None = Field(default=None, ge=1, le=9999)
     default_vocab_direction: VocabDirection | None = None
     preferred_session_time: time | None = None
 
@@ -261,6 +414,8 @@ class UserSettingsUpdate(BaseModel):
     weekly_email_summary: bool | None = None
     achievement_notifications: bool | None = None
     serial_edition_notifications: bool | None = None
+    #: WP-80: an IANA zone name; anything else is refused, never guessed.
+    timezone: str | None = Field(default=None, max_length=64)
 
     theme: Theme | None = None
     font_size: FontSize | None = None
@@ -282,6 +437,18 @@ class UserSettingsUpdate(BaseModel):
     def normalize_language_code(cls, value: str | None) -> str | None:
         return value.lower() if value else value
 
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        from app.services.streak import valid_timezone
+
+        zone = valid_timezone(value)
+        if zone is None:
+            raise ValueError("timezone must be an IANA zone name, e.g. Europe/Paris")
+        return zone
+
     @model_validator(mode="after")
     def ensure_payload_not_empty(self) -> UserSettingsUpdate:
         if not any(value is not None for value in self.model_dump().values()):
@@ -295,9 +462,13 @@ class UserPasswordChange(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8, max_length=128)
 
+    _password_bytes = field_validator("new_password")(check_new_password_bytes)
+
 
 class UserEmailChange(BaseModel):
     """Email change payload for the current user."""
 
     current_password: str
     new_email: EmailStr
+
+    _normalize_email = field_validator("new_email", mode="before")(normalize_email_input)

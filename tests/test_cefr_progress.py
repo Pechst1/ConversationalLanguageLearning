@@ -40,6 +40,10 @@ def _user(
 
 def test_cefr_recompute_does_not_regress_from_single_weak_day(db_session):
     user = _user(db_session, email="cefr-smooth@example.com", estimate="A1.2")
+    # Already on the coverage rule (WP-L7) with no release floor: the evidence
+    # alone says A1.1, and the smoothing holds A1.2.
+    user.cefr_estimate_payload = {"version": "cefr-progress-v2", "release_floor": None}
+    db_session.commit()
 
     payload = CEFRProgressService(db_session).recompute(user, source="test")
 
@@ -48,7 +52,9 @@ def test_cefr_recompute_does_not_regress_from_single_weak_day(db_session):
     assert payload["target"] == "A2.1"
 
 
-def test_cefr_recompute_exposes_threshold_breakdown_and_forecast(db_session):
+def test_cefr_recompute_exposes_coverage_breakdown_and_forecast(db_session):
+    """WP-L7/L8: counters no longer promote; the breakdown is the band's coverage
+    and, after 7 active days, the forecast is measured."""
     user = _user(db_session, email="cefr-forecast@example.com", estimate="A1.1")
     now = datetime.now(UTC)
     for index in range(300):
@@ -106,11 +112,17 @@ def test_cefr_recompute_exposes_threshold_breakdown_and_forecast(db_session):
 
     payload = CEFRProgressService(db_session).recompute(user, source="test")
 
-    assert payload["estimate"] == "A1.2"
-    assert payload["breakdown"]["vocabulary"]["current"] == 300
-    assert payload["breakdown"]["grammar"]["current"] == 20
+    # 300 mastered cards and 20 mastered concepts no longer promote anyone:
+    # without the band's épreuve the learner is still working through A1.1.
+    assert payload["estimate"] == "A1.1"
+    assert payload["signals"]["mastered_vocabulary"] == 300
+    assert payload["breakdown"]["band"] == "A1.1"
+    assert payload["breakdown"]["vocabulary"]["target"] > 0
+    assert payload["level_label"].startswith("A1.1 · ")
+    assert payload["checkpoint"]["state"] == "locked"
     assert payload["forecast"]["status"] == "available"
-    assert payload["forecast"]["target"] == "A2.1"
+    assert payload["forecast"]["target"] == "A1.2"
+    assert payload["forecast"]["kind"] == "estimate"
     assert payload["today_delta"]["attempts"] >= 1
 
 

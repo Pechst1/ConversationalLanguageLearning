@@ -36,40 +36,79 @@ function getJwtExpiry(token?: string): number {
   }
 }
 
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  if (!token.refreshToken) {
-    return { ...token, error: 'RefreshAccessTokenError' };
-  }
+type RefreshOutcome =
+  | { status: 'refreshed'; data: TokenResponse }
+  | { status: 'rejected' }
+  | { status: 'unreachable' };
 
+/**
+ * One refresh per refresh token in this server process (WP-71).
+ *
+ * Parallel `/api/auth/session` calls each run the jwt callback with the same
+ * cookie, so an expired access token used to fire several refreshes with one
+ * rotating refresh token. They now share one request; across processes the
+ * backend's grace window hands late racers the same successor.
+ */
+const refreshesInFlight = new Map<string, Promise<RefreshOutcome>>();
+
+async function requestRefresh(refreshToken: string): Promise<RefreshOutcome> {
+  let response: Response;
   try {
-    const response = await fetch(`${apiBaseUrl()}/api/v1/auth/refresh`, {
+    response = await fetch(`${apiBaseUrl()}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        refresh_token: token.refreshToken,
+        refresh_token: refreshToken,
       }),
     });
-
-    if (!response.ok) {
-      throw new Error('Refresh token rejected');
-    }
-
-    const data = await response.json() as TokenResponse;
-    return {
-      ...token,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token || token.refreshToken,
-      accessTokenExpires: getJwtExpiry(data.access_token),
-      error: undefined,
-    };
   } catch {
-    return {
-      ...token,
-      error: 'RefreshAccessTokenError',
-    };
+    return { status: 'unreachable' };
   }
+  // Only the server refusing the token ends the session; a 5xx or a proxy
+  // hiccup is not a verdict on it.
+  if (response.status === 401 || response.status === 403) return { status: 'rejected' };
+  if (!response.ok) return { status: 'unreachable' };
+  try {
+    return { status: 'refreshed', data: await response.json() as TokenResponse };
+  } catch {
+    return { status: 'unreachable' };
+  }
+}
+
+function sharedRefresh(refreshToken: string): Promise<RefreshOutcome> {
+  let pending = refreshesInFlight.get(refreshToken);
+  if (!pending) {
+    pending = requestRefresh(refreshToken).finally(() => {
+      refreshesInFlight.delete(refreshToken);
+    });
+    refreshesInFlight.set(refreshToken, pending);
+  }
+  return pending;
+}
+
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  if (!token.refreshToken) {
+    return { ...token, error: 'RefreshAccessTokenError' };
+  }
+
+  const outcome = await sharedRefresh(String(token.refreshToken));
+  if (outcome.status === 'rejected') {
+    return { ...token, error: 'RefreshAccessTokenError' };
+  }
+  if (outcome.status === 'unreachable') {
+    // Keep the session; the next session read tries again.
+    return { ...token, error: undefined };
+  }
+  const { data } = outcome;
+  return {
+    ...token,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token || token.refreshToken,
+    accessTokenExpires: getJwtExpiry(data.access_token),
+    error: undefined,
+  };
 }
 
 export const authOptions: NextAuthOptions = {

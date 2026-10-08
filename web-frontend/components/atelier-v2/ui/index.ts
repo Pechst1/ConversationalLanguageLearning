@@ -25,7 +25,10 @@ export {
   SendIcon,
   StopIcon,
 } from './Shapes';
-export type { ShapeKind, ShapeTokenProps } from './Shapes';
+export type { MarkPartState, MarkProgress, ShapeKind, ShapeTokenProps } from './Shapes';
+
+export { WordToken } from './WordToken';
+export type { WordTokenProps } from './WordToken';
 
 export { Action, Chip, IconAction } from './Action';
 export type { ActionProps, ActionTone, ChipProps, IconActionProps } from './Action';
@@ -58,6 +61,9 @@ export type {
   WordTilesProps,
 } from './Choice';
 
+export { CastPortrait } from './CastPortrait';
+export type { CastPortraitProps } from './CastPortrait';
+
 export {
   Artwork,
   Byline,
@@ -75,6 +81,9 @@ export type {
   NoticeProps,
   PortraitProps,
 } from './Feedback';
+
+export { ScreenFoot } from './ScreenFoot';
+export type { ScreenFootProps } from './ScreenFoot';
 
 export { BottomSheet, Dialog } from './Sheet';
 export type { BottomSheetProps, DialogProps } from './Sheet';

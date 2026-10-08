@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { GearIcon } from '@/components/atelier-v2/ui';
 
+import { readLearnerLanguage } from '@/lib/learner-language';
 import {
+  PHONE_PRODUCT_TABS,
   resolveProductSection,
   resolveProductTitle,
   type ProductSection,
 } from '@/lib/product-shell';
 import PhoneProductNav from './PhoneProductNav';
+import type { ControlLanguage } from '@/types/daily-journey';
 
 type MastheadSection =
   | 'home'
@@ -49,8 +52,18 @@ export default function EditorialMasthead({
   mobileAction,
 }: EditorialMastheadProps) {
   const router = useRouter();
+  // WP-67: «Réglages» is the one title that follows the learner's language, so
+  // the masthead needs to know it. Read from the cache the profile load left
+  // behind, in an effect rather than during render — seeding state from
+  // `localStorage` while rendering is a hydration mismatch — and never from the
+  // network: this header is on every page and F-20 is already about one page
+  // load asking the same question nine times.
+  const [learnerLanguage, setLearnerLanguage] = React.useState<ControlLanguage>('en');
+  React.useEffect(() => {
+    setLearnerLanguage(readLearnerLanguage());
+  }, []);
   const mobileSection = resolveProductSection(router.pathname) || productSectionFromMasthead(active);
-  const mobileTitle = resolveProductTitle(mobileSection, router.pathname);
+  const mobileTitle = resolveProductTitle(mobileSection, router.pathname, learnerLanguage);
   const isSettingsActive = active === 'settings' || router.pathname === '/settings';
 
   return (
@@ -67,13 +80,23 @@ export default function EditorialMasthead({
         </div>
         <div className="app-header-tools">
           <nav className="app-nav" aria-label="Primary">
-            {studioControl || (
-              <Link className={mobileSection === 'atelier' ? 'active' : ''} href={atelierHref}>
-                Atelier
-              </Link>
+            {/* WP-109: the same four places as the phone's tabs, in the same order. */}
+            {PHONE_PRODUCT_TABS.map((tab) =>
+              tab.id === 'atelier' ? (
+                <React.Fragment key={tab.id}>
+                  {studioControl || (
+                    <Link className={mobileSection === 'atelier' ? 'active' : ''} href={atelierHref}>
+                      {tab.label}
+                    </Link>
+                  )}
+                  {sessionControl}
+                </React.Fragment>
+              ) : (
+                <Link key={tab.id} className={mobileSection === tab.id ? 'active' : ''} href={tab.href}>
+                  {tab.label}
+                </Link>
+              ),
             )}
-            {sessionControl}
-            <Link className={mobileSection === 'notebook' ? 'active' : ''} href="/notebook">Cahier</Link>
             {trailing && <span className="app-nav-trailing">{trailing}</span>}
           </nav>
           <SettingsAffordance active={isSettingsActive} />
