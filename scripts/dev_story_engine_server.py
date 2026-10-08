@@ -237,9 +237,24 @@ class FakeStoryProvider:
         locations = [place for place in world.get("locations", []) if place.get("id")] or [{"id": "le_mistral"}]
         character = cast[n % len(cast)]["id"]
         location = locations[n % len(locations)]["id"]
-        premise, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
         chapter = context.get("chapter") or {}
         events = context.get("events") or []
+        # ``n`` is a process counter, and the drain verifier restarts this server
+        # between its phases: on 7–8 October the fresh process dealt day 2 the
+        # premise day 1 had used and a room outside the bottle chapter, every
+        # attempt was refused, and the day fell to the authored fallback. The
+        # guards' own inputs are in the context, so honour them here: a bottle
+        # chapter keeps its room, and a premise the recent situations already
+        # used is skipped.
+        if chapter and not chapter.get("resolved") and str(chapter.get("shape") or "") == "bottle" and chapter.get("location_id"):
+            location = str(chapter["location_id"])
+        used_objectives = {
+            str(item.get("objective_native") or "") for item in (context.get("recent_situations") or [])
+        }
+        order = [PREMISES[(n + k) % len(PREMISES)] for k in range(len(PREMISES))]
+        premise, objective, semantics, novelty = next(
+            (entry for entry in order if entry[1] not in used_objectives), order[0]
+        )
         if chapter and not chapter.get("resolved"):
             chapter_value = {k: chapter[k] for k in ("title_fr", "dramatic_question", "possible_developments")}
         else:
@@ -258,7 +273,7 @@ class FakeStoryProvider:
             "location_id": location,
             "causal_reason": "Suite directe de l'échange précédent." if events else "Première rencontre du quartier.",
             "source_event_ids": [e["id"] for e in events[-1:]],
-            "novelty_key": f"{novelty}-{n}",
+            "novelty_key": f"{novelty}-{len(events)}-{n}",
             "chapter": chapter_value,
             "panels": [
                 {"narration_fr": f"Panneau 1 : {premise}", "dialogue": [], "visual_direction": "Wide establishing shot of the location."},
