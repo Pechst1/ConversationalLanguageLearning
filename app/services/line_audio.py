@@ -215,6 +215,12 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
         for turn in private.get("turns") or []:
             if isinstance(turn, dict):
                 _add(lines, speaker, turn.get("character"))
+        if str(step.status) == "completed":
+            # WP-158: the closed reply's recap offers one line to hear and
+            # repeat; it is on the page then, so it may be spoken.
+            from app.services.spoken_reply import repeat_line_for
+
+            _add(lines, NARRATOR_ID, repeat_line_for(step))
         return lines
     if kind == "resolution":
         _add(lines, _brief(journey).get("character_id"), prompt.get("character_line_fr"))

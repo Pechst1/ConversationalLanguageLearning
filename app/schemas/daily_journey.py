@@ -442,6 +442,10 @@ class RespondPrompt(JourneyModel):
     #: WP-113. The current question is «Le choix»: tap one of these cards (its
     #: label is the answer). Empty for a free reply.
     choices: list[RespondChoice] = Field(default_factory=list)
+    #: WP-158. «Parler» is offered beside the text field: the learner may answer
+    #: aloud, and the transcript is sent through this same reply. Read at
+    #: projection time from ``ATELIER_SPOKEN_REPLY_ENABLED``, never stored.
+    spoken_reply: bool = False
 
 
 class ResolutionPrompt(JourneyModel):
@@ -1170,6 +1174,10 @@ class AttemptResult(JourneyModel):
     #: QA-CLOSE: a forgiven slip on a hit, named in one line in the learner's
     #: language («Richtig — kleiner Tippfehler: «appartement»»). Never a correction.
     slip_note_native: str | None = None
+    #: WP-158: on the turn that closes a story reply, the one useful line the
+    #: recap offers to hear and repeat aloud. ``None`` mid-conversation and
+    #: while spoken replies are off.
+    repeat_line_fr: str | None = None
     journey: JourneySnapshot
 
 
