@@ -3046,10 +3046,20 @@ class ApiService {
    * for the daily journey's default output). It is cost attribution only —
    * nothing about the transcription itself changes with it.
    */
-  async transcribeAudio(audioBlob: Blob, surface?: string): Promise<string> {
+  async transcribeAudio(
+    audioBlob: Blob,
+    surface?: string,
+    // WP-158: a spoken story reply names its turn, so the server can check the
+    // flag, the owner and the per-turn cost ceiling before transcribing.
+    context?: { journeyId: string; stepId: string },
+  ): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
     if (surface) formData.append('surface', surface);
+    if (context) {
+      formData.append('journey_id', context.journeyId);
+      formData.append('step_id', context.stepId);
+    }
 
     const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
       headers: {
