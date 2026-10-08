@@ -346,6 +346,23 @@ def test_the_register_line_explains_itself_in_the_learners_own_language(
     assert "Mistral" in note
 
 
+def test_from_b1_the_register_line_is_french_like_the_rest_of_the_chrome(db_session: Session):
+    """WP-82: from B1 the app's own words are French, the explanation included."""
+
+    user = _user(db_session, native_language="en", proficiency_level="B1", cefr_estimate="B1.1")
+    scenario = _brief()
+    _assessment, candidates = register_corrections(
+        user=user,
+        text="Tu peux me servir un café ?",
+        scenario=scenario,
+        task=scenario.response_task,
+    )
+    assert len(candidates) == 1
+    note = candidates[0].note_native
+    assert "vouvoie" in note and "Mistral" in note
+    assert "addresses you" not in note and "She runs" not in note
+
+
 def test_the_register_correction_is_shown_in_the_evaluation(db_session: Session):
     user = _user(db_session)
     scenario = _brief()

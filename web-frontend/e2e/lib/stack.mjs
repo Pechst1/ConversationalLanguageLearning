@@ -116,18 +116,17 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       encoding: 'utf8',
     });
     if (mig.status !== 0) throw new Error(`alembic upgrade head failed:\n${mig.stderr.slice(-2000)}`);
-    // WP-138: the deployed image syncs the core word list after its migrations
-    // (docker/entrypoint.sh); the walk's database does too, or every word lookup
-    // and «Garder» runs against a catalogue no learner ever meets (`vous`, `chez`
-    // were 404s, and scene rows held one learner's gloss). WALK_SYNC_CORE_LEXICON=0 skips it.
-    if (process.env.WALK_SYNC_CORE_LEXICON !== '0') {
-      const sync = spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
-        cwd: REPO_ROOT,
-        env: { ...process.env, DATABASE_URL: dbUrl },
-        encoding: 'utf8',
-      });
-      if (sync.status !== 0) throw new Error(`core lexicon sync failed:\n${sync.stderr.slice(-2000)}`);
-    }
+    // The core word list (A1 → C1), as production's entrypoint syncs it after every
+    // migration (docker/entrypoint.sh). Without it the catalogue held only the season's
+    // own dozen words: almost every tapped word had no lookup and no «Garder», and the
+    // day-7 drill had no kept word to bring back on its line (a flake that depended on
+    // whether the day's lines happened to use one of those words).
+    const lex = spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
+      cwd: REPO_ROOT,
+      env: { ...process.env, DATABASE_URL: dbUrl },
+      encoding: 'utf8',
+    });
+    if (lex.status !== 0) throw new Error(`core lexicon sync failed:\n${lex.stderr.slice(-2000)}`);
     stack.migrateSeconds = (Date.now() - t0) / 1000;
 
     const web = `http://localhost:${webPort}`;
@@ -139,10 +138,6 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       env: {
         ...process.env,
         DATABASE_URL: dbUrl,
-        // This checkout's `app` first: the venv's editable install points at
-        // whichever checkout installed it, so a worktree walk served the
-        // main checkout's backend.
-        PYTHONPATH: [REPO_ROOT, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
         ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
         BACKEND_CORS_ORIGINS: JSON.stringify([web, `http://127.0.0.1:${webPort}`]),
       },

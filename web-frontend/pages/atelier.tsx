@@ -3415,10 +3415,9 @@ function SessionView({
   };
   // WP-L10: an authored rule card replaces the English-only panel. Before a
   // rule's first exercise it is its own screen («Essayer» opens the drill);
-  // afterwards the «La règle» pill opens it above the exercise. WP-138: in the
-  // Forge's chrome language like the rest of the screen (and like the journey's
-  // rule step and the grammar page) — a B1 Forge is French, not English
-  // instructions under French chrome.
+  // afterwards the «La règle» pill opens it above the exercise. It speaks the
+  // forge's chrome language, as the journey's rule step does: the learner's up
+  // to A2, French from B1 (it printed «Today's rule» on a French B1 forge).
   const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
   const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
   // WP-S5: the rule's coach — the face on the card and on every answer.

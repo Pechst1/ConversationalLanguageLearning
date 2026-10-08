@@ -348,6 +348,9 @@ test('«Garder» is offered for a real entry with its sentence, and a refusal is
   assert.equal(kept.canKeep('gloss', 'Romy secoue son parapluie.'), true);
   assert.equal(kept.canKeep('sentence', 'Romy secoue son parapluie.'), false, 'no entry, nothing to keep');
   assert.equal(kept.canKeep('gloss', '  '), false, 'no sentence, no example');
+  assert.equal(kept.canKeep('gloss', 'Romy secoue son parapluie.', 'en', 'fr'), false, 'a fallback gloss is not the learner\'s meaning');
+  assert.equal(kept.canKeep('gloss', 'Romy secoue son parapluie.', 'de', 'de'), true);
+  assert.equal(kept.canKeep('gloss', 'Romy secoue son parapluie.', null, 'de'), true, 'an older server sends no language');
   const refusal = { response: { data: { detail: { code: 'not_in_lexicon', message: 'Ce mot n’est pas encore dans le lexique.' } } } };
   assert.equal(kept.keepRefusalMessage(refusal), 'Ce mot n’est pas encore dans le lexique.');
   assert.equal(kept.keepRefusalMessage(new Error('network')), kept.KEEP_COPY.failed);

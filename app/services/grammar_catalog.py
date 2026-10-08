@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import func
+from sqlalchemy import text as sql_text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -309,6 +310,10 @@ def _normalize_row(row: dict[str, str], version: str = FRENCH_CORE_CATALOG_VERSI
     return normalized
 
 
+#: pg_advisory_xact_lock key for the catalogue seed (any fixed 64-bit number).
+CATALOG_SEED_LOCK_KEY = 7_201_610_08
+
+
 class FrenchCoreGrammarCatalog:
     """Import the focused French grammar catalog and archive legacy tracker rows."""
 
@@ -342,6 +347,12 @@ class FrenchCoreGrammarCatalog:
 
     def _ensure_catalog(self, archive_legacy: bool) -> list[GrammarConcept]:
         rows = self.rows()
+        if self.db.get_bind().dialect.name == "postgresql":
+            # Two first requests on a fresh database seeded the catalogue at once and the
+            # second insert hit ix_grammar_concepts_external_id (E-2, 2026-10-08). The seed
+            # is serialised for the rest of this transaction: the second request waits,
+            # then finds the rows the first one wrote.
+            self.db.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": CATALOG_SEED_LOCK_KEY})
         concepts: list[GrammarConcept] = []
         active_external_ids = {row["external_id"] for row in rows}
         existing = {

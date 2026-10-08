@@ -12,12 +12,15 @@ from app.services.pilot_events import PilotEventService
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
+# The web-push key, or ``null`` when this deployment has none. No VAPID keys is
+# a supported configuration, not an outage: the native app pushes through APNs
+# and web push is simply not offered (``lib/push.ts`` reads ``null`` as "none",
+# Réglages says push is not configured). It used to answer 503, so every
+# browser launch logged a server error for a deployment working as configured.
 @router.get("/vapid-public-key")
 def get_vapid_public_key():
-    # WP-138: "not configured" is an answer, not an outage. The web app asks on
-    # every page load and both callers already read a null key as "no web push";
-    # a 503 here was a server error on every screen of an install without VAPID.
-    return {"publicKey": settings.VAPID_PUBLIC_KEY or None}
+    key = (settings.VAPID_PUBLIC_KEY or "").strip()
+    return {"publicKey": key or None}
 
 
 @router.post("/subscribe")
