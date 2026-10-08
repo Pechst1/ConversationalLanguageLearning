@@ -232,7 +232,7 @@ The script is rerun whenever a rig changes. A test checks that the snapshots exi
 | 3 | Backend `plate_url`/`location_id`/`stage`; reader, La Une, archive, poster | Backend tests for the new fields; walk on the test copy shows people in every season panel |
 | 4 | Lip-sync, blink, idle, reduced motion | The owner plays T1 on the test copy |
 | 5 | Drawn mode on for the test copy (`ATELIER_ART_SET=drawn`) | The owner plays several days and decides |
-| 6 | Default flips to drawn | The owner's yes |
+| 6 | Default flips to drawn | The owner's yes — **given 2026-10-08**: `launch-flags.json` `artSet` and `ATELIER_ART_SET` default to `drawn`; painted stays one Settings switch away |
 | 7 | Removal: painted files move to `_archive/painted-2026-10-01/` and leave the native export; the Settings row goes | The owner's second yes; `restore` documented in `docs/art/README.md` |
 
 **Every phase must:**
