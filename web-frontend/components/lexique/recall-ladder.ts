@@ -15,6 +15,13 @@ export type LadderCue = {
   speaker_id?: string | null;
   first_letter?: string;
   length?: number;
+  /**
+   * Owner decision 2026-10-08: the word's own line is blanked at the form it had
+   * there («Vous _____ d'où ?» → «venez»); that form is the answer and the lemma
+   * («venir») is the hint. Absent on an older server: the card's French stands.
+   */
+  expected_fr?: string | null;
+  hint_fr?: string | null;
 };
 
 type LadderItem = {
@@ -49,6 +56,35 @@ export function gradedFormat(mode: CardMode, spoken: boolean): 'typed' | 'audio'
   if (mode === 'audio') return 'audio';
   if (mode === 'cloze' || mode === 'scene' || mode === 'rescue') return 'cloze';
   return 'typed';
+}
+
+/** The line as the card shows it: the blanked line, with the lemma as a hint when the
+ *  blank is an inflected form — «Vous _____ d'où ? (venir)». */
+export function linePrompt(cue: LadderCue | null): string {
+  const sentence = cue?.sentence_fr?.trim() || '';
+  if (!sentence) return '';
+  const hint = cue?.hint_fr?.trim();
+  return hint ? `${sentence} (${hint})` : sentence;
+}
+
+/** The answer a line card expects: the form in the line, else the card's French. */
+export function lineAnswer(mode: CardMode, cue: LadderCue | null, french: string): string {
+  if ((mode === 'scene' || mode === 'rescue') && cue?.sentence_fr && cue.expected_fr) return cue.expected_fr;
+  return french;
+}
+
+const ELIDED = new Set(['j', 'l', 'd', 'n', 'm', 't', 's', 'c', 'qu', 'lorsqu', 'puisqu', 'jusqu']);
+
+/**
+ * The device's own fold of a line answer (the server's verdict decides): the
+ * normalised answer equals the form, or is the form with its elided clitic
+ * («j etais» for «etais» — the apostrophe already folded to a space).
+ */
+export function matchesLineForm(typed: string, expected: string): boolean {
+  if (!typed || !expected) return false;
+  if (typed === expected) return true;
+  const [clitic, ...rest] = typed.split(' ');
+  return ELIDED.has(clitic) && rest.join(' ') === expected;
 }
 
 /** Successive relearning: a wrong card goes (back) to the end; a right one leaves. */

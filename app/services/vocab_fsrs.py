@@ -179,6 +179,19 @@ def grade_card_answer(word: object, answer_text: str | None, language: str | Non
     return verdict, feedback_note(verdict, language)
 
 
+def grade_in_line_answer(word: object, answer_text: str | None, in_line: dict, language: str | None = None):
+    """Owner decision 2026-10-08: a kept word's own line, blanked at its inflected
+    form, is answered with that form («venez»), never the lemma («venir»), which earns
+    the specific «the line needs the form» note. ``in_line`` is
+    :func:`app.services.recall_ladder.in_line_answer` — the card's evidence and
+    schedule stay the lemma's."""
+
+    from app.services.answer_acceptance import feedback_note, judge_in_line
+
+    verdict = judge_in_line(answer_text, in_line.get("accepted") or [in_line.get("expected_fr")], lemma=getattr(word, "word", ""))
+    return verdict, feedback_note(verdict, language)
+
+
 def earned_rating(review_format: str | None, correct: bool | None, rating: int) -> int:
     if review_format in _EARNED and correct is not None:
         return _EARNED[review_format] if correct else 0
