@@ -619,3 +619,19 @@ test('an elided form stays on the line of the word after it, with a typographic 
     assert.deepEqual(elisionGroups(tokens), [[0, 1, 2]], `${form}’ joins`);
   }
 });
+
+test('the punctuation after a word never starts the next line («Marin» + «.»)', () => {
+  const { TappableFrench, lineUnits } = require('../../../feuilleton/reader/TappableFrench.tsx');
+  const { tokenizeFrench } = require('../../../feuilleton/reader/french-text.ts');
+  const { frenchSpacing } = require('../../../../lib/french-typography.ts');
+  const tokens = tokenizeFrench(frenchSpacing('Regarde ses chaussures, Marin. Ce n’est pas Solvel ?'), 't');
+  const units = lineUnits(tokens).map((unit) => unit.map((part) => part.text ?? tokens[part.index].text).join(''));
+  assert.ok(units.includes('Marin.'), `«Marin.» is one unit: ${JSON.stringify(units)}`);
+  assert.ok(units.includes('chaussures,'), 'the comma too');
+  assert.ok(units.includes('Solvel\u202F?'), '«Solvel ?» holds through its narrow no-break space');
+  assert.ok(units.includes('n’est'), 'the elision holds');
+  // The space after the punctuation stays outside the run: the line may still break there.
+  assert.ok(units.includes(' '), 'a breakable space stays breakable');
+  const html = renderToStaticMarkup(React.createElement(TappableFrench, { text: 'Marin. Ce', idPrefix: 'y', onWord: () => {} }));
+  assert.match(html, /<span class="fr-elision" style="white-space:nowrap"><button[^>]*>Marin<\/button><span[^>]*>\.<\/span><\/span><span[^>]*> <\/span>/);
+});
