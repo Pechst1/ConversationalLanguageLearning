@@ -341,6 +341,10 @@ jobs:
           CAPTURE_DIR: /tmp/mobile-visual-checks
           CHROME_PATH: google-chrome
           FRONTEND_URL: http://127.0.0.1:3000
+          # 120 s, not the script's 30 s: on 8 October a loaded runner had Chrome
+          # alive but silent for the whole 30 s (run 37793301817), while the same
+          # step finishes in 10–14 s when the host is free.
+          CHROME_STARTUP_ATTEMPTS: '1200'
         run: |
           npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/atelier-next.log 2>&1 &
           SERVER_PID=$!
