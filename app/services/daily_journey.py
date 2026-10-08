@@ -141,6 +141,7 @@ from app.services.journey_latency import (
 from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.seals import edition_no_for, mastery_today_for
+from app.services.spoken_reply import repeat_line_for
 from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
 
 logger = logging.getLogger(__name__)
@@ -628,6 +629,11 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
         # client once ``RulePrompt`` carries the field; a schema without it
         # (strict: ``extra="forbid"``) is not handed a key it would refuse.
         prompt.pop("review", None)
+    elif StepKind(step.kind) is StepKind.RESPOND:
+        # WP-158: «Parler» beside the text field, while the flag is on.
+        from app.services.spoken_reply import offered_on
+
+        prompt["spoken_reply"] = offered_on(str(step.kind), prompt)
     return prompt
 
 
@@ -4789,7 +4795,7 @@ class DailyJourneyService:
             prompt["thread"] = _public_thread(history)
             step.public_prompt = prompt
             next_turn = NextTurn(
-                step_id=str(step.id), prompt=RespondPrompt.model_validate(prompt)
+                step_id=str(step.id), prompt=RespondPrompt.model_validate(_public_prompt_view(step))
             )
         else:
             step.status = str(StepStatus.COMPLETED)
@@ -4824,6 +4830,11 @@ class DailyJourneyService:
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
+            repeat_line_fr=(
+                repeat_line_for(step, public_correction)
+                if step.status == str(StepStatus.COMPLETED)
+                else None
+            ),
             journey=self.snapshot(journey),
         )
 

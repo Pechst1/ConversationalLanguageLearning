@@ -211,7 +211,10 @@ def test_the_respond_step_keeps_a_written_path_out_of_every_voice_state():
     assert "copy.use_text" in steps
     # The transcript is a draft the learner sends, never an auto-submission.
     assert "voice_transcript_hint" in steps
-    assert "onSubmit({ mode: submittedMode(voiceState, text), text })" in steps
+    # WP-158: a spoken story reply shares this one call; the voice-first mode still
+    # comes from submittedMode, and the microphone never calls onSubmit itself.
+    assert "?? submittedMode(voiceState, text)" in steps
+    assert "onSubmit({ mode, text })" in steps
 
 
 def test_the_transcript_is_never_submitted_by_the_microphone_itself():

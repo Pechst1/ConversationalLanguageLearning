@@ -12,6 +12,7 @@ from app.api.deps import get_current_user, get_db, get_llm_service
 from app.config import settings
 from app.core.offload import off_event_loop
 from app.db.models.user import User
+from app.services import spoken_reply
 from app.services.llm_service import LLMService, estimate_tts_cost_usd
 from app.services.pilot_events import PilotEventService
 from app.services.transcription_cost import record_transcription_cost
@@ -66,6 +67,8 @@ async def transcribe_audio(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     surface: Annotated[str, Form()] = "unknown",
+    journey_id: Annotated[str | None, Form()] = None,
+    step_id: Annotated[str | None, Form()] = None,
 ) -> dict[str, str]:
     """Transcribe an audio file to text.
 
@@ -74,6 +77,13 @@ async def transcribe_audio(
     priced pilot-cost row (`app.services.transcription_cost`). Nothing here
     scores pronunciation — the transcript is graded as text, exactly like a
     typed answer.
+
+    WP-158: ``surface="story_reply"`` is a spoken answer to a story character.
+    It must name its journey and step; the flag, the ownership, the 30-second
+    cap and the per-turn cost ceiling are checked before any provider call
+    (`app.services.spoken_reply`), and the row is booked against the turn. The
+    transcript is returned, never submitted: the client sends it through the
+    same reply endpoint as a typed answer.
     """
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be audio.")
@@ -99,6 +109,23 @@ async def transcribe_audio(
         )
 
     logger.info("Received audio file: {} bytes", len(content))
+    story_upload: spoken_reply.StoryUpload | None = None
+    if surface == spoken_reply.STORY_REPLY_SURFACE:
+        try:
+            story_upload = spoken_reply.authorize_story_upload(
+                db,
+                user_id=current_user.id,
+                journey_id=journey_id,
+                step_id=step_id,
+                byte_count=len(content),
+            )
+        except spoken_reply.SpokenReplyRefused as refused:
+            raise HTTPException(
+                status_code=refused.status_code, detail=refused.detail()
+            ) from refused
+    if spoken_reply.fake_transcriber_active():
+        # WP-158: dev stacks with fake provider keys hear a deterministic transcript.
+        llm_service = spoken_reply.FakeTranscriber()  # type: ignore[assignment]
     try:
         text = llm_service.transcribe_audio(
             content,
@@ -112,6 +139,15 @@ async def transcribe_audio(
             byte_count=len(content),
             content_type=file.content_type,
             surface=surface,
+            **(
+                {
+                    "entity_type": spoken_reply.TURN_ENTITY_TYPE,
+                    "entity_id": story_upload.entity_id,
+                    "extra": story_upload.ledger_fields(),
+                }
+                if story_upload is not None
+                else {}
+            ),
         )
         db.commit()
         return {"text": text}
