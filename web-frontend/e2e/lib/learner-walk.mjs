@@ -331,6 +331,12 @@ export class LearnerWalk {
         if (shotKey !== shotSig && !isReaderMid) {
           shotSig = shotKey;
           await this.shoot(label + kind + (verdict ? `-${verdict}` : ''));
+          // The two shots take ~300 ms. A screen that moved on meanwhile (the recap
+          // mounting after «awaiting_finish», 8 October 2026: the B1 life's recap was
+          // shot, then the stale snapshot's button tapped it away, and the day read
+          // as «no recap screen») is classified afresh instead of acted on.
+          const after = await snapshot(page);
+          if (this.classify(after) !== kind) continue;
         }
       } else sameFor += 1;
       if (kind === 'recap' || kind === 'home-done') break;
