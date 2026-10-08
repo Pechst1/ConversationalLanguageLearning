@@ -42,8 +42,12 @@ const STAGE_HEIGHT: Record<number, number> = { 1: 1.3, 2: 1.5, 3: 1 };
 /** Where the top of the highest head sits, as a share of the panel's height. */
 const HEAD_LINE: Record<number, number> = { 1: 0.34, 2: 0.4, 3: 0.44 };
 
-/** How far a beat may lower the head line to fit its lines (see `stageFrame`). */
-export const HEAD_LINE_DROPS = [0, 0.08, 0.16];
+/**
+ * How far a beat may move its head line to fit its lines (see `stageFrame`):
+ * lower first (more sky for the balloons), then higher, a step at a time (room
+ * at the foot for the learner's docked line).
+ */
+export const HEAD_LINE_DROPS = [0, 0.08, 0.16, -0.06, -0.12];
 
 /** The heads keep this much of the panel's height clear of its bottom edge. */
 const FOOT_ROOM = 0.18;
@@ -62,7 +66,8 @@ export type StageFrame = {
  * order, at most three, Toi never), and every head on it. Null when nobody
  * stands. `inflate` pads every head (the idle bob and sway move a figure by a
  * few px). `lower` moves the head line down by that share of the panel (a beat
- * with more to say gives its balloons more sky), never past `FOOT_ROOM`.
+ * with more to say gives its balloons more sky), never past `FOOT_ROOM`; a
+ * negative `lower` raises the figures (room at the foot for the learner's line).
  */
 export function stageFrame(panel: Size, members: StageMember[], inflate = 6, lower = 0): StageFrame | null {
   const cast = stageMembers(members).slice(0, 3);
@@ -81,8 +86,10 @@ export function stageFrame(panel: Size, members: StageMember[], inflate = 6, low
   const bottom = Math.max(...layout.map((place) => ((place.head.y + place.head.h) / 100) * h));
   // The medium shot: the highest head on the head line, unless that would sink
   // the lowest face into the panel's foot.
-  let y = panel.h * ((HEAD_LINE[n] ?? 0.44) + lower) - top;
+  let y = panel.h * ((HEAD_LINE[n] ?? 0.44) + Math.max(lower, 0)) - top;
   y = Math.min(y, panel.h * (1 - FOOT_ROOM) - bottom);
+  // A negative `lower` raises the figures from wherever they stood.
+  if (lower < 0) y += lower * panel.h;
   y = Math.max(y, panel.h * 0.04 - top);
   const box = { x: 0, y, w: panel.w, h };
   const heads = layout.map((place) => {

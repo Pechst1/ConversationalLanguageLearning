@@ -89,6 +89,18 @@ function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+/**
+ * WP-144b: the learner's line — a reply (`line.you`) or the story's own «Vous»
+ * (`toi`) — is never a free balloon over the picture: it docks at the panel's
+ * bottom edge, the point of view.
+ */
+export function isLearnerLine(line: Pick<ReaderLine, 'you' | 'character'>): boolean {
+  return Boolean(line.you) || line.character === 'toi';
+}
+
+/** The learner's label when the line names nobody (the story's own word for the reader). */
+const LEARNER_LABEL = 'Vous';
+
 /** The panel's entries in reading order: the captions, then the lines as they are said. */
 export function panelEntries(stage: ReaderPanelStage, head: { eyebrow?: string; title: string } | null): Entry[] {
   const entries: Entry[] = [];
@@ -96,7 +108,7 @@ export function panelEntries(stage: ReaderPanelStage, head: { eyebrow?: string; 
   if (stage.caption) entries.push({ key: 'vp-cap', kind: 'caption', role: 'narration' });
   if (stage.silent) entries.push({ key: 'vp-silent', kind: 'caption', role: 'silent' });
   stage.lines.forEach((line, order) => {
-    entries.push({ key: line.key, kind: line.you ? 'you' : 'speech', line, order });
+    entries.push({ key: line.key, kind: isLearnerLine(line) ? 'you' : 'speech', line, order });
   });
   return entries;
 }
@@ -246,7 +258,7 @@ export function VerticalPanel({
     const index = driving;
     dispatch({ type: 'line-started', index });
     const v = voiceRef.current;
-    if (plan.speak && v && !autoStopped.current && entry.kind !== 'you') {
+    if (plan.speak && v && !autoStopped.current && !entry.line.you) {
       const key = entry.line.audioKey || entry.line.key;
       expected.current = { key, index, started: false };
       v.speak({ key, text_fr: entry.line.fr, character_id: entry.line.speakerId ?? entry.line.faceId ?? null });
@@ -296,7 +308,7 @@ export function VerticalPanel({
   useEffect(() => {
     if (!plan.words || !voice?.progress || reveal.speaking < 0) return undefined;
     const entry = lines[reveal.speaking];
-    if (!entry || entry.kind === 'you') return undefined;
+    if (!entry || entry.line.you) return undefined;
     const progress = voice.progress;
     const index = reveal.speaking;
     let frame = 0;
@@ -373,6 +385,7 @@ export function VerticalPanel({
     const canPlay = Boolean(voice) && !line.you && Boolean(line.who);
     return (
       <>
+        {entry.kind === 'you' && !line.who && <p className="vp-who">{LEARNER_LABEL}</p>}
         {line.who && (
           canPlay ? (
             <button

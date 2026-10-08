@@ -224,7 +224,43 @@ test('the learner’s own line is the bottom-edge balloon, the point of view', (
   const result = layoutPanel(panel, [], [{ key: 'you', kind: 'you', size: { w: 220, h: 64 }, anchor: -1 }]);
   const [you] = result.placed;
   assert.ok(Math.abs(you.y + you.h - (panel.h - 12)) < 1, 'on the bottom edge');
-  assert.ok(Math.abs(you.x + you.w - (panel.w - 12)) < 1, 'on the right');
+  assert.equal(you.x, 12, 'full width: from the left gutter…');
+  assert.ok(Math.abs(you.x + you.w - (panel.w - 12)) < 1, '…to the right one');
+  assert.equal(you.tail, null, 'no tail');
+});
+
+test('a learner line always touches the bottom band and never overlaps a head (WP-144b)', () => {
+  const random = rng(1442);
+  const panels = [{ w: 390, h: 650 }, { w: 375, h: 620 }, { w: 320, h: 460 }, { w: 414, h: 720 }];
+  let placed = 0;
+  for (let round = 0; round < 600; round += 1) {
+    const panel = panels[round % panels.length];
+    const count = 1 + (round % 3);
+    const heads = headsFor(panel, count);
+    const items = randomItems(random, heads).filter((item) => item.kind !== 'you');
+    items.splice(Math.floor(random() * (items.length + 1)), 0, { key: 'me', kind: 'you', size: { w: 120 + random() * 200, h: 44 + random() * 50 }, anchor: -1 });
+    const result = layoutPanel(panel, heads, items, { topInset: round % 5 === 0 ? 36 : 0 });
+    const learner = result.placed.filter((entry) => entry.kind === 'you');
+    const band = panel.h * 0.3;
+    learner.forEach((entry) => {
+      placed += 1;
+      assert.ok(entry.y + entry.h >= panel.h - band, `round ${round}: ${entry.key} sits in the bottom band`);
+      assert.ok(Math.abs(entry.x - 12) < 1 && Math.abs(entry.x + entry.w - (panel.w - 12)) < 1, `round ${round}: full width`);
+      assert.equal(entry.tail, null);
+      heads.forEach((head) => assert.equal(intersects(entry, head), false, `round ${round}: ${entry.key} covers a face`));
+    });
+    // Not on the picture: then in the sheet, never a free balloon over the picture.
+    if (!learner.length) assert.ok(result.overflow.includes('me'), `round ${round}: the learner line is on the picture or in the sheet`);
+  }
+  // Random pages overflow often, and an overflowing page docks its sheet, which the learner line joins.
+  assert.ok(placed > 150, `the learner line is often on the picture (${placed})`);
+});
+
+test('the story’s own «Vous» (toi) is the learner line, not a cast balloon', () => {
+  const { isLearnerLine } = require('./VerticalPanel.tsx');
+  assert.equal(isLearnerLine({ character: 'toi' }), true);
+  assert.equal(isLearnerLine({ character: 'margaux', you: true }), true);
+  assert.equal(isLearnerLine({ character: 'margaux' }), false);
 });
 
 test('three speakers: every balloon within a short tail of its own head, or the oldest goes to the sheet', () => {

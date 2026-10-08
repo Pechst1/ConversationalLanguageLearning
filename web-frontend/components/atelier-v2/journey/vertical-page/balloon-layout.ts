@@ -16,8 +16,11 @@
  *     tail. When dropping from the end keeps more lines on the picture, the
  *     newest go instead; the sheet never holds a hole in the dialogue.
  *
- * The learner's own line is the balloon at the bottom right, the point-of-view
- * position (WP-146); it stands outside the reading order of the cast.
+ * The learner's own line (a reply, or the story's «Vous») is docked at the
+ * bottom edge, full width, without a tail: the point-of-view position (WP-146).
+ * It is placed first, stands outside the reading order of the cast, and never
+ * covers a face; when it would, it goes to the sheet and the caller raises the
+ * figures (`HEAD_LINE_DROPS`).
  *
  * Pure: sizes in, positions out. The component measures the balloons (so text
  * scaling and «Traduire» are honoured), calls `layoutPanel`, and draws.
@@ -191,7 +194,11 @@ function candidatesFor(item: LayoutItem, ctx: Ctx, state: State): Placed[] {
     return out;
   }
   if (item.kind === 'you') {
-    const box = { x: ctx.panel.w - ctx.margin - w, y: ctx.bottom - h, w, h };
+    // The point of view: docked at the bottom edge, full width, no tail; a second
+    // line of the learner's stacks above the first.
+    const full = ctx.panel.w - ctx.margin * 2;
+    const floor = state.placed.filter((entry) => entry.kind === 'you').reduce((low, entry) => Math.min(low, entry.y - ctx.gap), ctx.bottom);
+    const box = { x: ctx.margin, y: floor - h, w: full, h };
     if (box.y >= ctx.top) offer(make(box, -1, null));
     return out;
   }
@@ -306,7 +313,10 @@ function greedy(items: LayoutItem[], ctx: Ctx, forced: Set<string>): State {
   return state;
 }
 
-function placeAll(items: LayoutItem[], ctx: Ctx, forced: Set<string>): { placed: Placed[]; overflow: string[] } {
+function placeAll(allItems: LayoutItem[], ctx: Ctx, forced: Set<string>): { placed: Placed[]; overflow: string[] } {
+  // The learner's lines are not anchored to a head: they take the bottom band
+  // first, and the cast's balloons are placed around them.
+  const items = [...allItems.filter((item) => item.kind === 'you'), ...allItems.filter((item) => item.kind !== 'you')];
   const spoken = items.filter((item) => item.kind === 'speech').map((item) => item.key);
   let oldest: State | null = null;
   for (let k = 0; k <= spoken.length && !oldest; k += 1) {
@@ -315,7 +325,7 @@ function placeAll(items: LayoutItem[], ctx: Ctx, forced: Set<string>): { placed:
   const newest = greedy(items, ctx, forced);
   const best = oldest && oldest.placed.length >= newest.placed.length ? oldest : newest;
   // The sheet reads in the dialogue's order.
-  const order = new Map(items.map((item, index) => [item.key, index] as const));
+  const order = new Map(allItems.map((item, index) => [item.key, index] as const));
   return { placed: best.placed, overflow: [...best.overflow].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)) };
 }
 

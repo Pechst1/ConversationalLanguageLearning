@@ -175,7 +175,9 @@ export function VerticalPageStyles() {
 
       /* the learner's own line: the bottom edge, the point of view; red press, as everywhere it is you */
       .av2 .vp-balloon--you {
-        max-width: min(calc(100% - 24px), 18em);
+        /* WP-144b: docked at the bottom edge, full width minus the gutters, no tail */
+        width: calc(100% - 24px);
+        max-width: none;
         border-radius: 18px 18px 4px 18px;
         box-shadow: 0 var(--av2-press-sm) 0 var(--fr-red);
       }
