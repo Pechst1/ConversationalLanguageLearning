@@ -59,7 +59,8 @@ import {
 import { useArtSet } from '@/lib/art-set';
 import { PanelStage } from '@/components/cast/PanelStage';
 import { useMouth } from '@/components/cast/useMouth';
-import { VerticalPanel } from '@/components/atelier-v2/journey/vertical-page/VerticalPanel';
+import { VerticalPanel, type VerticalPanelControl } from '@/components/atelier-v2/journey/vertical-page/VerticalPanel';
+import { nextStep } from '@/components/atelier-v2/journey/vertical-page/reveal-model';
 import { VerticalPageStyles } from '@/components/atelier-v2/journey/vertical-page/vertical-page-styles';
 
 export type ReaderSubmitError = { taskId: string; message: string } | null;
@@ -234,6 +235,22 @@ export function FeuilletonReader({
     [count, onIndexChange, safeIndex],
   );
 
+  /* WP-144b, the visual-novel rule: on the vertical page a panel's lines may
+     still be arriving (timed, or with the voice). The first Next — button,
+     ArrowRight, swipe, or the last panel's own action — shows them all and
+     stays; only the next one moves on. The list page has no control: unchanged. */
+  const verticalControl = useRef<VerticalPanelControl | null>(null);
+  const completePanelFirst = useCallback((): boolean => {
+    const control = verticalControl.current;
+    if (nextStep(control) === 'advance') return false;
+    control?.revealAll();
+    return true;
+  }, []);
+  const forward = useCallback(() => {
+    if (completePanelFirst()) return;
+    go(safeIndex + 1);
+  }, [completePanelFirst, go, safeIndex]);
+
   /* Keyboard: arrows page, Home/End jump. Never while typing an answer, and
      never while the help sheet owns the keyboard. */
   useEffect(() => {
@@ -247,7 +264,7 @@ export function FeuilletonReader({
       if (target?.closest?.('[data-roving-line]')) return;
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        go(safeIndex + 1);
+        forward();
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
         go(safeIndex - 1);
@@ -261,7 +278,7 @@ export function FeuilletonReader({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [count, go, help, safeIndex]);
+  }, [count, forward, go, help, safeIndex]);
 
   /* Bring the new panel into view without stealing focus from Suivant. */
   useEffect(() => {
@@ -292,9 +309,10 @@ export function FeuilletonReader({
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
       if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      go(dx < 0 ? safeIndex + 1 : safeIndex - 1);
+      if (dx < 0) forward();
+      else go(safeIndex - 1);
     },
-    [go, safeIndex],
+    [forward, go, safeIndex],
   );
 
   const readState = useMemo(
@@ -499,6 +517,7 @@ export function FeuilletonReader({
             marksFor={(line) => lineRayons(line, rayons)}
             head={folded ? null : { eyebrow: head.eyebrow, title: head.title }}
             topInset={readState === 'read' || stageLiveTask ? 36 : 0}
+            control={verticalControl}
             t={t}
           />
         ) : stage.kind === 'panel' ? (
@@ -633,7 +652,9 @@ export function FeuilletonReader({
               className="fr-btn fr-next is-action"
               data-press={primary === 'complete' ? '3d' : undefined}
               disabled={completing}
-              onClick={onComplete}
+              onClick={() => {
+                if (!completePanelFirst()) onComplete();
+              }}
             >
               {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
               {completing ? t.completing : completeLabel || t.complete}
@@ -648,7 +669,7 @@ export function FeuilletonReader({
             type="button"
             className="fr-btn fr-next"
             data-press={primary === 'next' ? '3d' : undefined}
-            onClick={() => go(safeIndex + 1)}
+            onClick={forward}
           >
             {t.next} <ArrowRightIcon size={18} />
           </button>
