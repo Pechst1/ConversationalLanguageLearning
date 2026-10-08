@@ -118,6 +118,21 @@ function ensureContext(): AudioContext | null {
   return context;
 }
 
+/**
+ * WP-145 · the app's one AudioContext, shared with the sound bed
+ * (`lib/sound-bed.ts`): the iOS WebView unlocks a context on a gesture, and one
+ * context unlocked once serves every sound. Created on first call — callers
+ * must only call it from a gesture or once one has happened.
+ */
+export function sharedAudioContext(): AudioContext | null {
+  return ensureContext();
+}
+
+/** The shared context if one exists, without creating it (page-hide handlers). */
+export function existingAudioContext(): AudioContext | null {
+  return context;
+}
+
 function decode(kind: FeelSound): Promise<AudioBuffer | null> {
   let pending = decoded.get(kind);
   if (!pending) {
