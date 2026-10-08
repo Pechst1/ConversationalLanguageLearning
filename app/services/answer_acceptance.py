@@ -479,6 +479,31 @@ def judge(
     return best or Verdict(correct=False, expected=candidates[0])
 
 
+def judge_in_line(answer: object, accepted: Iterable[object], *, lemma: object) -> Verdict:
+    """A blank in a line, answered (owner decision 2026-10-08).
+
+    A cloze can only be answered with the form that fits the line: «Vous ___ d'où ?»
+    takes «venez», and «venir» there is wrong French. The accepted forms are graded by
+    the one contract (:func:`judge`: typography folded, accents lenient-but-named, a
+    typo forgiven only when it is not another form). An answer that is the lemma
+    itself is refused with ``note="line_form"``: the line needs the form.
+    """
+
+    forms = [str(item) for item in accepted if item and str(item).strip()]
+    verdict = judge(answer, forms)
+    if verdict.correct:
+        return verdict
+    if judge(answer, [lemma], typo=False, article_optional=True).correct:
+        return Verdict(
+            correct=False,
+            note="line_form",
+            expected=forms[0] if forms else None,
+            expected_word=forms[0] if forms else None,
+            learner_word=fold_typography(answer),
+        )
+    return verdict
+
+
 #: QA-CLOSE (owner decision c): units whose rule *is* the spelling — accents are
 #: strict on every item («mangeons», «commençons», «achète», «préfère»).
 ACCENT_STRICT_UNITS: frozenset[str] = frozenset({"FR2_A12_ER_SPELLING"})
@@ -514,7 +539,7 @@ def accent_policy(
 
 
 #: Among misses, the note that tells the learner the most wins.
-_NOTE_PRIORITY = {"gender": 5, "elision": 4, "accent": 3, "form": 2, "typo": 1}
+_NOTE_PRIORITY = {"line_form": 6, "gender": 5, "elision": 4, "accent": 3, "form": 2, "typo": 1}
 
 
 def _rank(verdict: Verdict) -> tuple[int, int, int, int]:
@@ -628,6 +653,11 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "en": "Before a vowel the little word loses its e: j'aime, l'ami.",
         "de": "Vor einem Vokal fällt das e des kleinen Wortes weg: j'aime, l'ami.",
         "fr": "Devant une voyelle, le petit mot perd son e : j'aime, l'ami.",
+    },
+    "line_form": {
+        "en": "Right word — the line needs the form «{expected_word}».",
+        "de": "Richtiges Wort — der Satz braucht die Form «{expected_word}».",
+        "fr": "Bon mot — la phrase demande la forme « {expected_word} ».",
     },
     "gender": {
         "en": "The noun is right, the article's gender is not.",

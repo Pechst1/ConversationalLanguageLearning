@@ -372,7 +372,7 @@ def submit_anki_review(
             db.flush([progress])
 
         from app.services.chrome_language import user_chrome_language
-        from app.services.vocab_fsrs import earned_rating, grade_card_answer
+        from app.services.vocab_fsrs import earned_rating, grade_card_answer, grade_in_line_answer
 
         # QA-CLOSE (owner decision a): an answered card is graded here, from the
         # text — the client's ``correct`` is never trusted. Without ``answer_text``
@@ -380,9 +380,20 @@ def submit_anki_review(
         verdict = note_native = None
         review_format = payload.format or "flashcard"
         if review_format != "flashcard" and str(payload.answer_text or "").strip():
-            verdict, note_native = grade_card_answer(
-                word, payload.answer_text, str(user_chrome_language(current_user))
-            )
+            # Owner decision 2026-10-08: a kept word asked in its own line at an
+            # inflected form is answered with that form (re-read here, never trusted
+            # from the client); every other card is graded by the lemma.
+            from app.services.recall_ladder import in_line_answer
+
+            in_line = in_line_answer(progress, word) if review_format == "cloze" else None
+            if in_line is not None:
+                verdict, note_native = grade_in_line_answer(
+                    word, payload.answer_text, in_line, str(user_chrome_language(current_user))
+                )
+            else:
+                verdict, note_native = grade_card_answer(
+                    word, payload.answer_text, str(user_chrome_language(current_user))
+                )
         elif review_format != "flashcard":
             review_format = "flashcard"
         # WP-115a: an answered card earns its grade; a self-rated flashcard (and an
