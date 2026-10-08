@@ -57,7 +57,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from app.services.panel_art import unavailable_reason
 
         reason = unavailable_reason()
-        if reason:
+        if reason and str(settings.ATELIER_ART_SET or "").strip().lower() == "drawn":
+            # WP-116 phase 6: the drawn default draws the cast in the client; nothing is broken.
+            logger.info("Panel art is off by design: {}. Panels show the location plate.", reason)
+        elif reason:
             logger.error("Panel art is enabled but stays off: {}. Panels show the location plate.", reason)
 
     if settings.SERIAL_WORLD_ENABLED and (
