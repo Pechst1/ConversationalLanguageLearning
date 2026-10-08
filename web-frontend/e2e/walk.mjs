@@ -121,6 +121,16 @@ async function playDayInner(l, day) {
         + `reps = 1, lapses = 0, stability = 2 `
         + `WHERE user_id = '${l.userId}' AND context IS NOT NULL`,
       );
+      // A word the learner kept missing is a leech, and the drill rightly opens on
+      // its «rescue» card; this check is about the kept word, so the learner's
+      // other cards wait a day while it is read — a day past the walk's clock, which
+      // runs day - 1 days ahead of the database's now().
+      const later = `now() + interval '${day} days'`;
+      stack.sql(
+        `UPDATE user_vocabulary_progress SET due_at = ${later}, `
+        + `next_review_date = ${later}, due_date = (${later})::date `
+        + `WHERE user_id = '${l.userId}' AND context IS NULL`,
+      );
     }
     await walk.visit('/vocabulary/review', 'drill');
     const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);

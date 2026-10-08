@@ -78,3 +78,18 @@ def test_the_postgres_job_runs_the_row_lock_drivers_on_a_throwaway_database() ->
         assert command in runs, command
     # The drivers refuse the owner's database name; CI must not use it.
     assert "language_learning" not in job["env"]["DATABASE_URL"]
+
+
+def test_the_backend_shards_cover_every_test_file_exactly_once() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("ci_test_shard", ROOT / "scripts" / "ci_test_shard.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    shards = module.shards(4)
+    dealt = [path for shard in shards for path in shard]
+    assert sorted(dealt) == sorted(str(path) for path in module.test_files())
+    assert len(dealt) == len(set(dealt)) and all(shards)
+    job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["backend"]
+    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3, 4]

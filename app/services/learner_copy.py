@@ -743,6 +743,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "„{word}“ kam diesmal nicht vor. Seine Wiederholung bleibt, wie sie war.",
         "fr": "« {word} » n’a pas servi cette fois. Sa révision reste inchangée.",
     },
+    # WP-138: an optional grammar target (or an old mistake to repair) the reply
+    # did not need is "not practised", never a mistake and never a shortfall.
+    "mission.target_unpractised": {
+        "en": "Not practised this time; nothing counts against you.",
+        "de": "Diesmal nicht geübt; das zählt nicht gegen dich.",
+        "fr": "Pas pratiqué cette fois ; rien n’est compté contre vous.",
+    },
     "mission.vocabulary_translation_why": {
         "en": "You wrote the meaning (“{meaning}”) rather than the French word “{word}”.",
         "de": "Du hast die Bedeutung („{meaning}“) geschrieben statt des französischen Worts „{word}“.",

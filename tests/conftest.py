@@ -401,6 +401,24 @@ def classic_day_unless_practice_suite(request, monkeypatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def fresh_rate_limit_windows() -> Generator[None, None, None]:
+    """Each test starts with empty rate-limit windows.
+
+    The limiter is process-wide: without this, a suite that registers many
+    learners through a non-exempt client (httpx's ASGI peer is not
+    ``testclient``) spends the auth window of whichever test runs next.
+    """
+
+    from app.core.rate_limit import MemoryRateLimitBackend, limiter
+
+    limiter.use_backend(MemoryRateLimitBackend())
+    try:
+        yield
+    finally:
+        limiter.use_backend(None)
+
+
+@pytest.fixture(autouse=True)
 def clear_cache() -> Generator[None, None, None]:
     cache_backend.clear()
     try:

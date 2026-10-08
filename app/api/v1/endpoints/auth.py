@@ -23,8 +23,10 @@ from app.services.auth import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidPasswordResetTokenError,
+    RegistrationClosedError,
     handle_email_exists,
     handle_invalid_credentials,
+    handle_registration_closed,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -42,6 +44,8 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserRea
         user = service.register_user(payload)
     except EmailAlreadyExistsError as exc:
         handle_email_exists(exc)
+    except RegistrationClosedError as exc:
+        handle_registration_closed(exc)
     return user
 
 
@@ -73,8 +77,9 @@ def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)) -
                     user_agent=request.headers.get("user-agent"),
                     ip_address=request.client.host if request.client else None,
                 )
-            except EmailAlreadyExistsError:
-                # If a user exists with a different password, still return 401
+            except (EmailAlreadyExistsError, RegistrationClosedError):
+                # If a user exists with a different password, or sign-up is
+                # closed to this email, still return 401
                 pass
         handle_invalid_credentials(exc)
 

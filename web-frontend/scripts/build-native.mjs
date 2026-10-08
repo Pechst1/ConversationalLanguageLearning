@@ -42,6 +42,7 @@ if (process.env.NATIVE_RELEASE === 'true') {
     wsUrl: buildEnv.NEXT_PUBLIC_WS_URL,
     nativePushEnabled: buildEnv.NEXT_PUBLIC_NATIVE_PUSH_ENABLED === 'true',
     apnsEnvironment: buildEnv.NEXT_PUBLIC_APNS_ENVIRONMENT,
+    legalContactEmail: buildEnv.NEXT_PUBLIC_LEGAL_CONTACT_EMAIL,
     allowLocalApi: buildEnv.ALLOW_LOCAL_NATIVE_API === 'true',
     allowPlaceholderApi: buildEnv.ALLOW_PLACEHOLDER_NATIVE_API === 'true',
   });

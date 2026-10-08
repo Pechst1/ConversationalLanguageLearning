@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.config import settings
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.user import User
 from app.services.pilot_events import PilotEventService
@@ -44,10 +45,26 @@ DocumentKind = Literal["privacy", "terms"]
 
 
 @lru_cache(maxsize=1)
-def legal_content() -> dict[str, Any]:
+def _legal_file() -> dict[str, Any]:
     """The canonical legal text. Cached: it only changes with a deploy."""
 
     return json.loads(LEGAL_CONTENT_PATH.read_text(encoding="utf-8"))
+
+
+def legal_content() -> dict[str, Any]:
+    """The legal text with the deployment's contact (WP-138: the address is
+    configuration, the public repository only carries a placeholder)."""
+
+    content = _legal_file()
+    configured = str(getattr(settings, "LEGAL_CONTACT_EMAIL", "") or "").strip()
+    return {**content, "contact_email": configured} if configured else content
+
+
+def has_real_contact(content: dict[str, Any] | None = None) -> bool:
+    """False while the policy would print the ``[contact e-mail]`` placeholder."""
+
+    contact = str((content or legal_content()).get("contact_email") or "")
+    return "@" in contact and not contact.startswith("[")
 
 
 def policy_version() -> str:

@@ -237,7 +237,19 @@ class FakeStoryProvider:
         locations = [place for place in world.get("locations", []) if place.get("id")] or [{"id": "le_mistral"}]
         character = cast[n % len(cast)]["id"]
         location = locations[n % len(locations)]["id"]
-        premise, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
+        # The counter restarts with the process (the drain driver restarts it between
+        # days), so skip any premise the engine says was played recently.
+        recent = [item for item in context.get("recent_situations") or [] if isinstance(item, dict)]
+        used = {str(item.get(key) or "").strip() for item in recent for key in ("premise_fr", "objective_native")}
+        pick = next(
+            (
+                i
+                for i in range(n, n + len(PREMISES))
+                if not {PREMISES[i % len(PREMISES)][0], PREMISES[i % len(PREMISES)][1]} & used
+            ),
+            n,
+        )
+        premise, objective, semantics, novelty = PREMISES[pick % len(PREMISES)]
         chapter = context.get("chapter") or {}
         events = context.get("events") or []
         if chapter and not chapter.get("resolved"):

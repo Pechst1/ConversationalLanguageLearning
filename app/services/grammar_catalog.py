@@ -25,6 +25,7 @@ from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy import text as sql_text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.error import UserError
@@ -327,6 +328,24 @@ class FrenchCoreGrammarCatalog:
         return catalog_rows(self.version)
 
     def ensure_catalog(self, archive_legacy: bool = True) -> list[GrammarConcept]:
+        """Seed/refresh the catalogue; safe against a concurrent first seeding.
+
+        Every "today" request runs this upsert, so on a fresh database the first
+        requests race to insert the same ``external_id`` rows. The loser rolls
+        back (the seeding commits anyway, so it owns the transaction) and runs
+        once more, now updating the rows the winner inserted.
+        """
+
+        for attempt in range(3):
+            try:
+                return self._ensure_catalog(archive_legacy)
+            except IntegrityError:
+                self.db.rollback()
+                if attempt == 2:
+                    raise
+        return []  # pragma: no cover - the loop returns or raises
+
+    def _ensure_catalog(self, archive_legacy: bool) -> list[GrammarConcept]:
         rows = self.rows()
         if self.db.get_bind().dialect.name == "postgresql":
             # Two first requests on a fresh database seeded the catalogue at once and the

@@ -31,6 +31,82 @@ Require the CI checks in branch protection. The Render blueprint now sets
 Sync and verify this setting on existing services before relying on it. Hosting
 account settings and running deployments have not been changed by this batch.
 
+## Configuration (canonical recipe, WP-138)
+
+`render.yaml` is the reference deployment. `.env.prod.example` carries the same
+values for the Compose path (`docker/docker-compose.prod.yml` reads `.env.prod`);
+change both together. `docs/iphone-daily-testing-runbook.md` walks through
+either path.
+
+Startup refuses `APP_ENV=production` unless `AUTO_CREATE_USERS_ON_LOGIN=false`,
+`PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE=false`, the test clock is off,
+`SMTP_HOST` and `SMTP_FROM_EMAIL` are set, and `ATELIER_DAILY_JOURNEY_COHORT` is
+not blank while the journey is enabled.
+
+The operator supplies (Render dashboard, `sync: false`; or `.env.prod`):
+
+| Setting | Required | Notes |
+|---|---|---|
+| `OPENAI_API_KEY` | yes | Worker inherits it on Render. |
+| `SMTP_HOST`, `SMTP_FROM_EMAIL`, `SMTP_USERNAME`, `SMTP_PASSWORD` | host + from | Reset emails a six-digit code. |
+| `ATELIER_DAILY_JOURNEY_COHORT` | yes | Who gets the daily journey: emails/ids, `*` or `none`. |
+| `REGISTRATION_ALLOWED_EMAILS` | for sign-up | Only these emails can create an account. |
+| `LEGAL_CONTACT_EMAIL` | yes (boot) | The contact the privacy policy and the terms print; the repository only has a placeholder. The native release build needs the same address as `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL`. |
+| `SENTRY_DSN` | no | Sentry is off without it. |
+| `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY` | for push | |
+| `GRAPHIC_NOVEL_IMAGE_STORAGE=s3` + `GRAPHIC_NOVEL_IMAGE_S3_*` | for panel art | Panel art stays off without durable storage. |
+| `PASSWORD_RESET_BASE_URL` | no | Only once a public web reset page exists; adds a link to the email. |
+
+Defaults fixed in the manifest and the template alike: `APP_ENV=production`,
+`REGISTRATION_OPEN=false`, `APNS_USE_SANDBOX=false` (production APNs for
+TestFlight; `true` on both API and worker only while testing a direct Xcode
+build), `OPENAI_IMAGE_MODEL=gpt-image-2.5-flare`,
+`GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED=false`, `RATE_LIMIT_TRUSTED_PROXY_HOPS=1`
+(one proxy in front: Render's, or the host's TLS proxy; the Compose API port is
+published on loopback only so nothing reaches it around that proxy).
+
+### Pilot access
+
+A journey cohort is not an invite gate. `REGISTRATION_OPEN=false` closes sign-up
+to everyone not in `REGISTRATION_ALLOWED_EMAILS` (comma-separated,
+case-insensitive); the API answers 403 and the sign-up page explains it in the
+learner's language. Existing accounts keep signing in. Development and tests
+default to open; production logs a warning while it is open.
+
+### Provider spend bounds
+
+`0` switches a bound off.
+
+- `SERVICE_DAILY_SPEND_CAP_USD` (5.00 on Render): the whole service's day,
+  every learner and every ledger (panel art included) since UTC midnight. At
+  the cap paid routes answer 429 `daily_budget_reached`, panels keep their
+  plates and the prefetch beat skips. Render passes it to the worker.
+
+Per learner:
+
+- `USER_DAILY_SPEND_CAP_USD` (0.50): paid routes answer 429
+  `daily_budget_reached` past it per local day; a day already started is cut
+  only past cap × `USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER` (2.0).
+- `ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD` (0.25): panel art, apart from the cap.
+- `PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD` (2.00): weekly warning on the admin
+  dashboard; the journey prefetch beat skips a learner who reached it. Render
+  passes it and the daily cap to the worker from the API.
+- `ATELIER_INTAKE_WEEKLY_CAP` (5) and `ATELIER_INTAKE_WEEKLY_COST_CEILING_USD`
+  (0.50): artefact intake.
+- `RATE_LIMIT_PAID_MAX_REQUESTS` (60 per `RATE_LIMIT_PAID_WINDOW_SECONDS`, 60):
+  request volume on paid routes.
+
+The service cap bounds a day, not a month: also set a monthly budget/limit on
+the OpenAI project itself as the provider-side backstop.
+
+### Account deletion and stored artwork
+
+Deleting an account removes its relational rows (cascade) and then, best effort,
+every stored image of its scenes (`scenes/<scene id>/` in the S3 bucket and in
+the local image directory). A storage failure is logged
+(`account_artwork_cleanup_failed`) and never blocks the deletion. Shared art
+(revue plates) is untouched.
+
 ## Password recovery
 
 Migration `b9d1f3a5c7e0` adds `password_reset_deliveries`. Run migrations before

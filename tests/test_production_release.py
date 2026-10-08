@@ -43,3 +43,43 @@ def test_both_render_processes_wait_for_ci_checks():
     for service in blueprint["services"]:
         if service.get("type") in {"web", "worker"}:
             assert service["autoDeployTrigger"] == "checksPass"
+
+
+def _env_template():
+    values = {}
+    for line in (ROOT / ".env.prod.example").read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            values[key] = value
+    return values
+
+
+def _render_env(service_type):
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text())
+    service = next(item for item in blueprint["services"] if item.get("type") == service_type)
+    return {item["key"]: item for item in service["envVars"]}
+
+
+def test_render_and_the_compose_template_agree_on_the_production_recipe():
+    """WP-138: one canonical recipe. Every setting startup requires in production
+    is in the template, and the values both files fix are the same."""
+
+    template = _env_template()
+    api = _render_env("web")
+    for key in ("ATELIER_DAILY_JOURNEY_COHORT", "REGISTRATION_ALLOWED_EMAILS", "LEGAL_CONTACT_EMAIL", "SMTP_HOST", "SMTP_FROM_EMAIL"):
+        assert template.get(key), key
+        assert api[key].get("sync") is False, key
+    for key, item in api.items():
+        if "value" in item and key in template:
+            assert template[key].strip('"') == str(item["value"]), key
+    assert template["APP_ENV"] == "production"
+    assert template["REGISTRATION_OPEN"] == "false"
+
+
+def test_pilot_runs_production_apns_with_sign_up_closed():
+    api, worker = _render_env("web"), _render_env("worker")
+    assert api["APNS_USE_SANDBOX"]["value"] == "false"
+    assert worker["APNS_USE_SANDBOX"]["value"] == "false"
+    assert _env_template()["APNS_USE_SANDBOX"] == "false"
+    assert api["REGISTRATION_OPEN"]["value"] == "false"

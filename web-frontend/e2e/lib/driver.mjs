@@ -51,6 +51,9 @@ export const SNAPSHOT_FN = () => {
     // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»).
     homeDone: location.pathname.startsWith('/atelier') && /Done for today|Fini pour aujourd|Journée bouclée|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || ''),
     forgeStep: q('[data-step=forge]').length,
+    // A request the screen says is in flight (Action's `pending`: disabled,
+    // aria-busy, «La scène se prépare…»): waiting, not stuck.
+    pending: document.querySelector('[data-pending="true"], [aria-busy="true"]') !== null,
     epFeedback: q('.ep-feedback').map((n) => ({ verdict: n.getAttribute('data-verdict'), text: n.innerText.trim() })),
     frTexts: q('[lang=fr]').map((n) => n.innerText.trim()).filter(Boolean),
     threadCue: (q('.av2-thread__cue')[0] || {}).innerText || '',

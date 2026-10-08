@@ -2189,8 +2189,9 @@ class ApiService {
 
   /**
    * WP-78 «Garder»: keep a word tapped in the story, with the sentence it was
-   * in, in the learner's own Lexique. A 422 carries a French `detail.message`
-   * (no entry, no meaning in the learner's language) the sheet shows as is.
+   * in, in the learner's own Lexique. WP-138: a 422 is a permanent refusal,
+   * `detail = {code, retryable: false, message (French), message_native}`, that
+   * `keepRefusal` (lib/kept-words) words in the sheet's language.
    */
   async keepWord(payload: {
     term: string;

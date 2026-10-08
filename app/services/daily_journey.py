@@ -3589,6 +3589,20 @@ class DailyJourneyService:
         live = ((thread.state or {}) if thread else {}).get(STATE_KEY) or {}
         return season_id_for(live) is not None
 
+    def _on_begun_serial(self, user: User) -> bool:
+        """WP-138: is a generated serial (not the season) already under way?"""
+
+        if not getattr(settings, "ATELIER_STORY_ENGINE_ENABLED", False):
+            return False
+        from app.services.living_story import STATE_KEY, _active_thread
+        from app.services.season.runtime import _started, season_id_for
+
+        thread = _active_thread(self.db, user)
+        if thread is None:
+            return False
+        live = (thread.state or {}).get(STATE_KEY) or {}
+        return season_id_for(live) is None and _started(live)
+
     def _first_day_brief(
         self, user: User, journey: DailyJourney, input_mode: InputMode
     ) -> ScenarioBrief | None:
@@ -3674,11 +3688,13 @@ class DailyJourneyService:
     ) -> ScenarioBrief | None:
         """An authored scene for this learner's band, rotated like any other day.
 
-        ``level_band`` is left to the content module, which serves the
-        learner's own band or the nearest authored one (the authored ceiling is
-        A2, so a B1+ learner gets the A2 variant and its honest level note).
-        ``bind_serial=False`` keeps the stand-in out of the living story: it is
-        not a chapter, and it must not claim to be one.
+        Only for a learner with no story under way (see
+        :meth:`_serve_authored_fallback`). ``level_band`` is left to the content
+        module, which serves the learner's own band or the nearest authored one:
+        every family is authored at A1, A2 and B1, so A1–B1 get their own band and
+        a B2/C1 learner gets the B1 variant (the nearest authored band; nothing
+        above B1 is authored). ``bind_serial=False`` keeps the stand-in out of the
+        living story: it is not a chapter, and it must not claim to be one.
         """
 
         content = self.adapters.content
@@ -3724,6 +3740,14 @@ class DailyJourneyService:
         WP-124a: a season life never gets the generic authored scenes (a stranger's
         welcome, the «vous» of strangers). It re-reads its last season page, or —
         with no page to re-read — keeps the honest «unavailable, retry» day.
+
+        WP-138: the same holds for a begun *generated* serial (a life off the
+        season). An unrelated stranger scene would break the story under way, and
+        its last page cannot be re-read without the model that just failed (an
+        engine page is answered by the actor). Such a life keeps the honest
+        «unavailable, retry» day: nothing is fabricated, nothing is credited twice,
+        and the retry resumes the story where it stands. Only a learner with no
+        story under way still gets the generic authored day.
         """
 
         on_season = run_best_effort(
@@ -3735,6 +3759,21 @@ class DailyJourneyService:
         )
         if on_season:
             return self._serve_season_reprise(user, journey, input_mode, failure)
+        on_serial = run_best_effort(
+            self.db,
+            "daily_journey: begun serial check",
+            lambda: self._on_begun_serial(user),
+            default=False,
+            log=logger,
+        )
+        if on_serial:
+            logger.error(
+                "daily_journey: serial day lost (%s); journey %s stays unavailable "
+                "rather than serve a scene outside the story",
+                failure.reason,
+                journey.id,
+            )
+            return failure
         brief = self._authored_fallback_brief(user, journey, input_mode)
         if brief is None:
             logger.error(

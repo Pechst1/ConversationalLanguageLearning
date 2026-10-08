@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { learnerGloss } from '@/lib/glosses';
-import { canKeep, keepCopy, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
+import { canKeep, keepCopy, keepRefusal, keepStatusLine, type KeepState } from '@/lib/kept-words';
 import { useLearnerLanguage } from '@/lib/learner-language';
 import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
@@ -200,7 +200,8 @@ export function WordHelpSheet({
       });
       setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
     } catch (error) {
-      setKeep({ kind: 'refused', message: keepRefusalMessage(error, language) });
+      const refusal = keepRefusal(error, language);
+      setKeep({ kind: 'refused', message: refusal.message, retryable: refusal.retryable });
     }
   }, [language, request]);
 
@@ -255,7 +256,7 @@ export function WordHelpSheet({
           )}
           {canKeep(gloss.kind, sentence, gloss.kind === 'gloss' ? gloss.language : null, learnerLanguage) && (
             <div className="fr-keep">
-              {keep.kind === 'idle' || keep.kind === 'saving' ? (
+              {keep.kind === 'idle' || keep.kind === 'saving' || (keep.kind === 'refused' && keep.retryable) ? (
                 <button
                   type="button"
                   className="fr-keep-btn"
@@ -266,7 +267,11 @@ export function WordHelpSheet({
                 </button>
               ) : null}
               {keep.kind !== 'idle' && keep.kind !== 'saving' && (
-                <p className="fr-keep-status" role="status">
+                <p
+                  className="fr-keep-status"
+                  role="status"
+                  data-keep-result={keep.kind === 'kept' ? 'kept' : keep.retryable ? 'retry' : 'refused'}
+                >
                   {keepStatusLine(keep, language)}
                 </p>
               )}

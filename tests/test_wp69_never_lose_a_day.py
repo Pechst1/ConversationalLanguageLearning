@@ -673,3 +673,77 @@ def test_with_the_fallback_switched_off_a_story_failure_is_the_old_honest_dead_e
     assert code == 200
     assert snapshot.status == "unavailable"
     assert snapshot.steps == []
+
+
+# ---------------------------------------------------------------------------
+# WP-138 — a begun generated serial is never handed a stranger's scene
+# ---------------------------------------------------------------------------
+
+
+def _begin_serial(db: Session, user: User, live: dict[str, Any]) -> None:
+    from app.db.models.serial import SerialThread
+    from app.services.living_story import STATE_KEY
+
+    db.add(
+        SerialThread(
+            user_id=user.id,
+            status="active",
+            world_bible={},
+            state={STATE_KEY: live},
+            news_seed={},
+        )
+    )
+    db.commit()
+
+
+@pytest.mark.parametrize("season_script", ["", "s1"])
+def test_a_begun_serial_keeps_the_honest_retry_day_not_a_stranger_scene(
+    db_session: Session,
+    enabled: None,
+    failing_story_engine: _EngineCalls,
+    monkeypatch: pytest.MonkeyPatch,
+    season_script: str,
+) -> None:
+    """The plan's item 2: a life whose generated serial is under way (with or
+    without a season enabled for *new* lives) loses no story to an unrelated
+    authored scene. Its last page needs the failed model to be answered, so the
+    day stays honestly unavailable and retryable, and nothing is written."""
+
+    monkeypatch.setattr(journey_module.settings, "ATELIER_SEASON_SCRIPT", season_script, raising=False)
+    user = make_user(db_session, cefr="B2.1")
+    _begin_serial(db_session, user, {"day_index": 4, "chapter": {"id": "c2"}})
+    service = DailyJourneyService(db_session, build_adapters(content=journey_content))
+
+    snapshot, code = service.create_journey(user, create_request())
+
+    assert failing_story_engine.count == 1
+    assert code == 200
+    assert snapshot.status == "unavailable"
+    assert snapshot.steps == []
+    assert snapshot.retry is not None and snapshot.retry.allowed is True
+    assert (snapshot.scenario is None) or snapshot.scenario.scenario_key not in _authored_keys()
+    row = db_session.get(DailyJourney, uuid.UUID(snapshot.id))
+    assert row is not None
+    assert "generation_fallback" not in (row.plan_selection or {})
+
+
+def test_a_serial_thread_not_yet_begun_still_gets_the_authored_day(
+    db_session: Session,
+    enabled: None,
+    failing_story_engine: _EngineCalls,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No story under way yet: there is nothing to break, so WP-69 still serves
+    the authored day for the band rather than lose it."""
+
+    monkeypatch.setattr(journey_module.settings, "ATELIER_SEASON_SCRIPT", "", raising=False)
+    user = make_user(db_session, cefr="A2.1")
+    _begin_serial(db_session, user, {})
+    service = DailyJourneyService(db_session, build_adapters(content=journey_content))
+
+    snapshot, code = service.create_journey(user, create_request())
+
+    assert code == 201
+    assert_playable(snapshot)
+    assert snapshot.scenario.scenario_key in _authored_keys()
+    assert snapshot.scenario.level_band == "A2"

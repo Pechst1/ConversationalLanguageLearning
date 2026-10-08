@@ -202,6 +202,8 @@ def affordable_panels(db: Session, user: Any, wanted: int) -> int:
     zone = spend_guard.learner_zone(user)
     user_id = getattr(user, "id", None)
     try:
+        if spend_guard.service_budget_reached(db):
+            return 0
         cap = spend_guard.daily_cap_usd()
         pressure = float(settings.ATELIER_PANEL_ART_TEXT_PRESSURE)
         if cap > 0 and spend_guard.spend_today_usd(db, user_id, zone=zone) >= cap * pressure:

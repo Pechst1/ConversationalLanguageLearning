@@ -4,14 +4,21 @@ from __future__ import annotations
 import base64
 import hashlib
 import mimetypes
+import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote_to_bytes, urlparse
 
 import httpx
+from loguru import logger
 
 from app.config import settings
+
+#: Every object persisted for one learner's scene lives under this prefix
+#: (``persist_payload``), which is what account deletion removes.
+SCENE_KEY_ROOT = "scenes"
 
 _CONTENT_TYPE_EXTENSIONS = {
     "image/jpeg": ".jpg",
@@ -205,7 +212,90 @@ class GraphicNovelImageStorage:
     ) -> str:
         safe_role = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in image_role.lower()).strip("-")
         role = safe_role or "panel"
-        return f"scenes/{scene_id}/{role}-{panel_index}-{digest[:16]}{extension}"
+        return f"{self.scene_prefix(scene_id)}{role}-{panel_index}-{digest[:16]}{extension}"
+
+    @staticmethod
+    def scene_prefix(scene_id: object) -> str:
+        """The key prefix under which every image of one scene is stored."""
+
+        return f"{SCENE_KEY_ROOT}/{scene_id}/"
+
+    def delete_scene_objects(self, scene_ids: Iterable[object]) -> int:
+        """Remove every stored image of the given scenes; return how many went.
+
+        Best effort and backend-agnostic: the local directory is always swept (the
+        storage mode may have changed since the art was drawn) and the S3 bucket is
+        swept whenever one is configured. Shared art (revue plates) lives under a
+        different prefix and is never touched. Failures are logged, never raised:
+        an account deletion must not fail because a bucket is unreachable.
+        """
+
+        prefixes = [self.scene_prefix(scene_id) for scene_id in scene_ids if str(scene_id or "").strip()]
+        if not prefixes:
+            return 0
+        removed = 0
+        try:
+            removed += self._delete_local_prefixes(prefixes)
+        except Exception as exc:  # noqa: BLE001 - best effort, logged
+            logger.bind(event_name="artwork_cleanup_failed", backend="local").warning(
+                "Local artwork cleanup failed: {}", exc
+            )
+        if settings.GRAPHIC_NOVEL_IMAGE_S3_BUCKET:
+            try:
+                removed += self._delete_s3_prefixes(prefixes)
+            except Exception as exc:  # noqa: BLE001 - best effort, logged
+                logger.bind(event_name="artwork_cleanup_failed", backend="s3").warning(
+                    "S3 artwork cleanup failed: {}", exc
+                )
+        return removed
+
+    def _delete_local_prefixes(self, prefixes: list[str]) -> int:
+        base_dir = Path(settings.GRAPHIC_NOVEL_LOCAL_IMAGE_DIR).resolve()
+        if not base_dir.is_dir():
+            return 0
+        scenes_root = base_dir / SCENE_KEY_ROOT
+        removed = 0
+        for prefix in prefixes:
+            target = (base_dir / prefix).resolve()
+            # A scene id is a UUID, but never let a key escape the scenes directory
+            # (shared art such as revue plates lives beside it).
+            if scenes_root not in target.parents or not target.is_dir():
+                continue
+            removed += sum(1 for item in target.rglob("*") if item.is_file())
+            shutil.rmtree(target)
+        return removed
+
+    def _delete_s3_prefixes(self, prefixes: list[str]) -> int:
+        bucket = settings.GRAPHIC_NOVEL_IMAGE_S3_BUCKET
+        client = self._s3_client()
+        removed = 0
+        for prefix in prefixes:
+            keys: list[str] = []
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                keys.extend(item["Key"] for item in page.get("Contents", []) or [])
+            for start in range(0, len(keys), 1000):  # the DeleteObjects batch limit
+                batch = keys[start : start + 1000]
+                client.delete_objects(
+                    Bucket=bucket,
+                    Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
+                )
+                removed += len(batch)
+        return removed
+
+    def _s3_client(self) -> Any:
+        try:
+            import boto3  # type: ignore[import-not-found]
+        except ImportError as exc:  # pragma: no cover - optional production dependency
+            raise RuntimeError("boto3 is required when GRAPHIC_NOVEL_IMAGE_STORAGE=s3") from exc
+
+        return boto3.client(
+            "s3",
+            region_name=settings.GRAPHIC_NOVEL_IMAGE_S3_REGION,
+            endpoint_url=settings.GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL,
+            aws_access_key_id=settings.GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY,
+        )
 
     def _store_local(self, *, key: str, image: DecodedImage) -> str:
         base_dir = Path(settings.GRAPHIC_NOVEL_LOCAL_IMAGE_DIR)
@@ -219,18 +309,7 @@ class GraphicNovelImageStorage:
         bucket = settings.GRAPHIC_NOVEL_IMAGE_S3_BUCKET
         if not bucket:
             raise RuntimeError("GRAPHIC_NOVEL_IMAGE_S3_BUCKET is required when image storage is s3")
-        try:
-            import boto3  # type: ignore[import-not-found]
-        except ImportError as exc:  # pragma: no cover - optional production dependency
-            raise RuntimeError("boto3 is required when GRAPHIC_NOVEL_IMAGE_STORAGE=s3") from exc
-
-        client = boto3.client(
-            "s3",
-            region_name=settings.GRAPHIC_NOVEL_IMAGE_S3_REGION,
-            endpoint_url=settings.GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL,
-            aws_access_key_id=settings.GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY,
-        )
+        client = self._s3_client()
         put_kwargs: dict[str, Any] = {
             "Bucket": bucket,
             "Key": key,

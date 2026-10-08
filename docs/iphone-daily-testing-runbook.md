@@ -25,9 +25,23 @@ included.
    worker (with beat), Postgres, Redis. The API also installs the curated grammar
    catalog, approved exercise blueprints, and starter vocabulary idempotently;
    a fresh database therefore has usable learning content before the first login.
-3. 🧍 When prompted, paste the one required provider secret (`OPENAI_API_KEY`
-   — copy it from your local `.env`). The worker receives the same secret from
-   the API service, so it is entered only once. Anthropic remains optional.
+3. 🧍 When prompted, fill the dashboard values (`sync: false` in the
+   blueprint). The API refuses to start in production without the starred ones:
+   - `OPENAI_API_KEY`\* — copy it from your local `.env`.
+   - `SMTP_HOST`\*, `SMTP_FROM_EMAIL`\*, `SMTP_USERNAME`, `SMTP_PASSWORD` — any
+     relay (Resend, Mailgun, your mailbox's SMTP); password reset emails a code.
+   - `ATELIER_DAILY_JOURNEY_COHORT`\* — your own email first (who gets the
+     daily journey; `*` everyone, `none` nobody on purpose).
+   - `REGISTRATION_ALLOWED_EMAILS` — your own email, plus the study accounts
+     later. Sign-up is closed (`REGISTRATION_OPEN=false`), so an address not
+     listed here cannot create an account; the cohort is not an invite gate.
+   - `LEGAL_CONTACT_EMAIL` — the address the privacy policy and the terms
+     print (the API refuses to start without it). Export the same address as
+     `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL` before `fastlane archive`.
+   - Optional: `SENTRY_DSN`, the `APNS_*` key, the `GRAPHIC_NOVEL_IMAGE_*`
+     S3 storage (needed before panel art can draw).
+   The worker inherits the secrets from the API service, so each is entered
+   only once. Anthropic remains optional.
 4. Note the API URL it assigns, e.g. `https://atelier-api.onrender.com`.
    Check `https://<that-url>/health` returns `{"status":"ok"}` and
    `https://<that-url>/ready` returns `{"status":"ready"}`.
@@ -35,14 +49,11 @@ included.
    images off; deterministic panels are used during the first test so image
    costs and database growth stay bounded. Configure durable S3-compatible
    image storage before enabling `GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED`.
-   Check Render's current price summary before confirming. The blueprint starts with
-   `APP_ENV=staging` so you don't need SMTP yet; **before the pilot**, set
-   `APP_ENV=production` and fill the `SMTP_*` vars (any relay — e.g. Resend,
-   Mailgun, or your own mailbox's SMTP) so password reset works and the
-   production guards engage. `PASSWORD_RESET_BASE_URL` must point to a public
-   web reset page; the API hostname itself does not serve that page. This is not
-   needed for the single-device staging test, but it is required before inviting
-   external testers (or replace it with a native universal/deep-link flow).
+   Check Render's current price summary before confirming. The blueprint runs
+   `APP_ENV=production` from the first deploy, so the production guards are on
+   and SMTP is required (step 3). Password reset emails a six-digit code typed
+   in the app; `PASSWORD_RESET_BASE_URL` stays unset until a public web reset
+   page exists (the API hostname does not serve one), and then adds a link.
 
 ### Option B — any VPS with Docker (Hetzner/DigitalOcean, ~$6/mo + domain)
 
@@ -53,13 +64,16 @@ included.
    ```bash
    git clone https://github.com/Pechst1/ConversationalLanguageLearning.git && cd ConversationalLanguageLearning
    cp .env.prod.example .env.prod   # 🧍 fill every <...> (secrets, keys)
-   docker compose -f docker/docker-compose.prod.yml pull   # image comes from GHCR
-   docker compose -f docker/docker-compose.prod.yml up -d  # api, worker(+beat), db, redis
+   export APP_IMAGE=ghcr.io/pechst1/conversational-language-learning:sha-<tested-commit>
+   bash scripts/production_compose.sh pull    # the tested image from GHCR
+   bash scripts/production_compose.sh up -d   # api, worker(+beat), db, redis
    ```
-   The GHCR image is published automatically by
-   `.github/workflows/publish-image.yml` on every push to main (first run:
-   🧍 make sure the repo's package visibility allows your server to pull, or
-   `docker login ghcr.io` with a token).
+   `.env.prod.example` carries the same values as `render.yaml`; the API
+   listens on `127.0.0.1:8000` only, behind the TLS proxy. The GHCR image is
+   published by CI's publish job (`.github/workflows/publish-image.yml`) after
+   every check passed on a push to main, tagged `sha-<full commit>`; the wrapper
+   refuses `latest` (first run: 🧍 make sure the repo's package visibility
+   allows your server to pull, or `docker login ghcr.io` with a token).
 
 ### Seed your account and data (either option)
 
@@ -69,7 +83,9 @@ From your Mac, against the hosted API:
 python scripts/import_anki_csv.py --user-email <you> --csv Anki_cards___2025-11-01T13-09-36.csv \
   # (run with DATABASE_URL pointed at the hosted Postgres, or use the API import endpoint)
 ```
-Simplest: sign up in the app once it's on your phone, then run the Anki import
+Sign-up is closed to everyone not in `REGISTRATION_ALLOWED_EMAILS`, so put
+your email there first. Simplest: sign up in the app once it's on your phone,
+then run the Anki import
 with `DATABASE_URL` set to the hosted database's external connection string.
 
 For the pilot owner account, set `users.role = 'admin'` once in the hosted
@@ -107,8 +123,10 @@ exercise sets. Keep tester accounts on the default `user` role.
    - Signing & Capabilities → Team: your Apple ID (a free account works).
    - Add the **Push Notifications** capability. In the Apple Developer portal,
      create an APNs authentication key (`.p8`) and put its team ID, key ID, and
-     full key into the backend `APNS_*` environment variables. Use
-     `APNS_USE_SANDBOX=true` for this direct Xcode build.
+     full key into the backend `APNS_*` environment variables. The blueprint
+     defaults to production APNs (`APNS_USE_SANDBOX=false`, what TestFlight
+     needs); for this direct Xcode build set it to `true` on both the API and
+     the worker, and back to `false` before TestFlight.
    - Plug in your iPhone (or use WiFi pairing), select it as the run target, ▶ Run.
    - First run on device: on the phone, Settings → General → VPN & Device
      Management → trust your developer certificate.
@@ -132,12 +150,13 @@ exercise sets. Keep tester accounts on the default `user` role.
 3. In Xcode: Product → Archive → Distribute → TestFlight (internal testers
    first — up to 100, instant; external testers need a light Beta review).
    Rebuild with `NEXT_PUBLIC_NATIVE_PUSH_ENABLED=true` and
-   `NEXT_PUBLIC_APNS_ENVIRONMENT=production`, then set the API and
-   worker `APNS_USE_SANDBOX=false`; TestFlight device tokens use production
-   APNs.
-4. Before inviting testers, flip the backend to `APP_ENV=production`
-   (SMTP configured, `AUTO_CREATE_USERS_ON_LOGIN=false` — the API enforces
-   both at boot) and re-check `docs/audit-2026-07-18-status-and-work-packages.md`
+   `NEXT_PUBLIC_APNS_ENVIRONMENT=production`, and confirm the API and
+   worker have `APNS_USE_SANDBOX=false` (the blueprint default); TestFlight
+   device tokens use production APNs.
+4. Before inviting testers, add their emails to `REGISTRATION_ALLOWED_EMAILS`
+   (sign-up) and `ATELIER_DAILY_JOURNEY_COHORT` (the journey), confirm the
+   backend runs `APP_ENV=production` (SMTP configured,
+   `AUTO_CREATE_USERS_ON_LOGIN=false` — the API enforces both at boot) and re-check `docs/audit-2026-07-18-status-and-work-packages.md`
    for open pilot-blocking items. Open **Settings → Pilot cost & quality** and
    confirm no weekly learner row exceeds
    `PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD` and no reported exercise set
@@ -169,10 +188,11 @@ exercise sets. Keep tester accounts on the default `user` role.
 
 ## Your action list (in order)
 
-1. Render account + blueprint deploy + paste the OpenAI API key (~20 min) — or the
-   VPS path if you prefer owning the box.
+1. Render account + blueprint deploy + the dashboard values of Phase 1 step 3
+   (OpenAI key, SMTP, cohort, registration allowlist; ~20 min) — or the VPS
+   path if you prefer owning the box.
 2. `NEXT_PUBLIC_API_BASE_URL=https://… npm run cap:sync:ios` then Xcode ▶ onto
    your iPhone (~15 min).
 3. Sign up in the app, import your Anki deck, start the daily loop.
-4. When pilot-ready: Apple Developer enrollment → TestFlight; backend to
-   `APP_ENV=production` with SMTP.
+4. When pilot-ready: Apple Developer enrollment → TestFlight; add the testers
+   to the registration allowlist and the cohort.

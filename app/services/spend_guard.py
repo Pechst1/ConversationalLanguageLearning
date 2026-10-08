@@ -114,21 +114,30 @@ def art_spend_today_usd(
     return round(float(total or 0.0), 6)
 
 
+_EVERYONE = object()
+
+
 def spend_today_usd(
     db: Session, user_id: Any, *, now: datetime | None = None, zone: ZoneInfo | None = None
 ) -> float:
-    """What this learner has cost since their local midnight, across both text ledgers."""
+    """What this learner has cost since their local midnight, across both text ledgers.
+
+    ``user_id=_EVERYONE`` (see :func:`service_spend_today_usd`) sums every learner.
+    """
 
     start, end = day_bounds(now, zone)
+    everyone = user_id is _EVERYONE
+    event_filters = [
+        PilotEvent.occurred_at >= start,
+        PilotEvent.occurred_at < end,
+        PilotEvent.cost_usd > 0,
+        PilotEvent.event_type.not_in(ART_EVENT_TYPES),
+    ]
+    if not everyone:
+        event_filters.append(PilotEvent.user_id == user_id)
     rows = db.execute(
         select(PilotEvent.event_type, func.coalesce(func.sum(PilotEvent.cost_usd), 0.0))
-        .where(
-            PilotEvent.user_id == user_id,
-            PilotEvent.occurred_at >= start,
-            PilotEvent.occurred_at < end,
-            PilotEvent.cost_usd > 0,
-            PilotEvent.event_type.not_in(ART_EVENT_TYPES),
-        )
+        .where(*event_filters)
         .group_by(PilotEvent.event_type)
     ).all()
     scene_attributed = 0.0
@@ -140,13 +149,10 @@ def spend_today_usd(
             other += float(amount or 0.0)
 
     scenes_total = 0.0
-    payloads = db.execute(
-        select(GraphicNovelScene.script_payload).where(
-            GraphicNovelScene.user_id == user_id,
-            GraphicNovelScene.created_at >= start,
-            GraphicNovelScene.created_at < end,
-        )
-    ).scalars()
+    scene_filters = [GraphicNovelScene.created_at >= start, GraphicNovelScene.created_at < end]
+    if not everyone:
+        scene_filters.append(GraphicNovelScene.user_id == user_id)
+    payloads = db.execute(select(GraphicNovelScene.script_payload).where(*scene_filters)).scalars()
     for payload in payloads:
         cost = payload.get("estimated_cost") if isinstance(payload, dict) else None
         if isinstance(cost, dict):
@@ -163,6 +169,44 @@ def spend_today_usd(
     return round(other + max(scene_attributed, scenes_total), 6)
 
 
+def service_daily_cap_usd() -> float:
+    value = getattr(settings, "SERVICE_DAILY_SPEND_CAP_USD", None)
+    return 0.0 if value is None else max(0.0, float(value))
+
+
+def service_spend_today_usd(db: Session, *, now: datetime | None = None) -> float:
+    """WP-138: what every learner together has cost since UTC midnight, art included.
+
+    Scene estimates are de-duplicated against the scene-attributed rows across
+    the whole service, which can only under- or exactly count the per-learner
+    sums; it is a ceiling on the bill, not an invoice.
+    """
+
+    text = spend_today_usd(db, _EVERYONE, now=now)
+    start, end = day_bounds(now)
+    art = db.scalar(
+        select(func.coalesce(func.sum(PilotEvent.cost_usd), 0.0)).where(
+            PilotEvent.event_type.in_(ART_EVENT_TYPES),
+            PilotEvent.occurred_at >= start,
+            PilotEvent.occurred_at < end,
+        )
+    )
+    return round(text + float(art or 0.0), 6)
+
+
+def service_budget_reached(db: Session, *, now: datetime | None = None) -> bool:
+    """True once the service-wide cap is met. A failed read never stops anyone."""
+
+    cap = service_daily_cap_usd()
+    if cap <= 0:
+        return False
+    try:
+        return service_spend_today_usd(db, now=now) >= cap
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Service spend check skipped: {}", exc)
+        return False
+
+
 def enforce_daily_budget(
     db: Session, user: Any, *, now: datetime | None = None, open_day: bool = False
 ) -> None:
@@ -176,6 +220,15 @@ def enforce_daily_budget(
     the learner their request, so it is logged and the call proceeds.
     """
 
+    if service_budget_reached(db, now=now):
+        logger.error("Service-wide daily spend cap reached: paid routes refused until UTC midnight")
+        from app.core.rate_limit import too_many_requests
+
+        raise too_many_requests(
+            DAILY_BUDGET_REACHED_CODE,
+            "That is everything for today. Your practice continues tomorrow.",
+            seconds_until_reset(now),
+        )
     cap = daily_cap_usd()
     user_id = getattr(user, "id", None)
     if cap <= 0 or user_id is None:
@@ -214,5 +267,8 @@ __all__ = [
     "learner_zone",
     "open_day_ceiling_usd",
     "seconds_until_reset",
+    "service_budget_reached",
+    "service_daily_cap_usd",
+    "service_spend_today_usd",
     "spend_today_usd",
 ]
