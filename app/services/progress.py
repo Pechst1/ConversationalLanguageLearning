@@ -902,6 +902,98 @@ class ProgressService:
                 break
         return selected
 
+    @staticmethod
+    def _with_review_reason(item: dict[str, Any], language: str) -> dict[str, Any]:
+        from app.services.recommendation_reasons import recommendation_reason
+
+        return {
+            **item,
+            "recommendation_reason": recommendation_reason(
+                "review",
+                language=language,
+                bucket=item.get("bucket"),
+                due_at=item.get("due_at"),
+                lapses=item.get("lapses"),
+                retrievability=item.get("retrievability"),
+                anchor=item.get("anchor"),
+            ),
+        }
+
+    def vocabulary_due_context_from_batch(
+        self,
+        *,
+        user: User,
+        items: list[dict[str, Any]],
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """WP-154: the due-context payload for cards already dealt, in their order.
+
+        ``items`` are a stored drill batch's remaining cards
+        (:mod:`app.services.drill_batch`): ``{"word_id", "list", "bucket"}``. Each
+        card is serialized as the deal serialized it — a new word without
+        progress, a fragile one without the learner's language — so the deck a
+        reload paints is the deck that was dealt, less what was answered.
+        """
+
+        from app.services.chrome_language import user_chrome_language
+        from app.services.drill_batch import PAYLOAD_LISTS
+
+        now = now or datetime.now(UTC)
+        reason_language = user_chrome_language(user)
+        ids = [int(item["word_id"]) for item in items]
+        words = (
+            {int(word.id): word for word in self.db.scalars(select(VocabularyWord).where(VocabularyWord.id.in_(ids)))}
+            if ids
+            else {}
+        )
+        progress = (
+            {
+                int(row.word_id): row
+                for row in self.db.scalars(
+                    select(UserVocabularyProgress).where(
+                        UserVocabularyProgress.user_id == user.id,
+                        UserVocabularyProgress.word_id.in_(ids),
+                    )
+                )
+            }
+            if ids
+            else {}
+        )
+        lists: dict[str, list[dict[str, Any]]] = {name: [] for name in PAYLOAD_LISTS}
+        for item in items:
+            word_id = int(item["word_id"])
+            word = words.get(word_id)
+            name = str(item.get("list") or "")
+            if word is None or name not in lists:
+                continue
+            bucket = str(item.get("bucket") or "new")
+            learner = (
+                {}
+                if bucket == "fragile"
+                else {"native_language": user.native_language, "level": getattr(user, "proficiency_level", None)}
+            )
+            serialized = self._serialize_vocabulary_recommendation(
+                word=word,
+                progress=None if name == "new_words" else progress.get(word_id),
+                bucket=bucket,
+                now=now,
+                **learner,
+            )
+            lists[name].append(self._with_review_reason(serialized, reason_language))
+        return {
+            "summary": {
+                "due": len(lists["due_words"]),
+                "due_total": len(lists["due_words"]),
+                "fragile": len(lists["fragile_words"]),
+                "new": len(lists["new_words"]),
+                "topic_compatible": len(lists["topic_compatible_words"]),
+                "linked": len(lists["linked_words"]),
+                "total": sum(len(values) for values in lists.values()),
+            },
+            **lists,
+            "algorithm": "fsrs_retrievability_v1",
+        }
+
     def get_vocabulary_due_context(
         self,
         *,
@@ -932,23 +1024,11 @@ class ProgressService:
             exclude_new_word_ids=exclude_new_word_ids,
         )
         from app.services.chrome_language import user_chrome_language
-        from app.services.recommendation_reasons import recommendation_reason
 
         reason_language = user_chrome_language(user)
 
         def with_reason(item: dict[str, Any]) -> dict[str, Any]:
-            return {
-                **item,
-                "recommendation_reason": recommendation_reason(
-                    "review",
-                    language=reason_language,
-                    bucket=item.get("bucket"),
-                    due_at=item.get("due_at"),
-                    lapses=item.get("lapses"),
-                    retrievability=item.get("retrievability"),
-                    anchor=item.get("anchor"),
-                ),
-            }
+            return self._with_review_reason(item, reason_language)
 
         due_words = [with_reason(item) for item in recommendations["items"] if item["bucket"] == "due"][:due_limit]
         fragile_words = [
