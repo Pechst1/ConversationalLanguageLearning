@@ -109,6 +109,9 @@ def test_art_is_not_counted_against_the_text_cap(db_session: Session) -> None:
 @pytest.fixture
 def art_on(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_ENABLED", True)
+    # WP-116 phase 6: drawn is the default and draws the cast in the client; per-panel
+    # drawing is the painted set's pipeline, so these tests pin painted.
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", "painted")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_COST_USD_PER_PANEL", 0.06)
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_DAILY_ALLOWANCE_USD", 0.25)
