@@ -83,7 +83,11 @@ export class LearnerWalk {
       // screen keeps the check.
       if (kind !== 'settings') {
         const eng = englishWords(s.nonFrText);
-        this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${s.nonFrText.slice(0, 120)}»`, w);
+        // The text around the first English word, not the page's opening chrome: the
+        // detail has to name the string to fix.
+        const at = eng.length >= 3 ? s.nonFrText.toLowerCase().search(new RegExp(`\\b(${eng.join('|')})\\b`)) : 0;
+        const around = s.nonFrText.slice(Math.max(0, at - 60), Math.max(0, at - 60) + 240);
+        this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${around}»`, w);
       }
       const englishLabels = /present condition|future result|imperative result|background\/habit|bounded event|article changes/i;
       this.findings.check('b1-classification-labels-are-french', !englishLabels.test(s.text), 'Classification labels and corrections must be French, including inside lang="fr".', w);
@@ -448,15 +452,23 @@ export class LearnerWalk {
       await words.nth(i).click().catch(() => {});
       const keep = page.locator('.fr-keep-btn');
       const offered = await keep.waitFor({ timeout: 4000 }).then(() => true, () => false);
+      let kept = false;
       if (offered) {
+        // Kept means the server stored it: a refused keep (422, no gloss in the
+        // learner's language) is not a kept word, and the next word is tried.
+        const stored = page
+          .waitForResponse((r) => r.url().includes('/vocabulary/keep') && r.request().method() === 'POST', { timeout: 8000 })
+          .then((r) => r.ok(), () => false);
         await keep.click();
+        kept = await stored;
+        if (kept) (this.keptWords ||= []).push(text);
         await sleep(1200);
         await this.shoot('kept-word');
       }
       await page.keyboard.press('Escape').catch(() => {});
       await page.locator('.fr-scrim').click({ timeout: 1000 }).catch(() => {});
       await sleep(300);
-      if (offered) return true;
+      if (kept) return true;
     }
     return false;
   }

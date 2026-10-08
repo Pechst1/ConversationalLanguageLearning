@@ -116,6 +116,17 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       encoding: 'utf8',
     });
     if (mig.status !== 0) throw new Error(`alembic upgrade head failed:\n${mig.stderr.slice(-2000)}`);
+    // The core word list (A1 → C1), as production's entrypoint syncs it after every
+    // migration (docker/entrypoint.sh). Without it the catalogue held only the season's
+    // own dozen words: almost every tapped word had no lookup and no «Garder», and the
+    // day-7 drill had no kept word to bring back on its line (a flake that depended on
+    // whether the day's lines happened to use one of those words).
+    const lex = spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
+      cwd: REPO_ROOT,
+      env: { ...process.env, DATABASE_URL: dbUrl },
+      encoding: 'utf8',
+    });
+    if (lex.status !== 0) throw new Error(`core lexicon sync failed:\n${lex.stderr.slice(-2000)}`);
     stack.migrateSeconds = (Date.now() - t0) / 1000;
 
     const web = `http://localhost:${webPort}`;

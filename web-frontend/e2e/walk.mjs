@@ -124,7 +124,22 @@ async function playDayInner(l, day) {
     }
     await walk.visit('/vocabulary/review', 'drill');
     const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);
-    findings.check('drill-brings-a-kept-word-back-on-its-line', rung === 'scene', `the drill's first card is on the «${rung}» rung`, walk.where({ kind: 'drill' }));
+    const kept = walk.keptWords || [];
+    const first = await walk.page.locator('.lx-card .lx-card__word').first().innerText().catch(() => '');
+    // A word is kept only with a meaning in the learner's own language, and the core
+    // lexicon glosses in English and German: a French-native walker has nothing to
+    // keep, and «Garder» is not offered to them.
+    if (walk.lang !== 'fr') {
+      findings.check('walk-keeps-a-word', kept.length > 0, `no word kept from the story in ${day} days`, walk.where({ kind: 'drill' }));
+    }
+    if (kept.length) {
+      findings.check(
+        'drill-brings-a-kept-word-back-on-its-line',
+        rung === 'scene',
+        `the drill's first card («${first.replace(/\s+/g, ' ').trim().slice(0, 60)}») is on the «${rung}» rung; kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`,
+        walk.where({ kind: 'drill' }),
+      );
+    }
     await walk.visit('/settings?section=practice', 'settings');
     const caps = walk.page.locator('#st-reviews-label');
     const shown = await caps.count().then((n) => n > 0, () => false);
