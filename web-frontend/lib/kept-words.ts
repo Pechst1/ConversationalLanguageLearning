@@ -51,7 +51,16 @@ export function keepCopy(language?: ControlLanguage | null): KeepCopy {
 }
 
 /** Offer «Garder» only for a dictionary entry with its sentence. */
-export function canKeep(glossKind: string, sentence: string | null | undefined): boolean {
+export function canKeep(
+  glossKind: string,
+  sentence: string | null | undefined,
+  glossLanguage?: string | null,
+  learnerLanguage?: string | null,
+): boolean {
+  // The server keeps a word only with a meaning in the learner's own language
+  // (`no_gloss_in_learner_language`); a fallback gloss in another language is shown
+  // but not offered to keep — the walk saw 38 «Garder» taps refused in one run.
+  if (glossLanguage && learnerLanguage && glossLanguage !== learnerLanguage) return false;
   return glossKind === 'gloss' && Boolean((sentence || '').trim());
 }
 

@@ -17,6 +17,7 @@ import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { learnerGloss } from '@/lib/glosses';
 import { canKeep, keepCopy, keepRefusalMessage, keepStatusLine, type KeepState } from '@/lib/kept-words';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -44,7 +45,7 @@ export type WordHelpRequest = {
 
 type GlossState =
   | { kind: 'loading' }
-  | { kind: 'gloss'; text: string }
+  | { kind: 'gloss'; text: string; language: string | null }
   | { kind: 'sentence'; text: string }
   | { kind: 'none' };
 
@@ -63,6 +64,8 @@ export function WordHelpSheet({
 }) {
   const t = readerCopy(language);
   const keepT = keepCopy(language);
+  // The learner's own language (not the chrome's): the one a kept word's meaning must be in.
+  const learnerLanguage = useLearnerLanguage();
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -144,7 +147,8 @@ export function WordHelpSheet({
         const text = learnerGloss(entry as any, '');
         if (!alive) return;
         if (text) {
-          setGloss({ kind: 'gloss', text });
+          const glossLanguage = typeof entry?.translation_language === 'string' ? entry.translation_language : null;
+          setGloss({ kind: 'gloss', text, language: glossLanguage });
           return;
         }
       } catch {
@@ -249,7 +253,7 @@ export function WordHelpSheet({
               {sentenceEn && <p className="fr-quote-en">{sentenceEn}</p>}
             </blockquote>
           )}
-          {canKeep(gloss.kind, sentence) && (
+          {canKeep(gloss.kind, sentence, gloss.kind === 'gloss' ? gloss.language : null, learnerLanguage) && (
             <div className="fr-keep">
               {keep.kind === 'idle' || keep.kind === 'saving' ? (
                 <button
