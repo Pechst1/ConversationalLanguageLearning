@@ -27,13 +27,16 @@ def test_notification_subscribe_requires_authentication(client: TestClient) -> N
     assert response.status_code == 401
 
 
-def test_vapid_public_key_requires_configuration(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "VAPID_PUBLIC_KEY", None)
+def test_vapid_public_key_is_null_without_configuration(client: TestClient, monkeypatch) -> None:
+    """No VAPID keys is a supported deployment (web push is not offered), not a 5xx."""
 
-    response = client.get("/api/v1/notifications/vapid-public-key")
+    for unset in (None, "", "  "):
+        monkeypatch.setattr(settings, "VAPID_PUBLIC_KEY", unset)
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Push notifications are not configured."
+        response = client.get("/api/v1/notifications/vapid-public-key")
+
+        assert response.status_code == 200
+        assert response.json() == {"publicKey": None}
 
 
 def test_vapid_public_key_returns_configured_key(client: TestClient, monkeypatch) -> None:
