@@ -54,3 +54,34 @@ def test_two_first_requests_seed_the_catalogue_once() -> None:  # pragma: no cov
         engine.dispose()
         with admin.begin() as conn:
             conn.exec_driver_sql(f"DROP SCHEMA {schema} CASCADE")
+
+
+@pytest.mark.skipif(not os.environ.get("WP69_PG_URL"), reason="set WP69_PG_URL to a throwaway PostgreSQL database")
+def test_a_complete_catalogue_never_waits_for_the_seed_lock() -> None:  # pragma: no cover - opt-in
+    """The 7-day walk of 2026-10-08 lost day 3: every call took the advisory lock, so the
+    five lives' day generations queued behind each other. Once the catalogue is complete,
+    ensure_catalog must not touch the lock, even while another transaction holds it."""
+    from sqlalchemy import text
+
+    from app.services.grammar_catalog import CATALOG_SEED_LOCK_KEY
+
+    schema = f"seed_lock_{uuid.uuid4().hex[:8]}"
+    admin = create_engine(os.environ["WP69_PG_URL"])
+    with admin.begin() as conn:
+        conn.exec_driver_sql(f"CREATE SCHEMA {schema}")
+    engine = create_engine(os.environ["WP69_PG_URL"], connect_args={"options": f"-csearch_path={schema}"})
+    Base.metadata.create_all(engine)
+    try:
+        with Session(engine) as db:
+            FrenchCoreGrammarCatalog(db).ensure_catalog()
+            db.commit()
+        with Session(engine) as holder, Session(engine) as db:
+            holder.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": CATALOG_SEED_LOCK_KEY})
+            db.execute(text("SET LOCAL statement_timeout = 2000"))
+            concepts = FrenchCoreGrammarCatalog(db).ensure_catalog()  # raises QueryCanceled if it waits
+            assert len(concepts) == len(FrenchCoreGrammarCatalog(db).rows())
+            holder.rollback()
+    finally:
+        engine.dispose()
+        with admin.begin() as conn:
+            conn.exec_driver_sql(f"DROP SCHEMA {schema} CASCADE")
