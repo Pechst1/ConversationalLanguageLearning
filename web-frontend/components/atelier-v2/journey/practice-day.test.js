@@ -278,8 +278,15 @@ function cards(node, found = []) {
   if (node.props) cards(node.props.children, found);
   return found;
 }
-const settle = async () => {
-  for (let turn = 0; turn < 20; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+// A keyed pairing is checked through a real `crypto.subtle` digest, which resolves
+// off the thread pool: 20 immediates were not always enough on a loaded CI runner
+// (8 October 2026, «posted once» saw 0). Yield timer ticks, and when the caller
+// says what it waits for, stop as soon as that holds.
+const settle = async (until = () => false) => {
+  for (let turn = 0; turn < 400; turn += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    if (turn >= 2 && until()) return;
+  }
 };
 const tapText = (view, text) => {
   const card = cards(view.tree).find((node) => node.props.children === text);
@@ -309,6 +316,7 @@ test('a keyed grid colours each pair, lets a wrong one go, and posts every pairi
     // eslint-disable-next-line no-await-in-loop
     await settle();
   }
+  await settle(() => posted.length === 1);
   assert.equal(posted.length, 1, 'posted once, when the last pair lands');
   assert.deepEqual(posted[0].pairs, ['f1', 'n3', 'f1', 'n1', 'f2', 'n2', 'f3', 'n3', 'f4', 'n4']);
   assert.equal(posted[0].clean, false, 'a slip waits for the server');
