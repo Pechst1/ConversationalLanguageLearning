@@ -79,7 +79,8 @@ export function CastPortrait({ characterId, name, mood = 'neutral', size = 'md',
       style={style}
     >
       {drawn ? (
-        <CastFace seeds={[characterId, name]} mood={mood} size={px} mouth={mouth} />
+        // WP-116 phase 6: the drawn face keeps the painted one's alt («Augustin, pleased»).
+        <CastFace seeds={[characterId, name]} mood={mood} size={px} mouth={mouth} label={alt} />
       ) : src && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimiser
         <img

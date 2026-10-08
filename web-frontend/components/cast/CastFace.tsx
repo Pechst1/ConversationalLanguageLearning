@@ -25,6 +25,7 @@ export function CastFace({
   size,
   still = false,
   mouth = 'auto',
+  label = '',
 }: {
   seeds: unknown[];
   mood?: PortraitMood | 'surprised';
@@ -32,6 +33,8 @@ export function CastFace({
   still?: boolean;
   /** WP-116 phase 4: the mouth shape while the line is spoken. */
   mouth?: Viseme | 'auto';
+  /** Empty (the default) marks the face decorative; otherwise it is an image named so («Augustin, pleased»). */
+  label?: string;
 }) {
   const id = drawnFaceId(...seeds);
   if (!id) return null;
@@ -44,7 +47,7 @@ export function CastFace({
       variant={castVariant(id) ?? undefined}
       still={still}
       mouth={mouth}
-      label=""
+      label={label}
       className="cast-face"
     />
   );
