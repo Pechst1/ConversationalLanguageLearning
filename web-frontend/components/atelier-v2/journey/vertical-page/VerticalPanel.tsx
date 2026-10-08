@@ -40,7 +40,7 @@ import {
   type Size,
 } from './page-geometry';
 import {
-  revealDone,
+  panelComplete,
   revealedChars,
   revealInitial,
   revealModeName,
@@ -114,6 +114,16 @@ export function panelEntries(stage: ReaderPanelStage, head: { eyebrow?: string; 
   return entries;
 }
 
+/**
+ * What the reader may ask of the panel on screen (the visual-novel rule): is
+ * every line out yet, and if not, show them all. The reader's Next (button,
+ * ArrowRight, swipe) first completes a panel still arriving, then advances.
+ */
+export type VerticalPanelControl = {
+  isComplete: () => boolean;
+  revealAll: () => void;
+};
+
 export function VerticalPanel({
   stage,
   showTranslation,
@@ -122,6 +132,7 @@ export function VerticalPanel({
   marksFor,
   head = null,
   topInset = 0,
+  control,
   t,
 }: {
   stage: ReaderPanelStage;
@@ -133,6 +144,8 @@ export function VerticalPanel({
   head?: { eyebrow?: string; title: string } | null;
   /** Room kept at the top for the reader's state chip («Déjà lu», «À vous»). */
   topInset?: number;
+  /** The reader's handle on this panel (see `VerticalPanelControl`). */
+  control?: React.MutableRefObject<VerticalPanelControl | null>;
   t: ReaderCopy;
 }) {
   const drawn = useArtSet() === 'drawn' && Boolean(stage.plateUrl);
@@ -340,13 +353,33 @@ export function VerticalPanel({
     [],
   );
 
-  const showAll = useCallback((event: React.MouseEvent) => {
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('button, a, input, textarea, select, [data-roving-line]')) return;
+  // Everything at once: every line, every word. A line being said keeps
+  // sounding; no later line is started (`autoStopped`).
+  const [allOut, setAllOut] = useState(false);
+  const revealAll = useCallback(() => {
     autoStopped.current = true;
+    setAllOut(true);
+    setChars(null);
     dispatch({ type: 'all' });
     setDriving(Number.MAX_SAFE_INTEGER);
   }, []);
+  const showAll = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, a, input, textarea, select, [data-roving-line]')) return;
+    revealAll();
+  }, [revealAll]);
+
+  // The reader asks through `control`; it reads this render's state.
+  const complete = panelComplete({ plan, state: reveal, total, chars, allOut });
+  const completeRef = useRef(complete);
+  completeRef.current = complete;
+  useEffect(() => {
+    if (!control) return undefined;
+    control.current = { isComplete: () => completeRef.current, revealAll };
+    return () => {
+      if (control.current?.revealAll === revealAll) control.current = null;
+    };
+  }, [control, revealAll]);
 
   // ---- the speaker's mouth follows the voice ----------------------------------
   const heard = voice ? stage.lines.find((line) => !line.you && (line.audioKey || line.key) === voice.speakingKey) ?? null : null;
@@ -360,7 +393,7 @@ export function VerticalPanel({
 
   const lineVisible = (entry: Entry) => entry.kind === 'caption' || entry.order < shownCount;
   const lineChars = (entry: Entry) =>
-    entry.kind !== 'caption' && plan.words && chars && chars.index === entry.order && reveal.speaking === entry.order ? chars.count : null;
+    !allOut && entry.kind !== 'caption' && plan.words && chars && chars.index === entry.order && reveal.speaking === entry.order ? chars.count : null;
 
   const captionBody = (entry: Extract<Entry, { kind: 'caption' }>) => {
     if (entry.role === 'head' && head) {
