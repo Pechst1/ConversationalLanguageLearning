@@ -71,9 +71,7 @@ export function TappableFrench({
   });
   const hidden = (index: number) =>
     revealChars !== null && revealChars !== undefined && starts[index] > revealChars ? '' : undefined;
-  return (
-    <>
-      {tokens.map((token, index) =>
+  const render = (token: (typeof tokens)[number], index: number) =>
         token.word && !disabled ? (
           <button
             key={token.key}
@@ -92,10 +90,46 @@ export function TappableFrench({
           <span key={token.key} data-mark={token.marked ? 'rule' : undefined} data-unrevealed={hidden(index)}>
             {token.text}
           </span>
+        );
+  // WP-144b: an elided form never ends a line alone: «d’» + «Odile» (and l’, qu’,
+  // j’, n’, s’, c’, m’, t’, jusqu’, lorsqu’, puisqu’) are kept on one line.
+  const groups = elisionGroups(tokens);
+  return (
+    <>
+      {groups.map((group) =>
+        group.length === 1 ? (
+          render(tokens[group[0]], group[0])
+        ) : (
+          <span key={`${tokens[group[0]].key}-el`} className="fr-elision" style={{ whiteSpace: 'nowrap' }}>
+            {group.map((index) => render(tokens[index], index))}
+          </span>
         ),
       )}
     </>
   );
+}
+
+const ELIDED = new Set(['l', 'd', 'j', 'n', 'm', 't', 's', 'c', 'qu', 'jusqu', 'lorsqu', 'puisqu']);
+const APOSTROPHE_ONLY = /^['’ʼ]$/;
+
+/**
+ * Token indexes grouped so that an elided form, its apostrophe and the word
+ * after it form one group (one unbreakable run); every other token is alone.
+ */
+export function elisionGroups(tokens: Array<{ text: string }>): number[][] {
+  const groups: number[][] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const elided = ELIDED.has(tokens[index].text.toLowerCase());
+    const apostrophe = tokens[index + 1] && APOSTROPHE_ONLY.test(tokens[index + 1].text);
+    const next = tokens[index + 2];
+    if (elided && apostrophe && next && /^[A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(next.text)) {
+      groups.push([index, index + 1, index + 2]);
+      index += 2;
+    } else {
+      groups.push([index]);
+    }
+  }
+  return groups;
 }
 
 /**
