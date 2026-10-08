@@ -142,8 +142,9 @@ export type FeuilletonReaderProps = {
   rayonsReplay?: boolean;
   /**
    * WP-144: `vertical` draws each story panel full-bleed with its lines as
-   * balloons (`VerticalPanel`); `list` (the default) is the page as it was. Only
-   * the story reader (`panelVariant` given) has a vertical page.
+   * balloons (`VerticalPanel`); `list` (this prop's default) is the page as it
+   * was. Only the story reader (`panelVariant` given) has a vertical page; it
+   * passes `useReaderLayout()`, which is `vertical` unless a build or device says list.
    */
   layout?: 'list' | 'vertical';
 };

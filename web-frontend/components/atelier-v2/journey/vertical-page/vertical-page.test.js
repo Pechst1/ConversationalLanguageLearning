@@ -395,11 +395,11 @@ test('Reduce Motion stops the push-in, the pan and the arrival', () => {
 // the switch, and the panel in the reader
 // ---------------------------------------------------------------------------
 
-test('the switch: the current reader stays the default until the owner’s A/B', () => {
-  assert.equal(layoutSwitch.defaultReaderLayout(launchFlags), 'list');
-  assert.equal(layoutSwitch.defaultReaderLayout({}), 'list');
-  assert.equal(layoutSwitch.defaultReaderLayout({ readerLayout: 'vertical' }), 'vertical');
-  assert.equal(layoutSwitch.defaultReaderLayout({ readerLayout: 'sideways' }), 'list');
+test('the switch: the vertical page is the default (WP-144b); list stays a way back', () => {
+  assert.equal(layoutSwitch.defaultReaderLayout(launchFlags), 'vertical');
+  assert.equal(layoutSwitch.defaultReaderLayout({}), 'vertical');
+  assert.equal(layoutSwitch.defaultReaderLayout({ readerLayout: 'list' }), 'list');
+  assert.equal(layoutSwitch.defaultReaderLayout({ readerLayout: 'sideways' }), 'vertical');
   assert.equal(layoutSwitch.readerLayoutFromQuery('?readerLayout=vertical'), 'vertical');
   assert.equal(layoutSwitch.readerLayoutFromQuery('?readerLayout=list'), 'list');
   assert.equal(layoutSwitch.readerLayoutFromQuery('?readerLayout=default'), null);

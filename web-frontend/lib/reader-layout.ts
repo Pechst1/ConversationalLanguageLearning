@@ -5,11 +5,13 @@
  *
  * Built like `lib/art-set.ts`, so the owner can compare the two blind:
  *
- * - The build default is `readerLayout` in `launch-flags.json`; absent means `list`.
- *   The vertical page becomes the default only after the owner's A/B.
+ * - The build default is `readerLayout` in `launch-flags.json`; absent means
+ *   `vertical` (WP-144b: the vertical page won the owner's blind A/B once its
+ *   three-speaker panels were fixed). `"readerLayout": "list"` brings the old page back
+ *   for a build.
  * - A device can override it through the localStorage key `atelier.readerLayout`.
- * - `?readerLayout=vertical` (or `list`) on any URL sets that override and keeps it
- *   for the next pages; `?readerLayout=default` clears it.
+ * - `?readerLayout=list` (or `vertical`) on any URL sets that override and keeps it
+ *   for the next pages — the way back to the old page; `?readerLayout=default` clears it.
  *
  * Components never read the flag, the key or the URL directly; they call `useReaderLayout()`.
  */
@@ -25,10 +27,10 @@ export function isReaderLayout(value: unknown): value is ReaderLayout {
   return value === 'list' || value === 'vertical';
 }
 
-/** The build default (`launch-flags.json`). Anything unknown means the current reader. */
+/** The build default (`launch-flags.json`). Anything unknown means the vertical page. */
 export function defaultReaderLayout(flags: Record<string, unknown> = launchFlags as Record<string, unknown>): ReaderLayout {
   const value = flags.readerLayout;
-  return isReaderLayout(value) ? value : 'list';
+  return isReaderLayout(value) ? value : 'vertical';
 }
 
 /** This device's override, if any. */
