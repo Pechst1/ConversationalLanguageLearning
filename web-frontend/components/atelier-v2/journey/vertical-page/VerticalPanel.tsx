@@ -29,12 +29,12 @@ import { voicesAloud } from '@/lib/voice-preference';
 
 import { layoutPanel, type LayoutItem, type LayoutKind, type PanelLayout } from './balloon-layout';
 import {
-  castBox,
+  HEAD_LINE_DROPS,
   headIndexFor,
   plateFocus,
   pushInBounds,
   pushInOrigin,
-  stageHeadBoxes,
+  stageFrame,
   type HeadBox,
   type Size,
 } from './page-geometry';
@@ -50,13 +50,18 @@ import {
 } from './reveal-model';
 
 /**
- * TODO(WP-143 merge): PanelStage gains `framing: 'band' | 'fill'` and a focus
- * point. Until it lands the vertical page frames the cast itself (a cast box at
- * the panel's foot, `castBox`), and passes nothing new. Flip this once the prop
- * exists and PanelStage reports the head boxes it framed, so the balloons keep
- * anchoring to the faces it actually draws.
+ * WP-144b: the stage is WP-143's `framing='fill'`, given the aspect of the box
+ * `stageFrame` chose, so the head boxes the balloons avoid are the ones it draws
+ * (the figures carry them as `data-head`).
  */
-const PANEL_STAGE_FILL = false;
+const PANEL_STAGE_FILL = true;
+
+/**
+ * WP-144b: what sits on the picture is paper, light in both themes. `av2
+ * av2--light` re-roots the av2 tokens at their light values (the theme's dark
+ * guards skip `.av2--light`); `vp-paper` re-derives the reader's tokens from them.
+ */
+const PAPER = 'av2 av2--light vp-paper';
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -163,9 +168,12 @@ export function VerticalPanel({
   const [tick, setTick] = useState(0);
   const signature = useRef('');
 
-  const box = panel ? castBox(panel, castCount) : null;
+  // How far this beat lowered its head line to fit its lines (`HEAD_LINE_DROPS`).
+  const [drop, setDrop] = useState(0);
+  const frame = panel && castCount ? stageFrame(panel, members, 6, drop) : null;
+  const box = frame?.box ?? null;
   // The push-in moves toward the lead speaker's face (the faces as drawn, not padded).
-  const origin = panel ? pushInOrigin(panel, box ? stageHeadBoxes(members, box, 0) : []) : null;
+  const origin = panel ? pushInOrigin(panel, castCount ? stageFrame(panel, members, 0, drop)?.heads ?? [] : []) : null;
 
   useEffect(() => {
     const node = panelRef.current;
@@ -185,13 +193,13 @@ export function VerticalPanel({
     const size = { w: node.clientWidth, h: node.clientHeight };
     if (!size.w || !size.h) return;
     const items: LayoutItem[] = [];
-    const nextHeads = (() => {
-      const cbox = castBox(size, castCount);
-      const raw = cbox ? stageHeadBoxes(members, cbox) : [];
+    const headsAt = (lower: number) => {
+      const raw = castCount ? stageFrame(size, members, 6, lower)?.heads ?? [] : [];
       if (!motion) return raw;
       const o = pushInOrigin(size, raw);
       return raw.map((entry) => ({ ...pushInBounds(entry, o), rigId: entry.rigId }));
-    })();
+    };
+    const nextHeads = headsAt(0);
     for (const entry of entries) {
       const el = measure.querySelector<HTMLElement>(`[data-measure="${CSS.escape(entry.key)}"]`);
       if (!el) continue;
@@ -209,8 +217,17 @@ export function VerticalPanel({
     const key = JSON.stringify([size, items.map((item) => [item.key, item.size.w, item.size.h, item.anchor]), topInset, unknownFaces, motion]);
     if (key === signature.current) return;
     signature.current = key;
+    // The highest head line whose layout keeps every line on the picture; else
+    // the one that keeps the most.
+    let best: { lower: number; layout: PanelLayout } | null = null;
+    for (const lower of castCount ? HEAD_LINE_DROPS : [0]) {
+      const next = layoutPanel(size, headsAt(lower), items, { topInset, unknownFaces });
+      if (!best || next.overflow.length < best.layout.overflow.length) best = { lower, layout: next };
+      if (!next.overflow.length) break;
+    }
     setPanel(size);
-    setLayout(layoutPanel(size, nextHeads, items, { topInset, unknownFaces }));
+    setDrop(best ? best.lower : 0);
+    setLayout(best ? best.layout : null);
   }, [tick, entries, showTranslation, topInset, unknownFaces, castCount, members, motion]);
 
   // ---- the sequence --------------------------------------------------------
@@ -395,13 +412,15 @@ export function VerticalPanel({
     );
   };
 
+  // WP-144b: balloons, captions, tails and the docked sheet are paper in both
+  // themes, as in a printed comic (`PAPER`).
   const balloonClass = (kind: Entry['kind']) =>
-    kind === 'caption' ? 'vp-caption' : kind === 'you' ? 'vp-balloon vp-balloon--you' : 'vp-balloon';
+    `${kind === 'caption' ? 'vp-caption' : kind === 'you' ? 'vp-balloon vp-balloon--you' : 'vp-balloon'} ${PAPER}`;
 
   const sheetEntries = entries.filter((entry) => overflow.has(entry.key));
   const sheet = sheetEntries.length ? (
     <section
-      className="vp-sheet"
+      className={sheetMode === 'dock' ? `vp-sheet ${PAPER}` : 'vp-sheet'}
       data-sheet={sheetMode}
       aria-label={t.sheet_label}
       style={sheetMode === 'dock' ? { maxHeight: layout?.sheet.maxHeight } : undefined}
@@ -411,6 +430,7 @@ export function VerticalPanel({
           key={entry.key}
           className="vp-sheet__row"
           data-kind={entry.kind}
+          data-you={entry.kind === 'you' ? 'true' : undefined}
           data-char={entry.kind !== 'caption' ? entry.line.character || stage.character || undefined : undefined}
           data-shown={lineVisible(entry) ? 'true' : 'false'}
         >
@@ -426,9 +446,7 @@ export function VerticalPanel({
     return Boolean(source && lineVisible(source));
   });
 
-  const fillFraming = PANEL_STAGE_FILL
-    ? ({ framing: 'fill', focus } as Record<string, unknown>)
-    : {};
+  const fillFraming = PANEL_STAGE_FILL && frame ? { framing: 'fill' as const, aspect: frame.aspect } : {};
 
   return (
     <>
@@ -477,7 +495,7 @@ export function VerticalPanel({
         </div>
 
         {tails.length > 0 && panel && (
-          <svg className="vp-tails" width={panel.w} height={panel.h} viewBox={`0 0 ${panel.w} ${panel.h}`} aria-hidden="true">
+          <svg className={`vp-tails ${PAPER}`} width={panel.w} height={panel.h} viewBox={`0 0 ${panel.w} ${panel.h}`} aria-hidden="true">
             {tails.map((entry) => {
               const tail = entry.tail!;
               const half = 7;
@@ -498,6 +516,7 @@ export function VerticalPanel({
               className={balloonClass(entry.kind)}
               data-entry={entry.key}
               data-kind={entry.kind}
+              data-you={entry.kind === 'you' ? 'true' : undefined}
               data-char={entry.kind !== 'caption' ? entry.line.character || stage.character || undefined : undefined}
               data-shown={lineVisible(entry) ? 'true' : 'false'}
               data-speaking={entry.kind !== 'caption' && reveal.speaking === entry.order ? 'true' : undefined}
@@ -529,7 +548,7 @@ export function VerticalPanel({
       {!layout && (
         <div className="vp-fallback">
           {entries.map((entry) => (
-            <div key={entry.key} className="vp-sheet__row" data-kind={entry.kind}>
+            <div key={entry.key} className="vp-sheet__row" data-kind={entry.kind} data-you={entry.kind === 'you' ? 'true' : undefined}>
               {entry.kind === 'caption' ? captionBody(entry) : lineBody(entry, null)}
             </div>
           ))}

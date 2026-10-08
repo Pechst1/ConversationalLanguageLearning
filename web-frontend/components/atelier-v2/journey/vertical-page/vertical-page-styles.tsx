@@ -91,6 +91,33 @@ export function VerticalPageStyles() {
       }
       .av2 .vp-tail { fill: var(--fr-card); }
 
+      /* ---- paper (WP-144b): balloons, captions, tails and the docked sheet stay
+         light in dark mode, as in a printed comic. The element is its own light
+         av2 root (class "av2 av2--light"), so every token below is the light one. */
+      .av2 .vp-paper {
+        --fr-paper: var(--av2-paper);
+        --fr-card: var(--av2-card);
+        --fr-line: var(--av2-line);
+        --fr-line-2: var(--av2-line-2);
+        --fr-ink: var(--av2-ink);
+        --fr-ink-2: var(--av2-ink-2);
+        --fr-muted: var(--av2-muted);
+        --fr-red: var(--av2-red);
+        --fr-red-shadow: var(--av2-red-deep);
+        --fr-blue: var(--av2-blue);
+        --fr-focus: var(--av2-focus);
+        --fr-accent: var(--av2-muted);
+        /* the character accents at their light values (reader-styles.tsx) */
+        --char-romy: #1d3a8a;
+        --char-marin: #2c6a5d;
+        --char-lila: #c2890f;
+        --char-gus: #8a2f2a;
+        --char-margaux: #a85d24;
+        --char-marchand: #5b5346;
+        --char-toi: var(--av2-ink);
+      }
+      .av2 .vp-tails.vp-paper { background: none; min-width: 0; }
+
       /* ---- balloons and captions ---- */
       .av2 .vp-balloon,
       .av2 .vp-caption {

@@ -31,8 +31,8 @@ const { renderToStaticMarkup } = require(path.join(ROOT, 'node_modules/react-dom
 global.React = React;
 
 const { PanelStage } = require('../../../cast/PanelStage.tsx');
-const { castBox, stageHeadBoxes, STAGE_SLOTS, headIndexFor, pushInBounds, plateFocus } = require('./page-geometry.ts');
-const { layoutPanel, coversAFace, intersects } = require('./balloon-layout.ts');
+const { stageFrame, headIndexFor, pushInBounds, plateFocus } = require('./page-geometry.ts');
+const { layoutPanel, coversAFace, intersects, tailCrosses, tailLength, readsAfter, TAIL_MAX_SHARE } = require('./balloon-layout.ts');
 const {
   revealPlan,
   revealInitial,
@@ -66,44 +66,47 @@ function rng(seed) {
 // geometry
 // ---------------------------------------------------------------------------
 
-test('the head boxes mirror where PanelStage actually draws each figure', () => {
+/** The faces on a panel of this size for the first `count` of CAST3 (or `members`). */
+function headsFor(panel, count, members = CAST3.slice(0, count), inflate) {
+  return stageFrame(panel, members, inflate)?.heads ?? [];
+}
+
+test('the head boxes are the ones PanelStage draws (WP-143 fill framing, data-head)', () => {
+  const panel = { w: 390, h: 650 };
   for (const count of [1, 2, 3]) {
     const members = CAST3.slice(0, count);
-    const html = renderToStaticMarkup(React.createElement(PanelStage, { members }));
-    const figures = [...html.matchAll(/class="cast-stage__figure"[^>]*style="([^"]+)"/g)].map((match) => {
-      const style = Object.fromEntries(match[1].split(';').filter(Boolean).map((rule) => rule.split(':').map((part) => part.trim())));
-      return { left: parseFloat(style.left), height: parseFloat(style.height), bottom: parseFloat(style.bottom) };
-    });
-    assert.equal(figures.length, count, `${count} figures drawn`);
-    figures.forEach((figure, index) => {
-      const slot = STAGE_SLOTS[count][index];
-      const front = index === 0;
-      assert.equal(figure.left, slot.centre, 'the same centre');
-      assert.ok(Math.abs(figure.height - slot.height * (front || count === 1 ? 1 : 0.92)) < 0.01, 'the same height');
-      assert.equal(figure.bottom, front ? 0 : slot.lift, 'the same lift');
+    const frame = stageFrame(panel, members, 0);
+    const html = renderToStaticMarkup(React.createElement(PanelStage, { members, framing: 'fill', aspect: frame.aspect, light: false }));
+    const drawn = [...html.matchAll(/data-head="([^"]+)"/g)].map((match) => match[1].split(' ').map(Number));
+    assert.equal(drawn.length, count, `${count} figures drawn`);
+    drawn.forEach(([x, y, w, h], index) => {
+      const head = frame.heads[index];
+      const px = { x: frame.box.x + (x / 100) * frame.box.w, y: frame.box.y + (y / 100) * frame.box.h, w: (w / 100) * frame.box.w, h: (h / 100) * frame.box.h };
+      for (const key of ['x', 'y', 'w', 'h']) assert.ok(Math.abs(px[key] - head[key]) < 1, `${count}/${index}: ${key} ${px[key]} vs ${head[key]}`);
     });
   }
 });
 
-test('one speaker is a close shot, three a wider one; every head is inside the panel', () => {
-  const panel = { w: 375, h: 620 };
-  const one = castBox(panel, 1);
-  const three = castBox(panel, 3);
-  assert.ok(one.h > three.h, 'one figure stands taller than three');
-  for (const count of [1, 2, 3]) {
-    const heads = stageHeadBoxes(CAST3.slice(0, count), castBox(panel, count), 0);
-    assert.equal(heads.length, count);
-    heads.forEach((head) => {
-      assert.ok(head.y >= 0 && head.y + head.h <= panel.h, 'head inside the panel vertically');
-      assert.ok(head.w > 40 && head.h > 40, 'a real face, not a dot');
-    });
+test('a medium shot: the faces are large and above the panel foot, never on its bottom edge', () => {
+  for (const panel of [{ w: 390, h: 650 }, { w: 375, h: 620 }, { w: 320, h: 460 }, { w: 414, h: 720 }]) {
+    for (const count of [1, 2, 3]) {
+      const heads = headsFor(panel, count, undefined, 0);
+      assert.equal(heads.length, count);
+      heads.forEach((head) => {
+        assert.ok(head.y >= 0 && head.x >= 0 && head.x + head.w <= panel.w + 0.5, 'head inside the panel');
+        assert.ok(head.y + head.h <= panel.h * 0.83, `${count}: the face clears the panel's foot`);
+        assert.ok(head.w >= panel.w * 0.25, `${count}: a face a quarter of the width at least (${head.w.toFixed(0)}px)`);
+      });
+    }
   }
+  const panel = { w: 390, h: 650 };
+  assert.ok(headsFor(panel, 1, undefined, 0)[0].w > headsFor(panel, 3, undefined, 0)[0].w, 'one speaker is a closer shot than three');
   // Toi and an unknown speaker have no face on the stage.
-  const heads = stageHeadBoxes([{ id: 'toi', speaking: true }, { id: 'margaux_barman' }], castBox(panel, 1));
+  const heads = headsFor(panel, 1, [{ id: 'toi', speaking: true }, { id: 'margaux_barman' }]);
   assert.equal(heads.length, 1);
   assert.equal(headIndexFor(heads, { speakerId: 'margaux_barman', who: 'Margaux' }), 0);
   assert.equal(headIndexFor(heads, { speakerId: null, who: 'Vous' }), -1);
-  assert.equal(castBox(panel, 0), null);
+  assert.equal(stageFrame(panel, []), null);
 });
 
 test('the push-in bound contains the face at the start and at the end of the beat', () => {
@@ -148,10 +151,17 @@ test('placement never covers a face, never overlaps two balloons, never leaves t
   for (let round = 0; round < 1500; round += 1) {
     const panel = panels[round % panels.length];
     const count = 1 + (round % 3);
-    const heads = stageHeadBoxes(CAST3.slice(0, count), castBox(panel, count));
+    const heads = headsFor(panel, count);
     const items = randomItems(random, heads);
     const result = layoutPanel(panel, heads, items, { topInset: round % 5 === 0 ? 36 : 0 });
     assert.equal(coversAFace(result, heads), false, `round ${round}: a face is covered`);
+    result.placed.forEach((entry) => {
+      if (!entry.tail) return;
+      assert.ok(tailLength(entry.tail) <= panel.h * TAIL_MAX_SHARE + 0.5, `round ${round}: ${entry.key}'s tail is too long`);
+      result.placed.forEach((other) => {
+        if (other !== entry) assert.equal(tailCrosses(entry.tail, other), false, `round ${round}: ${entry.key}'s tail crosses ${other.key}`);
+      });
+    });
     result.placed.forEach((a, i) => {
       assert.ok(a.x >= 0 && a.y >= 0 && a.x + a.w <= panel.w + 0.5 && a.y + a.h <= panel.h + 0.5, `round ${round}: inside the panel`);
       result.placed.slice(i + 1).forEach((b) => assert.equal(intersects(a, b), false, `round ${round}: ${a.key} overlaps ${b.key}`));
@@ -166,7 +176,7 @@ test('placement never covers a face, never overlaps two balloons, never leaves t
 
 test('a short line sits above its speaker, with a tail that points down at them', () => {
   const panel = { w: 375, h: 620 };
-  const heads = stageHeadBoxes(CAST3.slice(0, 1), castBox(panel, 1));
+  const heads = headsFor(panel, 1);
   const result = layoutPanel(panel, heads, [{ key: 'a', kind: 'speech', size: { w: 200, h: 60 }, anchor: 0 }]);
   const [balloon] = result.placed;
   assert.ok(balloon, 'placed');
@@ -176,20 +186,21 @@ test('a short line sits above its speaker, with a tail that points down at them'
   assert.equal(result.sheet.mode, 'none');
 });
 
-test('three speakers read top to bottom in the order they speak', () => {
+test('three speakers read in the order they speak', () => {
   const panel = { w: 375, h: 620 };
-  const heads = stageHeadBoxes(CAST3, castBox(panel, 3));
+  const heads = headsFor(panel, 3);
   const items = [0, 1, 2].map((i) => ({ key: `l${i}`, kind: 'speech', size: { w: 170, h: 58 }, anchor: i }));
   const result = layoutPanel(panel, heads, items);
-  assert.equal(result.overflow.length, 0);
-  const tops = result.placed.map((entry) => entry.y);
-  assert.deepEqual([...tops].sort((a, b) => a - b), tops, 'each line no higher than the one before');
+  assert.ok(result.placed.length >= 2, 'two of three wide lines on the picture at least');
+  result.placed.forEach((entry, i) =>
+    result.placed.slice(0, i).forEach((prev) => assert.ok(readsAfter(entry, prev), `${entry.key} reads after ${prev.key}`)),
+  );
 });
 
-test('a later line starts clearly lower, and wholly lower when it sits to the left', () => {
+test('a later line is to the right on the same row, or clearly lower (wholly, when it sits to the left)', () => {
   // The gallery's third panel: Marin, Margaux, then «Vous» with no face on stage.
   const panel = { w: 390, h: 650 };
-  const heads = stageHeadBoxes(CAST3.slice(0, 2), castBox(panel, 2));
+  const heads = headsFor(panel, 2);
   const items = [
     { key: 'cap', kind: 'caption', size: { w: 200, h: 40 }, anchor: -1 },
     { key: 'l0', kind: 'speech', size: { w: 160, h: 62 }, anchor: 0 },
@@ -200,8 +211,9 @@ test('a later line starts clearly lower, and wholly lower when it sits to the le
   const spoken = result.placed.filter((entry) => entry.kind === 'speech');
   for (let i = 1; i < spoken.length; i += 1) {
     const [before, after] = [spoken[i - 1], spoken[i]];
-    assert.ok(after.y - before.y >= 24, `${after.key} starts clearly below ${before.key}`);
-    if (after.x + after.w / 2 < before.x + before.w / 2) {
+    const right = after.x >= before.x + before.w - 2 && after.y >= before.y - 4;
+    assert.ok(right || after.y - before.y >= 24, `${after.key} is to the right of ${before.key}, or clearly below it`);
+    if (!right && after.x + after.w / 2 < before.x + before.w / 2) {
       assert.ok(after.y >= before.y + before.h, `${after.key}, to the left, starts under ${before.key}`);
     }
   }
@@ -215,19 +227,64 @@ test('the learner’s own line is the bottom-edge balloon, the point of view', (
   assert.ok(Math.abs(you.x + you.w - (panel.w - 12)) < 1, 'on the right');
 });
 
+test('three speakers: every balloon within a short tail of its own head, or the oldest goes to the sheet', () => {
+  // The gallery's three-speaker beat at phone sizes: a caption, then each speaker once.
+  for (const panel of [{ w: 390, h: 650 }, { w: 375, h: 620 }, { w: 414, h: 720 }]) {
+    const heads = headsFor(panel, 3);
+    const items = [
+      { key: 'cap', kind: 'caption', size: { w: 190, h: 40 }, anchor: -1 },
+      { key: 'l0', kind: 'speech', size: { w: 162, h: 62 }, anchor: 0 },
+      { key: 'l1', kind: 'speech', size: { w: 118, h: 62 }, anchor: 1 },
+      { key: 'l2', kind: 'speech', size: { w: 140, h: 62 }, anchor: 2 },
+    ];
+    const result = layoutPanel(panel, heads, items);
+    const cap = panel.h * TAIL_MAX_SHARE;
+    const spoken = result.placed.filter((entry) => entry.kind === 'speech');
+    assert.ok(spoken.length >= 2, `${panel.w}: at least two of three on the picture`);
+    spoken.forEach((entry) => {
+      assert.ok(entry.tail, `${entry.key} points at its speaker`);
+      assert.ok(tailLength(entry.tail) <= cap + 0.5, `${entry.key}: tail ${tailLength(entry.tail).toFixed(0)} > ${cap.toFixed(0)}`);
+      const head = heads[entry.anchor];
+      const reach = Math.max(head.x - (entry.x + entry.w), entry.x - (head.x + head.w), head.y - (entry.y + entry.h), 0);
+      assert.ok(reach <= cap, `${entry.key} sits near its own head`);
+    });
+    // Whatever left the picture is the oldest line(s).
+    const spokenKeys = ['l0', 'l1', 'l2'];
+    assert.deepEqual(result.overflow.filter((key) => spokenKeys.includes(key)), spokenKeys.slice(0, 3 - spoken.length));
+    assert.equal(coversAFace(result, heads), false);
+  }
+});
+
+test('a four-line, three-speaker panel never hangs a line on a long tail', () => {
+  const panel = { w: 390, h: 650 };
+  const heads = headsFor(panel, 3);
+  const items = [0, 1, 2, 3].map((i) => ({ key: `l${i}`, kind: 'speech', size: { w: 150, h: 62 }, anchor: i % 3 }));
+  const result = layoutPanel(panel, heads, items);
+  result.placed.forEach((entry) => assert.ok(tailLength(entry.tail) <= panel.h * TAIL_MAX_SHARE + 0.5));
+  assert.equal(result.placed.length + result.overflow.length, 4);
+});
+
 // ---------------------------------------------------------------------------
 // overflow — the sheet
 // ---------------------------------------------------------------------------
 
 test('lines that do not fit go to the sheet, in reading order, docked under the faces', () => {
   const panel = { w: 375, h: 620 };
-  const heads = stageHeadBoxes(CAST3, castBox(panel, 3));
+  const heads = headsFor(panel, 3);
   const items = [0, 1, 2, 3, 4, 5].map((i) => ({ key: `l${i}`, kind: 'speech', size: { w: 300, h: 150 }, anchor: i % 3 }));
   const result = layoutPanel(panel, heads, items);
   assert.ok(result.overflow.length > 0, 'something overflows');
   const placedKeys = result.placed.map((entry) => entry.key);
-  // Reading order: the sheet holds a tail of the dialogue, never a hole in it.
-  assert.deepEqual([...placedKeys, ...result.overflow], items.map((item) => item.key));
+  // Reading order: the sheet holds the oldest lines or the newest, never a hole in the dialogue.
+  const all = items.map((item) => item.key);
+  const sheet = result.overflow;
+  const prefix = all.slice(0, sheet.length);
+  const suffix = all.slice(all.length - sheet.length);
+  assert.ok(
+    JSON.stringify(sheet) === JSON.stringify(prefix) || JSON.stringify(sheet) === JSON.stringify(suffix),
+    `the sheet ${sheet} is the start or the end of the dialogue`,
+  );
+  assert.deepEqual([...placedKeys].sort(), all.filter((key) => !sheet.includes(key)).sort());
   const lowestFace = Math.max(...heads.map((head) => head.y + head.h));
   if (result.sheet.mode === 'dock') {
     assert.ok(panel.h - result.sheet.maxHeight >= lowestFace, 'the docked sheet stays under the lowest face');
@@ -239,7 +296,7 @@ test('lines that do not fit go to the sheet, in reading order, docked under the 
 
 test('a close shot leaves no room under the face: the sheet goes under the panel', () => {
   const panel = { w: 375, h: 620 };
-  const heads = stageHeadBoxes(CAST3.slice(0, 1), castBox(panel, 1));
+  const heads = headsFor(panel, 1);
   const items = [0, 1, 2, 3].map((i) => ({ key: `l${i}`, kind: 'speech', size: { w: 320, h: 170 }, anchor: 0 }));
   const result = layoutPanel(panel, heads, items, { minSheet: 400 });
   assert.ok(result.overflow.length > 0);
@@ -257,7 +314,7 @@ test('a painted panel (faces unknown) keeps its lines high and sends the rest un
 
 test('the learner’s line joins a docked sheet rather than sitting on it', () => {
   const panel = { w: 375, h: 620 };
-  const heads = stageHeadBoxes(CAST3, castBox(panel, 3));
+  const heads = headsFor(panel, 3);
   const items = [
     ...[0, 1, 2, 3, 4].map((i) => ({ key: `l${i}`, kind: 'speech', size: { w: 300, h: 140 }, anchor: i % 3 })),
     { key: 'you', kind: 'you', size: { w: 200, h: 60 }, anchor: -1 },
@@ -454,5 +511,5 @@ test('the learner’s line is drawn as the you-balloon', () => {
       attemptsByTask: {}, submitError: null, liveTaskId: null, panelVariant: () => 'bubble', layout: 'vertical',
     }),
   );
-  assert.match(html, /class="vp-balloon vp-balloon--you"[^>]*data-measure/);
+  assert.match(html, /class="vp-balloon vp-balloon--you[^"]*"[^>]*data-measure/);
 });

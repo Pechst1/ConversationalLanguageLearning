@@ -2,15 +2,22 @@
  * WP-144 «La page verticale» · where each balloon goes, and what goes to the sheet.
  *
  * The one rule that is never broken: **a balloon, a caption or a tail never
- * covers a face.** Everything else bends to it: a line that cannot be placed
- * clear of every head goes to the bottom sheet, and so does every line after
- * it, so the dialogue is still read in order.
+ * covers a face.** Everything else bends to it.
  *
- * Reading order is top to bottom: narration captions first, at the top left,
- * then the spoken lines in the order they are said, each one no higher than the
- * one before. A spoken line sits above its speaker's head (the tail points down
- * at them), else beside it, else under it on the torso. The learner's own line
- * is the balloon at the bottom right, the point-of-view position (WP-146).
+ * WP-144b, after the owner's blind A/B lost the three-speaker panels:
+ *
+ *   · a spoken line sits near its speaker: just above the head (the tail points
+ *     down at it), else beside it. A tail is never longer than `tailMax` (15 %
+ *     of the panel's height) and never crosses another balloon;
+ *   · reading order: captions first, top left; then each line is clearly lower
+ *     than the one said before it, or to its right on the same row;
+ *   · when the lines cannot all sit near their speakers, the oldest go to the
+ *     sheet (and are revealed first), rather than any line hanging on a long
+ *     tail. When dropping from the end keeps more lines on the picture, the
+ *     newest go instead; the sheet never holds a hole in the dialogue.
+ *
+ * The learner's own line is the balloon at the bottom right, the point-of-view
+ * position (WP-146); it stands outside the reading order of the cast.
  *
  * Pure: sizes in, positions out. The component measures the balloons (so text
  * scaling and «Traduire» are honoured), calls `layoutPanel`, and draws.
@@ -61,10 +68,16 @@ export type LayoutOptions = {
   minSheet?: number;
 };
 
-const TAIL_MIN = 12;
-const TAIL_IDEAL = 26;
-/** A line said earlier starts at least this much higher than a line said after it. */
+const TAIL_IDEAL = 22;
+/** A tail is never longer than this share of the panel's height. */
+export const TAIL_MAX_SHARE = 0.15;
+/** A line said later starts at least this much lower than the one before (unless it is to its right). */
 const READ_STEP = 24;
+/** Half a tail's width at its base, and the clearance a tail keeps from a balloon. */
+const TAIL_HALF = 7;
+/** How many places are tried per line, and how much searching a panel may cost. */
+const CANDIDATES_PER_LINE = 14;
+const SEARCH_BUDGET = 2500;
 
 export function intersects(a: Box, b: Box, pad = 0): boolean {
   return a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
@@ -84,7 +97,31 @@ type Ctx = {
   bottom: number;
   unknownFaces: boolean;
   unknownZone: number;
+  tailMax: number;
 };
+
+export function tailLength(tail: Tail): number {
+  return Math.hypot(tail.tipX - tail.baseX, tail.tipY - tail.baseY);
+}
+
+/** Points along a tail, from just off its balloon to just short of its tip. */
+function tailPoints(tail: Tail, steps = 24): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (let step = 1; step < steps; step += 1) {
+    const t = step / steps;
+    out.push([tail.baseX + (tail.tipX - tail.baseX) * t, tail.baseY + (tail.tipY - tail.baseY) * t]);
+  }
+  return out;
+}
+
+function inside(point: [number, number], box: Box, pad = 0): boolean {
+  return point[0] > box.x - pad && point[0] < box.x + box.w + pad && point[1] > box.y - pad && point[1] < box.y + box.h + pad;
+}
+
+/** Does this tail run over (or within a tail's half width of) the box? */
+export function tailCrosses(tail: Tail, box: Box, pad = TAIL_HALF): boolean {
+  return tailPoints(tail).some((point) => inside(point, box, pad));
+}
 
 function clear(box: Box, ctx: Ctx, placed: Box[]): boolean {
   if (box.x < ctx.margin - 0.5 || box.x + box.w > ctx.panel.w - ctx.margin + 0.5) return false;
@@ -106,103 +143,180 @@ function tailFor(box: Box, head: HeadBox, side: Tail['side']): Tail {
     : { side, baseX: box.x, baseY, tipX: head.x + head.w, tipY };
 }
 
-/** One pass: place what fits, in order, and stop at the first line that does not. */
-function placeAll(items: LayoutItem[], ctx: Ctx, forceSheet: Set<string>): { placed: Placed[]; overflow: string[] } {
-  const placed: Placed[] = [];
-  const overflow: string[] = [];
-  let cursor = ctx.top;
-  let spoken = 0;
-  let stopped = false;
-  const boxes = () => placed.map((entry) => entry as Box);
+/** Is `next` read after `prev`? Clearly lower (wholly lower when it sits to the left), or to its right on the same row. */
+export function readsAfter(next: Box, prev: Box): boolean {
+  const right = next.x >= prev.x + prev.w - 2 && next.y >= prev.y - 4;
+  if (right) return true;
+  if (next.y < prev.y + READ_STEP) return false;
+  const leftOf = next.x + next.w / 2 < prev.x + prev.w / 2 - 1;
+  return !leftOf || next.y >= prev.y + prev.h;
+}
 
-  for (const item of items) {
-    if (stopped || forceSheet.has(item.key)) {
-      // The learner's line can go to the sheet without stopping the flow above it.
-      if (!stopped && item.kind !== 'you') stopped = true;
-      overflow.push(item.key);
-      continue;
+type State = { placed: Placed[]; overflow: string[]; cursor: number; spoken: number };
+
+function fits(candidate: Placed, ctx: Ctx, state: State): boolean {
+  const boxes = state.placed as Box[];
+  if (!clear(candidate, ctx, boxes)) return false;
+  // No placed tail may run over the new balloon.
+  if (state.placed.some((entry) => entry.tail && tailCrosses(entry.tail, candidate))) return false;
+  const tail = candidate.tail;
+  if (tail) {
+    if (tailLength(tail) > ctx.tailMax + 0.5) return false;
+    if (state.placed.some((entry) => tailCrosses(tail, entry))) return false;
+    // A tail runs to its own speaker, over nobody else's face.
+    if (ctx.heads.some((head, index) => index !== candidate.anchor && tailCrosses(tail, head, 0))) return false;
+  }
+  if (candidate.kind === 'speech') {
+    for (const prev of state.placed) {
+      if (prev.kind === 'speech' && !readsAfter(candidate, prev)) return false;
     }
-    const w = Math.min(item.size.w, ctx.panel.w - ctx.margin * 2);
-    const h = item.size.h;
-    let chosen: Placed | null = null;
+  }
+  return true;
+}
 
-    if (item.kind === 'caption') {
-      const box = { x: ctx.margin, y: cursor, w, h };
-      if (clear(box, ctx, boxes())) chosen = { ...box, key: item.key, kind: item.kind, anchor: -1, tail: null };
-    } else if (item.kind === 'you') {
-      const box = { x: ctx.panel.w - ctx.margin - w, y: ctx.bottom - h, w, h };
-      if (box.y >= ctx.top && clear(box, ctx, boxes())) chosen = { ...box, key: item.key, kind: item.kind, anchor: -1, tail: null };
-    } else {
-      const head = item.anchor >= 0 ? ctx.heads[item.anchor] : undefined;
-      if (head) {
-        const cx = head.x + head.w / 2;
-        const candidates: Array<{ box: Box; side: Tail['side'] }> = [
-          // above the head, flowing down from the line before
-          { box: { x: clamp(cx - w / 2, ctx.margin, ctx.panel.w - ctx.margin - w), y: cursor, w, h }, side: 'down' },
-          // beside it
-          { box: { x: head.x - ctx.gap - w, y: Math.max(cursor, head.y), w, h }, side: 'left' },
-          { box: { x: head.x + head.w + ctx.gap, y: Math.max(cursor, head.y), w, h }, side: 'right' },
-        ];
-        for (const candidate of candidates) {
-          const { box, side } = candidate;
-          if (side === 'down' && box.y + box.h > head.y - TAIL_MIN) continue;
-          if (clear(box, ctx, boxes())) {
-            chosen = { ...box, key: item.key, kind: item.kind, anchor: item.anchor, tail: tailFor(box, head, side) };
-            break;
-          }
-        }
-      } else {
-        // A voice with no face on stage (or a painted panel): left, right, left…
-        const x = spoken % 2 === 0 ? ctx.margin : ctx.panel.w - ctx.margin - w;
-        const box = { x, y: cursor, w, h };
-        const zoneOk = !ctx.unknownFaces || box.y + box.h <= ctx.panel.h * ctx.unknownZone;
-        if (zoneOk && clear(box, ctx, boxes())) chosen = { ...box, key: item.key, kind: item.kind, anchor: -1, tail: null };
+/** The places a line could go, best first, that fit what is already placed. */
+function candidatesFor(item: LayoutItem, ctx: Ctx, state: State): Placed[] {
+  const w = Math.min(item.size.w, ctx.panel.w - ctx.margin * 2);
+  const h = item.size.h;
+  const make = (box: Box, anchor: number, tail: Tail | null): Placed => ({ ...box, key: item.key, kind: item.kind, anchor, tail });
+  const out: Placed[] = [];
+  const offer = (candidate: Placed) => {
+    if (out.length >= CANDIDATES_PER_LINE) return;
+    if (out.some((other) => Math.abs(other.x - candidate.x) < 2 && Math.abs(other.y - candidate.y) < 2)) return;
+    if (fits(candidate, ctx, state)) out.push(candidate);
+  };
+
+  if (item.kind === 'caption') {
+    offer(make({ x: ctx.margin, y: state.cursor, w, h }, -1, null));
+    return out;
+  }
+  if (item.kind === 'you') {
+    const box = { x: ctx.panel.w - ctx.margin - w, y: ctx.bottom - h, w, h };
+    if (box.y >= ctx.top) offer(make(box, -1, null));
+    return out;
+  }
+
+  const head = item.anchor >= 0 ? ctx.heads[item.anchor] : undefined;
+  if (head) {
+    const cx = head.x + head.w / 2;
+    const ideal = clamp(cx - w / 2, ctx.margin, ctx.panel.w - ctx.margin - w);
+    const prevLines = state.placed.filter((entry) => entry.kind === 'speech');
+    // Where to try: centred on the head, offset either way, against the edges,
+    // and just right of each line already placed (the next one on the same row).
+    const xs = [cx - w / 2, cx - w * 0.3, cx - w * 0.7, ctx.margin, ctx.panel.w - ctx.margin - w, ...prevLines.map((prev) => prev.x + prev.w + ctx.gap)]
+      .map((x) => clamp(x, ctx.margin, ctx.panel.w - ctx.margin - w))
+      .sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal));
+    // How high: from the ideal tail to the longest, and just under each line placed.
+    const dys = new Set<number>();
+    for (let dy = TAIL_IDEAL; dy <= ctx.tailMax; dy += 12) dys.add(dy);
+    dys.add(ctx.tailMax);
+    for (const prev of prevLines) {
+      for (const y of [prev.y + prev.h + ctx.gap, prev.y + READ_STEP]) {
+        const dy = head.y - h - y;
+        if (dy >= TAIL_IDEAL - 10 && dy <= ctx.tailMax) dys.add(dy);
       }
     }
-
-    if (!chosen) {
-      if (item.kind !== 'you') stopped = true;
-      overflow.push(item.key);
-      continue;
+    // Above the head, nearest first, never further than a tail may reach.
+    // At most two places per height, so the search also sees the higher ones.
+    for (const dy of Array.from(dys).sort((a, b) => a - b)) {
+      const before = out.length;
+      for (const x of xs) {
+        if (out.length - before >= 2) break;
+        const box = { x, y: head.y - dy - h, w, h };
+        offer(make(box, item.anchor, tailFor(box, head, 'down')));
+      }
     }
-    placed.push(chosen);
-    if (item.kind !== 'you') cursor = chosen.y + chosen.h + ctx.gap;
-    if (item.kind === 'speech') spoken += 1;
+    // Beside it.
+    for (const side of ['left', 'right'] as const) {
+      const x = side === 'left' ? head.x - ctx.gap - w : head.x + head.w + ctx.gap;
+      for (const y of [head.y + head.h * 0.4 - h / 2, head.y - h / 2, head.y + head.h * 0.7 - h / 2]) {
+        const box = { x, y, w, h };
+        offer(make(box, item.anchor, tailFor(box, head, side)));
+      }
+    }
+    return out;
   }
-  return { placed, overflow };
+
+  // A voice with no face on stage (or a painted panel): the first place, from the
+  // top, that reads after the lines before it; left, right, left…
+  const sides = state.spoken % 2 === 0 ? [ctx.margin, ctx.panel.w - ctx.margin - w] : [ctx.panel.w - ctx.margin - w, ctx.margin];
+  const limit = ctx.unknownFaces ? Math.min(ctx.bottom, ctx.panel.h * ctx.unknownZone) : ctx.bottom;
+  for (let y = state.cursor; y + h <= limit + 0.5; y += 6) {
+    for (const x of sides) offer(make({ x, y, w, h }, -1, null));
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+function advance(state: State, entry: Placed): State {
+  return {
+    placed: [...state.placed, entry],
+    overflow: state.overflow,
+    cursor: entry.kind === 'caption' ? entry.y + entry.h + 8 : state.cursor,
+    spoken: state.spoken + (entry.kind === 'speech' ? 1 : 0),
+  };
+}
+
+function skip(state: State, key: string): State {
+  return { ...state, overflow: [...state.overflow, key] };
 }
 
 /**
- * Bring each balloon placed above its speaker down toward them (a short tail
- * reads better than a long one), never past the balloon under it, never onto a
- * face, and never above where it already was.
+ * Place every item not in `forced`, searching (with backtracking) for a place
+ * for each spoken line. Captions and the learner's line may go to the sheet on
+ * their own; a spoken line may not (the caller decides which lines leave).
  */
-function settle(placed: Placed[], ctx: Ctx): Placed[] {
-  const out = placed.map((entry) => ({ ...entry }));
-  for (let i = out.length - 1; i >= 0; i -= 1) {
-    const entry = out[i];
-    if (entry.kind !== 'speech' || entry.tail?.side !== 'down' || entry.anchor < 0) continue;
-    const head = ctx.heads[entry.anchor];
-    let limit = head.y - TAIL_IDEAL - entry.h;
-    for (let j = i + 1; j < out.length; j += 1) {
-      const below = out[j];
-      const overlapsX = below.x < entry.x + entry.w + ctx.gap && entry.x < below.x + below.w + ctx.gap;
-      if (overlapsX) limit = Math.min(limit, below.y - ctx.gap - entry.h);
-      // Reading order: clearly higher than any line said after it, and wholly
-      // above one that sits to its left (that one would be read first otherwise).
-      if (below.kind === 'speech') {
-        const leftOf = below.x + below.w / 2 < entry.x + entry.w / 2;
-        limit = Math.min(limit, leftOf ? below.y - ctx.gap - entry.h : below.y - READ_STEP);
-      }
+function search(items: LayoutItem[], ctx: Ctx, forced: Set<string>): State | null {
+  let budget = SEARCH_BUDGET;
+  const walk = (index: number, state: State): State | null => {
+    if (index >= items.length) return state;
+    if (budget <= 0) return null;
+    budget -= 1;
+    const item = items[index];
+    if (forced.has(item.key)) return walk(index + 1, skip(state, item.key));
+    const options = candidatesFor(item, ctx, state);
+    for (const option of options) {
+      const done = walk(index + 1, advance(state, option));
+      if (done) return done;
     }
-    const others = out.filter((_, index) => index !== i);
-    let y = Math.max(entry.y, limit);
-    while (y > entry.y && !clear({ x: entry.x, y, w: entry.w, h: entry.h }, ctx, others)) y -= 4;
-    if (y > entry.y) {
-      out[i] = { ...entry, y, tail: tailFor({ x: entry.x, y, w: entry.w, h: entry.h }, head, 'down') };
+    // A caption or the learner's line leaves the picture only when it has no
+    // place at all, never to make room for the lines after it.
+    if (item.kind !== 'speech' && !options.length) return walk(index + 1, skip(state, item.key));
+    return null;
+  };
+  return walk(0, { placed: [], overflow: [], cursor: ctx.top, spoken: 0 });
+}
+
+/** The old way, kept as the fallback: place in order, and send the rest to the sheet from the first line that does not fit. */
+function greedy(items: LayoutItem[], ctx: Ctx, forced: Set<string>): State {
+  let state: State = { placed: [], overflow: [], cursor: ctx.top, spoken: 0 };
+  let stopped = false;
+  for (const item of items) {
+    if (stopped || forced.has(item.key)) {
+      state = skip(state, item.key);
+      continue;
+    }
+    const [best] = candidatesFor(item, ctx, state);
+    if (best) state = advance(state, best);
+    else {
+      if (item.kind === 'speech') stopped = true;
+      state = skip(state, item.key);
     }
   }
-  return out;
+  return state;
+}
+
+function placeAll(items: LayoutItem[], ctx: Ctx, forced: Set<string>): { placed: Placed[]; overflow: string[] } {
+  const spoken = items.filter((item) => item.kind === 'speech').map((item) => item.key);
+  let oldest: State | null = null;
+  for (let k = 0; k <= spoken.length && !oldest; k += 1) {
+    oldest = search(items, ctx, new Set(Array.from(forced).concat(spoken.slice(0, k))));
+  }
+  const newest = greedy(items, ctx, forced);
+  const best = oldest && oldest.placed.length >= newest.placed.length ? oldest : newest;
+  // The sheet reads in the dialogue's order.
+  const order = new Map(items.map((item, index) => [item.key, index] as const));
+  return { placed: best.placed, overflow: [...best.overflow].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)) };
 }
 
 /** The lowest face's foot: the sheet may dock only beneath it. */
@@ -228,6 +342,7 @@ export function layoutPanel(panel: Size, heads: HeadBox[], items: LayoutItem[], 
     bottom: panel.h - (options.bottomInset ?? 0) - margin,
     unknownFaces,
     unknownZone: options.unknownZone ?? 0.4,
+    tailMax: panel.h * TAIL_MAX_SHARE,
   };
 
   let ctx = base;
@@ -257,7 +372,7 @@ export function layoutPanel(panel: Size, heads: HeadBox[], items: LayoutItem[], 
     if (same) break;
   }
 
-  return { placed: settle(result.placed, ctx), overflow: result.overflow, sheet: result.overflow.length ? sheet : { mode: 'none', maxHeight: 0 } };
+  return { placed: result.placed, overflow: result.overflow, sheet: result.overflow.length ? sheet : { mode: 'none', maxHeight: 0 } };
 }
 
 /** For tests and QA: does any placed box, or any tail short of its tip, touch a face? */
