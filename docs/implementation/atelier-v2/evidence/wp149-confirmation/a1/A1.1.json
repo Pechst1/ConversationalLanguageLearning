@@ -1,0 +1,354 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.211985,
+  "calls": 68,
+  "cap": 0.25
+ },
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Romy et la rumeur",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Romy et la rumeur",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+   "title": "Romy presse",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+   "title": "La question de Romy — complication",
+   "uses": 5,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "La même chose ? (complication)",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Le nom pour l'article",
+   "uses": 3,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Hors antenne ?",
+   "uses": 3,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "La question de Romy — tournant",
+   "uses": 4,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "La question de Romy — fin",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Le billet déplacé",
+   "uses": 12,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le dîner raté",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le dîner raté",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Je suis, tu es : les pronoms et être») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je suis au café. Et toi, tu es où ?»); margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "La première impression",
+    "dramatic_question": "Que penses-tu de Solvel ? Est-ce que tu veux garder le café tel quel ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Tell Romy if you like Solvel or not.",
+    "objective_words": 8,
+    "panels": 4,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Avoir : j'ai, j'ai 20 ans, j'ai faim») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «J'ai vingt ans et j'ai soif.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; romy_tremblay is this rule's coach: give romy_tremblay one of those lines.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Say why you stay here.",
+    "objective_words": 5,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Il y a : ce qui existe ici») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Dans la rue, il y a une boulangerie et deux cafés.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; landlord_marchand is this rule's coach: give landlord_marchand one of those lines.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "landlord_marchand",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Say your usual café order in French in one sentence.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "repeated_situation",
+   "hint": "this premise repeats \"Au Mistral, Romy montre une courte vidéo. Les voisins chuchotent. Romy veut que tu dises pourquoi tu restes, maintenant.\". Do not reword it: invent a different communicative need. Objectives already used: ['Say who you are and why you are here.', 'Tell Camille whether you will sell, and whether it is really simpler for everyone.', 'Say if you trust Solvel.', \"Say why you are staying, with a sentence that starts 'J'ai...'.\"]. Unused characters: ['lila_bonnet', 'marin_leveque', 'margaux_barman', 'landlord_marchand', 'mme_diallo', 'maitre_vasseur', 'bastien_roux']. Unused l…",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "landlord_marchand",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Say why you stay using 'Il y a...'.",
+    "objective_words": 8,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «La même chose ?» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'la_meme_chose'. opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Tell Romy if she may use your name in the article.",
+    "objective_words": 11,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Tell Romy if she can record you, with 'Oui' or 'Non'.",
+    "objective_words": 11,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_correctness",
+   "hint": "Put Gus's line in his register (he should use vous here, not tu).",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Give Romy permission to publish the video in an article.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «Le billet» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'le_billet'. grammar_plan.introduce («Le, la, l', les : les articles définis») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «J'aime le thé, mais je déteste l'eau gazeuse et les sodas.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of …",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "La question de Romy",
+    "dramatic_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "open_question": "Romy veut une histoire pour sa rédaction: accepteras-tu de dire si tu fais confiance à Solvel ou pas ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Say thank you to Romy.",
+    "objective_words": 5,
+    "panels": 4,
+    "premise_id": null
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "grammar_not_woven": 4,
+  "season_required_moment": 2,
+  "repeated_situation": 1,
+  "story_critic_correctness": 1
+ }
+}
