@@ -1654,7 +1654,13 @@ def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
 
     provider.season_engine = True
     lives: list[dict] = []
-    for _ in range(2):
+    # Five arcs are sorted by a hash of the life's thread id, so two random lives
+    # draw the same order once in 120 runs (CI, 8 October 2026). That is the dice
+    # working, not the principle failing: when it happens, a third life is played
+    # and compared instead.
+    for life_index in range(3):
+        if life_index == 2 and lives[0]["arcs"] != lives[1]["arcs"]:
+            break
         start = len(provider.director_contexts())
         d = driver(assembled_client, db_session, cefr="A2.2")
         for day in range(1, 25):
@@ -1681,7 +1687,7 @@ def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
         )
         clock.advance(days=1)
 
-    first, second = lives
+    first, second = lives[0], lives[-1]
     assert first["arcs"] != second["arcs"], "two lives, two orders of the season's arcs"
     assert first["shapes"] != second["shapes"], "two lives, two hands of chapters"
     assert first["agendas"] != second["agendas"], "the cast's weeks move at different moments"

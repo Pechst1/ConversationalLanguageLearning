@@ -6,6 +6,7 @@ import os
 import sqlite3
 import threading
 from collections.abc import AsyncGenerator, Generator
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
@@ -407,6 +408,35 @@ def clear_cache() -> Generator[None, None, None]:
         yield
     finally:
         cache_backend.clear()
+
+
+@pytest.fixture()
+def pinned_clock() -> Generator[datetime, None, None]:
+    """WP-153 · every app clock at the next noon UTC, restored after.
+
+    A test that computes «today» or «due» from the wall clock, then asks the app,
+    flaked between 22:00 and 24:00 UTC (00:00–02:00 Berlin): the learner's Paris day
+    had turned while UTC's had not. Here the app reads ``datetime.now()`` /
+    ``date.today()`` through ``app.core.test_clock`` shifted to 12:00 UTC (time still
+    runs, so durations stay real); the test gets that moment back to compute with.
+    Request it *after* ``client``: FastAPI reads the route signatures' ``date`` types
+    when the app is built, and they must be the real class then.
+    """
+
+    from app.core import test_clock
+
+    real = datetime.now(UTC)
+    noon = real.replace(hour=12, minute=0, second=0, microsecond=0)
+    if noon < real:
+        # Forward, never back: python-jose checks a token's expiry against the real
+        # clock, so a token minted at an earlier «now» would already have expired.
+        noon += timedelta(days=1)
+    test_clock.install()
+    test_clock.set_offset(noon - real)
+    try:
+        yield noon
+    finally:
+        test_clock.uninstall()
 
 
 @pytest.fixture()
