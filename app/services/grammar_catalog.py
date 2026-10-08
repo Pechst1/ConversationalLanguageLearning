@@ -326,22 +326,28 @@ class FrenchCoreGrammarCatalog:
     def rows(self) -> list[dict[str, Any]]:
         return catalog_rows(self.version)
 
+    def _existing_concepts(self, external_ids: set[str]) -> dict[str, GrammarConcept]:
+        if not external_ids:
+            return {}
+        return {
+            concept.external_id: concept
+            for concept in self.db.query(GrammarConcept).filter(GrammarConcept.external_id.in_(external_ids)).all()
+        }
+
     def ensure_catalog(self, archive_legacy: bool = True) -> list[GrammarConcept]:
         rows = self.rows()
-        if self.db.get_bind().dialect.name == "postgresql":
-            # Two first requests on a fresh database seeded the catalogue at once and the
-            # second insert hit ix_grammar_concepts_external_id (E-2, 2026-10-08). The seed
-            # is serialised for the rest of this transaction: the second request waits,
-            # then finds the rows the first one wrote.
-            self.db.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": CATALOG_SEED_LOCK_KEY})
         concepts: list[GrammarConcept] = []
         active_external_ids = {row["external_id"] for row in rows}
-        existing = {
-            concept.external_id: concept
-            for concept in self.db.query(GrammarConcept)
-            .filter(GrammarConcept.external_id.in_(active_external_ids))
-            .all()
-        } if active_external_ids else {}
+        existing = self._existing_concepts(active_external_ids)
+        if len(existing) < len(active_external_ids) and self.db.get_bind().dialect.name == "postgresql":
+            # Two first requests on a fresh database seeded the catalogue at once and the
+            # second insert hit ix_grammar_concepts_external_id (E-2, 2026-10-08). Only a
+            # seed that has rows to insert takes the lock: the second request waits, then
+            # finds the rows the first one wrote. A catalogue that is already complete never
+            # locks, so day generations do not queue behind each other (the 7-day walk of
+            # 2026-10-08 lost day 3 to that queue).
+            self.db.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": CATALOG_SEED_LOCK_KEY})
+            existing = self._existing_concepts(active_external_ids)
         for row in rows:
             concept = existing.get(row["external_id"])
             if not concept:
